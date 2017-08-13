@@ -1,0 +1,17 @@
+{
+    "manifest_version": 2,
+
+    "name": "Scientific Calculator",
+	"short_name": "Calc",
+    "version": "1.0",
+	"description": "Awesome Scientific Calculator for Chrome",
+    "browser_action": {
+        "default_title": "Calc",
+		"default_icon": "icon.png",
+        "default_popup": "popup.html"
+    },
+	 "icons": {
+		"128": "icon.png"
+	 },
+     "content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'"
+ }
