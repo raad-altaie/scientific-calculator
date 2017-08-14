@@ -1,0 +1,208 @@
+@font-face {
+    font-family: Pixel;
+    src: url('../fonts/PixelPoint.ttf');
+}
+
+body,
+html {
+    margin: 0;
+    padding: 1px;
+    background: #fff;
+}
+
+a {
+    color: #acb4c1;
+    text-decoration: none;
+}
+
+a:hover {
+    color: #fff;
+}
+
+.logo {
+    margin-top: 10px;
+    margin-left: 15px;
+    margin-bottom: 5px;
+    float: left;
+    font-style: bold;
+    font-weight: 700;
+    font-family: 'Play', 'Russo One', sans-serif;
+    font-size: 1.4em;
+    color: #acb4c1;
+}
+
+.tag {
+    margin-top: 60px;
+    color: #ff7283;
+    text-align: center;
+    font-family: 'Orbitron', sans-serif;
+    font-style: bold;
+    font-size: 1.3em;
+}
+
+.v {
+    font-size: 0.6em;
+    margin-top: 20px;
+    margin-right: 20px;
+    color: #acb4c1;
+    float: right;
+    font-family: 'Play', 'Russo One', sans-serif;
+}
+
+.raad {
+    font-size: 0.7em;
+    margin-top: 9px;
+    margin-right: 25px;
+    color: #acb4c1;
+    float: right;
+    font-family: 'Play', 'Russo One', sans-serif;
+}
+
+.form-control {
+    text-align: center;
+}
+
+#display-box {
+    position: relative;
+    padding-right: 7px;
+    padding-top: 30px;
+    padding-bottom: 0px;
+    width: 350px;
+    height: 45px;
+    margin-top: 5px;
+    margin-bottom: 9px;
+    font: 30px bold;
+    font-family: "Pixel";
+    text-align: right;
+    border-radius: 5px;
+    background: #b6d1c2;
+    box-shadow: 0px 0px 40px #2b4753;
+    display: inline-block;
+}
+
+#calculator {
+    width: 385px;
+    height: 532px;
+    margin: auto;
+    border: 1px solid #000000;
+    background: #3a5872;
+    box-shadow: 0px 0px 40px #000;
+    border: 2px solid #4d5368;
+    border-top-left-radius: 1em;
+    border-top-right-radius: 1em;
+    border-bottom-left-radius: 1em;
+    border-bottom-right-radius: 1em;
+}
+
+.calc-top {
+    margin: 7px;
+    display: inline-block;
+}
+
+.calc-down {
+    margin: 11px;
+    display: inline-block;
+}
+
+.trigo-keys {
+    width: 40px;
+    height: 27px;
+    font-size: 0.9em;
+    color: #fff;
+    margin: 3px;
+    cursor: pointer;
+    background: #2b4753;
+    border: 1px solid #1a2f38;
+    border-radius: 5px;
+    display: inline-block;
+    font-family: 'Play', 'Russo One', sans-serif;
+    vertical-align: middle;
+}
+
+.trigo-active {
+    width: 40px;
+    height: 27px;
+    font-size: 0.9em;
+    color: #fff;
+    margin: 3px;
+    cursor: pointer;
+    background: #2b4753;
+    border: 1px solid #1a2f38;
+    border-radius: 5px;
+    display: inline-block;
+    font-family: 'Play', 'Russo One', sans-serif;
+    vertical-align: middle;
+}
+
+.btn:hover {
+    font-size: 1em;
+    color: #fff;
+    background: #2b4753;
+    border: 1px solid #1a2f38;
+    border-radius: 5px;
+}
+
+.btn:active {
+    font-size: 1em;
+    color: #fff;
+    background: #2b4753;
+    border: 1px solid #000;
+    border-radius: 5px;
+}
+
+.keys {
+    padding: 0px;
+    color: #fff;
+    font-family: 'Play', 'Russo One', sans-serif;
+    font-size: 1.7em;
+    cursor: pointer;
+    margin: 1px;
+    width: 63px;
+    height: 50px;
+    border: 2px solid #4d5368;
+    border-top-left-radius: .6em;
+    border-top-right-radius: .6em;
+    border-bottom-left-radius: 1em;
+    border-bottom-right-radius: 1em;
+    background: #8696a5;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.del-ac {
+    background: #c86e78;
+    width: 134px;
+}
+
+.equal {
+    width: 134px;
+    /*    background: #3f4661;*/
+}
+
+.calc-buttons .calc-ln {
+    font-size: 17px;
+    line-height: 2px;
+    overflow: hidden;
+    opacity: 0;
+}
+
+.calc-buttons:hover .calc-ln {
+    top: 29px;
+    opacity: 0.75;
+}
+
+.calc-buttons .calc-info:hover,
+.calc-buttons .calc-smaller:hover,
+.calc-buttons .calc-ln:hover {
+    opacity: 1;
+}
+
+.calc-rad {
+    position: absolute;
+    padding: 2px;
+    padding-left: 5px;
+    bottom: 2px;
+    font-size: 14px;
+    line-height: 14px;
+    outline-width: 5px;
+}
