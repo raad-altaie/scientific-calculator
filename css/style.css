@@ -43,7 +43,7 @@ a:hover {
 .v {
     font-size: 0.6em;
     margin-top: 20px;
-    margin-right: 20px;
+    margin-right: 18px;
     color: #acb4c1;
     float: right;
     font-family: 'Play', 'Russo One', sans-serif;
@@ -51,8 +51,8 @@ a:hover {
 
 .raad {
     font-size: 0.7em;
-    margin-top: 9px;
-    margin-right: 25px;
+    margin-top: 3px;
+    margin-right: 18px;
     color: #acb4c1;
     float: right;
     font-family: 'Play', 'Russo One', sans-serif;
@@ -81,8 +81,8 @@ a:hover {
 }
 
 #calculator {
-    width: 385px;
-    height: 532px;
+    width: 375px;
+    height: 517px;
     margin: auto;
     border: 1px solid #000000;
     background: #3a5872;
@@ -103,46 +103,46 @@ a:hover {
     margin: 11px;
     display: inline-block;
 }
-
+ 
 .trigo-keys {
     width: 40px;
     height: 27px;
-    font-size: 0.9em;
-    color: #fff;
-    margin: 3px;
-    cursor: pointer;
-    background: #2b4753;
-    border: 1px solid #1a2f38;
-    border-radius: 5px;
-    display: inline-block;
-    font-family: 'Play', 'Russo One', sans-serif;
-    vertical-align: middle;
-}
-
-.trigo-active {
-    width: 40px;
-    height: 27px;
-    font-size: 0.9em;
-    color: #fff;
-    margin: 3px;
-    cursor: pointer;
-    background: #2b4753;
-    border: 1px solid #1a2f38;
-    border-radius: 5px;
-    display: inline-block;
-    font-family: 'Play', 'Russo One', sans-serif;
-    vertical-align: middle;
-}
-
-.btn:hover {
     font-size: 1em;
     color: #fff;
+    margin: 3px;
+    cursor: pointer;
     background: #2b4753;
+    border: 1px solid #1a2f38;
+    border-radius: 5px;
+    display: inline-block;
+    font-family: 'Play', 'Russo One', sans-serif;
+    vertical-align: middle;
+}
+
+.calc-second {
+    background-color: #222;
+    width: 40px;
+    height: 27px;
+    font-size: 1em;
+    color: #d86672;
+    margin: 3px;
+    cursor: pointer;
+    background: #2b4753;
+    border: 1px solid #1a2f38;
+    border-radius: 5px;
+    display: inline-block;
+    font-family: 'Play', 'Russo One', sans-serif;
+    vertical-align: middle;
+}
+
+
+.trigo-keys:hover {
+    background: #345361;
     border: 1px solid #1a2f38;
     border-radius: 5px;
 }
 
-.btn:active {
+.trigo-keys:active {
     font-size: 1em;
     color: #fff;
     background: #2b4753;
@@ -154,12 +154,12 @@ a:hover {
     padding: 0px;
     color: #fff;
     font-family: 'Play', 'Russo One', sans-serif;
-    font-size: 1.7em;
+    font-size: 2em;
     cursor: pointer;
     margin: 1px;
-    width: 63px;
+    width: 62px;
     height: 50px;
-    border: 2px solid #4d5368;
+    border: 2px solid #697394;
     border-top-left-radius: .6em;
     border-top-right-radius: .6em;
     border-bottom-left-radius: 1em;
@@ -169,15 +169,61 @@ a:hover {
     vertical-align: middle;
 }
 
+.keys:hover {
+    color: #fff;
+    background: #91a4b5;
+    
+    
+}
+
+.keys:active {
+    color: #fff;
+    background: #758492;
+    border: 2px solid #3f4969;
+    
+}
+
+
+.keys2 {
+   background: #4a5f73; 
+    
+}
+
+.keys2:hover {
+    background: #52687d;
+    
+    
+}
+
+.keys2:active {
+    background: #425669;
+    border: 2px solid #3f4969;
+    
+}
+
 .del-ac {
     background: #c86e78;
     width: 134px;
+}
+.del-ac:hover {
+
+    background: #da7d88;
+    
+    
+}
+
+.del-ac:active {
+    color: #fff;
+    background: #bb626c;
+    border: 2px solid #3f4969;
+    
 }
 
 .equal {
     width: 134px;
     /*    background: #3f4661;*/
 }
+
 
 .calc-buttons .calc-ln {
     font-size: 17px;
@@ -206,3 +252,9 @@ a:hover {
     line-height: 14px;
     outline-width: 5px;
 }
+
+.calc-buttons{
+    display: none;
+    
+}
+

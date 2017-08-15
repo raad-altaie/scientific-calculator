@@ -1,17 +1,17 @@
 {
     "manifest_version": 2,
-
     "name": "Scientific Calculator",
-	"short_name": "Calculator",
-    "version": "1.1",
-	"description": "Awesome Scientific Calculator for Chrome",
+    "short_name": "Calculator",
+    "version": "1.2.1",
+    "description": "Awesome Scientific Calculator for Google Chrome",
+    "offline_enabled": true,
     "browser_action": {
-        "default_title": "Calc",
-		"default_icon": "icon.png",
+        "default_title": "Calculator",
+        "default_icon": "icon.png",
         "default_popup": "popup.html"
     },
-	 "icons": {
-		"128": "icon128.png"
-	 },
-     "content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'"
- }
+    "icons": {
+        "128": "icon128.png"
+    },
+    "content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'"
+}

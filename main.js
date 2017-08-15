@@ -1,16 +1,16 @@
 (function (window) {
     'use strict';
 
-    var calc = document.querySelector('.calc-main'),
+    var Calc = document.querySelector('.calc-main'),
         // display things
-        display = calc.querySelector('.calc-display span'),
-        radDeg = calc.querySelector('.calc-rad'),
-        smallerButton = calc.querySelector('.calc-smaller'),
-        hold = calc.querySelector('.calc-hold'),
-        lnButton = calc.querySelector('.calc-ln'),
-//        helpButton = calc.querySelector('.calc-info'),
-        secondKeySet = [].slice.call(calc.querySelector('.calc-left').children, 12, 20),
-        hiddenCopy = calc.querySelector('textarea'),
+        display = Calc.querySelector('.calc-display span'),
+        radDeg = Calc.querySelector('.calc-rad'),
+        smallerButton = Calc.querySelector('.calc-smaller'),
+        hold = Calc.querySelector('.calc-hold'),
+        lnButton = Calc.querySelector('.calc-ln'),
+        helpButton = Calc.querySelector('.calc-info'),
+        secondKeySet = [].slice.call(Calc.querySelector('.calc-left').children, 12, 20),
+        hiddenCopy = Calc.querySelector('textarea'),
 
         pressedKey,
         frozenKey, // active calculation keys
@@ -124,7 +124,7 @@
 
     // colloect all keys...
     for (var k = 2; k--;) {
-        for (var l = calc.children[k + 1], m = l.children, n = m.length; n--;) {
+        for (var l = Calc.children[k + 1], m = l.children, n = m.length; n--;) {
             keyBoard[l.children[n].textContent.replace(/\s*/g, '')] = l.children[n];
         }
     }
@@ -138,6 +138,40 @@
 
     calculator[0] = new Calculator();
 
+    // recover after reload or crash...
+    (function (localStorage) {
+        if (!localStorage || !localStorage['resBuffer']) {
+            return; // for the very first run or after fatal crash
+        }
+        bigger = localStorage['bigger'] ? eval(localStorage['bigger']) : true;
+        toggleCalc();
+        if (+localStorage['ln']) {
+            ln = localStorage['ln'];
+            switchGrouping();
+        }
+        try {
+            if (localStorage['secondActive'].match(/false|null/) ? false : true) {
+                keyDown(false, keyBoard['2nd']);
+                doKey('2nd', true);
+            }
+            if (eval(localStorage['deg'])) doKey('Deg', true);
+            if (localStorage['memory']) {
+                render(localStorage['memory']);
+                doKey('m+', true);
+            }
+            render(localStorage['resBuffer']);
+            var buffStrX = localStorage['buffStr'].split(',');
+            for (var n = 0, m = buffStrX.length; n < m; n++) {
+                if (buffStrX[n]) doKey(buffStrX[n], true);
+            }
+            render(localStorage['resBuffer']);
+            resBuffer = localStorage['resBuffer'];
+        } catch (e) {
+            for (var n = sav.length; n--;) {
+                localStorage.removeItem(sav[n]);
+            }
+        }
+    })(window.localStorage);
 
     // ---------------- event listeners keys ---------------- //
 
@@ -210,7 +244,7 @@
             keyDown(false, keyBoard['AC']);
             doKey(keyBoard['AC'].textContent, true);
         }
-        if (e.which === 12) {
+        if (e.which === 9) {
             toggleCalc(true);
             e.preventDefault();
         }
@@ -232,12 +266,11 @@
     document.body.addEventListener('copy', function (e) {
         hiddenCopy.textContent = resBuffer.replace(/\s/g, '');
         hiddenCopy.focus();
-        hiddenCopy.select();
     }, false);
 
     // ---------------- event listeners mouse --------------- //
 
-    calc.onmousedown = function (e) {
+    Calc.onmousedown = function (e) {
         keyDown(e);
         if (!pressedKey) return false;
         document.addEventListener('mouseout', keyUp, false);
@@ -271,6 +304,15 @@
         }
     }, false);
 
+    display.parentElement.addEventListener('dblclick', function () {
+        if (!helpButton.active) {
+            toggleCalc(true);
+        }
+    }, false);
+
+    helpButton.addEventListener('mouseover', function () {
+        toggleOptions(true);
+    }, false);
 
     // ------------------- event related functions ------------------ //
 
@@ -289,7 +331,7 @@
     }
 
     function getTargetKey(elm) {
-        while (elm !== calc && elm.parentNode && elm.parentNode.style &&
+        while (elm !== Calc && elm.parentNode && elm.parentNode.style &&
             !/calc-(?:left|right)/.test(elm.parentNode.className)) {
             elm = elm.parentNode;
         }
@@ -320,10 +362,23 @@
     }
 
     function toggleOptions(doIt) {
-//        helpButton.active = !!doIt;
+        helpButton.active = !!doIt;
     }
 
+    function toggleCalc(doIt) {
+        var cName = Calc.className;
 
+        if (doIt) {
+            bigger = !bigger;
+        }
+        localStorage['bigger'] = bigger;
+        Calc.className = bigger ?
+            cName.replace(' calc-small', '') :
+            cName + ' calc-small';
+
+        smallerButton.firstChild.data = bigger ? '>' : '<';
+        render(resBuffer);
+    }
 
     function switchGrouping(doIt) {
         if (doIt) {
@@ -335,11 +390,11 @@
     }
 
     function render(val, inp) {
-        var regx = /(\d+)(\d{100})/,
+        var regx = /(\d+)(\d{20})/,
             hasComma = val.match(/\./),
             tmp,
             valAbs = Math.abs(+val),
-//            fontSize = 45,
+            fontSize = 30,
             displayStyle = display.style,
             displayParentStyle = display.parentNode.style;
 
@@ -360,7 +415,7 @@
                     tmp[1] = tmp[2][0];
                 }
                 if (!inp || inp === '+/–') {
-                    tmp[1] = (((+('1.' + tmp[1])).toPrecision(bigger ? 16 : tmp[2][1] ? 7 : 9)) + '');
+                    tmp[1] = (((+('1.' + tmp[1])).toPrecision(bigger ? 9 : tmp[2][1] ? 7 : 9)) + '');
                     if (tmp[1] >= 2) {
                         tmp[0] = (+tmp[0] + 1) + '';
                     }
@@ -381,10 +436,12 @@
         }
         display.firstChild.data = tmp;
         // for common use: get values of pixels dynamically to stay free from design (...but outside this function)
-
-        while (display.offsetWidth > display.parentNode.offsetWidth - (bigger ? 40 : 30)) {
+        displayStyle.fontSize = '30px';
+        displayParentStyle.lineHeight = '20px';
+        
+        while (display.offsetWidth > display.parentNode.offsetWidth - (bigger ? 20 : 20)) {
             displayStyle.fontSize = (fontSize--) + 'px';
-            displayParentStyle.lineHeight = (fontSize + 18) + 'px'
+            
         }
     }
 
@@ -393,7 +450,7 @@
 
         if (text === '2nd') {
             secondActive = secondActive ? null : true;
-            key.className = secondActive ? 'trigo-keys' : 'trigo-active'; // !!!
+            key.className = secondActive ? 'calc-press calc-second' : 'trigo-keys'; // !!!
             for (var n = secondKeySet.length; n--;) {
                 secondKeySet[n].children[0].innerHTML = secondLayer[secondActive ? 1 : 0][n];
             }
@@ -591,17 +648,4 @@
 })(window);
 
 
-//var wrap = document.getElementById("wrapper");
-//var button = document.getElementById("smaller");
-//
-//
-//button.onclick = function() {
-//    if (wrap.className == "bigWrapper") {
-//        wrap.className = "smallWrapper";
-//
-//    } else {
-//        wrap.className = "bigWrapper";
-//    }
-//
-//
-//};
+
