@@ -10,13 +10,18 @@ html {
     background: #fff;
 }
 
-a {
-    color: #acb4c1;
-    text-decoration: none;
-}
-
-a:hover {
-    color: #fff;
+#calculator {
+    width: 376px;
+    height: 519px;
+    margin: auto;
+    border: 1px solid #000000;
+    background: #3a5872;
+    box-shadow: 0px 0px 40px #000;
+    border: 2px solid #4d5368;
+    border-top-left-radius: 1em;
+    border-top-right-radius: 1em;
+    border-bottom-left-radius: 1em;
+    border-bottom-right-radius: 1em;
 }
 
 .logo {
@@ -52,7 +57,7 @@ a:hover {
 .raad {
     font-size: 0.7em;
     margin-top: 3px;
-    margin-right: 18px;
+    margin-right: 22px;
     color: #acb4c1;
     float: right;
     font-family: 'Play', 'Russo One', sans-serif;
@@ -80,20 +85,6 @@ a:hover {
     display: inline-block;
 }
 
-#calculator {
-    width: 375px;
-    height: 517px;
-    margin: auto;
-    border: 1px solid #000000;
-    background: #3a5872;
-    box-shadow: 0px 0px 40px #000;
-    border: 2px solid #4d5368;
-    border-top-left-radius: 1em;
-    border-top-right-radius: 1em;
-    border-bottom-left-radius: 1em;
-    border-bottom-right-radius: 1em;
-}
-
 .calc-top {
     margin: 7px;
     display: inline-block;
@@ -103,7 +94,7 @@ a:hover {
     margin: 11px;
     display: inline-block;
 }
- 
+
 .trigo-keys {
     width: 40px;
     height: 27px;
@@ -134,7 +125,6 @@ a:hover {
     font-family: 'Play', 'Russo One', sans-serif;
     vertical-align: middle;
 }
-
 
 .trigo-keys:hover {
     background: #345361;
@@ -172,58 +162,46 @@ a:hover {
 .keys:hover {
     color: #fff;
     background: #91a4b5;
-    
-    
 }
 
 .keys:active {
     color: #fff;
     background: #758492;
     border: 2px solid #3f4969;
-    
 }
 
-
 .keys2 {
-   background: #4a5f73; 
-    
+    background: #4a5f73;
 }
 
 .keys2:hover {
     background: #52687d;
-    
-    
 }
 
 .keys2:active {
     background: #425669;
     border: 2px solid #3f4969;
-    
 }
 
 .del-ac {
     background: #c86e78;
     width: 134px;
 }
-.del-ac:hover {
 
+.del-ac:hover {
     background: #da7d88;
-    
-    
 }
 
 .del-ac:active {
     color: #fff;
     background: #bb626c;
     border: 2px solid #3f4969;
-    
 }
 
 .equal {
     width: 134px;
     /*    background: #3f4661;*/
 }
-
 
 .calc-buttons .calc-ln {
     font-size: 17px;
@@ -253,8 +231,6 @@ a:hover {
     outline-width: 5px;
 }
 
-.calc-buttons{
+.calc-buttons {
     display: none;
-    
 }
-

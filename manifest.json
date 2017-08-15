@@ -1,8 +1,9 @@
 {
     "manifest_version": 2,
     "name": "Scientific Calculator",
-    "short_name": "Calculator",
     "version": "1.2.1",
+    "short_name": "Calculator",
+    "author":"Raad Altaie",
     "description": "Awesome Scientific Calculator for Google Chrome",
     "offline_enabled": true,
     "browser_action": {
