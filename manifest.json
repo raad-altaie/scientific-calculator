@@ -3,7 +3,7 @@
     "name": "Scientific Calculator",
     "version": "1.2.1",
     "short_name": "Calculator",
-    "author":"Raad Altaie",
+    "author": "Raad Altaie",
     "description": "Awesome Scientific Calculator for Google Chrome",
     "offline_enabled": true,
     "browser_action": {
@@ -13,6 +13,17 @@
     },
     "icons": {
         "128": "icon128.png"
+    },
+    "commands": {
+        "_execute_browser_action": {
+            "suggested_key": {
+                "default": "Alt+C",
+                "windows": "Alt+C",
+                "mac": "Alt+C",
+                "chromeos": "Alt+C",
+                "linux": "Alt+C"
+            }
+        }
     },
     "content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'"
 }
