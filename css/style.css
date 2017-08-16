@@ -36,14 +36,6 @@ html {
     color: #acb4c1;
 }
 
-.tag {
-    margin-top: 60px;
-    color: #ff7283;
-    text-align: center;
-    font-family: 'Orbitron', sans-serif;
-    font-style: bold;
-    font-size: 1.3em;
-}
 
 .v {
     font-size: 0.6em;
@@ -203,24 +195,6 @@ html {
     /*    background: #3f4661;*/
 }
 
-.calc-buttons .calc-ln {
-    font-size: 17px;
-    line-height: 2px;
-    overflow: hidden;
-    opacity: 0;
-}
-
-.calc-buttons:hover .calc-ln {
-    top: 29px;
-    opacity: 0.75;
-}
-
-.calc-buttons .calc-info:hover,
-.calc-buttons .calc-smaller:hover,
-.calc-buttons .calc-ln:hover {
-    opacity: 1;
-}
-
 .calc-rad {
     position: absolute;
     padding: 2px;
@@ -233,4 +207,14 @@ html {
 
 .calc-buttons {
     display: none;
+}
+
+.calc-blank{
+    opacity: 0;
+    width: 0px;
+    height: 0px;
+    padding: 0px;
+    margin: 0px;
+    position: absolute;
+    z-index: -1;
 }

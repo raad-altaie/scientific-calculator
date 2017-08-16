@@ -11,7 +11,6 @@
         helpButton = Calc.querySelector('.calc-info'),
         secondKeySet = [].slice.call(Calc.querySelector('.calc-left').children, 12, 20),
         hiddenCopy = Calc.querySelector('textarea'),
-
         pressedKey,
         frozenKey, // active calculation keys
         secondActive = false, // 2nd key active?
@@ -120,7 +119,7 @@
 
     // ---------- INIT... ---------- //
 
-//    hiddenCopy.focus(); // for Chrome extention only
+    hiddenCopy.focus(); // for Chrome extention only
 
     // colloect all keys...
     for (var k = 2; k--;) {
@@ -266,6 +265,7 @@
     document.body.addEventListener('copy', function (e) {
         hiddenCopy.textContent = resBuffer.replace(/\s/g, '');
         hiddenCopy.focus();
+        hiddenCopy.select();
     }, false);
 
     // ---------------- event listeners mouse --------------- //
@@ -438,10 +438,10 @@
         // for common use: get values of pixels dynamically to stay free from design (...but outside this function)
         displayStyle.fontSize = '30px';
         displayParentStyle.lineHeight = '20px';
-        
+
         while (display.offsetWidth > display.parentNode.offsetWidth - (bigger ? 20 : 20)) {
             displayStyle.fontSize = (fontSize--) + 'px';
-            
+
         }
     }
 
@@ -646,6 +646,3 @@
         }
     }
 })(window);
-
-
-
