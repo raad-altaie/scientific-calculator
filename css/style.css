@@ -3,6 +3,11 @@
     src: url('../fonts/PixelPoint.ttf');
 }
 
+@font-face {
+    font-family: Play;
+    src: url('../fonts/Play-Regular.ttf');
+}
+
 body,
 html {
     margin: 0;
@@ -36,7 +41,6 @@ html {
     color: #acb4c1;
 }
 
-
 .v {
     font-size: 0.6em;
     margin-top: 20px;
@@ -62,10 +66,10 @@ html {
 #display-box {
     position: relative;
     padding-right: 7px;
-    padding-top: 30px;
+    padding-top: 25px;
     padding-bottom: 0px;
     width: 350px;
-    height: 45px;
+    height: 50px;
     margin-top: 5px;
     margin-bottom: 9px;
     font: 30px bold;
@@ -209,12 +213,12 @@ html {
     display: none;
 }
 
-.calc-blank{
+.calc-blank {
+    position: absolute;
+    z-index: -1;
     opacity: 0;
     width: 0px;
     height: 0px;
     padding: 0px;
     margin: 0px;
-    position: absolute;
-    z-index: -1;
 }

@@ -20,7 +20,7 @@
         deg = false, // Deg mode or Rad
         memory = 0,
         resBuffer = '0',
-        bigger = false, // app size
+        bigger = true, // app size
         ln = 0,
         buffStr = [],
         sav = ['secondActive', 'deg', 'memory', 'buffStr', 'resBuffer'],
@@ -437,7 +437,6 @@
         display.firstChild.data = tmp;
         // for common use: get values of pixels dynamically to stay free from design (...but outside this function)
         displayStyle.fontSize = '30px';
-        displayParentStyle.lineHeight = '20px';
 
         while (display.offsetWidth > display.parentNode.offsetWidth - (bigger ? 20 : 20)) {
             displayStyle.fontSize = (fontSize--) + 'px';
