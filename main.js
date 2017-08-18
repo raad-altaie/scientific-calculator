@@ -4,6 +4,7 @@
     var Calc = document.querySelector('.calc-main'),
         // display things
         display = Calc.querySelector('.calc-display span'),
+        notification = Calc.querySelector(".notification"),
         radDeg = Calc.querySelector('.calc-rad'),
         smallerButton = Calc.querySelector('.calc-smaller'),
         hold = Calc.querySelector('.calc-hold'),
@@ -260,13 +261,45 @@
         keyBoard['AC'].children[0].firstChild.data = 'C';
         if (frozenKey) freezeKey(frozenKey, true);
         e.preventDefault();
+        notification.innerHTML = 'Paste';
+        fade(notification);
+        notification.style.display = 'unset';
     }, false);
 
     document.body.addEventListener('copy', function (e) {
         hiddenCopy.textContent = resBuffer.replace(/\s/g, '');
         hiddenCopy.focus();
         hiddenCopy.select();
+        notification.innerHTML = 'Copy';
+        fade(notification);
+        notification.style.display = 'unset';
     }, false);
+
+
+    display.addEventListener("dblclick", function (e) {
+        hiddenCopy.textContent = resBuffer.replace(/\s/g, '');
+        hiddenCopy.focus();
+        hiddenCopy.select();
+        document.execCommand('copy');
+        notification.innerHTML = 'Copy';
+        fade(notification);
+        notification.style.display = 'unset';
+
+    }, false);
+
+
+    function fade(element) {
+        var op = 1; // initial opacity
+        var timer = setInterval(function () {
+            if (op <= 0.1) {
+                clearInterval(timer);
+                element.style.display = 'none';
+            }
+            element.style.opacity = op;
+            element.style.filter = 'alpha(opacity=' + op * 100 + ")";
+            op -= op * 0.1;
+        }, 50);
+    };
 
     // ---------------- event listeners mouse --------------- //
 
@@ -306,7 +339,7 @@
 
     display.parentElement.addEventListener('dblclick', function () {
         if (!helpButton.active) {
-            toggleCalc(true);
+            toggleCalc(false);
         }
     }, false);
 
