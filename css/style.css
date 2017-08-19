@@ -104,6 +104,19 @@ html {
     margin: 7px;
     display: inline-block;
 }
+.calc-left {
+    position: relative;
+}
+
+.sign {
+    position: absolute;
+    right: 14px;
+    bottom: 8px;
+    width: 25px;
+    font-size: 8px;
+    font-family: "Play";
+    color: #d86672;
+}
 
 .calc-down {
     margin: 11px;

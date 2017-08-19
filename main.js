@@ -1,8 +1,6 @@
 (function (window) {
     'use strict';
-
     var Calc = document.querySelector('.calc-main'),
-        // display things
         display = Calc.querySelector('.calc-display span'),
         notification = Calc.querySelector(".notification"),
         radDeg = Calc.querySelector('.calc-rad'),
@@ -21,7 +19,7 @@
         deg = false, // Deg mode or Rad
         memory = 0,
         resBuffer = '0',
-        bigger = true, // app size
+        bigger = true, // calc size
         ln = 0,
         buffStr = [],
         sav = ['secondActive', 'deg', 'memory', 'buffStr', 'resBuffer'],
@@ -390,7 +388,7 @@
 
     function saveState() {
         for (var n = sav.length; n--;) {
-            localStorage[sav[n]] = eval(sav[n]); // oooohhhh, outch...
+            localStorage[sav[n]] = eval(sav[n]);
         }
     }
 
@@ -672,9 +670,27 @@
                     render(Math.random() + '');
                     break;
                 default:
-                    // buffStr.pop();
+                    buffStr.pop();
                     break;
             }
         }
     }
+
+    // ---------------- add-on (sign of rad changer) ---------------- //
+
+    var button = document.getElementById("rad");
+
+    function signChanger() {
+        var sign = document.getElementsByClassName("sign")[0];
+
+        if (button.getElementsByTagName("div")[0].innerText == "Rad") {
+            sign.innerText = "2π";
+        } else if (button.getElementsByTagName("div")[0].innerText == "Deg") {
+            sign.innerText = "360º";
+        }
+    };
+    button.addEventListener("click", signChanger);
+    window.addEventListener("load", signChanger);
+
+
 })(window);
