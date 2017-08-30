@@ -676,7 +676,7 @@
         }
     }
 
-    // ---------------- add-on (sign of rad changer) ---------------- //
+    // ---------------- add-on ("rad" sign changer) ---------------- //
 
     var button = document.getElementById("rad");
 
