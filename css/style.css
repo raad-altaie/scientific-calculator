@@ -84,7 +84,7 @@ html {
 .notification {
     position: absolute;
     z-index: 1;
-    left: 48px;
+    left: 65px;
     top: 56px;
     font-size: 14px;
     font-family: "Pixel";
@@ -110,12 +110,13 @@ html {
 
 .sign {
     position: absolute;
-    right: 14px;
-    bottom: 8px;
-    width: 25px;
+    left: 39px;
+    bottom: 3px;
     font-size: 8px;
-    font-family: "Play";
-    color: #d86672;
+    font-family:inherit;
+    color: inherit;
+
+    
 }
 
 .calc-down {
@@ -136,6 +137,7 @@ html {
     display: inline-block;
     font-family: 'Play', 'Russo One', sans-serif;
     vertical-align: middle;
+
 }
 
 .calc-second {
@@ -243,4 +245,5 @@ html {
     height: 0px;
     padding: 0px;
     margin: 0px;
+    
 }

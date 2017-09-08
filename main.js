@@ -196,8 +196,8 @@
                 }
             hold.textContent = '';
         }
-        if ((key === 'h' || key === 'H') && !holdKey) hold.textContent = 'hold';
-        if (key === 'G' && holdKey) switchGrouping(true);
+        //        if ((key === 'h' || key === 'H') && !holdKey) hold.textContent = 'hold';
+        //        if (key === 'G' && holdKey) switchGrouping(true);
         if (!keyBoard[key]) return false;
         if ((key.match(/-1$|log2$|2x$/) && !secondActive) || (key.match(/h$|n$|cos$|ex$/) && secondActive)) {
             keyDown(false, keyBoard['2nd']);
@@ -242,10 +242,7 @@
             keyDown(false, keyBoard['AC']);
             doKey(keyBoard['AC'].textContent, true);
         }
-        if (e.which === 9) {
-            toggleCalc(true);
-            e.preventDefault();
-        }
+
     }, false);
 
     document.addEventListener('keyup', function () {
@@ -316,7 +313,7 @@
             key = keyBoard[keyText];
 
         if (event.target === smallerButton) {
-            toggleCalc(true);
+            toggleCalc(false);
         }
         if (event.target === lnButton) {
             switchGrouping(true);
@@ -676,21 +673,21 @@
         }
     }
 
-    // ---------------- add-on ("rad" sign changer) ---------------- //
+    // ---------------- add-on (sign (Deg/rad) changer) ---------------- //
 
     var button = document.getElementById("rad");
+    var sign = document.getElementsByClassName("sign")[0];
 
     function signChanger() {
-        var sign = document.getElementsByClassName("sign")[0];
+
 
         if (button.getElementsByTagName("div")[0].innerText == "Rad") {
-            sign.innerText = "2π";
-        } else if (button.getElementsByTagName("div")[0].innerText == "Deg") {
             sign.innerText = "360º";
+        } else if (button.getElementsByTagName("div")[0].innerText == "Deg") {
+            sign.innerText = "2π";
         }
     };
     button.addEventListener("click", signChanger);
     window.addEventListener("load", signChanger);
-
 
 })(window);
