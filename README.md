@@ -6,3 +6,10 @@
 
 
 # <p align="left"> <b>[check it out](https://goo.gl/dvrvUY) </b></p>
+
+
+# License
+
+MIT Licensed
+
+Copyright (c) 2017 Raad Altaie
