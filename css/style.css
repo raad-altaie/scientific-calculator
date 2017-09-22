@@ -39,6 +39,7 @@ html {
     font-family: 'Play', 'Russo One', sans-serif;
     font-size: 1.4em;
     color: #acb4c1;
+    -webkit-user-select: none;
 }
 
 .v {
@@ -48,6 +49,7 @@ html {
     color: #acb4c1;
     float: right;
     font-family: 'Play', 'Russo One', sans-serif;
+    -webkit-user-select: none;
 }
 
 .raad {
@@ -104,6 +106,7 @@ html {
     margin: 7px;
     display: inline-block;
 }
+
 .calc-left {
     position: relative;
 }
@@ -111,12 +114,10 @@ html {
 .sign {
     position: absolute;
     left: 39px;
-    bottom: 3px;
+    bottom: 4px;
     font-size: 8px;
-    font-family:inherit;
+    font-family: inherit;
     color: inherit;
-
-    
 }
 
 .calc-down {
@@ -137,7 +138,6 @@ html {
     display: inline-block;
     font-family: 'Play', 'Russo One', sans-serif;
     vertical-align: middle;
-
 }
 
 .calc-second {
@@ -245,5 +245,4 @@ html {
     height: 0px;
     padding: 0px;
     margin: 0px;
-    
 }
