@@ -241,6 +241,9 @@
         if (e.which === 46) {
             keyDown(false, keyBoard['AC']);
             doKey(keyBoard['AC'].textContent, true);
+	    buffStr.pop(); // Raad added delete function to clear the display 
+            doKey('C', true);
+            render('0');
         }
 
     }, false);
