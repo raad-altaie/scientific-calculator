@@ -25,12 +25,12 @@
         sav = ['secondActive', 'deg', 'memory', 'buffStr', 'resBuffer'],
         keyBoard = {},
         secondLayer = [
-			['sin', 'cos', 'tan', 'ln', 'sinh', 'cosh', 'tanh', 'e<sup>x</sup>'],
-			[
-				'sin<sup>-1</sup>', 'cos<sup>-1</sup>', 'tan<sup>-1</sup>', 'log<sub>2</sub>',
-				'sinh<sup>-1</sup>', 'cosh<sup>-1</sup>', 'tanh<sup>-1</sup>', '2<sup>x</sup>'
-			]
-		],
+            ['sin', 'cos', 'tan', 'ln', 'sinh', 'cosh', 'tanh', 'e<sup>x</sup>'],
+            [
+                'sin<sup>-1</sup>', 'cos<sup>-1</sup>', 'tan<sup>-1</sup>', 'log<sub>2</sub>',
+                'sinh<sup>-1</sup>', 'cosh<sup>-1</sup>', 'tanh<sup>-1</sup>', '2<sup>x</sup>'
+            ]
+        ],
         Calculator = function () { // for every '(' a new instance
             this.stack = [],
                 this.num = 0,
@@ -67,7 +67,7 @@
         if (key === '=' && !this.stack[0] && this.curr && this.buff[1]) { // repeating '='
             return (this.buff[1] === 'yx' ? Math.pow(val, this.buff[0]) : this.buff[1] === 'x√y' ?
                 Math.pow(val, 1 / this.buff[0]) : [1] === 'EE' ? val * Math.pow(10, this.buff[0]) :
-                eval('(' + val + ')' + this.buff[1] + '(' + this.buff[0] + ')')) + '';
+                    eval('(' + val + ')' + this.buff[1] + '(' + this.buff[0] + ')')) + '';
         }
         if (!this.stack[0] && key !== '=') { // first filling
             this.buff[0] = false;
@@ -84,12 +84,12 @@
         }
         if (rank[key] <= rank[this.stack[this.num - 1][1]]) {
             this.stack[this.num - 1] = [
-				this.stack[this.num - 1][1] === 'yx' ? Math.pow(this.stack[this.num - 1][0], val) :
-				this.stack[this.num - 1][1] === 'x√y' ? Math.pow(this.stack[this.num - 1][0], 1 / val) :
-				this.stack[this.num - 1][1] === 'EE' ? this.stack[this.num - 1][0] * Math.pow(10, val) :
-					eval('(' + this.stack[this.num - 1][0] + ')' + this.stack[this.num - 1][1] + '(' + val + ')'),
-				key
-			];
+                this.stack[this.num - 1][1] === 'yx' ? Math.pow(this.stack[this.num - 1][0], val) :
+                    this.stack[this.num - 1][1] === 'x√y' ? Math.pow(this.stack[this.num - 1][0], 1 / val) :
+                        this.stack[this.num - 1][1] === 'EE' ? this.stack[this.num - 1][0] * Math.pow(10, val) :
+                            eval('(' + this.stack[this.num - 1][0] + ')' + this.stack[this.num - 1][1] + '(' + val + ')'),
+                key
+            ];
         }
         if (rank[key] > rank[this.stack[this.num - 1][1]]) {
             this.stack[this.num++] = [val, key];
@@ -196,8 +196,8 @@
                 }
             hold.textContent = '';
         }
-        //        if ((key === 'h' || key === 'H') && !holdKey) hold.textContent = 'hold';
-        //        if (key === 'G' && holdKey) switchGrouping(true);
+        if ((key === 'h' || key === 'H') && !holdKey) hold.textContent = 'hold';
+        if (key === 'G' && holdKey) switchGrouping(true);
         if (!keyBoard[key]) return false;
         if ((key.match(/-1$|log2$|2x$/) && !secondActive) || (key.match(/h$|n$|cos$|ex$/) && secondActive)) {
             keyDown(false, keyBoard['2nd']);
@@ -238,7 +238,7 @@
         if (e.which === 220) {
             keyDown(false, keyBoard['xy']);
         }
-        if (e.which === 46) {
+        if (e.which === 46 || (e.keyCode == 8 && e.shiftKey)) {
             keyDown(false, keyBoard['AC']);
             doKey(keyBoard['AC'].textContent, true);
             buffStr.pop(); // Raad added delete function from Keyborad
@@ -457,13 +457,13 @@
                 tmp[0] = tmp[0].replace(regx, '$1' + ' ' + '$2');
             }
             tmp = tmp[0] + ((tmp[1] || hasComma) ? '.' + tmp[1] : '').
-            replace('.undefined', '').
-            replace(inp ? '' : /\.$/, '') + (tmp[2] && tmp[2][1] ? 'e' + tmp[2][1] : '');
+                replace('.undefined', '').
+                replace(inp ? '' : /\.$/, '') + (tmp[2] && tmp[2][1] ? 'e' + tmp[2][1] : '');
         }
         if (ln) {
             tmp = tmp.replace(/\./g, '#').
-            replace(/\s/g, ln === 1 ? ' ' : ln === 2 ? ',' : '.').
-            replace(/#/g, ln === 2 ? '.' : ',');
+                replace(/\s/g, ln === 1 ? ' ' : ln === 2 ? ',' : '.').
+                replace(/#/g, ln === 2 ? '.' : ',');
         }
         display.firstChild.data = tmp;
         // for common use: get values of pixels dynamically to stay free from design (...but outside this function)
@@ -527,21 +527,21 @@
         if (!key.match(/2nd|Deg|Rad|m/)) { // +/- issue
             buffStr.push(key);
             if ((buffStr[buffStr.length - 2] === '=' && key !== '=' &&
-                    calculator[brackets].curr) || key === 'AC') {
+                calculator[brackets].curr) || key === 'AC') {
                 buffStr = [key];
             }
         }
         lastKey = buffStr[buffStr.length - 2];
         if (key.match(/^[\d|\.]$/) || key === '+/–') {
             if (calculator[brackets].curr && key !== '+/–' || (key === '+/–' &&
-                    lastKey && lastKey.match(/^[+|–|÷|×|yx|x√y|E|^C]+$/))) {
+                lastKey && lastKey.match(/^[+|–|÷|×|yx|x√y|E|^C]+$/))) {
                 dispVal = '0';
                 calculator[brackets].curr = false;
             }
             if ((Math.abs(+(dispVal + key)) > (bigger ? 1e15 : 1e9) ||
-                    dispVal.replace(/^-/, '').length > 15 ||
-                    (dispVal.replace('-', '').replace(/\./g, '').length > (bigger ? 14 : 8)) ||
-                    (dispVal.match(/\.|\e\+/) && key === '.')) && key !== '+/–') {
+                dispVal.replace(/^-/, '').length > 15 ||
+                (dispVal.replace('-', '').replace(/\./g, '').length > (bigger ? 14 : 8)) ||
+                (dispVal.match(/\.|\e\+/) && key === '.')) && key !== '+/–') {
                 buffStr.pop();
                 return;
             } else if (key === '+/–') {

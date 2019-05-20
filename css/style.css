@@ -68,10 +68,10 @@ html {
 #display-box {
     position: relative;
     padding-right: 7px;
-    padding-top: 25px;
+    padding-top: 22px;
     padding-bottom: 0px;
     width: 350px;
-    height: 50px;
+    height: 53px;
     margin-top: 5px;
     margin-bottom: 9px;
     font: 30px bold;
@@ -87,8 +87,8 @@ html {
     position: absolute;
     z-index: 1;
     left: 65px;
-    top: 56px;
-    font-size: 14px;
+    top: 58px;
+    font-size: 12px;
     font-family: "Pixel";
 }
 
@@ -100,6 +100,15 @@ html {
     font-size: 14px;
     line-height: 14px;
     outline-width: 5px;
+}
+
+.calc-hold{
+    position: absolute;
+    z-index: 1;
+    right: 8px;
+    top: 58px;
+    font-size: 12px;
+    font-family: "Pixel";
 }
 
 .calc-top {
@@ -124,6 +133,8 @@ html {
     margin: 11px;
     display: inline-block;
 }
+
+
 
 .trigo-keys {
     width: 40px;
@@ -245,4 +256,8 @@ html {
     height: 0px;
     padding: 0px;
     margin: 0px;
+}
+
+.calc-active{
+    box-shadow: 0px 0px 3px #91a4b5;
 }

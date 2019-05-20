@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" type="text/css" href="css/options.css">
+    <title>Scientific Calculator </title>
+</head>
+
+<body>
+    <div class="wrapper">
+
+        <div class="logo">Scientific Calculator <span class="v">v 1.5</span></div>
+
+        <div class="features">
+            <h2 class="logo title">Features</h2>
+            <ul>
+                <li>Light, super fast and it works offline.</li>
+                <li>Click away calculator (Alt+C) is shortcut as well.</li>
+                <li>Memorizes not only the display if turned off/on but also all other states.
+                    It's even possible to continue a calculation sequence after turning it off/on.</li>
+                <li> Full Keyboard support: See "Using the Calculator" below.</a></li>
+                <li>Copy/Paste from/to display with Ctrl+C and Ctrl+V.</li>
+                <li>Dynamic font-size in display to keep numbers as readable as possible.</li>
+                <li>Real sci-calc-style calculations, so 1+2*3=7 (... not 9 like with others),<br>
+                    and 1*(2+3)=5=25 (... not 8 like with some other calculators).</li>
+                <li>You can theoretically use an unlimited amount of parentheses.</li>
+                <li>No need to close parentheses if equation sign follows anyhow.</li>
+                <li>It requires no permissions to read any data on Google Chrome.</li>
+            </ul>
+
+
+        </div>
+
+        <div class="features">
+            <h2 class="logo title">Using the Calculator</h2>
+            <div>
+                <p>Click on numbers and functions in Calculator just as you would with a standard calculator.<br />
+                    When you click the add, subtract, multiply, or divide button (in scientific mode also:
+                    y<sup>x</sup>, <sup>x</sup>&radic;y, EE and the opened parenthesis), a white shadow appears around
+                    the button to let you know the operation to be carried out. The ring around the opened parenthesis
+                    will stay until all parentheses expressions are closed.</p>
+                <p>This calculator uses an algebraic method of entry that allows you to enter mathematical sequences in
+                    the same order that they are algebraically stated (PEMDAS / AOS™).<br>
+                    PEMDAS: "Parentheses, Exponents, Multiplication or Division, and Addition or Subtraction".
+                    Multiplication and division have the same ranking. Addition and subtraction as well.</p>
+               
+
+
+                <h2 class="logo title">Keyboard support</h2>
+                <p>There is full keyboard support for each button on the calculator.</p>
+                <ul>
+                    <li>The numbers and + – × ÷ , . = keys can also be input on number block.</li>
+                    <li>See below the keyboard shortcuts of each calculator button in [brackets].</li>
+                    <li>Use the [Backspace] key to correct the last, single input number, point or +/- sign.</li>
+                    <li>All [ENTER] keys represent the '=' button.</li>
+                    <li>Hold key: [h, s] means: press h or H and you'll see a little 'hold' in the right bottom corner
+                        of the display.<br>
+                        This makes the followed key function different: [s] = sin, but [h, s] = sinh, etc.</li>
+                    <li>Copy/Paste from/to display with Ctrl+C and Ctrl+V.</li>
+
+                </ul>
+
+            </div>
+        </div>
+        <div class="calc-main">
+            <h2 class="logo title">Standard Functions </h2>
+            <div class="info">
+                <div class="calc-brown keys del-ac">
+                    C
+                </div><span class="des">[Del] Click to clear the displayed number. Removes an incorrect entry/number
+                    from the display when pressed before any function or operation key is pressed.</span>
+            </div>
+
+            <div class="info">
+                <div class="calc-brown keys del-ac">
+                    AC
+                </div><span class="des">[Del or Shift+Backspace] Click to clear the displayed number and the constant
+                    and pending
+                    operations.</span>
+            </div>
+
+            <div class="info">
+                <div class="calc-down equal keys calc-orange calc-eq calc-f17 keys2">=</div><span class="des">[ENTER]
+                    Finishes any function or operation and displays the result.<br>
+                    If there are any
+                    unfinished parentheses expressions before this key is clicked or hit,<br>
+                    they get finished automaticaly. 2*(2+3*(2+4))=40 is the same as typing 2*(2+3*(2+4=40.</span>
+            </div>
+
+            <div class="info">
+                <div class="calc-brown calc-f21 keys keys2">
+                    &times;
+                </div><span class="des">[*] Multiply a value.</span>
+            </div>
+
+
+            <div class="info">
+                <div class="calc-brown calc-f19 keys keys2">
+                    &divide;
+                </div><span class="des">[/] Divide a value.</span>
+            </div>
+
+
+            <div class="info">
+                <div class="calc-brown calc-f18 keys keys2">
+                    &#8211;
+                </div><span class="des">[-] Subtract a value.</span>
+            </div>
+
+
+            <div class="info">
+                <div class="calc-brown calc-f18 keys keys2 ">
+                    +
+                </div><span class="des">[+] Add a value.</span>
+            </div>
+
+
+            <div class="info">
+                <div class="calc-brown keys  ">
+                    +/&#8211;
+                </div><span class="des">[#] Changes the algebraic sign.</span>
+            </div>
+
+        </div>
+
+        <div class="calc-sci">
+            <h2 class="logo title">Scientific Functions </h2>
+            <div class="info">
+                <div class="trigo-keys">
+                    2nd
+                </div> <span class="des">
+                    [Space] Changes the trigonometric buttons (sin, cos, tan, sinh, cosh, and tanh)<br>
+                    to their inverse functions (sin<sup>-1</sup>, cos<sup>-1</sup>, tan<sup>-1</sup>,
+                    sinh<sup>-1</sup>,
+                    cosh<sup>-1</sup>, and tanh<sup>-1</sup>). It also changes ln to log<sub>2</sub>,
+                    and e<sup>x</sup> to 2<sup>x</sup>. Click 2nd again to return the buttons to their original
+                    functions.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    (
+                </div><span class="des">
+                    [(] Opens a parenthetical expression. Expressions can be nested. Clicking on it lets a white
+                    ring
+                    appear around the button to let you know that a parenthetical expresion is still active (until
+                    all
+                    expressions are closed with the closeing parenthesis or the equation sign).</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    )
+                </div><span class="des">[)] Closes a parenthetical expression. The white ring around the ( parenthesis
+                    key
+                    will stay until all
+                    expressions are closed with this key or after clicking the equation sign.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    %
+                </div><span class="des">[%] Calculates percentages, adds markups, and subtracts discounts. To
+                    calculate
+                    a percentage, use it with the +, –, × or ÷ keys. For example, to calculate 8% of 500, enter 500
+                    x 8
+                    % (no equation key (=)) which returns 40. To add a markup or subtract a discount, additionaly
+                    use
+                    the equation (=) key. For example, to compute the total cost of a $500 item with an 8% sales
+                    tax,
+                    enter 500 + 8 % = which returns 540.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    1/x
+                </div><span class="des"> [\ or h, 1] Returns the reciprocal of a value in decimal format.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    x<sup>2</sup>
+                </div><span class="des"> [h, 2] Squares a value.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    x<sup>3</sup>
+                </div><span class="des"> [h, 3] Cubes a value.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    y<sup>x</sup>
+                </div><span class="des">
+                    [^ or ' or &quot;] Click between values to raise the first value to the power of the second
+                    value.<br>
+                    For example, to compute 3<sup>4</sup>, enter 3 y<sup>x</sup> 4 = which returns 81.</span>
+            </div>
+
+
+            <div class="info">
+                <div class="trigo-keys">
+                    x!
+                </div><span class="des">[x] Calculates the factorial of a value (only integers).</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    &radic;
+                </div><span class="des">[h, r] Calculates the square root of a value.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    <div class="calc-radxy">
+                        <sup>x</sup><em>&radic;</em><span>y</span>
+                    </div>
+                </div><span class="des">[r] Use between values to calculate the x root of y. For example to compute
+                    <sup>4</sup>&radic;81,<br>
+                    enter 81 <sup>x</sup>&radic;y 4 = which returns 3.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    log
+                </div><span class="des">[Shift+L] Returns the log base 10 of a value.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    sin
+                </div><span class="des">[s] Calculates the sine of a value.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    sin<sup>-1</sup>
+                </div><span class="des">[Shift+S] Calculates the arc sine of a value. (Available when the 2nd button
+                    is
+                    clicked).</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    cos
+                </div><span class="des">[c] Calculates the cosine of a value.</span>
+            </div>
+
+
+            <div class="info">
+                <div class="trigo-keys">
+                    cos<sup>-1</sup>
+                </div><span class="des">[Shift+C] Calculates the arc cosine of a value. (Available when the 2nd
+                    button
+                    is clicked).</span>
+            </div>
+
+
+            <div class="info">
+                <div class="trigo-keys">
+                    tan
+                </div><span class="des">[t] Calculates the tangent of a value.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    tan<sup>-1</sup>
+                </div><span class="des">[Shift+T] Calculates the arc tangent of a value. (Available when the 2nd
+                    button
+                    is clicked).</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    ln
+                </div><span class="des">[l] Calculates the natural log of a value.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    log<sub>2</sub>
+                </div><span class="des">[h, l] Calculates the log base 2. (Available when the 2nd button is
+                    clicked).</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    sinh
+                </div><span class="des">[h, s] Calculates the hyperbolic sine of a value.</span>
+            </div>
+
+
+            <div class="info">
+                <div class="trigo-keys">
+                    sinh <sup>-1</sup>
+                </div><span class="des">[h, Shift+S] Calculates the inverse hyperbolic sine of a value. (Available
+                    when
+                    the 2nd button is clicked).</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    cosh
+                </div><span class="des">[h, c] Calculates the hyperbolic cosine of a value.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    cosh<sup>-1</sup>
+                </div><span class="des">[h, Shift+C] Calculates the inverse hyperbolic cosine of a value. (Available
+                    when the 2nd button is clicked).</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    tanh
+                </div><span class="des">[h, t] Calculates the hyperbolic tangent of a value.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    tanh<sup>-1</sup>
+                </div><span class="des">[h, Shift+T] Calculates the inverse hyperbolic tangent of a value.
+                    (Available
+                    when the 2nd button is clicked).</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    e<sup>x</sup>
+                </div><span class="des">[e] Click after entering a value to raise the constant 'e'
+                    (2.718281828459045…)
+                    to the power of that value.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    2<sup>x</sup>
+                </div><span class="des">[Shift+X or h, e] Calculates 2 to the power of the displayed value. For
+                    example,
+                    10 2<sup>x</sup> = 1024. (Available when the 2nd button is clicked).</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    &pi;
+                </div><span class="des">[p] Enters the value of PI or &pi; (3.141592653589793…).</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    EE
+                </div><span class="des">[Shift+E] An operator that multiplies the currently displayed value by 10 to
+                    the
+                    power of the next value you enter.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    Rand
+                </div><span class="des">[h, n or h, d] Returns a random number between 0 and 1.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    mc
+                </div><span class="des">[v] Click to clear the memory.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    m+
+                </div><span class="des">[b] Click to add the displayed number to the number in memory. If no number
+                    is
+                    in memory, click to store the displayed number in memory.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    m-
+                </div><span class="des">[n] Click to subtract the displayed number from the number in memory. If no
+                    number is in memory, click to store the displayed number as a subtraction of zero in
+                    memory.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    mr
+                </div><span class="des">[m] Click to replace the displayed number with the number in memory.<br>
+                    If the button has a white ring around it, there is a number stored in memory. The white ring
+                    around
+                    the button also disappears if the stored number calculates zero.</span>
+            </div>
+
+            <div class="info">
+                <div id="rad" class="trigo-keys">
+                    Deg
+                </div><span class="des">[d or °] Changes the mode to express trigonometric functions in
+                    degrees.</span>
+            </div>
+            <div class="info">
+                <div id="rad" class="trigo-keys">
+                    Rad
+                </div><span class="des">[d or °] Changes the mode to express trigonometric functions in
+                    radians.</span>
+            </div>
+
+        </div>
+        <div class="features">
+            <h2 class="logo title">About Precision</h2>
+            <p>This calculator operates with a precision of (only) 15 digits after the decimal point. This is due to a
+                'problem' with how JavaScript handles floating point numbers.<br>
+                This isn't actually a Javascript feature but a feature of the way the IEEE define how floating point
+                numbers are stored in memory. Any language using this definition suffers from this 'feature', for
+                instance C does as well and since JavaScript is often implemented in C so does JavaScript.</p>
+            <p>The problem is that Javascript is using 32 bits of data which have 4294967296 different combinations to
+                hold any value in the range 1.7976931348623158e+308 to 2.2250738585072014e–308.<br>
+                It does this by using a smaller presision value and using some of the bits as a exponent (this can also
+                be done in 16 bits with a smaller range and less presision) which results in it being able to
+                approximate any value in the range but not exactly represent them all (because in real number terms the
+                are an infinaite number of values between any 2 given values).<br>
+                As part of your calculcation clearly the internal representation of the value is going outside the
+                available presision and you are ending up with an approximation to the value instead of an exact value.
+            </p>
+        </div>
+
+    </div>
+
+    <div class="footer"><p>©
+
+            <a href="https://raad.dev" target="blank"> raad.dev</a> All rights reserved.</p>
+    </div>
+
+
+<script src="js/options.js"></script>
+
+</body>
+
+</html>
