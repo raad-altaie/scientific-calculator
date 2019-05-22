@@ -465,11 +465,21 @@
         }
         display.firstChild.data = tmp;
         // for common use: get values of pixels dynamically to stay free from design (...but outside this function)
-        displayStyle.fontSize = '30px';
 
-        while (display.offsetWidth > display.parentNode.offsetWidth - (bigger ? 20 : 20)) {
-            displayStyle.fontSize = (fontSize--) + 'px';
+        // displayStyle.fontSize = '30px';
 
+        // while (display.offsetWidth > display.parentNode.offsetWidth - (bigger ? 20 : 20)) {
+        //     displayStyle.fontSize = (fontSize--) + 'px';
+        // }
+
+        // fixing the screen box size issue 5/21/2019
+        var screenDigitSize = document.getElementById("box").innerHTML.length;
+        if (screenDigitSize > 18) {
+            displayStyle.fontSize = '23px';
+        } else if (screenDigitSize > 15) {
+            displayStyle.fontSize = '26px';
+        }else {
+            displayStyle.fontSize = '29px';
         }
     }
 
