@@ -118,9 +118,7 @@
 
     // ---------- INIT... ---------- //
 
-    hiddenCopy.focus(); // for Chrome extention only
-
-    // colloect all keys...
+    // collect all keys...
     for (var k = 2; k--;) {
         for (var l = Calc.children[k + 1], m = l.children, n = m.length; n--;) {
             keyBoard[l.children[n].textContent.replace(/\s*/g, '')] = l.children[n];

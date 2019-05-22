@@ -9,7 +9,7 @@
 }
 
 html, body { 
-    background: #355368;
+    background: #39576f;
     margin: 0;
     -webkit-user-select: none;
     }
@@ -67,14 +67,14 @@ html, body {
     font-style: bold;
     font-weight: 700;
     font-family: 'Play', 'Russo One', sans-serif;
-    font-size: 3em;
+    font-size: 2.7em;
     color: #fff;
     -webkit-user-select: none;
 }
 
 .title{
     color:#acb4c1 ;
-    font-size: 2em;
+    font-size: 22px;
     text-align: center;
     margin: 2em 0;
 }
@@ -172,7 +172,6 @@ html, body {
 
 .equal {
     width: 62px;
-    /*    background: #3f4661;*/
 }
 
 .calc-buttons {
@@ -199,11 +198,11 @@ html, body {
 .footer{
     text-align: center;
     width:800px;
-    margin:3em auto;
-    color: #fff
+    margin:2.5em auto;
+    color: #acb4c1;
 }
 
 .footer a{
-    font-size: 1.1em;
-    color: #fff
+    color: #fff;
+    text-decoration: none;
 }
