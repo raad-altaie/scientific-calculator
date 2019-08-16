@@ -12,4 +12,4 @@
 
 MIT License
 
-Copyright (c) 2017 Raad Altaie
+Copyright (c) Raad Altaie
