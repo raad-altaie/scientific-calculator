@@ -446,7 +446,7 @@
                 if (!inp || inp === '+/–') {
                     tmp[1] = (((+('1.' + tmp[1])).toPrecision(bigger ? 9 : tmp[2][1] ? 7 : 9)) + '');
                     if (tmp[1] >= 2) {
-                        tmp[0] = (+tmp[0] + 1) + '';
+                        tmp[0] = (+tmp[0] + (+val >= 0) ? 1 : -1) + '';
                     }
                     tmp[1] = tmp[1].substr(2).replace(/0+$/, '');
                 }
