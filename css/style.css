@@ -83,6 +83,15 @@ html {
     display: inline-block;
 }
 
+.calc-log {
+    position: absolute;
+    z-index: 1;
+    left: 10px;
+    top: 5px;
+    font-size: 12px;
+    font-family: "Pixel";
+}
+
 .notification {
     position: absolute;
     z-index: 1;
@@ -226,7 +235,7 @@ html {
 
 .del-ac {
     background: #c86e78;
-    width: 134px;
+    /* width: 134px; */
 }
 
 .del-ac:hover {

@@ -2,6 +2,7 @@
     'use strict';
     var Calc = document.querySelector('.calc-main'),
         display = Calc.querySelector('.calc-display span'),
+        logline = Calc.querySelector('.calc-log'),
         notification = Calc.querySelector(".notification"),
         radDeg = Calc.querySelector('.calc-rad'),
         smallerButton = Calc.querySelector('.calc-smaller'),
@@ -213,21 +214,22 @@
         if (e.which === 8 && calculator[brackets].curr !== true &&
             calculator[brackets].curr !== 'funk' && str !== '0') {
             e.preventDefault();
+            backButton();
             while (buffStr.length && !keyBoard[buffStr[buffStr.length - 1]]) { // bull shit key(s)
-                buffStr.pop();
+                buffStr.pop(); renderHistory("back");
             }
             if (buffStr[buffStr.length - 1] === '+/–') {
                 doKey('+/–', true);
-                buffStr.pop();
+                buffStr.pop(); renderHistory("back");
             } // +/-
             else if (resBuffer.match(/\-\d$/) || resBuffer.match(/^\d$/)) {
-                buffStr.pop();
+                buffStr.pop(); renderHistory("back");
                 doKey('C', true);
                 render('0');
             } else {
                 render(str.substring(0, strLen), true);
             }
-            buffStr.pop();
+            buffStr.pop(); renderHistory("back");
             if (buffStr[buffStr.length - 1] === '.') {
                 render(str.substring(0, strLen - 1));
                 buffStr.pop()
@@ -239,7 +241,7 @@
         if (e.which === 46 || (e.keyCode == 8 && e.shiftKey)) {
             keyDown(false, keyBoard['AC']);
             doKey(keyBoard['AC'].textContent, true);
-            buffStr.pop(); // Raad added delete function from Keyborad
+            buffStr.pop(); renderHistory("back"); // Raad added delete function from Keyborad
             doKey('C', true);
             render('0');
         }
@@ -344,6 +346,76 @@
     }, false);
 
     // ------------------- event related functions ------------------ //
+
+
+
+
+    function backButton() {
+
+        var str = resBuffer.replace(/\s/g, ''),
+            strLen = str.split('').length - 1;
+        var lastKey = buffStr[buffStr.length - 1];
+
+        //                        console.log("back1", resBuffer, buffStr);
+
+        while (buffStr.length && !keyBoard[buffStr[buffStr.length - 1]]) { //
+            buffStr.pop(); renderHistory("back");
+        }
+
+        if (lastKey === '+/–') {
+            doKey('+/–', true);
+            buffStr.pop(); renderHistory("back");
+        } // +/-
+
+        else if (brackets && lastKey === "(") {
+            calculator.splice(brackets--, 1);
+        }
+
+        if (resBuffer.match(/\-\d$/) || resBuffer.match(/^\d$/)) {
+
+            //display previous operand, if there was one
+            if (calculator[brackets].stack[calculator[brackets].num - 1]) {
+                var stack = calculator[brackets].stack[calculator[brackets].num - 1];
+                calculator[brackets].stack.splice(--calculator[brackets].num, 1);
+                calculator[brackets].buff = [false, false];
+                render(calculator[brackets].calc(stack[1], stack[0]));
+                buffStr.pop(); renderHistory("back");
+            }
+            else {
+                //doKey('C', true);
+                render('0');
+                buffStr.pop(); renderHistory("back");
+            }
+
+        } else {
+            render(str.substring(0, strLen), true);
+            buffStr.pop(); renderHistory("back");
+        }
+        //						
+        if (buffStr[buffStr.length - 1] === '.') {
+            render(str.substring(0, strLen - 1));
+            buffStr.pop(); renderHistory("back");
+        }
+        //                        console.log(buffStr);
+        //			console.log("back2", JSON.stringify(calculator[brackets].stack), JSON.stringify(calculator[brackets].buff), buffStr);
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     function keyDown(e, obj) { // works for mouse and key
         var event = e || window.event,
@@ -478,7 +550,7 @@
             displayStyle.fontSize = '23px';
         } else if (screenDigitSize > 15) {
             displayStyle.fontSize = '26px';
-        }else {
+        } else {
             displayStyle.fontSize = '29px';
         }
     }
@@ -527,10 +599,219 @@
         }
     }
 
+    // function evalKey(key) {
+    //     var dispVal = resBuffer.replace(/\s/g, '').replace(/Error|∞|-∞/, '0') + '',
+    //         _PI = Math.PI,
+    //         lastKey;
+
+    //     if (!key.match(/2nd|Deg|Rad|m/)) { // +/- issue
+    //         buffStr.push(key);
+    //         if ((buffStr[buffStr.length - 2] === '=' && key !== '=' &&
+    //             calculator[brackets].curr) || key === 'AC') {
+    //             buffStr = [key];
+    //         }
+    //     }
+    //     lastKey = buffStr[buffStr.length - 2];
+    //     if (key.match(/^[\d|\.]$/) || key === '+/–') {
+    //         if (calculator[brackets].curr && key !== '+/–' || (key === '+/–' &&
+    //             lastKey && lastKey.match(/^[+|–|÷|×|yx|x√y|E|^C]+$/))) {
+    //             dispVal = '0'; renderHistory("AC", "0");
+    //             calculator[brackets].curr = false;
+    //         }
+    //         if ((Math.abs(+(dispVal + key)) > (bigger ? 1e15 : 1e9) ||
+    //             dispVal.replace(/^-/, '').length > 15 ||
+    //             (dispVal.replace('-', '').replace(/\./g, '').length > (bigger ? 14 : 8)) ||
+    //             (dispVal.match(/\.|\e\+/) && key === '.')) && key !== '+/–') {
+    //             buffStr.pop(); renderHistory("back");
+    //             return;
+    //         } else if (key === '+/–') {
+    //             render(!(dispVal.replace(/e[\+|\-]/, '')).match('-') ?
+    //                 '-' + dispVal : dispVal.replace(/^-/, ''), '+/–');
+    //         } else {
+    //             render((dispVal + key).replace(/^(-)*?0(\d)$/, '$1' + '$2'), true);
+    //         }
+    //     } else if (key.match(/^C|AC/)) {
+    //         render(calculator[brackets].init(key));
+    //         hold.textContent = '';
+    //     } else if (key.match(/^[+|–|÷|×|-|\/|*|yx|x√y|%|E]+$/) && key !== '√') {
+    //         render(calculator[brackets].calc(key, dispVal));
+    //     } else {
+    //         if (brackets > -1) {
+    //             calculator[brackets].curr = 'funk';
+    //         }
+    //         switch (key) {
+    //             case '=':
+    //                 while (brackets > -1) {
+    //                     render(dispVal = calculator[brackets--].calc('=', dispVal));
+    //                 }
+    //                 brackets = 0;
+    //                 calculator[brackets].curr = true;
+    //                 break;
+    //             case '(':
+    //                 calculator[++brackets] = new Calculator();
+    //                 calculator[brackets].curr = true;
+    //                 break;
+    //             case ')':
+    //                 if (brackets) {
+    //                     render(calculator[brackets--].calc('=', dispVal));
+    //                 }
+    //                 if (brackets > -1) {
+    //                     calculator[brackets].curr = false;
+    //                 }
+    //                 break;
+    //             case 'mc':
+    //                 memory = 0;
+    //                 break;
+    //             case 'm+':
+    //                 memory += +dispVal;
+    //                 break;
+    //             case 'm-':
+    //                 memory -= +dispVal;
+    //                 break;
+    //             case 'mr':
+    //                 render(memory + '');
+    //                 break;
+    //             case '1/x':
+    //                 render((1 / dispVal) + '');
+    //                 break;
+    //             case 'x2':
+    //                 render(Math.pow(dispVal, 2) + '');
+    //                 break;
+    //             case 'x3':
+    //                 render(Math.pow(dispVal, 3) + '');
+    //                 break;
+    //             case 'x!':
+    //                 render((function fak(n) {
+    //                     return n < 0 || n > 170 ? NaN : n <= 1 ? 1 : n * fak(n - 1)
+    //                 })(Math.round(+dispVal)) + '');
+    //                 break;
+    //             case '√':
+    //                 render(Math.sqrt(dispVal) + '');
+    //                 break;
+    //             case 'log':
+    //                 render(Math.log(dispVal) / Math.log(10) + '');
+    //                 break;
+    //             case 'sin':
+    //                 render(!deg && Math.abs(dispVal) === _PI ? '0' :
+    //                     Math.sin(dispVal * (deg ? _PI / 180 : 1)) + '');
+    //                 break;
+    //             case 'sin-1':
+    //                 render(Math.asin(dispVal) * (deg ? 180 / _PI : 1) + '');
+    //                 break;
+    //             case 'cos':
+    //                 render(Math.cos(dispVal * (deg ? _PI / 180 : 1)) + '');
+    //                 break;
+    //             case 'cos-1':
+    //                 render(Math.acos(dispVal) * (deg ? 180 / _PI : 1) + '');
+    //                 break;
+    //             case 'tan':
+    //                 render(!deg && Math.abs(dispVal) === _PI ? '0' :
+    //                     Math.tan(dispVal * (deg ? _PI / 180 : 1)) + '');
+    //                 break;
+    //             case 'tan-1':
+    //                 render(Math.atan(dispVal) * (deg ? 180 / _PI : 1) + '');
+    //                 break;
+    //             case 'ln':
+    //                 render(Math.log(dispVal) + '');
+    //                 break;
+    //             case 'log2':
+    //                 render(Math.log(dispVal) / Math.log(2) + '');
+    //                 break;
+    //             case 'sinh':
+    //                 render(((Math.pow(Math.E, dispVal) - Math.pow(Math.E, -dispVal)) / 2) + '');
+    //                 break;
+    //             case 'sinh-1':
+    //                 render(Math.log(+dispVal + Math.sqrt(1 + Math.pow(dispVal, 2))) + '');
+    //                 break;
+    //             case 'cosh':
+    //                 render(((Math.pow(Math.E, dispVal) + Math.pow(Math.E, -dispVal)) / 2) + '');
+    //                 break;
+    //             case 'cosh-1':
+    //                 render(2 * Math.log(Math.sqrt((+dispVal + 1) / 2) + Math.sqrt((+dispVal - 1) / 2)) + '');
+    //                 break;
+    //             case 'tanh':
+    //                 (function (e1, e2) {
+    //                     render((e1 - e2) / (e1 + e2) + '');
+    //                 })(Math.pow(Math.E, dispVal), Math.pow(Math.E, -dispVal));
+    //                 break;
+    //             case 'tanh-1':
+    //                 render((Math.log(+dispVal + 1) - Math.log(1 - dispVal)) / 2 + '');
+    //                 break;
+    //             case 'ex':
+    //                 render(Math.exp(dispVal) + '');
+    //                 break;
+    //             case '2x':
+    //                 render(Math.pow(2, (dispVal)) + '');
+    //                 break;
+    //             case 'π':
+    //                 render(_PI + '');
+    //                 break;
+    //             case 'Rand':
+    //                 render(Math.random() + '');
+    //                 break;
+    //             default:
+    //                 buffStr.pop(); renderHistory("back");
+    //                 break;
+    //         }
+    //     }
+
+
+
+    //     //console.log("buffStr: " + buffStr);
+
+    //     if (resBuffer == "Error") {
+    //         resBuffer = "0";
+    //         renderHistory("AC");
+    //         return;
+    //     }
+
+    //     var _dispVal = resBuffer.replace(/\s/g, '').replace(/Error|∞|-∞/, '0') + '';
+    //     renderHistory(key, _dispVal);
+
+    //     logline.scrollLeft = logline.scrollWidth;
+
+
+
+
+
+
+
+
+
+    // }
+
+    // reneder history 
+
     function evalKey(key) {
+
         var dispVal = resBuffer.replace(/\s/g, '').replace(/Error|∞|-∞/, '0') + '',
             _PI = Math.PI,
             lastKey;
+
+        if (key == 'DEL') {
+            /*var str = resBuffer.replace(/\s/g, ''),
+                    strLen = str.split('').length - 1;	*/
+            var _lastKey = buffStr[buffStr.length - 1];
+            if (
+                (
+                    calculator[brackets].curr !== true
+                    && calculator[brackets].curr !== 'funk' /*&& str !== '0'*/
+                    && !_lastKey.match(/^[+|–|÷|×|yx|x√y|E|^C]+$/)
+                )
+                || _lastKey === "("
+            ) {
+                backButton();
+            }
+            return;
+        }
+
+        if (key == "mr" && memory) {
+            let _mem = memory + '';
+            for (let i = 0; i < _mem.length; i++) {
+                evalKey(_mem[i]);
+            }
+            return;
+        }
 
         if (!key.match(/2nd|Deg|Rad|m/)) { // +/- issue
             buffStr.push(key);
@@ -539,13 +820,40 @@
                 buffStr = [key];
             }
         }
+
         lastKey = buffStr[buffStr.length - 2];
-        if (key.match(/^[\d|\.]$/) || key === '+/–') {
-            if (calculator[brackets].curr && key !== '+/–' || (key === '+/–' &&
-                lastKey && lastKey.match(/^[+|–|÷|×|yx|x√y|E|^C]+$/))) {
+        var regex0 = new RegExp('(sin-1|cos-1|tan-1|sinh|cosh|tanh|sinh-1|cosh-1|tanh-1|sin|cos|tan|ln|log|log2|3√y?|2√y?|1/x|ex|e\^|x2|x3)');
+
+        if (key === "(" && lastKey && (!isNaN(lastKey) || lastKey === "x√y" || lastKey.match(regex0))) {
+            render(calculator[brackets].init(key));
+            hold.textContent = '';
+            dispVal = '0';
+            renderHistory("AC", "0");
+            calculator[brackets].curr = false;
+        }
+
+        else if (key.match(/^[\d|\.|π]$/) || key === '+/–') {
+
+
+            if ((lastKey && lastKey.match(regex0)) ||  
+                (!isNaN(lastKey) && key === "π")
+            ) {
+                dispVal = '0';
+                renderHistory("AC", "0");
+                calculator[brackets].curr = false;
+            }
+            else if (calculator[brackets].curr && key !== '+/–') {
                 dispVal = '0';
                 calculator[brackets].curr = false;
             }
+
+            else if (key === '+/–' && lastKey && lastKey.match(/^[+|–|÷|×|yx|x√y|E|^C]+$/)) {
+                render("Error");
+                resBuffer = "0";
+                renderHistory("AC", "0");
+                return;
+            }
+
             if ((Math.abs(+(dispVal + key)) > (bigger ? 1e15 : 1e9) ||
                 dispVal.replace(/^-/, '').length > 15 ||
                 (dispVal.replace('-', '').replace(/\./g, '').length > (bigger ? 14 : 8)) ||
@@ -555,14 +863,22 @@
             } else if (key === '+/–') {
                 render(!(dispVal.replace(/e[\+|\-]/, '')).match('-') ?
                     '-' + dispVal : dispVal.replace(/^-/, ''), '+/–');
+
             } else {
-                render((dispVal + key).replace(/^(-)*?0(\d)$/, '$1' + '$2'), true);
+                var tmp = (key == "π") ? _PI + '' : dispVal + key;
+                render((tmp).replace(/^(-)*?0(\d)$/, '$1' + '$2'), true);
             }
         } else if (key.match(/^C|AC/)) {
+            calculator = [new Calculator()];
+            brackets = 0;
             render(calculator[brackets].init(key));
             hold.textContent = '';
         } else if (key.match(/^[+|–|÷|×|-|\/|*|yx|x√y|%|E]+$/) && key !== '√') {
-            render(calculator[brackets].calc(key, dispVal));
+            let val = dispVal;
+            if (lastKey == "(" && key.match(/^[+|–|×|-|*]+$/))
+                val = 0;
+            render(calculator[brackets].calc(key, val));
+            //                        console.log("post-calc", JSON.stringify(calculator[brackets].stack), JSON.stringify(calculator[brackets].buff), buffStr);
         } else {
             if (brackets > -1) {
                 calculator[brackets].curr = 'funk';
@@ -583,6 +899,7 @@
                     if (brackets) {
                         render(calculator[brackets--].calc('=', dispVal));
                     }
+
                     if (brackets > -1) {
                         calculator[brackets].curr = false;
                     }
@@ -596,9 +913,6 @@
                 case 'm-':
                     memory -= +dispVal;
                     break;
-                case 'mr':
-                    render(memory + '');
-                    break;
                 case '1/x':
                     render((1 / dispVal) + '');
                     break;
@@ -610,11 +924,16 @@
                     break;
                 case 'x!':
                     render((function fak(n) {
-                        return n < 0 || n > 170 ? NaN : n <= 1 ? 1 : n * fak(n - 1)
-                    })(Math.round(+dispVal)) + '');
+                        //console.log(n, isInt(n));*
+                        return n < 0 || n > 170 || !isInt(n) ? NaN : n <= 1 ? 1 : n * fak(n - 1)
+                    })(/*Math.round(+dispVal)*/dispVal) + '');
                     break;
                 case '√':
+                case '2√y':
                     render(Math.sqrt(dispVal) + '');
+                    break;
+                case '3√y':
+                    render(String(nthroot(dispVal, 3)));
                     break;
                 case 'log':
                     render(Math.log(dispVal) / Math.log(10) + '');
@@ -678,11 +997,304 @@
                     render(Math.random() + '');
                     break;
                 default:
-                    buffStr.pop();
+                    // buffStr.pop();
                     break;
             }
         }
+
+        console.log("buffStr: " + buffStr);
+
+        if (resBuffer == "Error") {
+            resBuffer = "0";
+            renderHistory("AC");
+            return;
+        }
+
+        var _dispVal = resBuffer.replace(/\s/g, '').replace(/Error|∞|-∞/, '0') + '';
+        renderHistory(key, _dispVal);
+
+        // logline.scrollLeft = logline.scrollWidth;
     }
+
+    
+    function renderHistory(key, dispVal) {
+
+        var tmp = "";
+        logline.textContent = "";
+        if (typeof dispVal === "undefined")
+            dispVal = display.firstChild.data;
+
+        if (typeof renderHistory.logstr === 'undefined' || key.match(/^C|AC|=/))
+            renderHistory.logstr = ["0"];
+
+        if (typeof renderHistory.dispval === 'undefined' || key.match(/^C|AC|=/))
+            renderHistory.dispval = ["0"];
+
+
+        var len = renderHistory.logstr.length;
+        var prevKey = (len > 0) ? renderHistory.logstr[len - 1] : null;
+        var append = true;
+
+        if ((!isNaN(key) || key === "π" || key === "(") && renderHistory.logstr.length === 1 && renderHistory.logstr[0] === "0") {
+            renderHistory.logstr[0] = key;
+            renderHistory.dispval[0] = key;
+            append = false;
+            prevKey = null;
+        }
+
+        if (prevKey != null) {
+
+            // Do not log operators multiple times in a row / the last one replaces the previous one
+            if (prevKey.match(/^(\+|–|÷|×|yx|x√y|E)+$/)) {
+                if (key.match(/^(\+|–|÷|×|yx|x√y|E)+$/)) {
+                    renderHistory.logstr[len - 1] = key;
+                    append = false;
+                }
+            }
+
+            else if (key == "0" && dispVal == key && prevKey == key) {
+                append = false;
+            }
+
+            else if (key == "back") {
+                console.log(renderHistory.logstr)
+                append = false;
+                if (prevKey.match(/^(\.|\d|\(|\))/) &&
+                    renderHistory.logstr.length > 1 || renderHistory.logstr[0] !== "0"
+                ) {
+                    renderHistory.logstr.pop();
+                    renderHistory.dispval.pop();
+
+                    if (renderHistory.logstr.length == 0) {
+                        renderHistory.logstr = ["0"];
+                        renderHistory.dispval = ["0"];
+                    }
+                }
+            }
+        }
+
+
+        if (append && !key.match(/2nd|Deg|Rad|m|C|AC|back/)) {
+            renderHistory.logstr.push(key);
+            if (key == "π" || (len > 0 && renderHistory.dispval[len - 1] === "-π" && key === "+/–")) {
+                renderHistory.dispval.push("π");
+            }
+            else if (renderHistory.dispval[len - 1] === "π" && key === "+/–") {
+                renderHistory.dispval.push("-π");
+            }
+            else if (key !== "=") {
+                renderHistory.dispval.push(dispVal);
+            }
+        }
+
+
+        if (renderHistory.logstr.length) {
+
+            var _brackets = 0;
+
+            for (var i = 0; i < renderHistory.logstr.length; i++) {
+
+                var _key = renderHistory.logstr[i];
+                var _prevKey = i > 0 ? renderHistory.logstr[i - 1] : null;
+                var _nextKey = i < renderHistory.logstr.length - 1 ? renderHistory.logstr[i + 1] : null;
+
+                if (_key == "=" && typeof dispVal != "undefined") {
+                    tmp = dispVal;
+                    renderHistory.logstr = ["=" + dispVal];
+                    renderHistory.dispval = [dispVal];
+                    renderHistory.logstr = [dispVal];
+                    break;
+                }
+
+                else if (_key.match(/^=-?\d/)) {  //also see @evalKey()
+                    if (_nextKey != null && (!isNaN(_nextKey) || _nextKey === "π")) {
+                        tmp = _nextKey;
+                        renderHistory.logstr = [_nextKey];
+                        renderHistory.dispval = [_nextKey];
+                        break;
+                    }
+                    else {
+                        tmp = _key.substr(1);
+                        renderHistory.logstr[i] = tmp;
+                    }
+                }
+
+                else if (_key == "π") {
+                    if (_nextKey != null && !isNaN(_nextKey)) {
+                        tmp = _nextKey;
+                        renderHistory.logstr = [_nextKey];
+                        break;
+                    }
+                    else
+                        tmp += "π";
+                }
+
+                else if (_key == "(") {
+
+
+                    _brackets++;
+                    tmp += "(";
+                }
+
+                else if (_key == ")") {
+                    if (_brackets > 0) {
+                        tmp += ")";
+                        _brackets--;
+                    }
+                    else {
+                        continue;
+                    }
+                }
+
+
+                else if (_key == "÷") {
+                    tmp += "/";
+                }
+
+                else if (_key == "x3") {
+                    tmp += "^3";
+                }
+
+                else if (_key == "x2") {
+                    tmp += "^2";
+                }
+
+                else if (_key == "yx") {
+                    tmp += "^";
+                }
+
+                else if (_key == "√") {
+                    var _root = "";
+                    var regex = new RegExp("(-?[0-9π!.]+$|\\([^)]+\\))$");
+                    var match = tmp.match(regex);
+                    if (match !== null) {
+                        _root = match[0];
+                    }
+
+                    tmp = tmp.substr(0, tmp.length - _root.length);
+                    tmp +=  "√" + _root;
+                }
+
+                else if (_key == "x√y") {
+                    var _operand = "";
+                    if (_nextKey !== null) {
+                        var _value = _nextKey;
+
+                        while (_value != null && !isNaN(_value)) {
+                            i++;
+                            _operand += _value;
+                            _value = i < renderHistory.logstr.length - 1 ? renderHistory.logstr[i + 1] : null;
+                        }
+                    }
+
+                    var _root = "";
+                    var regex = new RegExp("(-?[0-9π!.]+$|\\([^)]+\\))$");
+                    var match = tmp.match(regex);
+                    if (match !== null) {
+                        _root = match[0];
+                    }
+
+                    if (_operand.length === 0)
+                        _operand = "y";
+
+                    tmp = tmp.substr(0, tmp.length - _root.length);
+                    tmp += _operand + "√(" + _root + ")";
+                }
+
+
+
+                else if (_key == "back") {
+                    tmp += "";
+                }
+
+                else if (_key == "x!") {
+                    tmp += "!";
+                    let regex = new RegExp("(-?[0-9π!.]+|\\(.+\\))!", "g");
+                    let match = tmp.match(regex);
+                    if (match != null)
+                        renderHistory.dispval[i] = match[0];
+                }
+
+                else if (_key == "+/–") {
+
+                    var _dispVal = renderHistory.dispval[i].toString();
+                    var _dispVal_0 = (i > 0) ? renderHistory.dispval[i - 1].toString() : false;
+
+                    if (_dispVal_0 !== false) {
+                        var _pos = tmp.lastIndexOf(_dispVal_0);
+                        if (_pos >= 0) {
+                            var tmp_1 = tmp.substr(0, _pos);
+                            var tmp_2 = tmp.substr(_pos + _dispVal_0.length);
+                            tmp = tmp_1 + _dispVal + tmp_2;
+                        }
+                    }
+                }
+
+
+                else {
+
+                    var regstr = "sin-1|cos-1|tan-1|sinh|cosh|tanh|sinh-1|cosh-1|tanh-1|sin|cos|tan|ln|log|log2|3√y?|2√y?|1/x|ex|e\\^";
+                    var regex0 = new RegExp('(' + regstr + ')');
+
+                    if (_key.match(regex0)) {
+
+                        if (_prevKey == null)
+                            tmp = "0" + tmp;
+
+                        var regex1 = new RegExp("(-?[0-9π!^.]+|\\([^)]+\\))([–+×\/]?)$");
+                        if (_prevKey != null) {
+                            if (_prevKey == 'e^') {	// "^" causes problems, since it's part of the regex syntax and needs to be escaped 
+                                regex1 = new RegExp("(e\\^\\([^)]+\\))([–+×\/]?)$");
+                            }
+                            else if (_prevKey.match(regex0)) {
+                                regex1 = new RegExp("(" + _prevKey + "\\([^)]+\\))([–+×\/]?)$");
+                            }
+                        }
+
+                        tmp = tmp.replace(regex1,
+                            function (str, p1, p2) {
+                                var ret = "";
+                                if (_key === "3√y") {
+                                    ret = "3√(" + p1 + ")";
+                                    renderHistory.logstr[i] = "3√";
+                                }
+                                else if (_key === "√" || _key === "2√y") {
+                                    ret = "2√(" + p1 + ")";
+                                    renderHistory.logstr[i] = "2√";
+                                }
+                                else if (_key === "1/x") {
+                                    ret = "1/" + p1;
+                                }
+                                else if (_key === "ex") {
+                                    ret = "e^(" + p1 + ")";
+                                    renderHistory.logstr[i] = "e^";
+                                }
+                                else {
+                                    ret = _key + "(" + p1 + ")";
+                                }
+
+                                if (p2.length > 0) {
+                                    ret = p1 + p2 + ret;
+                                }
+
+                                renderHistory.dispval[i] = ret;
+
+                                return ret;
+                            }
+                        );
+                    }
+
+                    else
+                        tmp += renderHistory.logstr[i];
+                }
+            }
+
+            logline.textContent = tmp;
+
+        }
+
+    }
+
 
     // ---------------- add-on (sign (Deg/rad) changer) ---------------- //
 
@@ -702,3 +1314,6 @@
     window.addEventListener("load", signChanger);
 
 })(window);
+
+
+
