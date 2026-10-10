@@ -89,8 +89,57 @@ body {
     margin-bottom: 0;
 }
 
+/* the close button stays at the top right while the options scroll; it closes the options on a small screen and hides the panel on a wide one */
 .options-bar {
-    display: none;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    display: flex;
+    justify-content: flex-end;
+    height: 0; /* takes no room: the button floats over the page */
+    padding: 0 22px;
+    padding-top: max(22px, env(safe-area-inset-top));
+    pointer-events: none;
+}
+
+.close-options {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    cursor: pointer;
+    pointer-events: auto;
+    background: #c3cad1;
+    border: 0;
+    border-radius: 50%;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.2s;
+}
+
+.close-options svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: #2b4753;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+}
+
+.close-options:hover {
+    background: #d3d9de;
+}
+
+.close-options:active {
+    background: #b2bac2;
+}
+
+.close-options:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
 }
 
 /* ---- a small or medium screen (phone, iPad): the options open over the calculator ---- */
@@ -102,7 +151,7 @@ body {
     .calc-pane {
         height: 100%;
         box-sizing: border-box;
-        padding: 12px;
+        padding: 12px 6px;
         padding-top: max(12px, env(safe-area-inset-top));
         padding-bottom: max(12px, env(safe-area-inset-bottom));
     }
@@ -124,59 +173,6 @@ body {
 
     .options-pane .wrapper {
         padding-top: 4em; /* room for the close button */
-    }
-
-    /* the close button stays at the top right while the options scroll */
-    .options-bar {
-        position: sticky;
-        top: 0;
-        z-index: 2;
-        display: flex;
-        justify-content: flex-end;
-        height: 0; /* takes no room: the button floats over the page */
-        padding: 0 14px;
-        padding-top: max(14px, env(safe-area-inset-top));
-        pointer-events: none;
-    }
-
-    .close-options {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex: none;
-        width: 34px;
-        height: 34px;
-        padding: 0;
-        cursor: pointer;
-        pointer-events: auto;
-        background: #c3cad1;
-        border: 0;
-        border-radius: 50%;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
-        -webkit-tap-highlight-color: transparent;
-        transition: background 0.2s;
-    }
-
-    .close-options svg {
-        width: 20px;
-        height: 20px;
-        fill: none;
-        stroke: #2b4753;
-        stroke-width: 1.8;
-        stroke-linecap: round;
-    }
-
-    .close-options:hover {
-        background: #d3d9de;
-    }
-
-    .close-options:active {
-        background: #b2bac2;
-    }
-
-    .close-options:focus-visible {
-        outline: 2px solid #fff;
-        outline-offset: 2px;
     }
 }
 

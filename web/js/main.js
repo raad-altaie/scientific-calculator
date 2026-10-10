@@ -450,6 +450,7 @@
         var calc = menu.parentNode, frame = calc.getBoundingClientRect();
         if (e.target === statsInput) return; // the list has the menu of the browser, to edit it
         e.preventDefault();
+        if (!e.target.closest('.calc-display')) return; // only the display has the menu: right click does nothing elsewhere
         menu.text = selectedText(); // taken now: a click in the menu ends the selection
         showMenu(true);
         menu.style.left = Math.min(e.clientX - frame.left - calc.clientLeft, calc.clientWidth - menu.offsetWidth - 4) + 'px';
@@ -457,7 +458,7 @@
     }, false);
 
     document.addEventListener('mousedown', function (e) {
-        if (e.button === 2 && e.target !== statsInput) e.preventDefault(); // a selection stays for Copy
+        if (e.button === 2 && e.target.closest('.calc-display')) e.preventDefault(); // a selection stays for Copy
         if (!menu.hidden && !menu.contains(e.target)) showMenu(false);
     }, true);
 

@@ -57,7 +57,16 @@ const showOptions = (open) => {
     }
 };
 
-closeButton.addEventListener('click', () => showOptions(false));
+// the ? and the name do the same on a wide screen: hide the panel, or show it again
+const toggleWide = () => {
+    const hidden = document.documentElement.classList.toggle('options-hidden');
+
+    try {
+        localStorage.setItem(hideKey, hidden);
+    } catch (e) { }
+};
+
+closeButton.addEventListener('click', () => (wide.matches ? toggleWide() : showOptions(false)));
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && document.body.classList.contains('options-open')) showOptions(false);
 });
@@ -85,11 +94,7 @@ window.addEventListener('message', (event) => {
         // the ? and the name: on a wide screen hide the panel, so the calculator
         // is in the middle, or show it again; on a small one open it over the calculator
         if (wide.matches) {
-            const hidden = document.documentElement.classList.toggle('options-hidden');
-
-            try {
-                localStorage.setItem(hideKey, hidden);
-            } catch (e) { }
+            toggleWide();
         } else {
             showOptions(!document.body.classList.contains('options-open'));
         }
