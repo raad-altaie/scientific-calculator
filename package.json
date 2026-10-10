@@ -1,0 +1,8 @@
+{
+    "name": "scientific-calculator",
+    "private": true,
+    "scripts": {
+        "test": "node test/engine.test.js",
+        "zip": "npm test && sh scripts/zip.sh"
+    }
+}

@@ -6,10 +6,13 @@
 
     var PI = Math.PI,
         MAX_DEL = 50,
-        MAX_DEL_CHARS = 60000, // total size of what DEL can take back
+        MAX_DEL_CHARS = 70000, // total size of what DEL can take back
         MAX_NODES = 60, // a longer expression continues from its subtotal
         MAX_LEVELS = 30, // open brackets
         MAX_PASTE = 500, // characters of a pasted equation
+        MAX_PAST = 50, // finished calculations kept in the history
+        MAX_PAST_CHARS = 100000, // total size of the history
+        ANGLE = /^(sin|cos|tan)(-1)?$/, // functions whose result depends on Deg or Rad
         RANK = { '=': 0, '+': 1, '–': 1, '×': 2, '÷': 2, 'yx': 3, 'x√y': 3, 'EE': 3 },
         SYMBOL = { 'x2': '<sup>2</sup>', 'x3': '<sup>3</sup>', 'x!': '!', '%': '%' },
         NAME = {
@@ -555,10 +558,51 @@
         return end() ? tree : null;
     }
 
+    // ---------- history ---------- //
+
+    // the units the functions of an angle in the expression were worked out in
+    function units(n, found) {
+        found = found || {};
+        if (n) {
+            if (n.deg !== undefined) found[n.deg ? 'Deg' : 'Rad'] = true;
+            units(n.arg, found);
+            units(n.l, found);
+            units(n.r, found);
+        }
+        return found;
+    }
+
+    // the text of what show prints, without tags: superscript characters stand in for them
+    function asPlain(print) {
+        plainText = true;
+        try {
+            return print().replace(/<[^>]+>/g, '');
+        } finally {
+            plainText = false;
+        }
+    }
+
+    // an expression node in the shape parse gives, so type can enter it again
+    function typable(n) {
+        switch (n.t) {
+            case 'num': return { t: 'num', v: n.v, whole: !n.typed }; // a computed number is not typed
+            case 'const': return { t: 'const', v: n.name };
+            case 'fn': return { t: 'fn', key: n.name, arg: typable(n.arg), deg: n.deg };
+            case 'post': return { t: 'post', key: n.op, arg: typable(n.arg) };
+            case 'inv': return { t: 'fn', key: '1/x', arg: typable(n.arg) };
+            case 'pow': return { t: 'fn', key: n.base === 'e' ? 'ex' : '2x', arg: typable(n.arg) };
+            case 'neg': return { t: 'neg', arg: typable(n.arg) };
+            case 'group': return { t: 'group', arg: typable(n.arg), open: !!n.auto }; // '=' closes it again
+        }
+        return { t: 'bin', op: n.op, l: typable(n.l), r: n.r && typable(n.r) };
+    }
+
     // ---------- engine ---------- //
 
     function Engine() {
         this.memory = 0;
+        this.ans = 0; // the last result, for the Ans key
+        this.past = []; // finished calculations, oldest first: { node, value }
         this.reset();
     }
 
@@ -595,10 +639,23 @@
     };
 
     Engine.prototype.save = function () {
-        return { state: this.snapshot(), history: this.history.slice() };
+        return { state: this.snapshot(), history: this.history.slice(), past: this.past.slice(), ans: this.ans };
     };
 
     Engine.prototype.load = function (data) {
+        this.ans = isFinite(data.ans) ? +data.ans : 0;
+        this.past = [];
+        (Array.isArray(data.past) ? data.past : []).forEach(function (p) {
+            if (!p || typeof p.value !== 'string' || !isFinite(+p.value)) return;
+            try {
+                show(p.node); // an unreadable equation is left out
+                typable(p.node);
+            } catch (err) {
+                return;
+            }
+            this.past.push(p);
+        }, this);
+        this.trimPast();
         this.restore(data.state);
         this.history = [];
         (data.history || []).forEach(this.remember, this);
@@ -611,6 +668,50 @@
             chars += this.history[i - 1].length;
         }
         this.history.splice(0, Math.max(chars > MAX_DEL_CHARS ? i + 1 : i, this.history.length - MAX_DEL));
+    };
+
+    // keeps the newest calculations, within MAX_PAST and MAX_PAST_CHARS
+    Engine.prototype.trimPast = function () {
+        var chars = 0, i;
+        for (i = this.past.length - 1; i >= 0 && (chars += JSON.stringify(this.past[i]).length) <= MAX_PAST_CHARS; i--);
+        this.past.splice(0, Math.max(i + 1, this.past.length - MAX_PAST));
+    };
+
+    // after '=': the result becomes Ans, and the calculation goes into the history
+    Engine.prototype.keep = function () {
+        var last = this.past[this.past.length - 1], entry;
+        this.ans = +this.value;
+        if (this.done.t === 'num') return; // "9 =" is not worth keeping
+        entry = { node: this.done, value: this.value };
+        if (last && JSON.stringify(last) === JSON.stringify(entry)) return; // the same one again
+        this.past.push(entry);
+        this.trimPast();
+    };
+
+    // a calculation in the history, for showing: the equation as text with
+    // <sup>/<sub> tags, as plain text, the result, and the units its angles
+    // were in ('Deg', 'Rad', 'Deg Rad' or '')
+    Engine.prototype.pastLine = function (i) {
+        var p = this.past[i];
+        return {
+            line: show(p.node) + ' =',
+            text: asPlain(function () { return show(p.node); }) + ' =',
+            result: short(p.value),
+            unit: Object.keys(units(p.node)).sort().join(' ')
+        };
+    };
+
+    // enters a calculation from the history again, without its '=', so it can
+    // be changed or finished. It replaces the one in progress; false if it cannot.
+    // Each function of an angle is worked out in the unit it was before
+    Engine.prototype.recall = function (i, deg) {
+        var p = this.past[i], snap = this.snapshot(), hist = this.history.slice();
+        if (!p) return false;
+        this.reset();
+        if (this.type(typable(p.node), deg) && !this.error) return true;
+        this.restore(snap);
+        this.history = hist;
+        return false;
     };
 
     // the equation line of a saved state, null if it cannot be read
@@ -646,7 +747,7 @@
     // true if the key starts a new operand in place of the displayed one
     function drops(key, entry, done) {
         if (/^[\d.]$/.test(key)) return entry === 'result';
-        if (/^(π|e|Rand|mr|C|paste)$/.test(key)) return entry !== 'fresh';
+        if (/^(π|e|Rand|mr|Ans|C|paste)$/.test(key)) return entry !== 'fresh';
         return key === '(' && !!done;
     }
 
@@ -761,7 +862,7 @@
                     top = reduce(lvl.stack, '=', top.val, top.node);
                     lvl.stack = [];
                 }
-                if (d) top = { val: top.val, node: { t: 'group', arg: top.node } };
+                if (d) top = { val: top.val, node: { t: 'group', arg: top.node, auto: 1 } }; // closed by '='
             }
             this.levels.length = 1;
         }
@@ -816,9 +917,11 @@
             this.value = String(UNARY[key].f(arg.val, deg));
             this.entry = 'result';
             this.node = bounded(unaryNode(key, arg.node), +this.value);
+            if (ANGLE.test(key) && this.node.t === 'fn') this.node.deg = deg ? 1 : 0; // for the history; short, as DEL keeps many copies
             this.done = null;
-        } else if (key === 'π' || key === 'e' || key === 'Rand' || key === 'mr') {
-            this.value = String(key === 'π' ? PI : key === 'e' ? Math.E : key === 'Rand' ? Math.random() : this.memory);
+        } else if (key === 'π' || key === 'e' || key === 'Rand' || key === 'mr' || key === 'Ans') {
+            this.value = String(key === 'π' ? PI : key === 'e' ? Math.E : key === 'Rand' ? Math.random() :
+                key === 'mr' ? this.memory : this.ans);
             this.entry = 'result';
             this.node = null; // a constant shows its digits, like any computed number
             this.done = null;
@@ -883,6 +986,7 @@
             return false;
         }
         if (!isFinite(+this.value)) this.fail();
+        else if (key === '=') this.keep();
         this.track(snap, key);
         return true;
     };
@@ -898,9 +1002,9 @@
             if (unit.t !== 'bin') unit = null;
         }
 
-        function key(k) {
+        function key(k, unit) { // unit: Deg (1) or Rad (0) for this key, if it has its own
             if (!ok || halted) return;
-            ok = self.press(k, deg);
+            ok = self.press(k, unit === undefined ? deg : !!unit);
             halted = self.error; // an error ends the calculation
         }
 
@@ -918,10 +1022,11 @@
             }
             switch (n.t) {
                 case 'num':
-                    if (n.v.replace(/\D/g, '').length > 15) { // more digits than the keys take: entered whole
+                    if (n.whole || n.v.replace(/\D/g, '').length > 15) { // not typed, or more digits than the keys take: entered whole
                         if (ok && !halted) ok = self.put(+n.v);
-                    } else {
-                        for (i = 0; i < n.v.length; i++) key(n.v.charAt(i));
+                    } else { // typed: the same digits again, and a typed sign
+                        for (i = n.v.charAt(0) === '-' ? 1 : 0; i < n.v.length; i++) key(n.v.charAt(i));
+                        if (n.v.charAt(0) === '-') key('+/–');
                     }
                     break;
                 case 'const':
@@ -939,7 +1044,7 @@
                 case 'fn':
                 case 'post': // the keys apply to the operand typed before them
                     if (n.arg.t === 'bin' || n.arg.t === 'neg') bracketed(n.arg); else go(n.arg);
-                    key(n.key);
+                    key(n.key, n.deg);
                     break;
                 default: // binary; the engine sorts out the precedence itself
                     if (n.l.t === 'bin' && RANK[n.l.op] < RANK[n.op]) bracketed(n.l); else go(n.l);
@@ -1026,12 +1131,7 @@
 
     // the equation as plain text, for the clipboard
     Engine.prototype.text = function () {
-        plainText = true;
-        try {
-            return this.equation().replace(/<[^>]+>/g, '');
-        } finally {
-            plainText = false;
-        }
+        return asPlain(this.equation.bind(this));
     };
 
     root.CalcEngine = Engine;

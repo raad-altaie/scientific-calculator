@@ -28,6 +28,7 @@ html {
     border-top-right-radius: 1em;
     border-bottom-left-radius: 1em;
     border-bottom-right-radius: 1em;
+    position: relative; /* the history is placed over the keys */
 }
 
 /* the strip above the display: the name and the ? box */
@@ -76,6 +77,181 @@ html {
 
 .calc-help:active {
     opacity: 0.75;
+}
+
+/* the clock at the top left of the display: opens the history */
+.calc-hist {
+    position: absolute;
+    z-index: 2;
+    left: 6px;
+    top: 4px;
+    padding: 2px;
+    border-radius: 4px;
+    color: #1f333c;
+    opacity: 0.5;
+    cursor: pointer;
+    -webkit-user-select: none;
+}
+
+.calc-hist svg {
+    display: block;
+}
+
+.calc-hist:hover,
+.calc-hist.calc-on {
+    opacity: 0.9;
+    background: #a3bdaf;
+}
+
+.calc-hist:active {
+    opacity: 0.75;
+}
+
+/* ---------- history ---------- */
+
+/* as wide as the display, with each calculation on a piece of display;
+   main.js lines it up with the display */
+.calc-past {
+    position: absolute;
+    z-index: 3; /* over raad.dev too */
+    bottom: 5px;
+    box-sizing: border-box;
+    display: none;
+    flex-direction: column;
+    padding-bottom: 10px;
+    background: #4a5f73;
+    border: 1px solid #6c8297;
+    border-radius: 8px 8px 13px 13px; /* the bottom follows the calculator's corners */
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+    font-family: 'Play', 'Russo One', sans-serif;
+    text-align: left;
+    -webkit-user-select: none;
+}
+
+.calc-past.calc-open {
+    display: flex;
+}
+
+/* raad.dev reaches below the calculator, where the history cannot cover it */
+#calculator:has(.calc-past.calc-open) .raad {
+    visibility: hidden;
+}
+
+.calc-past-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 4px 2px 12px;
+    color: #d3d9e2;
+    font-size: 14px;
+}
+
+.calc-past-head span:first-child {
+    flex: 1;
+    font-weight: 700;
+}
+
+.calc-past-clear,
+.calc-past-close {
+    height: 22px;
+    border-radius: 4px;
+    text-align: center;
+    cursor: pointer;
+    opacity: 0.7;
+}
+
+.calc-past-clear {
+    padding: 0 6px;
+    line-height: 22px;
+}
+
+.calc-past-close {
+    width: 22px;
+    font-size: 26px;
+    line-height: 21px;
+}
+
+.calc-past-clear:hover,
+.calc-past-close:hover {
+    opacity: 1;
+    background: #52687d;
+}
+
+.calc-past-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 8px 0;
+}
+
+.calc-past-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.calc-past-list::-webkit-scrollbar-thumb {
+    background: #6b8196;
+    border-radius: 3px;
+}
+
+.calc-past-row {
+    margin-bottom: 7px;
+    padding: 6px 10px 4px;
+    border-radius: 5px;
+    background: #b6d1c2;
+    box-shadow: 0px 0px 12px #36475a;
+    color: #000;
+}
+
+.calc-past-eq,
+.calc-past-res {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    word-spacing: -0.08em;
+    cursor: pointer;
+    border-radius: 4px;
+    padding: 1px 4px;
+    margin: 0 -4px;
+}
+
+/* on the right like the equation line in the display, and like it a long
+   line shows its end, with the dots on the left */
+.calc-past-eq {
+    direction: rtl;
+    text-align: right;
+    color: #33443b;
+    font-size: 14px;
+    line-height: 18px;
+}
+
+.calc-past-res {
+    font-size: 20px;
+    line-height: 26px;
+    text-align: right;
+}
+
+.calc-past-eq:hover,
+.calc-past-res:hover {
+    background: #a3bdaf;
+}
+
+.calc-past-eq > span {
+    direction: ltr;
+    unicode-bidi: isolate;
+}
+
+.calc-past-eq sup,
+.calc-past-eq sub {
+    font-size: 10px;
+    line-height: 0;
+}
+
+/* the unit a calculation with angles is entered again in */
+.calc-past-unit {
+    margin-right: 6px;
+    padding: 0 3px;
+    border: 1px solid #6f8a7c;
+    border-radius: 3px;
+    font-size: 10px;
 }
 
 .raad {
@@ -153,25 +329,31 @@ html {
     line-height: 0;
 }
 
+/* the finished equation, at the right above the result */
 .calc-log {
     position: absolute;
     z-index: 1;
-    left: 10px;
+    left: 30px; /* clear of the clock */
     right: 8px;
     top: 5px;
     height: 18px;
     line-height: 18px;
-    font-size: 14px;
+    font-size: 15px;
     word-spacing: -0.08em;
     font-family: 'Play', 'Russo One', sans-serif;
-    text-align: left;
+    text-align: right;
     white-space: nowrap;
     overflow: hidden;
 }
 
+/* no clock while there is no history: the line has the whole width */
+.calc-display:has(.calc-hist[hidden]) .calc-log {
+    left: 10px;
+}
+
 .calc-log sup,
 .calc-log sub {
-    font-size: 10px;
+    font-size: 11px;
     line-height: 0;
 }
 
@@ -373,24 +555,3 @@ html {
     margin: 0px;
 }
 
-
-
-.calc-active,
-.calc-active:hover {
-    border: 2px solid #c86f7870;
-    background: #3e4f5f;
-}
-
-.calc-active:hover {
-    background: #405263;
-}
-
-.trigo-keys.calc-active,
-.trigo-keys.calc-active:hover {
-    border: 1px solid #c86f789c;
-    background: #1f333c;
-}
-
-.trigo-keys.calc-active:hover {
-    background: #294450;
-}

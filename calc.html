@@ -25,6 +25,14 @@
                     <div class="notification"></div>
                     <div class="calc-log"></div>
                     <div class="calc-hold"></div>
+                    <div class="calc-hist" title="History" hidden>
+                        <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
+                            stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M2 8a6 6 0 1 0 6-6 6.5 6.5 0 0 0-4.5 1.83L2 5.33" />
+                            <path d="M2 2v3.33h3.33" />
+                            <path d="M8 5.2v3l2 1.3" />
+                        </svg>
+                    </div>
                 </div>
 
 
@@ -99,7 +107,7 @@
                         <div>EE</div>
                     </div>
                     <div class="trigo-keys">
-                        <div>Rand</div>
+                        <div>Ans</div>
                     </div>
                     <div class="trigo-keys">
                         <div>mc</div>
@@ -184,6 +192,16 @@
                 </div>
             </div>
         </form>
+
+        <!-- the calculations done so far, over the keys -->
+        <div class="calc-past">
+            <div class="calc-past-head">
+                <span>History</span>
+                <span class="calc-past-clear" title="Clear the history">Clear</span>
+                <span class="calc-past-close" title="Close">&times;</span>
+            </div>
+            <div class="calc-past-list"></div>
+        </div>
         <script type="text/javascript" src="js/engine.js"></script>
         <script type="text/javascript" src="js/main.js"></script>
 </body>
