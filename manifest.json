@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "Scientific Calculator",
-    "version": "1.7.4",
+    "version": "2.0.0",
     "author": "Raad Altaie",
     "description": "Awesome Scientific Calculator for Google Chrome",
     "action": {
@@ -20,6 +20,25 @@
     "permissions": [
         "contextMenus",
         "system.display"
+    ],
+    "optional_permissions": [
+        "scripting",
+        "storage"
+    ],
+    "optional_host_permissions": [
+        "http://*/*",
+        "https://*/*"
+    ],
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "imgs/icon128.png"
+            ],
+            "matches": [
+                "http://*/*",
+                "https://*/*"
+            ]
+        }
     ],
     "background": {
         "service_worker": "js/background.js"

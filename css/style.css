@@ -18,7 +18,7 @@ html {
 
 #calculator {
     width: 376px;
-    height: 519px;
+    height: 529px;
     margin: auto;
     border: 1px solid #000000;
     background: #3a5872;
@@ -28,6 +28,12 @@ html {
     border-top-right-radius: 1em;
     border-bottom-left-radius: 1em;
     border-bottom-right-radius: 1em;
+}
+
+/* the strip above the display: the name and the ? box */
+.calc-head {
+    position: relative;
+    display: flow-root; /* as tall as the name, which floats */
 }
 
 .logo {
@@ -44,14 +50,32 @@ html {
     -webkit-user-select: none;
 }
 
-.v {
-    font-size: 0.6em;
-    margin-top: 20px;
-    margin-right: 18px;
+/* the ? box beside the name: opens the options page. It sits in the middle
+   between the top of the calculator and the display, 5px below the strip */
+.calc-help {
+    position: absolute;
+    top: 0;
+    bottom: -5px;
+    right: 12px;
+    width: 12px;
+    height: 12px;
+    margin: auto 0;
+    border: 1px solid #acb4c1;
+    border-radius: 4px;
     color: #acb4c1;
-    float: right;
-    font-family: 'Play', 'Russo One', sans-serif;
+    opacity: 0.55; /* subtle until the pointer is over it */
+    font: 700 9px/12px 'Play', 'Russo One', sans-serif;
+    text-align: center;
+    cursor: pointer;
     -webkit-user-select: none;
+}
+
+.calc-help:hover {
+    opacity: 1;
+}
+
+.calc-help:active {
+    opacity: 0.75;
 }
 
 .raad {
@@ -70,14 +94,14 @@ html {
 #display-box {
     position: relative;
     padding-right: 7px;
-    padding-top: 22px;
+    padding-top: 26px;
     padding-bottom: 0px;
     width: 350px;
-    height: 53px;
+    height: 59px;
     margin-top: 5px;
     margin-bottom: 9px;
     font: 30px bold;
-    font-family: "Pixel";
+    font-family: 'Play', 'Russo One', sans-serif;
     text-align: right;
     border-radius: 5px;
     background: #b6d1c2;
@@ -85,13 +109,87 @@ html {
     display: inline-block;
 }
 
+#box {
+    display: block;
+    position: relative;
+    margin-left: 8px;
+    line-height: 42px;
+    word-spacing: -0.08em;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+/* a line too long for the screen: hold and slide it, dots mark what is hidden */
+.calc-slide {
+    cursor: grab;
+    touch-action: none;
+}
+
+.calc-slide:active {
+    cursor: grabbing;
+}
+
+.calc-more-left::before,
+.calc-more-right::after {
+    content: '…';
+    position: absolute;
+    top: 0;
+    background: #b6d1c2;
+}
+
+.calc-more-left::before {
+    left: var(--slid);
+    padding-right: 0.15em;
+}
+
+.calc-more-right::after {
+    right: calc(0px - var(--slid));
+    padding-left: 0.15em;
+}
+
+#box sup,
+#box sub {
+    font-size: 60%;
+    line-height: 0;
+}
+
+.calc-log {
+    position: absolute;
+    z-index: 1;
+    left: 10px;
+    right: 8px;
+    top: 5px;
+    height: 18px;
+    line-height: 18px;
+    font-size: 14px;
+    word-spacing: -0.08em;
+    font-family: 'Play', 'Russo One', sans-serif;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.calc-log sup,
+.calc-log sub {
+    font-size: 10px;
+    line-height: 0;
+}
+
+.calc-mem {
+    position: absolute;
+    z-index: 1;
+    left: 56px;
+    top: 68px;
+    font-size: 12px;
+}
+
 .notification {
     position: absolute;
     z-index: 1;
-    left: 65px;
-    top: 58px;
+    left: 76px;
+    top: 68px;
     font-size: 12px;
-    font-family: "Pixel";
+    font-family: 'Play', 'Russo One', sans-serif;
 }
 
 .calc-rad {
@@ -99,8 +197,8 @@ html {
     padding: 2px;
     padding-left: 5px;
     bottom: 2px;
-    font-size: 14px;
-    line-height: 14px;
+    font-size: 12px;
+    line-height: 12px;
     outline-width: 5px;
 }
 
@@ -108,9 +206,9 @@ html {
     position: absolute;
     z-index: 1;
     right: 8px;
-    top: 58px;
+    top: 68px;
     font-size: 12px;
-    font-family: "Pixel";
+    font-family: 'Play', 'Russo One', sans-serif;
 }
 
 .calc-top {
@@ -124,9 +222,9 @@ html {
 
 .sign {
     position: absolute;
-    left: 39px;
+    left: 28px;
     bottom: 4px;
-    font-size: 8px;
+    font-size: 7px;
     font-family: inherit;
     color: inherit;
 }
@@ -140,7 +238,8 @@ html {
 
 .trigo-keys {
     width: 40px;
-    height: 27px;
+    height: 26px;
+    padding-bottom: 1px; /* the font draws its letters a little low */
     font-size: 1em;
     color: #fff;
     margin: 3px;
@@ -148,7 +247,9 @@ html {
     background: #2b4753;
     border: 1px solid #1a2f38;
     border-radius: 5px;
-    display: inline-block;
+    display: inline-flex; /* the label sits in the middle of the key */
+    align-items: center;
+    justify-content: center;
     font-family: 'Play', 'Russo One', sans-serif;
     vertical-align: middle;
 }
@@ -156,7 +257,8 @@ html {
 .calc-second {
     background-color: #222;
     width: 40px;
-    height: 27px;
+    height: 26px;
+    padding-bottom: 1px; /* the font draws its letters a little low */
     font-size: 1em;
     color: #d86672;
     margin: 3px;
@@ -164,9 +266,19 @@ html {
     background: #2b4753;
     border: 1px solid #1a2f38;
     border-radius: 5px;
-    display: inline-block;
+    display: inline-flex; /* the label sits in the middle of the key */
+    align-items: center;
+    justify-content: center;
     font-family: 'Play', 'Russo One', sans-serif;
     vertical-align: middle;
+}
+
+/* raised and lowered letters must not push the label off centre */
+.trigo-keys sup,
+.trigo-keys sub,
+.calc-second sup,
+.calc-second sub {
+    line-height: 0;
 }
 
 .trigo-keys:hover {
@@ -228,7 +340,12 @@ html {
 
 .del-ac {
     background: #c86e78;
-    width: 134px;
+}
+
+/* DEL and C: slightly smaller letters, on the same centre line as the digits */
+.del-ac > div {
+    font-size: 0.85em;
+    line-height: 37px;
 }
 
 .del-ac:hover {
@@ -244,10 +361,6 @@ html {
 .equal {
     width: 134px;
     /*    background: #3f4661;*/
-}
-
-.calc-buttons {
-    display: none;
 }
 
 .calc-blank {
