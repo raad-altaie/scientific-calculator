@@ -55,22 +55,63 @@ if (new URLSearchParams(location.search).has('detached')) {
     fitWindow();
 }
 
+// what the calculator keeps in localStorage
+const storageKeys = ['secondActive', 'deg', 'memory', 'calc', 'format', 'fraction', 'stat'];
+
 // listen for messages from the iframe
 window.addEventListener('message', (event) => {
     if (event.data?.command == 'clear-storage') {
         // Clear localStorage
         localStorage.clear();
     } else if (event.data?.command == 'set-storage') {
-        // Set values in localStorage
-        for (const key in event.data.storage) {
-            if (event.data.storage.hasOwnProperty(key)) {
-                localStorage.setItem(key, JSON.stringify(event.data.storage[key]));
+        // Set values in localStorage: only the calculator's own keys, and a full
+        // or blocked storage must not break the page
+        for (const key of storageKeys) {
+            if (event.data.storage && Object.prototype.hasOwnProperty.call(event.data.storage, key)) {
+                try {
+                    localStorage.setItem(key, JSON.stringify(event.data.storage[key]));
+                } catch (e) { }
             }
         }
     } else if (event.data?.command == 'open-options') {
         chrome.runtime.openOptionsPage();
+    } else if (event.data?.command == 'read-clipboard') {
+        pasteFromClipboard();
     }
 });
+
+// Paste in the menu of a right click. The calculator cannot read the clipboard,
+// so this page does: Chrome asks once to allow it, as the permission is optional
+// and not given at install. The text goes to the calculator as a paste
+const refusePaste = () => iframe.contentWindow.postMessage({ type: 'paste-refused' }, '*');
+
+const readClipboard = () => navigator.clipboard.readText().catch(() => {
+    // the older way, which the permission allows as well, while the calculator has the focus
+    const box = document.createElement('textarea');
+    document.body.appendChild(box);
+    box.focus();
+    const pasted = document.execCommand('paste');
+    const text = box.value;
+    box.remove();
+    iframe.focus();
+    return pasted ? text : Promise.reject();
+});
+
+function pasteFromClipboard() {
+    try {
+        chrome.permissions.request({ permissions: ['clipboardRead'] }, (granted) => {
+            if (chrome.runtime.lastError || !granted) {
+                refusePaste();
+                return;
+            }
+            readClipboard().then((text) => {
+                iframe.contentWindow.postMessage({ type: 'paste', text }, '*');
+            }, refusePaste);
+        });
+    } catch (e) {
+        refusePaste(); // asked for outside a click
+    }
+}
 
 
 // Pass keyboard events to the iframe
@@ -101,16 +142,24 @@ document.addEventListener('paste', function (e) {
 // pass storage data to the iframe
 iframe.addEventListener('load', () => {
     // Get values from localStorage
-    const keys = ['secondActive', 'deg', 'memory', 'calc'];
     const storageData = {};
 
-    keys.forEach(key => {
-        const item = localStorage.getItem(key);
-        if (item !== null) {
-            storageData[key] = JSON.parse(item);
-        }
+    storageKeys.forEach(key => {
+        try {
+            const item = localStorage.getItem(key);
+            if (item !== null) {
+                storageData[key] = JSON.parse(item);
+            }
+        } catch (e) { } // a damaged value is left out, the rest is restored
     });
 
     // Pass data to iframe
     iframe.contentWindow.postMessage({ type: 'storage', text: JSON.stringify(storageData) }, '*');
+});
+
+// the number format was changed on the options page while the calculator is open
+window.addEventListener('storage', (event) => {
+    if (event.key === 'format') {
+        iframe.contentWindow.postMessage({ type: 'format', text: event.newValue }, '*');
+    }
 });

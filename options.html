@@ -3,12 +3,13 @@
 
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" type="text/css" href="css/options.css">
     <link rel="icon" href="imgs/icon.png" type="image/png">
     <title>Scientific Calculator </title>
 </head>
 
-<body>
+<body class="page">
     <div class="wrapper">
 
         <div class="logo">Scientific Calculator <span class="v"></span></div>
@@ -46,6 +47,27 @@
                 </div>
                 <button type="button" id="launch-detached" class="launch">Launch</button>
             </div>
+
+            <div class="option format-option">
+                <span class="option-icon format-icon" id="format-icon" aria-hidden="true">1500</span>
+                <div class="option-text">
+                    <h3>Number format</h3>
+                    <p>Choose how answers look: rounded to fixed decimals, scientific (1.23e+4), or engineering (12.3e+3).</p>
+                    <div class="format-row">
+                        <select id="format-notation" title="Notation">
+                            <option value="norm">Normal</option>
+                            <option value="fix">Fix</option>
+                            <option value="sci">Sci</option>
+                            <option value="eng">Eng</option>
+                        </select>
+                        <select id="format-places" title="Decimal places"></select>
+                        <label class="format-group"><span class="switch">
+                                <input type="checkbox" id="format-group"><span></span></span>
+                            Thousands separators</label>
+                    </div>
+                    <p class="option-note" id="format-preview-line">Example: <span id="format-preview"></span></p>
+                </div>
+            </div>
         </div>
 
         <div class="features">
@@ -55,13 +77,24 @@
                 <li>Click away calculator (Alt+S) is shortcut as well.</li>
                 <li>Equation line: the display shows the whole equation while you type it. After the equation sign
                     it shows the result, with the finished equation on a small line above.</li>
-                <li>DEL button (or Backspace) to take back the last key you pressed, one key at a time.</li>
+                <li><kbd class="k k-red">DEL</kbd> button (or Backspace) to take back the last key you pressed, one key at a time.</li>
+                <li>Cursor: click into the equation, or use the <kbd class="k k-arrow"><svg class="arrow" viewBox="0 0 16 16" aria-label="left arrow"><path d="M10 3L5 8l5 5"/></svg></kbd> <kbd class="k k-arrow"><svg class="arrow" viewBox="0 0 16 16" aria-label="right arrow"><path d="M6 3l5 5-5 5"/></svg></kbd> keys (or the arrow keys), to fix a number or an
+                    operator in the middle of it. Back at the end, the calculator goes on as before.</li>
+                <li>Statistics: click the bars at the top left of the display, then type or paste a list of
+                    numbers, a column from a spreadsheet as well, for its count, sum, mean, standard deviation
+                    (σ and s), min, median and max. Click a result to use it in your calculation.</li>
+                <li><kbd class="k">mod</kbd>, <kbd class="k">gcd</kbd> and <kbd class="k">lcm</kbd> on the <kbd class="k">2nd</kbd> layer of <kbd class="k">%</kbd>, <kbd class="k"><sup>n</sup>C<sub>r</sub></kbd> and <kbd class="k"><sup>n</sup>P<sub>r</sub></kbd>.</li>
+                <li>Fraction mode: the <kbd class="k">a/b</kbd> key draws each division as a fraction while you type, and shows results like
+                    0.75 as 3/4.</li>
+                <li>Number format: Fix, Sci or Eng notation with 0 to 9 decimal places, and thousands separators
+                    (1,234,567.89). See "Options" section above.</li>
                 <li>Detached Mode: the calculator in its own window. See "Options" section above.</li>
                 <li>Memorizes not only the display if turned off/on but also all other states.
                     It's even possible to continue a calculation sequence after turning computer off/on.</li>
-                <li> Full Keyboard support: See "Keyboard Support" section below.</a></li>
-                <li>Click the ? button at the top of the calculator to open this page.</li>
-                <li>Copy/Paste from/to display with Ctrl+C (double click to copy as well) and Ctrl+V.
+                <li> Full Keyboard support: See "Keyboard Support" section below.</li>
+                <li>Click the <kbd class="k k-help">?</kbd> button at the top of the calculator to open this page.</li>
+                <li>Copy/Paste from/to display with Ctrl+C and Ctrl+V, or right-click the calculator and choose
+                    Copy or Paste.
                     You can paste a whole equation, such as 2 + 3 × sin(30), not only a number.</li>
                 <li>Dynamic font-size in display to keep numbers as readable as possible. An equation that is still
                     too long can be dragged left and right.</li>
@@ -101,7 +134,7 @@
                 <ul>
                     <li>The numbers and + – × ÷ , . = keys can also be input on number block.</li>
                     <li>See below the keyboard shortcuts of each calculator button in [brackets].</li>
-                    <li>Use the [Backspace] key or the DEL button to take back the last key you pressed: a digit, an
+                    <li>Use the [Backspace] key or the <kbd class="k k-red">DEL</kbd> button to take back the last key you pressed: a digit, an
                         operator, a bracket or a function. A finished result stays.</li>
                     <li>Hold key: [h, s] means: press h or H and you'll see a little 'hold' in the right bottom corner
                         of the display.<br>
@@ -110,14 +143,22 @@
                         are still entering an equation, the equation as text.<br>
                         Ctrl+V pastes a number (1,234.5 and 1.234,5 are both read as 1234.5) or a whole equation,
                         such as 2 + 3 × sin(30) or sqrt(16) + 2^3. If the pasted text contains an equation sign, it
-                        is calculated right away.</li>
+                        is calculated right away.<br>
+                        Right-click anywhere on the calculator for a menu with Copy and Paste as well. Copy takes
+                        the part of the display you selected, or else the result. The first time you use Paste
+                        there, Chrome asks you to allow the calculator to read what you copied; Ctrl+V works
+                        without that.</li>
                     <li>All [ENTER] keys represent the '=' button.</li>
+                    <li>Click <kbd class="k">Rad</kbd> or <kbd class="k">Deg</kbd> at the bottom left of the display to switch between them.</li>
+                    <li>[←] and [→] move the cursor in the equation, like the <kbd class="k k-arrow"><svg class="arrow" viewBox="0 0 16 16" aria-label="left arrow"><path d="M10 3L5 8l5 5"/></svg></kbd> <kbd class="k k-arrow"><svg class="arrow" viewBox="0 0 16 16" aria-label="right arrow"><path d="M6 3l5 5-5 5"/></svg></kbd> buttons. [Home] and [End] go to its
+                        start and its end.</li>
                     <li>History: click the clock at the top left of the display to see the calculations you finished with '='.
                         Point at an equation or a result to show its two buttons on the left: insert enters the
                         equation again, so you can change it or finish it with '=', or puts the result in as a
-                        number in the equation you are entering; copy copies it. A calculation with sin,
-                        cos or tan is marked with the unit it was done in, Deg or Rad, and is worked out in
-                        that unit again.</li>
+                        number in the equation you are entering; copy copies it. A calculation with <kbd class="k">sin</kbd>,
+                        <kbd class="k">cos</kbd> or <kbd class="k">tan</kbd> is marked with the unit it was done in, <kbd class="k">Deg</kbd> or <kbd class="k">Rad</kbd>, and is worked out in
+                        that unit again. A calculation done in fraction mode keeps its fractions, and one done with
+                        decimals keeps its decimals; inserting it switches fraction mode to match.</li>
 
                 </ul>
 
@@ -130,7 +171,8 @@
                     DEL
                 </div><span class="des">[Backspace] Takes back the last key you pressed: a digit, an operator, a
                     parenthesis or a function. Click it again to go back further, up to 50 steps. It does not
-                    change a finished result; use C or AC to start again.</span>
+                    change a finished result; use <kbd class="k k-red">C</kbd> or <kbd class="k k-red">AC</kbd> to start again. While the cursor is in the equation,
+                    it removes what is before the cursor.</span>
             </div>
 
             <div class="info">
@@ -197,13 +239,78 @@
             <h2 class="logo title">Scientific Functions </h2>
             <div class="info">
                 <div class="trigo-keys">
+                    <svg class="arrow" viewBox="0 0 16 16" aria-label="left arrow"><path d="M10 3L5 8l5 5"/></svg> <svg class="arrow" viewBox="0 0 16 16" aria-label="right arrow"><path d="M6 3l5 5-5 5"/></svg>
+                </div><span class="des">[← →] Move a cursor through the equation, to fix the middle of it. While
+                    the cursor is inside, keys write at the cursor as the equation reads: <kbd class="k">sin</kbd> writes sin( and
+                    <kbd class="k">x<sup>2</sup></kbd> writes <sup>2</sup>, and <kbd class="k k-red">DEL</kbd> removes what is before the cursor. Back at the end
+                    (<kbd class="k k-arrow"><svg class="arrow" viewBox="0 0 16 16" aria-label="right arrow"><path d="M6 3l5 5-5 5"/></svg></kbd> or [End]), the equation is worked out again and the calculator goes on as always; = finishes
+                    it from anywhere. After a result, <kbd class="k k-arrow"><svg class="arrow" viewBox="0 0 16 16" aria-label="left arrow"><path d="M10 3L5 8l5 5"/></svg></kbd> enters its equation again and <kbd class="k k-arrow"><svg class="arrow" viewBox="0 0 16 16" aria-label="right arrow"><path d="M6 3l5 5-5 5"/></svg></kbd> puts the cursor at its
+                    start.<br>
+                    You can also click into the equation, or into the small line above a result.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    <span><sup>n</sup>C<sub>r</sub></span>
+                </div><span class="des">[Shift+N] Combinations: the ways to choose r of n things. For example
+                    10 nCr 3 = returns 120. It works out before × and ÷, and after powers.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    <span><sup>n</sup>P<sub>r</sub></span>
+                </div><span class="des">[Shift+P] Permutations: the ways to arrange r of n things in order. For
+                    example 5 nPr 2 = returns 20.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    mod
+                </div><span class="des">[Shift+M] On the <kbd class="k">2nd</kbd> layer of <kbd class="k">%</kbd>. The remainder after dividing: 17 mod 5 = 2.
+                    It takes the sign of the second number (-7 mod 3 = 2), and works with decimals (7.5 mod 2 =
+                    1.5).</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    gcd
+                </div><span class="des">[Shift+G] On the <kbd class="k">2nd</kbd> layer of <kbd class="k"><sup>n</sup>C<sub>r</sub></kbd>. The greatest common divisor of two whole
+                    numbers: 12 gcd 18 = 6.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    lcm
+                </div><span class="des">[Shift+K] On the <kbd class="k">2nd</kbd> layer of <kbd class="k"><sup>n</sup>P<sub>r</sub></kbd>. The least common multiple of two whole
+                    numbers: 4 lcm 6 = 12.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    abs
+                </div><span class="des">[|] The absolute value: the number without its sign. 3 +/– abs returns
+                    3.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    a/b
+                </div><span class="des">[f] Turns fraction mode on and off. While it is on (FRAC in the display),
+                    each division is drawn as a fraction as you type it: 1 ÷ 2 + 1 ÷ 3 shows ½ + ⅓, and = shows
+                    5/6. Results are fractions whenever they can be one, with up to 10 digits; a number that is no
+                    fraction, like &pi; or &radic;2, stays a decimal. Copy gives a fraction as 5/6. The mode stays on
+                    until you click <kbd class="k">a/b</kbd> again.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
                     2nd
                 </div> <span class="des">
                     [Space] Changes the trigonometric buttons (sin, cos, tan, sinh, cosh, and tanh)<br>
                     to their inverse functions (sin<sup>-1</sup>, cos<sup>-1</sup>, tan<sup>-1</sup>,
                     sinh<sup>-1</sup>,
                     cosh<sup>-1</sup>, and tanh<sup>-1</sup>). It also changes ln to log<sub>2</sub>,
-                    and e<sup>x</sup> to 2<sup>x</sup>. Click 2nd again to return the buttons to their original
+                    and e<sup>x</sup> to 2<sup>x</sup>. Click <kbd class="k">2nd</kbd> again to return the buttons to their original
                     functions.</span>
             </div>
 
@@ -304,7 +411,7 @@
             <div class="info">
                 <div class="trigo-keys">
                     sin<sup>-1</sup>
-                </div><span class="des">[Shift+S] Calculates the arc sine of a value. (Available when the 2nd button
+                </div><span class="des">[Shift+S] Calculates the arc sine of a value. (Available when the <kbd class="k">2nd</kbd> button
                     is
                     clicked).</span>
             </div>
@@ -319,7 +426,7 @@
             <div class="info">
                 <div class="trigo-keys">
                     cos<sup>-1</sup>
-                </div><span class="des">[Shift+C] Calculates the arc cosine of a value. (Available when the 2nd
+                </div><span class="des">[Shift+C] Calculates the arc cosine of a value. (Available when the <kbd class="k">2nd</kbd>
                     button
                     is clicked).</span>
             </div>
@@ -334,7 +441,7 @@
             <div class="info">
                 <div class="trigo-keys">
                     tan<sup>-1</sup>
-                </div><span class="des">[Shift+T] Calculates the arc tangent of a value. (Available when the 2nd
+                </div><span class="des">[Shift+T] Calculates the arc tangent of a value. (Available when the <kbd class="k">2nd</kbd>
                     button
                     is clicked).</span>
             </div>
@@ -348,7 +455,7 @@
             <div class="info">
                 <div class="trigo-keys">
                     log<sub>2</sub>
-                </div><span class="des">[h, l] Calculates the log base 2. (Available when the 2nd button is
+                </div><span class="des">[h, l] Calculates the log base 2. (Available when the <kbd class="k">2nd</kbd> button is
                     clicked).</span>
             </div>
 
@@ -364,7 +471,7 @@
                     sinh <sup>-1</sup>
                 </div><span class="des">[h, Shift+S] Calculates the inverse hyperbolic sine of a value. (Available
                     when
-                    the 2nd button is clicked).</span>
+                    the <kbd class="k">2nd</kbd> button is clicked).</span>
             </div>
 
             <div class="info">
@@ -377,7 +484,7 @@
                 <div class="trigo-keys">
                     cosh<sup>-1</sup>
                 </div><span class="des">[h, Shift+C] Calculates the inverse hyperbolic cosine of a value. (Available
-                    when the 2nd button is clicked).</span>
+                    when the <kbd class="k">2nd</kbd> button is clicked).</span>
             </div>
 
             <div class="info">
@@ -391,7 +498,7 @@
                     tanh<sup>-1</sup>
                 </div><span class="des">[h, Shift+T] Calculates the inverse hyperbolic tangent of a value.
                     (Available
-                    when the 2nd button is clicked).</span>
+                    when the <kbd class="k">2nd</kbd> button is clicked).</span>
             </div>
 
             <div class="info">
@@ -407,7 +514,7 @@
                     2<sup>x</sup>
                 </div><span class="des">[Shift+X or h, e] Calculates 2 to the power of the displayed value. For
                     example,
-                    10 2<sup>x</sup> = 1024. (Available when the 2nd button is clicked).</span>
+                    10 2<sup>x</sup> = 1024. (Available when the <kbd class="k">2nd</kbd> button is clicked).</span>
             </div>
 
             <div class="info">
@@ -428,14 +535,13 @@
                 <div class="trigo-keys">
                     Ans
                 </div><span class="des">[a] Enters the last result, so it can be used anywhere in a new
-                    equation: 5 × Ans. It stays after C and AC.</span>
+                    equation: 5 × <kbd class="k">Ans</kbd>. It stays after <kbd class="k k-red">C</kbd> and <kbd class="k k-red">AC</kbd>.</span>
             </div>
 
             <div class="info">
                 <div class="trigo-keys">
                     Rand
-                </div><span class="des">[h, n or h, d] On the 2nd layer of the Ans key. Returns a random number
-                    between 0 and 1.</span>
+                </div><span class="des">[h, n or h, d] Returns a random number between 0 and 1.</span>
             </div>
 
             <div class="info">
@@ -487,18 +593,22 @@
             <h2 class="logo title">About Precision</h2>
             <p>This calculator operates with a precision of about 15 significant digits (only). This is due to how
                 JavaScript handles floating point numbers.<br>
-                This isn't actually a Javascript feature but a feature of the way the IEEE define how floating point
-                numbers are stored in memory. Any language using this definition suffers from this 'feature', for
-                instance C does as well and since JavaScript is often implemented in C so does JavaScript.</p>
+                This isn't actually a JavaScript feature but a feature of the way the IEEE 754 standard defines how
+                floating point numbers are stored in memory. JavaScript requires every number to be one of these
+                64-bit values, and any language that uses them, such as C, Java or Python, suffers from this
+                'feature' too.</p>
             <p>Results are shown with 13 significant digits, so these tiny rounding errors stay out of sight:
                 0.1 + 0.2 shows 0.3, not 0.30000000000000004. Angles in degrees give exact values where they should:
                 sin 180 is 0 and cos 60 is 0.5.</p>
-            <p>The problem is that Javascript is using 64 bits of data which have 18446744073709551616 different
-                combinations to hold any value in the range 1.7976931348623158e+308 to 2.2250738585072014e–308.<br>
-                It does this by using a smaller precision value and using some of the bits as a exponent (this can also
-                be done in 16 bits with a smaller range and less precision) which results in it being able to
-                approximate any value in the range but not exactly represent them all (because in real number terms
-                there are an infinite number of values between any 2 given values).<br>
+            <p>The problem is that JavaScript uses 64 bits of data, which can hold 18446744073709551616 different bit
+                patterns, to store every number: 1 bit for the sign, 11 bits for the exponent and 52 bits for the
+                digits. That covers values from about &ndash;1.7976931348623157e+308 to 1.7976931348623157e+308, with
+                the smallest normal number at 2.2250738585072014e&ndash;308 and even smaller ones down to
+                5e&ndash;324.<br>
+                A smaller precision value with some of the bits as an exponent is how it fits that range (this can also
+                be done in 16 bits with a smaller range and less precision). The result is that it can approximate
+                any value in the range but not exactly represent them all, because in real number terms there are an
+                infinite number of values between any 2 given values.<br>
                 As part of your calculation clearly the internal representation of the value is going outside the
                 available precision and you are ending up with an approximation to the value instead of an exact value.
             </p>
@@ -510,6 +620,7 @@
         <p>© <span class="year"></span> <a href="https://raad.dev" target="blank">raad.dev</a> all rights reserved.</p>
     </div>
 
+    <script src="./js/engine.js"></script>
     <script src="./js/version.js"></script>
     <script src="./js/options.js"></script>
 </body>

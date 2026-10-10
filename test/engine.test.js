@@ -3,7 +3,27 @@
 
 var Engine = require('../js/engine.js'),
     failures = 0,
-    checks = 0;
+    checks = 0,
+    drawn = Engine.prototype.equation;
+
+// A root is drawn with a bar over what is under it, its √ and brackets kept
+// hidden in the line. The checks below compare the line as it reads, √(99);
+// the drawing itself has checks of its own
+function unroot(s) {
+    return s.replace(/<span class="calc-(root|hide)">/g, '').replace(/<\/span>/g, '');
+}
+
+Engine.prototype.equation = function (stacked) {
+    var s = drawn.call(this, stacked);
+    return stacked ? s : unroot(s);
+};
+
+var drawnPast = Engine.prototype.pastLine;
+Engine.prototype.pastLine = function (i, stacked) {
+    var p = drawnPast.call(this, i, stacked);
+    if (!stacked) p.line = unroot(p.line);
+    return p;
+};
 
 function check(ok, label, detail) {
     checks++;
@@ -1195,6 +1215,345 @@ dels.forEach(function (c) {
         }
     }
     check(compared > 1000, 'fuzz compared ' + compared + ' sequences');
+})();
+
+// ---------- a root is drawn with a bar over what is under it ---------- //
+
+[
+    ['9 9 √', '<span class="calc-root"><span class="calc-hide">√(</span>99<span class="calc-hide">)</span></span>'],
+    ['( 2 + 3 ) √', '<span class="calc-root"><span class="calc-hide">√(</span>2 + 3<span class="calc-hide">)</span></span>'],
+    ['8 x√y 3', '<sup>3</sup><span class="calc-root"><span class="calc-hide">√</span>8</span>'],
+    ['9 9 √ x√y 8 6', '<sup>86</sup><span class="calc-root"><span class="calc-hide">√(</span>' +
+        '<span class="calc-root"><span class="calc-hide">√(</span>99<span class="calc-hide">)</span></span>' +
+        '<span class="calc-hide">)</span></span>']
+].forEach(function (c) {
+    var e = new Engine();
+    run(e, c[0]);
+    check(drawn.call(e) === c[1], c[0] + '  drawn with its bar', drawn.call(e));
+});
+
+// ---------- a root of a root keeps its brackets ---------- //
+
+[
+    ['9 9 √ x√y 8 6 =', Math.pow(99, 1 / 172), '<sup>86</sup>√(√(99)) =', '⁸⁶√(√(99)) ='],
+    ['6 4 x√y 3 x√y 2 =', 2, '<sup>2</sup>√(<sup>3</sup>√64) =', '²√(³√64) ='],
+    ['8 x√y', 8, '<sup>x</sup>√8', 'ˣ√8']
+].forEach(function (c) {
+    var e = new Engine(), b = new Engine();
+    run(e, c[0]);
+    check(same(e.value, c[1]) && e.equation() === c[2] && e.text() === c[3], c[0] + '  line',
+        e.value + ' | ' + e.equation() + ' | ' + e.text());
+    check(b.paste(e.text()) && same(b.value, +e.value), c[0] + '  pastes back', b.value);
+});
+
+// ---------- nCr, nPr and abs ---------- //
+
+[
+    ['1 0 nCr 3 =', '120', '10 nCr 3 ='],
+    ['5 nPr 2 =', '20', '5 nPr 2 ='],
+    ['5 nCr 0 =', '1', '5 nCr 0 ='],
+    ['5 nCr 5 =', '1', '5 nCr 5 ='],
+    ['2 × 5 nCr 2 =', '20', '2 × 5 nCr 2 ='],
+    ['5 nCr 2 yx 2 =', '5', '5 nCr 2^2 ='],
+    ['5 nCr 2 × 2 =', '20', '5 nCr 2 × 2 ='],
+    ['5 2 nCr 5 =', '2598960', '52 nCr 5 ='],
+    ['1 0 0 0 nCr 5 0 0 =', 2.702882409454366e299, '1000 nCr 500 ='],
+    ['3 nCr 5 =', 'Error', '3 nCr 5 ='],
+    ['2 . 5 nCr 1 =', 'Error', '2.5 nCr 1 ='],
+    ['5 nCr 1 +/– =', 'Error', '5 nCr -1 ='],
+    ['2 0 0 0 nCr 1 0 0 0 =', 'Error', '2000 nCr 1000 ='],
+    ['1 7 1 nPr 1 7 1 =', 'Error', '171 nPr 171 ='],
+    ['1 7 0 nPr 1 7 0 =', 7.257415615307994e306, '170 nPr 170 ='],
+    ['3 +/– abs =', '3', 'abs(-3) ='],
+    ['( 2 – 5 ) abs × 2 =', '6', 'abs(2 – 5) × 2 =']
+].forEach(function (c) {
+    var e = new Engine();
+    run(e, c[0]);
+    check(c[1] === 'Error' ? e.error : !e.error && same(e.value, c[1]), c[0] + '  value',
+        'expected ' + c[1] + ', got ' + (e.error ? 'Error' : e.value));
+    check(e.equation() === c[2], c[0] + '  line', 'expected "' + c[2] + '", got "' + e.equation() + '"');
+});
+
+(function () {
+    var e = new Engine();
+    check(e.paste('10 nCr 3 + abs(-2) =') && e.value === '122', 'paste nCr and abs', state(e));
+    check(e.paste('8^(1/3)=') && e.value === '2' && e.equation() === '<sup>3</sup>√8 =', 'a power of 1/n is pasted as the root', state(e));
+    check(e.paste('(-8)^(1/3)=') && e.value === '-2', 'odd roots of negative numbers stay real', state(e));
+})();
+
+// ---------- mod, gcd and lcm ---------- //
+
+[
+    ['1 7 mod 5 =', '2', '17 mod 5 ='],
+    ['7 +/– mod 3 =', '2', '-7 mod 3 ='],
+    ['7 mod 3 +/– =', '-2', '7 mod -3 ='],
+    ['7 . 5 mod 2 =', '1.5', '7.5 mod 2 ='],
+    ['. 3 mod . 1 =', '0', '0.3 mod 0.1 ='],
+    ['7 + 1 0 mod 3 =', '8', '7 + 10 mod 3 ='],
+    ['2 × 7 mod 4 =', '2', '2 × 7 mod 4 ='],
+    ['5 mod 0 =', 'Error', '5 mod 0 ='],
+    ['1 2 gcd 1 8 =', '6', '12 gcd 18 ='],
+    ['1 2 +/– gcd 1 8 =', '6', '-12 gcd 18 ='],
+    ['0 gcd 5 =', '5', '0 gcd 5 ='],
+    ['4 lcm 6 =', '12', '4 lcm 6 ='],
+    ['0 lcm 6 =', '0', '0 lcm 6 ='],
+    ['2 × 1 2 gcd 1 8 =', '12', '2 × 12 gcd 18 ='],
+    ['1 . 5 gcd 3 =', 'Error', '1.5 gcd 3 ='],
+    ['4 lcm 1 . 5 =', 'Error', '4 lcm 1.5 =']
+].forEach(function (c) {
+    var e = new Engine();
+    run(e, c[0]);
+    check(c[1] === 'Error' ? e.error : !e.error && same(e.value, c[1]), c[0] + '  value',
+        'expected ' + c[1] + ', got ' + (e.error ? 'Error' : e.value));
+    check(e.equation() === c[2], c[0] + '  line', 'expected "' + c[2] + '", got "' + e.equation() + '"');
+});
+
+(function () {
+    var e = new Engine();
+    check(e.paste('10 mod 4 + 12 gcd 18 * 2 =') && e.value === '14', 'paste mod and gcd', state(e));
+    check(e.paste('4 lcm 6 =') && e.value === '12', 'paste lcm', state(e));
+})();
+
+// ---------- statistics ---------- //
+
+(function () {
+    var s = Engine.stats('2 4 4 4 5 5 7 9');
+    check(s.n === 8 && s.sum === 40 && s.squares === 232 && s.mean === 5 && s.sdp === 2 && same(s.sds, Math.sqrt(32 / 7)) &&
+        s.min === 2 && s.max === 9 && s.median === 4.5, 'the textbook list: mean 5, σ 2', JSON.stringify(s));
+    s = Engine.stats('0.1, 0.2, 0.3');
+    check(s.n === 3 && s.sum === 0.6 && s.mean === 0.2 && s.median === 0.2, 'sums are exact: 0.1 + 0.2 + 0.3 is 0.6', JSON.stringify(s));
+    s = Engine.stats('12\n7\n\t3\r\n-4');
+    check(s.n === 4 && s.sum === 18 && s.min === -4 && s.median === 5, 'a column of a spreadsheet', JSON.stringify(s));
+    s = Engine.stats('1,5; 2,5; 3,5');
+    check(s.n === 3 && s.mean === 2.5, 'with semicolons, a comma is the decimal mark', JSON.stringify(s));
+    s = Engine.stats('3 abc 5 1e2 x');
+    check(s.n === 3 && s.sum === 108 && s.bad.join(' ') === 'abc x', 'what is no number is left out, and named', JSON.stringify(s));
+    s = Engine.stats('42');
+    check(s.n === 1 && s.sdp === 0 && isNaN(s.sds) && s.median === 42, 'one number: no sample deviation', JSON.stringify(s));
+    s = Engine.stats('  ');
+    check(s.n === 0 && s.mean === undefined, 'an empty list', JSON.stringify(s));
+    s = Engine.stats('1 2 3 4');
+    check(s.median === 2.5 && same(s.sds, 1.2909944487358056) && same(s.sdp, 1.118033988749895), 'an even list', JSON.stringify(s));
+})();
+
+// ---------- the cursor ---------- //
+
+(function () {
+    var e;
+
+    function ed(e) { // the line with | at the cursor
+        var v;
+        if (!e.edit) return 'not editing: ' + state(e);
+        v = e.editView();
+        return v.parts.slice(0, v.at).join('') + '|' + v.parts.slice(v.at).join('');
+    }
+
+    // into the equation being entered, change a digit, back to the end
+    e = new Engine();
+    run(e, '1 2 + 3 4 × 5');
+    check(e.move('left') && ed(e) === '12 + 34 × |5', '◀ puts the cursor before the last piece', ed(e));
+    [1, 2, 3, 4, 5].forEach(function () { e.move('left'); });
+    check(ed(e) === '1|2 + 34 × 5', '◀ steps over digits, operators', ed(e));
+    check(e.del() && ed(e) === '|2 + 34 × 5', 'DEL removes the piece before the cursor', ed(e));
+    check(!e.del() && ed(e) === '|2 + 34 × 5', 'DEL at the start does nothing', ed(e));
+    e.press('7');
+    check(ed(e) === '7|2 + 34 × 5', 'a digit is written at the cursor', ed(e));
+    check(e.move('end') && !e.edit && state(e) === '5 | 72 + 34 × 5', 'at the end the equation is entered again', state(e));
+    e.press('=');
+    check(state(e) === '242 | 72 + 34 × 5 =', '... and finished as before', state(e));
+    e.press('–');
+    check(state(e) === '242 | 242 –', 'keys after it work as before', state(e));
+
+    // after '=': ◀ enters it again, ▶ goes to its start
+    e = new Engine();
+    run(e, '1 ÷ 3 × 3 =');
+    check(e.move('left') && !e.edit && state(e) === '3 | 1 ÷ 3 × 3', '◀ after = enters the equation again', state(e));
+    e = new Engine();
+    run(e, '1 ÷ 3 × 3 =');
+    check(e.move('right') && ed(e) === '|1 ÷ 3 × 3', '▶ after = puts the cursor at the start', ed(e));
+    run(e, '2 ×');
+    e.press('=');
+    check(state(e) === '2 | 2 × 1 ÷ 3 × 3 =', '= while editing finishes it', state(e));
+
+    // functions write as the equation reads, and close at the end
+    e = new Engine();
+    run(e, '2 + 3 0');
+    e.move('left');
+    e.move('left');
+    e.press('sin');
+    check(ed(e) === '2 + sin(|30', 'sin writes sin(', ed(e));
+    e.press('=', true);
+    check(state(e) === '2.5 | 2 + sin(30) =', 'an open function closes with =', state(e));
+    e = new Engine();
+    run(e, '2 + 3');
+    e.move('left');
+    e.move('left');
+    e.press('x2');
+    check(ed(e) === '2<sup>2</sup>| + 3', 'x² writes ² at the cursor', ed(e));
+    e.press('=');
+    check(state(e) === '7 | 2<sup>2</sup> + 3 =', '... and is worked out', state(e));
+    e = new Engine();
+    run(e, '2 + 3');
+    e.move('left');
+    e.move('right');
+    e.press('x2');
+    check(state(e) === '9 | 2 + 3<sup>2</sup>', 'back at the end, x² works on the last number as before', state(e));
+    e = new Engine();
+    run(e, '8 + 1');
+    e.move('left');
+    e.move('left');
+    ['x√y', '3', ')'].forEach(function (k) { e.press(k); });
+    e.press('=');
+    check(state(e) === '3 | <sup>3</sup>√8 + 1 =', 'x√y writes the root', state(e));
+    e = new Engine();
+    run(e, '1 0 + 3');
+    e.move('left');
+    e.del();
+    e.press('nCr');
+    e.press('=');
+    check(state(e) === '120 | 10 nCr 3 =', 'nCr written at the cursor', state(e));
+
+    // computed numbers keep all their digits through an edit
+    e = new Engine();
+    run(e, 'π × 2');
+    e.move('home');
+    e.press('1');
+    e.press('+');
+    e.press('=');
+    check(same(e.value, 1 + 2 * Math.PI) && e.value === String(1 + Math.PI * 2), 'π is not rounded by an edit', state(e));
+
+    // a line that cannot be read stays in the editor, and = shows Error
+    e = new Engine();
+    run(e, '2 + 3');
+    e.move('left');
+    e.press('×');
+    e.move('end');
+    check(ed(e) === '2 +  × 3|', 'a line that cannot be read keeps the cursor', ed(e));
+    e.press('=');
+    check(e.error && e.equation() === '2 +  × 3', '= on it is an Error', e.equation());
+    check(e.move('left') && ed(e) === '2 +  × 3|', 'the line of the Error can be edited', ed(e));
+    e.move('left');
+    e.del();
+    e.press('=');
+    check(state(e) === '5 | 2 + 3 =', 'and fixed', state(e));
+
+    // an Error from = is edited the same way
+    e = new Engine();
+    run(e, '1 ÷ 0 =');
+    e.move('left');
+    e.del();
+    e.press('4');
+    e.press('=');
+    check(state(e) === '0.25 | 1 ÷ 4 =', 'an Error of = is fixed', state(e));
+
+    // a click: characters from the start of the shown line
+    e = new Engine();
+    run(e, '1 2 + 3 4');
+    check(e.point(1) && ed(e) === '1|2 + 34', 'a click puts the cursor between pieces', ed(e));
+    e = new Engine();
+    run(e, '1 2 + 3 4');
+    check(!e.point(7) && !e.edit, 'a click at the end leaves the line as it is', state(e));
+    e = new Engine();
+    run(e, '1 2 + 3 4 =');
+    check(e.point(4) && ed(e) === '12 + |34', 'a click on the line above a result', ed(e));
+    e = new Engine();
+    run(e, 'π');
+    check(!e.point(0) && !e.edit, 'a result alone has nothing to edit', state(e));
+
+    // the rest: AC, paste, the history, saving
+    e = new Engine();
+    run(e, '2 + 3');
+    e.move('left');
+    e.press('C');
+    check(!e.edit && state(e) === '0 | ', 'C while editing clears all', state(e));
+    e = new Engine();
+    run(e, '2 + 3');
+    e.move('left');
+    check(e.paste('4×') && ed(e) === '2 + 4 × |3', 'paste goes in at the cursor', ed(e));
+    e.ans = 7;
+    e.press('Ans');
+    check(ed(e) === '2 + 4 × 7|3', 'Ans is written as a number', ed(e));
+    check(e.put(1.5) && ed(e) === '2 + 4 × 71.5|3', 'a result from the history too', ed(e));
+    check(e.text() === '2 + 4 × 71.53', 'copy while editing gives the line', e.text());
+    var saved = JSON.parse(JSON.stringify(e.save())), f = new Engine();
+    f.load(saved);
+    check(f.edit && ed(f) === ed(e), 'the cursor is kept when the calculator closes', f.edit && ed(f));
+    f.move('end'); // 71.5 then 3 cannot be read: the cursor stays
+    check(ed(f) === '2 + 4 × 71.53|', 'a number next to a pasted one cannot be read', ed(f));
+    while (f.del());
+    check(!f.edit && state(f) === '0 | ', 'DEL down to nothing leaves the editor', state(f));
+})();
+
+// ---------- number format and fractions ---------- //
+
+(function () {
+    [
+        [1234567.891, 'fix', 2, '1234567.89'],
+        [1.005, 'fix', 2, '1.01'],
+        [2.5, 'fix', 0, '3'],
+        [-0.001, 'fix', 2, '0.00'],
+        [1e20, 'fix', 2, '1.00e+20'],
+        [123456, 'sci', 3, '1.235e+5'],
+        [0.000123456, 'sci', 2, '1.23e-4'],
+        [0, 'sci', 2, '0.00e+0'],
+        [123456, 'eng', 2, '123.46e+3'],
+        [0.000123, 'eng', 3, '123.000e-6'],
+        [999999, 'eng', 2, '1.00e+6']
+    ].forEach(function (c) {
+        var got = Engine.format(c[0], { notation: c[1], places: c[2] });
+        check(got === c[3], 'format ' + c[0] + ' ' + c[1] + ' ' + c[2], 'expected ' + c[3] + ', got ' + got);
+    });
+    check(Engine.format(12.5, { notation: 'norm', places: 2 }) === null, 'the usual notation is left as it is');
+    [
+        ['1234567.891', '1,234,567.891'],
+        ['-1234', '-1,234'],
+        ['999', '999'],
+        ['0.12345', '0.12345'],
+        ['1.234567e+20', '1.234567e+20'],
+        ['12345 + 6789 × 0.5', '12,345 + 6,789 × 0.5']
+    ].forEach(function (c) {
+        check(Engine.group(c[0]) === c[1], 'group ' + c[0], Engine.group(c[0]));
+    });
+    [
+        [0.75, '3/4'], [1 / 3, '1/3'], [-7 / 4, '-7/4'], [0.1 + 0.2, '3/10'], [2 / 3 + 1 / 6, '5/6'],
+        [Math.PI, null], [Math.SQRT2, null], [5, null], [0.123, '123/1000'], [1 / 7, '1/7'],
+        [0.1234567, null], [Infinity, null]
+    ].forEach(function (c) {
+        var f = Engine.fraction(c[0]);
+        check((f ? f[0] + '/' + f[1] : null) === c[1], 'fraction of ' + c[0], f && f.join('/'));
+    });
+
+    // the history keeps whether a calculation was done in fraction mode
+    var h = new Engine();
+    h.fraction = true;
+    run(h, '1 ÷ 2 =');
+    h.fraction = false;
+    run(h, '1 ÷ 4 =');
+    run(h, '1 ÷ 4 =');
+    h.fraction = true;
+    run(h, '1 ÷ 4 =');
+    check(h.past.map(function (p) { return p.value + (p.frac ? ' frac' : ''); }).join(', ') === '0.5 frac, 0.25, 0.25 frac',
+        'each calculation keeps its mode; the same one again in the other mode is kept as well',
+        h.past.map(function (p) { return p.value + (p.frac ? ' frac' : ''); }).join(', '));
+    var h2 = new Engine();
+    h2.load(JSON.parse(JSON.stringify(h.save())));
+    check(h2.past.length === 3 && h2.past[0].frac === 1 && !h2.past[1].frac, 'and keeps it when the calculator closes');
+
+    // fraction mode: each division drawn as a fraction while it is typed
+    var e = new Engine(), fr = function (a, b) {
+        return '<span class="calc-fr"><span>' + a + '</span>' +
+            (b ? '<span>' + b + '</span>' : '<span class="calc-fr-empty"></span>') + '</span>';
+    };
+    run(e, '1 ÷ 2 + 1 ÷');
+    check(e.equation(true) === fr('1', '2') + ' + ' + fr('1'), 'a division waits for its bottom part', e.equation(true));
+    run(e, '3 =');
+    check(e.equation(true) === fr('1', '2') + ' + ' + fr('1', '3') + ' =', 'the finished line', e.equation(true));
+    check(e.equation() === '1 ÷ 2 + 1 ÷ 3 =' && e.text() === '1 ÷ 2 + 1 ÷ 3 =', 'the line without fraction mode, and copied',
+        e.equation());
+    e = new Engine();
+    run(e, '2 + 3 ÷ ( 4 – 1 ) × 5 1/x =');
+    check(e.equation(true) === '2 + ' + fr('3', '(4 – 1)') + ' × ' + fr('1', '5') + ' =', 'parts need no brackets of their own',
+        e.equation(true));
 })();
 
 console.log(failures ? failures + ' of ' + checks + ' checks failed' : 'all ' + checks + ' checks passed');
