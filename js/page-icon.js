@@ -6,7 +6,7 @@
     // the tab that holds the logo, in pixels: its length along the side of the
     // window, how far it comes out of it, the round of its outer corners, and how
     // far the curves that join it to the side reach along the side and up the tab
-    const size = { length: 62, depth: 37, round: 10, foot: { along: 12, up: 10 } };
+    const size = { length: 78, depth: 37, round: 10, foot: { along: 20, up: 16 } };
     const gap = 6; // kept free at both ends of a side
     const svgNS = 'http://www.w3.org/2000/svg';
     const sides = ['left', 'right', 'top', 'bottom'];

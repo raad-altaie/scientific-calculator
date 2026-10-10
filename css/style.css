@@ -207,7 +207,7 @@ html {
     white-space: nowrap;
     text-overflow: ellipsis;
     word-spacing: -0.08em;
-    cursor: pointer;
+    position: relative; /* holds its buttons */
     border-radius: 4px;
     padding: 1px 4px;
     margin: 0 -4px;
@@ -237,6 +237,47 @@ html {
 .calc-past-eq > span {
     direction: ltr;
     unicode-bidi: isolate;
+}
+
+/* insert and copy, on the left of a line while the pointer is over it; over
+   the start of a long line, so they have the line's background */
+.calc-past-btns {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 2px;
+    display: none;
+    align-items: center;
+    gap: 3px;
+    padding-right: 4px;
+    background: #a3bdaf;
+    word-spacing: normal;
+}
+
+.calc-past-eq:hover .calc-past-btns,
+.calc-past-res:hover .calc-past-btns {
+    display: flex;
+}
+
+.calc-past-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    color: #1f333c;
+    opacity: 0.65;
+    cursor: pointer;
+}
+
+.calc-past-btn:hover {
+    opacity: 1;
+    background: #8eab9b;
+}
+
+.calc-past-btn:active {
+    opacity: 0.75;
 }
 
 .calc-past-eq sup,

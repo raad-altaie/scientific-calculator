@@ -13,6 +13,7 @@
         leftKeys = Calc.querySelector('.calc-left').children,
         secondKeySet = [].slice.call(leftKeys, 12, 20).concat(leftKeys[22]), // the keys the 2nd key changes
         hiddenCopy = Calc.querySelector('textarea'),
+        copying = null, // text a history button is copying, in place of the main line
         past = document.querySelector('.calc-past'), // the history, over the keys
         pastList = past.querySelector('.calc-past-list'),
         pastButton = document.querySelector('.calc-hist'),
@@ -186,19 +187,28 @@
     }
 
     document.body.addEventListener('copy', function (e) {
-        e.clipboardData.setData('text/plain', copyText());
+        e.clipboardData.setData('text/plain', copying !== null ? copying : copyText());
         e.preventDefault(); // the text above is copied, not the page's selection
         notify('Copy');
     }, false);
 
     // the browser only runs a copy asked for by a script while something is
     // selected, so the hidden box is selected for a moment; the copy listener
-    // above still supplies the text
-    display.addEventListener("dblclick", function () {
-        hiddenCopy.value = copyText();
+    // above supplies the text: the given one, else the main line's
+    function copy(text) {
+        copying = text === undefined ? null : text;
+        hiddenCopy.value = copying !== null ? copying : copyText();
         hiddenCopy.select();
-        document.execCommand('copy');
-        hiddenCopy.blur(); // typing must not land in the box
+        try {
+            document.execCommand('copy');
+        } finally {
+            copying = null;
+            hiddenCopy.blur(); // typing must not land in the box
+        }
+    }
+
+    display.addEventListener("dblclick", function () {
+        copy();
     }, false);
 
     // shows a short notice in the display, then fades it out
@@ -242,11 +252,20 @@
         saveState();
     }, false);
 
-    // the equation is entered again, to change or finish; the result goes in
-    // as a number, like Ans
+    // the buttons on a line: insert enters the equation again, to change or
+    // finish, or puts the result in as a number, like Ans; copy copies it
     pastList.addEventListener('click', function (e) {
-        var part = e.target.closest('.calc-past-eq, .calc-past-res');
-        if (part) usePast(+part.parentNode.dataset.i, part.classList.contains('calc-past-eq'));
+        var button = e.target.closest('.calc-past-btn'),
+            part = button && button.parentNode.parentNode,
+            i = part && +part.parentNode.dataset.i,
+            whole = part && part.classList.contains('calc-past-eq');
+
+        if (!button || !engine.past[i]) return;
+        if (button.dataset.act === 'insert') {
+            usePast(i, whole);
+        } else {
+            copy(whole ? engine.pastLine(i).text.replace(/ =$/, '') : engine.past[i].value);
+        }
     }, false);
 
     function showPast(open) {
@@ -277,7 +296,7 @@
             row.dataset.i = i;
             eq = row.appendChild(document.createElement('div'));
             eq.className = 'calc-past-eq';
-            eq.title = p.text + ' – click to use this equation';
+            pastButtons(eq, 'equation');
             line = eq.appendChild(document.createElement('span')); // keeps its order in the right to left box
             line.innerHTML = p.line; // made by the engine, like the equation in the display
             if (p.unit) { // its angles are worked out in this unit again
@@ -288,9 +307,25 @@
             res = row.appendChild(document.createElement('div'));
             res.className = 'calc-past-res';
             res.textContent = p.result;
-            res.title = 'Click to use this result';
+            pastButtons(res, 'result');
             pastList.appendChild(row);
         }
+    }
+
+    // insert and copy, on the left of a line; shown while the pointer is over it
+    function pastButtons(part, what) {
+        var box = part.appendChild(document.createElement('span'));
+        box.className = 'calc-past-btns';
+        box.innerHTML =
+            '<span class="calc-past-btn" data-act="insert" title="Insert this ' + what + '">' +
+            '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" ' +
+            'stroke-linecap="round" stroke-linejoin="round"><path d="M13 3v5a2 2 0 0 1-2 2H3" /><path d="M6 7l-3 3 3 3" /></svg>' +
+            '</span>' +
+            '<span class="calc-past-btn" data-act="copy" title="Copy this ' + what + '">' +
+            '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" ' +
+            'stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />' +
+            '<path d="M10.5 3.5v-1a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h1" /></svg>' +
+            '</span>';
     }
 
     function usePast(i, whole) {
