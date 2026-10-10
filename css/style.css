@@ -514,9 +514,9 @@ html {
     z-index: 1;
     left: 52px; /* clear of the clock and the bars */
     right: 8px;
-    top: 5px;
-    height: 26px;
-    line-height: 26px;
+    top: 3px;
+    height: 32px;
+    line-height: 28px;
     font-size: 15px;
     word-spacing: -0.08em;
     font-family: 'Play', 'Russo One', sans-serif;
@@ -649,10 +649,11 @@ html {
 
 /* The √ is drawn: the √ of the font is narrow and reads as a V. Alone, as on
    its key, it stands in for the character, which stays for copying. Its
-   strokes are as thick as the bar over a root, 0.07em: 1.11 of the 10 units
-   across its 0.62em; its arm ends in a sharp corner where it meets the bar */
+   strokes are as thick as the bar over a root, 0.056em: 0.9 of the 10 units
+   across its 0.62em; its arm turns into the bar through a rounded corner, level with the top of the bar */
 :root {
-    --calc-root-sign: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 16' preserveAspectRatio='none'%3E%3Cpath d='M0.7 9.4 L2.7 8.3 L5.3 15 L8.445 4.6' fill='none' stroke='black' stroke-width='1.11' stroke-linejoin='round' stroke-linecap='round'/%3E%3Cpath d='M8.445 4.6 L9.668 0.555 L10.3 0.555' fill='none' stroke='black' stroke-width='1.11' stroke-linejoin='miter' stroke-miterlimit='4'/%3E%3C/svg%3E");
+    --calc-root-whole: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='82' height='130' viewBox='0 0 82 130'%3E%3Cpath d='M7 80 L20 70 L33.6 126 L50.6 20' fill='none' stroke='black' stroke-width='5.6' stroke-linejoin='round' stroke-linecap='round'/%3E%3Cpath d='M46.16 30 L49.36 10 Q50.96 0 54.5 0 L72 0 L72 5.6 L59 5.6 Q55.74 5.6 55.34 8.1 L51.84 30 Z' fill='black'/%3E%3C/svg%3E");
+    --calc-root-sign: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 16' preserveAspectRatio='none'%3E%3Cpath d='M0.7 9.4 L2.7 8.3 L4.5 15 L7.645 4.6' fill='none' stroke='black' stroke-width='0.9' stroke-linejoin='round' stroke-linecap='round'/%3E%3Cpath d='M7.175 4.6 L8.05 1.7 Q8.566 0 9 0 L10.3 0 L10.3 0.68 L9.7 0.68 Q9.3 0.68 9.2 1 L8.115 4.6 Z' fill='black'/%3E%3C/svg%3E");
 }
 
 .calc-sq {
@@ -673,7 +674,8 @@ html {
     display: inline-block;
     margin-left: 0.62em;
     padding: 0.05em 0.06em 0 0.06em;
-    border-top: max(1px, 0.07em) solid currentColor;
+    --calc-bar: max(1px, 0.056em);
+    border-top: var(--calc-bar) solid transparent;
     line-height: 1.15;
 }
 
@@ -681,11 +683,14 @@ html {
     content: '';
     position: absolute;
     left: -0.62em;
-    top: calc(0px - max(1px, 0.07em));
+    top: calc(0px - var(--calc-bar));
     bottom: -0.05em;
-    width: 0.62em;
+    width: calc(100% + 0.62em);
     background: currentColor;
-    -webkit-mask: var(--calc-root-sign) no-repeat 0 0 / 100% 100%;
+    /* the whole sign and bar is one drawing, cut in nine: the corner and the
+       foot keep their size, the arm stretches with the root, and the bar
+       stretches along it at its own thickness */
+    -webkit-mask-box-image: var(--calc-root-whole) 30 10 10 62 / 0.3em 0 0.1em 0.62em stretch;
 }
 
 .calc-hide {
@@ -696,7 +701,8 @@ html {
 .calc-fr {
     display: inline-flex;
     flex-direction: column;
-    align-items: center;
+    align-items: stretch; /* the bar runs the width of the wider part, a root or a product included */
+    text-align: center;
     vertical-align: middle;
     margin: 0 0.08em;
     font-size: 0.6em;
@@ -708,8 +714,31 @@ html {
     white-space: nowrap;
 }
 
+/* a root in a fraction keeps the rows close, and the whole fraction on the display
+   sits above the FRAC and FIX labels under the line, not over them */
+.calc-fr .calc-root {
+    line-height: 1;
+}
+
+#box > .calc-fr {
+    position: relative;
+    top: -7px;
+}
+
+/* the line clips what is past its edge: room above it, so the bar of a root
+   in the top row is not cut off */
+#box:has(> .calc-fr) {
+    padding-top: 10px;
+    margin-top: -10px;
+}
+
+.calc-fr > span:first-child {
+    padding-bottom: 0.1em; /* the foot of a root keeps off the line */
+}
+
 .calc-fr > span + span {
     border-top: 1px solid currentColor;
+    padding-top: 0.14em; /* the bar of a root keeps off the line */
 }
 
 /* a fraction in a fraction is written with a slash, so the line keeps two rows */
@@ -734,6 +763,25 @@ html {
 /* the line above the result is small already */
 .calc-log .calc-fr {
     font-size: 0.75em;
+}
+
+/* the line is 32px high: the rows of a fraction in it sit close, and a root's
+   bar and foot take little room, so none of it is cut */
+.calc-log .calc-fr {
+    line-height: 1;
+}
+
+.calc-log .calc-fr > span:first-child {
+    padding-bottom: 0.03em;
+}
+
+.calc-log .calc-fr > span + span {
+    padding-top: 0.06em;
+}
+
+.calc-log .calc-fr .calc-root {
+    padding-top: 0;
+    line-height: 0.95;
 }
 
 /* the part still to be entered */
