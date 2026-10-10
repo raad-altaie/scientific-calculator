@@ -518,7 +518,6 @@
         }
         logline.innerHTML = engine.error || engine.done ? eq : '';
         slide(logline, logline.scrollWidth);
-        keyBoard['('].classList.toggle('calc-active', engine.levels.length > 1);
         mem.textContent = engine.memory ? 'M' : '';
         pastButton.hidden = !engine.past.length; // shown once there is a history
         if (past.classList.contains('calc-open') && (pastShown.list !== engine.past ||

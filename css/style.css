@@ -555,24 +555,3 @@ html {
     margin: 0px;
 }
 
-
-
-.calc-active,
-.calc-active:hover {
-    border: 2px solid #c86f7870;
-    background: #3e4f5f;
-}
-
-.calc-active:hover {
-    background: #405263;
-}
-
-.trigo-keys.calc-active,
-.trigo-keys.calc-active:hover {
-    border: 1px solid #c86f789c;
-    background: #1f333c;
-}
-
-.trigo-keys.calc-active:hover {
-    background: #294450;
-}
