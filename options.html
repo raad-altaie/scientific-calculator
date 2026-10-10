@@ -11,23 +11,67 @@
 <body>
     <div class="wrapper">
 
-        <div class="logo">Scientific Calculator <span class="v">v 1.7</span></div>
+        <div class="logo">Scientific Calculator <span class="v"></span></div>
+
+        <h2 class="logo title">Options</h2>
+        <div class="options">
+            <div class="option">
+                <span class="option-icon page-button"><img src="imgs/icon128.png" alt=""></span>
+                <div class="option-text">
+                    <h3>Calculator on every page</h3>
+                    <p>A small calculator button on the side of every page that opens Detached Mode. Drag it to
+                        any side; it keeps its place in all windows.</p>
+                    <p class="option-note">Chrome asks for access to websites when you turn it on. Only the button
+                        is added; nothing is read from the pages.</p>
+                </div>
+                <label class="switch" title="Calculator on every page">
+                    <input type="checkbox" id="page-icon">
+                    <span></span>
+                </label>
+            </div>
+
+            <div class="option">
+                <span class="option-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                        <path d="M15 3h6v6M10 14L21 3"></path>
+                    </svg>
+                </span>
+                <div class="option-text">
+                    <h3>Detached Mode</h3>
+                    <p>The calculator in its own window that stays open while you work, and grows or shrinks with
+                        the window.</p>
+                    <p class="option-note">Also in the menu of the toolbar icon: right-click it and choose
+                        "Detached Mode".</p>
+                </div>
+                <button type="button" id="launch-detached" class="launch">Launch</button>
+            </div>
+        </div>
 
         <div class="features">
             <h2 class="logo title">Features</h2>
             <ul>
                 <li>Light, super fast and it works offline.</li>
                 <li>Click away calculator (Alt+S) is shortcut as well.</li>
+                <li>Equation line: the display shows the whole equation while you type it. After the equation sign
+                    it shows the result, with the finished equation on a small line above.</li>
+                <li>DEL button (or Backspace) to take back the last key you pressed, one key at a time.</li>
+                <li>Detached Mode: the calculator in its own window. See "Options" section above.</li>
                 <li>Memorizes not only the display if turned off/on but also all other states.
                     It's even possible to continue a calculation sequence after turning computer off/on.</li>
                 <li> Full Keyboard support: See "Keyboard Support" section below.</a></li>
-                <li>Copy/Paste from/to display with Ctrl+C (double click to copy as well) and Ctrl+V.</li>
-                <li>Dynamic font-size in display to keep numbers as readable as possible.</li>
+                <li>Click the ? button at the top of the calculator to open this page.</li>
+                <li>Copy/Paste from/to display with Ctrl+C (double click to copy as well) and Ctrl+V.
+                    You can paste a whole equation, such as 2 + 3 × sin(30), not only a number.</li>
+                <li>Dynamic font-size in display to keep numbers as readable as possible. An equation that is still
+                    too long can be dragged left and right.</li>
                 <li>Real sci-calc-style calculations, so 1+2*3=7 (... not 9 like with others),<br>
                     and 1*(2+3)=5=25 (... not 8 like with other calculators).</li>
-                <li>You can theoretically use an unlimited amount of parentheses.</li>
+                <li>Parentheses can be nested up to 29 levels deep.</li>
                 <li>No need to close parentheses if equation sign follows anyhow.</li>
-                <li>It requires no permissions to read any data on Google Chrome.</li>
+                <li>Calculator on every page: an optional button on every page that opens the calculator. See "Options" section above.</li>
+                <li>It requires no permissions to read any data on Google Chrome. Only the optional button on every
+                    page needs access to websites, and only after you turn it on.</li>
             </ul>
 
 
@@ -37,11 +81,14 @@
             <h2 class="logo title">Using the Calculator</h2>
             <div>
                 <p>Click on numbers and functions in Calculator just as you would with a standard calculator.<br />
-                    When you click the add, subtract, multiply, or divide button (in scientific mode also:
-                    y<sup>x</sup>, <sup>x</sup>&radic;y, EE and the opened parenthesis), a white shadow appears around
-                    the button to let you know the operation to be carried out. The white shadow around the opened
-                    parenthesis
-                    will stay until all parentheses expressions are closed.</p>
+                    The display shows the equation as you enter it, so you always see the operation to be carried
+                    out. Click the equation sign and the display shows the result, with the finished equation on the
+                    small line above it. The opened parenthesis button keeps a ring around it until all parentheses
+                    expressions are closed.</p>
+                <p>If an equation gets too long for the display, its font gets smaller first. After that, hold the
+                    line and drag it left or right to see the rest; dots (…) mark the side where more is hidden.<br>
+                    If a calculation is not possible (for example 1 ÷ 0), the display shows Error and the line above
+                    shows the equation that caused it.</p>
                 <p>This calculator uses an algebraic method of entry that allows you to enter mathematical sequences in
                     the same order that they are algebraically stated (PEMDAS / AOS™).<br>
                     PEMDAS: "Parentheses, Exponents, Multiplication or Division, and Addition or Subtraction".
@@ -54,11 +101,16 @@
                 <ul>
                     <li>The numbers and + – × ÷ , . = keys can also be input on number block.</li>
                     <li>See below the keyboard shortcuts of each calculator button in [brackets].</li>
-                    <li>Use the [Backspace] key to correct the last, single input number, point or +/- sign.</li>
+                    <li>Use the [Backspace] key or the DEL button to take back the last key you pressed: a digit, an
+                        operator, a bracket or a function. A finished result stays.</li>
                     <li>Hold key: [h, s] means: press h or H and you'll see a little 'hold' in the right bottom corner
                         of the display.<br>
                         This makes the followed key function different: [s] = sin, but [h, s] = sinh, etc.</li>
-                    <li>Copy/Paste from/to display with Ctrl+C and Ctrl+V.</li>
+                    <li>Copy/Paste from/to display with Ctrl+C and Ctrl+V. Ctrl+C copies the result or, while you
+                        are still entering an equation, the equation as text.<br>
+                        Ctrl+V pastes a number (1,234.5 and 1.234,5 are both read as 1234.5) or a whole equation,
+                        such as 2 + 3 × sin(30) or sqrt(16) + 2^3. If the pasted text contains an equation sign, it
+                        is calculated right away.</li>
                     <li>All [ENTER] keys represent the '=' button.</li>
 
                 </ul>
@@ -67,6 +119,14 @@
         </div>
         <div class="calc-main">
             <h2 class="logo title">Standard Functions </h2>
+            <div class="info">
+                <div class="calc-brown keys del-ac">
+                    DEL
+                </div><span class="des">[Backspace] Takes back the last key you pressed: a digit, an operator, a
+                    parenthesis or a function. Click it again to go back further, up to 50 steps. It does not
+                    change a finished result; use C or AC to start again.</span>
+            </div>
+
             <div class="info">
                 <div class="calc-brown keys del-ac">
                     C
@@ -145,17 +205,17 @@
                 <div class="trigo-keys">
                     (
                 </div><span class="des">
-                    [(] Opens a parenthetical expression. Expressions can be nested. Clicking on it lets a white
-                    ring
+                    [(] Opens a parenthetical expression. Expressions can be nested. Clicking on it lets a ring
                     appear around the button to let you know that a parenthetical expresion is still active (until
                     all
-                    expressions are closed with the closeing parenthesis or the equation sign).</span>
+                    expressions are closed with the closeing parenthesis or the equation sign).<br>
+                    A number right before the parenthesis is multiplied: 5 ( 2 + 3 ) is 5 × (2 + 3).</span>
             </div>
 
             <div class="info">
                 <div class="trigo-keys">
                     )
-                </div><span class="des">[)] Closes a parenthetical expression. The white ring around the ( parenthesis
+                </div><span class="des">[)] Closes a parenthetical expression. The ring around the ( parenthesis
                     key
                     will stay until all
                     expressions are closed with this key or after clicking the equation sign.</span>
@@ -164,15 +224,11 @@
             <div class="info">
                 <div class="trigo-keys">
                     %
-                </div><span class="des">[%] Calculates percentages, adds markups, and subtracts discounts. To
-                    calculate
-                    a percentage, use it with the +, –, × or ÷ keys. For example, to calculate 8% of 500, enter 500
-                    x 8
-                    % (no equation key (=)) which returns 40. To add a markup or subtract a discount, additionaly
-                    use
-                    the equation (=) key. For example, to compute the total cost of a $500 item with an 8% sales
-                    tax,
-                    enter 500 + 8 % = which returns 540.</span>
+                </div><span class="des">[%] Calculates percentages, adds markups, and subtracts discounts. On its
+                    own it divides the value by 100: 50 % returns 0.5. For example, to calculate 8% of 500, enter
+                    8 % × 500 = which returns 40.<br>
+                    To add a markup or subtract a discount, use it after the + or – key. For example, to compute the
+                    total cost of a $500 item with an 8% sales tax, enter 500 + 8 % = which returns 540.</span>
             </div>
 
             <div class="info">
@@ -206,7 +262,8 @@
             <div class="info">
                 <div class="trigo-keys">
                     x!
-                </div><span class="des">[x] Calculates the factorial of a value (only integers).</span>
+                </div><span class="des">[x] Calculates the factorial of a value: whole numbers from 0 to 170, and
+                    decimals as well (2.5! returns 3.32335…).</span>
             </div>
 
             <div class="info">
@@ -222,7 +279,8 @@
                     </div>
                 </div><span class="des">[r] Use between values to calculate the x root of y. For example to compute
                     <sup>4</sup>&radic;81,<br>
-                    enter 81 <sup>x</sup>&radic;y 4 = which returns 3.</span>
+                    enter 81 <sup>x</sup>&radic;y 4 = which returns 3. Odd roots of negative numbers work as well:
+                    <sup>3</sup>&radic;-8 returns -2.</span>
             </div>
 
             <div class="info">
@@ -377,7 +435,8 @@
                     m+
                 </div><span class="des">[b] Click to add the displayed number to the number in memory. If no number
                     is
-                    in memory, click to store the displayed number in memory.</span>
+                    in memory, click to store the displayed number in memory. The display shows M+ for a
+                    moment.</span>
             </div>
 
             <div class="info">
@@ -385,16 +444,15 @@
                     m-
                 </div><span class="des">[n] Click to subtract the displayed number from the number in memory. If no
                     number is in memory, click to store the displayed number as a subtraction of zero in
-                    memory.</span>
+                    memory. The display shows M– for a moment.</span>
             </div>
 
             <div class="info">
                 <div class="trigo-keys">
                     mr
                 </div><span class="des">[m] Click to replace the displayed number with the number in memory.<br>
-                    If the button has a white ring around it, there is a number stored in memory. The white ring
-                    around
-                    the button also disappears if the stored number calculates zero.</span>
+                    An M on the display shows that a number is stored in memory. The M also disappears if the
+                    stored number calculates zero.</span>
             </div>
 
             <div class="info">
@@ -413,28 +471,33 @@
         </div>
         <div class="features">
             <h2 class="logo title">About Precision</h2>
-            <p>This calculator operates with a precision of 15 digits (only) after the decimal point. This is due to how
+            <p>This calculator operates with a precision of about 15 significant digits (only). This is due to how
                 JavaScript handles floating point numbers.<br>
                 This isn't actually a Javascript feature but a feature of the way the IEEE define how floating point
                 numbers are stored in memory. Any language using this definition suffers from this 'feature', for
                 instance C does as well and since JavaScript is often implemented in C so does JavaScript.</p>
-            <p>The problem is that Javascript is using 32 bits of data which have 4294967296 different combinations to
-                hold any value in the range 1.7976931348623158e+308 to 2.2250738585072014e–308.<br>
-                It does this by using a smaller presision value and using some of the bits as a exponent (this can also
-                be done in 16 bits with a smaller range and less presision) which results in it being able to
-                approximate any value in the range but not exactly represent them all (because in real number terms the
-                are an infinaite number of values between any 2 given values).<br>
-                As part of your calculcation clearly the internal representation of the value is going outside the
-                available presision and you are ending up with an approximation to the value instead of an exact value.
+            <p>Results are shown with 13 significant digits, so these tiny rounding errors stay out of sight:
+                0.1 + 0.2 shows 0.3, not 0.30000000000000004. Angles in degrees give exact values where they should:
+                sin 180 is 0 and cos 60 is 0.5.</p>
+            <p>The problem is that Javascript is using 64 bits of data which have 18446744073709551616 different
+                combinations to hold any value in the range 1.7976931348623158e+308 to 2.2250738585072014e–308.<br>
+                It does this by using a smaller precision value and using some of the bits as a exponent (this can also
+                be done in 16 bits with a smaller range and less precision) which results in it being able to
+                approximate any value in the range but not exactly represent them all (because in real number terms
+                there are an infinite number of values between any 2 given values).<br>
+                As part of your calculation clearly the internal representation of the value is going outside the
+                available precision and you are ending up with an approximation to the value instead of an exact value.
             </p>
         </div>
 
     </div>
 
     <div class="footer">
-        <p>© <a href="https://raad.dev" target="blank">raad.dev</a> all rights reserved.</p>
+        <p>© <span class="year"></span> <a href="https://raad.dev" target="blank">raad.dev</a> all rights reserved.</p>
     </div>
 
+    <script src="./js/version.js"></script>
+    <script src="./js/options.js"></script>
 </body>
 
 </html>

@@ -15,8 +15,23 @@
         }
 
         iframe {
+            display: block; /* no empty strip under the calculator */
             width: 388px;
-            height: 528px;
+            height: 538px;
+        }
+
+        /* detached mode: the calculator sits in the middle of its window and is
+           scaled to the window by popup.js */
+        .detached,
+        .detached body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .detached iframe {
+            position: fixed;
+            left: 50%;
+            top: 50%;
         }
     </style>
 </head>
