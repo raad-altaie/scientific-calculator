@@ -1,0 +1,1154 @@
+@font-face {
+    font-family: Play;
+    src: url('../fonts/Play-Regular.ttf');
+}
+
+body,
+html {
+    padding: 0;
+    margin: 0;
+    padding: 1px;
+    padding-bottom: 0;
+}
+
+#calculator {
+    width: 376px;
+    height: 576px;
+    margin: auto;
+    border: 1px solid #000000;
+    background: #3a5872;
+    border: 2px solid #4d5368;
+    border-top-left-radius: 1em;
+    border-top-right-radius: 1em;
+    border-bottom-left-radius: 1em;
+    border-bottom-right-radius: 1em;
+    position: relative; /* the history is placed over the keys */
+    -webkit-user-select: none; /* only the display can be selected */
+    user-select: none;
+}
+
+/* the strip above the display: the name and the ? box */
+.calc-head {
+    position: relative;
+    display: flow-root; /* as tall as the name, which floats */
+}
+
+.logo {
+    margin-top: 10px;
+    margin-left: 15px;
+    margin-bottom: 5px;
+    float: left;
+    font-style: bold;
+    font-weight: 700;
+    font-family: 'Play', 'Russo One', sans-serif;
+    font-size: 1.4em;
+    color: #acb4c1;
+    cursor: pointer;
+    -webkit-user-select: none;
+}
+
+/* the ? box beside the name: opens the options page. It sits in the middle
+   between the top of the calculator and the display, 5px below the strip */
+.calc-help {
+    position: absolute;
+    top: 0;
+    bottom: -5px;
+    right: 12px;
+    width: 12px;
+    height: 12px;
+    margin: auto 0;
+    border: 1px solid #acb4c1;
+    border-radius: 4px;
+    color: #acb4c1;
+    opacity: 0.55; /* subtle until the pointer is over it */
+    font: 700 9px/12px 'Play', 'Russo One', sans-serif;
+    text-align: center;
+    cursor: pointer;
+    -webkit-user-select: none;
+}
+
+.calc-help:hover {
+    opacity: 1;
+}
+
+.calc-help:active {
+    opacity: 0.75;
+}
+
+/* the clock at the top left of the display: opens the history */
+.calc-hist {
+    position: absolute;
+    z-index: 2;
+    left: 6px;
+    top: 4px;
+    padding: 2px;
+    border-radius: 4px;
+    color: #1f333c;
+    opacity: 0.5;
+    cursor: pointer;
+    -webkit-user-select: none;
+}
+
+.calc-hist svg {
+    display: block;
+}
+
+.calc-hist:hover,
+.calc-hist.calc-on {
+    opacity: 0.9;
+    background: #a3bdaf;
+}
+
+.calc-hist:active {
+    opacity: 0.75;
+}
+
+/* the bars beside the clock: open the statistics; the look of the clock */
+.calc-stat-btn {
+    position: absolute;
+    z-index: 2;
+    left: 28px;
+    top: 4px;
+    padding: 2px;
+    border-radius: 4px;
+    color: #1f333c;
+    opacity: 0.5;
+    cursor: pointer;
+    -webkit-user-select: none;
+}
+
+/* no clock while there is no history: the bars take its place */
+.calc-display:has(.calc-hist[hidden]) .calc-stat-btn {
+    left: 6px;
+}
+
+.calc-stat-btn svg {
+    display: block;
+}
+
+.calc-stat-btn:hover,
+.calc-stat-btn.calc-on {
+    opacity: 0.9;
+    background: #a3bdaf;
+}
+
+.calc-stat-btn:active {
+    opacity: 0.75;
+}
+
+/* ---------- statistics ---------- */
+
+/* the list, on a piece of display; it takes the room the results leave */
+.calc-stats-input {
+    flex: 1;
+    min-height: 70px;
+    margin: 4px 8px 0;
+    padding: 7px 9px;
+    border: 0;
+    border-radius: 5px;
+    outline: none;
+    background: #b6d1c2;
+    box-shadow: 0 0 12px #36475a;
+    color: #000;
+    font: 15px/1.4 'Play', 'Russo One', sans-serif;
+    resize: none;
+}
+
+.calc-stats-input::placeholder {
+    color: #5b7768;
+}
+
+.calc-stats-input:focus {
+    box-shadow: 0 0 0 2px #8eab9b, 0 0 12px #36475a;
+}
+
+/* how many numbers, and what was left out */
+.calc-stats-note {
+    min-height: 15px;
+    margin: 6px 12px 2px;
+    overflow: hidden;
+    color: #acb4c1;
+    font-size: 12px;
+    line-height: 15px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* the results: a click puts one into the calculation */
+.calc-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 7px;
+    margin: 4px 8px 0;
+}
+
+.calc-stats-tile {
+    min-width: 0;
+    padding: 4px 8px 3px;
+    border-radius: 5px;
+    background: #b6d1c2;
+    box-shadow: 0 0 12px #36475a;
+    color: #000;
+    cursor: pointer;
+}
+
+.calc-stats-tile:hover {
+    background: #a3bdaf;
+}
+
+.calc-stats-tile:active {
+    background: #98b3a5;
+}
+
+/* no value yet: nothing to put in */
+.calc-stats-tile.calc-none {
+    cursor: default;
+    background: #b6d1c2;
+}
+
+.calc-stats-label {
+    display: block;
+    color: #33443b;
+    font-size: 12px;
+    line-height: 15px;
+}
+
+.calc-stats-label sup {
+    font-size: 9px;
+    line-height: 0;
+}
+
+.calc-stats-value {
+    display: block;
+    overflow: hidden;
+    font-size: 17px;
+    line-height: 26px;
+    text-align: right;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.calc-stats-value .calc-fr {
+    font-size: 0.65em;
+}
+
+/* x̄, the mean */
+.calc-x-bar {
+    text-decoration: overline;
+}
+
+/* ---------- history ---------- */
+
+/* as wide as the display, with each calculation on a piece of display;
+   main.js lines it up with the display */
+.calc-past {
+    position: absolute;
+    z-index: 3; /* over raad.dev too */
+    bottom: 5px;
+    box-sizing: border-box;
+    display: none;
+    flex-direction: column;
+    padding-bottom: 10px;
+    background: #4a5f73;
+    border: 1px solid #6c8297;
+    border-radius: 8px 8px 13px 13px; /* the bottom follows the calculator's corners */
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+    font-family: 'Play', 'Russo One', sans-serif;
+    text-align: left;
+    -webkit-user-select: none;
+}
+
+.calc-past.calc-open {
+    display: flex;
+}
+
+/* raad.dev reaches below the calculator, where the history cannot cover it */
+#calculator:has(.calc-past.calc-open) .raad {
+    visibility: hidden;
+}
+
+.calc-past-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 4px 2px 12px;
+    color: #d3d9e2;
+    font-size: 14px;
+}
+
+.calc-past-head span:first-child {
+    flex: 1;
+    font-weight: 700;
+}
+
+.calc-past-clear,
+.calc-past-close {
+    height: 22px;
+    border-radius: 4px;
+    text-align: center;
+    cursor: pointer;
+    opacity: 0.7;
+}
+
+.calc-past-clear {
+    padding: 0 6px;
+    line-height: 22px;
+}
+
+.calc-past-close {
+    width: 22px;
+    font-size: 26px;
+    line-height: 21px;
+}
+
+.calc-past-clear:hover,
+.calc-past-close:hover {
+    opacity: 1;
+    background: #52687d;
+}
+
+.calc-past-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 4px 8px 0;
+}
+
+.calc-past-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.calc-past-list::-webkit-scrollbar-thumb {
+    background: #6b8196;
+    border-radius: 3px;
+}
+
+.calc-past-row {
+    margin-bottom: 7px;
+    padding: 6px 10px 4px;
+    border-radius: 5px;
+    background: #b6d1c2;
+    box-shadow: 0px 0px 12px #36475a;
+    color: #000;
+}
+
+.calc-past-eq,
+.calc-past-res {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    word-spacing: -0.08em;
+    position: relative; /* holds its buttons */
+    border-radius: 4px;
+    padding: 1px 4px;
+    margin: 0 -4px;
+}
+
+/* on the right like the equation line in the display, and like it a long
+   line shows its end, with the dots on the left */
+.calc-past-eq {
+    direction: rtl;
+    text-align: right;
+    color: #33443b;
+    font-size: 14px;
+    line-height: 18px;
+}
+
+.calc-past-res {
+    font-size: 20px;
+    line-height: 26px;
+    text-align: right;
+}
+
+.calc-past-eq:hover,
+.calc-past-res:hover {
+    background: #a3bdaf;
+}
+
+.calc-past-eq > span {
+    direction: ltr;
+    unicode-bidi: isolate;
+}
+
+/* insert and copy, on the left of a line while the pointer is over it; over
+   the start of a long line, so they have the line's background */
+.calc-past-btns {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 2px;
+    display: none;
+    align-items: center;
+    gap: 3px;
+    padding-right: 4px;
+    background: #a3bdaf;
+    word-spacing: normal;
+}
+
+.calc-past-eq:hover .calc-past-btns,
+.calc-past-res:hover .calc-past-btns {
+    display: flex;
+}
+
+.calc-past-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    color: #1f333c;
+    opacity: 0.65;
+    cursor: pointer;
+}
+
+.calc-past-btn:hover {
+    opacity: 1;
+    background: #8eab9b;
+}
+
+.calc-past-btn:active {
+    opacity: 0.75;
+}
+
+/* fraction mode: the fractions in the history, a little larger than in the display's small line */
+.calc-past-eq .calc-fr {
+    font-size: 0.78em;
+}
+
+.calc-past-res .calc-fr {
+    font-size: 0.7em;
+}
+
+.calc-past-eq sup,
+.calc-past-eq sub {
+    font-size: 10px;
+    line-height: 0;
+}
+
+/* the unit a calculation with angles is entered again in */
+.calc-past-unit {
+    margin-right: 6px;
+    padding: 0 3px;
+    border: 1px solid #6f8a7c;
+    border-radius: 3px;
+    font-size: 10px;
+}
+
+.raad {
+    font-size: 0.7em;
+    margin-top: 3px;
+    margin-right: 22px;
+    color: #acb4c1;
+    float: right;
+    font-family: 'Play', 'Russo One', sans-serif;
+}
+
+.form-control {
+    text-align: center;
+}
+
+#display-box {
+    position: relative;
+    padding-right: 7px;
+    padding-top: 34px;
+    padding-bottom: 0px;
+    width: 350px;
+    height: 63px;
+    margin-top: 5px;
+    margin-bottom: 9px;
+    font: 30px bold;
+    font-family: 'Play', 'Russo One', sans-serif;
+    text-align: right;
+    border-radius: 5px;
+    background: #b6d1c2;
+    display: inline-block;
+}
+
+#box {
+    display: block;
+    position: relative;
+    margin-left: 8px;
+    line-height: 46px;
+    word-spacing: -0.08em;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+/* a line too long for the screen: hold and slide it, dots mark what is hidden */
+.calc-slide {
+    cursor: grab;
+    touch-action: none;
+}
+
+.calc-slide:active {
+    cursor: grabbing;
+}
+
+.calc-more-left::before,
+.calc-more-right::after {
+    content: '…';
+    position: absolute;
+    top: 0;
+    background: #b6d1c2;
+}
+
+.calc-more-left::before {
+    left: var(--slid);
+    padding-right: 0.15em;
+}
+
+.calc-more-right::after {
+    right: calc(0px - var(--slid));
+    padding-left: 0.15em;
+}
+
+#box sup,
+#box sub {
+    font-size: 60%;
+    line-height: 0;
+}
+
+/* the finished equation, at the right above the result */
+.calc-log {
+    position: absolute;
+    z-index: 1;
+    left: 52px; /* clear of the clock and the bars */
+    right: 8px;
+    top: 3px;
+    height: 32px;
+    line-height: 28px;
+    font-size: 15px;
+    word-spacing: -0.08em;
+    font-family: 'Play', 'Russo One', sans-serif;
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+/* no clock while there is no history: the line has the room of the clock too */
+.calc-display:has(.calc-hist[hidden]) .calc-log {
+    left: 30px;
+}
+
+.calc-log sup,
+.calc-log sub {
+    font-size: 11px;
+    line-height: 0;
+}
+
+.calc-mem {
+    position: absolute;
+    z-index: 1;
+    left: 56px;
+    top: 80px;
+    font-size: 12px;
+}
+
+.notification {
+    position: absolute;
+    z-index: 1;
+    left: 76px;
+    top: 80px;
+    font-size: 12px;
+    font-family: 'Play', 'Russo One', sans-serif;
+}
+
+/* the unit, Rad or Deg, with a full turn in it beside it: 2π or 360º. The
+   two are one box, so its light fits around what is shown */
+.calc-rad {
+    position: absolute;
+    left: 1px;
+    bottom: 2px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-size: 12px;
+    line-height: 12px;
+    outline-width: 5px;
+}
+
+/* 2π or 360º, in a light rounded frame like the unit of a calculation in the history */
+.sign {
+    position: relative;
+    padding: 0 2px;
+    border: 1px solid #8aa597;
+    border-radius: 3px;
+    font-size: 7px;
+    line-height: 9px;
+}
+
+/* the marks in the display can be clicked: they light up under the pointer,
+   in the colour of the clock */
+.calc-rad:hover,
+.calc-mem:hover,
+.calc-frac:hover,
+.calc-fmt:hover,
+.calc-hold:hover {
+    background: #a3bdaf;
+}
+
+.calc-rad:active,
+.calc-mem:active,
+.calc-frac:active,
+.calc-fmt:active,
+.calc-hold:active {
+    background: #98b3a5;
+}
+
+/* a little room around each mark for its light, without moving it */
+.calc-mem,
+.calc-frac,
+.calc-fmt,
+.calc-hold {
+    margin: -1px -4px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    cursor: pointer;
+    -webkit-user-select: none;
+}
+
+/* FIX 2, SCI 3, ENG 2: the notation the results are shown in */
+.calc-fmt {
+    position: absolute;
+    z-index: 1;
+    right: 42px;
+    top: 81px;
+    font-size: 10px;
+    font-family: 'Play', 'Russo One', sans-serif;
+}
+
+/* FRAC while fraction mode is on; left of FIX 2 */
+.calc-frac {
+    position: absolute;
+    z-index: 1;
+    right: 74px;
+    top: 81px;
+    font-size: 10px;
+    font-family: 'Play', 'Russo One', sans-serif;
+}
+
+/* the a/b key while fraction mode is on */
+.trigo-keys.calc-lit {
+    color: #fff;
+    background: #c86e78; /* filled like the DEL key, as the active 2nd key is */
+    border: 1px solid #7d4a51;
+}
+
+.trigo-keys.calc-lit:hover,
+.calc-second:hover {
+    background: #da7d88;
+}
+
+.trigo-keys.calc-lit:active,
+.calc-second:active {
+    background: #bb626c;
+    border: 1px solid #000;
+}
+
+/* The √ is drawn: the √ of the font is narrow and reads as a V. Alone, as on
+   its key, it stands in for the character, which stays for copying. Its
+   strokes are as thick as the bar over a root, 0.056em: 0.9 of the 10 units
+   across its 0.62em; its arm turns into the bar through a rounded corner, level with the top of the bar */
+:root {
+    --calc-root-whole: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='82' height='130' viewBox='0 0 82 130'%3E%3Cpath d='M7 80 L20 70 L33.6 126 L50.6 20' fill='none' stroke='black' stroke-width='5.6' stroke-linejoin='round' stroke-linecap='round'/%3E%3Cpath d='M46.16 30 L49.36 10 Q50.96 0 54.5 0 L72 0 L72 5.6 L59 5.6 Q55.74 5.6 55.34 8.1 L51.84 30 Z' fill='black'/%3E%3C/svg%3E");
+    --calc-root-sign: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 16' preserveAspectRatio='none'%3E%3Cpath d='M0.7 9.4 L2.7 8.3 L4.5 15 L7.645 4.6' fill='none' stroke='black' stroke-width='0.9' stroke-linejoin='round' stroke-linecap='round'/%3E%3Cpath d='M7.175 4.6 L8.05 1.7 Q8.566 0 9 0 L10.3 0 L10.3 0.68 L9.7 0.68 Q9.3 0.68 9.2 1 L8.115 4.6 Z' fill='black'/%3E%3C/svg%3E");
+}
+
+.calc-sq {
+    display: inline-block;
+    width: 0.62em;
+    height: 1.05em;
+    vertical-align: -0.16em;
+    overflow: hidden;
+    font-style: normal;
+    -webkit-text-fill-color: transparent;
+    background: currentColor;
+    -webkit-mask: var(--calc-root-sign) no-repeat 0 0 / 100% 100%;
+}
+
+/* in an equation, the √ and a bar over what is under it, as tall as that is */
+.calc-root {
+    position: relative;
+    display: inline-block;
+    margin-left: 0.62em;
+    padding: 0.05em 0.06em 0 0.06em;
+    --calc-bar: max(1px, 0.056em);
+    border-top: var(--calc-bar) solid transparent;
+    line-height: 1.15;
+}
+
+.calc-root::before {
+    content: '';
+    position: absolute;
+    left: -0.62em;
+    top: calc(0px - var(--calc-bar));
+    bottom: -0.05em;
+    width: calc(100% + 0.62em);
+    background: currentColor;
+    /* the whole sign and bar is one drawing, cut in nine: the corner and the
+       foot keep their size, the arm stretches with the root, and the bar
+       stretches along it at its own thickness */
+    -webkit-mask-box-image: var(--calc-root-whole) 30 10 10 62 / 0.3em 0 0.1em 0.62em stretch;
+}
+
+.calc-hide {
+    display: none;
+}
+
+/* fraction mode: a division drawn as a fraction, one part over the other */
+.calc-fr {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: stretch; /* the bar runs the width of the wider part, a root or a product included */
+    text-align: center;
+    vertical-align: middle;
+    margin: 0 0.08em;
+    font-size: 0.6em;
+    line-height: 1.05;
+}
+
+.calc-fr > span {
+    padding: 0 0.15em;
+    white-space: nowrap;
+}
+
+/* a root in a fraction keeps the rows close, and the whole fraction on the display
+   sits above the FRAC and FIX labels under the line, not over them */
+.calc-fr .calc-root {
+    line-height: 1;
+}
+
+#box > .calc-fr {
+    position: relative;
+    top: -7px;
+}
+
+/* the line clips what is past its edge: room above it, so the bar of a root
+   in the top row is not cut off */
+#box:has(> .calc-fr) {
+    padding-top: 10px;
+    margin-top: -10px;
+}
+
+.calc-fr > span:first-child {
+    padding-bottom: 0.1em; /* the foot of a root keeps off the line */
+}
+
+.calc-fr > span + span {
+    border-top: 1px solid currentColor;
+    padding-top: 0.14em; /* the bar of a root keeps off the line */
+}
+
+/* a fraction in a fraction is written with a slash, so the line keeps two rows */
+.calc-fr .calc-fr {
+    display: inline;
+    margin: 0;
+    font-size: 1em;
+}
+
+.calc-fr .calc-fr > span {
+    padding: 0;
+}
+
+.calc-fr .calc-fr > span + span {
+    border-top: 0;
+}
+
+.calc-fr .calc-fr > span + span::before {
+    content: '/';
+}
+
+/* the line above the result is small already */
+.calc-log .calc-fr {
+    font-size: 0.75em;
+}
+
+/* the line is 32px high: the rows of a fraction in it sit close, and a root's
+   bar and foot take little room, so none of it is cut */
+.calc-log .calc-fr {
+    line-height: 1;
+}
+
+.calc-log .calc-fr > span:first-child {
+    padding-bottom: 0.03em;
+}
+
+.calc-log .calc-fr > span + span {
+    padding-top: 0.06em;
+}
+
+.calc-log .calc-fr .calc-root {
+    padding-top: 0;
+    line-height: 0.95;
+}
+
+/* the part still to be entered */
+.calc-fr-empty::before {
+    content: '';
+    display: inline-block;
+    width: 0.55em;
+    height: 0.8em;
+    margin-top: 0.1em;
+    border: 1px dotted currentColor;
+}
+
+/* the cursor while the equation is edited; it takes no room of its own */
+.calc-cursor {
+    display: inline-block;
+    width: 2px;
+    height: 0.85em;
+    margin-right: -2px;
+    vertical-align: -0.08em;
+    background: currentColor;
+    animation: calc-blink 1s steps(1) infinite;
+}
+
+@keyframes calc-blink {
+    50% {
+        opacity: 0;
+    }
+}
+
+.calc-hold {
+    position: absolute;
+    z-index: 1;
+    right: 8px;
+    top: 80px;
+    font-size: 12px;
+    font-family: 'Play', 'Russo One', sans-serif;
+}
+
+.calc-top {
+    margin: 7px;
+    display: inline-block;
+}
+
+.calc-left {
+    position: relative;
+}
+
+.calc-down {
+    margin: 11px;
+    display: inline-block;
+}
+
+
+
+.trigo-keys {
+    width: 40px;
+    height: 26px;
+    padding-bottom: 1px; /* the font draws its letters a little low */
+    font-size: 1em;
+    color: #fff;
+    margin: 3px;
+    cursor: pointer;
+    background: #2b4753;
+    border: 1px solid #1a2f38;
+    border-radius: 5px;
+    display: inline-flex; /* the label sits in the middle of the key */
+    align-items: center;
+    justify-content: center;
+    font-family: 'Play', 'Russo One', sans-serif;
+    vertical-align: middle;
+}
+
+.calc-second {
+    background-color: #222;
+    width: 40px;
+    height: 26px;
+    padding-bottom: 1px; /* the font draws its letters a little low */
+    font-size: 1em;
+    color: #fff;
+    margin: 3px;
+    cursor: pointer;
+    background: #c86e78; /* filled like the DEL key */
+    border: 1px solid #7d4a51;
+    border-radius: 5px;
+    display: inline-flex; /* the label sits in the middle of the key */
+    align-items: center;
+    justify-content: center;
+    font-family: 'Play', 'Russo One', sans-serif;
+    vertical-align: middle;
+}
+
+/* the name of a key drawn as a picture: ◀ and ▶ */
+.calc-name {
+    display: none;
+}
+
+.trigo-keys svg {
+    display: block;
+}
+
+/* nCr and nPr: n and r smaller, at the sides of the C or P */
+.calc-ncr i {
+    font-size: 0.75em;
+    font-style: normal;
+}
+
+.calc-ncr i:first-child {
+    vertical-align: 0.35em;
+}
+
+.calc-ncr i:last-child {
+    vertical-align: -0.2em;
+}
+
+/* raised and lowered letters must not push the label off centre */
+.trigo-keys sup,
+.trigo-keys sub,
+.calc-second sup,
+.calc-second sub {
+    line-height: 0;
+}
+
+.trigo-keys:hover {
+    background: #345361;
+    border: 1px solid #1a2f38;
+    border-radius: 5px;
+}
+
+.trigo-keys:active {
+    font-size: 1em;
+    color: #fff;
+    background: #2b4753;
+    border: 1px solid #000;
+    border-radius: 5px;
+}
+
+.keys {
+    padding: 0px;
+    color: #fff;
+    font-family: 'Play', 'Russo One', sans-serif;
+    font-size: 2em;
+    cursor: pointer;
+    margin: 1px;
+    width: 62px;
+    height: 50px;
+    border: 2px solid #697394;
+    border-top-left-radius: .6em;
+    border-top-right-radius: .6em;
+    border-bottom-left-radius: 1em;
+    border-bottom-right-radius: 1em;
+    background: #8696a5;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.keys:hover {
+    color: #fff;
+    background: #91a4b5;
+}
+
+.keys:active {
+    color: #fff;
+    background: #758492;
+    border: 2px solid #3f4969;
+}
+
+.keys2 {
+    background: #4a5f73;
+}
+
+.keys2:hover {
+    background: #52687d;
+}
+
+.keys2:active {
+    background: #425669;
+    border: 2px solid #3f4969;
+}
+
+.del-ac {
+    background: #c86e78;
+}
+
+/* DEL and C: slightly smaller letters, on the same centre line as the digits */
+.del-ac > div {
+    font-size: 0.85em;
+    line-height: 37px;
+}
+
+.del-ac:hover {
+    background: #da7d88;
+}
+
+.del-ac:active {
+    color: #fff;
+    background: #bb626c;
+    border: 2px solid #3f4969;
+}
+
+.equal {
+    width: 134px;
+    /*    background: #3f4661;*/
+}
+
+/* the display and the line above it can be selected and copied; the boxes too */
+#box,
+.calc-log,
+#calculator textarea {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+/* text selected in the display or the line above it: a light shade only */
+#box::selection,
+#box *::selection,
+.calc-log::selection,
+.calc-log *::selection {
+    background: rgba(31, 51, 60, 0.16);
+    color: inherit;
+}
+
+/* the unit can be clicked to switch it */
+.calc-rad {
+    cursor: pointer;
+    -webkit-user-select: none;
+}
+
+/* what a key does, over it while the pointer rests on it */
+.calc-tip {
+    position: absolute;
+    z-index: 6;
+    width: 214px;
+    box-sizing: border-box;
+    padding: 8px 10px 9px;
+    background: #1f333c;
+    border: 1px solid #4d6b80;
+    border-radius: 7px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+    color: #d3d9e2;
+    font: 12px/1.4 'Play', 'Russo One', sans-serif;
+    text-align: left;
+    pointer-events: none;
+    -webkit-user-select: none;
+    animation: calc-tip-in 0.12s ease-out;
+}
+
+.calc-tip[hidden] {
+    display: none;
+}
+
+@keyframes calc-tip-in {
+    from {
+        opacity: 0;
+        transform: translateY(3px);
+    }
+}
+
+/* the point toward the middle of the key: a square turned on its corner,
+   its centre on --arrow */
+.calc-tip::after {
+    content: '';
+    position: absolute;
+    left: var(--arrow, 50%);
+    bottom: -5px;
+    box-sizing: border-box;
+    width: 10px;
+    height: 10px;
+    margin-left: -5px;
+    background: #1f333c;
+    border-right: 1px solid #4d6b80;
+    border-bottom: 1px solid #4d6b80;
+    transform: rotate(45deg);
+}
+
+.calc-tip.calc-tip-below::after {
+    top: -5px;
+    bottom: auto;
+    transform: rotate(225deg);
+}
+
+.calc-tip-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 3px;
+}
+
+.calc-tip-head b {
+    flex: 1;
+    color: #fff;
+    font-size: 13px;
+}
+
+/* the function 2nd gave the key */
+.calc-tip-2nd {
+    padding: 0 4px;
+    border-radius: 3px;
+    background: #d86672;
+    color: #fff;
+    font-size: 10px;
+    line-height: 15px;
+}
+
+.calc-tip kbd {
+    padding: 0 5px;
+    background: #2b4753;
+    border: 1px solid #4d6b80;
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    color: #fff;
+    font: 10px/15px 'Play', 'Russo One', sans-serif;
+    white-space: nowrap;
+}
+
+/* what 2nd turns the key into */
+.calc-tip-more {
+    margin-top: 5px;
+    padding-top: 4px;
+    border-top: 1px solid #34505e;
+    color: #acb4c1;
+    font-size: 11px;
+}
+
+.calc-tip sup,
+.calc-tip sub {
+    font-size: 9px;
+    line-height: 0;
+}
+
+/* the menu of a right click: Copy and Paste, in the colours of the history */
+.calc-menu-box {
+    position: absolute;
+    z-index: 5;
+    min-width: 92px;
+    padding: 4px;
+    background: #4a5f73;
+    border: 1px solid #6c8297;
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+    font: 14px 'Play', 'Russo One', sans-serif;
+    color: #d3d9e2;
+    text-align: left;
+    -webkit-user-select: none;
+}
+
+.calc-menu-box[hidden] {
+    display: none;
+}
+
+.calc-menu-box > div {
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.calc-menu-box > div:hover {
+    background: #52687d;
+    color: #fff;
+}
+
+.calc-blank {
+    position: absolute;
+    z-index: -1;
+    opacity: 0;
+    width: 0px;
+    height: 0px;
+    padding: 0px;
+    margin: 0px;
+}
+

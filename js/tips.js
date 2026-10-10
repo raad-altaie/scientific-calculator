@@ -1,0 +1,419 @@
+// What the keys above the digits do, for the tips shown while the pointer is
+// over one. Keyed by a key's name as main.js reads it from its label, so a
+// key turned by 2nd has the tip of its second function.
+// t: name, d: what it does (HTML), k: keyboard shortcut, second: the function 2nd gives it
+(function (root) {
+    'use strict';
+
+    root.CalcTips = {
+        '2nd': {
+            t: '2nd',
+            d: 'Switches sin, cos, tan, sinh, cosh, tanh, ln and e<sup>x</sup> to their second functions: ' +
+                'sin<sup>-1</sup> …, log<sub>2</sub> and 2<sup>x</sup>. Click again to switch back.',
+            k: 'Space'
+        },
+        'Deg': {
+            t: 'Degrees',
+            d: 'Works angles out in degrees: 30 sin = 0.5. The display shows the unit in use at its bottom left; ' +
+                'click it there to switch as well.',
+            k: 'd'
+        },
+        'Rad': {
+            t: 'Radians',
+            d: 'Works angles out in radians: ( π ÷ 6 ) sin = 0.5. The display shows the unit in use at its bottom ' +
+                'left; click it there to switch as well.',
+            k: 'd'
+        },
+        // the unit at the bottom left of the display
+        'unit Rad': {
+            t: 'Radians',
+            d: 'Angles are in radians: a full turn is 2π (6.283…), so ( π ÷ 2 ) sin = 1. Click to switch to ' +
+                'degrees, where a full turn is 360°.',
+            k: 'd'
+        },
+        'unit Deg': {
+            t: 'Degrees',
+            d: 'Angles are in degrees: a full turn is 360°, so 90 sin = 1. Click to switch to radians, where a ' +
+                'full turn is 2π.',
+            k: 'd'
+        },
+        // the other marks in the display
+        'FRAC': {
+            t: 'Fraction mode is on',
+            d: 'Each ÷ is drawn as a fraction and results are shown as fractions. Click to turn it off, as the ' +
+                'a/b key does.',
+            k: 'f'
+        },
+        'hold': {
+            t: 'Hold',
+            d: 'The next key gives its other function: s gives sinh, 2 gives x<sup>2</sup>, l gives ' +
+                'log<sub>2</sub>. Click to let it go.',
+            k: 'h'
+        },
+        // DEL and AC: they work by keys, not by characters
+        'DEL': {
+            t: 'Take back',
+            d: 'Takes back the last key you pressed, a digit, operator, bracket or function, up to 50 keys. ' +
+                'With the cursor in the equation, it removes what is before the cursor.',
+            k: 'Backspace'
+        },
+        'C': {
+            t: 'Clear the number',
+            d: 'Clears only the number you are typing, to type it again; the rest of the equation stays. Then ' +
+                'the key turns into AC.',
+            k: 'Delete'
+        },
+        'AC': {
+            t: 'All clear',
+            d: 'Clears the whole calculation, to start again. Ans, the memory and the history stay.',
+            k: 'Delete'
+        },
+
+        // the statistics
+        'stats': {
+            t: 'Statistics',
+            d: 'Type or paste a list of numbers, a column from a spreadsheet as well, for its mean, standard ' +
+                'deviation, sum, median and more.',
+            k: ''
+        },
+        'stats close': {
+            t: 'Close the statistics',
+            d: 'The list stays for the next time.',
+            k: 'Esc'
+        },
+        'stats clear': {
+            t: 'Clear the list',
+            d: 'Removes all the numbers, to start a new list.',
+            k: ''
+        },
+        'stats n': {
+            t: 'Count, n',
+            d: 'How many numbers the list has.'
+        },
+        'stats sum': {
+            t: 'Sum, Σx',
+            d: 'All the numbers added up.'
+        },
+        'stats squares': {
+            t: 'Sum of squares, Σx<sup>2</sup>',
+            d: 'Each number squared, then added up.'
+        },
+        'stats mean': {
+            t: 'Mean, <span class="calc-x-bar">x</span>',
+            d: 'The average: the sum divided by n.'
+        },
+        'stats sdp': {
+            t: 'Standard deviation, σ',
+            d: 'How far the numbers spread from the mean, when the list is the whole population: divided by n.'
+        },
+        'stats sds': {
+            t: 'Sample standard deviation, s',
+            d: 'How far the numbers spread from the mean, when the list is a sample of a larger group: divided ' +
+                'by n − 1. It needs two numbers at least.'
+        },
+        'stats min': {
+            t: 'Minimum',
+            d: 'The smallest number of the list.'
+        },
+        'stats median': {
+            t: 'Median',
+            d: 'The middle number once the list is in order; with an even count, the mean of the middle two.'
+        },
+        'stats max': {
+            t: 'Maximum',
+            d: 'The largest number of the list.'
+        },
+
+        // the history
+        'history': {
+            t: 'History',
+            d: 'The calculations you finished with =, newest first. Point at a line for its buttons: insert ' +
+                'and copy.',
+            k: ''
+        },
+        'history close': {
+            t: 'Close the history',
+            d: 'A click anywhere outside it closes it as well.',
+            k: 'Esc'
+        },
+        'history clear': {
+            t: 'Clear the history',
+            d: 'Removes all the calculations in it. Ans and the memory stay.',
+            k: ''
+        },
+        'history insert equation': {
+            t: 'Insert the equation',
+            d: 'Enters it again without its =, to change it or finish it. It takes the place of what you are ' +
+                'entering, in the unit and the fraction mode it was done in.',
+            k: ''
+        },
+        'history insert result': {
+            t: 'Insert the result',
+            d: 'Puts the number into the equation you are entering, as Ans does, with all its digits.',
+            k: ''
+        },
+        'history copy equation': {
+            t: 'Copy the equation',
+            d: 'As text, such as 1 ÷ 2 + 1 ÷ 3. Ctrl+V pastes it back, worked out the same.',
+            k: ''
+        },
+        'history copy result': {
+            t: 'Copy the result',
+            d: 'As the line shows it: 0.75, or 3/4 for a calculation done in fraction mode.',
+            k: ''
+        },
+        'history unit Deg': {
+            t: 'Done in degrees',
+            d: 'Its angles were worked out in degrees, and are again when you insert it, whatever the unit then.',
+            k: ''
+        },
+        'history unit Rad': {
+            t: 'Done in radians',
+            d: 'Its angles were worked out in radians, and are again when you insert it, whatever the unit then.',
+            k: ''
+        },
+        'history unit DegRad': {
+            t: 'Done in degrees and radians',
+            d: 'Some of its angles were worked out in degrees and some in radians; each is again when you ' +
+                'insert it.',
+            k: ''
+        },
+        '◀': {
+            t: 'Cursor left',
+            d: 'Puts a cursor into the equation, to fix the middle of it. Keys then write at the cursor, and DEL ' +
+                'removes what is before it. After a result, enters its equation again.',
+            k: '←'
+        },
+        '▶': {
+            t: 'Cursor right',
+            d: 'Moves the cursor right. At the end, the equation is worked out again and the keys work as ' +
+                'usual. After a result, puts the cursor at the start of its equation.',
+            k: '→'
+        },
+        'a/b': {
+            t: 'Fraction mode',
+            d: 'Draws each ÷ as a fraction while you type, and shows results as fractions: ' +
+                '1 ÷ 2 + 1 ÷ 3 = 5/6. FRAC in the display shows it is on. Click again for decimals.',
+            k: 'f'
+        },
+        '(': {
+            t: 'Open bracket',
+            d: 'A number before it is multiplied: 5 ( 2 + 3 ) is 5 × (2 + 3). Brackets still open close at =.',
+            k: '('
+        },
+        ')': {
+            t: 'Close bracket',
+            d: 'Closes the last open bracket: ( 2 + 3 ) × 4 = 20.',
+            k: ')'
+        },
+        'x2': {
+            t: 'Square',
+            d: 'Enter the number first: 5 x<sup>2</sup> = 25.',
+            k: 'h, 2'
+        },
+        'x3': {
+            t: 'Cube',
+            d: 'Enter the number first: 2 x<sup>3</sup> = 8.',
+            k: 'h, 3'
+        },
+        'yx': {
+            t: 'Power',
+            d: 'Between two numbers: 2 y<sup>x</sup> 10 = 1024.',
+            k: '^'
+        },
+        '1/x': {
+            t: 'Reciprocal',
+            d: 'One divided by the number: 4 1/x = 0.25.',
+            k: '\\'
+        },
+        '√': {
+            t: 'Square root',
+            d: 'Enter the number first: 16 √ = 4.',
+            k: 'Shift+R'
+        },
+        'x√y': {
+            t: 'Root',
+            d: 'The number first, then the root: 81 <sup>x</sup>√y 4 = 3, the 4th root of 81. ' +
+                'Odd roots of negative numbers work: -8 <sup>x</sup>√y 3 = -2.',
+            k: 'r'
+        },
+        'EE': {
+            t: 'Exponent',
+            d: 'Times ten to the power of the next number: 5 EE 3 = 5000, 5 × 10<sup>3</sup>.',
+            k: 'Shift+E'
+        },
+        'sin': {
+            t: 'Sine',
+            d: 'Enter the angle first: 30 sin = 0.5 in Deg.',
+            k: 's',
+            second: 'sin<sup>-1</sup>'
+        },
+        'cos': {
+            t: 'Cosine',
+            d: 'Enter the angle first: 60 cos = 0.5 in Deg.',
+            k: 'c',
+            second: 'cos<sup>-1</sup>'
+        },
+        'tan': {
+            t: 'Tangent',
+            d: 'Enter the angle first: 45 tan = 1 in Deg.',
+            k: 't',
+            second: 'tan<sup>-1</sup>'
+        },
+        'sinh': {
+            t: 'Hyperbolic sine',
+            d: '1 sinh = 1.175201193644.',
+            k: 'h, s',
+            second: 'sinh<sup>-1</sup>'
+        },
+        'cosh': {
+            t: 'Hyperbolic cosine',
+            d: '1 cosh = 1.543080634815.',
+            k: 'h, c',
+            second: 'cosh<sup>-1</sup>'
+        },
+        'tanh': {
+            t: 'Hyperbolic tangent',
+            d: '1 tanh = 0.7615941559558.',
+            k: 'h, t',
+            second: 'tanh<sup>-1</sup>'
+        },
+        'sin-1': {
+            t: 'Inverse sine',
+            d: 'The angle with this sine: 0.5 sin<sup>-1</sup> = 30 in Deg.',
+            k: 'Shift+S'
+        },
+        'cos-1': {
+            t: 'Inverse cosine',
+            d: 'The angle with this cosine: 0.5 cos<sup>-1</sup> = 60 in Deg.',
+            k: 'Shift+C'
+        },
+        'tan-1': {
+            t: 'Inverse tangent',
+            d: 'The angle with this tangent: 1 tan<sup>-1</sup> = 45 in Deg.',
+            k: 'Shift+T'
+        },
+        'sinh-1': {
+            t: 'Inverse hyperbolic sine',
+            d: '1 sinh<sup>-1</sup> = 0.8813735870195.',
+            k: 'h, Shift+S'
+        },
+        'cosh-1': {
+            t: 'Inverse hyperbolic cosine',
+            d: 'For numbers from 1 up: 2 cosh<sup>-1</sup> = 1.316957896925.',
+            k: 'h, Shift+C'
+        },
+        'tanh-1': {
+            t: 'Inverse hyperbolic tangent',
+            d: 'For numbers between -1 and 1: 0.5 tanh<sup>-1</sup> = 0.5493061443341.',
+            k: 'h, Shift+T'
+        },
+        'π': {
+            t: 'Pi',
+            d: '3.14159265359…, the half turn in radians: 2 × π.',
+            k: 'p'
+        },
+        'log': {
+            t: 'Logarithm, base 10',
+            d: 'The power of 10 that gives the number: 1000 log = 3.',
+            k: 'Shift+L'
+        },
+        'ln': {
+            t: 'Natural logarithm',
+            d: 'The logarithm to base e: 1 ln = 0, e ln = 1.',
+            k: 'l',
+            second: 'log<sub>2</sub>'
+        },
+        'log2': {
+            t: 'Logarithm, base 2',
+            d: 'The power of 2 that gives the number: 8 log<sub>2</sub> = 3.',
+            k: 'h, l'
+        },
+        'ex': {
+            t: 'e to the power',
+            d: 'e (2.718281828459…) to the power of the number: 1 e<sup>x</sup> = 2.718281828459.',
+            k: 'e',
+            second: '2<sup>x</sup>'
+        },
+        '2x': {
+            t: '2 to the power',
+            d: '2 to the power of the number: 10 2<sup>x</sup> = 1024.',
+            k: 'Shift+X'
+        },
+        'abs': {
+            t: 'Absolute value',
+            d: 'The number without its sign: 3 +/– abs = 3.',
+            k: '|'
+        },
+        'x!': {
+            t: 'Factorial',
+            d: '5 x! = 120, 1 × 2 × 3 × 4 × 5. Decimals work as well: 2.5 x! = 3.323350970448.',
+            k: 'x'
+        },
+        'nCr': {
+            t: 'Combinations',
+            d: 'The ways to choose r of n things: 10 nCr 3 = 120.',
+            k: 'Shift+N',
+            second: 'gcd'
+        },
+        'nPr': {
+            t: 'Permutations',
+            d: 'The ways to arrange r of n things in order: 5 nPr 2 = 20.',
+            k: 'Shift+P',
+            second: 'lcm'
+        },
+        'gcd': {
+            t: 'Greatest common divisor',
+            d: 'The largest whole number that divides both: 12 gcd 18 = 6. Whole numbers only.',
+            k: 'Shift+G'
+        },
+        'lcm': {
+            t: 'Least common multiple',
+            d: 'The smallest number both divide: 4 lcm 6 = 12. Whole numbers only.',
+            k: 'Shift+K'
+        },
+        'mod': {
+            t: 'Remainder (modulo)',
+            d: 'What is left after dividing: 17 mod 5 = 2. It takes the sign of the second number, ' +
+                'so -7 mod 3 = 2; decimals work too: 7.5 mod 2 = 1.5.',
+            k: 'Shift+M'
+        },
+        '%': {
+            t: 'Percent',
+            d: 'On its own it divides by 100: 8 % = 0.08. After + or –, it is a share of the number before: ' +
+                '500 + 8 % = 540.',
+            k: '%',
+            second: 'mod'
+        },
+        'Rand': {
+            t: 'Random number',
+            d: 'A new random number between 0 and 1 each time.',
+            k: 'h, n'
+        },
+        'Ans': {
+            t: 'Last answer',
+            d: 'The last result, to use in a new equation: 5 × Ans. It stays after C and AC.',
+            k: 'a'
+        },
+        'mc': {
+            t: 'Memory clear',
+            d: 'Empties the memory; the M in the display goes.',
+            k: 'v'
+        },
+        'm+': {
+            t: 'Memory add',
+            d: 'Adds the number in the display to the memory. The display shows M while it holds a number.',
+            k: 'b'
+        },
+        'm-': {
+            t: 'Memory subtract',
+            d: 'Subtracts the number in the display from the memory.',
+            k: 'n'
+        },
+        'mr': {
+            t: 'Memory recall',
+            d: 'Puts the number in the memory into the equation.',
+            k: 'm'
+        }
+    };
+})(window);

@@ -1,14 +1,14 @@
 let popupWidth = 387;
-let popupHeight = 566;
+let popupHeight = 613;
 
 chrome.runtime.getPlatformInfo(function (info) {
     // Output might be 'win', 'mac', 'linux', etc.
     if (info.os === 'win') {
         popupWidth = 402;
-        popupHeight = 578;
+        popupHeight = 625;
     } else if (info.os === 'cros') {
         popupWidth = 388;
-        popupHeight = 574;
+        popupHeight = 621;
     }
 });
 
@@ -138,10 +138,13 @@ chrome.runtime.onInstalled.addListener((details) => {
 
 
     // Create "Open as Popup Window" menu item
-    chrome.contextMenus.create({
-        id: "open-popup",
-        title: "Detached Mode",
-        contexts: ["action"] // This will make it appear when clicking the extension icon
+    // removeAll first: the menu can already exist after a Chrome update
+    chrome.contextMenus.removeAll(() => {
+        chrome.contextMenus.create({
+            id: "open-popup",
+            title: "Detached Mode",
+            contexts: ["action"] // This will make it appear when clicking the extension icon
+        });
     });
 
     showPageIcon();

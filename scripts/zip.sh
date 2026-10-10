@@ -11,7 +11,7 @@ rm -f "$OUT"
 zip -r -X -q "$OUT" \
     manifest.json calc.html options.html popup.html \
     css js imgs \
-    fonts/PixelPoint.ttf fonts/Play-Regular.ttf \
+    fonts/Play-Regular.ttf \
     -x '*.DS_Store'
 
 echo "Created $OUT"

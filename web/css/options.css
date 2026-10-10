@@ -1,0 +1,595 @@
+@font-face {
+    font-family: Play;
+    src: url('../fonts/Play-Regular.ttf');
+}
+
+html, body { 
+    background: #39576f;
+    margin: 0;
+    }
+
+.wrapper{
+    text-align: center;
+    max-width: 800px;
+    margin: 7em auto;
+    padding: 0 16px;
+}
+
+.features{
+    color: #fff;
+    text-align: left;
+    font-size: 1.1em;
+    line-height: 1.7; /* room for the key chips inside the lines */
+}
+
+.features ul {
+    padding: 0 1.3em 1.3em;
+}
+
+.features li {
+    padding: 0.15em 0.1em;
+    
+}
+
+.calc-main{
+    margin: 5em 0;
+}
+
+.calc-sci{
+    margin: 5em 0;
+}
+
+.info {
+    text-align: left;
+    margin:.8em auto;
+    display: flex;
+    
+}
+
+.des{
+    color: #fff;
+    display: inline-block;
+    margin: 3px 5px;
+    padding: 0 10px 0;
+    flex: 1;
+
+}
+
+.logo {
+    margin-top: 10px;
+    margin-left: 15px;
+    margin-bottom: 5px;
+    font-style: bold;
+    font-weight: 700;
+    font-family: 'Play', 'Russo One', sans-serif;
+    font-size: 2.7em;
+    color: #fff;
+    -webkit-user-select: none;
+}
+
+.title{
+    color:#acb4c1 ;
+    font-size: 22px;
+    text-align: center;
+    margin: 2em 0 0.6em;
+}
+
+
+/* the options: one panel, one row for each option */
+.options {
+    text-align: left;
+    color: #fff;
+    font-family: 'Play', 'Russo One', sans-serif;
+    background: #2b4753;
+    border: 1px solid #1a2f38;
+    border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+}
+
+.option {
+    display: flex;
+    align-items: center;
+    gap: 1.1em;
+    padding: 1.2em 1.5em;
+}
+
+.option + .option {
+    border-top: 1px solid #1a2f38;
+}
+
+.option-icon {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: #39576f;
+    border-radius: 10px;
+}
+
+.option-icon svg {
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: #fff;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* the button as it looks on a page */
+.page-button {
+    background: #bebebe;
+}
+
+.page-button img {
+    width: 30px;
+    height: 30px;
+}
+
+.option-text {
+    flex: 1;
+}
+
+.option h3 {
+    margin: 0 0 0.25em;
+    font-size: 1.1em;
+    font-weight: 700;
+}
+
+.option p {
+    margin: 0;
+    font-size: 0.95em;
+    line-height: 1.4em;
+    color: #dde3ea;
+}
+
+.option .option-note {
+    margin-top: 0.4em;
+    font-size: 0.8em;
+    color: #acb4c1;
+}
+
+.switch {
+    flex: none;
+    position: relative;
+    width: 46px;
+    height: 26px;
+    cursor: pointer;
+}
+
+.switch input {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    cursor: pointer;
+}
+
+.switch span {
+    display: block;
+    height: 100%;
+    background: #1a2f38;
+    border-radius: 13px;
+    transition: background 0.2s;
+}
+
+.switch span::after {
+    content: '';
+    position: absolute;
+    left: 3px;
+    top: 3px;
+    width: 20px;
+    height: 20px;
+    background: #8696a5;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    transition: left 0.2s, background 0.2s;
+}
+
+.switch input:checked + span {
+    background: #c86e78;
+}
+
+.switch input:checked + span::after {
+    left: 23px;
+    background: #fff;
+}
+
+.switch input:focus-visible + span,
+.launch:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+}
+
+.launch {
+    flex: none;
+    min-width: 7.5em;
+    padding: 0.7em 1.6em;
+    font-size: 1.05em;
+    font-weight: 700;
+    color: #fff;
+    cursor: pointer;
+    background: #c86e78;
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+    font-family: 'Play', 'Russo One', sans-serif;
+    transition: background 0.2s;
+}
+
+.launch:hover {
+    background: #da7d88;
+}
+
+.launch:active {
+    background: #bb626c;
+}
+
+.trigo-keys {
+    text-align: center;
+    width: 40px;
+    height: 27px;
+    font-size: 1em;
+    color: #fff;
+    margin: 3px;
+    cursor: pointer;
+    background: #2b4753;
+    border: 1px solid #1a2f38;
+    border-radius: 5px;
+    display: inline-block;
+    font-family: 'Play', 'Russo One', sans-serif;
+    vertical-align: middle;
+}
+
+
+.trigo-keys:hover {
+    background: #345361;
+    border: 1px solid #1a2f38;
+    border-radius: 5px;
+}
+
+.trigo-keys:active {
+    font-size: 1em;
+    color: #fff;
+    background: #2b4753;
+    border: 1px solid #000;
+    border-radius: 5px;
+}
+
+.keys {
+    text-align: center;
+    padding: 0px;
+    color: #fff;
+    font-family: 'Play', 'Russo One', sans-serif;
+    font-size: 2em;
+    cursor: pointer;
+    margin: 1px;
+    width: 62px;
+    height: 50px;
+    border: 2px solid #697394;
+    border-top-left-radius: .6em;
+    border-top-right-radius: .6em;
+    border-bottom-left-radius: 1em;
+    border-bottom-right-radius: 1em;
+    background: #8696a5;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.keys:hover {
+    color: #fff;
+    background: #91a4b5;
+}
+
+.keys:active {
+    color: #fff;
+    background: #758492;
+    border: 2px solid #3f4969;
+}
+
+.keys2 {
+    background: #4a5f73;
+}
+
+.keys2:hover {
+    background: #52687d;
+}
+
+.keys2:active {
+    background: #425669;
+    border: 2px solid #3f4969;
+}
+
+.del-ac {
+    background: #c86e78;
+    width: 62px;
+    /* DEL and C: slightly smaller letters, like on the calculator */
+    font-size: 1.7em;
+    line-height: 37px;
+}
+
+.del-ac:hover {
+    background: #da7d88;
+}
+
+.del-ac:active {
+    color: #fff;
+    background: #bb626c;
+    border: 2px solid #3f4969;
+}
+
+.equal {
+    width: 62px;
+}
+
+.calc-buttons {
+    display: none;
+}
+
+.calc-blank {
+    position: absolute;
+    z-index: -1;
+    opacity: 0;
+    width: 0px;
+    height: 0px;
+    padding: 0px;
+    margin: 0px;
+}
+
+.v {
+    font-size: 0.3em;
+    color: #acb4c1;
+    font-family: 'Play', 'Russo One', sans-serif;
+    
+}
+
+.footer{
+    text-align: center;
+    max-width: 800px;
+    margin: 2.5em auto;
+    padding: 0 16px;
+    color: #acb4c1;
+}
+
+.footer a{
+    color: #fff;
+    text-decoration: none;
+}
+.format-option {
+    padding-bottom: 0.7em;
+}
+
+/* the number format: notation, decimal places and separators on one line */
+.format-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0.8em;
+    margin: 0.7em 0 0.2em;
+}
+
+/* the icon shows 1,500 as the chosen format writes it */
+.format-icon {
+    box-sizing: border-box;
+    width: auto;
+    min-width: 40px; /* as wide as the other option icons, until the number needs more */
+    padding: 0 6px;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.format-row select {
+    appearance: none;
+    padding: 0.3em 1.9em 0.3em 0.6em;
+    color: #fff;
+    background: #1a2f38 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23fff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 0.7em center / 8px 5px;
+    border: 1px solid #4d6b80;
+    border-radius: 6px;
+    font: inherit;
+    font-size: 0.95em;
+    cursor: pointer;
+}
+
+.format-row select:focus {
+    outline: none; /* no ring around the box while its list is open */
+}
+
+.format-row select:disabled {
+    opacity: 0.45;
+    cursor: default;
+}
+
+.format-group {
+    display: flex;
+    align-items: center;
+    gap: 0.6em;
+    margin-left: 0.4em;
+    cursor: pointer;
+}
+
+/* the example under the number format, centered under its controls */
+#format-preview-line {
+    text-align: center;
+}
+
+/* phones: less space around the page, and the options stack where they don't fit */
+@media (max-width: 600px) {
+    .wrapper {
+        margin: 2.5em auto;
+    }
+
+    .logo {
+        margin-left: 0;
+        font-size: 2em;
+    }
+
+    .title {
+        font-size: 20px;
+        margin-top: 1.6em;
+    }
+
+    .features {
+        font-size: 1em;
+    }
+
+    .features ul {
+        padding: 0 0 1em 1.2em;
+    }
+
+    .option {
+        flex-wrap: wrap;
+        gap: 0.9em;
+        padding: 1em;
+    }
+
+    .option-text {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+
+    .format-option {
+        padding-bottom: 0.6em;
+    }
+
+    .format-group {
+        margin-left: 0;
+    }
+
+    .launch {
+        width: 100%;
+    }
+
+    .des {
+        margin: 3px 0;
+        padding: 0 0 0 10px;
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+}
+
+/* the ◀ ▶ keys in the text: the same chevrons as on the calculator */
+.arrow {
+    width: 0.8em;
+    height: 0.8em;
+    margin: 0 0.1em;
+    vertical-align: -0.05em;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.4;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.trigo-keys .arrow {
+    width: 13px;
+    height: 13px;
+    margin: 0;
+    vertical-align: middle;
+}
+
+/* a key named in the text looks like the key on the calculator */
+.k {
+    display: inline-block;
+    min-width: 1.3em;
+    padding: 0 0.4em;
+    margin: 0 0.05em;
+    color: #fff;
+    font-family: 'Play', 'Russo One', sans-serif;
+    font-size: 0.92em;
+    font-style: normal;
+    line-height: 1.35;
+    text-align: center;
+    white-space: nowrap;
+    background: #2b4753;
+    border: 1px solid #1a2f38;
+    border-radius: 5px;
+    vertical-align: baseline;
+}
+
+.k-red {
+    background: #c86e78;
+    border-color: #8e4a52;
+}
+
+.k .arrow {
+    margin: 0;
+    vertical-align: -0.1em;
+}
+
+.k sup,
+.k sub {
+    font-size: 0.7em;
+    line-height: 0;
+}
+
+/* the ? at the top of the calculator: a small outlined square, not a key */
+.k-help {
+    min-width: 0;
+    width: 1.25em;
+    height: 1.25em;
+    padding: 0;
+    margin: 0 0.15em;
+    color: #acb4c1;
+    font-weight: 700;
+    font-size: 0.85em;
+    line-height: 1.2em;
+    background: none;
+    border: 1px solid #acb4c1;
+    border-radius: 4px;
+    vertical-align: 0.05em;
+}
+
+/* the key pictures that start each description cannot be selected;
+   the keys named inside the text can, except the < > arrows */
+.keys,
+.trigo-keys,
+.calc-down,
+.k-arrow {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* The extension's options page, as the website shows it: the calculator's font, the
+   text a little smaller, and the footer at the bottom. The website has its own
+   layout (css/site.css), so this is for body.page only. */
+.page {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    font-family: 'Play', 'Russo One', sans-serif;
+}
+
+.page .wrapper {
+    flex: 1 0 auto;
+    box-sizing: border-box;
+    width: 100%;
+    margin: 3em auto 0;
+    font-size: 12.5px;
+}
+
+.page .footer {
+    box-sizing: border-box;
+    width: 100%;
+    margin: 0 auto;
+    padding: 2em 16px 1em;
+    font-size: 12.5px;
+}
+
+.page .footer p {
+    margin: 0;
+}
+
+.des {
+    line-height: 1.7;
+}
+
+.option p {
+    line-height: 1.55;
+}

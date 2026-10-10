@@ -12,8 +12,12 @@
         MAX_PASTE = 500, // characters of a pasted equation
         MAX_PAST = 50, // finished calculations kept in the history
         MAX_PAST_CHARS = 100000, // total size of the history
+        MAX_EDIT = 300, // pieces of an equation being edited
         ANGLE = /^(sin|cos|tan)(-1)?$/, // functions whose result depends on Deg or Rad
-        RANK = { '=': 0, '+': 1, '–': 1, '×': 2, '÷': 2, 'yx': 3, 'x√y': 3, 'EE': 3 },
+        RANK = {
+            '=': 0, '+': 1, '–': 1, '×': 2, '÷': 2, 'mod': 2,
+            'nCr': 2.5, 'nPr': 2.5, 'gcd': 2.5, 'lcm': 2.5, 'yx': 3, 'x√y': 3, 'EE': 3
+        },
         SYMBOL = { 'x2': '<sup>2</sup>', 'x3': '<sup>3</sup>', 'x!': '!', '%': '%' },
         NAME = {
             'sin-1': 'sin<sup>-1</sup>', 'cos-1': 'cos<sup>-1</sup>', 'tan-1': 'tan<sup>-1</sup>',
@@ -25,7 +29,7 @@
             'sin': 'sin', 'cos': 'cos', 'tan': 'tan', 'sinh': 'sinh', 'cosh': 'cosh', 'tanh': 'tanh',
             'asin': 'sin-1', 'acos': 'cos-1', 'atan': 'tan-1', 'asinh': 'sinh-1', 'acosh': 'cosh-1', 'atanh': 'tanh-1',
             'arcsin': 'sin-1', 'arccos': 'cos-1', 'arctan': 'tan-1', 'arsinh': 'sinh-1', 'arcosh': 'cosh-1', 'artanh': 'tanh-1',
-            'ln': 'ln', 'log': 'log', 'sqrt': '√', 'exp': 'ex'
+            'ln': 'ln', 'log': 'log', 'sqrt': '√', 'exp': 'ex', 'abs': 'abs'
         },
         OPS = { // operator characters in pasted text
             '+': '+', '-': '-', '−': '-', '–': '-', '—': '-', '*': '×', '×': '×', '·': '×', '⋅': '×',
@@ -41,6 +45,9 @@
         ZERO = BigInt(0), ONE = BigInt(1), TEN = BigInt(10), // whole numbers of any size, for exact arithmetic
         BAD = {}, // thrown when pasted text is not an expression
         plainText = false, // printing for the clipboard: no tags
+        marks = null, // printing for editing: computed numbers are put here whole, a mark stands in for each
+        stacking = false, // printing for fraction mode: a division is drawn as a fraction, one part over the other
+        MARK = /^\uE000(\d+)\uE001/,
         UNARY = { // t: how the key is printed, f: how it is computed
             '1/x': { t: 'inv', f: function (x) { return arith('÷', 1, x); } },
             'x2': { t: 'post', f: function (x) { return tidy(arith('×', x, x)); } },
@@ -63,7 +70,8 @@
             'tanh': { t: 'fn', f: function (x) { return Math.tanh(x); } },
             'sinh-1': { t: 'fn', f: function (x) { return Math.asinh(x); } },
             'cosh-1': { t: 'fn', f: function (x) { return Math.acosh(x); } },
-            'tanh-1': { t: 'fn', f: function (x) { return Math.atanh(x); } }
+            'tanh-1': { t: 'fn', f: function (x) { return Math.atanh(x); } },
+            'abs': { t: 'fn', f: function (x) { return Math.abs(x); } }
         };
 
     // ---------- accuracy ---------- //
@@ -222,6 +230,66 @@
         return res;
     }
 
+    // the ways to take r of n things, in order (nPr) or not (nCr); whole
+    // numbers 0 ≤ r ≤ n only. Worked out exactly, step by step: nCr stays a
+    // whole number at every step. nCr ≥ 2^k with k = min(r, n − r), and
+    // nPr ≥ r!, so a long loop is never needed to know a result is too large
+    function choose(n, r, ordered) {
+        var k, res = ONE, i;
+        if (!Number.isInteger(n) || !Number.isInteger(r) || r < 0 || r > n) return NaN;
+        k = ordered ? r : Math.min(r, n - r);
+        if (k > (ordered ? 170 : 1024)) return Infinity;
+        for (i = 0; i < k; i++) {
+            res *= BigInt(n) - BigInt(i);
+            if (!ordered) res /= BigInt(i + 1);
+        }
+        return Number(res);
+    }
+
+    // what is left of a after taking away whole b's: the sign of b, as in
+    // mathematics (-7 mod 3 is 2). Exact, on the fractions: 0.3 mod 0.1 is 0
+    function mod(a, b) {
+        var x, y, n, d, q, r;
+        if (!b || !isFinite(a) || !isFinite(b)) return NaN;
+        x = fraction(a);
+        y = fraction(b);
+        n = x[0] * y[1]; // a ÷ b = n ÷ d
+        d = x[1] * y[0];
+        if (d < ZERO) {
+            n = -n;
+            d = -d;
+        }
+        q = n / d; // cut toward 0, then down
+        if (n % d !== ZERO && n < ZERO) q -= ONE;
+        r = nearest(x[0] * y[1] - q * y[0] * x[1], x[1] * y[1]);
+        return r === null ? NaN : r;
+    }
+
+    // the greatest common divisor and the least common multiple of two whole numbers
+    function divisor(a, b) {
+        var x, y, t;
+        if (!Number.isInteger(a) || !Number.isInteger(b)) return NaN;
+        x = BigInt(Math.abs(a));
+        y = BigInt(Math.abs(b));
+        while (y) {
+            t = x % y;
+            x = y;
+            y = t;
+        }
+        return x;
+    }
+
+    function gcd(a, b) {
+        var g = divisor(a, b);
+        return typeof g === 'bigint' ? Number(g) : g;
+    }
+
+    function lcm(a, b) {
+        var g = divisor(a, b);
+        if (typeof g !== 'bigint') return g;
+        return g ? Number(BigInt(Math.abs(a)) / g * BigInt(Math.abs(b))) : 0;
+    }
+
     // the n-th root of a; odd roots of negative numbers are real (³√-8 is -2)
     function nthRoot(a, n) {
         if (!n) return NaN;
@@ -248,6 +316,11 @@
             case 'yx': return tidy(Math.pow(a, b));
             case 'x√y': return nthRoot(a, b);
             case 'EE': return timesTen(a, b);
+            case 'nCr': return choose(a, b, false);
+            case 'nPr': return choose(a, b, true);
+            case 'mod': return mod(a, b);
+            case 'gcd': return gcd(a, b);
+            case 'lcm': return lcm(a, b);
         }
     }
 
@@ -310,12 +383,15 @@
     }
 
     function text(n) {
-        return n.typed ? n.v : short(n.v);
+        if (n.typed) return n.v;
+        if (!marks) return short(n.v);
+        marks.push(String(+n.v)); // whole, so editing does not round it
+        return '' + (marks.length - 1) + '';
     }
 
     function isAtom(n) {
         return n.t === 'const' || n.t === 'fn' || n.t === 'group' || n.t === 'open' ||
-            (n.t === 'num' && !/^-|e/.test(text(n)));
+            (n.t === 'num' && !/^-|e/.test(n.typed ? n.v : short(n.v)));
     }
 
     function wrap(n) {
@@ -329,21 +405,45 @@
         });
     }
 
+    // a root drawn with a bar over what is under it, which needs no brackets
+    // then. The √ and the brackets of the line as text stay in it, hidden, so a
+    // copy and a click in the line count the same characters
+    function rooted(inner, brackets) {
+        return '<span class="calc-root"><span class="calc-hide">√' + (brackets ? '(' : '') + '</span>' + inner +
+            (brackets ? '<span class="calc-hide">)</span>' : '') + '</span>';
+    }
+
     function radical(n) {
-        var index = n.r ? show(n.r) : 'x';
-        if (!plainText) return '<sup>' + index + '</sup>√' + wrap(n.l);
-        if (!n.r) return 'ˣ√' + wrap(n.l);
-        return /^-?\d+$/.test(index) ? tags('<sup>' + index + '</sup>') + '√' + wrap(n.l) :
+        var index = n.r ? show(n.r) : 'x',
+            root = n.l.t === 'fn' && n.l.name === '√' || n.l.op === 'x√y', // a root of a root: ⁸⁶√(√(99)), not ⁸⁶√√(99)
+            under = root ? '(' + show(n.l) + ')' : wrap(n.l);
+        if (!plainText) {
+            return '<sup>' + index + '</sup>' + rooted(show(n.l.t === 'group' ? n.l.arg : n.l),
+                root || n.l.t === 'group' || !isAtom(n.l));
+        }
+        if (!n.r) return 'ˣ√' + under;
+        return /^-?\d+$/.test(index) ? tags('<sup>' + index + '</sup>') + '√' + under :
             wrap(n.l) + '^(1/' + wrap(n.r) + ')';
+    }
+
+    // a division drawn as a fraction; the parts need no brackets of their own.
+    // An empty bottom is the part still to be entered
+    function stack(top, bottom) {
+        return '<span class="calc-fr"><span>' + top + '</span>' +
+            (bottom ? '<span>' + bottom + '</span>' : '<span class="calc-fr-empty"></span>') + '</span>';
     }
 
     function show(n) {
         var l, r;
+        if (stacking && n.t === 'inv') return stack('1', show(n.arg));
+        if (stacking && n.t === 'bin' && n.op === '÷') return stack(show(n.l), n.r ? show(n.r) : '');
         switch (n.t) {
             case 'num': return text(n);
             case 'const': return n.name;
             case 'neg': return '-' + (n.arg.t === 'post' ? show(n.arg) : wrap(n.arg));
-            case 'fn': return tags(NAME[n.name] || n.name) + '(' + show(n.arg.t === 'group' ? n.arg.arg : n.arg) + ')';
+            case 'fn':
+                if (n.name === '√' && !plainText) return rooted(show(n.arg.t === 'group' ? n.arg.arg : n.arg), true);
+                return tags(NAME[n.name] || n.name) + '(' + show(n.arg.t === 'group' ? n.arg.arg : n.arg) + ')';
             case 'post': return wrap(n.arg) + tags(SYMBOL[n.op]);
             case 'inv': return '1/' + wrap(n.arg);
             case 'pow': return n.base + '^' + wrap(n.arg);
@@ -363,6 +463,7 @@
     // how tightly a node holds together when it stands next to an operator;
     // 1/x reads as a division, so 8 ÷ (1/2) keeps its brackets
     function rank(n) {
+        if (stacking && (n.t === 'inv' || (n.t === 'bin' && n.op === '÷'))) return 9; // a drawn fraction holds together
         return n.t === 'bin' ? RANK[n.op] : n.t === 'inv' ? RANK['÷'] : 9;
     }
 
@@ -379,18 +480,22 @@
         });
     }
 
-    function tokens(s) {
+    // the pieces of an expression in text. table: the numbers that marks
+    // stand for, when the text was printed for editing
+    function tokens(s, table) {
         var out = [], m, c, prev, word;
         while (s) {
             c = s.charAt(0);
             prev = out[out.length - 1];
             if ((m = /^\s+/.exec(s))) {
                 // skipped
+            } else if (table && (m = MARK.exec(s))) {
+                out.push({ t: 'num', v: table[m[1]], whole: true });
             } else if ((m = /^(\d+\.?\d*|\.\d+)/.exec(s))) {
                 out.push({ t: 'num', v: m[0] });
             } else if (prev && (prev.t === 'num' || prev.v === ')') &&
-                    (m = /^(E(?=\s*$|[+\-–−]?[\d.(a-zA-Z√∛π])|e(?=[+\-–−]?\d))/.exec(s))) {
-                out.push({ t: 'op', v: 'EE' }); // 5E3, 1.5e-7, 2E(3!)
+                    (m = /^(E(?=\s*$|[+\-–−]?[\d.(a-zA-Z√∛π])|e(?=[+\-–−]?\d))/.exec(s))) {
+                out.push({ t: 'op', v: 'EE', c: 'E' }); // 5E3, 1.5e-7, 2E(3!)
             } else if ((m = /^[⁰¹²³⁴⁵⁶⁷⁸⁹⁻]+/.exec(s))) {
                 out.push({ t: 'sup', v: m[0].replace(/./g, function (ch) { return '0123456789-'.charAt(SUPER.indexOf(ch)); }) });
             } else if (c === 'ˣ') {
@@ -406,7 +511,9 @@
                 if (WORDS.hasOwnProperty(word)) out.push({ t: 'fn', v: WORDS[word] });
                 else if (word === 'pi') out.push({ t: 'const', v: 'π' });
                 else if (word === 'e') out.push({ t: 'const', v: 'e' });
-                else if (word === 'x') out.push({ t: 'op', v: '×' });
+                else if (word === 'x') out.push({ t: 'op', v: '×', c: '×' });
+                else if (word === 'ncr' || word === 'npr') out.push({ t: 'op', v: word === 'ncr' ? 'nCr' : 'nPr' });
+                else if (word === 'mod' || word === 'gcd' || word === 'lcm') out.push({ t: 'op', v: word, c: word });
                 else return null;
             } else if (c === 'π') {
                 out.push({ t: 'const', v: 'π' });
@@ -414,7 +521,7 @@
             } else if ((m = /^\*\*/.exec(s))) {
                 out.push({ t: 'op', v: '^' });
             } else if (OPS.hasOwnProperty(c)) {
-                out.push({ t: 'op', v: OPS[c] });
+                out.push({ t: 'op', v: OPS[c], c: c }); // c: as written, so editing shows it the same
                 m = [c];
             } else {
                 return null;
@@ -429,10 +536,10 @@
         return !n ? false : n.t === 'group' ? !n.open : n.t === 'bin' ? whole(n.r) : n.arg ? whole(n.arg) : true;
     }
 
-    // reads an expression in the usual notation; null if it is not one.
-    // The text may stop early ("2 +", "2 × (3"), as a copied line can
+    // reads an expression in the usual notation, as text or as its tokens;
+    // null if it is not one. It may stop early ("2 +", "2 × (3"), as a copied line can
     function parse(s) {
-        var toks = tokens(s), i = 0, tree;
+        var toks = typeof s === 'string' ? tokens(s) : s, i = 0, tree;
 
         function end() {
             return i >= toks.length;
@@ -513,11 +620,16 @@
         }
 
         function power() {
-            var n = postfix(), op;
+            var n = postfix(), op, r;
             if (!is('^') && !is('EE')) return n;
             op = toks[i++].v === '^' ? 'yx' : 'EE';
             if (op === 'yx' && n.t === 'const' && n.v === 'e') return { t: 'fn', key: 'ex', arg: need(unary()) };
-            return { t: 'bin', op: op, l: need(n), r: end() ? null : unary() };
+            r = end() ? null : unary();
+            if (op === 'yx' && r && r.t === 'group' && r.arg && r.arg.t === 'bin' && r.arg.op === '÷' && r.arg.r &&
+                r.arg.l.t === 'num' && +r.arg.l.v === 1) { // 8^(1/3) is the root, so ³√-8 stays -2
+                return { t: 'bin', op: 'x√y', l: need(n), r: r.arg.r };
+            }
+            return { t: 'bin', op: op, l: need(n), r: r };
         }
 
         function unary() {
@@ -529,13 +641,23 @@
             return power();
         }
 
-        function product() {
+        // nCr, nPr, gcd and lcm hold tighter than × and ÷, looser than powers
+        function combo() {
             var n = unary(), op;
+            while (is('nCr') || is('nPr') || is('gcd') || is('lcm')) {
+                op = toks[i++].v;
+                n = { t: 'bin', op: op, l: need(n), r: end() ? null : unary() };
+            }
+            return n;
+        }
+
+        function product() {
+            var n = combo(), op;
             for (;;) {
-                if (is('×') || is('÷')) op = toks[i++].v;
+                if (is('×') || is('÷') || is('mod')) op = toks[i++].v;
                 else if (!end() && (is('(') || is('√') || /^(fn|const|sup)$/.test(toks[i].t))) op = '×'; // 2π, 2(3 + 4)
                 else return n;
-                n = { t: 'bin', op: op, l: need(n), r: end() ? null : unary() };
+                n = { t: 'bin', op: op, l: need(n), r: end() ? null : combo() };
             }
         }
 
@@ -597,12 +719,214 @@
         return { t: 'bin', op: n.op, l: typable(n.l), r: n.r && typable(n.r) };
     }
 
+    // ---------- editing ---------- //
+
+    // While the cursor is inside the equation, keys write at the cursor as
+    // the equation reads: sin writes sin(, x² writes ². Each piece the cursor
+    // steps over holds the tokens parse reads (p): a digit, an operator, a
+    // function with its bracket, or a computed number, which stays whole
+
+    // how a token is shown
+    function look(t) {
+        switch (t.t) {
+            case 'num': return t.whole ? short(t.v) : t.v;
+            case 'const': return t.v;
+            case 'sup': return '<sup>' + t.v + '</sup>';
+            case 'fn': return NAME[t.v] || t.v;
+        }
+        if (t.v === 'EE') return 'E';
+        if (t.v === '√') return '<span class="calc-sq">√</span>'; // drawn, as the √ of the font reads as a V
+        if (t.v === '-') return t.c === '-' ? '-' : ' – '; // a sign, or a subtraction
+        if (t.v === '÷' && t.c === '/') return '/';
+        return /^(\+|×|÷|nCr|nPr|mod|gcd|lcm)$/.test(t.v) ? ' ' + t.v + ' ' : t.v;
+    }
+
+    function html(piece) {
+        return piece.p.map(look).join('');
+    }
+
+    // the shown text of a piece: the superscripts as characters
+    function untag(s) {
+        return s.replace(/<sub>2<\/sub>/g, '₂').replace(/<sup>(-?\d+|x)<\/sup>/g, function (m, d) {
+            return d === 'x' ? 'ˣ' : d.replace(/./g, function (c) { return SUPER.charAt('0123456789-'.indexOf(c)); });
+        }).replace(/<[^>]+>/g, '');
+    }
+
+    // tokens as pieces: digits one by one, a function with its bracket as one
+    function pieces(toks) {
+        var out = [], i = 0, t, p, next;
+        while (i < toks.length) {
+            t = toks[i++];
+            if (t.t === 'num' && !t.whole) {
+                t.v.split('').forEach(function (c) {
+                    out.push({ p: [{ t: 'num', v: c, d: 1 }] });
+                });
+                continue;
+            }
+            p = [t];
+            next = toks[i];
+            if (t.t === 'fn' && /^(sin|cos|tan)h?$/.test(t.v) && next && next.t === 'sup' && next.v === '-1') {
+                p = [{ t: 'fn', v: t.v + '-1' }];
+                next = toks[++i];
+            }
+            if ((t.t === 'fn' || (t.t === 'op' && t.v === '√')) && next && next.t === 'op' && next.v === '(') {
+                p.push(next);
+                i++;
+            }
+            out.push({ p: p });
+        }
+        return out;
+    }
+
+    // the pieces of an expression node
+    function piecesOf(node) {
+        var table = [], s;
+        marks = table;
+        try {
+            s = asPlain(function () { return show(node); });
+        } finally {
+            marks = null;
+        }
+        return pieces(tokens(s, table) || []);
+    }
+
+    // the tokens parse reads; digits next to each other are one number
+    function unpiece(list) {
+        var out = [];
+        list.forEach(function (piece) {
+            piece.p.forEach(function (t) {
+                var last = out[out.length - 1];
+                if (t.d && last && last.d) last.v += t.v;
+                else out.push(t.d ? { t: 'num', v: t.v, d: 1 } : t);
+            });
+        });
+        return out;
+    }
+
+    // the piece a key writes at the cursor; null for a key that writes nothing
+    function written(key, e) {
+        var p;
+        function op(v, c) {
+            return { t: 'op', v: v, c: c || v };
+        }
+        if (/^[\d.]$/.test(key)) p = [{ t: 'num', v: key, d: 1 }];
+        else if (key === '–' || key === '+/–') p = [op('-', key === '–' ? '–' : '-')];
+        else if (/^([+×÷()%]|EE|nCr|nPr|mod|gcd|lcm)$/.test(key)) p = [op(key)];
+        else if (key === 'yx') p = [op('^')];
+        else if (key === 'x!') p = [op('!')];
+        else if (key === 'x2' || key === 'x3') p = [{ t: 'sup', v: key.charAt(1) }];
+        else if (key === '1/x') p = [{ t: 'sup', v: '-1' }];
+        else if (key === 'π') p = [{ t: 'const', v: 'π' }];
+        else if (key === 'Ans' || key === 'mr' || key === 'Rand') {
+            p = [{ t: 'num', v: String(key === 'Ans' ? e.ans : key === 'mr' ? e.memory : Math.random()), whole: true }];
+        } else if (key === 'ex') p = [{ t: 'const', v: 'e' }, op('^'), op('(')];
+        else if (key === '2x') p = [{ t: 'num', v: '2' }, op('^'), op('(')];
+        else if (key === 'x√y') p = [op('^'), op('('), { t: 'num', v: '1' }, op('÷', '/')]; // y^(1/x), read as the root
+        else if (key === '√') p = [op('√'), op('(')];
+        else if (UNARY[key]) p = [{ t: 'fn', v: key }, op('(')];
+        else return null;
+        return { p: p };
+    }
+
+    // ---------- number format ---------- //
+
+    // a computed number in Fix, Sci or Eng notation with f.places digits after
+    // the point, rounded as the number reads (1.005 is 1.01); null for the
+    // usual notation. Fix shows numbers from 1e16 in Sci, as the usual one does
+    function format(x, f) {
+        var places = Math.max(0, Math.min(9, (f && f.places) | 0)), o, s;
+        if (!f || !/^(fix|sci|eng)$/.test(f.notation) || !isFinite(x)) return null;
+        o = { useGrouping: false, minimumFractionDigits: places, maximumFractionDigits: places };
+        if (f.notation !== 'fix' || Math.abs(x) >= 1e16) o.notation = f.notation === 'eng' ? 'engineering' : 'scientific';
+        s = new Intl.NumberFormat('en-US', o).format(x);
+        return s.replace(/^-(?=[0.]*(E|$))/, '').replace(/E(-?)/, function (m, sign) { // no -0.00; 1.5e+3 as before
+            return 'e' + (sign || '+');
+        });
+    }
+
+    // commas between the thousands of each number in a line: 1,234,567.891
+    function group(s) {
+        return s.replace(/(?<![\d.])\d{4,}/g, function (d) {
+            return d.replace(/\B(?=(\d{3})+$)/g, ',');
+        });
+    }
+
+    // a number as a fraction [top, bottom] with at most 10 digits in all, found
+    // from its continued fraction; null for a whole number or a number that
+    // no such fraction is (π, √2). Within rounding error: 1 ÷ 3 is 1/3
+    function shownFraction(x) {
+        var a = Math.abs(x), y = a, h = 1, h0 = 0, k = 0, k0 = 1, f, t, i;
+        if (!isFinite(x) || Math.floor(x) === x) return null;
+        for (i = 0; i < 64; i++) {
+            f = Math.floor(y);
+            t = f * h + h0;
+            h0 = h;
+            h = t;
+            t = f * k + k0;
+            k0 = k;
+            k = t;
+            if (String(h).length + String(k).length > 10) return null;
+            if (Math.abs(h / k - a) <= a * 1e-15) return k > 1 ? [x < 0 ? -h : h, k] : null;
+            if (y === f) return null;
+            y = 1 / (y - f);
+        }
+        return null;
+    }
+
+    // ---------- statistics ---------- //
+
+    // the numbers of a list as typed or pasted, a column of a spreadsheet as
+    // well: apart by spaces, new lines, tabs, commas or semicolons. In a list
+    // with semicolons a comma is the decimal mark (1,5; 2,5).
+    // bad: the parts that are no numbers
+    function numbers(text) {
+        var s = String(text), semi = s.indexOf(';') > -1, values = [], bad = [];
+        s.split(semi ? /[\s;]+/ : /[\s,]+/).forEach(function (part) {
+            var t = part.replace(/^[−–]/, '-');
+            if (!t) return;
+            if (semi) t = t.replace(',', '.');
+            if (/^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(t) && isFinite(+t)) values.push(+t);
+            else bad.push(part);
+        });
+        return { values: values, bad: bad };
+    }
+
+    // n, the sum, the sum of the squares, the mean, the standard deviation of
+    // the list as the whole population (σ) and as a sample of one (s, NaN for
+    // a single number), min, median and max. The sums and the mean are worked
+    // out exactly, as + – × ÷ are: the mean of 0.1, 0.2 and 0.3 is 0.2
+    function stats(text) {
+        var read = numbers(text), xs = read.values, n = xs.length, r = { n: n, bad: read.bad },
+            sum = 0, squares = 0, spread = 0, sorted, mid;
+        if (!n) return r;
+        xs.forEach(function (x) {
+            sum = arith('+', sum, x);
+            squares = arith('+', squares, arith('×', x, x));
+        });
+        r.sum = sum;
+        r.squares = squares;
+        r.mean = arith('÷', sum, n);
+        xs.forEach(function (x) {
+            var d = arith('–', x, r.mean);
+            spread = arith('+', spread, arith('×', d, d));
+        });
+        r.sdp = tidy(Math.sqrt(arith('÷', spread, n)));
+        r.sds = n > 1 ? tidy(Math.sqrt(arith('÷', spread, n - 1))) : NaN;
+        sorted = xs.slice().sort(function (a, b) { return a - b; });
+        mid = n >> 1;
+        r.min = sorted[0];
+        r.max = sorted[n - 1];
+        r.median = n % 2 ? sorted[mid] : arith('÷', arith('+', sorted[mid - 1], sorted[mid]), 2);
+        return r;
+    }
+
     // ---------- engine ---------- //
 
     function Engine() {
         this.memory = 0;
         this.ans = 0; // the last result, for the Ans key
-        this.past = []; // finished calculations, oldest first: { node, value }
+        this.past = []; // finished calculations, oldest first: { node, value, frac: 1 if done in fraction mode }
+        this.fraction = false; // fraction mode is on: set by the display, kept with each calculation in the history
         this.reset();
     }
 
@@ -615,12 +939,14 @@
         this.error = false;
         this.failed = ''; // equation that produced the error
         this.history = []; // earlier states of the calculation in progress, for DEL
+        this.edit = null; // while the cursor is inside the equation: { list: pieces, at: cursor }
+        this.failedEdit = null; // the pieces of the equation that failed, to edit it
     };
 
     Engine.prototype.snapshot = function () {
         return JSON.stringify({
             levels: this.levels, value: this.value, entry: this.entry, node: this.node,
-            done: this.done, error: this.error, failed: this.failed
+            done: this.done, error: this.error, failed: this.failed, edit: this.edit, failedEdit: this.failedEdit
         });
     };
 
@@ -636,6 +962,9 @@
         this.done = s.done;
         this.error = s.error;
         this.failed = s.failed;
+        this.edit = s.edit && Array.isArray(s.edit.list) && s.edit.list.length ? s.edit : null;
+        if (this.edit) this.edit.at = Math.max(0, Math.min(this.edit.list.length, this.edit.at | 0));
+        this.failedEdit = Array.isArray(s.failedEdit) ? s.failedEdit : null;
     };
 
     Engine.prototype.save = function () {
@@ -683,18 +1012,26 @@
         this.ans = +this.value;
         if (this.done.t === 'num') return; // "9 =" is not worth keeping
         entry = { node: this.done, value: this.value };
+        if (this.fraction) entry.frac = 1; // shown as it was: fractions, or decimals
         if (last && JSON.stringify(last) === JSON.stringify(entry)) return; // the same one again
         this.past.push(entry);
         this.trimPast();
     };
 
     // a calculation in the history, for showing: the equation as text with
-    // <sup>/<sub> tags, as plain text, the result, and the units its angles
-    // were in ('Deg', 'Rad', 'Deg Rad' or '')
-    Engine.prototype.pastLine = function (i) {
-        var p = this.past[i];
+    // <sup>/<sub> tags (stacked: its divisions drawn as fractions), as plain
+    // text, the result, and the units its angles were in ('Deg', 'Rad',
+    // 'Deg Rad' or '')
+    Engine.prototype.pastLine = function (i, stacked) {
+        var p = this.past[i], line;
+        stacking = !!stacked;
+        try {
+            line = show(p.node) + ' =';
+        } finally {
+            stacking = false;
+        }
         return {
-            line: show(p.node) + ' =',
+            line: line,
             text: asPlain(function () { return show(p.node); }) + ' =',
             result: short(p.value),
             unit: Object.keys(units(p.node)).sort().join(' ')
@@ -774,6 +1111,7 @@
         pre.done = null;
         pre.error = false;
         pre.failed = '';
+        pre.failedEdit = null;
         snap = JSON.stringify(pre);
         if (dropped) { // forgets how the dropped operand was built
             line = lineOf(snap);
@@ -794,7 +1132,13 @@
     // takes back the last key of the calculation in progress: a digit, an
     // operator, a function or a bracket. Never returns to an earlier calculation
     Engine.prototype.del = function () {
-        var line = this.equation(), snap, old;
+        var line = this.equation(), snap, old, e = this.edit;
+        if (e) { // while editing: the piece before the cursor
+            if (!e.at) return false;
+            e.list.splice(--e.at, 1);
+            if (!e.list.length) this.reset();
+            return true;
+        }
         while (this.history.length) {
             snap = this.history.pop();
             old = lineOf(snap);
@@ -956,7 +1300,10 @@
     };
 
     Engine.prototype.fail = function () {
-        var line = this.equation();
+        var line = this.equation(), node = this.done || this.tree(),
+            list = this.edit ? this.edit.list : node ? piecesOf(node) : [];
+        this.edit = null;
+        this.failedEdit = list; // so the cursor can go into it and fix it
         this.levels = [newLevel()];
         this.value = '0';
         this.entry = 'fresh';
@@ -968,9 +1315,20 @@
 
     Engine.prototype.press = function (key, deg) {
         var snap;
-        if (key === 'AC') {
+        if (key === 'AC' || (this.edit && key === 'C')) {
             this.reset();
             return true;
+        }
+        if (this.edit) { // keys write at the cursor; '=' and the memory work out the equation first
+            if (key === '=' || key === 'm+' || key === 'm-') {
+                if (!this.commit(deg)) {
+                    if (key !== '=') return false;
+                    this.fail(); // it cannot be read, or worked out
+                    return true;
+                }
+            } else if (key !== 'mc') {
+                return this.insert(key);
+            }
         }
         if (/^m[c+-]$/.test(key)) { // memory keys leave the calculation alone
             this.memory = key === 'mc' ? 0 : arith(key === 'm+' ? '+' : '–', this.memory, +this.value);
@@ -1059,7 +1417,17 @@
 
     // a number replaces the displayed one; an equation is entered in its place
     Engine.prototype.paste = function (str, deg) {
-        var s = separators(String(str).trim()), n, tree, snap, hist, equals;
+        var s = separators(String(str).trim()), n, tree, snap, hist, equals, add, e = this.edit;
+        if (e) { // while editing it goes in at the cursor
+            s = s.replace(/^=\s*/, '').replace(/=[^]*$/, '');
+            add = s.length <= MAX_PASTE && tokens(s);
+            if (!add || !add.length) return false;
+            add = pieces(add);
+            if (e.list.length + add.length > MAX_EDIT) return false;
+            e.list.splice.apply(e.list, [e.at, 0].concat(add));
+            e.at += add.length;
+            return true;
+        }
         if (/^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(s)) { // 1e2 and 1E2 alike
             n = parseFloat(s);
         } else {
@@ -1087,6 +1455,7 @@
     Engine.prototype.put = function (n) {
         var snap;
         if (!isFinite(n)) return false;
+        if (this.edit) return this.insertPiece({ p: [{ t: 'num', v: String(n), whole: true }] });
         snap = this.snapshot();
         this.error = false;
         this.failed = '';
@@ -1120,19 +1489,124 @@
         return !node || node.t === 'num';
     };
 
-    // the equation, as text with <sup>/<sub> tags
-    Engine.prototype.equation = function () {
+    // the equation, as text with <sup>/<sub> tags; stacked: each division
+    // drawn as a fraction, for fraction mode
+    Engine.prototype.equation = function (stacked) {
         var node;
+        if (this.edit) return this.edit.list.map(html).join('');
         if (this.error) return this.failed;
-        if (this.done) return this.done.t === 'num' ? '' : show(this.done) + ' ='; // "9 =" says nothing
-        node = this.tree();
-        return node ? show(node) : '';
+        stacking = !!stacked;
+        try {
+            if (this.done) return this.done.t === 'num' ? '' : show(this.done) + ' ='; // "9 =" says nothing
+            node = this.tree();
+            return node ? show(node) : '';
+        } finally {
+            stacking = false;
+        }
     };
+
+    Engine.stack = stack;
 
     // the equation as plain text, for the clipboard
     Engine.prototype.text = function () {
-        return asPlain(this.equation.bind(this));
+        return this.edit ? untag(this.equation()) : asPlain(this.equation.bind(this));
     };
+
+    // ---------- the cursor ---------- //
+
+    // puts the cursor at the end of what the display shows: the equation being
+    // entered, the finished one after '=', or the one that failed. False if
+    // there is nothing to change, as with a result alone
+    Engine.prototype.startEdit = function () {
+        var node, list;
+        if (this.edit) return true;
+        if (this.error) list = (this.failedEdit || []).slice();
+        else list = (node = this.done || this.tree()) ? piecesOf(node) : [];
+        if (!list.length || (list.length === 1 && list[0].p[0].whole)) return false;
+        this.edit = { list: list, at: list.length };
+        return true;
+    };
+
+    // enters the edited equation the way the keys would, in place of the
+    // calculation; false, and still editing, if it cannot be read or worked out
+    Engine.prototype.commit = function (deg) {
+        var tree = parse(unpiece(this.edit.list)), snap = this.snapshot(), hist = this.history.slice();
+        if (!tree) return false;
+        this.reset();
+        if (this.type(tree, deg) && !this.error) return true;
+        this.restore(snap);
+        this.history = hist;
+        return false;
+    };
+
+    // moves the cursor. At the end the equation is worked out again and the
+    // keys work as they always do; if it cannot be yet, the cursor stays
+    Engine.prototype.cursor = function (at, deg) {
+        var e = this.edit;
+        if (!e) return false;
+        e.at = Math.max(0, Math.min(e.list.length, at));
+        if (e.at === e.list.length) this.commit(deg);
+        return true;
+    };
+
+    // the arrow keys: 'left', 'right', 'home' or 'end'. After '=' or an error,
+    // ◀ enters the equation again and ▶ puts the cursor at its start
+    Engine.prototype.move = function (how, deg) {
+        var e = this.edit, finished = !!(this.done || this.error);
+        if (!e) {
+            if (!finished && (how === 'right' || how === 'end')) return false; // the cursor is at the end already
+            if (!this.startEdit()) return false;
+            e = this.edit;
+            if (how === 'home' || how === 'right') e.at = 0;
+            else if (finished) this.commit(deg);
+            else e.at--;
+            return true;
+        }
+        return this.cursor(how === 'home' ? 0 : how === 'end' ? e.list.length : e.at + (how === 'left' ? -1 : 1), deg);
+    };
+
+    // a click in the shown equation, chars characters from its start: the
+    // cursor goes to the nearest place between two pieces
+    Engine.prototype.point = function (chars, deg) {
+        var was = !!this.edit, e, i, sum = 0, best = 0, gap = Infinity;
+        if (!this.startEdit()) return false;
+        e = this.edit;
+        for (i = 0; i <= e.list.length; i++) {
+            if (Math.abs(sum - chars) < gap) {
+                gap = Math.abs(sum - chars);
+                best = i;
+            }
+            if (i < e.list.length) sum += untag(html(e.list[i])).length;
+        }
+        if (!was && best === e.list.length && !this.done && !this.error) {
+            this.edit = null; // the end of the equation being entered: where it was
+            return false;
+        }
+        return this.cursor(best, deg);
+    };
+
+    Engine.prototype.insert = function (key) {
+        var piece = written(key, this);
+        return !!piece && this.insertPiece(piece);
+    };
+
+    Engine.prototype.insertPiece = function (piece) {
+        var e = this.edit;
+        if (e.list.length >= MAX_EDIT) return false;
+        e.list.splice(e.at++, 0, piece);
+        return true;
+    };
+
+    // the equation while editing: the HTML of each piece, and the cursor
+    // (before the piece at that index)
+    Engine.prototype.editView = function () {
+        return { parts: this.edit.list.map(html), at: this.edit.at };
+    };
+
+    Engine.stats = stats;
+    Engine.format = format;
+    Engine.group = group;
+    Engine.fraction = shownFraction;
 
     root.CalcEngine = Engine;
     if (typeof module !== 'undefined' && module.exports) {
