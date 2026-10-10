@@ -982,6 +982,131 @@ dels.forEach(function (c) {
     check(e.memory === 0, 'memory: 0.1 + 0.2 – 0.3 is 0', String(e.memory));
 })();
 
+// ---------- Ans ---------- //
+
+(function () {
+    var e = new Engine();
+    check(e.press('Ans') && state(e) === '0 | 0', 'Ans is 0 before any result', state(e));
+    run(e, 'AC 2 + 3 = 5 × Ans =');
+    check(state(e) === '25 | 5 × 5 =', 'Ans in the middle of an equation', state(e));
+    run(e, 'Ans + 1 =');
+    check(state(e) === '26 | 25 + 1 =', 'Ans after a result starts a new equation', state(e));
+    run(e, 'AC 7 Ans');
+    check(state(e) === '26 | 26', 'Ans replaces a typed number', state(e));
+    run(e, 'AC 1 ÷ 3 = AC Ans × 3 =');
+    check(state(e) === '1 | 0.3333333333333 × 3 =', 'Ans keeps every digit and survives AC', state(e));
+    run(e, '9 =');
+    check(e.ans === 9, 'a number alone with = is Ans', String(e.ans));
+    run(e, '5 ÷ 0 = AC Ans');
+    check(e.value === '9', 'an error leaves Ans alone', state(e));
+    run(e, 'AC 2 + Ans');
+    check(e.del() && state(e) === '2 | 2 +', 'DEL takes Ans back', state(e));
+})();
+
+// ---------- history ---------- //
+
+(function () {
+    var e = new Engine(), f = new Engine(), i, j, line;
+    run(e, '2 + 3 = 9 = 4 x2 = × 4 = =');
+    check(e.past.length === 4, 'each = goes into the history, "9 =" does not', String(e.past.length));
+    line = e.pastLine(1);
+    check(line.line === '4<sup>2</sup> =' && line.text === '4² =' && line.result === '16', 'a history line', JSON.stringify(line));
+    check(e.pastLine(3).line === '64 × 4 =' && e.pastLine(3).result === '256', 'a repeated = is a line of its own', e.pastLine(3).line);
+    run(f, '3 0 sin =', true);
+    check(f.pastLine(0).unit === 'Deg' && e.pastLine(0).unit === '', 'the unit is shown for angles only', JSON.stringify(f.past[0]));
+    run(f, '2 + 3 = 2 + 3 =');
+    check(f.past.length === 2, 'the same calculation twice in a row is kept once', String(f.past.length));
+
+    // reused
+    run(e, '7 ×');
+    check(e.recall(0) && state(e) === '3 | 2 + 3', 'a calculation is entered again, without =', state(e));
+    check(e.del() && state(e) === '2 | 2 +', 'and DEL takes back its keys', state(e));
+    run(e, '4 =');
+    check(state(e) === '6 | 2 + 4 =', 'and it can be changed', state(e));
+    check(f.recall(0, false) && f.press('=', false) && f.value === '0.5', 'an angle is entered in its own unit', state(f));
+    f.press('AC');
+    run(f, '3 0 sin', true);
+    run(f, '+ 3 0 sin =', false); // in Deg, then in Rad
+    check(f.pastLine(f.past.length - 1).unit === 'Deg Rad' && f.recall(f.past.length - 1, true) && f.press('=') &&
+        f.value === String(0.5 + Math.sin(30)), 'each angle keeps its own unit', state(f));
+    run(f, 'AC 2 . 5 0 +/– + 1 =');
+    check(f.recall(f.past.length - 1) && state(f) === '1 | -2.50 + 1', 'a typed negative number keeps its digits', state(f));
+    check(f.del() && f.del() && state(f) === '-2.50 | -2.50', 'and DEL takes back its keys', state(f));
+    check(!e.recall(99) && state(e) === '6 | 2 + 4 =', 'a missing line changes nothing', state(e));
+    run(f, 'AC 2 × ( 3 + 4 =');
+    check(f.recall(f.past.length - 1) && state(f) === '4 | 2 × (3 + 4', 'a bracket closed by = comes back open', state(f));
+    run(f, 'AC 1 ÷ ( 5 ÷ 0 =');
+    check(f.value === '0' && f.recall(f.past.length - 1) && f.press('=') && f.value === '0',
+        'and so does one that would be an error if closed', state(f));
+
+    // kept small
+    for (i = 0; i < 80; i++) run(e, 'AC 1 + ' + String(i).split('').join(' ') + ' =');
+    check(e.past.length === 50 && e.pastLine(49).line === '1 + 79 =', 'the history keeps the newest 50', String(e.past.length));
+    e = new Engine();
+    for (i = 0; i < 60; i++) {
+        e.press('AC');
+        e.press(String(i % 9 + 1));
+        for (j = 0; j < 59; j++) e.press(j % 2 ? 'sin' : 'cos');
+        e.press('=');
+    }
+    check(JSON.stringify(e.past).length <= 100000 && e.past.length > 5, 'long calculations are capped by size',
+        JSON.stringify(e.past).length + ' chars, ' + e.past.length + ' lines');
+
+    // saved
+    e = new Engine();
+    run(e, '2 + 3 = 4 × 5 = 2 +');
+    f = new Engine();
+    f.load(JSON.parse(JSON.stringify(e.save())));
+    check(f.past.length === 2 && f.ans === 20 && state(f) === state(e), 'history and Ans are saved', state(f));
+    f.load({ state: e.snapshot(), past: [null, { value: '5' }, { node: { t: 'bin', op: '+' }, value: '5' },
+        { node: { t: 'num', v: '1' }, value: 'x' }, e.past[0]], ans: 'x' });
+    check(f.past.length === 1 && f.ans === 0, 'unreadable saved lines are left out', f.past.length + ' ' + f.ans);
+    f.load({ state: e.snapshot() });
+    check(f.past.length === 0 && f.ans === 0, 'state saved without them still loads');
+})();
+
+// ---------- fuzz: a calculation from the history comes back the same ---------- //
+
+(function () {
+    var pool = ('0 1 2 3 4 5 6 7 8 9 1 2 3 . +/– + – × ÷ + – × ÷ yx x√y EE ( ( ) ) ) = = C π e Rand Ans mr m+ ' +
+            'x2 x3 x! 1/x ex 2x sin cos tan sin-1 √ ln log log2 sinh tan-1 % %').split(' '),
+        seed = 777,
+        compared = 0,
+        e, f, keys, i, n, j, deg, p, before;
+
+    function rnd() {
+        seed = (seed * 1103515245 + 12345) % 2147483648;
+        return seed / 2147483648;
+    }
+
+    for (n = 0; n < 3000; n++) {
+        e = new Engine();
+        deg = rnd() < 0.5;
+        keys = [];
+        for (i = 5 + Math.floor(rnd() * 40); i--;) keys.push(pool[Math.floor(rnd() * pool.length)]);
+        keys.push('=');
+        keys.forEach(function (key) { e.press(key, rnd() < 0.2 ? !deg : deg); }); // the unit changes now and then
+        for (j = 0; j < e.past.length; j++) {
+            p = e.past[j];
+            f = new Engine();
+            f.load(JSON.parse(JSON.stringify(e.save())));
+            before = f.pastLine(j);
+            if (!f.recall(j, rnd() < 0.5)) { // in either unit: each angle comes back in its own
+                check(false, 'fuzz recall  ' + keys.join(' '), 'line ' + j + ' ' + before.text + ' was refused');
+                continue;
+            }
+            f.press('=', rnd() < 0.5);
+            compared++;
+            if (f.value !== p.value || f.equation() !== before.line) {
+                check(false, 'fuzz recall  ' + keys.join(' '),
+                    before.line + ' ' + p.value + ' came back as ' + f.equation() + ' ' + f.value);
+                if (failures > 20) return;
+            }
+        }
+    }
+    check(compared > 1000, 'fuzz recall compared ' + compared + ' calculations');
+})();
+
 // ---------- fuzz: the finished expression must evaluate to the result ---------- //
 
 (function () {

@@ -10,8 +10,13 @@
         radDeg = Calc.querySelector('.calc-rad'),
         fullTurn = Calc.querySelector('.sign'), // a full turn in the current unit: 2π or 360º
         hold = Calc.querySelector('.calc-hold'),
-        secondKeySet = [].slice.call(Calc.querySelector('.calc-left').children, 12, 20),
+        leftKeys = Calc.querySelector('.calc-left').children,
+        secondKeySet = [].slice.call(leftKeys, 12, 20).concat(leftKeys[22]), // the keys the 2nd key changes
         hiddenCopy = Calc.querySelector('textarea'),
+        past = document.querySelector('.calc-past'), // the history, over the keys
+        pastList = past.querySelector('.calc-past-list'),
+        pastButton = document.querySelector('.calc-hist'),
+        pastShown = {}, // the history as the list shows it, so it is only built again after a change
         pressedKey,
         sliding, // long line being slid: its element and where the slide started
         secondActive = false, // 2nd key active?
@@ -20,10 +25,10 @@
         resBuffer = '0',
         keyBoard = {},
         secondLayer = [
-            ['sin', 'cos', 'tan', 'ln', 'sinh', 'cosh', 'tanh', 'e<sup>x</sup>'],
+            ['sin', 'cos', 'tan', 'ln', 'sinh', 'cosh', 'tanh', 'e<sup>x</sup>', 'Ans'],
             [
                 'sin<sup>-1</sup>', 'cos<sup>-1</sup>', 'tan<sup>-1</sup>', 'log<sub>2</sub>',
-                'sinh<sup>-1</sup>', 'cosh<sup>-1</sup>', 'tanh<sup>-1</sup>', '2<sup>x</sup>'
+                'sinh<sup>-1</sup>', 'cosh<sup>-1</sup>', 'tanh<sup>-1</sup>', '2<sup>x</sup>', 'Rand'
             ]
         ];
 
@@ -117,7 +122,7 @@
 
     function onKeyPress(key) {
         var holdKey = hold.textContent,
-            keyMatch = (',|.|-|–|/|÷|*|×|#|+/–|x|x!|E|EE|e|ex| |2nd|r|x√y|R|√|p|π|^|yx|\'|yx|"|yx|m|mr|v|mc|b|m+|n|m-|' +
+            keyMatch = (',|.|-|–|/|÷|*|×|#|+/–|x|x!|E|EE|e|ex| |2nd|r|x√y|R|√|p|π|^|yx|\'|yx|"|yx|m|mr|v|mc|b|m+|n|m-|a|Ans|' +
                 's|sin|c|cos|t|tan|S|sin-1|C|cos-1|T|tan-1|d|Deg|°|Deg|l|ln|L|log|\\|1/x|X|2x').split('|'),
             keyMatchHold = ('sin|sinh|cos|cosh|tan|tanh|m-|Rand|Deg|Rand|sin-1|sinh-1|cos-1|cosh-1|tan-1|tanh-1|' +
                 '1|1/x|2|x2|3|x3|x√y|√|ln|log2|ex|2x').split('|');
@@ -139,7 +144,7 @@
         }
         if ((key === 'h' || key === 'H') && !holdKey) hold.textContent = 'hold';
         if (!keyBoard[key]) return;
-        if ((key.match(/-1$|log2$|2x$/) && !secondActive) || (key.match(/h$|n$|cos$|ex$/) && secondActive)) {
+        if ((key.match(/-1$|log2$|2x$|Rand$/) && !secondActive) || (key.match(/h$|n$|cos$|ex$|Ans$/) && secondActive)) {
             keyDown(false, keyBoard['2nd']);
             doKey('2nd', true);
         }
@@ -148,6 +153,10 @@
     }
 
     function onKeyDown(key, shiftKey) { // true if the key was handled here
+        if (key === 27 && past.classList.contains('calc-open')) { // Esc closes the history
+            showPast(false);
+            return true;
+        }
         if (key === 46 || (key === 8 && shiftKey)) {
             keyDown(false, keyBoard['AC']);
             doKey(keyBoard['AC'].textContent.replace(/\s*/g, ''), true);
@@ -207,6 +216,95 @@
             notification.style.opacity = op;
             op -= op * 0.1;
         }, 50);
+    }
+
+    // ---------------- history ---------------- //
+
+    pastButton.addEventListener('click', function () {
+        showPast(!past.classList.contains('calc-open'));
+    }, false);
+
+    // any press outside the history closes it; the button toggles it itself
+    document.addEventListener('pointerdown', function (e) {
+        if (past.classList.contains('calc-open') && !past.contains(e.target) && !pastButton.contains(e.target)) {
+            showPast(false);
+        }
+    }, true);
+
+    past.querySelector('.calc-past-close').addEventListener('click', function () {
+        showPast(false);
+    }, false);
+
+    past.querySelector('.calc-past-clear').addEventListener('click', function () {
+        engine.past = [];
+        showPast(false);
+        refresh();
+        saveState();
+    }, false);
+
+    // the equation is entered again, to change or finish; the result goes in
+    // as a number, like Ans
+    pastList.addEventListener('click', function (e) {
+        var part = e.target.closest('.calc-past-eq, .calc-past-res');
+        if (part) usePast(+part.parentNode.dataset.i, part.classList.contains('calc-past-eq'));
+    }, false);
+
+    function showPast(open) {
+        var calc = past.parentNode, shown, frame;
+        if (open) { // just below the display, 1px wider on each side
+            shown = display.parentNode.getBoundingClientRect();
+            frame = calc.getBoundingClientRect();
+            past.style.top = shown.bottom - frame.top - calc.clientTop + 7 + 'px';
+            past.style.left = shown.left - frame.left - calc.clientLeft - 1 + 'px';
+            past.style.width = shown.width + 2 + 'px';
+            renderPast();
+        }
+        past.classList.toggle('calc-open', open);
+        pastButton.classList.toggle('calc-on', open);
+        if (open) pastList.scrollTop = 0;
+    }
+
+    // newest first
+    function renderPast() {
+        var n = engine.past.length, i, p, row, eq, line, res, unit;
+
+        pastShown = { list: engine.past, n: n, last: engine.past[n - 1] };
+        pastList.textContent = '';
+        for (i = n; i--;) {
+            p = engine.pastLine(i);
+            row = document.createElement('div');
+            row.className = 'calc-past-row';
+            row.dataset.i = i;
+            eq = row.appendChild(document.createElement('div'));
+            eq.className = 'calc-past-eq';
+            eq.title = p.text + ' – click to use this equation';
+            line = eq.appendChild(document.createElement('span')); // keeps its order in the right to left box
+            line.innerHTML = p.line; // made by the engine, like the equation in the display
+            if (p.unit) { // its angles are worked out in this unit again
+                unit = line.insertBefore(document.createElement('span'), line.firstChild);
+                unit.className = 'calc-past-unit';
+                unit.textContent = p.unit;
+            }
+            res = row.appendChild(document.createElement('div'));
+            res.className = 'calc-past-res';
+            res.textContent = p.result;
+            res.title = 'Click to use this result';
+            pastList.appendChild(row);
+        }
+    }
+
+    function usePast(i, whole) {
+        var unit, ok;
+
+        if (!engine.past[i]) return;
+        unit = engine.pastLine(i).unit;
+        ok = whole ? engine.recall(i, deg) : engine.put(+engine.past[i].value);
+        if (!ok) return;
+        if (whole && /^(Deg|Rad)$/.test(unit) && (unit === 'Deg') !== deg) doKey('Deg', true); // shows its unit
+        keyBoard['AC'].children[0].firstChild.data = 'C';
+        showPast(false);
+        refresh();
+        saveState();
     }
 
     // ---------------- event listeners mouse --------------- //
@@ -368,7 +466,7 @@
             for (var n = secondKeySet.length; n--;) {
                 secondKeySet[n].children[0].innerHTML = secondLayer[secondActive ? 1 : 0][n];
             }
-        } else if (text.match(/^[\d|\.|π]$/)) {
+        } else if (text.match(/^[\d|\.|π]$/) || text === 'Ans') {
             keyBoard['AC'].children[0].firstChild.data = 'C';
         } else if (text === 'C') {
             key.children[0].firstChild.data = 'AC';
@@ -422,6 +520,11 @@
         slide(logline, logline.scrollWidth);
         keyBoard['('].classList.toggle('calc-active', engine.levels.length > 1);
         mem.textContent = engine.memory ? 'M' : '';
+        pastButton.hidden = !engine.past.length; // shown once there is a history
+        if (past.classList.contains('calc-open') && (pastShown.list !== engine.past ||
+            pastShown.n !== engine.past.length || pastShown.last !== engine.past[engine.past.length - 1])) {
+            renderPast();
+        }
     }
 
 })(window);
