@@ -67,6 +67,21 @@
                     </div>
                 </div>
             </div>
+            <div class="option format-option">
+                <span class="option-icon format-icon" id="order-icon" aria-hidden="true"><span class="root-sign">√</span>9</span>
+                <div class="option-text">
+                    <h3>Function keys</h3>
+                    <p>Press <kbd class="k"><span class="root-sign">√</span></kbd> <kbd class="k">sin</kbd> <kbd class="k">cos</kbd>
+                        <kbd class="k">tan</kbd> <kbd class="k">ln</kbd> <kbd class="k">log</kbd> … before the number, as most
+                        calculators do, or after it.</p>
+                    <div class="format-row">
+                        <select id="fn-order" title="Function keys">
+                            <option value="first">Before the number: √ 9</option>
+                            <option value="after">After the number: 9 √</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="features">
@@ -87,6 +102,8 @@
                     0.75 as 3/4.</li>
                 <li>Number format: Fix, Sci or Eng notation with 0 to 9 decimal places, and thousands separators
                     (1,234,567.89). See "Options" section above.</li>
+                <li>Function keys before the number, √ 9, as most calculators do, or after it, 9 √. See
+                    "Options" section above.</li>
                 <li>Detached Mode: the calculator in its own window. See "Options" section above.</li>
                 <li>Memorizes not only the display if turned off/on but also all other states.
                     It's even possible to continue a calculation sequence after turning computer off/on.</li>
@@ -287,8 +304,7 @@
             <div class="info">
                 <div class="trigo-keys">
                     abs
-                </div><span class="des">[|] The absolute value: the number without its sign. 3 +/– abs returns
-                    3.</span>
+                </div><span class="des">[|] The absolute value: the number without its sign. abs(-3) is 3.</span>
             </div>
 
             <div class="info">
@@ -503,17 +519,15 @@
             <div class="info">
                 <div class="trigo-keys">
                     e<sup>x</sup>
-                </div><span class="des">[e] Click after entering a value to raise the constant 'e'
-                    (2.718281828459045…)
-                    to the power of that value.</span>
+                </div><span class="des">[e] Raises the constant 'e' (2.718281828459045…) to the power of a
+                    value.</span>
             </div>
 
             <div class="info">
                 <div class="trigo-keys">
                     2<sup>x</sup>
-                </div><span class="des">[Shift+X or h, e] Calculates 2 to the power of the displayed value. For
-                    example,
-                    10 2<sup>x</sup> = 1024. (Available when the <kbd class="k">2nd</kbd> button is clicked).</span>
+                </div><span class="des">[Shift+X or h, e] Calculates 2 to the power of a value: 2<sup>10</sup> is
+                    1024. (Available when the <kbd class="k">2nd</kbd> button is clicked).</span>
             </div>
 
             <div class="info">

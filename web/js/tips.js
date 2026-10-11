@@ -1,7 +1,8 @@
 // What the keys above the digits do, for the tips shown while the pointer is
 // over one. Keyed by a key's name as main.js reads it from its label, so a
 // key turned by 2nd has the tip of its second function.
-// t: name, d: what it does (HTML), k: keyboard shortcut, second: the function 2nd gives it
+// t: name, d: what it does (HTML), first: the same while function keys go before their number,
+// k: keyboard shortcut, second: the function 2nd gives it
 (function (root) {
     'use strict';
 
@@ -16,11 +17,15 @@
             t: 'Degrees',
             d: 'Works angles out in degrees: 30 sin = 0.5. The display shows the unit in use at its bottom left; ' +
                 'click it there to switch as well.',
+            first: 'Works angles out in degrees: sin 30 = 0.5. The display shows the unit in use at its bottom left; ' +
+                'click it there to switch as well.',
             k: 'd'
         },
         'Rad': {
             t: 'Radians',
             d: 'Works angles out in radians: ( π ÷ 6 ) sin = 0.5. The display shows the unit in use at its bottom ' +
+                'left; click it there to switch as well.',
+            first: 'Works angles out in radians: sin π ÷ 6 = 0.5. The display shows the unit in use at its bottom ' +
                 'left; click it there to switch as well.',
             k: 'd'
         },
@@ -29,11 +34,15 @@
             t: 'Radians',
             d: 'Angles are in radians: a full turn is 2π (6.283…), so ( π ÷ 2 ) sin = 1. Click to switch to ' +
                 'degrees, where a full turn is 360°.',
+            first: 'Angles are in radians: a full turn is 2π (6.283…), so sin π ÷ 2 = 1. Click to switch to ' +
+                'degrees, where a full turn is 360°.',
             k: 'd'
         },
         'unit Deg': {
             t: 'Degrees',
             d: 'Angles are in degrees: a full turn is 360°, so 90 sin = 1. Click to switch to radians, where a ' +
+                'full turn is 2π.',
+            first: 'Angles are in degrees: a full turn is 360°, so sin 90 = 1. Click to switch to radians, where a ' +
                 'full turn is 2π.',
             k: 'd'
         },
@@ -234,6 +243,7 @@
         '√': {
             t: 'Square root',
             d: 'Enter the number first: 16 √ = 4.',
+            first: 'Then the number: √ 16 = 4. Its bracket closes at ) or =.',
             k: 'Shift+R'
         },
         'x√y': {
@@ -250,67 +260,79 @@
         'sin': {
             t: 'Sine',
             d: 'Enter the angle first: 30 sin = 0.5 in Deg.',
+            first: 'Then the angle: sin 30 = 0.5 in Deg. Its bracket closes at ) or =.',
             k: 's',
             second: 'sin<sup>-1</sup>'
         },
         'cos': {
             t: 'Cosine',
             d: 'Enter the angle first: 60 cos = 0.5 in Deg.',
+            first: 'Then the angle: cos 60 = 0.5 in Deg. Its bracket closes at ) or =.',
             k: 'c',
             second: 'cos<sup>-1</sup>'
         },
         'tan': {
             t: 'Tangent',
             d: 'Enter the angle first: 45 tan = 1 in Deg.',
+            first: 'Then the angle: tan 45 = 1 in Deg. Its bracket closes at ) or =.',
             k: 't',
             second: 'tan<sup>-1</sup>'
         },
         'sinh': {
             t: 'Hyperbolic sine',
             d: '1 sinh = 1.175201193644.',
+            first: 'sinh 1 = 1.175201193644.',
             k: 'h, s',
             second: 'sinh<sup>-1</sup>'
         },
         'cosh': {
             t: 'Hyperbolic cosine',
             d: '1 cosh = 1.543080634815.',
+            first: 'cosh 1 = 1.543080634815.',
             k: 'h, c',
             second: 'cosh<sup>-1</sup>'
         },
         'tanh': {
             t: 'Hyperbolic tangent',
             d: '1 tanh = 0.7615941559558.',
+            first: 'tanh 1 = 0.7615941559558.',
             k: 'h, t',
             second: 'tanh<sup>-1</sup>'
         },
         'sin-1': {
             t: 'Inverse sine',
             d: 'The angle with this sine: 0.5 sin<sup>-1</sup> = 30 in Deg.',
+            first: 'The angle with this sine: sin<sup>-1</sup> 0.5 = 30 in Deg.',
             k: 'Shift+S'
         },
         'cos-1': {
             t: 'Inverse cosine',
             d: 'The angle with this cosine: 0.5 cos<sup>-1</sup> = 60 in Deg.',
+            first: 'The angle with this cosine: cos<sup>-1</sup> 0.5 = 60 in Deg.',
             k: 'Shift+C'
         },
         'tan-1': {
             t: 'Inverse tangent',
             d: 'The angle with this tangent: 1 tan<sup>-1</sup> = 45 in Deg.',
+            first: 'The angle with this tangent: tan<sup>-1</sup> 1 = 45 in Deg.',
             k: 'Shift+T'
         },
         'sinh-1': {
             t: 'Inverse hyperbolic sine',
             d: '1 sinh<sup>-1</sup> = 0.8813735870195.',
+            first: 'sinh<sup>-1</sup> 1 = 0.8813735870195.',
             k: 'h, Shift+S'
         },
         'cosh-1': {
             t: 'Inverse hyperbolic cosine',
             d: 'For numbers from 1 up: 2 cosh<sup>-1</sup> = 1.316957896925.',
+            first: 'For numbers from 1 up: cosh<sup>-1</sup> 2 = 1.316957896925.',
             k: 'h, Shift+C'
         },
         'tanh-1': {
             t: 'Inverse hyperbolic tangent',
             d: 'For numbers between -1 and 1: 0.5 tanh<sup>-1</sup> = 0.5493061443341.',
+            first: 'For numbers between -1 and 1: tanh<sup>-1</sup> 0.5 = 0.5493061443341.',
             k: 'h, Shift+T'
         },
         'π': {
@@ -321,33 +343,39 @@
         'log': {
             t: 'Logarithm, base 10',
             d: 'The power of 10 that gives the number: 1000 log = 3.',
+            first: 'The power of 10 that gives the number: log 1000 = 3.',
             k: 'Shift+L'
         },
         'ln': {
             t: 'Natural logarithm',
             d: 'The logarithm to base e: 1 ln = 0, e ln = 1.',
+            first: 'The logarithm to base e: ln 1 = 0, ln e = 1.',
             k: 'l',
             second: 'log<sub>2</sub>'
         },
         'log2': {
             t: 'Logarithm, base 2',
             d: 'The power of 2 that gives the number: 8 log<sub>2</sub> = 3.',
+            first: 'The power of 2 that gives the number: log<sub>2</sub> 8 = 3.',
             k: 'h, l'
         },
         'ex': {
             t: 'e to the power',
             d: 'e (2.718281828459…) to the power of the number: 1 e<sup>x</sup> = 2.718281828459.',
+            first: 'e (2.718281828459…) to the power of the number: e<sup>x</sup> 1 = 2.718281828459.',
             k: 'e',
             second: '2<sup>x</sup>'
         },
         '2x': {
             t: '2 to the power',
             d: '2 to the power of the number: 10 2<sup>x</sup> = 1024.',
+            first: '2 to the power of the number: 2<sup>x</sup> 10 = 1024.',
             k: 'Shift+X'
         },
         'abs': {
             t: 'Absolute value',
             d: 'The number without its sign: 3 +/– abs = 3.',
+            first: 'The number without its sign: abs – 3 = 3.',
             k: '|'
         },
         'x!': {

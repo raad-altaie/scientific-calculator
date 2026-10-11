@@ -324,8 +324,26 @@
         }
     }
 
-    function newLevel() {
-        return { stack: [], rep: null }; // rep: last operator and operand, for repeating '='
+    // fn: the function a tan-first key opened this level for, worked out on it when it closes
+    function newLevel(fn) {
+        var lvl = { stack: [], rep: null }; // rep: last operator and operand, for repeating '='
+        if (fn) lvl.fn = fn;
+        return lvl;
+    }
+
+    // keys that go before their number when functions come first: tan 45 ), not 45 tan.
+    // x², x!, 1/x and % stay after it, as on other calculators
+    function opens(key) {
+        return !!UNARY[key] && (UNARY[key].t === 'fn' || UNARY[key].t === 'pow');
+    }
+
+    // a function key worked out on an operand, its value and node; the functions of
+    // an angle remember the unit, for the history. Of an error it is an error, as
+    // when = closes tan(ln(0 and sin of degrees would make 0 of it
+    function applied(key, arg, deg) {
+        var val = isFinite(arg.val) ? UNARY[key].f(arg.val, deg) : NaN, node = bounded(unaryNode(key, arg.node), val);
+        if (ANGLE.test(key) && node.t === 'fn') node.deg = deg ? 1 : 0; // short, as DEL keeps many copies
+        return { val: val, node: node };
     }
 
     // typed numbers keep their digits as entered, computed ones are shortened when printed
@@ -433,6 +451,14 @@
             (bottom ? '<span>' + bottom + '</span>' : '<span class="calc-fr-empty"></span>') + '</span>';
     }
 
+    // how a function opened before its number starts: tan(, √(, e^(
+    function opener(key) {
+        var u = UNARY[key];
+        if (u.t === 'pow') return u.base + '^';
+        if (key === '√') return plainText ? '√' : '<span class="calc-sq">√</span>'; // drawn, as in the edited line
+        return tags(NAME[key] || key);
+    }
+
     function show(n) {
         var l, r;
         if (stacking && n.t === 'inv') return stack('1', show(n.arg));
@@ -448,7 +474,7 @@
             case 'inv': return '1/' + wrap(n.arg);
             case 'pow': return n.base + '^' + wrap(n.arg);
             case 'group': return '(' + show(n.arg) + ')';
-            case 'open': return '(' + (n.arg ? show(n.arg) : ''); // bracket still open
+            case 'open': return (n.fn ? opener(n.fn) : '') + '(' + (n.arg ? show(n.arg) : ''); // bracket still open
         }
         // binary; n.r is missing while the second operand is still awaited
         if (n.op === 'x√y') return radical(n);
@@ -555,6 +581,16 @@
             return n;
         }
 
+        // the bracket of function f the text leaves open, "sin(30": closed as '=' would close
+        // it, and f marked, so typing it again tan-first leaves it open
+        function shut(n, f) {
+            if (n.t === 'group' && n.open && whole(n.arg)) {
+                n.open = false;
+                f.open = true;
+            }
+            return n;
+        }
+
         function signed(v) {
             return v.charAt(0) === '-' ? { t: 'neg', arg: { t: 'num', v: v.slice(1) } } : { t: 'num', v: v };
         }
@@ -575,7 +611,7 @@
         }
 
         function primary() {
-            var t = toks[i++], n, key;
+            var t = toks[i++], n, f;
             if (!t) throw BAD;
             if (t.t === 'num' || t.t === 'const') return t;
             if (t.t === 'op' && t.v === '(') {
@@ -589,12 +625,15 @@
                 return { t: 'group', arg: n, open: true };
             }
             if (t.t === 'fn') {
-                key = /^(sin|cos|tan)h?$/.test(t.v) && inverse() ? t.v + '-1' : t.v;
-                n = is('(') ? primary() : postfix();
-                if (n.open && whole(n.arg)) n.open = false; // "sin(30": closed like '=' would
-                return { t: 'fn', key: key, arg: need(n) };
+                f = { t: 'fn', key: /^(sin|cos|tan)h?$/.test(t.v) && inverse() ? t.v + '-1' : t.v };
+                f.arg = need(shut(is('(') ? primary() : postfix(), f));
+                return f;
             }
-            if (t.t === 'op' && t.v === '√') return { t: 'fn', key: '√', arg: need(postfix()) };
+            if (t.t === 'op' && t.v === '√') {
+                f = { t: 'fn', key: '√' };
+                f.arg = need(shut(postfix(), f));
+                return f;
+            }
             if (t.t === 'sup' && is('√')) { // ³√8
                 i++;
                 n = need(postfix());
@@ -620,10 +659,14 @@
         }
 
         function power() {
-            var n = postfix(), op, r;
+            var n = postfix(), op, r, f;
             if (!is('^') && !is('EE')) return n;
             op = toks[i++].v === '^' ? 'yx' : 'EE';
-            if (op === 'yx' && n.t === 'const' && n.v === 'e') return { t: 'fn', key: 'ex', arg: need(unary()) };
+            if (op === 'yx' && n.t === 'const' && n.v === 'e') {
+                f = { t: 'fn', key: 'ex' };
+                f.arg = need(shut(unary(), f));
+                return f;
+            }
             r = end() ? null : unary();
             if (op === 'yx' && r && r.t === 'group' && r.arg && r.arg.t === 'bin' && r.arg.op === '÷' && r.arg.r &&
                 r.arg.l.t === 'num' && +r.arg.l.v === 1) { // 8^(1/3) is the root, so ³√-8 stays -2
@@ -928,6 +971,7 @@
         this.ans = 0; // the last result, for the Ans key
         this.past = []; // finished calculations, oldest first: { node, value, frac: 1 if done in fraction mode }
         this.fraction = false; // fraction mode is on: set by the display, kept with each calculation in the history
+        this.fnFirst = false; // function keys go before their number, tan 45, not 45 tan: set by the display
         this.reset();
     }
 
@@ -953,7 +997,8 @@
 
     Engine.prototype.restore = function (snap) {
         var s = JSON.parse(snap);
-        if (!s || !s.levels || !s.levels.length || typeof s.value !== 'string') {
+        if (!s || !Array.isArray(s.levels) || !s.levels.length || typeof s.value !== 'string' ||
+            !s.levels.every(function (lvl) { return lvl && Array.isArray(lvl.stack) && (!lvl.fn || opens(lvl.fn)); })) {
             throw new Error('bad calculator state');
         }
         this.levels = s.levels;
@@ -1191,7 +1236,7 @@
         this.done = null;
     };
 
-    Engine.prototype.equals = function () {
+    Engine.prototype.equals = function (deg) {
         var lvl = this.levels[0], top, d;
         if (this.done && lvl.rep && lvl.rep.val !== null) { // repeating '='
             top = {
@@ -1207,7 +1252,12 @@
                     top = reduce(lvl.stack, '=', top.val, top.node);
                     lvl.stack = [];
                 }
-                if (d) top = { val: top.val, node: { t: 'group', arg: top.node, auto: 1 } }; // closed by '='
+                if (d && lvl.fn) {
+                    top = applied(lvl.fn, top, deg);
+                    if (!isFinite(top.val)) top.val = NaN; // an error, as the key itself would give
+                } else if (d) {
+                    top = { val: top.val, node: { t: 'group', arg: top.node, auto: 1 } }; // closed by '='
+                }
             }
             this.levels.length = 1;
         }
@@ -1223,6 +1273,13 @@
 
         this.error = false;
         this.failed = '';
+
+        // a function waiting for its number, as after tan: – starts a negative number; the
+        // keys that would take the number shown before the function wait for one of its own
+        if (lvl.fn && this.entry === 'fresh' && !st.length) {
+            if (key === '–') key = '+/–';
+            else if (RANK[key] !== undefined || key === '%' || (UNARY[key] && !(this.fnFirst && opens(key)))) return false;
+        }
 
         if (/^[\d.]$/.test(key)) {
             cur = this.entry === 'typing' ? this.value : '0';
@@ -1257,12 +1314,11 @@
             this.node = bounded({ t: 'post', op: '%', arg: arg.node }, +this.value);
             if (this.node.t === 'post' && +this.value !== cur) this.node.share = true; // not a hundredth
             this.done = null;
-        } else if (UNARY[key]) {
-            arg = this.part();
-            this.value = String(UNARY[key].f(arg.val, deg));
+        } else if (UNARY[key] && !(this.fnFirst && opens(key))) {
+            top = applied(key, this.part(), deg);
+            this.value = String(top.val);
             this.entry = 'result';
-            this.node = bounded(unaryNode(key, arg.node), +this.value);
-            if (ANGLE.test(key) && this.node.t === 'fn') this.node.deg = deg ? 1 : 0; // for the history; short, as DEL keeps many copies
+            this.node = top.node;
             this.done = null;
         } else if (key === 'π' || key === 'e' || key === 'Rand' || key === 'mr' || key === 'Ans') {
             this.value = String(key === 'π' ? PI : key === 'e' ? Math.E : key === 'Rand' ? Math.random() :
@@ -1270,11 +1326,11 @@
             this.entry = 'result';
             this.node = null; // a constant shows its digits, like any computed number
             this.done = null;
-        } else if (key === '(') {
+        } else if (key === '(' || UNARY[key]) { // a bracket, or a function before its number: tan(
             if (this.levels.length >= MAX_LEVELS) return false;
-            if (!this.done && this.entry !== 'fresh') this.operator('×'); // 5 ( means 5 × (
+            if (!this.done && this.entry !== 'fresh') this.operator('×'); // 5 ( means 5 × (, 5 tan 5 × tan(
             if (isFinite(+this.value)) {
-                this.levels.push(newLevel());
+                this.levels.push(newLevel(key === '(' ? null : key));
                 this.entry = 'fresh';
                 this.node = null;
             }
@@ -1283,12 +1339,13 @@
             if (this.levels.length < 2 || (this.entry === 'fresh' && !st.length)) return false;
             arg = this.operand();
             top = st.length ? reduce(st, '=', arg.val, arg.node) : arg;
+            top = lvl.fn ? applied(lvl.fn, top, deg) : { val: top.val, node: { t: 'group', arg: top.node } };
             this.levels.pop();
             this.value = String(top.val);
             this.entry = 'result';
-            this.node = { t: 'group', arg: top.node };
+            this.node = top.node;
         } else if (key === '=') {
-            this.equals();
+            this.equals(deg);
         } else if (key === 'C') { // clears the current number only
             this.value = '0';
             this.entry = 'fresh';
@@ -1346,12 +1403,24 @@
         }
         if (!isFinite(+this.value)) this.fail();
         else if (key === '=') this.keep();
-        this.track(snap, key);
+        this.track(snap, this.fnFirst && opens(key) ? '(' : key); // tan( is taken back as a bracket is
         return true;
     };
 
-    // enters a parsed expression the way the keys would; false if a key is refused
+    // enters a parsed expression the way the keys would; false if a key is refused.
+    // A function goes after its operand, as it does without tan-first, so it is
+    // worked out the same; only one whose bracket is still open goes first
     Engine.prototype.type = function (tree, deg) {
+        var first = this.fnFirst;
+        this.fnFirst = false;
+        try {
+            return this.typeIn(tree, deg, first);
+        } finally {
+            this.fnFirst = first;
+        }
+    };
+
+    Engine.prototype.typeIn = function (tree, deg, first) {
         var self = this, ok = true, halted = false, st = this.levels[this.levels.length - 1].stack, unit = null;
 
         // After a waiting power, root or EE the first pasted operand stays in
@@ -1367,17 +1436,20 @@
             halted = self.error; // an error ends the calculation
         }
 
-        function bracketed(n) {
+        // a bracket is left open where the text stops inside it, unless keys follow it
+        function bracketed(n, tail) {
+            var open = tail && !whole(n);
             key('(');
-            go(n);
-            if (whole(n)) key(')'); // left open where the text stops inside
+            go(n, open);
+            if (!open) key(')');
         }
 
-        function go(n) {
+        // tail: no key is pressed after this part, so a function's open bracket can stay open
+        function go(n, tail) {
             var i;
             if (n === unit) {
                 unit = null;
-                return bracketed(n);
+                return bracketed(n, tail);
             }
             switch (n.t) {
                 case 'num':
@@ -1393,26 +1465,34 @@
                     break;
                 case 'group':
                     key('(');
-                    if (n.arg) go(n.arg);
-                    if (!n.open) key(')');
+                    if (n.arg) go(n.arg, tail && n.open);
+                    if (!(tail && n.open)) key(')');
                     break;
                 case 'neg':
-                    if (n.arg.t === 'bin') bracketed(n.arg); else go(n.arg);
+                    if (n.arg.t === 'bin') bracketed(n.arg, false); else go(n.arg, false);
                     key('+/–');
                     break;
                 case 'fn':
+                    if (first && n.open && tail) { // tan(45, as tan-first typing leaves it: open again
+                        self.fnFirst = true;
+                        key(n.key);
+                        self.fnFirst = false;
+                        go(n.arg.arg, true);
+                        break;
+                    }
+                // falls through
                 case 'post': // the keys apply to the operand typed before them
-                    if (n.arg.t === 'bin' || n.arg.t === 'neg') bracketed(n.arg); else go(n.arg);
+                    if (n.arg.t === 'bin' || n.arg.t === 'neg') bracketed(n.arg, false); else go(n.arg, false);
                     key(n.key, n.deg);
                     break;
                 default: // binary; the engine sorts out the precedence itself
-                    if (n.l.t === 'bin' && RANK[n.l.op] < RANK[n.op]) bracketed(n.l); else go(n.l);
+                    if (n.l.t === 'bin' && RANK[n.l.op] < RANK[n.op]) bracketed(n.l, false); else go(n.l, false);
                     key(n.op);
-                    if (n.r && n.r.t === 'bin' && RANK[n.r.op] <= RANK[n.op]) bracketed(n.r); else if (n.r) go(n.r);
+                    if (n.r && n.r.t === 'bin' && RANK[n.r.op] <= RANK[n.op]) bracketed(n.r, tail); else if (n.r) go(n.r, tail);
             }
         }
 
-        go(tree);
+        go(tree, true);
         return ok;
     };
 
@@ -1479,7 +1559,7 @@
             for (i = st.length - 1; i >= 0; i--) {
                 node = { t: 'bin', op: st[i].op, l: st[i].node, r: node };
             }
-            if (d) node = { t: 'open', arg: node };
+            if (d) node = this.levels[d].fn ? { t: 'open', fn: this.levels[d].fn, arg: node } : { t: 'open', arg: node };
         }
         return node;
     };

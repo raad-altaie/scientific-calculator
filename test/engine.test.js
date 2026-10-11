@@ -1560,5 +1560,327 @@ dels.forEach(function (c) {
         e.equation(true));
 })();
 
+// ---------- function keys before their number: tan 45 ---------- //
+
+(function () {
+    function first(keys, deg) {
+        var e = new Engine();
+        e.fnFirst = true;
+        if (keys) run(e, keys, deg);
+        return e;
+    }
+
+    function sq(s) { // the drawn √ of an open root, as it reads
+        return s.replace(/<span class="calc-sq">√(<\/span>)?/g, '√'); // the checks strip each </span>
+    }
+
+    // [keys, display value ('Error' for an error), equation line, degrees?]
+    [
+        // the function opens a bracket that ) or = closes
+        ['tan', '0', 'tan(', true],
+        ['tan 4 5', '45', 'tan(45', true],
+        ['tan 4 5 )', '1', 'tan(45)', true],
+        ['tan 4 5 =', '1', 'tan(45) =', true],
+        ['tan 4 5 ) =', '1', 'tan(45) =', true],
+        ['sin 3 0 + 6 0 ) =', '1', 'sin(30 + 60) =', true],
+        ['sin 3 0 ) + 6 0 =', '60.5', 'sin(30) + 60 =', true],
+        ['2 + tan 4 5 ) × 3 =', '5', '2 + tan(45) × 3 =', true],
+        ['2 × sin 3 0 =', '1', '2 × sin(30) =', true],
+        // nested, and closed all at once by =
+        ['sin cos 0 =', String(Math.sin(1)), 'sin(cos(0)) =', false],
+        ['sin cos 0 ) ) =', String(Math.sin(1)), 'sin(cos(0)) =', false],
+        ['sin ( 3 0 ) =', '0.5', 'sin(30) =', true],
+        ['( sin 3 0 ) =', '0.5', '(sin(30)) =', true],
+        ['√ √ 1 6 =', '2', '√(√(16)) ='],
+        // a number before the function multiplies it, as before a bracket
+        ['2 tan 4 5 =', '2', '2 × tan(45) =', true],
+        ['2 + 3 tan 4 5 =', '5', '2 + 3 × tan(45) =', true],
+        ['( 2 ) sin 3 0 =', '1', '(2) × sin(30) =', true],
+        ['π sin', String(Math.PI), '3.14159265359 × sin('],
+        // after = it starts a new calculation, and an operator goes on from the result
+        ['2 + 3 = tan 4 5 =', '1', 'tan(45) =', true],
+        ['2 + 3 = tan', '5', 'tan(', true],
+        ['2 + 3 = + 1 =', '6', '5 + 1 ='],
+        // – after the function starts a negative number; keys that take a number wait for one
+        ['tan – 4 5 =', '-1', 'tan(-45) =', true],
+        ['tan +/– 4 5 =', '-1', 'tan(-45) =', true],
+        ['tan +', '0', 'tan(', true],
+        ['tan ×', '0', 'tan(', true],
+        ['tan =', '0', 'tan(', true],
+        ['tan )', '0', 'tan(', true],
+        ['tan %', '0', 'tan(', true],
+        ['tan x2', '0', 'tan(', true],
+        ['tan x!', '0', 'tan(', true],
+        ['tan 1/x', '0', 'tan(', true],
+        ['5 + tan ÷', '5', '5 + tan('],
+        ['tan 4 5 C', '0', 'tan(', true],
+        ['tan 4 5 C =', '0', 'tan(', true],
+        ['tan 4 5 C 6 0 =', String(Math.sqrt(3)), 'tan(60) =', true],
+        // every function that opens a bracket
+        ['cos 6 0 =', '0.5', 'cos(60) =', true],
+        ['sin-1 0 . 5 =', '30', 'sin<sup>-1</sup>(0.5) =', true],
+        ['cos-1 0 . 5 =', '60', 'cos<sup>-1</sup>(0.5) =', true],
+        ['tan-1 1 =', '45', 'tan<sup>-1</sup>(1) =', true],
+        ['sinh 0 =', '0', 'sinh(0) ='],
+        ['cosh 0 =', '1', 'cosh(0) ='],
+        ['tanh 0 =', '0', 'tanh(0) ='],
+        ['sinh-1 0 =', '0', 'sinh<sup>-1</sup>(0) ='],
+        ['cosh-1 1 =', '0', 'cosh<sup>-1</sup>(1) ='],
+        ['tanh-1 0 =', '0', 'tanh<sup>-1</sup>(0) ='],
+        ['ln 1 =', '0', 'ln(1) ='],
+        ['log 1 0 0 0 =', '3', 'log(1000) ='],
+        ['log2 8 =', '3', 'log<sub>2</sub>(8) ='],
+        ['log2 8', '8', 'log<sub>2</sub>(8'],
+        ['√ 9 =', '3', '√(9) ='],
+        ['√ 9', '9', '√(9'],
+        ['√ 1 6 ) + 1 =', '5', '√(16) + 1 ='],
+        ['ex 0 =', '1', 'e^0 ='],
+        ['ex 1 + 1', '1', 'e^(1 + 1'],
+        ['ex 1 + 1 =', String(Math.exp(2)), 'e^(1 + 1) ='],
+        ['2x 1 0 =', '1024', '2^10 ='],
+        ['2x 1 0', '10', '2^(10'],
+        ['abs – 3 =', '3', 'abs(-3) ='],
+        // the keys after their number stay there
+        ['5 x2 =', '25', '5<sup>2</sup> ='],
+        ['2 x3 =', '8', '2<sup>3</sup> ='],
+        ['5 x! =', '120', '5! ='],
+        ['4 1/x =', '0.25', '1/4 ='],
+        ['5 0 0 + 8 % =', '540', '500 + 8% ='],
+        ['tan 4 5 x2 =', '1', 'tan(45<sup>2</sup>) =', true],
+        ['8 x√y 3 =', '2', '<sup>3</sup>√8 ='],
+        ['2 yx tan 4 5 =', '2', '2^tan(45) =', true],
+        ['tan 4 EE 1 =', String(Math.tan(40)), 'tan(4E1) ='],
+        // errors are found when the bracket closes
+        ['tan 9 0 =', 'Error', 'tan(90) =', true],
+        ['tan 9 0 )', 'Error', 'tan(90)', true],
+        ['ln 0 =', 'Error', 'ln(0) ='],
+        ['√ 4 +/– =', 'Error', '√(-4) ='],
+        ['tan 9 0 = tan 4 5 =', '1', 'tan(45) =', true],
+        ['tan 4 5 AC', '0', '']
+    ].forEach(function (c) {
+        var e = first(c[0], !!c[3]), value = e.error ? 'Error' : e.value;
+        check(same(value, isNaN(+c[1]) ? c[1] : +c[1]) || value === c[1], 'tan-first  ' + c[0] + '  value', value);
+        check(sq(e.equation()) === c[2], 'tan-first  ' + c[0] + '  line', sq(e.equation()));
+    });
+
+    var e, f, g, snap;
+
+    // the unit is the one in use when the bracket closes
+    e = first('sin 3 0', false);
+    e.press(')', true);
+    check(e.value === '0.5', 'the unit in use when the bracket closes counts', e.value);
+    e = first('sin 3 0', false);
+    e.press('=', true);
+    check(e.value === '0.5' && e.past[0].node.deg === 1, 'and is kept with the history', JSON.stringify(e.past[0]));
+
+    // the open root is drawn as the edited line draws it
+    check(drawn.call(first('√ 9')) === '<span class="calc-sq">√</span>(9', 'an open √ is drawn', drawn.call(first('√ 9')));
+    check(first('√ 9').text() === '√(9', 'and copied as text', first('√ 9').text());
+    check(first('2 + sin-1 0 . 5').text() === '2 + sin⁻¹(0.5', 'an open function is copied with its bracket',
+        first('2 + sin-1 0 . 5').text());
+
+    // DEL takes the function back as it takes back a bracket
+    e = first('2 + tan 4 5 )', true);
+    var walk = [];
+    while (e.del()) walk.push(sq(e.equation()));
+    check(walk.join(' / ') === '2 + tan(45 / 2 + tan(4 / 2 + tan( / 2 + / 2 / ', 'DEL walks back through tan(',
+        walk.join(' / '));
+
+    // too many open brackets: the function waits like a bracket would
+    e = first('');
+    for (var k = 0; k < 40; k++) e.press('sin', false);
+    check(e.levels.length === 30, 'at most 30 open brackets, functions included', e.levels.length);
+    run(e, '0 =', false);
+    check(e.value === '0' && !e.error, 'and they all close at =', e.value);
+
+    // the cursor: an open function stays open when the cursor goes back to the end
+    e = first('2 + tan 4 5', true);
+    e.move('left', true);
+    check(!!e.edit && sq(e.equation()) === '2 + tan(45', 'the cursor goes into an open function', sq(e.equation()));
+    e.move('right', true);
+    check(!e.edit && sq(e.equation()) === '2 + tan(45', 'and back at the end it is still open', sq(e.equation()));
+    run(e, '+ 1 5 =', true);
+    check(same(e.value, 2 + Math.sqrt(3)) && e.equation() === '2 + tan(45 + 15) =', 'so the keys after it go inside',
+        state(e));
+    e = first('2 + sin cos 0', false);
+    e.move('home', false);
+    e.move('end', false);
+    run(e, ') + 1 =', false);
+    check(sq(e.equation()) === '2 + sin(cos(0) + 1) =', 'nested open functions stay open', sq(e.equation()));
+    e = first('√ 9', false);
+    e.move('left', false);
+    e.move('right', false);
+    run(e, '+ 7 =', false);
+    check(e.value === '4', 'an open root as well', state(e));
+    e = first('ex 1', false);
+    e.move('left', false);
+    e.move('right', false);
+    run(e, '+ 1 =', false);
+    check(same(e.value, Math.exp(2)), 'and an open e^', state(e));
+    e = first('1 + 2', false);
+    e.move('left', false);
+    run(e, 'sin', false);
+    check(sq(e.equation()) === '1 + sin(2', 'in the middle of an equation sin writes sin( as before', sq(e.equation()));
+    run(e, '=', false);
+    check(same(e.value, 1 + Math.sin(2)), 'and = works it out', state(e));
+
+    // paste: an open function stays open, as the keys would leave it
+    e = first('');
+    e.paste('sin(30', true);
+    check(e.equation() === 'sin(30', 'pasted sin(30 stays open', e.equation());
+    run(e, '+ 6 0 =', true);
+    check(e.value === '1', 'and the keys after it go inside', state(e));
+    e = first('');
+    e.paste('2×cos(60', true);
+    check(e.equation() === '2 × cos(60', 'after an operator too', e.equation());
+    e = first('');
+    e.paste('-cos(60', true);
+    run(e, '=', true);
+    check(e.value === '-0.5', 'a sign before an open function stays outside it', state(e));
+    e = first('');
+    e.paste('sin cos(0', false);
+    run(e, '=', false);
+    check(same(e.value, Math.sin(1)), 'a function before an open one is worked out on it', state(e));
+    e = first('');
+    e.paste('sin(30)', true);
+    check(e.value === '0.5' && e.equation() === 'sin(30)', 'a closed one is worked out', state(e));
+    e = first('tan', true);
+    e.paste('45', true);
+    run(e, '=', true);
+    check(e.value === '1', 'a number pasted after tan goes in its bracket', state(e));
+    e = first('tan', true);
+    e.paste('40+5', true);
+    run(e, '=', true);
+    check(e.value === '1' && e.equation() === 'tan(40 + 5) =', 'an equation as well', state(e));
+    e = new Engine();
+    e.paste('sin(30', true);
+    check(e.value === '0.5' && e.equation() === 'sin(30)', 'without tan-first a pasted sin(30 is closed as before',
+        state(e));
+    e = new Engine();
+    e.paste('√(9', false);
+    check(e.value === '3', 'and √(9 is read too', state(e));
+
+    // the history: a calculation comes back the same, in either order
+    e = first('2 + sin 3 0 ) × ln 1 =', true);
+    f = new Engine();
+    f.load(JSON.parse(JSON.stringify(e.save())));
+    f.fnFirst = true;
+    check(f.recall(0, false) && f.press('=', false) && f.value === e.value && f.equation() === e.equation(),
+        'recalled tan-first', state(f));
+    f.fnFirst = false;
+    check(f.recall(0, false) && f.press('=', false) && f.value === e.value && f.equation() === e.equation(),
+        'and recalled without it', state(f));
+
+    // saved and loaded with a function still open
+    e = first('2 + tan 4', true);
+    f = new Engine();
+    f.load(JSON.parse(JSON.stringify(e.save())));
+    check(sq(f.equation()) === '2 + tan(4', 'an open function is saved', sq(f.equation()));
+    run(f, '5 =', true);
+    check(f.value === '3', 'and closes after loading', state(f));
+    snap = JSON.parse(e.snapshot());
+    snap.levels[1].fn = 'alert';
+    g = new Engine();
+    try {
+        g.restore(JSON.stringify(snap));
+        check(false, 'a saved state with an unknown function is refused');
+    } catch (err) {
+        check(true, 'a saved state with an unknown function is refused');
+    }
+    snap.levels[1].fn = '1/x';
+    try {
+        g.restore(JSON.stringify(snap));
+        check(false, 'and with a function that does not open a bracket');
+    } catch (err) {
+        check(true, 'and with a function that does not open a bracket');
+    }
+
+    // changing the order in the middle of a calculation
+    e = first('2 + tan 4 5', true);
+    e.fnFirst = false;
+    run(e, 'x2 ) =', true);
+    check(e.equation() === '2 + tan(45<sup>2</sup>) =', 'an open function still closes after the order changes', state(e));
+    e = first('tan', true);
+    e.fnFirst = false;
+    check(!e.press('sin', true), 'a function after its number cannot take the number not typed yet');
+    e = new Engine();
+    run(e, '3 0 sin', true);
+    e.fnFirst = true;
+    run(e, '+ sin 3 0 =', true);
+    check(e.value === '1' && e.equation() === 'sin(30) + sin(30) =', 'both orders in one calculation', state(e));
+
+    // Ans and memory go into the bracket
+    e = first('2 + 3 = tan Ans + 4 0 =', true);
+    check(e.value === '1', 'Ans in the bracket', state(e));
+    e = first('4 5 m+ AC tan mr =', true);
+    check(e.value === '1', 'the memory in the bracket', state(e));
+
+    // fuzz: keys in any order never break the calculator, a finished line reads back to its
+    // result, a calculation from the history comes back the same, and a saved state loads the same
+    (function () {
+        var pool = ('0 1 2 3 4 5 6 7 8 9 1 2 3 . +/– + – × ÷ + – × ÷ yx x√y EE ( ( ) ) ) ) = C π Ans mr m+ ' +
+                'x2 x3 x! 1/x ex 2x sin cos tan sin-1 √ ln log log2 sinh tan-1 abs % % DEL ◀ ▶').split(' '),
+            seed = 4242,
+            read = 0,
+            recalled = 0,
+            n, i, keys, e, f, deg, line, p;
+
+        function rnd() {
+            seed = (seed * 1103515245 + 12345) % 2147483648;
+            return seed / 2147483648;
+        }
+
+        for (n = 0; n < 4000 && failures < 20; n++) {
+            e = first('');
+            deg = rnd() < 0.5;
+            keys = [];
+            for (i = 3 + Math.floor(rnd() * 30); i--;) keys.push(pool[Math.floor(rnd() * pool.length)]);
+            if (rnd() < 0.7) keys.push('=');
+            try {
+                keys.forEach(function (key) {
+                    if (key === 'DEL') e.del();
+                    else if (key === '◀' || key === '▶') e.move(key === '◀' ? 'left' : 'right', deg);
+                    else e.press(key, deg);
+                    f = new Engine(); // every state saves and loads as it is
+                    f.restore(e.snapshot());
+                    if (f.equation() !== e.equation()) throw new Error('loads as ' + f.equation() + ', not ' + e.equation());
+                });
+                e.text();
+            } catch (err) {
+                check(false, 'fuzz tan-first  ' + keys.join(' '), err.stack);
+                continue;
+            }
+            if (e.done && e.done.t !== 'num' && !e.error && !e.edit) { // the finished line, pasted without tan-first, gives the result
+                read++;
+                line = e.text().replace(/=$/, '');
+                f = new Engine();
+                f.paste(line, deg);
+                f.press('=', deg);
+                if (!(same(f.value, +e.value) || (f.error && !isFinite(+e.value)))) {
+                    check(false, 'fuzz tan-first read  ' + keys.join(' '), line + ' = ' + e.value + ', read back as ' + state(f));
+                }
+            }
+            for (i = 0; i < e.past.length; i++) {
+                p = e.past[i];
+                f = new Engine();
+                f.load(JSON.parse(JSON.stringify(e.save())));
+                f.fnFirst = rnd() < 0.5;
+                line = f.pastLine(i).line;
+                if (!f.recall(i, rnd() < 0.5)) {
+                    check(false, 'fuzz tan-first recall  ' + keys.join(' '), line + ' was refused');
+                    continue;
+                }
+                f.press('=', deg);
+                recalled++;
+                if (f.value !== p.value || f.equation() !== line) {
+                    check(false, 'fuzz tan-first recall  ' + keys.join(' '), line + ' ' + p.value + ' came back as ' + state(f));
+                }
+            }
+        }
+        check(read > 500, 'fuzz tan-first read back ' + read + ' finished lines');
+        check(recalled > 500, 'fuzz tan-first recalled ' + recalled + ' calculations');
+    })();
+})();
+
 console.log(failures ? failures + ' of ' + checks + ' checks failed' : 'all ' + checks + ' checks passed');
 process.exit(failures ? 1 : 0);

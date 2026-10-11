@@ -49,3 +49,33 @@ showFormat();
         } catch (e) { }
     });
 });
+
+// The order of the function keys: √ 9, or 9 √. Without a choice yet it is the
+// one the calculator starts with: √ 9, or 9 √ for who used it before the option came
+const fnOrder = document.getElementById('fn-order');
+const orderIcon = document.getElementById('order-icon');
+
+const readOrder = () => {
+    try {
+        const order = JSON.parse(localStorage.getItem('fnOrder'));
+        return order === 'first' || order === 'after' ? order : localStorage.getItem('calc') ? 'after' : 'first';
+    } catch (e) {
+        return 'first';
+    }
+};
+
+// the icon shows the order chosen, its √ drawn as the calculator draws it
+const showOrder = () => {
+    const root = '<span class="root-sign">√</span>';
+
+    orderIcon.innerHTML = fnOrder.value === 'first' ? root + '9' : '9' + root;
+};
+
+fnOrder.value = readOrder();
+showOrder();
+fnOrder.addEventListener('change', () => {
+    showOrder();
+    try {
+        localStorage.setItem('fnOrder', JSON.stringify(fnOrder.value));
+    } catch (e) { }
+});

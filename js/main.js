@@ -318,9 +318,15 @@
         tip.hidden = true;
     }
 
-    // the tip of a key, or of a mark in the display; the memory and the number
-    // format say what they hold now
+    // the tip of a key, or of a mark in the display; a function key and the unit say
+    // how they are used now, tan 45 or 45 tan
     function tipOf(el, name) {
+        var info = tipFor(el, name);
+        return info && info.first && engine.fnFirst ? { t: info.t, d: info.first, k: info.k, second: info.second } : info;
+    }
+
+    // the memory and the number format say what they hold now
+    function tipFor(el, name) {
         var places = fmt.places + (fmt.places === 1 ? ' decimal place' : ' decimal places'), info, value;
         if (el === radDeg) return CalcTips['unit ' + radDeg.firstChild.data];
         if (el === statsButton) return CalcTips[stats.classList.contains('calc-open') ? 'stats close' : 'stats'];
@@ -841,9 +847,13 @@
         var s = {};
 
         // all read first: the keys pressed below must not save over what is still to be read
-        ['secondActive', 'deg', 'stat', 'fraction', 'format', 'memory', 'calc'].forEach(function (key) {
+        ['secondActive', 'deg', 'stat', 'fraction', 'format', 'fnOrder', 'memory', 'calc'].forEach(function (key) {
             s[key] = stored(key);
         });
+        // functions go before their number, tan 45; who used the calculator before this
+        // option came keeps 45 tan, until it is changed on the options page
+        if (s.fnOrder !== 'first' && s.fnOrder !== 'after') store('fnOrder', s.fnOrder = s.calc ? 'after' : 'first');
+        engine.fnFirst = s.fnOrder === 'first';
         if (s.secondActive) {
             keyDown(false, keyBoard['2nd']);
             doKey('2nd', true);
@@ -862,10 +872,11 @@
         refresh();
     }
 
-    // the number format was changed on the options page
+    // the number format or the order of the function keys was changed on the options page
     window.addEventListener('storage', function (e) {
-        if (e.key !== 'format') return;
-        setFormat(stored('format'));
+        if (e.key === 'format') setFormat(stored('format'));
+        else if (e.key === 'fnOrder') engine.fnFirst = stored('fnOrder') !== 'after';
+        else return;
         refresh();
     });
 
