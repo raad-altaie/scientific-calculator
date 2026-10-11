@@ -691,15 +691,15 @@ html {
     width: 5px;
     height: 5px;
     border-radius: 50%;
-    background: #c86e78;
+    background: #bf777f;
 }
 
 .calc-second:hover {
-    background: #da7d88;
+    background: #d1868f;
 }
 
 .calc-second:active {
-    background: #bb626c;
+    background: #b26b73;
     border: 1px solid #000;
 }
 
@@ -919,7 +919,7 @@ html {
     color: #fff;
     margin: 3px;
     cursor: pointer;
-    background: #c86e78; /* filled like the DEL key */
+    background: #bf777f; /* filled like the DEL key */
     border: 1px solid #7d4a51;
     border-radius: 5px;
     display: inline-flex; /* the label sits in the middle of the key */
@@ -1018,7 +1018,7 @@ html {
 }
 
 .del-ac {
-    background: #c86e78;
+    background: #bf777f;
 }
 
 /* DEL and C: slightly smaller letters, on the same centre line as the digits */
@@ -1028,12 +1028,12 @@ html {
 }
 
 .del-ac:hover {
-    background: #da7d88;
+    background: #d1868f;
 }
 
 .del-ac:active {
     color: #fff;
-    background: #bb626c;
+    background: #b26b73;
     border: 2px solid #3f4969;
 }
 
