@@ -118,7 +118,7 @@ body {
     border-radius: 50%;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
     -webkit-tap-highlight-color: transparent;
-    transition: background 0.2s;
+    transition: background 0.2s, transform 0.15s ease;
 }
 
 .close-options svg {
@@ -132,10 +132,12 @@ body {
 
 .close-options:hover {
     background: #d3d9de;
+    transform: scale(1.12);
 }
 
 .close-options:active {
     background: #b2bac2;
+    transform: scale(1.02);
 }
 
 .close-options:focus-visible {
