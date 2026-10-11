@@ -62,10 +62,14 @@
         resBuffer = '0',
         keyBoard = {},
         secondLayer = [
-            ['sin', 'cos', 'tan', 'ln', 'sinh', 'cosh', 'tanh', 'e<sup>x</sup>', '%', '<i>n</i>C<i>r</i>', '<i>n</i>P<i>r</i>'],
+            [
+                'sin', 'cos', 'tan', 'ln', 'sinh', 'cosh', 'tanh', 'e<sup>x</sup>', '%', '<i>n</i>C<i>r</i>', '<i>n</i>P<i>r</i>',
+                'log', 'π', 'y<sup>x</sup>'
+            ],
             [
                 'sin<sup>-1</sup>', 'cos<sup>-1</sup>', 'tan<sup>-1</sup>', 'log<sub>2</sub>',
-                'sinh<sup>-1</sup>', 'cosh<sup>-1</sup>', 'tanh<sup>-1</sup>', '2<sup>x</sup>', 'mod', 'gcd', 'lcm'
+                'sinh<sup>-1</sup>', 'cosh<sup>-1</sup>', 'tanh<sup>-1</sup>', '2<sup>x</sup>', 'mod', 'gcd', 'lcm',
+                '10<sup>x</sup>', 'e', 'log<sub>y</sub>'
             ]
         ];
 
@@ -155,7 +159,7 @@
             keyMatch = (',|.|-|–|/|÷|*|×|#|+/–|x|x!|E|EE|e|ex| |2nd|r|x√y|R|√|p|π|^|yx|\'|yx|"|yx|m|mr|v|mc|b|m+|n|m-|a|Ans|' +
                 's|sin|c|cos|t|tan|S|sin-1|C|cos-1|T|tan-1|d|Deg|°|Deg|l|ln|L|log|\\|1/x|X|2x|N|nCr|P|nPr|f|a/b|M|mod|G|gcd|K|lcm').split('|'),
             keyMatchHold = ('sin|sinh|cos|cosh|tan|tanh|m-|Rand|Deg|Rand|sin-1|sinh-1|cos-1|cosh-1|tan-1|tanh-1|' +
-                '1|1/x|2|x2|3|x3|x√y|√|ln|log2|ex|2x').split('|');
+                '1|1/x|2|x2|3|x3|x√y|√|ln|log2|ex|2x|log|10x|π|e|yx|logy').split('|');
 
         if (key === 13) key = 61;
         key = key === 124 ? 'abs' : String.fromCharCode(key); // | is the separator of the list above
@@ -174,8 +178,8 @@
         }
         if ((key === 'h' || key === 'H') && !holdKey) hold.textContent = 'hold';
         if (!keyBoard[key]) return;
-        if ((key.match(/-1$|log2$|2x$|^(mod|gcd|lcm)$/) && !secondActive) ||
-            (key.match(/h$|n$|cos$|ex$|^(%|nCr|nPr)$/) && secondActive)) {
+        if ((key.match(/-1$|log2$|2x$|^(mod|gcd|lcm|10x|e|logy)$/) && !secondActive) ||
+            (key.match(/h$|n$|cos$|ex$|^(%|nCr|nPr|log|π|yx)$/) && secondActive)) {
             keyDown(false, keyBoard['2nd']);
             doKey('2nd', true);
         }
@@ -271,9 +275,9 @@
             }).join('/'));
         });
         [].slice.call(box.querySelectorAll('sup, sub')).forEach(function (s) {
-            var chars = s.tagName === 'SUP' ? '⁰¹²³⁴⁵⁶⁷⁸⁹⁻ˣ' : '₀₁₂₃₄₅₆₇₈₉₋ₓ';
-            s.replaceWith(s.textContent.replace(/[\d\-x]/g, function (c) {
-                return chars.charAt('0123456789-x'.indexOf(c));
+            var chars = s.tagName === 'SUP' ? '⁰¹²³⁴⁵⁶⁷⁸⁹⁻ˣʸ' : '₀₁₂₃₄₅₆₇₈₉₋ₓᵧ';
+            s.replaceWith(s.textContent.replace(/[\d\-xy]/g, function (c) {
+                return chars.charAt('0123456789-xy'.indexOf(c));
             }));
         });
         return box.textContent.trim();
@@ -1519,7 +1523,7 @@
             for (var n = secondKeySet.length; n--;) {
                 secondKeySet[n].children[0].innerHTML = secondLayer[secondActive ? 1 : 0][n];
             }
-        } else if (text.match(/^[\d|\.|π]$/) || text === 'Ans') {
+        } else if (text.match(/^[\d|\.|π|e]$/) || text === 'Ans') {
             keyBoard['AC'].children[0].firstChild.data = 'C';
         } else if (text === 'C') {
             key.children[0].firstChild.data = 'AC';

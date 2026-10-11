@@ -321,6 +321,39 @@ async function calculator(page, at) {
 
 // a choice in a list of the converter, by the start of its text: the list opened
 // with a click, and the choice clicked
+// 10^x, e and log_y on the 2nd layer of log, π and y^x, by click and by the keyboard
+async function secondKeys(page, at) {
+    var t = at + ': ', KEYS = '.calc-left > :nth-child(', LOG = KEYS + '22)', PI = KEYS + '21)', YX = KEYS + '10)';
+
+    function label(key) {
+        return page.calc('document.querySelector(' + JSON.stringify(key) + ').textContent.replace(/\\s+/g, "")');
+    }
+
+    await page.fresh(at, {});
+    await page.click(KEYS + '1)'); // 2nd
+    check(await label(LOG) === '10x' && await label(PI) === 'e' && await label(YX) === 'logy', t + '2nd turns log, π and yˣ',
+        await label(LOG) + ' ' + await label(PI) + ' ' + await label(YX));
+    await page.click(LOG);
+    await page.type('3\r');
+    check(await shown(page) === '1000', t + 'a click on 10ˣ, then 3 = is 1000', await shown(page));
+    await page.click(PI);
+    check(near(await value(page), Math.E), t + 'a click on e puts it in', await shown(page));
+    await page.type('8');
+    await page.click(YX);
+    await page.type('2\r');
+    check(await shown(page) === '3', t + '8 logᵧ 2 = 3', await shown(page));
+    await page.click(KEYS + '1)');
+    check(await label(LOG) === 'log' && await label(PI) === 'π' && await label(YX) === 'yx', t + '2nd again turns them back',
+        await label(LOG) + ' ' + await label(PI) + ' ' + await label(YX));
+
+    await page.type('hL2\r');
+    check(await shown(page) === '100', t + 'h, Shift+L is 10ˣ', await shown(page));
+    await page.type('81h^3\r');
+    check(await shown(page) === '4', t + 'h, ^ is logᵧ', await shown(page));
+    await page.type('hp');
+    check(near(await value(page), Math.E), t + 'h, p is e', await shown(page));
+}
+
 async function choose(page, list, text) {
     var i;
     await page.click(list + ' .calc-conv-chosen');
@@ -499,6 +532,8 @@ async function options(page) {
         await page.send('Network.setCacheDisabled', { cacheDisabled: true });
         await calculator(page, '/calc.html');
         await calculator(page, '/web/calc.html');
+        await secondKeys(page, '/calc.html');
+        await secondKeys(page, '/web/calc.html');
         await converter(page, '/calc.html');
         await converter(page, '/web/calc.html');
         await options(page);

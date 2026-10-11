@@ -163,12 +163,39 @@ var cases = [
     ['2 ex', Math.exp(2), 'e^2'],
     ['3 2x', '8', '2^3'],
     ['1 +/– ex', Math.exp(-1), 'e^(-1)'],
+    ['3 10x', '1000', '10^3'],
+    ['3 +/– 10x', '0.001', '10^(-3)'],
+    ['0 . 5 10x', Math.sqrt(10), '10^0.5'],
+    ['1 0 0 0 log 10x', '1000', '10^log(1000)'],
+    ['4 0 0 10x', 'Error', '10^400'],
+
+    // the logarithm to any base: the number, then the base
+    ['8 logy 2 =', '3', 'log<sub>2</sub>(8) ='],
+    ['2 4 3 logy 3 =', '5', 'log<sub>3</sub>(243) ='],
+    ['1 0 0 0 logy 1 0 =', '3', 'log<sub>10</sub>(1000) ='],
+    ['0 . 1 2 5 logy 2 =', '-3', 'log<sub>2</sub>(0.125) ='],
+    ['8 logy 2 . 5 =', Math.log(8) / Math.log(2.5), 'log<sub>2.5</sub>(8) ='],
+    ['8 logy', '8', 'log<sub>y</sub>(8)'],
+    ['8 logy 2', '2', 'log<sub>2</sub>(8)'],
+    ['2 + 8 logy 2 × 2 =', '8', '2 + log<sub>2</sub>(8) × 2 ='],
+    ['( 2 + 6 ) logy 2 =', '3', 'log<sub>2</sub>(2 + 6) ='],
+    ['8 logy ( 1 + 1 ) =', '3', 'log<sub>(1 + 1)</sub>(8) ='],
+    ['2 yx 3 logy 2 =', '3', 'log<sub>2</sub>(2^3) ='],
+    ['8 logy 1 =', 'Error', 'log<sub>1</sub>(8) ='],
+    ['8 logy 0 =', 'Error', 'log<sub>0</sub>(8) ='],
+    ['8 logy 2 +/– =', 'Error', 'log<sub>-2</sub>(8) ='],
+    ['8 +/– logy 2 =', 'Error', 'log<sub>2</sub>(-8) ='],
+    ['0 logy 2 =', 'Error', 'log<sub>2</sub>(0) ='],
 
     // constants
     ['2 × π', String(Math.PI), '2 × 3.14159265359'],
     ['2 × π =', 2 * Math.PI, '2 × 3.14159265359 ='],
     ['π', String(Math.PI), '3.14159265359'],
     ['π 5', '5', '5'],
+    ['e', String(Math.E), '2.718281828459'],
+    ['2 × e =', 2 * Math.E, '2 × 2.718281828459 ='],
+    ['e ln', '1', 'ln(2.718281828459)'],
+    ['e 5', '5', '5'],
 
     // sign
     ['5 +/–', '-5', '-5'],
@@ -502,6 +529,13 @@ dels.forEach(function (c) {
             ['2 +/– yx 2', '(-2)^2'],
             ['5 +/– x2', '(-5)²'],
             ['2 ex × 3 2x', 'e^2 × 2^3'],
+            ['3 10x + 1', '10^3 + 1'],
+            ['8 logy 2 + 1', 'log₂(8) + 1'],
+            ['( 2 + 6 ) logy 1 6', 'log₁₆(2 + 6)'],
+            ['8 logy 2 . 5', '8 logᵧ 2.5'],
+            ['8 logy ( 1 + 1 )', '8 logᵧ (1 + 1)'],
+            ['8 logy', '8 logᵧ'],
+            ['8 x2 logy 2 . 5', '(8²) logᵧ 2.5'],
             ['5 x! +/–', '-5!'],
             ['2 0 0 + 1 0 %', '200 + 10%'],
             ['( 2 + 3 ) ( 4 + 5 )', '(2 + 3) × (4 + 5)'],
@@ -562,6 +596,18 @@ dels.forEach(function (c) {
             ['log10(1000)', '3', 'log(1000)'],
             ['log2(8)', '3', 'log<sub>2</sub>(8)'],
             ['log₂(8)', '3', 'log<sub>2</sub>(8)'],
+            ['log₁₆(256)=', '2', 'log<sub>16</sub>(256) ='],
+            ['log₁₀(1000)=', '3', 'log<sub>10</sub>(1000) ='],
+            ['log₃(2+7)=', '2', 'log<sub>3</sub>(2 + 7) ='],
+            ['1 + log₅(25) × 2=', '5', '1 + log<sub>5</sub>(25) × 2 ='],
+            ['log₁₆(256', '16', 'log<sub>16</sub>(256)'],
+            ['8 logᵧ 2=', '3', 'log<sub>2</sub>(8) ='],
+            ['8 logᵧ 2.5=', Math.log(8) / Math.log(2.5), 'log<sub>2.5</sub>(8) ='],
+            ['(8²) logᵧ 2.5=', Math.log(64) / Math.log(2.5), 'log<sub>2.5</sub>(8<sup>2</sup>) ='],
+            ['8 logᵧ', '8', 'log<sub>y</sub>(8)'],
+            ['logᵧ(8)', '8', 'log<sub>y</sub>(8)'],
+            ['log₁(8)=', 'Error', 'log<sub>1</sub>(8) ='],
+            ['10^3=', '1000', '10^3 ='],
             ['sin 30', 0.5, 'sin(30)', true],
             ['sin(30', 0.5, 'sin(30)', true],
             ['-(2+3)', '-5', '-(2 + 3)'],
@@ -1091,7 +1137,7 @@ dels.forEach(function (c) {
 
 (function () {
     var pool = ('0 1 2 3 4 5 6 7 8 9 1 2 3 . +/– + – × ÷ + – × ÷ yx x√y EE ( ( ) ) ) = = C π e Rand Ans mr m+ ' +
-            'x2 x3 x! 1/x ex 2x sin cos tan sin-1 √ ln log log2 sinh tan-1 % %').split(' '),
+            'x2 x3 x! 1/x ex 2x 10x logy sin cos tan sin-1 √ ln log log2 sinh tan-1 % %').split(' '),
         seed = 777,
         compared = 0,
         e, f, keys, i, n, j, deg, p, before;
@@ -1136,8 +1182,8 @@ dels.forEach(function (c) {
             'sin': Math.sin, 'cos': Math.cos, 'tan': Math.tan, '√': Math.sqrt, 'ln': Math.log,
             'log': Math.log10, 'sinh': Math.sinh, 'tan-1': Math.atan
         },
-        pool = ('0 1 2 3 4 5 6 7 8 9 1 2 3 . +/– + – × ÷ + – × ÷ yx x√y EE ( ( ) ) ) = C π ' +
-            'x2 x3 x! 1/x ex 2x sin cos tan √ ln log sinh tan-1 % %').split(' '),
+        pool = ('0 1 2 3 4 5 6 7 8 9 1 2 3 . +/– + – × ÷ + – × ÷ yx x√y logy EE ( ( ) ) ) = C π e ' +
+            'x2 x3 x! 1/x ex 2x 10x sin cos tan √ ln log sinh tan-1 % %').split(' '),
         seed = 12345,
         compared = 0,
         e, keys, i, n, got, want;
@@ -1157,7 +1203,7 @@ dels.forEach(function (c) {
             case 'group': return ev(n.arg);
             case 'fn': return F[n.name](ev(n.arg));
             case 'inv': return 1 / ev(n.arg);
-            case 'pow': return n.base === 'e' ? Math.exp(ev(n.arg)) : Math.pow(2, ev(n.arg));
+            case 'pow': return n.base === 'e' ? Math.exp(ev(n.arg)) : Math.pow(+n.base, ev(n.arg));
             case 'post':
                 x = ev(n.arg);
                 if (n.op === 'x2') return x * x;
@@ -1183,6 +1229,7 @@ dels.forEach(function (c) {
                 if (!ev(n.r)) return NaN;
                 return x < 0 && Math.abs(ev(n.r) % 2) === 1 ? -Math.pow(-x, 1 / ev(n.r)) : Math.pow(x, 1 / ev(n.r));
             case 'EE': x = ev(n.l); return x && x * Math.pow(10, ev(n.r)); // 0E400 is 0
+            case 'logy': return Math.log(ev(n.l)) / Math.log(ev(n.r));
         }
     }
 
@@ -1641,6 +1688,10 @@ dels.forEach(function (c) {
         ['ex 1 + 1 =', String(Math.exp(2)), 'e^(1 + 1) ='],
         ['2x 1 0 =', '1024', '2^10 ='],
         ['2x 1 0', '10', '2^(10'],
+        ['10x 3 =', '1000', '10^3 ='],
+        ['10x 3', '3', '10^(3'],
+        ['8 logy 2 =', '3', 'log<sub>2</sub>(8) ='],
+        ['log 8 ) logy 2 =', Math.log2(Math.log10(8)), 'log<sub>2</sub>(log(8)) ='],
         ['abs – 3 =', '3', 'abs(-3) ='],
         // the keys after their number stay there
         ['5 x2 =', '25', '5<sup>2</sup> ='],
@@ -1817,11 +1868,18 @@ dels.forEach(function (c) {
     e = first('4 5 m+ AC tan mr =', true);
     check(e.value === '1', 'the memory in the bracket', state(e));
 
+    // a hundredth in a function typed first comes back from the history as a hundredth
+    e = first('2 + log 1 % =');
+    f = first();
+    f.load(JSON.parse(JSON.stringify(e.save())));
+    check(e.value === '0' && f.recall(0, false) && (f.press('=', false), f.value === '0') &&
+        f.equation() === '2 + log(1%) =', '2 + log(1%) recalled', state(f));
+
     // fuzz: keys in any order never break the calculator, a finished line reads back to its
     // result, a calculation from the history comes back the same, and a saved state loads the same
     (function () {
-        var pool = ('0 1 2 3 4 5 6 7 8 9 1 2 3 . +/– + – × ÷ + – × ÷ yx x√y EE ( ( ) ) ) ) = C π Ans mr m+ ' +
-                'x2 x3 x! 1/x ex 2x sin cos tan sin-1 √ ln log log2 sinh tan-1 abs % % DEL ◀ ▶').split(' '),
+        var pool = ('0 1 2 3 4 5 6 7 8 9 1 2 3 . +/– + – × ÷ + – × ÷ yx x√y logy EE ( ( ) ) ) ) = C π e Ans mr m+ ' +
+                'x2 x3 x! 1/x ex 2x 10x sin cos tan sin-1 √ ln log log2 sinh tan-1 abs % % DEL ◀ ▶').split(' '),
             seed = 4242,
             read = 0,
             recalled = 0,

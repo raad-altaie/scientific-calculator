@@ -16,7 +16,7 @@
         ANGLE = /^(sin|cos|tan)(-1)?$/, // functions whose result depends on Deg or Rad
         RANK = {
             '=': 0, '+': 1, '–': 1, '×': 2, '÷': 2, 'mod': 2,
-            'nCr': 2.5, 'nPr': 2.5, 'gcd': 2.5, 'lcm': 2.5, 'yx': 3, 'x√y': 3, 'EE': 3
+            'nCr': 2.5, 'nPr': 2.5, 'gcd': 2.5, 'lcm': 2.5, 'yx': 3, 'x√y': 3, 'logy': 3, 'EE': 3
         },
         SYMBOL = { 'x2': '<sup>2</sup>', 'x3': '<sup>3</sup>', 'x!': '!', '%': '%' },
         NAME = {
@@ -25,6 +25,7 @@
             'log2': 'log<sub>2</sub>'
         },
         SUPER = '⁰¹²³⁴⁵⁶⁷⁸⁹⁻', // superscript digits and minus, in plain text
+        SUB = '₀₁₂₃₄₅₆₇₈₉', // subscript digits, for the base of a logarithm
         WORDS = { // function names in pasted text
             'sin': 'sin', 'cos': 'cos', 'tan': 'tan', 'sinh': 'sinh', 'cosh': 'cosh', 'tanh': 'tanh',
             'asin': 'sin-1', 'acos': 'cos-1', 'atan': 'tan-1', 'asinh': 'sinh-1', 'acosh': 'cosh-1', 'atanh': 'tanh-1',
@@ -55,6 +56,7 @@
             'x!': { t: 'post', f: factorial },
             'ex': { t: 'pow', base: 'e', f: function (x) { return Math.exp(x); } },
             '2x': { t: 'pow', base: '2', f: function (x) { return Math.pow(2, x); } },
+            '10x': { t: 'pow', base: '10', f: function (x) { return timesTen(1, x); } },
             '√': { t: 'fn', f: function (x) { return Math.sqrt(x); } },
             'log': { t: 'fn', f: function (x) { return Math.log10(x); } },
             'ln': { t: 'fn', f: function (x) { return Math.log(x); } },
@@ -307,6 +309,16 @@
         return Math.floor(b) === b && Math.abs(b) < 400 && s.indexOf('e') < 0 ? Number(s + 'e' + b) : a * Math.pow(10, b);
     }
 
+    // the logarithm of a to base b: 8 logy 2 = 3. A power of the base gives its
+    // whole exponent, as 243 logy 3 = 5, not 4.999999999999999
+    function logBase(a, b) {
+        var r, n;
+        if (!(a > 0) || !(b > 0) || b === 1) return NaN;
+        r = b === 10 ? Math.log10(a) : b === 2 ? Math.log2(a) : Math.log(a) / Math.log(b);
+        n = Math.round(r);
+        return Math.abs(r - n) < 1e-9 && Math.pow(b, n) === a ? n : tidy(r);
+    }
+
     function binary(op, a, b) {
         switch (op) {
             case '+':
@@ -315,6 +327,7 @@
             case '÷': return arith(op, a, b);
             case 'yx': return tidy(Math.pow(a, b));
             case 'x√y': return nthRoot(a, b);
+            case 'logy': return logBase(a, b);
             case 'EE': return timesTen(a, b);
             case 'nCr': return choose(a, b, false);
             case 'nPr': return choose(a, b, true);
@@ -444,6 +457,19 @@
             wrap(n.l) + '^(1/' + wrap(n.r) + ')';
     }
 
+    // a logarithm to any base, its base below: log₂(8). As text, a whole base is
+    // written in subscript digits; any other, or one still awaited, goes after
+    // the number as the key is pressed: 8 logᵧ 2.5, so the text reads back in
+    function logarithm(n) {
+        var arg = n.l.t === 'group' ? n.l.arg : n.l, base;
+        if (!plainText) return 'log<sub>' + (n.r ? show(n.r) : 'y') + '</sub>(' + show(arg) + ')';
+        base = n.r && n.r.t === 'num' && (n.r.typed || !marks) ? text(n.r) : '';
+        if (/^\d+$/.test(base)) {
+            return 'log' + base.replace(/\d/g, function (d) { return SUB.charAt(d); }) + '(' + show(arg) + ')';
+        }
+        return wrap(n.l) + ' logᵧ' + (n.r ? ' ' + wrap(n.r) : '');
+    }
+
     // a division drawn as a fraction; the parts need no brackets of their own.
     // An empty bottom is the part still to be entered
     function stack(top, bottom) {
@@ -478,6 +504,7 @@
         }
         // binary; n.r is missing while the second operand is still awaited
         if (n.op === 'x√y') return radical(n);
+        if (n.op === 'logy') return logarithm(n);
         if (n.op === 'yx') return wrap(n.l) + '^' + (n.r ? wrap(n.r) : '');
         if (n.op === 'EE') return wrap(n.l) + 'E' + (n.r ? (n.r.t === 'num' ? text(n.r) : wrap(n.r)) : '');
         l = rank(n.l) < RANK[n.op] ? '(' + show(n.l) + ')' : show(n.l);
@@ -506,6 +533,11 @@
         });
     }
 
+    // true for a token an operator can follow: a number, π, a closing bracket, x², 5!
+    function operand(t) {
+        return !!t && (t.t === 'num' || t.t === 'const' || t.t === 'sup' || (t.t === 'op' && /^[)!%]$/.test(t.v)));
+    }
+
     // the pieces of an expression in text. table: the numbers that marks
     // stand for, when the text was printed for editing
     function tokens(s, table) {
@@ -530,6 +562,11 @@
             } else if (c === '∛') {
                 out.push({ t: 'sup', v: '3' }, { t: 'op', v: '√' });
                 m = [c];
+            } else if ((m = /^log([₀₁₂₃₄₅₆₇₈₉]+|ᵧ)/.exec(s))) {
+                if (m[1] === '₂') out.push({ t: 'fn', v: 'log2' });
+                else if (m[1] !== 'ᵧ') out.push({ t: 'fn', v: 'logy', b: m[1].replace(/./g, function (d) { return SUB.indexOf(d); }) });
+                else if (operand(prev)) out.push({ t: 'op', v: 'logy', c: 'logᵧ' }); // 8 logᵧ 2
+                else out.push({ t: 'fn', v: 'logy', b: null }); // logᵧ(8), its base still awaited
             } else if ((m = /^log(₂|2(?=\s*\()|10(?=\s*\())/i.exec(s))) {
                 out.push({ t: 'fn', v: m[1] === '10' ? 'log' : 'log2' });
             } else if ((m = /^[a-zA-Z]+/.exec(s))) {
@@ -624,6 +661,11 @@
                 if (!end()) throw BAD;
                 return { t: 'group', arg: n, open: true };
             }
+            if (t.t === 'fn' && t.v === 'logy') { // log₂(8): the number, then its base
+                n = is('(') ? primary() : postfix();
+                if (n.t === 'group') n = n.arg;
+                return { t: 'bin', op: 'logy', l: need(n), r: t.b === null ? null : { t: 'num', v: t.b } };
+            }
             if (t.t === 'fn') {
                 f = { t: 'fn', key: /^(sin|cos|tan)h?$/.test(t.v) && inverse() ? t.v + '-1' : t.v };
                 f.arg = need(shut(is('(') ? primary() : postfix(), f));
@@ -660,6 +702,10 @@
 
         function power() {
             var n = postfix(), op, r, f;
+            if (is('logy')) { // 8 logᵧ 2, as the key is pressed
+                i++;
+                return { t: 'bin', op: 'logy', l: need(n), r: end() ? null : unary() };
+            }
             if (!is('^') && !is('EE')) return n;
             op = toks[i++].v === '^' ? 'yx' : 'EE';
             if (op === 'yx' && n.t === 'const' && n.v === 'e') {
@@ -753,9 +799,9 @@
             case 'num': return { t: 'num', v: n.v, whole: !n.typed }; // a computed number is not typed
             case 'const': return { t: 'const', v: n.name };
             case 'fn': return { t: 'fn', key: n.name, arg: typable(n.arg), deg: n.deg };
-            case 'post': return { t: 'post', key: n.op, arg: typable(n.arg) };
+            case 'post': return { t: 'post', key: n.op, arg: typable(n.arg), share: n.share };
             case 'inv': return { t: 'fn', key: '1/x', arg: typable(n.arg) };
-            case 'pow': return { t: 'fn', key: n.base === 'e' ? 'ex' : '2x', arg: typable(n.arg) };
+            case 'pow': return { t: 'fn', key: n.base === 'e' ? 'ex' : n.base + 'x', arg: typable(n.arg) };
             case 'neg': return { t: 'neg', arg: typable(n.arg) };
             case 'group': return { t: 'group', arg: typable(n.arg), open: !!n.auto }; // '=' closes it again
         }
@@ -775,9 +821,10 @@
             case 'num': return t.whole ? short(t.v) : t.v;
             case 'const': return t.v;
             case 'sup': return '<sup>' + t.v + '</sup>';
-            case 'fn': return NAME[t.v] || t.v;
+            case 'fn': return t.v === 'logy' ? 'log<sub>' + (t.b === null ? 'y' : t.b) + '</sub>' : NAME[t.v] || t.v;
         }
         if (t.v === 'EE') return 'E';
+        if (t.v === 'logy') return ' log<sub>y</sub> ';
         if (t.v === '√') return '<span class="calc-sq">√</span>'; // drawn, as the √ of the font reads as a V
         if (t.v === '-') return t.c === '-' ? '-' : ' – '; // a sign, or a subtraction
         if (t.v === '÷' && t.c === '/') return '/';
@@ -790,7 +837,9 @@
 
     // the shown text of a piece: the superscripts as characters
     function untag(s) {
-        return s.replace(/<sub>2<\/sub>/g, '₂').replace(/<sup>(-?\d+|x)<\/sup>/g, function (m, d) {
+        return s.replace(/<sub>(\d+|y)<\/sub>/g, function (m, d) {
+            return d === 'y' ? 'ᵧ' : d.replace(/./g, function (c) { return SUB.charAt(c); });
+        }).replace(/<sup>(-?\d+|x)<\/sup>/g, function (m, d) {
             return d === 'x' ? 'ˣ' : d.replace(/./g, function (c) { return SUPER.charAt('0123456789-'.indexOf(c)); });
         }).replace(/<[^>]+>/g, '');
     }
@@ -859,11 +908,12 @@
         else if (key === 'x!') p = [op('!')];
         else if (key === 'x2' || key === 'x3') p = [{ t: 'sup', v: key.charAt(1) }];
         else if (key === '1/x') p = [{ t: 'sup', v: '-1' }];
-        else if (key === 'π') p = [{ t: 'const', v: 'π' }];
+        else if (key === 'π' || key === 'e') p = [{ t: 'const', v: key }];
         else if (key === 'Ans' || key === 'mr' || key === 'Rand') {
             p = [{ t: 'num', v: String(key === 'Ans' ? e.ans : key === 'mr' ? e.memory : Math.random()), whole: true }];
         } else if (key === 'ex') p = [{ t: 'const', v: 'e' }, op('^'), op('(')];
-        else if (key === '2x') p = [{ t: 'num', v: '2' }, op('^'), op('(')];
+        else if (key === '2x' || key === '10x') p = [{ t: 'num', v: key.slice(0, -1) }, op('^'), op('(')];
+        else if (key === 'logy') p = [op('logy', 'logᵧ')];
         else if (key === 'x√y') p = [op('^'), op('('), { t: 'num', v: '1' }, op('÷', '/')]; // y^(1/x), read as the root
         else if (key === '√') p = [op('√'), op('(')];
         else if (UNARY[key]) p = [{ t: 'fn', v: key }, op('(')];
@@ -1482,7 +1532,10 @@
                     }
                 // falls through
                 case 'post': // the keys apply to the operand typed before them
-                    if (n.arg.t === 'bin' || n.arg.t === 'neg') bracketed(n.arg, false); else go(n.arg, false);
+                    // a hundredth in a function typed first, as 2 + log(1%), keeps its brackets
+                    // when the function goes after it, or the % would read as a share of the 2
+                    if (n.arg.t === 'bin' || n.arg.t === 'neg' || (n.t === 'fn' && n.arg.t === 'post' && n.arg.key === '%' &&
+                        !n.arg.share)) bracketed(n.arg, false); else go(n.arg, false);
                     key(n.key, n.deg);
                     break;
                 default: // binary; the engine sorts out the precedence itself

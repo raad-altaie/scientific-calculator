@@ -9,8 +9,9 @@
     root.CalcTips = {
         '2nd': {
             t: '2nd',
-            d: 'Switches sin, cos, tan, sinh, cosh, tanh, ln and e<sup>x</sup> to their second functions: ' +
-                'sin<sup>-1</sup> …, log<sub>2</sub> and 2<sup>x</sup>. Click again to switch back.',
+            d: 'Switches sin, cos, tan, sinh, cosh, tanh, ln, e<sup>x</sup>, log, π and y<sup>x</sup> to their ' +
+                'second functions: sin<sup>-1</sup> …, log<sub>2</sub>, 2<sup>x</sup>, 10<sup>x</sup>, e and ' +
+                'log<sub>y</sub>. Click again to switch back.',
             k: 'Space'
         },
         'Deg': {
@@ -259,7 +260,14 @@
         'yx': {
             t: 'Power',
             d: 'Between two numbers: 2 y<sup>x</sup> 10 = 1024.',
-            k: '^'
+            k: '^',
+            second: 'log<sub>y</sub>'
+        },
+        'logy': {
+            t: 'Logarithm, any base',
+            d: 'The number first, then the base: 8 log<sub>y</sub> 2 = 3, as 2<sup>3</sup> = 8. ' +
+                'The base is a positive number other than 1.',
+            k: 'h, ^'
         },
         '1/x': {
             t: 'Reciprocal',
@@ -364,13 +372,21 @@
         'π': {
             t: 'Pi',
             d: '3.14159265359…, the half turn in radians: 2 × π.',
-            k: 'p'
+            k: 'p',
+            second: 'e'
+        },
+        'e': {
+            t: 'Euler\'s number',
+            d: '2.718281828459…, the base of the natural logarithm: e ln = 1.',
+            first: '2.718281828459…, the base of the natural logarithm: ln e = 1.',
+            k: 'h, p'
         },
         'log': {
             t: 'Logarithm, base 10',
             d: 'The power of 10 that gives the number: 1000 log = 3.',
             first: 'The power of 10 that gives the number: log 1000 = 3.',
-            k: 'Shift+L'
+            k: 'Shift+L',
+            second: '10<sup>x</sup>'
         },
         'ln': {
             t: 'Natural logarithm',
@@ -397,6 +413,12 @@
             d: '2 to the power of the number: 10 2<sup>x</sup> = 1024.',
             first: '2 to the power of the number: 2<sup>x</sup> 10 = 1024.',
             k: 'Shift+X'
+        },
+        '10x': {
+            t: '10 to the power',
+            d: '10 to the power of the number: 3 10<sup>x</sup> = 1000. It undoes log: 1000 log 10<sup>x</sup> = 1000.',
+            first: '10 to the power of the number: 10<sup>x</sup> 3 = 1000. It undoes log.',
+            k: 'h, Shift+L'
         },
         'abs': {
             t: 'Absolute value',
