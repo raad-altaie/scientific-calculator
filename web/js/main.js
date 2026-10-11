@@ -918,15 +918,17 @@
         fit();
     }
 
-    // the font only gets smaller once the line reaches the edge of the screen;
-    // at the smallest size a longer line slides instead. focus: the cursor,
-    // kept in view; else the end of a long equation is
+    // the font only gets smaller once the line reaches the edge of the screen,
+    // or is taller than it (roots inside roots); at the smallest size a longer
+    // line slides instead. focus: the cursor, kept in view; else the end of a
+    // long equation is
     function fit(focus) {
-        var size = 34;
+        var size = 34, screen = display.parentNode, style = getComputedStyle(screen),
+            room = screen.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
 
         display.classList.remove('calc-more-left', 'calc-more-right');
         display.style.fontSize = size + 'px';
-        while (size > 18 && display.scrollWidth > display.clientWidth) {
+        while (size > 18 && (display.scrollWidth > display.clientWidth || display.offsetHeight > room)) {
             display.style.fontSize = --size + 'px';
         }
         slide(display, focus ? focus.offsetLeft - display.clientWidth / 2 : display.scrollWidth);

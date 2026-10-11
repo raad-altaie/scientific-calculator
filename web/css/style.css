@@ -261,6 +261,7 @@ html {
     text-align: left;
     -webkit-user-select: none;
     user-select: none;
+    overflow: hidden; /* the history and the statistics: nothing goes out over their rounded corners */
 }
 
 .calc-past.calc-open {
@@ -380,8 +381,10 @@ html {
    the start of a long line, so they have the line's background */
 .calc-past-btns {
     position: absolute;
+    z-index: 1; /* over the equation, roots inside roots included, so they can be clicked */
     top: 0;
     bottom: 0;
+    max-height: 28px; /* a tall equation: only a corner at its top left is covered */
     left: 2px;
     display: none;
     align-items: center;
@@ -501,6 +504,7 @@ html {
     border-radius: 5px;
     background: #b6d1c2;
     display: inline-block;
+    overflow: hidden; /* nothing goes out over its rounded corners */
 }
 
 #box {
@@ -1031,6 +1035,33 @@ html {
     color: #fff;
     background: #bb626c;
     border: 2px solid #3f4969;
+}
+
+/* a key moves down a little while it is pressed; the small keys move less, and
+   keep their own border: only the fill gets darker */
+.keys,
+.trigo-keys,
+.calc-second {
+    transition: transform 0.04s;
+}
+
+.keys:active {
+    transform: translateY(2px);
+}
+
+.trigo-keys:active,
+.calc-second:active {
+    transform: translateY(1px);
+}
+
+.trigo-keys:active {
+    background: #223a45;
+    border-color: #1a2f38;
+}
+
+.calc-second:active {
+    background: #b05a64;
+    border-color: #7d4a51;
 }
 
 .equal {

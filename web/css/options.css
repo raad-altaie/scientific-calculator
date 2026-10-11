@@ -219,7 +219,7 @@ html, body {
     border-radius: 8px;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
     font-family: 'Play', 'Russo One', sans-serif;
-    transition: background 0.2s;
+    transition: background 0.2s, transform 0.04s;
 }
 
 .launch:hover {
@@ -228,6 +228,7 @@ html, body {
 
 .launch:active {
     background: #bb626c;
+    transform: translateY(2px); /* pressed, it moves down a little, as the keys do */
 }
 
 .trigo-keys {
@@ -325,6 +326,23 @@ html, body {
     color: #fff;
     background: #bb626c;
     border: 2px solid #3f4969;
+}
+
+/* a key moves down a little while it is pressed, as in the calculator; the small
+   keys move less, and keep their own border: only the fill gets darker */
+.trigo-keys,
+.keys {
+    transition: transform 0.04s;
+}
+
+.keys:active {
+    transform: translateY(2px);
+}
+
+.trigo-keys:active {
+    transform: translateY(1px);
+    background: #223a45;
+    border-color: #1a2f38;
 }
 
 .equal {
