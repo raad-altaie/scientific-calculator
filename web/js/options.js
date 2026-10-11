@@ -30,9 +30,13 @@ const places = document.getElementById('format-places');
 const group = document.getElementById('format-group');
 const icon = document.getElementById('format-icon');
 
+// Auto: as many digits as each result needs, as a TI's Float
+places.add(new Option('Auto', 'auto'));
 for (let n = 0; n <= 9; n++) {
     places.add(new Option(n + (n === 1 ? ' decimal place' : ' decimal places'), n));
 }
+
+const placesOf = (f) => (Number.isInteger(f.places) && f.places >= 0 && f.places <= 9 ? String(f.places) : 'auto');
 
 const readFormat = () => {
     try {
@@ -49,7 +53,7 @@ const shown1500 = (f) => {
 };
 
 const showFormat = () => {
-    const f = { notation: notation.value, places: +places.value, group: group.checked };
+    const f = { notation: notation.value, places: places.value === 'auto' ? 'auto' : +places.value, group: group.checked };
     places.disabled = f.notation === 'norm';
     // the icon shows 1,500 the way the chosen format writes it
     icon.textContent = shown1500(f);
@@ -58,7 +62,7 @@ const showFormat = () => {
 
 const format = readFormat();
 notation.value = /^(fix|sci|eng)$/.test(format.notation) ? format.notation : 'norm';
-places.value = Number.isInteger(format.places) ? format.places : 2;
+places.value = placesOf(format);
 group.checked = !!format.group;
 showFormat();
 
@@ -75,7 +79,7 @@ window.addEventListener('storage', (e) => {
     if (e.key !== 'format') return;
     const f = readFormat();
     notation.value = /^(fix|sci|eng)$/.test(f.notation) ? f.notation : 'norm';
-    places.value = Number.isInteger(f.places) ? f.places : 2;
+    places.value = placesOf(f);
     group.checked = !!f.group;
     showFormat();
 });

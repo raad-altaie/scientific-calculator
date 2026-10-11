@@ -12,7 +12,7 @@
     <div id="calculator" class="text-center">
         <div class="calc-head">
             <span class="logo">Scientific Calculator</span>
-            <span class="calc-help" title="Help and options">?</span>
+            <span class="calc-help">?</span>
 
         </div>
         <form class="form-control">
@@ -78,14 +78,14 @@
                     <div class="trigo-keys">
                         <div>°′″</div>
                     </div>
-                    <div class="trigo-keys calc-mode">
-                        <div>MODE</div>
-                    </div>
                     <div class="trigo-keys">
                         <div>(</div>
                     </div>
                     <div class="trigo-keys">
                         <div>)</div>
+                    </div>
+                    <div class="trigo-keys calc-mode">
+                        <div>MODE</div>
                     </div>
 
                     <!-- powers and roots -->
@@ -249,12 +249,8 @@
             </div>
         </form>
 
-        <!-- the menu of a right click -->
-        <div class="calc-menu-box" hidden>
-            <div data-act="copy">Copy</div>
-            <div data-act="paste">Paste</div>
-            <div data-act="reset">Reset all</div>
-        </div>
+        <!-- the menu of a right click; main.js fills it for where it opens -->
+        <div class="calc-menu-box" hidden></div>
 
         <!-- statistics of a list of numbers, over the keys like the history -->
         <div class="calc-past calc-stats">

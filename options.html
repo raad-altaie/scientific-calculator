@@ -76,7 +76,7 @@
                 <span class="option-icon format-icon" id="format-icon" aria-hidden="true">1500</span>
                 <div class="option-text">
                     <h3>Number format</h3>
-                    <p>Choose how results look: rounded to fixed decimals, scientific (1.23e+4), or engineering (12.3e+3).</p>
+                    <p>Choose how results look: rounded to fixed decimals, scientific (1.23e+4), or engineering (12.3e+3). Auto places show as many digits as each result needs.</p>
                     <div class="format-row">
                         <select id="format-notation" title="Notation">
                             <option value="norm">Normal</option>
@@ -166,7 +166,7 @@
                 <li>Degrees, minutes and seconds: the <kbd class="k">°′″</kbd> key shows results as 36°52′11.63″, and DMS in the display shows it is on. Paste an angle written so, 12°30′15″, 12°30'15" or 51°30′26″N: alone it shows as written, and DMS turns on. In an equation it is a number of degrees, and sin, cos and tan of it are worked out in degrees whatever the unit in use: sin(30°) is 0.5 in Rad as well. The converter has degrees, minutes and seconds among its angles too.</li>
                 <li>Fraction mode: the <kbd class="k">a/b</kbd> key draws each division as a fraction while you type, and shows results like
                     0.75 as 3/4.</li>
-                <li>Number format: Fix, Sci or Eng notation with 0 to 9 decimal places, and thousands separators
+                <li>Number format: Fix, Sci or Eng notation with Auto or 0 to 9 decimal places, and thousands separators
                     (1,234,567.89). <kbd class="k">MODE</kbd> goes from one notation to the next; the places and the
                     separators are on the Options tab.</li>
                 <li>Function keys before the number, √ 9, as most calculators do, or after it, 9 √. See the Options
@@ -201,8 +201,10 @@
                     out. Click the equation sign and the display shows the result, with the finished equation on the
                     small line above it. The opened parenthesis button keeps a ring around it until all parentheses
                     expressions are closed.</p>
-                <p>If an equation gets too long for the display, its font gets smaller first. After that, hold the
-                    line and drag it left or right to see the rest; dots (…) mark the side where more is hidden.<br>
+                <p>If an equation gets too long for the display, its font gets smaller first. After that, press
+                    the line, hold it still for a moment, then drag it left or right to see the rest; dots (…) mark the
+                    side where more is hidden. A drag without the hold selects a part of it. On a touch screen a drag
+                    slides it, and a hold selects.<br>
                     If a calculation is not possible (for example 1 ÷ 0), the display shows Error and the line above
                     shows the equation that caused it.</p>
                 <p>This calculator uses an algebraic method of entry that allows you to enter mathematical sequences in
@@ -227,10 +229,13 @@
                         Ctrl+V pastes a number (1,234.5 and 1.234,5 are both read as 1234.5) or a whole equation,
                         such as 2 + 3 × sin(30) or sqrt(16) + 2^3. If the pasted text contains an equation sign, it
                         is calculated right away.<br>
-                        Right-click anywhere on the calculator for a menu with Copy and Paste as well. Copy takes
+                        Double-click a number in the equation to select it whole, or drag over a part of it: what you
+                        type or paste then goes in its place, and DEL takes it out.<br>
+                        Right-click the display for a menu with Cut, Copy and Paste as well. Copy takes
                         the part of the display you selected, or else the result. The first time you use Paste
                         there, the browser asks you to allow the calculator to read what you copied; Ctrl+V works
-                        without that.</li>
+                        without that. The history, the formulas, the converter and the statistics have the menu
+                        too: Cut, Copy, Paste and Select all in a box you type in, Copy and Insert on a value.</li>
                     <li>All [ENTER] keys represent the '=' button.</li>
                     <li>Click <kbd class="k">Rad</kbd>, <kbd class="k">Deg</kbd> or <kbd class="k">Grad</kbd> at the bottom left of the display to go on to the next unit, as the key does.</li>
                     <li>[←] and [→] move the cursor in the equation. [Home] and [End] go to its
@@ -323,7 +328,7 @@
             <div class="info">
                 <div class="trigo-keys">
                     [← →]
-                </div><span class="des">The cursor: click into the equation, or into the small line above a result,
+                </div><span class="des">The cursor: click into the equation, or double-click the small line above a result,
                     or use the arrow keys, to fix the middle of it. While the cursor is inside, keys write at the
                     cursor as the equation reads: <kbd class="k">sin</kbd> writes sin( and
                     <kbd class="k">x<sup>2</sup></kbd> writes <sup>2</sup>, and <kbd class="k k-red">DEL</kbd> removes what is before the cursor. Back at the end
@@ -397,7 +402,8 @@
                     MODE
                 </div><span class="des">[o] Goes on to the next notation of results: Normal, Fix (1500.00), Sci
                     (1.50e+3), Eng (1.50e+3, powers of ten in steps of three) and Normal again. The display shows
-                    FIX 2, SCI 2 or ENG 2 while one is on. The decimal places and the thousands separators are set on
+                    FIX 2, SCI 2 or ENG 2 while one is on, or SCI and ENG alone with Auto places: as many digits as each
+                    result needs (1.5e+3), with Fix as Normal. The decimal places and the thousands separators are set on
                     the Options tab, which follows the key.</span>
             </div>
 

@@ -672,7 +672,7 @@ dels.forEach(function (c) {
             ['0.003333333333333 × 2 =', 0.006666666666666, '0.003333333333333 × 2 ='],
             ['3.14159265358979323846 * 2 =', 2 * Math.PI, '3.14159265359 × 2 =']
         ],
-        e, i;
+        e, i, before;
 
     copies.forEach(function (c) {
         var a = new Engine(), b = new Engine();
@@ -736,6 +736,66 @@ dels.forEach(function (c) {
     check(e.del() && state(e) === '3 | 2 + 3', 'DEL edits a pasted equation', state(e));
     for (i = 0; i < 10 && e.del(); i++);
     check(state(e) === '0 | ', 'DEL takes a pasted equation back completely', state(e));
+
+    // a paste over what is selected in the shown equation goes in its place
+    run(e, 'AC 1 2 3');
+    e.point(1);
+    check(e.pasteOver('7') && state(e) === '7 | 7' && !e.edit, 'a paste over all of an equation with the cursor in it replaces it', state(e));
+    run(e, 'AC 2 + 3');
+    check(e.pasteOver('7') && state(e) === '7 | 7', 'and over all of an equation being entered, not only its last number', state(e));
+    run(e, 'AC 2 + 3');
+    check(e.pasteOver('4*5=') && state(e) === '20 | 4 × 5 =', 'over all of it an equation is pasted as into a cleared display', state(e));
+    run(e, 'AC 1 2 + 3 4');
+    check(e.pasteOver('5', false, 0, 2) && e.text() === '5 + 34' && e.edit && e.edit.at === 1,
+        'over the first number: the cursor is after what was pasted', e.text());
+    run(e, '=');
+    check(state(e) === '39 | 5 + 34 =', 'and = works it out', state(e));
+    run(e, 'AC 1 2 + 3 4');
+    check(e.pasteOver('5', false, 5, 7) && state(e) === '5 | 12 + 5' && !e.edit, 'over the last number: the keys go on from the end', state(e));
+    before = e.snapshot() + e.history.length;
+    check(!e.pasteOver('abc', false, 0, 2) && !e.pasteOver('abc') && e.snapshot() + e.history.length === before,
+        'text that is no equation is refused, and what was selected stays');
+    check(e.pasteOver('9', false, 3, 3) && state(e) === '9 | 12 + 9', 'nothing of it selected: pasted as without a selection', state(e));
+
+    // and so does a key: a part is written over, as in a box of text
+    run(e, 'AC 1 2 3 4 5');
+    check(e.pressOver('9', false, 1, 4) && e.text() === '195' && e.edit && e.edit.at === 2, 'a digit over the 234 of 12345 leaves 195', e.text());
+    run(e, 'AC 1 2 + 3 4');
+    check(e.pressOver('×', false, 2, 5) && e.text() === '12 × 34', 'an operator over another one', e.text());
+    run(e, '=');
+    check(state(e) === '408 | 12 × 34 =', 'which = works out', state(e));
+    run(e, 'AC 1 2 + 3 4');
+    check(e.pressOver('5', false, 5, 7) && state(e) === '5 | 12 + 5' && !e.edit, 'a digit over the last number: the keys go on from the end', state(e));
+    run(e, '6');
+    check(state(e) === '56 | 12 + 56', 'and the next digit follows it', state(e));
+    before = e.snapshot() + e.history.length;
+    check(!e.pressOver('2nd', false, 0, 2) && !e.pressOver('Deg', false, 0, 2) && e.snapshot() + e.history.length === before,
+        'a key that writes nothing leaves what is selected');
+
+    // all of it selected, as with a result: a number starts again, an operator or a function goes on
+    run(e, 'AC 1 2 3');
+    check(e.pressOver('5') && state(e) === '5 | 5', 'a digit over all of a typed number starts a new one', state(e));
+    run(e, 'AC 1 2 + 3 4');
+    check(e.pressOver('π') && same(e.value, Math.PI) && !/12/.test(e.equation()), 'π over all of an equation replaces it', state(e));
+    run(e, 'AC 1 2 + 3 4');
+    check(e.pressOver('×') && state(e) === '34 | 12 + 34 ×', 'an operator goes on from it', state(e));
+    run(e, 'AC 9');
+    check(e.pressOver('√') && state(e) === '3 | √(9)', 'a function is of the number, not of nothing', state(e));
+    run(e, 'AC 1 2 + 3 4');
+    e.point(1);
+    check(e.pressOver('+') && state(e) === '46 | 12 + 34 +' && !e.edit, 'with the cursor in it, from its end', state(e));
+    run(e, 'AC 1 2 + 3 4');
+    check(e.pressOver('=') && state(e) === '46 | 12 + 34 =', '= works it out as it is', state(e));
+
+    // DEL takes out what is selected
+    run(e, 'AC 1 2 + 3 4');
+    check(e.cut(5, 7) && state(e) === '12 | 12 +' && !e.edit, 'DEL over the last number', state(e));
+    run(e, 'AC 1 2 + 3 4');
+    check(e.cut(0, 2) && e.text().trim() === '+ 34' && e.edit.at === 0, 'over the first: the cursor is where it was', e.text());
+    run(e, 'AC 1 2 + 3 4');
+    check(e.cut() && state(e) === '0 | ', 'over all of it: the display is cleared', state(e));
+    run(e, '1 2 + 3 4');
+    check(!e.cut(3, 3) && state(e) === '34 | 12 + 34', 'nothing of it selected: nothing to take', state(e));
 })();
 
 // ---------- accuracy ---------- //
@@ -1658,7 +1718,13 @@ dels.forEach(function (c) {
         [0.0004, 'sci', 0, '4e-4'],
         [123456, 'eng', 2, '123.46e+3'],
         [0.000123, 'eng', 3, '123.000e-6'],
-        [999999, 'eng', 2, '1.00e+6']
+        [999999, 'eng', 2, '1.00e+6'],
+        [1500, 'sci', 'auto', '1.5e+3'],
+        [123456, 'eng', 'auto', '123.456e+3'],
+        [1 / 3, 'sci', 'auto', '3.333333333333e-1'],
+        [-0.000123, 'eng', 'auto', '-123e-6'],
+        [0, 'sci', 'auto', '0'],
+        [12.5, 'fix', 'auto', null]
     ].forEach(function (c) {
         var got = Engine.format(c[0], { notation: c[1], places: c[2] });
         check(got === c[3], 'format ' + c[0] + ' ' + c[1] + ' ' + c[2], 'expected ' + c[3] + ', got ' + got);

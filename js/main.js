@@ -9,16 +9,17 @@
         radDeg = Calc.querySelector('.calc-rad'), // the unit: its text, then a full turn in it, 2π, 360° or 400g
         fullTurn = radDeg.querySelector('.sign'),
         hold = Calc.querySelector('.calc-hold'),
-        fmtMark = Calc.querySelector('.calc-fmt'), // FIX 2, SCI 3 or ENG 2 while that notation is on
+        fmtMark = Calc.querySelector('.calc-fmt'), // FIX 2, SCI 3 or ENG while that notation is on; no number for Auto places
         fracMark = Calc.querySelector('.calc-frac'), // FRAC while fraction mode is on, DMS while °′″ is
         secondKeySet, // the keys the 2nd key changes, found by their names below
         CURSOR = '<span class="calc-cursor"></span>',
-        fmt = { notation: 'norm', places: 2, group: false }, // set on the options page
+        fmt = { notation: 'norm', places: 'auto', group: false }, // set on the options page
         fracMode = false, // a/b: divisions drawn as fractions, and results shown as fractions when they are one
         dmsMode = false, // °′″, the 2nd of a/b: results shown in degrees, minutes and seconds
-        slid = false, // the pointer slid a long line, so it was not a click
+        slid = false, // the pointer moved along a long line, to slide it or select in it, so it was not a click
         hiddenCopy = Calc.querySelector('textarea'),
         menu = document.querySelector('.calc-menu-box'), // the menu of a right click
+        pasteBox = null, // the box of a panel the menu's Paste is for; none: the equation
         tip = document.querySelector('.calc-tip'), // what the key under the pointer does
         tipKey = null, // that key
         tipTimer,
@@ -57,6 +58,9 @@
         tools = Calc.querySelector('.calc-tools'), // the buttons at the top left of the display
         pressedKey,
         sliding, // long line being slid: its element and where the slide started
+        opened = -1e9, // when the line above a result was last clicked: twice in a row opens it
+        picking, // long line whose text is being selected: its element, and where the selection started
+        holdTimer, // runs while a long line is pressed, until it is held long enough to slide instead, or select
         secondActive = false, // 2nd key active?
         engine = new CalcEngine(), // the calculation and its equation line
         deg = 0, // the unit of angles: 0 Rad, 1 Deg, 2 Grad, as the engine takes it
@@ -100,10 +104,13 @@
 
         // listen for paste event from parent
         if (data.type === 'paste') {
-            doPaste(data.text);
+            if (!pasteBox) doPaste(data.text);
+            else if (pasteBox.offsetParent) typeInto(pasteBox, data.text); // its panel is still open
+            pasteBox = null;
         }
         // Paste in the menu: the browser did not allow reading the clipboard
         else if (data.type === 'paste-refused') {
+            pasteBox = null;
             notify('Use Ctrl+V');
         }
         // handle key events from parent
@@ -133,7 +140,10 @@
 
     document.addEventListener('keydown', function (e) {
         if (field(e.target)) {
-            if (e.which === 27) { // Esc closes the panel, as the history
+            if (e.which === 27 && !menu.hidden) { // Esc closes the menu first
+                showMenu(false);
+                e.preventDefault();
+            } else if (e.which === 27) { // Esc closes the panel, as the history
                 showStats(false);
                 showFx(false);
                 showConv(false);
@@ -242,7 +252,9 @@
     }
 
     function doPaste(text) {
-        if (!engine.paste(text, deg)) return;
+        var span = selectedSpan(); // what is selected of the equation is replaced
+        if (!(span ? engine.pasteOver(text, deg, span[0], span[1]) : engine.paste(text, deg))) return;
+        unselect();
         if (!engine.edit && CalcEngine.angleAlone(text) && !dmsMode) toggleDms(); // 12°30′15″ shows as written
         keyBoard['AC'].children[0].firstChild.data = 'C';
         refresh();
@@ -264,14 +276,37 @@
         notify('Copy');
     }, false);
 
-    // the part of the display or of the line above it that is selected, as
-    // text: raised numbers as ², a drawn fraction as 3/4; '' if none is
+    // Ctrl+X takes what Ctrl+C does, and takes it out
+    document.body.addEventListener('cut', function (e) {
+        if (field(e.target) || empty()) return; // what is selected in the box; nothing to take
+        e.clipboardData.setData('text/plain', selectedText() || copyText());
+        e.preventDefault();
+        cutOut(selectedSpan());
+    }, false);
+
+    // what was cut is taken out: the selected part of the equation, or else all the display has
+    function cutOut(span) {
+        if (!(span && engine.cut(span[0], span[1], deg))) engine.press('AC', deg);
+        if (empty()) keyBoard['AC'].children[0].firstChild.data = 'AC';
+        unselect();
+        refresh();
+        saveState();
+        notify('Cut');
+    }
+
+    // nothing was entered: the display has its 0
+    function empty() {
+        return !engine.edit && !engine.error && !engine.done && engine.entry === 'fresh' && engine.plain();
+    }
+
+    // the part of the display that is selected, as text: raised numbers as ²,
+    // a drawn fraction as 3/4; '' if none is
     function selectedText() {
         var sel = window.getSelection(), range, box, where;
         if (!sel.rangeCount || sel.isCollapsed) return '';
         range = sel.getRangeAt(0);
         where = range.commonAncestorContainer;
-        if (!display.contains(where) && !logline.contains(where)) return '';
+        if (!display.contains(where)) return '';
         box = document.createElement('div');
         box.appendChild(range.cloneContents());
         [].slice.call(box.querySelectorAll('.calc-fr')).reverse().forEach(function (fr) { // the innermost first
@@ -280,6 +315,48 @@
                 return /[ +–×÷/]/.test(t) ? '(' + t + ')' : t;
             }).join('/'));
         });
+        return plain(box);
+    }
+
+    // the part of the equation in the display that is selected, which a paste or
+    // a key goes in place of: [from, to] in characters from its start, [] for all
+    // of it. Null if none is, or the display has a result, which they replace anyway
+    function selectedSpan() {
+        var sel = window.getSelection(), all = document.createRange(), range, from, to;
+
+        function chars(node, offset) { // of the equation before this place of the page
+            var part = all.cloneRange(), where = all.comparePoint(node, offset);
+            if (where < 0) return 0;
+            if (!where) part.setEnd(node, offset);
+            return part.toString().replace(engine.edit ? '' : /,/g, '').length; // not the commas between the thousands
+        }
+
+        if (!sel.rangeCount || sel.isCollapsed) return null;
+        if (!engine.edit && (engine.error || engine.done || (engine.plain() && engine.entry !== 'typing'))) return null;
+        range = sel.getRangeAt(0);
+        all.selectNodeContents(display);
+        from = chars(range.startContainer, range.startOffset);
+        to = chars(range.endContainer, range.endOffset);
+        if (from >= to) return null;
+        if (!from && to === chars(all.endContainer, all.endOffset)) return [];
+        // a drawn fraction is not written as the equation is typed: only all of it can be told
+        return engine.edit || !display.querySelector('.calc-fr') ? [from, to] : null;
+    }
+
+    // once a key or a paste has changed the display nothing of it is selected, as in
+    // a box; a selection from outside it, as of Ctrl+A, would take in what comes next
+    function unselect() {
+        var sel = window.getSelection();
+        if (sel.rangeCount && !sel.isCollapsed && sel.getRangeAt(0).intersectsNode(display)) sel.removeAllRanges();
+    }
+
+    // what is drawn, HTML or an element, as text: raised and lowered numbers as ² and ₂
+    function plain(what) {
+        var box = what;
+        if (typeof what === 'string') {
+            box = document.createElement('div');
+            box.innerHTML = what;
+        }
         [].slice.call(box.querySelectorAll('sup, sub')).forEach(function (s) {
             var chars = s.tagName === 'SUP' ? '⁰¹²³⁴⁵⁶⁷⁸⁹⁻ˣʸ' : '₀₁₂₃₄₅₆₇₈₉₋ₓᵧ';
             s.replaceWith(s.textContent.replace(/[\d\-xy]/g, function (c) {
@@ -309,12 +386,12 @@
     // While the pointer rests on a key above the digits, a tip says what it
     // does, with an example and its keyboard shortcut. A key 2nd has turned
     // has the tip of its second function; with 2nd off, a tip names the
-    // function 2nd gives the key. The marks in the display and the history
-    // have tips as well
+    // function 2nd gives the key. The marks in the display, the history and
+    // the ? beside the name have tips as well
     tip.parentNode.addEventListener('mouseover', function (e) {
         var key = e.target.closest('.calc-left > *, .calc-right > .del-ac, .calc-rad, .calc-mem, .calc-frac, .calc-fmt, .calc-hold, ' +
             '.calc-stat-btn, .calc-stats-tile, .calc-fx-btn, .calc-fx-row, .calc-conv-btn, .calc-conv-row, ' +
-            '.calc-hist, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit');
+            '.calc-hist, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit, .calc-help');
         if (key === tipKey) return;
         hideTip();
         tipKey = key;
@@ -373,7 +450,9 @@
 
     // the memory and the number format say what they hold now
     function tipFor(el, name) {
-        var places = fmt.places + (fmt.places === 1 ? ' decimal place' : ' decimal places'), info, value;
+        var places = fmt.places === 'auto' ? 'as many digits as each one needs' :
+            fmt.places + (fmt.places === 1 ? ' decimal place' : ' decimal places'), info, value;
+        if (el.classList.contains('calc-help')) return CalcTips['help'];
         if (el === radDeg) return CalcTips['unit ' + radDeg.firstChild.data];
         if (el === fxButton) return CalcTips[fx.classList.contains('calc-open') ? 'formulas close' : 'formulas'];
         if (fx.contains(el)) return fxTip(el);
@@ -412,7 +491,8 @@
         if (el === fmtMark) {
             return {
                 t: 'Number format',
-                d: (fmt.notation === 'fix' ? 'Results are rounded to ' + places + '.' :
+                d: (fmt.notation === 'fix' ? (fmt.places === 'auto' ? 'Results are shown as usual, with ' + places + '.' :
+                    'Results are rounded to ' + places + '.') :
                     'Results are shown in ' + (fmt.notation === 'sci' ? 'scientific notation, 1.23e+4,' :
                         'engineering notation, powers of ten in steps of three, 12.3e+3,') + ' with ' + places + '.') +
                     ' MODE goes on to the next; click here to change it on the options page.',
@@ -431,47 +511,39 @@
 
     // ---------------- the menu of a right click ---------------- //
 
-    // Copy, Paste, and Reset (everything but the history and the statistics). Copy takes the selected part of the display, else
-    // what Ctrl+C takes. This page cannot read the clipboard, so for Paste
-    // popup.js asks the browser once for that and sends the text back as a paste
+    // What it holds depends on where it opens. On the display: Cut, Copy, Paste, and Reset
+    // (everything but the history and the statistics). In a box of a panel: Cut, Copy,
+    // Paste and Select all, as the browser's menu has. On a value of a panel, a unit of
+    // the converter, a result of the statistics, a constant, a line of the history:
+    // Copy and Insert; elsewhere in a panel, the menu of its box. On the keys there is none
     menu.addEventListener('click', function (e) {
-        var item = e.target.closest('[data-act]');
-        if (!item) return;
+        var item = e.target.closest('[data-i]');
+        if (!item || item.classList.contains('calc-off')) return;
         showMenu(false);
-        if (item.dataset.act === 'copy') {
-            copy(menu.text || copyText());
-        } else if (item.dataset.act === 'reset') {
-            if (secondActive) {
-                keyDown(false, keyBoard['2nd']);
-                doKey('2nd', true);
-            }
-            setUnit(0);
-            if (fracMode) toggleFraction();
-            if (dmsMode) toggleDms();
-            engine.memory = 0;
-            engine.reset(); // the equation too; the history and the statistics stay
-            hold.textContent = '';
-            keyBoard['AC'].children[0].firstChild.data = 'AC';
-            refresh();
-            saveState();
-        } else {
-            window.parent.postMessage({ command: 'read-clipboard' }, '*');
-        }
+        menu.items[+item.dataset.i][1]();
+    }, false);
+
+    // a press in the menu leaves the focus and what is selected as they are, for what is chosen
+    menu.addEventListener('mousedown', function (e) {
+        e.preventDefault();
     }, false);
 
     document.addEventListener('contextmenu', function (e) {
-        var calc = menu.parentNode, frame = calc.getBoundingClientRect();
-        if (field(e.target)) return; // a box has the menu of the browser, to edit it
-        e.preventDefault();
-        if (!e.target.closest('.calc-display')) return; // only the display has the menu: right click does nothing elsewhere
-        menu.text = selectedText(); // taken now: a click in the menu ends the selection
+        var calc = menu.parentNode, frame = calc.getBoundingClientRect(), items = menuItems(e.target);
+        e.preventDefault(); // the menu of the browser is never shown
+        if (!items) return;
+        menu.items = items;
+        menu.innerHTML = items.map(function (item, i) {
+            return '<div data-i="' + i + '"' + (item[2] === false ? ' class="calc-off"' : '') + '>' + item[0] + '</div>';
+        }).join('');
         showMenu(true);
         menu.style.left = Math.min(e.clientX - frame.left - calc.clientLeft, calc.clientWidth - menu.offsetWidth - 4) + 'px';
         menu.style.top = Math.min(e.clientY - frame.top - calc.clientTop, calc.clientHeight - menu.offsetHeight - 4) + 'px';
     }, false);
 
     document.addEventListener('mousedown', function (e) {
-        if (e.button === 2 && e.target.closest('.calc-display')) e.preventDefault(); // a selection stays for Copy
+        // a selection stays for Copy, and a box of a panel keeps the focus
+        if (e.button === 2 && e.target.closest('.calc-display, .calc-past') && !e.target.closest('textarea, input')) e.preventDefault();
         if (!menu.hidden && !menu.contains(e.target)) showMenu(false);
     }, true);
 
@@ -481,6 +553,113 @@
 
     function showMenu(open) {
         menu.hidden = !open;
+    }
+
+    // the lines of the menu for where it opens: [name, what it does, false while it cannot be done];
+    // nothing where there is no menu
+    function menuItems(el) {
+        var box = el.closest('textarea, input'), panel = el.closest('.calc-past'), text, span, row, part, i, unit, k;
+
+        if (el.closest('.calc-display')) {
+            text = selectedText(); // taken now, as it is selected
+            span = selectedSpan();
+            return [
+                ['Cut', function () { copy(text || copyText()); cutOut(span); }, !empty()],
+                ['Copy', function () { copy(text || copyText()); }],
+                ['Paste', function () { askPaste(null); }],
+                ['Reset all', resetAll]
+            ];
+        }
+        if (!panel) return null; // the keys
+        if (box) return boxItems(box);
+
+        if (panel === conv && (row = el.closest('.calc-conv-row')) && isFinite(convNow[i = +row.dataset.i])) {
+            unit = CalcUnits.units[convAt.g].list[i];
+            text = unit.dms && CalcEngine.dms(convNow[i]); // degrees, minutes and seconds have their signs
+            return [
+                ['Copy', function () { copy(text || String(+convNow[i].toPrecision(15))); }],
+                ['Copy with unit', function () { copy(text || +convNow[i].toPrecision(15) + ' ' + plain(unit.s)); }],
+                ['Insert', function () { row.click(); }]
+            ];
+        }
+        if (panel === stats && (row = el.closest('.calc-stats-tile')) && statsNow.n && isFinite(statsNow[row.dataset.k])) {
+            text = statsValue(statsNow[row.dataset.k]).text;
+            return [
+                ['Copy', function () { copy(text); }],
+                ['Insert', function () { row.click(); }]
+            ];
+        }
+        if (panel === fx && (row = el.closest('.calc-fx-item'))) {
+            k = fxItems[fxTab][+row.dataset.i].item;
+            if (fxTab === 'constants') {
+                return [
+                    ['Copy', function () { copy(String(k.v)); }],
+                    ['Copy with unit', function () { copy(k.v + ' ' + plain(k.u)); }, !!k.u],
+                    ['Insert', function () { putConstant(k); }]
+                ];
+            }
+            return [
+                ['Copy', function () { copy(plain(k.f)); }],
+                row.classList.contains('calc-on') ? ['Insert', function () { insertFormula(row); }] :
+                    ['Open', function () { openFormula(row); }]
+            ];
+        }
+        if (panel === past) {
+            row = el.closest('.calc-past-row');
+            if (!row) return [['Clear history', function () { past.querySelector('.calc-past-clear').click(); }]];
+            // on the equation, the equation; anywhere else on the line, its result
+            part = el.closest('.calc-past-eq') || row.querySelector('.calc-past-res');
+            return ['copy', 'insert'].map(function (act) {
+                return [act === 'copy' ? 'Copy' : 'Insert', function () { part.querySelector('[data-act="' + act + '"]').click(); }];
+            }).concat([['Delete', function () { row.querySelector('.calc-past-del').click(); }]]);
+        }
+        return boxItems(panel === stats ? statsInput : panel === fx ? fxSearch : convInput);
+    }
+
+    // Cut and Copy take what is selected in the box, and Paste goes in its place
+    function boxItems(box) {
+        var some = box.selectionStart !== box.selectionEnd;
+        return [
+            ['Cut', function () { box.focus(); document.execCommand('cut'); }, some],
+            ['Copy', function () { box.focus(); document.execCommand('copy'); }, some],
+            ['Paste', function () { askPaste(box); }],
+            ['Select all', function () { box.focus(); box.select(); }, !!box.value]
+        ];
+    }
+
+    // This page cannot read the clipboard, so for Paste popup.js asks the browser
+    // once for that and sends the text back as a paste: into the box, or the equation
+    function askPaste(box) {
+        pasteBox = box;
+        if (box) box.focus();
+        window.parent.postMessage({ command: 'read-clipboard' }, '*');
+    }
+
+    // text put into a box as if typed, over what is selected there; a box of one line takes it as one line
+    function typeInto(box, text) {
+        if (box.tagName === 'INPUT') text = text.replace(/\s*[\r\n]+\s*/g, ' ').trim();
+        if (!text) return;
+        box.focus();
+        if (!document.execCommand('insertText', false, text)) {
+            box.setRangeText(text, box.selectionStart, box.selectionEnd, 'end');
+            box.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    }
+
+    function resetAll() {
+        if (secondActive) {
+            keyDown(false, keyBoard['2nd']);
+            doKey('2nd', true);
+        }
+        setUnit(0);
+        if (fracMode) toggleFraction();
+        if (dmsMode) toggleDms();
+        engine.memory = 0;
+        engine.reset(); // the equation too; the history and the statistics stay
+        hold.textContent = '';
+        keyBoard['AC'].children[0].firstChild.data = 'AC';
+        refresh();
+        saveState();
     }
 
     // the unit at the bottom of the display switches Deg and Rad, as its key does
@@ -527,8 +706,10 @@
         showPast(!past.classList.contains('calc-open'));
     }, false);
 
-    // any press outside the history closes it; the button toggles it itself
+    // any press outside the history closes it; the button toggles it itself.
+    // The menu is over the panel it was opened in
     document.addEventListener('pointerdown', function (e) {
+        if (menu.contains(e.target)) return;
         if (past.classList.contains('calc-open') && !past.contains(e.target) && !pastButton.contains(e.target)) {
             showPast(false);
         }
@@ -1247,7 +1428,8 @@
     Calc.onmousedown = function (e) {
         var line = display.contains(e.target) ? display : logline.contains(e.target) ? logline : null;
         if (e.button === 2) return false; // a right click opens the menu, it presses no key
-        if (line) return line.scrollWidth <= line.clientWidth; // text can be selected; a longer line slides instead
+        // text can be selected; in a longer line this file does that itself, to slide it as well. Not the line above a result
+        if (line) return line === display && line.scrollWidth <= line.clientWidth;
         keyDown(e);
         if (!pressedKey) return false;
         document.addEventListener('mouseout', keyUp, false);
@@ -1272,52 +1454,160 @@
         }
     }, false);
 
-    // hold and slide a long equation to see the rest of it
+    // In a long equation a slide of the pointer selects its text, as in a line that
+    // fits, and held still for a moment first it slides the line, to see the rest
+    // of it. A finger does the other way round: it slides, and after a hold it selects.
+    // The line above a result is not selected: it slides at once, and a double click opens it in the display
     [display, logline].forEach(function (el) {
         el.addEventListener('pointerdown', function (e) {
             slid = false;
-            if (el.scrollWidth > el.clientWidth) sliding = { el: el, x: e.clientX, left: el.scrollLeft };
+            endHold();
+            if (el.scrollWidth <= el.clientWidth || e.button) return; // a right click keeps what is selected, for the menu
+            if (el === logline) return startSlide(el, e.clientX);
+            window.getSelection().removeAllRanges(); // as a press in a line that fits does
+            if (e.pointerType === 'touch') startSlide(el, e.clientX);
+            else startPick(el, e.clientX);
+            holdTimer = setTimeout(function () { // held long enough: the other one
+                if (slid) return;
+                if (sliding) startPick(el, sliding.x);
+                else if (picking) startSlide(el, picking.x);
+            }, 400);
         }, false);
 
         // a click in the equation puts the cursor there; on the line above a
         // result it puts the cursor into that finished equation
         el.addEventListener('click', function (e) {
-            if (slid || !window.getSelection().isCollapsed) return; // a slide or a selection, not a click
+            var again;
+            // the second click of two: the first one put the cursor in, and wrote the line again
+            if (e.detail === 2 && !slid && el === display) return pickValue(el, e.clientX, e.clientY);
+            if (slid || (el === display && !window.getSelection().isCollapsed)) return; // a slide or a selection, not a click
+            if (el === logline) { // the second click of two, or tap, opens it
+                again = e.detail === 2 || e.timeStamp - opened < 400;
+                opened = e.timeStamp;
+                if (!again) return;
+            }
             if (el === logline ? engine.edit || !(engine.done || engine.error) :
                 !engine.edit && (engine.done || engine.error)) return; // a result: nothing to put a cursor in
-            if (engine.point(charsBefore(el, e.clientX), deg)) {
+            if (engine.point(textAt(el, e.clientX).n, deg)) {
+                unselect(); // of the result, as the equation takes its place
                 refresh();
                 saveState();
             }
         }, false);
     });
 
-    // how many characters of the line are left of x
-    function charsBefore(el, x) {
+    // A double click selects the value under it, the whole number between its
+    // operators, with the cursor in it or not, as it selects a word in a text;
+    // or the operator or function it is on. A result alone is selected whole
+    function pickValue(el, x, y) {
         var walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), range = document.createRange(),
-            n = 0, node, i, r;
+            chars = [], at = -1, gap = Infinity, node, i, r, d, a, b;
+
+        function kind(c) { // a space, a part of a number, or of an operator or a function
+            return /\s/.test(c.ch) ? 0 : /[\d.,]/.test(c.ch) ? 1 : 2;
+        }
+
+        function same(c, k) { // side by side: not a power above a number, or the other half of a fraction
+            return kind(c) === kind(k) && Math.abs(c.r.top - k.r.top) < 1 && Math.abs(c.r.height - k.r.height) < 1;
+        }
+
+        if (el === display && !engine.edit && (engine.error || engine.done || engine.plain())) {
+            return window.getSelection().selectAllChildren(el);
+        }
         while ((node = walk.nextNode())) {
             for (i = 0; i < node.length; i++) {
                 range.setStart(node, i);
                 range.setEnd(node, i + 1);
                 r = range.getBoundingClientRect();
-                if (r.width && x < r.left + r.width / 2) return n;
-                n++;
+                if (!r.width) continue;
+                chars.push({ node: node, i: i, ch: node.data.charAt(i), r: r });
+                // the one the pointer is on, or else the nearest
+                d = Math.max(r.left - x, x - r.right, 0) + Math.max(r.top - y, y - r.bottom, 0);
+                if (d < gap) {
+                    gap = d;
+                    at = chars.length - 1;
+                }
             }
         }
-        return n;
+        if (at < 0 || !kind(chars[at])) return window.getSelection().removeAllRanges(); // a space: nothing to select
+        for (a = at; a && same(chars[a - 1], chars[at]); a--);
+        for (b = at; b < chars.length - 1 && same(chars[b + 1], chars[at]); b++);
+        window.getSelection().setBaseAndExtent(chars[a].node, chars[a].i, chars[b].node, chars[b].i + 1);
+    }
+
+    // where x is in the text of a line: the text node and the offset in it, and
+    // n, how many characters of the line are left of it
+    function textAt(el, x) {
+        var walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), range = document.createRange(),
+            n = 0, node, last = null, i, r;
+        while ((node = walk.nextNode())) {
+            for (i = 0; i < node.length; i++) {
+                range.setStart(node, i);
+                range.setEnd(node, i + 1);
+                r = range.getBoundingClientRect();
+                if (r.width && x < r.left + r.width / 2) return { node: node, offset: i, n: n };
+                n++;
+            }
+            last = node;
+        }
+        return { node: last || el, offset: last ? last.length : 0, n: n };
+    }
+
+    // from here the pointer slides the line
+    function startSlide(el, x) {
+        endPick();
+        sliding = { el: el, x: x, left: el.scrollLeft };
+        el.classList.toggle('calc-grab', !!holdTimer); // after a hold: the hand shows it
+    }
+
+    // from here the pointer selects, starting where it is
+    function startPick(el, x) {
+        var at = textAt(el, x);
+        if (sliding) slide(el, sliding.left);
+        sliding = null;
+        picking = { el: el, node: at.node, offset: at.offset, x: x, edge: 0 };
+        picking.timer = setInterval(function () { // at an edge the line moves along under the pointer
+            if (!picking.edge) return;
+            slide(picking.el, picking.el.scrollLeft + picking.edge * 8);
+            pickTo(picking.x);
+        }, 30);
+        pickTo(x);
+    }
+
+    // selects from where the line was pressed to x
+    function pickTo(x) {
+        var box = picking.el.getBoundingClientRect(), at = textAt(picking.el, Math.max(box.left, Math.min(box.right, x)));
+        if (!picking.el.contains(picking.node)) return endPick(); // the line was written again meanwhile
+        picking.x = x;
+        picking.edge = x < box.left + 16 ? -1 : x > box.right - 16 ? 1 : 0;
+        window.getSelection().setBaseAndExtent(picking.node, picking.offset, at.node, at.offset);
+    }
+
+    function endPick() {
+        if (!picking) return;
+        clearInterval(picking.timer);
+        picking = null;
+    }
+
+    // the pointer let go of the line
+    function endHold() {
+        clearTimeout(holdTimer);
+        holdTimer = null;
+        endPick();
+        if (sliding) sliding.el.classList.remove('calc-grab');
+        sliding = null;
     }
 
     document.addEventListener('pointermove', function (e) {
-        if (!sliding) return;
-        if (Math.abs(e.clientX - sliding.x) > 3) slid = true;
-        slide(sliding.el, sliding.left - (e.clientX - sliding.x));
+        var held = picking || sliding;
+        if (!held) return;
+        if (Math.abs(e.clientX - held.x) > 3) slid = true;
+        if (picking) pickTo(e.clientX);
+        else slide(sliding.el, sliding.left - (e.clientX - sliding.x));
     }, false);
 
     ['pointerup', 'pointercancel'].forEach(function (type) {
-        document.addEventListener(type, function () {
-            sliding = null;
-        }, false);
+        document.addEventListener(type, endHold, false);
     });
 
     // ------------------- event related functions ------------------ //
@@ -1489,26 +1779,40 @@
     // long equation is
     function fit(focus) {
         var size = 34, screen = display.parentNode, style = getComputedStyle(screen),
-            room = screen.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+            room = screen.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom), left, at;
 
         display.classList.remove('calc-more-left', 'calc-more-right');
-        display.style.fontSize = size + 'px';
+        sized(size);
         while (size > 18 && (display.scrollWidth > display.clientWidth || display.offsetHeight > room)) {
-            display.style.fontSize = --size + 'px';
+            sized(--size);
         }
-        slide(display, focus ? focus.offsetLeft - display.clientWidth / 2 : display.scrollWidth);
+        if (focus) { // while it is in view, clear of the dots, the line stays: a click must not move it under the pointer
+            left = display.scrollLeft;
+            at = focus.offsetLeft - left;
+            if (at < (left > 1 ? 24 : 2) || at > display.clientWidth - (left < display.scrollWidth - display.clientWidth - 1 ? 24 : 2)) {
+                left = focus.offsetLeft - display.clientWidth / 2;
+            }
+        }
+        slide(display, focus ? left : display.scrollWidth);
+    }
+
+    // the font of the display, and its line as tall as the font asks, in whole
+    // pixels: the shade of selected text is as tall as the line
+    function sized(size) {
+        display.style.fontSize = size + 'px';
+        display.style.setProperty('--calc-line', 2 * Math.round(size * 23 / 34) + 'px');
     }
 
     // the number format from the options page: Norm, Fix, Sci or Eng, the
-    // digits after the point, and commas between the thousands
+    // digits after the point or Auto, and commas between the thousands
     function setFormat(f) {
         f = f || {};
         fmt = {
             notation: /^(fix|sci|eng)$/.test(f.notation) ? f.notation : 'norm',
-            places: Number.isInteger(f.places) ? Math.max(0, Math.min(9, f.places)) : 2, // 2, as the options page starts
+            places: Number.isInteger(f.places) ? Math.max(0, Math.min(9, f.places)) : 'auto', // Auto, as the options page starts
             group: !!f.group
         };
-        fmtMark.textContent = fmt.notation === 'norm' ? '' : fmt.notation.toUpperCase() + ' ' + fmt.places;
+        fmtMark.textContent = fmt.notation === 'norm' ? '' : fmt.notation.toUpperCase() + (fmt.places === 'auto' ? '' : ' ' + fmt.places);
     }
 
     // MODE goes through the notations of results: Normal, Fix, Sci, Eng and
@@ -1518,7 +1822,6 @@
         setFormat({ notation: order[(order.indexOf(fmt.notation) + 1) % order.length], places: fmt.places, group: fmt.group });
         store('format', fmt);
         refresh();
-        notify(fmtMark.textContent || 'Normal'); // Normal has no mark of its own
     }
 
     // a/b turns fraction mode on and off: each division is drawn as a fraction
@@ -1587,14 +1890,18 @@
     }
 
     function evalKey(key) {
+        var span = selectedSpan(), ok; // a key writes in place of what is selected of the equation, and DEL takes it out
+
         if (key === 'a/b') return toggleFraction();
         if (key === '°′″') return toggleDms();
         if (key === 'MODE') return nextFormat();
         if (key === 'DEL') {
-            engine.del(); // takes back the last key of this calculation, or the piece before the cursor
+            // takes back the last key of this calculation, or the piece before the cursor
+            ok = (span && engine.cut(span[0], span[1], deg)) || engine.del();
         } else {
-            engine.press(key, deg);
+            ok = span ? engine.pressOver(key, deg, span[0], span[1]) : engine.press(key, deg);
         }
+        if (ok) unselect();
         if (key.match(/^C|AC/)) {
             hold.textContent = '';
         }

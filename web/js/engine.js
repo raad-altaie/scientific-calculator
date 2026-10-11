@@ -945,12 +945,14 @@
 
     // a computed number in Fix, Sci or Eng notation with f.places digits after
     // the point, rounded as the number reads (1.005 is 1.01); null for the
-    // usual notation, and 0 for zero in Sci and Eng. Fix shows numbers from 1e16 in Sci, as the usual one does
+    // usual notation, and 0 for zero in Sci and Eng. Fix shows numbers from 1e16 in Sci, as the usual one does.
+    // Places 'auto' gives as many digits as the number needs, up to 13 as the usual notation: Fix is then the usual one
     function format(x, f) {
-        var places = Math.max(0, Math.min(9, (f && f.places) | 0)), o, s;
-        if (!f || !/^(fix|sci|eng)$/.test(f.notation) || !isFinite(x)) return null;
+        var auto = f && f.places === 'auto', places = Math.max(0, Math.min(9, (f && f.places) | 0)), o, s;
+        if (!f || !/^(fix|sci|eng)$/.test(f.notation) || !isFinite(x) || auto && f.notation === 'fix') return null;
         if (x === 0 && f.notation !== 'fix') return '0'; // no 0.000e+0; Fix keeps its places: 0.00
-        o = { useGrouping: false, minimumFractionDigits: places, maximumFractionDigits: places };
+        o = auto ? { useGrouping: false, maximumSignificantDigits: 13 } :
+            { useGrouping: false, minimumFractionDigits: places, maximumFractionDigits: places };
         if (f.notation !== 'fix' || Math.abs(x) >= 1e16) o.notation = f.notation === 'eng' ? 'engineering' : 'scientific';
         s = new Intl.NumberFormat('en-US', o).format(x);
         return s.replace(/^-(?=[0.]*(E|$))/, '').replace(/E(-?)/, function (m, sign) { // no -0.00; 1.5e+3 as before
@@ -1734,24 +1736,93 @@
         return this.cursor(how === 'home' ? 0 : how === 'end' ? e.list.length : e.at + (how === 'left' ? -1 : 1), deg);
     };
 
-    // a click in the shown equation, chars characters from its start: the
-    // cursor goes to the nearest place between two pieces
-    Engine.prototype.point = function (chars, deg) {
-        var was = !!this.edit, e, i, sum = 0, best = 0, gap = Infinity;
-        if (!this.startEdit()) return false;
-        e = this.edit;
-        for (i = 0; i <= e.list.length; i++) {
+    // the place between two pieces nearest to chars characters from the start of the equation
+    function placeAt(list, chars) {
+        var i, sum = 0, best = 0, gap = Infinity;
+        for (i = 0; i <= list.length; i++) {
             if (Math.abs(sum - chars) < gap) {
                 gap = Math.abs(sum - chars);
                 best = i;
             }
-            if (i < e.list.length) sum += untag(html(e.list[i])).length;
+            if (i < list.length) sum += untag(html(list[i])).length;
         }
+        return best;
+    }
+
+    // a click in the shown equation, chars characters from its start: the
+    // cursor goes to the nearest place between two pieces
+    Engine.prototype.point = function (chars, deg) {
+        var was = !!this.edit, e, best;
+        if (!this.startEdit()) return false;
+        e = this.edit;
+        best = placeAt(e.list, chars);
         if (!was && best === e.list.length && !this.done && !this.error) {
             this.edit = null; // the end of the equation being entered: where it was
             return false;
         }
         return this.cursor(best, deg);
+    };
+
+    // takes what is selected out of the shown equation, from and to characters from
+    // its start, and leaves the cursor in its place. Neither given: all of it, and
+    // the display is cleared. False if there is nothing of an equation to take
+    function take(e, from, to) {
+        var was = e.edit, list, i, j;
+        if (!e.startEdit()) return false; // a result alone: the keys and a paste replace it as it is
+        list = e.edit.list;
+        i = from === undefined ? 0 : placeAt(list, from);
+        j = to === undefined ? list.length : placeAt(list, to);
+        if (i >= j) {
+            e.edit = was;
+            return false;
+        }
+        if (!i && j === list.length) {
+            e.reset();
+        } else {
+            list.splice(i, j - i);
+            e.edit.at = i;
+        }
+        return true;
+    }
+
+    // what is selected in the shown equation is replaced, as in a box of text: by
+    // what write, a paste or a key, puts in, and with none it is only taken out.
+    // At the end of the equation the keys work again as they always do.
+    // False, and nothing changes, if write refuses
+    function over(e, from, to, deg, write) {
+        var snap = e.snapshot(), hist = e.history.slice();
+        if (!take(e, from, to)) return write ? write() : false;
+        if (write && !write()) {
+            e.restore(snap);
+            e.history = hist;
+            return false;
+        }
+        if (e.edit) e.cursor(e.edit.at, deg);
+        return true;
+    }
+
+    // pasted text in place of what is selected; all of it: pasted as into a cleared display
+    Engine.prototype.pasteOver = function (str, deg, from, to) {
+        var self = this;
+        return over(this, from, to, deg, function () { return self.paste(str, deg); });
+    };
+
+    // a key pressed while a part of the equation is selected writes in its place.
+    // With all of it selected, as with a result: a key that starts a number does
+    // so in its place, and an operator or a function goes on from the equation
+    Engine.prototype.pressOver = function (key, deg, from, to) {
+        var self = this;
+        if (/^(AC|C|=|m[c+-])$/.test(key)) return this.press(key, deg); // these write nothing
+        if (from === undefined && !/^([\d.π(]|e|Ans|mr|Rand)$/.test(key)) {
+            if (this.edit) this.cursor(this.edit.list.length, deg);
+            return this.press(key, deg);
+        }
+        return over(this, from, to, deg, function () { return self.press(key, deg); });
+    };
+
+    // DEL takes out what is selected; false if nothing of the equation is
+    Engine.prototype.cut = function (from, to, deg) {
+        return over(this, from, to, deg);
     };
 
     Engine.prototype.insert = function (key) {

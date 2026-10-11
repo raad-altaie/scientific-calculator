@@ -77,7 +77,7 @@ body {
     font-size: 13.5px;
     margin-top: 0;
     margin-bottom: 0; /* options.css leaves 7em under the page */
-    padding-top: 2em;
+    padding-top: calc(2em + max(22px, env(safe-area-inset-top)));
 }
 
 .options-pane .footer {
@@ -99,7 +99,6 @@ body {
     justify-content: flex-end;
     height: 0; /* takes no room: the button floats over the page */
     padding: 0 22px;
-    padding-top: max(22px, env(safe-area-inset-top));
     pointer-events: none;
 }
 
@@ -110,6 +109,7 @@ body {
     flex: none;
     width: 34px;
     height: 34px;
+    margin-top: max(22px, env(safe-area-inset-top)); /* off the top; on the button, as the bar has no height to pad */
     padding: 0;
     cursor: pointer;
     pointer-events: auto;
@@ -173,7 +173,7 @@ body {
     }
 
     .options-pane .wrapper {
-        padding-top: 4em; /* room for the close button */
+        padding-top: calc(4em + max(22px, env(safe-area-inset-top))); /* room for the close button */
     }
 }
 

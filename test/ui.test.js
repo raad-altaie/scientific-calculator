@@ -156,6 +156,17 @@ Page.prototype.click = async function (selector) {
     await sleep(60);
 };
 
+// a right click, which opens the menu
+Page.prototype.rightClick = async function (selector) {
+    var p = await this.at(selector);
+    check(!!p, 'there is ' + selector + ' to right click');
+    if (!p) return;
+    for (var type of ['mouseMoved', 'mousePressed', 'mouseReleased']) {
+        await this.send('Input.dispatchMouseEvent', { type: type, x: p[0], y: p[1], button: 'right', clickCount: 1 });
+    }
+    await sleep(60);
+};
+
 Page.prototype.hover = async function (selector) {
     var p = await this.at(selector);
     await this.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p[0] - 3, y: p[1] });
@@ -218,6 +229,16 @@ async function calculator(page, at) {
 
     await page.fresh(at, { convOn: false });
     check(await buttons(page) === 'calc-fx-btn calc-stat-btn', t + 'two buttons with the converter off', await buttons(page));
+
+    // the ? beside the name has a tip of the calculator's own, below it, in place of a title
+    await page.hover('.calc-help');
+    check(await page.until('!document.querySelector(".calc-tip").hidden', 2500), t + 'resting on the ? shows its tip');
+    note = await page.calc('document.querySelector(".calc-tip").textContent');
+    check(/^Help and options/.test(note), t + 'the tip says it is the help and the options', note);
+    check(await page.calc('document.querySelector(".calc-tip").classList.contains("calc-tip-below") && ' +
+        '!document.querySelector(".calc-help").title'), t + 'it is below the ?, which has no title');
+    await page.hover('#box');
+    check(await page.until('document.querySelector(".calc-tip").hidden', 2500), t + 'the tip goes as the pointer leaves the ?');
 
     // the keys still work, and the history adds its clock
     await page.type('2+3\r');
@@ -321,9 +342,10 @@ async function calculator(page, at) {
 
 // a choice in a list of the converter, by the start of its text: the list opened
 // with a click, and the choice clicked
-// MODE goes Normal, Fix, Sci, Eng and Normal again; the options page follows it
+// MODE goes Normal, Fix, Sci, Eng and Normal again; the options page follows it.
+// The places start at Auto, so Fix is as Normal; a number of places shows in the mark
 async function modeKey(page, at) {
-    var t = at + ': ', MODE = '.calc-left > :nth-child(5)';
+    var t = at + ': ', MODE = '.calc-left > :nth-child(7)'; // the corner of the top row
 
     function mark() {
         return page.calc('document.querySelector(".calc-fmt").textContent');
@@ -331,18 +353,35 @@ async function modeKey(page, at) {
 
     await page.fresh(at, {});
     check(await page.calc('document.querySelector(' + JSON.stringify(MODE) + ').textContent.trim()') === 'MODE', t + 'MODE is there');
+    check(await page.calc('document.querySelector(".calc-left > :nth-child(6)").textContent.trim()') === ')', t + 'MODE is after the brackets');
     await page.type('1500\r');
+    // its label keeps its size while the key is held down, and no notice fades out after it
+    var size = 'getComputedStyle(document.querySelector(' + JSON.stringify(MODE + ' > div') + ')).fontSize', before = await page.calc(size),
+        p = await page.at(MODE);
+    await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p[0], y: p[1] });
+    await page.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p[0], y: p[1], button: 'left', clickCount: 1 });
+    check(await page.calc(size) === before, t + 'MODE held down keeps the size of its label', before + ' → ' + await page.calc(size));
+    await page.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p[0], y: p[1], button: 'left', clickCount: 1 });
+    await sleep(60);
+    check(await page.calc('document.querySelector(".notification").textContent') === '', t + 'MODE shows no notice',
+        await page.calc('document.querySelector(".notification").textContent'));
+    check(await mark() === 'FIX' && await shown(page) === '1500', t + 'MODE: Fix, with Auto places', await mark() + ' ' + await shown(page));
     await page.click(MODE);
-    check(await mark() === 'FIX 2' && await shown(page) === '1500.00', t + 'MODE: Fix 2', await mark() + ' ' + await shown(page));
-    await page.click(MODE);
-    check(await mark() === 'SCI 2' && await shown(page) === '1.50e+3', t + 'then Sci', await mark() + ' ' + await shown(page));
+    check(await mark() === 'SCI' && await shown(page) === '1.5e+3', t + 'then Sci', await mark() + ' ' + await shown(page));
     await page.type('o');
-    check(await mark() === 'ENG 2', t + 'o, then Eng', await mark());
+    check(await mark() === 'ENG' && await shown(page) === '1.5e+3', t + 'o, then Eng', await mark() + ' ' + await shown(page));
     await page.click(MODE);
     check(await mark() === '' && await shown(page) === '1500', t + 'and Normal again', await mark() + ' ' + await shown(page));
     await page.click(MODE);
     await page.go(page.base + at);
-    check(await mark() === 'FIX 2', t + 'kept after a reload', await mark());
+    check(await mark() === 'FIX', t + 'kept after a reload', await mark());
+    await page.fresh(at, { format: { notation: 'norm', places: 2, group: false } });
+    await page.type('1500\r');
+    await page.click(MODE);
+    check(await mark() === 'FIX 2' && await shown(page) === '1500.00', t + 'Fix 2', await mark() + ' ' + await shown(page));
+    await page.click(MODE);
+    check(await mark() === 'SCI 2' && await shown(page) === '1.50e+3', t + 'and Sci 2', await mark() + ' ' + await shown(page));
+    await page.fresh(at, {});
     check(await page.calc('[].some.call(document.querySelectorAll(".calc-left > *"), function (k) { return /[◀▶]/.test(k.textContent); })') === false,
         t + 'no cursor keys');
     await page.type('2+3');
@@ -594,6 +633,346 @@ async function converter(page, at) {
     check(!await open(page, '.calc-conv'), t + 'Esc closes the converter');
 }
 
+// the lines of the open menu, the ones that cannot be chosen in brackets; '' while it is closed
+function menu(page) {
+    return page.calc('(function (m) { return m.hidden ? "" : [].map.call(m.children, function (d) {' +
+        ' return d.classList.contains("calc-off") ? "(" + d.textContent + ")" : d.textContent; }).join("|"); })' +
+        '(document.querySelector(".calc-menu-box"))');
+}
+
+async function pick(page, name) {
+    var i = (await menu(page)).split('|').indexOf(name);
+    check(i > -1, 'the menu has ' + name, await menu(page));
+    await page.click('.calc-menu-box > div:nth-child(' + (i + 1) + ')');
+}
+
+// the menu of a right click: on the display, in the boxes and on the values of the panels
+async function menus(page, at) {
+    var t = at + ': ', box = 'document.querySelector(".calc-conv-value")';
+
+    await page.fresh(at, {});
+    await page.rightClick('#box');
+    check(await menu(page) === '(Cut)|Copy|Paste|Reset all', t + 'the menu of the display; nothing to cut yet', await menu(page));
+    await page.key('Escape', 27);
+    check(await menu(page) === '', t + 'Esc closes it');
+    await page.rightClick('.calc-right > :first-child');
+    check(await menu(page) === '', t + 'no menu on the keys');
+
+    // a box of a panel: the menu of the calculator, not the browser's
+    await page.click('.calc-conv-btn');
+    await page.calc('(function (i) { i.value = "12"; i.dispatchEvent(new Event("input")); i.select(); })(' + box + ')');
+    await page.calc('window.shown = null, document.addEventListener("contextmenu", function (e) {' +
+        ' setTimeout(function () { window.shown = !e.defaultPrevented; }); })');
+    await page.rightClick('.calc-conv-value');
+    check(await page.calc('window.shown') === false, t + 'in a box the menu of the browser stays away');
+    check(/^Cut\|Copy\|Paste\|Select all$/.test(await menu(page)), t + 'a box with its text selected has Cut, Copy, Paste and Select all',
+        await menu(page));
+    await pick(page, 'Cut');
+    check(await page.calc(box + '.value') === '' && await open(page, '.calc-conv'), t + 'Cut takes what is selected; the panel stays open',
+        await page.calc(box + '.value'));
+    check(await converted(page, 'feet') === '–', t + 'and the list follows');
+    await page.rightClick('.calc-conv-value');
+    check(await menu(page) === '(Cut)|(Copy)|Paste|(Select all)', t + 'an empty box only has Paste', await menu(page));
+    await page.click('.calc-menu-box > .calc-off');
+    check(await menu(page) !== '', t + 'a line that cannot be done does nothing');
+
+    // Paste: the page around the calculator reads the clipboard and sends the text back
+    await pick(page, 'Paste');
+    await page.calc('window.postMessage({ type: "paste", text: "3\\n" }, "*")');
+    check(await page.until('((document.getElementById("calc-iframe") || {}).contentDocument || document)' +
+        '.querySelector(".calc-conv-value").value === "3"'), t + 'Paste goes into the box', await page.calc(box + '.value'));
+    check(await shown(page) === '0' && await converted(page, 'feet') !== '–', t + 'not into the equation; the list follows');
+    await page.rightClick('.calc-past.calc-conv .calc-past-head span');
+    check(await menu(page) === '(Cut)|(Copy)|Paste|Select all', t + 'beside the box, the menu of the box', await menu(page));
+    await pick(page, 'Select all');
+    check(await page.calc(box + '.selectionEnd - ' + box + '.selectionStart') === 1 &&
+        await page.calc('document.activeElement === ' + box), t + 'Select all selects the box');
+
+    // a value of the converter
+    await page.calc('document.addEventListener("copy", function (e) { window.copied = e.clipboardData.getData("text/plain"); })');
+    await page.rightClick('.calc-conv-row[data-i="2"] .calc-conv-num');
+    check(await menu(page) === 'Copy|Copy with unit|Insert', t + 'a value has Copy, Copy with unit and Insert', await menu(page));
+    await pick(page, 'Copy with unit');
+    check(await page.calc('window.copied') === '300 cm' && await open(page, '.calc-conv'), t + 'Copy with unit takes 300 cm',
+        await page.calc('window.copied'));
+    await page.rightClick('.calc-conv-row[data-i="2"]');
+    await pick(page, 'Copy');
+    check(await page.calc('window.copied') === '300', t + 'Copy the number alone', await page.calc('window.copied'));
+    await page.rightClick('.calc-conv-row[data-i="2"]');
+    await pick(page, 'Insert');
+    check(!await open(page, '.calc-conv') && await value(page) === 300, t + 'Insert puts 3 m in as 300 cm', await shown(page));
+
+    // the statistics, a constant and a formula
+    await page.click('.calc-stat-btn');
+    await page.type('4 8');
+    await page.rightClick('.calc-stats-tile[data-k="mean"]');
+    check(await menu(page) === 'Copy|Insert', t + 'a result of the statistics has Copy and Insert', await menu(page));
+    await pick(page, 'Insert');
+    check(await value(page) === 6, t + 'Insert puts the mean in', await shown(page));
+    await page.click('.calc-fx-btn');
+    await page.rightClick('.calc-fx-row');
+    check(await menu(page) === 'Copy|Open', t + 'a formula has Copy and Open', await menu(page));
+    await pick(page, 'Copy');
+    check(await page.calc('window.copied') === 'x = (−b + √(b² − 4ac)) ÷ 2a', t + 'Copy takes the formula as text',
+        await page.calc('window.copied'));
+    await page.rightClick('.calc-fx-row');
+    await pick(page, 'Open');
+    check(await page.calc('!!document.querySelector(".calc-fx-item.calc-on input")'), t + 'Open opens its letters');
+    await page.click('.calc-fx-tab[data-tab="constants"]');
+    await page.rightClick('.calc-fx-row');
+    check(await menu(page) === 'Copy|(Copy with unit)|Insert', t + 'π has no unit to copy', await menu(page));
+    await page.key('Escape', 27);
+    check(await menu(page) === '' && await open(page, '.calc-fx'), t + 'Esc closes the menu first, the panel stays');
+    await page.key('Escape', 27);
+
+    // the history
+    await page.type('1+2\r3+4\r');
+    await page.click('.calc-hist');
+    await page.rightClick('.calc-past-res');
+    check(await menu(page) === 'Copy|Insert|Delete', t + 'a line of the history has Copy, Insert and Delete', await menu(page));
+    await pick(page, 'Copy');
+    check(await page.calc('window.copied') === '7' &&
+        await page.calc('document.querySelector(".calc-past-list").parentNode.classList.contains("calc-open")'), t + 'Copy takes the result of the line',
+        await page.calc('window.copied'));
+    await page.rightClick('.calc-past-res');
+    await pick(page, 'Delete');
+    check(await page.calc('document.querySelectorAll(".calc-past-row").length') === 1, t + 'Delete takes the line out');
+    await page.rightClick('.calc-past:not(.calc-stats):not(.calc-fx):not(.calc-conv) .calc-past-head span');
+    check(await menu(page) === 'Clear history', t + 'above the lines, Clear history', await menu(page));
+    await pick(page, 'Clear history');
+    check(await page.calc('document.querySelector(".calc-hist").hidden'), t + 'which empties it');
+
+    // what is selected has the shade of the calculator, in a box as in the display
+    check(await page.calc('[document.getElementById("box"), document.querySelector(".calc-conv-value"), ' +
+        'document.querySelector(".calc-stats-input"), document.querySelector(".calc-fx-search")].every(function (el) {' +
+        ' return getComputedStyle(el, "::selection").backgroundColor === "rgba(31, 51, 60, 0.16)"; })'),
+        t + 'selected text has the same shade everywhere');
+
+    // Paste goes in place of what is selected in the display: all of the equation, with or without the cursor in it
+    await page.fresh(at, {});
+    await page.type('12+34');
+    await page.calc('document.getSelection().selectAllChildren(document.body)'); // as Ctrl+A
+    await page.rightClick('#box');
+    await pick(page, 'Paste');
+    await page.calc('window.postMessage({ type: "paste", text: "7" }, "*")');
+    await sleep(60);
+    check(await shown(page) === '7', t + 'Paste replaces the equation when all of it is selected', await shown(page));
+    await page.type('23'); // a new number after the pasted one
+    await page.click('#box');
+    check(await page.calc('!!document.querySelector("#box .calc-cursor")'), t + 'a click in 23 puts the cursor in it');
+    await page.calc('document.getSelection().selectAllChildren(document.body)');
+    await page.rightClick('#box');
+    await pick(page, 'Paste');
+    await page.calc('window.postMessage({ type: "paste", text: "45+6" }, "*")');
+    await sleep(60);
+    check(await shown(page) === '45 + 6', t + 'and with the cursor in it, not at the cursor', await shown(page));
+
+    // a part of it, with Ctrl+V
+    await page.click('#box');
+    await page.calc('(function (s, r) { r.selectNodeContents(document.querySelector("#box > span:not(.calc-cursor)"));' +
+        ' s.removeAllRanges(); s.addRange(r); })(document.getSelection(), document.createRange())');
+    await page.calc('document.body.dispatchEvent(Object.assign(new Event("paste", { bubbles: true }), ' +
+        '{ clipboardData: { getData: function () { return "9"; } } }))');
+    check(await shown(page) === '95 + 6', t + 'a paste over the 4 of 45 + 6 leaves 95 + 6', await shown(page));
+    await page.type('\r');
+    check(await value(page) === 101, t + 'which = works out', await shown(page));
+
+    // and so does a key: a digit starts a new number in place of all of it, an operator goes on, DEL clears it
+    await page.fresh(at, {});
+    await page.type('123');
+    await page.calc('document.getSelection().selectAllChildren(document.body)');
+    await page.type('5');
+    check(await shown(page) === '5', t + 'a digit typed over a selected number replaces it', await shown(page));
+    await page.type('6');
+    check(await shown(page) === '56', t + 'and the next one follows it: nothing stays selected', await shown(page));
+    await page.calc('document.getSelection().selectAllChildren(document.body)');
+    await page.type('+4');
+    check(await shown(page) === '56 + 4', t + 'an operator over all of it goes on from it', await shown(page));
+    await page.calc('document.getSelection().selectAllChildren(document.body)');
+    await page.key('Backspace', 8);
+    check(await shown(page) === '0', t + 'DEL over all of it clears the display', await shown(page));
+
+    // a part of it: the key is written in its place
+    await page.type('12+34');
+    await page.click('#box');
+    await page.calc('(function (s, r) { r.selectNodeContents(document.querySelector("#box > span:not(.calc-cursor)"));' +
+        ' s.removeAllRanges(); s.addRange(r); })(document.getSelection(), document.createRange())');
+    await page.type('9');
+    check(await shown(page) === '92 + 34', t + 'a 9 over the 1 of 12 + 34 leaves 92 + 34', await shown(page));
+    await page.calc('(function (s, r) { r.selectNodeContents(document.querySelector("#box > span:not(.calc-cursor)"));' +
+        ' s.removeAllRanges(); s.addRange(r); })(document.getSelection(), document.createRange())');
+    await page.key('Backspace', 8);
+    check(await shown(page) === '2 + 34', t + 'and DEL takes the 9 out', await shown(page));
+    await page.type('\r');
+    check(await value(page) === 36, t + 'which = works out', await shown(page));
+
+    // a result is replaced by a digit anyway, and what Ctrl+A selected does not take in the next key
+    await page.calc('document.getSelection().selectAllChildren(document.body)');
+    await page.type('78');
+    check(await shown(page) === '78', t + 'two digits over a selected result are one number', await shown(page));
+
+    // the keys of the calculator do the same as the keyboard
+    await page.calc('document.getSelection().selectAllChildren(document.body)');
+    await page.click('.calc-right > :first-child');
+    check(await shown(page) === '7', t + 'a click on 7 over a selected number replaces it', await shown(page));
+    await page.type('5');
+    await page.calc('document.getSelection().selectAllChildren(document.body)');
+    await page.click('#del');
+    check(await shown(page) === '0', t + 'and a click on DEL clears it', await shown(page));
+
+    // a line too long for the display: a drag selects in it, as in a short one; held still for a moment first, it slides
+    async function drag(dx, hold, stay) { // from the middle of the display
+        var p = await page.at('#box');
+        await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p[0], y: p[1] });
+        await page.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p[0], y: p[1], button: 'left', buttons: 1, clickCount: 1 });
+        await sleep(hold);
+        for (var i = 1; i <= 4; i++) {
+            await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p[0] + dx * i / 4, y: p[1], button: 'left', buttons: 1 });
+        }
+        await sleep(stay || 0);
+        await page.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p[0] + dx, y: p[1], button: 'left', clickCount: 1 });
+        await sleep(60);
+    }
+    function slidTo() {
+        return page.calc('document.getElementById("box").scrollLeft');
+    }
+    function selected() {
+        return page.calc('document.getSelection().toString()');
+    }
+    var end, text, part;
+
+    await page.type('123456789+123456789+123456789+123456789+123456789');
+    text = await shown(page);
+    end = await slidTo();
+    check(end > 0 && await page.calc('document.getElementById("box").classList.contains("calc-slide")'), t + 'a long equation does not fit', end);
+    check(await page.calc('(function (box, style) { return parseFloat(style.lineHeight) < 1.5 * parseFloat(style.fontSize) && box.offsetHeight === 46; })' +
+        '(document.getElementById("box"), getComputedStyle(document.getElementById("box")))'),
+        t + 'in its small font the line is less tall, and the shade of selected text with it; the display is as tall as ever');
+    await drag(-60, 0);
+    part = await selected();
+    check(await slidTo() === end && part.length > 2 && text.indexOf(part) > -1, t + 'a drag selects in it and the line stays', part);
+    check(await shown(page) === text, t + 'and no cursor goes in', await shown(page));
+    await page.key('Backspace', 8);
+    check((await shown(page)).length === text.length - part.length, t + 'DEL takes out what was selected so', await shown(page));
+    await page.type('\r');
+    await page.type('123456789+123456789+123456789+123456789+123456789');
+    end = await slidTo();
+    await drag(80, 600);
+    check(await slidTo() === end - 80 && await selected() === '', t + 'held still first, it slides to show more, and selects nothing',
+        await slidTo() + ' ' + await selected());
+    check(!await page.calc('document.getElementById("box").classList.contains("calc-grab")'), t + 'and the hand is gone once it is let go');
+    await drag(-400, 0, 500); // out over the left edge
+    check(await slidTo() < end - 120 && (await selected()).length > 12, t + 'at the edge the line moves along under the selection',
+        await slidTo() + ' ' + await selected());
+    await page.click('#box');
+    check(await selected() === '' && await page.calc('!!document.querySelector("#box .calc-cursor")'),
+        t + 'a click drops the selection and puts the cursor in');
+
+    // a finger slides it at once, as it scrolls a page
+    end = await slidTo();
+    await page.calc('(function (box, at) {' +
+        ' box.dispatchEvent(new PointerEvent("pointerdown", { pointerType: "touch", clientX: at, bubbles: true }));' +
+        ' document.dispatchEvent(new PointerEvent("pointermove", { pointerType: "touch", clientX: at - 50, bubbles: true }));' +
+        ' document.dispatchEvent(new PointerEvent("pointerup", { pointerType: "touch", clientX: at - 50, bubbles: true }));' +
+        ' })(document.getElementById("box"), 200)');
+    check(await slidTo() === end + 50 && await selected() === '', t + 'a finger slides the line at once', await slidTo() + ' ' + end);
+
+    // a double click selects the whole number under it, between its operators
+    async function doubleClick(n) { // on the n-th character of the display
+        var p = await page.calc('(function (walk, r, n, node) { while ((node = walk.nextNode())) {' +
+            ' if (n < node.length) { r.setStart(node, n); r.setEnd(node, n + 1); r = r.getBoundingClientRect();' +
+            ' return [r.left + r.width / 2, r.top + r.height / 2]; } n -= node.length; } })' +
+            '(document.createTreeWalker(document.getElementById("box"), NodeFilter.SHOW_TEXT), document.createRange(), ' + n + ')');
+        for (var count = 1; count < 3; count++) {
+            for (var type of ['mousePressed', 'mouseReleased']) {
+                await page.send('Input.dispatchMouseEvent', { type: type, x: p[0], y: p[1], button: 'left', clickCount: count });
+            }
+        }
+        await sleep(60);
+    }
+    await page.type('\r');
+    await page.type('123456789+123456789+123456789+123456789+123456789');
+    await doubleClick(56); // its last digit, at the end of the display
+    check(await selected() === '123456789', t + 'a double click in a long equation selects the number under it', await selected());
+    await page.fresh(at, {});
+    await page.type('12+345+6');
+    await doubleClick(6); // the 4
+    check(await selected() === '345' && await page.calc('!!document.querySelector("#box .calc-cursor")'),
+        t + 'a double click on the 4 of 12 + 345 + 6 selects 345, around the cursor the first click put in it', await selected());
+    await page.type('9');
+    check(await shown(page) === '12 + 9 + 6', t + 'and a digit goes in its place', await shown(page));
+    await doubleClick(3); // the +
+    check(await selected() === '+', t + 'on an operator it selects the operator', await selected());
+    await page.type('*');
+    check(await shown(page) === '12 × 9 + 6', t + 'which another one replaces', await shown(page));
+    await page.type('\r');
+    check(await value(page) === 114, t + 'which = works out', await shown(page));
+    await doubleClick(0);
+    check(await selected() === '114', t + 'a result is selected whole', await selected());
+    await page.type('5h2');
+    await doubleClick(0);
+    check(await selected() === '5', t + 'not the power above a number with it', await selected() + ' of ' + await shown(page));
+
+    // Cut in the menu of the display, and Ctrl+X: what Copy takes, and it is taken out
+    await page.fresh(at, {});
+    await page.calc('document.addEventListener("copy", function (e) { window.copied = e.clipboardData.getData("text/plain"); })');
+    await page.type('12+345+6');
+    await doubleClick(6);
+    await page.rightClick('#box');
+    check(await menu(page) === 'Cut|Copy|Paste|Reset all', t + 'the display has Cut once something is entered', await menu(page));
+    await pick(page, 'Cut');
+    check(await page.calc('window.copied') === '345' && await shown(page) === '12 + + 6', t + 'Cut takes the selected 345 out of 12 + 345 + 6',
+        await page.calc('window.copied') + ' | ' + await shown(page));
+    await page.type('7');
+    check(await shown(page) === '12 + 7 + 6', t + 'and the cursor is where it was', await shown(page));
+    await page.rightClick('#box');
+    await pick(page, 'Cut');
+    check(await page.calc('window.copied') === '12 + 7 + 6' && await shown(page) === '0', t + 'with nothing selected Cut takes the whole equation',
+        await page.calc('window.copied') + ' | ' + await shown(page));
+    await page.type('8+9');
+    await page.calc('document.getSelection().selectAllChildren(document.body)');
+    await page.calc('(function (data) { document.body.dispatchEvent(Object.assign(new Event("cut", { bubbles: true, cancelable: true }), ' +
+        '{ clipboardData: { setData: function (type, text) { window.cutText = text; } } })); })()');
+    check(await page.calc('window.cutText') === '8 + 9' && await shown(page) === '0', t + 'Ctrl+X cuts what is selected',
+        await page.calc('window.cutText') + ' | ' + await shown(page));
+
+    // the line above a result is not selected: a drag slides it, and a double click opens it in the display again
+    async function press(selector, dx, count) { // a press on it that goes dx along before it lets go
+        var p = await page.at(selector);
+        await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p[0], y: p[1] });
+        for (var n = 1; n <= (count || 1); n++) {
+            await page.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p[0], y: p[1], button: 'left', buttons: 1, clickCount: n });
+            if (dx) await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p[0] + dx, y: p[1], button: 'left', buttons: 1 });
+            await page.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p[0] + dx, y: p[1], button: 'left', clickCount: n });
+        }
+        await sleep(60);
+    }
+    function above() {
+        return page.calc('document.querySelector(".calc-log").textContent.trim()');
+    }
+    await page.type('123456789+123456789+123456789+123456789+123456789\r');
+    end = await page.calc('document.querySelector(".calc-log").scrollLeft');
+    check(end > 0 && await page.calc('getComputedStyle(document.querySelector(".calc-log")).userSelect') === 'none',
+        t + 'the text of the line above a result is not selected', end);
+    await press('.calc-log', 60);
+    check(await page.calc('document.querySelector(".calc-log").scrollLeft') === end - 60 && await selected() === '' && await above() !== '',
+        t + 'a drag slides it at once, selects nothing in it and does not open it',
+        await page.calc('document.querySelector(".calc-log").scrollLeft') + ' ' + await selected());
+    await sleep(500);
+    await press('.calc-log', 0);
+    check(await above() !== '' && !await page.calc('!!document.querySelector("#box .calc-cursor")'), t + 'one click does not open it');
+    await sleep(500);
+    await press('.calc-log', 0, 2);
+    check(await above() === '' && await page.calc('!!document.querySelector("#box .calc-cursor")') &&
+        (await shown(page)).replace(/\s/g, '') === '123456789+123456789+123456789+123456789+123456789' && await selected() === '',
+        t + 'a double click on it opens the equation in the display, with the cursor in it', await shown(page) + ' | ' + await selected());
+    await page.type('\r1+2\r');
+    await page.calc('document.getSelection().selectAllChildren(document.getElementById("box"))');
+    await press('.calc-log', 0, 2);
+    check(await above() === '' && await shown(page) === '1 + 2' && await selected() === '', t + 'with the result selected as well',
+        await shown(page) + ' | ' + await selected());
+}
+
 // the options turn the buttons on and off in an open calculator, by the storage
 async function options(page) {
     var t;
@@ -639,11 +1018,12 @@ async function options(page) {
 
     // MODE in the calculator: the number format here follows it. The clicks of these checks do not
     // reach into the frame on this page, so the key gets its mouse events in the frame itself
-    await page.calc('["mousedown", "mouseup"].forEach(function (type) { document.querySelector(".calc-left > :nth-child(5)")' +
+    await page.calc('["mousedown", "mouseup"].forEach(function (type) { document.querySelector(".calc-left > :nth-child(7)")' +
         '.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0 })); })');
     check(await page.until('document.getElementById("format-notation").value === "fix"'), t + 'MODE turns the format here to Fix',
         await page.ev('document.getElementById("format-notation").value'));
-    check(await page.ev('document.getElementById("format-icon").textContent') === '1500.00', t + 'and its icon',
+    check(await page.ev('document.getElementById("format-places").value') === 'auto' &&
+        await page.ev('document.getElementById("format-icon").textContent') === '1500', t + 'and its icon, with Auto places',
         await page.ev('document.getElementById("format-icon").textContent'));
 }
 
@@ -679,6 +1059,8 @@ async function options(page) {
         await modeKey(page, '/web/calc.html');
         await converter(page, '/calc.html');
         await converter(page, '/web/calc.html');
+        await menus(page, '/calc.html');
+        await menus(page, '/web/calc.html');
         await options(page);
         check(!pageErrors.length, 'no errors in the pages', pageErrors.join('\n      '));
     } catch (e) {

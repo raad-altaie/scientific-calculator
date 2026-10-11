@@ -987,31 +987,42 @@ html {
     overflow: hidden; /* nothing goes out over its rounded corners */
 }
 
+/* the line is as tall as its font asks, set with the size of the font, so the
+   shade of selected text gets smaller with it; the room above and below keeps
+   it 46px, the text in the middle */
 #box {
+    --calc-line: 46px;
+    --calc-lead: calc(23px - var(--calc-line) / 2);
     display: block;
     position: relative;
     margin-left: 8px;
-    line-height: 46px;
+    padding: var(--calc-lead) 0;
+    line-height: var(--calc-line);
     word-spacing: -0.08em;
     white-space: nowrap;
     overflow: hidden;
 }
 
-/* a line too long for the screen: hold and slide it, dots mark what is hidden */
+/* a line too long for the screen: held for a moment it slides, dots mark what is hidden */
 .calc-slide {
-    cursor: grab;
     touch-action: none;
 }
 
-.calc-slide:active {
+.calc-grab,
+.calc-log.calc-slide:active {
     cursor: grabbing;
+}
+
+/* the line above a result slides at once */
+.calc-log.calc-slide {
+    cursor: grab;
 }
 
 .calc-more-left::before,
 .calc-more-right::after {
     content: '…';
     position: absolute;
-    top: 0;
+    top: var(--calc-lead);
     background: #b6d1c2;
 }
 
@@ -1029,6 +1040,12 @@ html {
 #box sub {
     font-size: 60%;
     line-height: 0;
+}
+
+/* a root or a fraction taller than the line goes into that room before the line grows */
+#box :is(.calc-root, .calc-fr):not(:is(.calc-root, .calc-fr) *) {
+    margin-top: calc(0px - var(--calc-lead));
+    margin-bottom: calc(0px - var(--calc-lead));
 }
 
 /* the finished equation, at the right above the result */
@@ -1260,7 +1277,7 @@ html {
 /* the line clips what is past its edge: room above it, so the bar of a root
    in the top row is not cut off */
 #box:has(> .calc-fr) {
-    padding-top: 10px;
+    padding-top: calc(10px + var(--calc-lead));
     margin-top: -10px;
 }
 
@@ -1414,8 +1431,9 @@ html {
     vertical-align: middle;
 }
 
-/* MODE: four capitals, a little smaller to fit the key */
-.calc-mode {
+/* MODE: four capitals, a little smaller to fit the key. Set on the label, so a
+   press, which sets the key's own size, does not make it bigger */
+.calc-mode > div {
     font-size: 0.85em;
 }
 
@@ -1554,19 +1572,15 @@ html {
     /*    background: #3f4661;*/
 }
 
-/* the display and the line above it can be selected and copied; the boxes too */
+/* the display can be selected and copied, and the boxes too; the line above it opens in the display for that, with a double click */
 #box,
-.calc-log,
 #calculator textarea {
     -webkit-user-select: text;
     user-select: text;
 }
 
-/* text selected in the display or the line above it: a light shade only */
-#box::selection,
-#box *::selection,
-.calc-log::selection,
-.calc-log *::selection {
+/* selected text, in the display and the boxes of the panels: a light shade only */
+#calculator ::selection {
     background: rgba(31, 51, 60, 0.16);
     color: inherit;
 }
@@ -1700,7 +1714,7 @@ html {
     line-height: 0;
 }
 
-/* the menu of a right click: Copy and Paste, in the colours of the history */
+/* the menu of a right click, in the colours of the history */
 .calc-menu-box {
     position: absolute;
     z-index: 5;
@@ -1713,6 +1727,7 @@ html {
     font: 14px 'Play', 'Russo One', sans-serif;
     color: #d3d9e2;
     text-align: left;
+    white-space: nowrap;
     -webkit-user-select: none;
     user-select: none;
 }
@@ -1730,6 +1745,17 @@ html {
 .calc-menu-box > div:hover {
     background: #52687d;
     color: #fff;
+}
+
+/* what cannot be done now: Cut with nothing selected */
+.calc-menu-box > .calc-off {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.calc-menu-box > .calc-off:hover {
+    background: none;
+    color: inherit;
 }
 
 .calc-blank {

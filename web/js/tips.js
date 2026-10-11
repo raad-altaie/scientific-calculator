@@ -100,6 +100,14 @@
             k: 'Delete'
         },
 
+        // the ? beside the name
+        'help': {
+            t: 'Help and options',
+            d: 'What each key does and its keyboard shortcut, and the options: the panels, the number format ' +
+                'and the order of the function keys.',
+            k: ''
+        },
+
         // the formulas and constants
         'formulas': {
             t: 'Formulas and constants',
@@ -248,7 +256,8 @@
             t: 'Number format',
             d: 'Goes on to the next way of showing results: Normal, Fix (1500.00), Sci (1.50e+3), Eng (1.50e+3 in ' +
                 'steps of three) and Normal again. The display shows FIX 2, SCI 2 or ENG 2; the decimal places are ' +
-                'set on the options page.',
+                'set on the options page. With Auto places, the first choice, it shows SCI or ENG and as many digits ' +
+                'as each result needs (1.5e+3), and Fix is as Normal.',
             k: 'o'
         },
         'a/b': {
