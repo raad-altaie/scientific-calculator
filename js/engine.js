@@ -16,7 +16,7 @@
         ANGLE = /^(sin|cos|tan)(-1)?$/, // functions whose result depends on Deg or Rad
         RANK = {
             '=': 0, '+': 1, '–': 1, '×': 2, '÷': 2, 'mod': 2,
-            'nCr': 2.5, 'nPr': 2.5, 'gcd': 2.5, 'lcm': 2.5, 'yx': 3, 'x√y': 3, 'EE': 3
+            'nCr': 2.5, 'nPr': 2.5, 'gcd': 2.5, 'lcm': 2.5, 'yx': 3, 'x√y': 3, 'logy': 3, 'EE': 3
         },
         SYMBOL = { 'x2': '<sup>2</sup>', 'x3': '<sup>3</sup>', 'x!': '!', '%': '%' },
         NAME = {
@@ -25,6 +25,7 @@
             'log2': 'log<sub>2</sub>'
         },
         SUPER = '⁰¹²³⁴⁵⁶⁷⁸⁹⁻', // superscript digits and minus, in plain text
+        SUB = '₀₁₂₃₄₅₆₇₈₉', // subscript digits, for the base of a logarithm
         WORDS = { // function names in pasted text
             'sin': 'sin', 'cos': 'cos', 'tan': 'tan', 'sinh': 'sinh', 'cosh': 'cosh', 'tanh': 'tanh',
             'asin': 'sin-1', 'acos': 'cos-1', 'atan': 'tan-1', 'asinh': 'sinh-1', 'acosh': 'cosh-1', 'atanh': 'tanh-1',
@@ -48,6 +49,8 @@
         marks = null, // printing for editing: computed numbers are put here whole, a mark stands in for each
         stacking = false, // printing for fraction mode: a division is drawn as a fraction, one part over the other
         MARK = /^\uE000(\d+)\uE001/,
+        // an angle in degrees, minutes and seconds: 12°30′15″, 12°30'15", 51°30′26″N
+        DMS = /^(\d+\.?\d*|\.\d+)\s*°(?:\s*(\d+\.?\d*|\.\d+)\s*['′’](?!['′’]))?(?:\s*(\d+\.?\d*|\.\d+)\s*(?:["″”]|['′’]{2}))?(?:\s*([NSEW])(?![a-zA-Z]))?/,
         UNARY = { // t: how the key is printed, f: how it is computed
             '1/x': { t: 'inv', f: function (x) { return arith('÷', 1, x); } },
             'x2': { t: 'post', f: function (x) { return tidy(arith('×', x, x)); } },
@@ -55,6 +58,7 @@
             'x!': { t: 'post', f: factorial },
             'ex': { t: 'pow', base: 'e', f: function (x) { return Math.exp(x); } },
             '2x': { t: 'pow', base: '2', f: function (x) { return Math.pow(2, x); } },
+            '10x': { t: 'pow', base: '10', f: function (x) { return timesTen(1, x); } },
             '√': { t: 'fn', f: function (x) { return Math.sqrt(x); } },
             'log': { t: 'fn', f: function (x) { return Math.log10(x); } },
             'ln': { t: 'fn', f: function (x) { return Math.log(x); } },
@@ -196,16 +200,19 @@
         return sign * (r > 45 ? 1 / Math.tan((90 - r) * PI / 180) : Math.tan(r * PI / 180)) || 0;
     }
 
-    // radians that are a whole number of degrees within rounding (π ÷ 6, 2 × π)
+    // The unit of an angle, deg: Rad (0 or false), Deg (1 or true) or Grad (2),
+    // 400 to a full turn. Gradians are worked out as degrees, so sin 100 is 1.
+    // Radians that are a whole number of degrees within rounding (π ÷ 6, 2 × π)
     // are computed as those degrees, so they give the same exact results
     function trig(x, deg, inDegrees, inRadians) {
         var d = deg ? x : x * 180 / PI, n = Math.round(d);
+        if (deg === 2) return inDegrees(x % 400 * 9 / 10);
         if (deg) return inDegrees(x);
         return Math.abs(d) <= 1e6 && Math.abs(d - n) <= 1e-15 * Math.max(1, Math.abs(d)) ? inDegrees(n) : inRadians(x);
     }
 
     function fromRad(x, deg) {
-        return deg ? tidy(x * 180 / PI) : x;
+        return deg === 2 ? tidy(x * 200 / PI) : deg ? tidy(x * 180 / PI) : x;
     }
 
     // gamma function, Lanczos approximation (g = 607/128, 15 terms); checked
@@ -307,6 +314,16 @@
         return Math.floor(b) === b && Math.abs(b) < 400 && s.indexOf('e') < 0 ? Number(s + 'e' + b) : a * Math.pow(10, b);
     }
 
+    // the logarithm of a to base b: 8 logy 2 = 3. A power of the base gives its
+    // whole exponent, as 243 logy 3 = 5, not 4.999999999999999
+    function logBase(a, b) {
+        var r, n;
+        if (!(a > 0) || !(b > 0) || b === 1) return NaN;
+        r = b === 10 ? Math.log10(a) : b === 2 ? Math.log2(a) : Math.log(a) / Math.log(b);
+        n = Math.round(r);
+        return Math.abs(r - n) < 1e-9 && Math.pow(b, n) === a ? n : tidy(r);
+    }
+
     function binary(op, a, b) {
         switch (op) {
             case '+':
@@ -315,6 +332,7 @@
             case '÷': return arith(op, a, b);
             case 'yx': return tidy(Math.pow(a, b));
             case 'x√y': return nthRoot(a, b);
+            case 'logy': return logBase(a, b);
             case 'EE': return timesTen(a, b);
             case 'nCr': return choose(a, b, false);
             case 'nPr': return choose(a, b, true);
@@ -324,8 +342,26 @@
         }
     }
 
-    function newLevel() {
-        return { stack: [], rep: null }; // rep: last operator and operand, for repeating '='
+    // fn: the function a tan-first key opened this level for, worked out on it when it closes
+    function newLevel(fn) {
+        var lvl = { stack: [], rep: null }; // rep: last operator and operand, for repeating '='
+        if (fn) lvl.fn = fn;
+        return lvl;
+    }
+
+    // keys that go before their number when functions come first: tan 45 ), not 45 tan.
+    // x², x!, 1/x and % stay after it, as on other calculators
+    function opens(key) {
+        return !!UNARY[key] && (UNARY[key].t === 'fn' || UNARY[key].t === 'pow');
+    }
+
+    // a function key worked out on an operand, its value and node; the functions of
+    // an angle remember the unit, for the history. Of an error it is an error, as
+    // when = closes tan(ln(0 and sin of degrees would make 0 of it
+    function applied(key, arg, deg) {
+        var val = isFinite(arg.val) ? UNARY[key].f(arg.val, deg) : NaN, node = bounded(unaryNode(key, arg.node), val);
+        if (ANGLE.test(key) && node.t === 'fn') node.deg = deg === 2 ? 2 : deg ? 1 : 0; // short, as DEL keeps many copies
+        return { val: val, node: node };
     }
 
     // typed numbers keep their digits as entered, computed ones are shortened when printed
@@ -426,11 +462,32 @@
             wrap(n.l) + '^(1/' + wrap(n.r) + ')';
     }
 
+    // a logarithm to any base, its base below: log₂(8). As text, a whole base is
+    // written in subscript digits; any other, or one still awaited, goes after
+    // the number as the key is pressed: 8 logᵧ 2.5, so the text reads back in
+    function logarithm(n) {
+        var arg = n.l.t === 'group' ? n.l.arg : n.l, base;
+        if (!plainText) return 'log<sub>' + (n.r ? show(n.r) : 'y') + '</sub>(' + show(arg) + ')';
+        base = n.r && n.r.t === 'num' && (n.r.typed || !marks) ? text(n.r) : '';
+        if (/^\d+$/.test(base)) {
+            return 'log' + base.replace(/\d/g, function (d) { return SUB.charAt(d); }) + '(' + show(arg) + ')';
+        }
+        return wrap(n.l) + ' logᵧ' + (n.r ? ' ' + wrap(n.r) : '');
+    }
+
     // a division drawn as a fraction; the parts need no brackets of their own.
     // An empty bottom is the part still to be entered
     function stack(top, bottom) {
         return '<span class="calc-fr"><span>' + top + '</span>' +
             (bottom ? '<span>' + bottom + '</span>' : '<span class="calc-fr-empty"></span>') + '</span>';
+    }
+
+    // how a function opened before its number starts: tan(, √(, e^(
+    function opener(key) {
+        var u = UNARY[key];
+        if (u.t === 'pow') return u.base + '^';
+        if (key === '√') return plainText ? '√' : '<span class="calc-sq">√</span>'; // drawn, as in the edited line
+        return tags(NAME[key] || key);
     }
 
     function show(n) {
@@ -448,10 +505,11 @@
             case 'inv': return '1/' + wrap(n.arg);
             case 'pow': return n.base + '^' + wrap(n.arg);
             case 'group': return '(' + show(n.arg) + ')';
-            case 'open': return '(' + (n.arg ? show(n.arg) : ''); // bracket still open
+            case 'open': return (n.fn ? opener(n.fn) : '') + '(' + (n.arg ? show(n.arg) : ''); // bracket still open
         }
         // binary; n.r is missing while the second operand is still awaited
         if (n.op === 'x√y') return radical(n);
+        if (n.op === 'logy') return logarithm(n);
         if (n.op === 'yx') return wrap(n.l) + '^' + (n.r ? wrap(n.r) : '');
         if (n.op === 'EE') return wrap(n.l) + 'E' + (n.r ? (n.r.t === 'num' ? text(n.r) : wrap(n.r)) : '');
         l = rank(n.l) < RANK[n.op] ? '(' + show(n.l) + ')' : show(n.l);
@@ -480,6 +538,11 @@
         });
     }
 
+    // true for a token an operator can follow: a number, π, a closing bracket, x², 5!
+    function operand(t) {
+        return !!t && (t.t === 'num' || t.t === 'const' || t.t === 'sup' || (t.t === 'op' && /^[)!%]$/.test(t.v)));
+    }
+
     // the pieces of an expression in text. table: the numbers that marks
     // stand for, when the text was printed for editing
     function tokens(s, table) {
@@ -491,6 +554,9 @@
                 // skipped
             } else if (table && (m = MARK.exec(s))) {
                 out.push({ t: 'num', v: table[m[1]], whole: true });
+            } else if ((m = DMS.exec(s))) { // in degrees: sin, cos and tan of it are worked out in Deg
+                out.push({ t: 'num', v: String((/[SW]/.test(m[4]) ? -1 : 1) * (+m[1] + (m[2] || 0) / 60 + (m[3] || 0) / 3600)),
+                    whole: true, angle: true });
             } else if ((m = /^(\d+\.?\d*|\.\d+)/.exec(s))) {
                 out.push({ t: 'num', v: m[0] });
             } else if (prev && (prev.t === 'num' || prev.v === ')') &&
@@ -504,6 +570,11 @@
             } else if (c === '∛') {
                 out.push({ t: 'sup', v: '3' }, { t: 'op', v: '√' });
                 m = [c];
+            } else if ((m = /^log([₀₁₂₃₄₅₆₇₈₉]+|ᵧ)/.exec(s))) {
+                if (m[1] === '₂') out.push({ t: 'fn', v: 'log2' });
+                else if (m[1] !== 'ᵧ') out.push({ t: 'fn', v: 'logy', b: m[1].replace(/./g, function (d) { return SUB.indexOf(d); }) });
+                else if (operand(prev)) out.push({ t: 'op', v: 'logy', c: 'logᵧ' }); // 8 logᵧ 2
+                else out.push({ t: 'fn', v: 'logy', b: null }); // logᵧ(8), its base still awaited
             } else if ((m = /^log(₂|2(?=\s*\()|10(?=\s*\())/i.exec(s))) {
                 out.push({ t: 'fn', v: m[1] === '10' ? 'log' : 'log2' });
             } else if ((m = /^[a-zA-Z]+/.exec(s))) {
@@ -531,6 +602,17 @@
         return out;
     }
 
+    // true if a number in n was written in degrees: 30°, 12°30′
+    function angled(n) {
+        return !!n && (!!n.angle || angled(n.arg) || angled(n.l) || angled(n.r));
+    }
+
+    // true for a text that is one angle in degrees, minutes and seconds alone: 12°30′15″, -12°30′
+    function angleAlone(s) {
+        var t = tokens(separators(String(s).trim()));
+        return !!t && (t.length === 1 ? !!t[0].angle : t.length === 2 && t[0].v === '-' && !!t[1].angle);
+    }
+
     // false if the pasted text stops inside n
     function whole(n) {
         return !n ? false : n.t === 'group' ? !n.open : n.t === 'bin' ? whole(n.r) : n.arg ? whole(n.arg) : true;
@@ -555,6 +637,16 @@
             return n;
         }
 
+        // the bracket of function f the text leaves open, "sin(30": closed as '=' would close
+        // it, and f marked, so typing it again tan-first leaves it open
+        function shut(n, f) {
+            if (n.t === 'group' && n.open && whole(n.arg)) {
+                n.open = false;
+                f.open = true;
+            }
+            return n;
+        }
+
         function signed(v) {
             return v.charAt(0) === '-' ? { t: 'neg', arg: { t: 'num', v: v.slice(1) } } : { t: 'num', v: v };
         }
@@ -575,7 +667,7 @@
         }
 
         function primary() {
-            var t = toks[i++], n, key;
+            var t = toks[i++], n, f;
             if (!t) throw BAD;
             if (t.t === 'num' || t.t === 'const') return t;
             if (t.t === 'op' && t.v === '(') {
@@ -588,13 +680,22 @@
                 if (!end()) throw BAD;
                 return { t: 'group', arg: n, open: true };
             }
-            if (t.t === 'fn') {
-                key = /^(sin|cos|tan)h?$/.test(t.v) && inverse() ? t.v + '-1' : t.v;
+            if (t.t === 'fn' && t.v === 'logy') { // log₂(8): the number, then its base
                 n = is('(') ? primary() : postfix();
-                if (n.open && whole(n.arg)) n.open = false; // "sin(30": closed like '=' would
-                return { t: 'fn', key: key, arg: need(n) };
+                if (n.t === 'group') n = n.arg;
+                return { t: 'bin', op: 'logy', l: need(n), r: t.b === null ? null : { t: 'num', v: t.b } };
             }
-            if (t.t === 'op' && t.v === '√') return { t: 'fn', key: '√', arg: need(postfix()) };
+            if (t.t === 'fn') {
+                f = { t: 'fn', key: /^(sin|cos|tan)h?$/.test(t.v) && inverse() ? t.v + '-1' : t.v };
+                f.arg = need(shut(is('(') ? primary() : postfix(), f));
+                if (/^(sin|cos|tan)$/.test(f.key) && angled(f.arg)) f.deg = 1; // sin(30°) is 0.5 in Rad as well
+                return f;
+            }
+            if (t.t === 'op' && t.v === '√') {
+                f = { t: 'fn', key: '√' };
+                f.arg = need(shut(postfix(), f));
+                return f;
+            }
             if (t.t === 'sup' && is('√')) { // ³√8
                 i++;
                 n = need(postfix());
@@ -620,10 +721,18 @@
         }
 
         function power() {
-            var n = postfix(), op, r;
+            var n = postfix(), op, r, f;
+            if (is('logy')) { // 8 logᵧ 2, as the key is pressed
+                i++;
+                return { t: 'bin', op: 'logy', l: need(n), r: end() ? null : unary() };
+            }
             if (!is('^') && !is('EE')) return n;
             op = toks[i++].v === '^' ? 'yx' : 'EE';
-            if (op === 'yx' && n.t === 'const' && n.v === 'e') return { t: 'fn', key: 'ex', arg: need(unary()) };
+            if (op === 'yx' && n.t === 'const' && n.v === 'e') {
+                f = { t: 'fn', key: 'ex' };
+                f.arg = need(shut(unary(), f));
+                return f;
+            }
             r = end() ? null : unary();
             if (op === 'yx' && r && r.t === 'group' && r.arg && r.arg.t === 'bin' && r.arg.op === '÷' && r.arg.r &&
                 r.arg.l.t === 'num' && +r.arg.l.v === 1) { // 8^(1/3) is the root, so ³√-8 stays -2
@@ -686,7 +795,7 @@
     function units(n, found) {
         found = found || {};
         if (n) {
-            if (n.deg !== undefined) found[n.deg ? 'Deg' : 'Rad'] = true;
+            if (n.deg !== undefined) found[n.deg === 2 ? 'Grad' : n.deg ? 'Deg' : 'Rad'] = true;
             units(n.arg, found);
             units(n.l, found);
             units(n.r, found);
@@ -710,9 +819,9 @@
             case 'num': return { t: 'num', v: n.v, whole: !n.typed }; // a computed number is not typed
             case 'const': return { t: 'const', v: n.name };
             case 'fn': return { t: 'fn', key: n.name, arg: typable(n.arg), deg: n.deg };
-            case 'post': return { t: 'post', key: n.op, arg: typable(n.arg) };
+            case 'post': return { t: 'post', key: n.op, arg: typable(n.arg), share: n.share };
             case 'inv': return { t: 'fn', key: '1/x', arg: typable(n.arg) };
-            case 'pow': return { t: 'fn', key: n.base === 'e' ? 'ex' : '2x', arg: typable(n.arg) };
+            case 'pow': return { t: 'fn', key: n.base === 'e' ? 'ex' : n.base + 'x', arg: typable(n.arg) };
             case 'neg': return { t: 'neg', arg: typable(n.arg) };
             case 'group': return { t: 'group', arg: typable(n.arg), open: !!n.auto }; // '=' closes it again
         }
@@ -732,9 +841,10 @@
             case 'num': return t.whole ? short(t.v) : t.v;
             case 'const': return t.v;
             case 'sup': return '<sup>' + t.v + '</sup>';
-            case 'fn': return NAME[t.v] || t.v;
+            case 'fn': return t.v === 'logy' ? 'log<sub>' + (t.b === null ? 'y' : t.b) + '</sub>' : NAME[t.v] || t.v;
         }
         if (t.v === 'EE') return 'E';
+        if (t.v === 'logy') return ' log<sub>y</sub> ';
         if (t.v === '√') return '<span class="calc-sq">√</span>'; // drawn, as the √ of the font reads as a V
         if (t.v === '-') return t.c === '-' ? '-' : ' – '; // a sign, or a subtraction
         if (t.v === '÷' && t.c === '/') return '/';
@@ -747,7 +857,9 @@
 
     // the shown text of a piece: the superscripts as characters
     function untag(s) {
-        return s.replace(/<sub>2<\/sub>/g, '₂').replace(/<sup>(-?\d+|x)<\/sup>/g, function (m, d) {
+        return s.replace(/<sub>(\d+|y)<\/sub>/g, function (m, d) {
+            return d === 'y' ? 'ᵧ' : d.replace(/./g, function (c) { return SUB.charAt(c); });
+        }).replace(/<sup>(-?\d+|x)<\/sup>/g, function (m, d) {
             return d === 'x' ? 'ˣ' : d.replace(/./g, function (c) { return SUPER.charAt('0123456789-'.indexOf(c)); });
         }).replace(/<[^>]+>/g, '');
     }
@@ -816,11 +928,12 @@
         else if (key === 'x!') p = [op('!')];
         else if (key === 'x2' || key === 'x3') p = [{ t: 'sup', v: key.charAt(1) }];
         else if (key === '1/x') p = [{ t: 'sup', v: '-1' }];
-        else if (key === 'π') p = [{ t: 'const', v: 'π' }];
+        else if (key === 'π' || key === 'e') p = [{ t: 'const', v: key }];
         else if (key === 'Ans' || key === 'mr' || key === 'Rand') {
             p = [{ t: 'num', v: String(key === 'Ans' ? e.ans : key === 'mr' ? e.memory : Math.random()), whole: true }];
         } else if (key === 'ex') p = [{ t: 'const', v: 'e' }, op('^'), op('(')];
-        else if (key === '2x') p = [{ t: 'num', v: '2' }, op('^'), op('(')];
+        else if (key === '2x' || key === '10x') p = [{ t: 'num', v: key.slice(0, -1) }, op('^'), op('(')];
+        else if (key === 'logy') p = [op('logy', 'logᵧ')];
         else if (key === 'x√y') p = [op('^'), op('('), { t: 'num', v: '1' }, op('÷', '/')]; // y^(1/x), read as the root
         else if (key === '√') p = [op('√'), op('(')];
         else if (UNARY[key]) p = [{ t: 'fn', v: key }, op('(')];
@@ -832,12 +945,14 @@
 
     // a computed number in Fix, Sci or Eng notation with f.places digits after
     // the point, rounded as the number reads (1.005 is 1.01); null for the
-    // usual notation, and 0 for zero in Sci and Eng. Fix shows numbers from 1e16 in Sci, as the usual one does
+    // usual notation, and 0 for zero in Sci and Eng. Fix shows numbers from 1e16 in Sci, as the usual one does.
+    // Places 'auto' gives as many digits as the number needs, up to 13 as the usual notation: Fix is then the usual one
     function format(x, f) {
-        var places = Math.max(0, Math.min(9, (f && f.places) | 0)), o, s;
-        if (!f || !/^(fix|sci|eng)$/.test(f.notation) || !isFinite(x)) return null;
+        var auto = f && f.places === 'auto', places = Math.max(0, Math.min(9, (f && f.places) | 0)), o, s;
+        if (!f || !/^(fix|sci|eng)$/.test(f.notation) || !isFinite(x) || auto && f.notation === 'fix') return null;
         if (x === 0 && f.notation !== 'fix') return '0'; // no 0.000e+0; Fix keeps its places: 0.00
-        o = { useGrouping: false, minimumFractionDigits: places, maximumFractionDigits: places };
+        o = auto ? { useGrouping: false, maximumSignificantDigits: 13 } :
+            { useGrouping: false, minimumFractionDigits: places, maximumFractionDigits: places };
         if (f.notation !== 'fix' || Math.abs(x) >= 1e16) o.notation = f.notation === 'eng' ? 'engineering' : 'scientific';
         s = new Intl.NumberFormat('en-US', o).format(x);
         return s.replace(/^-(?=[0.]*(E|$))/, '').replace(/E(-?)/, function (m, sign) { // no -0.00; 1.5e+3 as before
@@ -850,6 +965,17 @@
         return s.replace(/(?<![\d.])\d{4,}/g, function (d) {
             return d.replace(/\B(?=(\d{3})+$)/g, ',');
         });
+    }
+
+    // a number in degrees, minutes and seconds, the seconds to two places:
+    // 36.86989764584 is 36°52′11.63″, and 59.999″ is the next minute. Null for
+    // a number too large to show so
+    function dms(x) {
+        var cs, m;
+        if (!isFinite(x) || Math.abs(x) >= 1e9) return null;
+        cs = Math.round(Math.abs(x) * 360000); // in hundredths of a second
+        m = Math.floor(cs % 360000 / 6000);
+        return (x < 0 && cs ? '-' : '') + Math.floor(cs / 360000) + '°' + m + '′' + cs % 6000 / 100 + '″';
     }
 
     // a number as a fraction [top, bottom] with at most 10 digits in all, found
@@ -926,8 +1052,10 @@
     function Engine() {
         this.memory = 0;
         this.ans = 0; // the last result, for the Ans key
-        this.past = []; // finished calculations, oldest first: { node, value, frac: 1 if done in fraction mode }
+        this.past = []; // finished calculations, oldest first: { node, value, frac: 1 if done in fraction mode, dms: 1 in °′″ }
         this.fraction = false; // fraction mode is on: set by the display, kept with each calculation in the history
+        this.dms = false; // results are shown in degrees, minutes and seconds: the same
+        this.fnFirst = false; // function keys go before their number, tan 45, not 45 tan: set by the display
         this.reset();
     }
 
@@ -953,7 +1081,8 @@
 
     Engine.prototype.restore = function (snap) {
         var s = JSON.parse(snap);
-        if (!s || !s.levels || !s.levels.length || typeof s.value !== 'string') {
+        if (!s || !Array.isArray(s.levels) || !s.levels.length || typeof s.value !== 'string' ||
+            !s.levels.every(function (lvl) { return lvl && Array.isArray(lvl.stack) && (!lvl.fn || opens(lvl.fn)); })) {
             throw new Error('bad calculator state');
         }
         this.levels = s.levels;
@@ -1014,6 +1143,7 @@
         if (this.done.t === 'num') return; // "9 =" is not worth keeping
         entry = { node: this.done, value: this.value };
         if (this.fraction) entry.frac = 1; // shown as it was: fractions, or decimals
+        if (this.dms) entry.dms = 1; // or degrees, minutes and seconds
         if (last && JSON.stringify(last) === JSON.stringify(entry)) return; // the same one again
         this.past.push(entry);
         this.trimPast();
@@ -1021,8 +1151,8 @@
 
     // a calculation in the history, for showing: the equation as text with
     // <sup>/<sub> tags (stacked: its divisions drawn as fractions), as plain
-    // text, the result, and the units its angles were in ('Deg', 'Rad',
-    // 'Deg Rad' or '')
+    // text, the result, and the units its angles were in ('Deg', 'Grad', 'Rad',
+    // 'Deg Rad' … or '')
     Engine.prototype.pastLine = function (i, stacked) {
         var p = this.past[i], line;
         stacking = !!stacked;
@@ -1191,7 +1321,7 @@
         this.done = null;
     };
 
-    Engine.prototype.equals = function () {
+    Engine.prototype.equals = function (deg) {
         var lvl = this.levels[0], top, d;
         if (this.done && lvl.rep && lvl.rep.val !== null) { // repeating '='
             top = {
@@ -1207,7 +1337,12 @@
                     top = reduce(lvl.stack, '=', top.val, top.node);
                     lvl.stack = [];
                 }
-                if (d) top = { val: top.val, node: { t: 'group', arg: top.node, auto: 1 } }; // closed by '='
+                if (d && lvl.fn) {
+                    top = applied(lvl.fn, top, deg);
+                    if (!isFinite(top.val)) top.val = NaN; // an error, as the key itself would give
+                } else if (d) {
+                    top = { val: top.val, node: { t: 'group', arg: top.node, auto: 1 } }; // closed by '='
+                }
             }
             this.levels.length = 1;
         }
@@ -1223,6 +1358,13 @@
 
         this.error = false;
         this.failed = '';
+
+        // a function waiting for its number, as after tan: – starts a negative number; the
+        // keys that would take the number shown before the function wait for one of its own
+        if (lvl.fn && this.entry === 'fresh' && !st.length) {
+            if (key === '–') key = '+/–';
+            else if (RANK[key] !== undefined || key === '%' || (UNARY[key] && !(this.fnFirst && opens(key)))) return false;
+        }
 
         if (/^[\d.]$/.test(key)) {
             cur = this.entry === 'typing' ? this.value : '0';
@@ -1257,12 +1399,11 @@
             this.node = bounded({ t: 'post', op: '%', arg: arg.node }, +this.value);
             if (this.node.t === 'post' && +this.value !== cur) this.node.share = true; // not a hundredth
             this.done = null;
-        } else if (UNARY[key]) {
-            arg = this.part();
-            this.value = String(UNARY[key].f(arg.val, deg));
+        } else if (UNARY[key] && !(this.fnFirst && opens(key))) {
+            top = applied(key, this.part(), deg);
+            this.value = String(top.val);
             this.entry = 'result';
-            this.node = bounded(unaryNode(key, arg.node), +this.value);
-            if (ANGLE.test(key) && this.node.t === 'fn') this.node.deg = deg ? 1 : 0; // for the history; short, as DEL keeps many copies
+            this.node = top.node;
             this.done = null;
         } else if (key === 'π' || key === 'e' || key === 'Rand' || key === 'mr' || key === 'Ans') {
             this.value = String(key === 'π' ? PI : key === 'e' ? Math.E : key === 'Rand' ? Math.random() :
@@ -1270,11 +1411,11 @@
             this.entry = 'result';
             this.node = null; // a constant shows its digits, like any computed number
             this.done = null;
-        } else if (key === '(') {
+        } else if (key === '(' || UNARY[key]) { // a bracket, or a function before its number: tan(
             if (this.levels.length >= MAX_LEVELS) return false;
-            if (!this.done && this.entry !== 'fresh') this.operator('×'); // 5 ( means 5 × (
+            if (!this.done && this.entry !== 'fresh') this.operator('×'); // 5 ( means 5 × (, 5 tan 5 × tan(
             if (isFinite(+this.value)) {
-                this.levels.push(newLevel());
+                this.levels.push(newLevel(key === '(' ? null : key));
                 this.entry = 'fresh';
                 this.node = null;
             }
@@ -1283,12 +1424,13 @@
             if (this.levels.length < 2 || (this.entry === 'fresh' && !st.length)) return false;
             arg = this.operand();
             top = st.length ? reduce(st, '=', arg.val, arg.node) : arg;
+            top = lvl.fn ? applied(lvl.fn, top, deg) : { val: top.val, node: { t: 'group', arg: top.node } };
             this.levels.pop();
             this.value = String(top.val);
             this.entry = 'result';
-            this.node = { t: 'group', arg: top.node };
+            this.node = top.node;
         } else if (key === '=') {
-            this.equals();
+            this.equals(deg);
         } else if (key === 'C') { // clears the current number only
             this.value = '0';
             this.entry = 'fresh';
@@ -1346,12 +1488,24 @@
         }
         if (!isFinite(+this.value)) this.fail();
         else if (key === '=') this.keep();
-        this.track(snap, key);
+        this.track(snap, this.fnFirst && opens(key) ? '(' : key); // tan( is taken back as a bracket is
         return true;
     };
 
-    // enters a parsed expression the way the keys would; false if a key is refused
+    // enters a parsed expression the way the keys would; false if a key is refused.
+    // A function goes after its operand, as it does without tan-first, so it is
+    // worked out the same; only one whose bracket is still open goes first
     Engine.prototype.type = function (tree, deg) {
+        var first = this.fnFirst;
+        this.fnFirst = false;
+        try {
+            return this.typeIn(tree, deg, first);
+        } finally {
+            this.fnFirst = first;
+        }
+    };
+
+    Engine.prototype.typeIn = function (tree, deg, first) {
         var self = this, ok = true, halted = false, st = this.levels[this.levels.length - 1].stack, unit = null;
 
         // After a waiting power, root or EE the first pasted operand stays in
@@ -1361,23 +1515,26 @@
             if (unit.t !== 'bin') unit = null;
         }
 
-        function key(k, unit) { // unit: Deg (1) or Rad (0) for this key, if it has its own
+        function key(k, unit) { // unit: Grad (2), Deg (1) or Rad (0) for this key, if it has its own
             if (!ok || halted) return;
-            ok = self.press(k, unit === undefined ? deg : !!unit);
+            ok = self.press(k, unit === undefined ? deg : unit === 2 ? 2 : !!unit);
             halted = self.error; // an error ends the calculation
         }
 
-        function bracketed(n) {
+        // a bracket is left open where the text stops inside it, unless keys follow it
+        function bracketed(n, tail) {
+            var open = tail && !whole(n);
             key('(');
-            go(n);
-            if (whole(n)) key(')'); // left open where the text stops inside
+            go(n, open);
+            if (!open) key(')');
         }
 
-        function go(n) {
+        // tail: no key is pressed after this part, so a function's open bracket can stay open
+        function go(n, tail) {
             var i;
             if (n === unit) {
                 unit = null;
-                return bracketed(n);
+                return bracketed(n, tail);
             }
             switch (n.t) {
                 case 'num':
@@ -1393,31 +1550,43 @@
                     break;
                 case 'group':
                     key('(');
-                    if (n.arg) go(n.arg);
-                    if (!n.open) key(')');
+                    if (n.arg) go(n.arg, tail && n.open);
+                    if (!(tail && n.open)) key(')');
                     break;
                 case 'neg':
-                    if (n.arg.t === 'bin') bracketed(n.arg); else go(n.arg);
+                    if (n.arg.t === 'bin') bracketed(n.arg, false); else go(n.arg, false);
                     key('+/–');
                     break;
                 case 'fn':
+                    if (first && n.open && tail) { // tan(45, as tan-first typing leaves it: open again
+                        self.fnFirst = true;
+                        key(n.key);
+                        self.fnFirst = false;
+                        go(n.arg.arg, true);
+                        break;
+                    }
+                // falls through
                 case 'post': // the keys apply to the operand typed before them
-                    if (n.arg.t === 'bin' || n.arg.t === 'neg') bracketed(n.arg); else go(n.arg);
+                    // a hundredth in a function typed first, as 2 + log(1%), keeps its brackets
+                    // when the function goes after it, or the % would read as a share of the 2
+                    if (n.arg.t === 'bin' || n.arg.t === 'neg' || (n.t === 'fn' && n.arg.t === 'post' && n.arg.key === '%' &&
+                        !n.arg.share)) bracketed(n.arg, false); else go(n.arg, false);
                     key(n.key, n.deg);
                     break;
                 default: // binary; the engine sorts out the precedence itself
-                    if (n.l.t === 'bin' && RANK[n.l.op] < RANK[n.op]) bracketed(n.l); else go(n.l);
+                    if (n.l.t === 'bin' && RANK[n.l.op] < RANK[n.op]) bracketed(n.l, false); else go(n.l, false);
                     key(n.op);
-                    if (n.r && n.r.t === 'bin' && RANK[n.r.op] <= RANK[n.op]) bracketed(n.r); else if (n.r) go(n.r);
+                    if (n.r && n.r.t === 'bin' && RANK[n.r.op] <= RANK[n.op]) bracketed(n.r, tail); else if (n.r) go(n.r, tail);
             }
         }
 
-        go(tree);
+        go(tree, true);
         return ok;
     };
 
-    // a number replaces the displayed one; an equation is entered in its place
-    Engine.prototype.paste = function (str, deg) {
+    // a number replaces the displayed one; an equation is entered in its place.
+    // whole: only a number or an equation, not the number a text starts with
+    Engine.prototype.paste = function (str, deg, whole) {
         var s = separators(String(str).trim()), n, tree, snap, hist, equals, add, e = this.edit;
         if (e) { // while editing it goes in at the cursor
             s = s.replace(/^=\s*/, '').replace(/=[^]*$/, '');
@@ -1447,6 +1616,7 @@
                 this.history = hist;
                 return false; // an equation is pasted whole or not at all
             }
+            if (whole) return false;
             n = parseFloat(s); // not an equation: as before, a text that starts with a number
         }
         return this.put(n);
@@ -1479,7 +1649,7 @@
             for (i = st.length - 1; i >= 0; i--) {
                 node = { t: 'bin', op: st[i].op, l: st[i].node, r: node };
             }
-            if (d) node = { t: 'open', arg: node };
+            if (d) node = this.levels[d].fn ? { t: 'open', fn: this.levels[d].fn, arg: node } : { t: 'open', arg: node };
         }
         return node;
     };
@@ -1566,24 +1736,93 @@
         return this.cursor(how === 'home' ? 0 : how === 'end' ? e.list.length : e.at + (how === 'left' ? -1 : 1), deg);
     };
 
-    // a click in the shown equation, chars characters from its start: the
-    // cursor goes to the nearest place between two pieces
-    Engine.prototype.point = function (chars, deg) {
-        var was = !!this.edit, e, i, sum = 0, best = 0, gap = Infinity;
-        if (!this.startEdit()) return false;
-        e = this.edit;
-        for (i = 0; i <= e.list.length; i++) {
+    // the place between two pieces nearest to chars characters from the start of the equation
+    function placeAt(list, chars) {
+        var i, sum = 0, best = 0, gap = Infinity;
+        for (i = 0; i <= list.length; i++) {
             if (Math.abs(sum - chars) < gap) {
                 gap = Math.abs(sum - chars);
                 best = i;
             }
-            if (i < e.list.length) sum += untag(html(e.list[i])).length;
+            if (i < list.length) sum += untag(html(list[i])).length;
         }
+        return best;
+    }
+
+    // a click in the shown equation, chars characters from its start: the
+    // cursor goes to the nearest place between two pieces
+    Engine.prototype.point = function (chars, deg) {
+        var was = !!this.edit, e, best;
+        if (!this.startEdit()) return false;
+        e = this.edit;
+        best = placeAt(e.list, chars);
         if (!was && best === e.list.length && !this.done && !this.error) {
             this.edit = null; // the end of the equation being entered: where it was
             return false;
         }
         return this.cursor(best, deg);
+    };
+
+    // takes what is selected out of the shown equation, from and to characters from
+    // its start, and leaves the cursor in its place. Neither given: all of it, and
+    // the display is cleared. False if there is nothing of an equation to take
+    function take(e, from, to) {
+        var was = e.edit, list, i, j;
+        if (!e.startEdit()) return false; // a result alone: the keys and a paste replace it as it is
+        list = e.edit.list;
+        i = from === undefined ? 0 : placeAt(list, from);
+        j = to === undefined ? list.length : placeAt(list, to);
+        if (i >= j) {
+            e.edit = was;
+            return false;
+        }
+        if (!i && j === list.length) {
+            e.reset();
+        } else {
+            list.splice(i, j - i);
+            e.edit.at = i;
+        }
+        return true;
+    }
+
+    // what is selected in the shown equation is replaced, as in a box of text: by
+    // what write, a paste or a key, puts in, and with none it is only taken out.
+    // At the end of the equation the keys work again as they always do.
+    // False, and nothing changes, if write refuses
+    function over(e, from, to, deg, write) {
+        var snap = e.snapshot(), hist = e.history.slice();
+        if (!take(e, from, to)) return write ? write() : false;
+        if (write && !write()) {
+            e.restore(snap);
+            e.history = hist;
+            return false;
+        }
+        if (e.edit) e.cursor(e.edit.at, deg);
+        return true;
+    }
+
+    // pasted text in place of what is selected; all of it: pasted as into a cleared display
+    Engine.prototype.pasteOver = function (str, deg, from, to) {
+        var self = this;
+        return over(this, from, to, deg, function () { return self.paste(str, deg); });
+    };
+
+    // a key pressed while a part of the equation is selected writes in its place.
+    // With all of it selected, as with a result: a key that starts a number does
+    // so in its place, and an operator or a function goes on from the equation
+    Engine.prototype.pressOver = function (key, deg, from, to) {
+        var self = this;
+        if (/^(AC|C|=|m[c+-])$/.test(key)) return this.press(key, deg); // these write nothing
+        if (from === undefined && !/^([\d.π(]|e|Ans|mr|Rand)$/.test(key)) {
+            if (this.edit) this.cursor(this.edit.list.length, deg);
+            return this.press(key, deg);
+        }
+        return over(this, from, to, deg, function () { return self.press(key, deg); });
+    };
+
+    // DEL takes out what is selected; false if nothing of the equation is
+    Engine.prototype.cut = function (from, to, deg) {
+        return over(this, from, to, deg);
     };
 
     Engine.prototype.insert = function (key) {
@@ -1608,6 +1847,8 @@
     Engine.format = format;
     Engine.group = group;
     Engine.fraction = shownFraction;
+    Engine.dms = dms;
+    Engine.angleAlone = angleAlone;
 
     root.CalcEngine = Engine;
     if (typeof module !== 'undefined' && module.exports) {

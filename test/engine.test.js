@@ -139,6 +139,22 @@ var cases = [
     ['1 tan-1', Math.PI / 4, 'tan<sup>-1</sup>(1)'],
     ['1 sinh-1', Math.asinh(1), 'sinh<sup>-1</sup>(1)'],
     ['8 log2', '3', 'log<sub>2</sub>(8)'],
+    // in gradians, 400 to a full turn, the same exact values as in degrees
+    ['1 0 0 sin', '1', 'sin(100)', 2],
+    ['2 0 0 cos', '-1', 'cos(200)', 2],
+    ['3 0 0 sin', '-1', 'sin(300)', 2],
+    ['4 0 0 cos', '1', 'cos(400)', 2],
+    ['5 0 tan', '1', 'tan(50)', 2],
+    ['1 0 0 tan', 'Error', 'tan(100)', 2],
+    ['5 0 sin', Math.SQRT1_2, 'sin(50)', 2],
+    ['4 5 0 sin', Math.SQRT1_2, 'sin(450)', 2],
+    ['1 0 0 +/– sin', '-1', 'sin(-100)', 2],
+    ['1 0 sin', Math.sin(Math.PI / 20), 'sin(10)', 2],
+    ['1 sin-1', '100', 'sin<sup>-1</sup>(1)', 2],
+    ['0 cos-1', '100', 'cos<sup>-1</sup>(0)', 2],
+    ['1 tan-1', '50', 'tan<sup>-1</sup>(1)', 2],
+    ['0 . 5 sin-1', 100 / 3, 'sin<sup>-1</sup>(0.5)', 2],
+    ['1 0 0 sinh', Math.sinh(100), 'sinh(100)', 2],
     ['1 0 0 0 log', '3', 'log(1000)'],
     ['9 √', '3', '√(9)'],
     ['( 2 + 3 ) sin', Math.sin(5), 'sin(2 + 3)'],
@@ -163,12 +179,39 @@ var cases = [
     ['2 ex', Math.exp(2), 'e^2'],
     ['3 2x', '8', '2^3'],
     ['1 +/– ex', Math.exp(-1), 'e^(-1)'],
+    ['3 10x', '1000', '10^3'],
+    ['3 +/– 10x', '0.001', '10^(-3)'],
+    ['0 . 5 10x', Math.sqrt(10), '10^0.5'],
+    ['1 0 0 0 log 10x', '1000', '10^log(1000)'],
+    ['4 0 0 10x', 'Error', '10^400'],
+
+    // the logarithm to any base: the number, then the base
+    ['8 logy 2 =', '3', 'log<sub>2</sub>(8) ='],
+    ['2 4 3 logy 3 =', '5', 'log<sub>3</sub>(243) ='],
+    ['1 0 0 0 logy 1 0 =', '3', 'log<sub>10</sub>(1000) ='],
+    ['0 . 1 2 5 logy 2 =', '-3', 'log<sub>2</sub>(0.125) ='],
+    ['8 logy 2 . 5 =', Math.log(8) / Math.log(2.5), 'log<sub>2.5</sub>(8) ='],
+    ['8 logy', '8', 'log<sub>y</sub>(8)'],
+    ['8 logy 2', '2', 'log<sub>2</sub>(8)'],
+    ['2 + 8 logy 2 × 2 =', '8', '2 + log<sub>2</sub>(8) × 2 ='],
+    ['( 2 + 6 ) logy 2 =', '3', 'log<sub>2</sub>(2 + 6) ='],
+    ['8 logy ( 1 + 1 ) =', '3', 'log<sub>(1 + 1)</sub>(8) ='],
+    ['2 yx 3 logy 2 =', '3', 'log<sub>2</sub>(2^3) ='],
+    ['8 logy 1 =', 'Error', 'log<sub>1</sub>(8) ='],
+    ['8 logy 0 =', 'Error', 'log<sub>0</sub>(8) ='],
+    ['8 logy 2 +/– =', 'Error', 'log<sub>-2</sub>(8) ='],
+    ['8 +/– logy 2 =', 'Error', 'log<sub>2</sub>(-8) ='],
+    ['0 logy 2 =', 'Error', 'log<sub>2</sub>(0) ='],
 
     // constants
     ['2 × π', String(Math.PI), '2 × 3.14159265359'],
     ['2 × π =', 2 * Math.PI, '2 × 3.14159265359 ='],
     ['π', String(Math.PI), '3.14159265359'],
     ['π 5', '5', '5'],
+    ['e', String(Math.E), '2.718281828459'],
+    ['2 × e =', 2 * Math.E, '2 × 2.718281828459 ='],
+    ['e ln', '1', 'ln(2.718281828459)'],
+    ['e 5', '5', '5'],
 
     // sign
     ['5 +/–', '-5', '-5'],
@@ -443,6 +486,8 @@ dels.forEach(function (c) {
     e.press('=');
     check(state(e) === '44 | 2 + 42 =', 'paste is used as the operand', state(e));
     check(!e.paste('abc') && state(e) === '44 | 2 + 42 =', 'non numeric paste is ignored', state(e));
+    check(!e.paste('42abc', false, true) && state(e) === '44 | 2 + 42 =', 'whole: not the number a text starts with', state(e));
+    check(e.paste('6*7', false, true) && (e.press('='), e.value === '42'), 'whole: an equation still goes in', state(e));
     run(e, 'AC 2 + 3');
     e.paste('9');
     check(e.del() && state(e) === '2 | 2 +', 'DEL removes a pasted number', state(e));
@@ -500,6 +545,13 @@ dels.forEach(function (c) {
             ['2 +/– yx 2', '(-2)^2'],
             ['5 +/– x2', '(-5)²'],
             ['2 ex × 3 2x', 'e^2 × 2^3'],
+            ['3 10x + 1', '10^3 + 1'],
+            ['8 logy 2 + 1', 'log₂(8) + 1'],
+            ['( 2 + 6 ) logy 1 6', 'log₁₆(2 + 6)'],
+            ['8 logy 2 . 5', '8 logᵧ 2.5'],
+            ['8 logy ( 1 + 1 )', '8 logᵧ (1 + 1)'],
+            ['8 logy', '8 logᵧ'],
+            ['8 x2 logy 2 . 5', '(8²) logᵧ 2.5'],
             ['5 x! +/–', '-5!'],
             ['2 0 0 + 1 0 %', '200 + 10%'],
             ['( 2 + 3 ) ( 4 + 5 )', '(2 + 3) × (4 + 5)'],
@@ -560,6 +612,36 @@ dels.forEach(function (c) {
             ['log10(1000)', '3', 'log(1000)'],
             ['log2(8)', '3', 'log<sub>2</sub>(8)'],
             ['log₂(8)', '3', 'log<sub>2</sub>(8)'],
+            ['log₁₆(256)=', '2', 'log<sub>16</sub>(256) ='],
+            ['log₁₀(1000)=', '3', 'log<sub>10</sub>(1000) ='],
+            ['log₃(2+7)=', '2', 'log<sub>3</sub>(2 + 7) ='],
+            ['1 + log₅(25) × 2=', '5', '1 + log<sub>5</sub>(25) × 2 ='],
+            ['log₁₆(256', '16', 'log<sub>16</sub>(256)'],
+            ['8 logᵧ 2=', '3', 'log<sub>2</sub>(8) ='],
+            ['8 logᵧ 2.5=', Math.log(8) / Math.log(2.5), 'log<sub>2.5</sub>(8) ='],
+            ['(8²) logᵧ 2.5=', Math.log(64) / Math.log(2.5), 'log<sub>2.5</sub>(8<sup>2</sup>) ='],
+            ['8 logᵧ', '8', 'log<sub>y</sub>(8)'],
+            ['logᵧ(8)', '8', 'log<sub>y</sub>(8)'],
+            ['log₁(8)=', 'Error', 'log<sub>1</sub>(8) ='],
+            ['10^3=', '1000', '10^3 ='],
+            // degrees, minutes and seconds: a number in degrees; sin, cos and tan of it are worked out in Deg
+            ['12°30′15″', 12.504166666666666, '12.50416666667', true],
+            ['12°30\'15"', 12.504166666666666, '12.50416666667', true],
+            ['12° 30\' 15\'\'', 12.504166666666666, '12.50416666667', true],
+            ['12°30′', '12.5', '12.5', true],
+            ['45°', '45', '45', true],
+            ['-12°30′', '-12.5', '-12.5', true],
+            ['51°30′26″N', 51.50722222222222, '51.50722222222', true],
+            ['0°7′39″W', -0.1275, '-0.1275', true],
+            ['33°52′S', -(33 + 52 / 60), '-33.86666666667', true],
+            ['sin(30°)=', '0.5', 'sin(30) =', true],
+            ['sin(30°)=', '0.5', 'sin(30) ='],
+            ['cos(2×30°)=', '0.5', 'cos(2 × 30) ='],
+            ['tan(45°)+sin(30)=', 1 + Math.sin(30), 'tan(45) + sin(30) ='],
+            ['30°', '30', '30'],
+            ['12°30′15″', 12.504166666666666, '12.50416666667'],
+            ['2×45°=', '90', '2 × 45 =', true],
+            ['12°30′ + 1=', '13.5', '12.5 + 1 =', true],
             ['sin 30', 0.5, 'sin(30)', true],
             ['sin(30', 0.5, 'sin(30)', true],
             ['-(2+3)', '-5', '-(2 + 3)'],
@@ -590,7 +672,7 @@ dels.forEach(function (c) {
             ['0.003333333333333 × 2 =', 0.006666666666666, '0.003333333333333 × 2 ='],
             ['3.14159265358979323846 * 2 =', 2 * Math.PI, '3.14159265359 × 2 =']
         ],
-        e, i;
+        e, i, before;
 
     copies.forEach(function (c) {
         var a = new Engine(), b = new Engine();
@@ -654,6 +736,66 @@ dels.forEach(function (c) {
     check(e.del() && state(e) === '3 | 2 + 3', 'DEL edits a pasted equation', state(e));
     for (i = 0; i < 10 && e.del(); i++);
     check(state(e) === '0 | ', 'DEL takes a pasted equation back completely', state(e));
+
+    // a paste over what is selected in the shown equation goes in its place
+    run(e, 'AC 1 2 3');
+    e.point(1);
+    check(e.pasteOver('7') && state(e) === '7 | 7' && !e.edit, 'a paste over all of an equation with the cursor in it replaces it', state(e));
+    run(e, 'AC 2 + 3');
+    check(e.pasteOver('7') && state(e) === '7 | 7', 'and over all of an equation being entered, not only its last number', state(e));
+    run(e, 'AC 2 + 3');
+    check(e.pasteOver('4*5=') && state(e) === '20 | 4 × 5 =', 'over all of it an equation is pasted as into a cleared display', state(e));
+    run(e, 'AC 1 2 + 3 4');
+    check(e.pasteOver('5', false, 0, 2) && e.text() === '5 + 34' && e.edit && e.edit.at === 1,
+        'over the first number: the cursor is after what was pasted', e.text());
+    run(e, '=');
+    check(state(e) === '39 | 5 + 34 =', 'and = works it out', state(e));
+    run(e, 'AC 1 2 + 3 4');
+    check(e.pasteOver('5', false, 5, 7) && state(e) === '5 | 12 + 5' && !e.edit, 'over the last number: the keys go on from the end', state(e));
+    before = e.snapshot() + e.history.length;
+    check(!e.pasteOver('abc', false, 0, 2) && !e.pasteOver('abc') && e.snapshot() + e.history.length === before,
+        'text that is no equation is refused, and what was selected stays');
+    check(e.pasteOver('9', false, 3, 3) && state(e) === '9 | 12 + 9', 'nothing of it selected: pasted as without a selection', state(e));
+
+    // and so does a key: a part is written over, as in a box of text
+    run(e, 'AC 1 2 3 4 5');
+    check(e.pressOver('9', false, 1, 4) && e.text() === '195' && e.edit && e.edit.at === 2, 'a digit over the 234 of 12345 leaves 195', e.text());
+    run(e, 'AC 1 2 + 3 4');
+    check(e.pressOver('×', false, 2, 5) && e.text() === '12 × 34', 'an operator over another one', e.text());
+    run(e, '=');
+    check(state(e) === '408 | 12 × 34 =', 'which = works out', state(e));
+    run(e, 'AC 1 2 + 3 4');
+    check(e.pressOver('5', false, 5, 7) && state(e) === '5 | 12 + 5' && !e.edit, 'a digit over the last number: the keys go on from the end', state(e));
+    run(e, '6');
+    check(state(e) === '56 | 12 + 56', 'and the next digit follows it', state(e));
+    before = e.snapshot() + e.history.length;
+    check(!e.pressOver('2nd', false, 0, 2) && !e.pressOver('Deg', false, 0, 2) && e.snapshot() + e.history.length === before,
+        'a key that writes nothing leaves what is selected');
+
+    // all of it selected, as with a result: a number starts again, an operator or a function goes on
+    run(e, 'AC 1 2 3');
+    check(e.pressOver('5') && state(e) === '5 | 5', 'a digit over all of a typed number starts a new one', state(e));
+    run(e, 'AC 1 2 + 3 4');
+    check(e.pressOver('π') && same(e.value, Math.PI) && !/12/.test(e.equation()), 'π over all of an equation replaces it', state(e));
+    run(e, 'AC 1 2 + 3 4');
+    check(e.pressOver('×') && state(e) === '34 | 12 + 34 ×', 'an operator goes on from it', state(e));
+    run(e, 'AC 9');
+    check(e.pressOver('√') && state(e) === '3 | √(9)', 'a function is of the number, not of nothing', state(e));
+    run(e, 'AC 1 2 + 3 4');
+    e.point(1);
+    check(e.pressOver('+') && state(e) === '46 | 12 + 34 +' && !e.edit, 'with the cursor in it, from its end', state(e));
+    run(e, 'AC 1 2 + 3 4');
+    check(e.pressOver('=') && state(e) === '46 | 12 + 34 =', '= works it out as it is', state(e));
+
+    // DEL takes out what is selected
+    run(e, 'AC 1 2 + 3 4');
+    check(e.cut(5, 7) && state(e) === '12 | 12 +' && !e.edit, 'DEL over the last number', state(e));
+    run(e, 'AC 1 2 + 3 4');
+    check(e.cut(0, 2) && e.text().trim() === '+ 34' && e.edit.at === 0, 'over the first: the cursor is where it was', e.text());
+    run(e, 'AC 1 2 + 3 4');
+    check(e.cut() && state(e) === '0 | ', 'over all of it: the display is cleared', state(e));
+    run(e, '1 2 + 3 4');
+    check(!e.cut(3, 3) && state(e) === '34 | 12 + 34', 'nothing of it selected: nothing to take', state(e));
 })();
 
 // ---------- accuracy ---------- //
@@ -1089,7 +1231,7 @@ dels.forEach(function (c) {
 
 (function () {
     var pool = ('0 1 2 3 4 5 6 7 8 9 1 2 3 . +/– + – × ÷ + – × ÷ yx x√y EE ( ( ) ) ) = = C π e Rand Ans mr m+ ' +
-            'x2 x3 x! 1/x ex 2x sin cos tan sin-1 √ ln log log2 sinh tan-1 % %').split(' '),
+            'x2 x3 x! 1/x ex 2x 10x logy sin cos tan sin-1 √ ln log log2 sinh tan-1 % %').split(' '),
         seed = 777,
         compared = 0,
         e, f, keys, i, n, j, deg, p, before;
@@ -1101,21 +1243,21 @@ dels.forEach(function (c) {
 
     for (n = 0; n < 3000; n++) {
         e = new Engine();
-        deg = rnd() < 0.5;
+        deg = Math.floor(rnd() * 3); // Rad, Deg or Grad
         keys = [];
         for (i = 5 + Math.floor(rnd() * 40); i--;) keys.push(pool[Math.floor(rnd() * pool.length)]);
         keys.push('=');
-        keys.forEach(function (key) { e.press(key, rnd() < 0.2 ? !deg : deg); }); // the unit changes now and then
+        keys.forEach(function (key) { e.press(key, rnd() < 0.2 ? (deg + 1) % 3 : deg); }); // the unit changes now and then
         for (j = 0; j < e.past.length; j++) {
             p = e.past[j];
             f = new Engine();
             f.load(JSON.parse(JSON.stringify(e.save())));
             before = f.pastLine(j);
-            if (!f.recall(j, rnd() < 0.5)) { // in either unit: each angle comes back in its own
+            if (!f.recall(j, Math.floor(rnd() * 3))) { // in any unit: each angle comes back in its own
                 check(false, 'fuzz recall  ' + keys.join(' '), 'line ' + j + ' ' + before.text + ' was refused');
                 continue;
             }
-            f.press('=', rnd() < 0.5);
+            f.press('=', Math.floor(rnd() * 3));
             compared++;
             if (f.value !== p.value || f.equation() !== before.line) {
                 check(false, 'fuzz recall  ' + keys.join(' '),
@@ -1134,8 +1276,8 @@ dels.forEach(function (c) {
             'sin': Math.sin, 'cos': Math.cos, 'tan': Math.tan, '√': Math.sqrt, 'ln': Math.log,
             'log': Math.log10, 'sinh': Math.sinh, 'tan-1': Math.atan
         },
-        pool = ('0 1 2 3 4 5 6 7 8 9 1 2 3 . +/– + – × ÷ + – × ÷ yx x√y EE ( ( ) ) ) = C π ' +
-            'x2 x3 x! 1/x ex 2x sin cos tan √ ln log sinh tan-1 % %').split(' '),
+        pool = ('0 1 2 3 4 5 6 7 8 9 1 2 3 . +/– + – × ÷ + – × ÷ yx x√y logy EE ( ( ) ) ) = C π e ' +
+            'x2 x3 x! 1/x ex 2x 10x sin cos tan √ ln log sinh tan-1 % %').split(' '),
         seed = 12345,
         compared = 0,
         e, keys, i, n, got, want;
@@ -1155,7 +1297,7 @@ dels.forEach(function (c) {
             case 'group': return ev(n.arg);
             case 'fn': return F[n.name](ev(n.arg));
             case 'inv': return 1 / ev(n.arg);
-            case 'pow': return n.base === 'e' ? Math.exp(ev(n.arg)) : Math.pow(2, ev(n.arg));
+            case 'pow': return n.base === 'e' ? Math.exp(ev(n.arg)) : Math.pow(+n.base, ev(n.arg));
             case 'post':
                 x = ev(n.arg);
                 if (n.op === 'x2') return x * x;
@@ -1181,6 +1323,7 @@ dels.forEach(function (c) {
                 if (!ev(n.r)) return NaN;
                 return x < 0 && Math.abs(ev(n.r) % 2) === 1 ? -Math.pow(-x, 1 / ev(n.r)) : Math.pow(x, 1 / ev(n.r));
             case 'EE': x = ev(n.l); return x && x * Math.pow(10, ev(n.r)); // 0E400 is 0
+            case 'logy': return Math.log(ev(n.l)) / Math.log(ev(n.r));
         }
     }
 
@@ -1215,6 +1358,79 @@ dels.forEach(function (c) {
         }
     }
     check(compared > 1000, 'fuzz compared ' + compared + ' sequences');
+})();
+
+// ---------- degrees, minutes and seconds ---------- //
+
+[
+    [36.86989764584, '36°52′11.63″'],
+    [45, '45°0′0″'],
+    [0, '0°0′0″'],
+    [12.504166666666666, '12°30′15″'],
+    [-12.504166666666666, '-12°30′15″'],
+    [2.75, '2°45′0″'],
+    [59.99999999, '60°0′0″'], // 59.99996″ is the next minute, the next degree
+    [10.0166666, '10°1′0″'], // 59.99976″ rounds up
+    [10.016663, '10°0′59.99″'],
+    [-0.000001, '0°0′0″'], // no -0°0′0″
+    [1234.5, '1234°30′0″'],
+    [999999999.5, '999999999°30′0″'],
+    [1e9, null],
+    [NaN, null],
+    [Infinity, null]
+].forEach(function (c) {
+    check(Engine.dms(c[0]) === c[1], c[0] + ' in degrees, minutes and seconds', Engine.dms(c[0]));
+});
+
+(function () {
+    var e = new Engine(), f = new Engine();
+    e.dms = true;
+    run(e, '0 . 6 sin-1 =', true);
+    e.dms = false;
+    run(e, '2 + 3 =');
+    check(e.past[0].dms === 1 && !e.past[1].dms, 'a calculation keeps °′″ in the history', JSON.stringify(e.past));
+    f.load(JSON.parse(JSON.stringify(e.save())));
+    check(f.past[0].dms === 1, 'and so after a reload');
+    check(Engine.dms(+e.past[0].value) === '36°52′11.63″', 'its result as the history shows it', Engine.dms(+e.past[0].value));
+    e = new Engine();
+    run(e, '1 +');
+    e.startEdit();
+    check(e.paste('30°', false) && e.move('end', false) && (e.press('=', false), e.value === '31'),
+        'pasted at the cursor, 30° is 30', state(e));
+    e = new Engine();
+    check(e.paste('sin(30°)=', false) && e.value === '0.5' && e.pastLine(0).unit === 'Deg',
+        'sin(30°) in Rad is kept in the history as done in Deg', e.value + ' ' + e.pastLine(0).unit);
+    check(e.recall(0, false) && (e.press('=', false), e.value === '0.5'), 'and comes back so', state(e));
+    [['12°30′15″', true], ['-12°30′', true], [' 51°30′26″N ', true], ['30°', true], ['30° + 1', false], ['sin(30°)', false],
+        ['12.5', false], ['--12°', false], ['', false]].forEach(function (c) {
+        check(Engine.angleAlone(c[0]) === c[1], JSON.stringify(c[0]) + (c[1] ? ' is' : ' is not') + ' an angle alone');
+    });
+})();
+
+// ---------- gradians in the history ---------- //
+
+(function () {
+    var e = new Engine(), f = new Engine();
+    run(e, '1 0 0 sin =', 2);
+    run(e, '9 0 sin =', 1);
+    run(e, '1 0 0 sin + 9 0 cos =', 2);
+    check(e.pastLine(0).unit === 'Grad' && e.pastLine(1).unit === 'Deg', 'the history marks gradians',
+        e.pastLine(0).unit + ' ' + e.pastLine(1).unit);
+    f.load(JSON.parse(JSON.stringify(e.save())));
+    check(f.recall(0, false) && (f.press('=', false), f.value === '1'), 'sin(100) done in Grad comes back in Grad', state(f));
+    check(f.recall(2, 1) && (f.press('=', 1), same(f.value, 1 + Math.cos(Math.PI * 90 / 200))),
+        'a line done in Grad, recalled in Deg, is in Grad', state(f));
+    e = new Engine();
+    e.press('1', 2);
+    e.press('0', 2);
+    e.press('0', 2);
+    e.press('sin', 2);
+    e.press('+', 2);
+    e.press('3', 1);
+    e.press('0', 1);
+    e.press('sin', 1);
+    e.press('=', 1);
+    check(e.value === '1.5' && e.pastLine(0).unit === 'Deg Grad', 'one line in two units', state(e) + ' ' + e.pastLine(0).unit);
 })();
 
 // ---------- a root is drawn with a bar over what is under it ---------- //
@@ -1502,7 +1718,13 @@ dels.forEach(function (c) {
         [0.0004, 'sci', 0, '4e-4'],
         [123456, 'eng', 2, '123.46e+3'],
         [0.000123, 'eng', 3, '123.000e-6'],
-        [999999, 'eng', 2, '1.00e+6']
+        [999999, 'eng', 2, '1.00e+6'],
+        [1500, 'sci', 'auto', '1.5e+3'],
+        [123456, 'eng', 'auto', '123.456e+3'],
+        [1 / 3, 'sci', 'auto', '3.333333333333e-1'],
+        [-0.000123, 'eng', 'auto', '-123e-6'],
+        [0, 'sci', 'auto', '0'],
+        [12.5, 'fix', 'auto', null]
     ].forEach(function (c) {
         var got = Engine.format(c[0], { notation: c[1], places: c[2] });
         check(got === c[3], 'format ' + c[0] + ' ' + c[1] + ' ' + c[2], 'expected ' + c[3] + ', got ' + got);
@@ -1558,6 +1780,339 @@ dels.forEach(function (c) {
     run(e, '2 + 3 ÷ ( 4 – 1 ) × 5 1/x =');
     check(e.equation(true) === '2 + ' + fr('3', '(4 – 1)') + ' × ' + fr('1', '5') + ' =', 'parts need no brackets of their own',
         e.equation(true));
+})();
+
+// ---------- function keys before their number: tan 45 ---------- //
+
+(function () {
+    function first(keys, deg) {
+        var e = new Engine();
+        e.fnFirst = true;
+        if (keys) run(e, keys, deg);
+        return e;
+    }
+
+    function sq(s) { // the drawn √ of an open root, as it reads
+        return s.replace(/<span class="calc-sq">√(<\/span>)?/g, '√'); // the checks strip each </span>
+    }
+
+    // [keys, display value ('Error' for an error), equation line, degrees?]
+    [
+        // the function opens a bracket that ) or = closes
+        ['tan', '0', 'tan(', true],
+        ['tan 4 5', '45', 'tan(45', true],
+        ['tan 4 5 )', '1', 'tan(45)', true],
+        ['tan 4 5 =', '1', 'tan(45) =', true],
+        ['tan 4 5 ) =', '1', 'tan(45) =', true],
+        ['sin 3 0 + 6 0 ) =', '1', 'sin(30 + 60) =', true],
+        ['sin 3 0 ) + 6 0 =', '60.5', 'sin(30) + 60 =', true],
+        ['2 + tan 4 5 ) × 3 =', '5', '2 + tan(45) × 3 =', true],
+        ['2 × sin 3 0 =', '1', '2 × sin(30) =', true],
+        // nested, and closed all at once by =
+        ['sin cos 0 =', String(Math.sin(1)), 'sin(cos(0)) =', false],
+        ['sin cos 0 ) ) =', String(Math.sin(1)), 'sin(cos(0)) =', false],
+        ['sin ( 3 0 ) =', '0.5', 'sin(30) =', true],
+        ['( sin 3 0 ) =', '0.5', '(sin(30)) =', true],
+        ['√ √ 1 6 =', '2', '√(√(16)) ='],
+        // a number before the function multiplies it, as before a bracket
+        ['2 tan 4 5 =', '2', '2 × tan(45) =', true],
+        ['2 + 3 tan 4 5 =', '5', '2 + 3 × tan(45) =', true],
+        ['( 2 ) sin 3 0 =', '1', '(2) × sin(30) =', true],
+        ['π sin', String(Math.PI), '3.14159265359 × sin('],
+        // after = it starts a new calculation, and an operator goes on from the result
+        ['2 + 3 = tan 4 5 =', '1', 'tan(45) =', true],
+        ['2 + 3 = tan', '5', 'tan(', true],
+        ['2 + 3 = + 1 =', '6', '5 + 1 ='],
+        // – after the function starts a negative number; keys that take a number wait for one
+        ['tan – 4 5 =', '-1', 'tan(-45) =', true],
+        ['tan +/– 4 5 =', '-1', 'tan(-45) =', true],
+        ['tan +', '0', 'tan(', true],
+        ['tan ×', '0', 'tan(', true],
+        ['tan =', '0', 'tan(', true],
+        ['tan )', '0', 'tan(', true],
+        ['tan %', '0', 'tan(', true],
+        ['tan x2', '0', 'tan(', true],
+        ['tan x!', '0', 'tan(', true],
+        ['tan 1/x', '0', 'tan(', true],
+        ['5 + tan ÷', '5', '5 + tan('],
+        ['tan 4 5 C', '0', 'tan(', true],
+        ['tan 4 5 C =', '0', 'tan(', true],
+        ['tan 4 5 C 6 0 =', String(Math.sqrt(3)), 'tan(60) =', true],
+        // every function that opens a bracket
+        ['cos 6 0 =', '0.5', 'cos(60) =', true],
+        ['sin-1 0 . 5 =', '30', 'sin<sup>-1</sup>(0.5) =', true],
+        ['cos-1 0 . 5 =', '60', 'cos<sup>-1</sup>(0.5) =', true],
+        ['tan-1 1 =', '45', 'tan<sup>-1</sup>(1) =', true],
+        ['sinh 0 =', '0', 'sinh(0) ='],
+        ['cosh 0 =', '1', 'cosh(0) ='],
+        ['tanh 0 =', '0', 'tanh(0) ='],
+        ['sinh-1 0 =', '0', 'sinh<sup>-1</sup>(0) ='],
+        ['cosh-1 1 =', '0', 'cosh<sup>-1</sup>(1) ='],
+        ['tanh-1 0 =', '0', 'tanh<sup>-1</sup>(0) ='],
+        ['ln 1 =', '0', 'ln(1) ='],
+        ['log 1 0 0 0 =', '3', 'log(1000) ='],
+        ['log2 8 =', '3', 'log<sub>2</sub>(8) ='],
+        ['log2 8', '8', 'log<sub>2</sub>(8'],
+        ['√ 9 =', '3', '√(9) ='],
+        ['√ 9', '9', '√(9'],
+        ['√ 1 6 ) + 1 =', '5', '√(16) + 1 ='],
+        ['ex 0 =', '1', 'e^0 ='],
+        ['ex 1 + 1', '1', 'e^(1 + 1'],
+        ['ex 1 + 1 =', String(Math.exp(2)), 'e^(1 + 1) ='],
+        ['2x 1 0 =', '1024', '2^10 ='],
+        ['2x 1 0', '10', '2^(10'],
+        ['10x 3 =', '1000', '10^3 ='],
+        ['10x 3', '3', '10^(3'],
+        ['8 logy 2 =', '3', 'log<sub>2</sub>(8) ='],
+        ['log 8 ) logy 2 =', Math.log2(Math.log10(8)), 'log<sub>2</sub>(log(8)) ='],
+        ['abs – 3 =', '3', 'abs(-3) ='],
+        // the keys after their number stay there
+        ['5 x2 =', '25', '5<sup>2</sup> ='],
+        ['2 x3 =', '8', '2<sup>3</sup> ='],
+        ['5 x! =', '120', '5! ='],
+        ['4 1/x =', '0.25', '1/4 ='],
+        ['5 0 0 + 8 % =', '540', '500 + 8% ='],
+        ['tan 4 5 x2 =', '1', 'tan(45<sup>2</sup>) =', true],
+        ['8 x√y 3 =', '2', '<sup>3</sup>√8 ='],
+        ['2 yx tan 4 5 =', '2', '2^tan(45) =', true],
+        ['tan 4 EE 1 =', String(Math.tan(40)), 'tan(4E1) ='],
+        // errors are found when the bracket closes
+        ['tan 9 0 =', 'Error', 'tan(90) =', true],
+        ['tan 9 0 )', 'Error', 'tan(90)', true],
+        ['ln 0 =', 'Error', 'ln(0) ='],
+        ['√ 4 +/– =', 'Error', '√(-4) ='],
+        ['tan 9 0 = tan 4 5 =', '1', 'tan(45) =', true],
+        ['tan 4 5 AC', '0', '']
+    ].forEach(function (c) {
+        var e = first(c[0], !!c[3]), value = e.error ? 'Error' : e.value;
+        check(same(value, isNaN(+c[1]) ? c[1] : +c[1]) || value === c[1], 'tan-first  ' + c[0] + '  value', value);
+        check(sq(e.equation()) === c[2], 'tan-first  ' + c[0] + '  line', sq(e.equation()));
+    });
+
+    var e, f, g, snap;
+
+    // the unit is the one in use when the bracket closes
+    e = first('sin 3 0', false);
+    e.press(')', true);
+    check(e.value === '0.5', 'the unit in use when the bracket closes counts', e.value);
+    e = first('sin 3 0', false);
+    e.press('=', true);
+    check(e.value === '0.5' && e.past[0].node.deg === 1, 'and is kept with the history', JSON.stringify(e.past[0]));
+
+    // the open root is drawn as the edited line draws it
+    check(drawn.call(first('√ 9')) === '<span class="calc-sq">√</span>(9', 'an open √ is drawn', drawn.call(first('√ 9')));
+    check(first('√ 9').text() === '√(9', 'and copied as text', first('√ 9').text());
+    check(first('2 + sin-1 0 . 5').text() === '2 + sin⁻¹(0.5', 'an open function is copied with its bracket',
+        first('2 + sin-1 0 . 5').text());
+
+    // DEL takes the function back as it takes back a bracket
+    e = first('2 + tan 4 5 )', true);
+    var walk = [];
+    while (e.del()) walk.push(sq(e.equation()));
+    check(walk.join(' / ') === '2 + tan(45 / 2 + tan(4 / 2 + tan( / 2 + / 2 / ', 'DEL walks back through tan(',
+        walk.join(' / '));
+
+    // too many open brackets: the function waits like a bracket would
+    e = first('');
+    for (var k = 0; k < 40; k++) e.press('sin', false);
+    check(e.levels.length === 30, 'at most 30 open brackets, functions included', e.levels.length);
+    run(e, '0 =', false);
+    check(e.value === '0' && !e.error, 'and they all close at =', e.value);
+
+    // the cursor: an open function stays open when the cursor goes back to the end
+    e = first('2 + tan 4 5', true);
+    e.move('left', true);
+    check(!!e.edit && sq(e.equation()) === '2 + tan(45', 'the cursor goes into an open function', sq(e.equation()));
+    e.move('right', true);
+    check(!e.edit && sq(e.equation()) === '2 + tan(45', 'and back at the end it is still open', sq(e.equation()));
+    run(e, '+ 1 5 =', true);
+    check(same(e.value, 2 + Math.sqrt(3)) && e.equation() === '2 + tan(45 + 15) =', 'so the keys after it go inside',
+        state(e));
+    e = first('2 + sin cos 0', false);
+    e.move('home', false);
+    e.move('end', false);
+    run(e, ') + 1 =', false);
+    check(sq(e.equation()) === '2 + sin(cos(0) + 1) =', 'nested open functions stay open', sq(e.equation()));
+    e = first('√ 9', false);
+    e.move('left', false);
+    e.move('right', false);
+    run(e, '+ 7 =', false);
+    check(e.value === '4', 'an open root as well', state(e));
+    e = first('ex 1', false);
+    e.move('left', false);
+    e.move('right', false);
+    run(e, '+ 1 =', false);
+    check(same(e.value, Math.exp(2)), 'and an open e^', state(e));
+    e = first('1 + 2', false);
+    e.move('left', false);
+    run(e, 'sin', false);
+    check(sq(e.equation()) === '1 + sin(2', 'in the middle of an equation sin writes sin( as before', sq(e.equation()));
+    run(e, '=', false);
+    check(same(e.value, 1 + Math.sin(2)), 'and = works it out', state(e));
+
+    // paste: an open function stays open, as the keys would leave it
+    e = first('');
+    e.paste('sin(30', true);
+    check(e.equation() === 'sin(30', 'pasted sin(30 stays open', e.equation());
+    run(e, '+ 6 0 =', true);
+    check(e.value === '1', 'and the keys after it go inside', state(e));
+    e = first('');
+    e.paste('2×cos(60', true);
+    check(e.equation() === '2 × cos(60', 'after an operator too', e.equation());
+    e = first('');
+    e.paste('-cos(60', true);
+    run(e, '=', true);
+    check(e.value === '-0.5', 'a sign before an open function stays outside it', state(e));
+    e = first('');
+    e.paste('sin cos(0', false);
+    run(e, '=', false);
+    check(same(e.value, Math.sin(1)), 'a function before an open one is worked out on it', state(e));
+    e = first('');
+    e.paste('sin(30)', true);
+    check(e.value === '0.5' && e.equation() === 'sin(30)', 'a closed one is worked out', state(e));
+    e = first('tan', true);
+    e.paste('45', true);
+    run(e, '=', true);
+    check(e.value === '1', 'a number pasted after tan goes in its bracket', state(e));
+    e = first('tan', true);
+    e.paste('40+5', true);
+    run(e, '=', true);
+    check(e.value === '1' && e.equation() === 'tan(40 + 5) =', 'an equation as well', state(e));
+    e = new Engine();
+    e.paste('sin(30', true);
+    check(e.value === '0.5' && e.equation() === 'sin(30)', 'without tan-first a pasted sin(30 is closed as before',
+        state(e));
+    e = new Engine();
+    e.paste('√(9', false);
+    check(e.value === '3', 'and √(9 is read too', state(e));
+
+    // the history: a calculation comes back the same, in either order
+    e = first('2 + sin 3 0 ) × ln 1 =', true);
+    f = new Engine();
+    f.load(JSON.parse(JSON.stringify(e.save())));
+    f.fnFirst = true;
+    check(f.recall(0, false) && f.press('=', false) && f.value === e.value && f.equation() === e.equation(),
+        'recalled tan-first', state(f));
+    f.fnFirst = false;
+    check(f.recall(0, false) && f.press('=', false) && f.value === e.value && f.equation() === e.equation(),
+        'and recalled without it', state(f));
+
+    // saved and loaded with a function still open
+    e = first('2 + tan 4', true);
+    f = new Engine();
+    f.load(JSON.parse(JSON.stringify(e.save())));
+    check(sq(f.equation()) === '2 + tan(4', 'an open function is saved', sq(f.equation()));
+    run(f, '5 =', true);
+    check(f.value === '3', 'and closes after loading', state(f));
+    snap = JSON.parse(e.snapshot());
+    snap.levels[1].fn = 'alert';
+    g = new Engine();
+    try {
+        g.restore(JSON.stringify(snap));
+        check(false, 'a saved state with an unknown function is refused');
+    } catch (err) {
+        check(true, 'a saved state with an unknown function is refused');
+    }
+    snap.levels[1].fn = '1/x';
+    try {
+        g.restore(JSON.stringify(snap));
+        check(false, 'and with a function that does not open a bracket');
+    } catch (err) {
+        check(true, 'and with a function that does not open a bracket');
+    }
+
+    // changing the order in the middle of a calculation
+    e = first('2 + tan 4 5', true);
+    e.fnFirst = false;
+    run(e, 'x2 ) =', true);
+    check(e.equation() === '2 + tan(45<sup>2</sup>) =', 'an open function still closes after the order changes', state(e));
+    e = first('tan', true);
+    e.fnFirst = false;
+    check(!e.press('sin', true), 'a function after its number cannot take the number not typed yet');
+    e = new Engine();
+    run(e, '3 0 sin', true);
+    e.fnFirst = true;
+    run(e, '+ sin 3 0 =', true);
+    check(e.value === '1' && e.equation() === 'sin(30) + sin(30) =', 'both orders in one calculation', state(e));
+
+    // Ans and memory go into the bracket
+    e = first('2 + 3 = tan Ans + 4 0 =', true);
+    check(e.value === '1', 'Ans in the bracket', state(e));
+    e = first('4 5 m+ AC tan mr =', true);
+    check(e.value === '1', 'the memory in the bracket', state(e));
+
+    // a hundredth in a function typed first comes back from the history as a hundredth
+    e = first('2 + log 1 % =');
+    f = first();
+    f.load(JSON.parse(JSON.stringify(e.save())));
+    check(e.value === '0' && f.recall(0, false) && (f.press('=', false), f.value === '0') &&
+        f.equation() === '2 + log(1%) =', '2 + log(1%) recalled', state(f));
+
+    // fuzz: keys in any order never break the calculator, a finished line reads back to its
+    // result, a calculation from the history comes back the same, and a saved state loads the same
+    (function () {
+        var pool = ('0 1 2 3 4 5 6 7 8 9 1 2 3 . +/– + – × ÷ + – × ÷ yx x√y logy EE ( ( ) ) ) ) = C π e Ans mr m+ ' +
+                'x2 x3 x! 1/x ex 2x 10x sin cos tan sin-1 √ ln log log2 sinh tan-1 abs % % DEL ◀ ▶').split(' '),
+            seed = 4242,
+            read = 0,
+            recalled = 0,
+            n, i, keys, e, f, deg, line, p;
+
+        function rnd() {
+            seed = (seed * 1103515245 + 12345) % 2147483648;
+            return seed / 2147483648;
+        }
+
+        for (n = 0; n < 4000 && failures < 20; n++) {
+            e = first('');
+            deg = Math.floor(rnd() * 3); // Rad, Deg or Grad
+            keys = [];
+            for (i = 3 + Math.floor(rnd() * 30); i--;) keys.push(pool[Math.floor(rnd() * pool.length)]);
+            if (rnd() < 0.7) keys.push('=');
+            try {
+                keys.forEach(function (key) {
+                    if (key === 'DEL') e.del();
+                    else if (key === '◀' || key === '▶') e.move(key === '◀' ? 'left' : 'right', deg);
+                    else e.press(key, deg);
+                    f = new Engine(); // every state saves and loads as it is
+                    f.restore(e.snapshot());
+                    if (f.equation() !== e.equation()) throw new Error('loads as ' + f.equation() + ', not ' + e.equation());
+                });
+                e.text();
+            } catch (err) {
+                check(false, 'fuzz tan-first  ' + keys.join(' '), err.stack);
+                continue;
+            }
+            if (e.done && e.done.t !== 'num' && !e.error && !e.edit) { // the finished line, pasted without tan-first, gives the result
+                read++;
+                line = e.text().replace(/=$/, '');
+                f = new Engine();
+                f.paste(line, deg);
+                f.press('=', deg);
+                if (!(same(f.value, +e.value) || (f.error && !isFinite(+e.value)))) {
+                    check(false, 'fuzz tan-first read  ' + keys.join(' '), line + ' = ' + e.value + ', read back as ' + state(f));
+                }
+            }
+            for (i = 0; i < e.past.length; i++) {
+                p = e.past[i];
+                f = new Engine();
+                f.load(JSON.parse(JSON.stringify(e.save())));
+                f.fnFirst = rnd() < 0.5;
+                line = f.pastLine(i).line;
+                if (!f.recall(i, Math.floor(rnd() * 3))) {
+                    check(false, 'fuzz tan-first recall  ' + keys.join(' '), line + ' was refused');
+                    continue;
+                }
+                f.press('=', deg);
+                recalled++;
+                if (f.value !== p.value || f.equation() !== line) {
+                    check(false, 'fuzz tan-first recall  ' + keys.join(' '), line + ' ' + p.value + ' came back as ' + state(f));
+                }
+            }
+        }
+        check(read > 500, 'fuzz tan-first read back ' + read + ' finished lines');
+        check(recalled > 500, 'fuzz tan-first recalled ' + recalled + ' calculations');
+    })();
 })();
 
 console.log(failures ? failures + ' of ' + checks + ' checks failed' : 'all ' + checks + ' checks passed');

@@ -413,6 +413,28 @@ html, body {
     user-select: none;
 }
 
+/* the function keys icon shows √ 9 or 9 √ on the plain icon background, not the screen */
+.keys-icon {
+    background: #39576f;
+    border-radius: 10px;
+    color: #fff;
+    font-size: 15px;
+}
+
+/* a √ drawn as the calculator draws it, in the function keys option: the √ of the font reads as a V */
+.root-sign {
+    display: inline-block;
+    width: 0.62em;
+    height: 1.05em;
+    margin: 0 0.06em;
+    vertical-align: -0.16em;
+    overflow: hidden;
+    -webkit-text-fill-color: transparent;
+    background: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 16' preserveAspectRatio='none'%3E%3Cpath d='M0.7 9.4 L2.7 8.3 L4.5 15 L7.645 4.6' fill='none' stroke='black' stroke-width='0.9' stroke-linejoin='round' stroke-linecap='round'/%3E%3Cpath d='M7.175 4.6 L8.05 1.7 Q8.566 0 9 0 L10.3 0 L10.3 0.68 L9.7 0.68 Q9.3 0.68 9.2 1 L8.115 4.6 Z' fill='black'/%3E%3C/svg%3E") no-repeat 0 0 / 100% 100%;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 16' preserveAspectRatio='none'%3E%3Cpath d='M0.7 9.4 L2.7 8.3 L4.5 15 L7.645 4.6' fill='none' stroke='black' stroke-width='0.9' stroke-linejoin='round' stroke-linecap='round'/%3E%3Cpath d='M7.175 4.6 L8.05 1.7 Q8.566 0 9 0 L10.3 0 L10.3 0.68 L9.7 0.68 Q9.3 0.68 9.2 1 L8.115 4.6 Z' fill='black'/%3E%3C/svg%3E") no-repeat 0 0 / 100% 100%;
+}
+
 .format-row select {
     appearance: none;
     padding: 0.45em 1.9em 0.45em 0.6em;
@@ -593,7 +615,7 @@ html, body {
     flex: 1 0 auto;
     box-sizing: border-box;
     width: 100%;
-    margin: 3em auto 0;
+    margin: 2em auto 0;
     font-size: 12.5px;
 }
 
@@ -619,12 +641,71 @@ html, body {
 
 /* every section title sits the same distance below the text above it: the title's own
    margin sets the gap, so nothing at the end of a section adds to it */
-.wrapper > :not(.options) > :last-child,
-.wrapper > :not(.options) > div > :last-child {
+.wrapper > :not(.options, .tabs) > :last-child,
+.wrapper > :not(.options, .tabs) > div > :last-child {
     margin-bottom: 0;
     padding-bottom: 0;
 }
 
 .wrapper > .logo:not(.title) {
     margin-bottom: 0;
+}
+
+/* the statistics and the formulas open on a piece of the screen, so their icons are one */
+.screen-icon {
+    background: #b6d1c2;
+    border-radius: 5px;
+}
+
+.screen-icon svg {
+    stroke: #1f333c;
+}
+
+/* two tabs at the top: the options, and the guide to the calculator */
+.tabs {
+    display: flex;
+    width: max-content;
+    margin: 2em auto 3em;
+    padding: 4px;
+    gap: 4px;
+    background: #2b4753;
+    border: 1px solid #1a2f38;
+    border-radius: 10px;
+}
+
+.tab {
+    min-width: 7em;
+    padding: 0.5em 1.2em;
+    color: #acb4c1;
+    background: none;
+    border: none;
+    border-radius: 7px;
+    font: 700 1.1em 'Play', 'Russo One', sans-serif;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.tab:hover {
+    color: #fff;
+}
+
+.tab[aria-selected="true"] {
+    color: #fff;
+    background: #39576f;
+}
+
+.tab:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 1px;
+}
+
+.wrapper[data-show="options"] > [data-tab="guide"],
+.wrapper[data-show="guide"] > [data-tab="options"] {
+    display: none;
+}
+
+/* the guide starts under the tabs, as the options do */
+.tabs + .options + .features > .title:first-child {
+    margin-top: 0;
 }
