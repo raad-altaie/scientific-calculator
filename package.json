@@ -2,7 +2,7 @@
     "name": "scientific-calculator",
     "private": true,
     "scripts": {
-        "test": "node test/engine.test.js && node test/formulas.test.js && node test/ui.test.js",
+        "test": "node test/engine.test.js && node test/formulas.test.js && node test/units.test.js && node test/ui.test.js",
         "zip": "npm test && sh scripts/zip.sh"
     }
 }

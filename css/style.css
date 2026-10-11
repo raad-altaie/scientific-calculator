@@ -78,7 +78,8 @@ html {
 }
 
 /* the buttons at the top left of the display, in a row: the clock opens the
-   history, the bars the statistics, f(x) the formulas. A hidden one leaves no gap */
+   history, f(x) the formulas, the arrows the converter, the bars the statistics.
+   A hidden one leaves no gap */
 .calc-tools {
     position: absolute;
     z-index: 2;
@@ -90,7 +91,8 @@ html {
 
 .calc-hist,
 .calc-stat-btn,
-.calc-fx-btn {
+.calc-fx-btn,
+.calc-conv-btn {
     padding: 2px;
     border-radius: 4px;
     color: #1f333c;
@@ -113,14 +115,17 @@ html {
 .calc-stat-btn:hover,
 .calc-stat-btn.calc-on,
 .calc-fx-btn:hover,
-.calc-fx-btn.calc-on {
+.calc-fx-btn.calc-on,
+.calc-conv-btn:hover,
+.calc-conv-btn.calc-on {
     opacity: 0.9;
     background: #a3bdaf;
 }
 
 .calc-hist:active,
 .calc-stat-btn:active,
-.calc-fx-btn:active {
+.calc-fx-btn:active,
+.calc-conv-btn:active {
     opacity: 0.75;
 }
 
@@ -478,6 +483,242 @@ html {
 
 .calc-fx-insert:active {
     background: #31495e;
+}
+
+/* ---------- converter ---------- */
+
+/* what to convert, and the value with its unit, on pieces of display like the search */
+.calc-conv-pick,
+.calc-conv-value {
+    min-width: 0;
+    border: 0;
+    border-radius: 5px;
+    outline: none;
+    background: #b6d1c2;
+    box-shadow: 0 0 12px #36475a;
+    color: #000;
+    font: 14px/18px 'Play', 'Russo One', sans-serif;
+}
+
+/* a list, drawn as the calculator draws: what is chosen, and an arrow */
+.calc-conv-pick {
+    position: relative;
+    box-sizing: border-box;
+    padding: 5px 24px 5px 9px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%231f333c' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 9px center;
+    background-size: 10px 6px;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.calc-conv-chosen {
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.calc-conv-group {
+    margin: 4px 8px 0;
+    font-weight: 700;
+}
+
+.calc-conv-from {
+    display: flex;
+    gap: 7px;
+    margin: 7px 8px 0;
+}
+
+.calc-conv-value {
+    flex: 1;
+    padding: 5px 9px;
+    font-size: 16px;
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+.calc-conv-unit {
+    flex: 0 1 50%;
+}
+
+.calc-conv-pick:hover,
+.calc-conv-pick.calc-on {
+    background-color: #a3bdaf;
+}
+
+.calc-conv-pick:focus,
+.calc-conv-value:focus {
+    box-shadow: 0 0 0 2px #8eab9b, 0 0 12px #36475a;
+}
+
+/* the open list: a piece of display under it, at least as wide; the one of the
+   unit grows to the left, where there is room */
+.calc-conv-menu {
+    position: absolute;
+    z-index: 2;
+    top: calc(100% + 4px);
+    left: 0;
+    min-width: 100%;
+    max-height: 250px;
+    box-sizing: border-box;
+    overflow-y: auto;
+    padding: 3px;
+    border-radius: 5px;
+    background: #b6d1c2;
+    box-shadow: 0 0 0 1px #8eab9b, 0 6px 18px rgba(0, 0, 0, 0.45);
+    font-weight: 400;
+    cursor: default;
+}
+
+.calc-conv-unit .calc-conv-menu {
+    left: auto;
+    right: 0;
+    width: max-content;
+    max-width: 280px;
+}
+
+.calc-conv-menu[hidden] {
+    display: none;
+}
+
+.calc-conv-menu::-webkit-scrollbar {
+    width: 6px;
+}
+
+.calc-conv-menu::-webkit-scrollbar-thumb {
+    background: #8eab9b;
+    border-radius: 3px;
+}
+
+.calc-conv-item {
+    padding: 3px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+/* under the pointer or the arrow keys; the one chosen is bold */
+.calc-conv-item.calc-lit {
+    background: #98b3a5;
+}
+
+.calc-conv-item.calc-on {
+    font-weight: 700;
+}
+
+/* the symbol after a unit's name: (km) */
+.calc-conv-of {
+    color: #33443b;
+}
+
+.calc-conv-of sup,
+.calc-conv-chosen sup {
+    font-size: 9px;
+    line-height: 0;
+}
+
+/* not a number the calculator can read */
+.calc-conv-value.calc-bad {
+    box-shadow: 0 0 0 2px #d86672, 0 0 12px #36475a;
+}
+
+/* what to do, or why nothing is shown */
+.calc-conv-note {
+    min-height: 15px;
+    margin: 6px 12px 4px;
+    overflow: hidden;
+    color: #acb4c1;
+    font-size: 12px;
+    line-height: 15px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.calc-conv-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 8px;
+}
+
+.calc-conv-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.calc-conv-list::-webkit-scrollbar-thumb {
+    background: #6b8196;
+    border-radius: 3px;
+}
+
+/* the value in another unit: its symbol over its name, and the value; a click puts it in */
+.calc-conv-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+    padding: 4px 9px 3px;
+    border-radius: 5px;
+    background: #b6d1c2;
+    box-shadow: 0 0 12px #36475a;
+    color: #000;
+    cursor: pointer;
+}
+
+.calc-conv-row:hover {
+    background: #a3bdaf;
+}
+
+.calc-conv-row:active {
+    background: #98b3a5;
+}
+
+/* no value: nothing to put in */
+.calc-conv-row.calc-none {
+    cursor: default;
+    background: #b6d1c2;
+}
+
+.calc-conv-col {
+    flex: 0 1 auto;
+    min-width: 60px;
+}
+
+.calc-conv-sym,
+.calc-conv-name,
+.calc-conv-num {
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.calc-conv-sym {
+    font-size: 14px;
+    line-height: 18px;
+}
+
+.calc-conv-name {
+    color: #33443b;
+    font-size: 11px;
+    line-height: 14px;
+}
+
+/* the value takes the room left, and keeps its digits first */
+.calc-conv-num {
+    flex: 1 0 auto;
+    max-width: 70%;
+    margin-left: auto;
+    font-size: 17px;
+    line-height: 22px;
+    text-align: right;
+}
+
+.calc-conv-sym sup,
+.calc-conv-num sup {
+    font-size: 9px;
+    line-height: 0;
 }
 
 /* ---------- history ---------- */

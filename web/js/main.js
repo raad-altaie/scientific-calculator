@@ -23,7 +23,7 @@
         tipTimer,
         tipGone = 0, // when the last tip went, so the next one comes at once
         copying = null, // text a history button is copying, in place of the main line
-        past = document.querySelector('.calc-past:not(.calc-stats):not(.calc-fx)'), // the history, over the keys
+        past = document.querySelector('.calc-past:not(.calc-stats):not(.calc-fx):not(.calc-conv)'), // the history, over the keys
         pastList = past.querySelector('.calc-past-list'),
         pastButton = document.querySelector('.calc-hist'),
         pastShown = {}, // the history as the list shows it, so it is only built again after a change
@@ -44,6 +44,15 @@
         fxList = fx.querySelector('.calc-fx-list'),
         fxTab = 'formulas', // the list shown: formulas or constants
         fxItems = {}, // the entries of each list, with the text a search looks in
+        conv = document.querySelector('.calc-conv'), // the converter of units, over the keys
+        convButton = document.querySelector('.calc-conv-btn'),
+        convGroup = conv.querySelector('.calc-conv-group'),
+        convUnit = conv.querySelector('.calc-conv-unit'),
+        convInput = conv.querySelector('.calc-conv-value'),
+        convNote = conv.querySelector('.calc-conv-note'),
+        convList = conv.querySelector('.calc-conv-list'),
+        convAt = { g: 0, u: {} }, // the group shown, and the unit chosen in each group, by its name
+        convNow = [], // the value in each unit of the group, as the list shows them
         tools = Calc.querySelector('.calc-tools'), // the buttons at the top left of the display
         pressedKey,
         sliding, // long line being slid: its element and where the slide started
@@ -106,10 +115,10 @@
 
     // ---------------- event listeners keys ---------------- //
 
-    // typing in a box of a panel, the list of the statistics, the search or a letter
-    // of a formula, is typing there, not on the keys
+    // typing in a box of a panel, the list of the statistics, the search, a letter
+    // of a formula or a list of units, is typing there, not on the keys
     function field(el) {
-        return el === statsInput || el.tagName === 'INPUT';
+        return el === statsInput || el.tagName === 'INPUT' || el.classList.contains('calc-conv-pick');
     }
 
     document.addEventListener('keypress', function (e) {
@@ -121,6 +130,7 @@
             if (e.which === 27) { // Esc closes the panel, as the history
                 showStats(false);
                 showFx(false);
+                showConv(false);
                 e.preventDefault();
             }
             return;
@@ -184,6 +194,10 @@
         }
         if (key === 27 && fx.classList.contains('calc-open')) { // and the formulas
             showFx(false);
+            return true;
+        }
+        if (key === 27 && conv.classList.contains('calc-open')) { // and the converter
+            showConv(false);
             return true;
         }
         if (key === 27 && past.classList.contains('calc-open')) { // Esc closes the history
@@ -289,7 +303,7 @@
     // have tips as well
     tip.parentNode.addEventListener('mouseover', function (e) {
         var key = e.target.closest('.calc-left > *, .calc-right > .del-ac, .calc-rad, .calc-mem, .calc-frac, .calc-fmt, .calc-hold, ' +
-            '.calc-stat-btn, .calc-stats-tile, .calc-fx-btn, .calc-fx-row, ' +
+            '.calc-stat-btn, .calc-stats-tile, .calc-fx-btn, .calc-fx-row, .calc-conv-btn, .calc-conv-row, ' +
             '.calc-hist, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit');
         if (key === tipKey) return;
         hideTip();
@@ -299,6 +313,7 @@
 
     pastList.addEventListener('scroll', hideTip, false);
     fxList.addEventListener('scroll', hideTip, false);
+    convList.addEventListener('scroll', hideTip, false);
 
     tip.parentNode.addEventListener('mouseleave', function () {
         hideTip();
@@ -352,6 +367,8 @@
         if (el === radDeg) return CalcTips['unit ' + radDeg.firstChild.data];
         if (el === fxButton) return CalcTips[fx.classList.contains('calc-open') ? 'formulas close' : 'formulas'];
         if (fx.contains(el)) return fxTip(el);
+        if (el === convButton) return CalcTips[conv.classList.contains('calc-open') ? 'converter close' : 'converter'];
+        if (conv.contains(el)) return convTip(el);
         if (el === statsButton) return CalcTips[stats.classList.contains('calc-open') ? 'stats close' : 'stats'];
         if (stats.contains(el)) {
             if (el.classList.contains('calc-past-clear')) return CalcTips['stats clear'];
@@ -509,6 +526,9 @@
         if (fx.classList.contains('calc-open') && !fx.contains(e.target) && !fxButton.contains(e.target)) {
             showFx(false);
         }
+        if (conv.classList.contains('calc-open') && !conv.contains(e.target) && !convButton.contains(e.target)) {
+            showConv(false);
+        }
     }, true);
 
     past.querySelector('.calc-past-close').addEventListener('click', function () {
@@ -553,6 +573,7 @@
         if (open) {
             showStats(false); // one panel at a time
             showFx(false);
+            showConv(false);
             placePanel(past);
             renderPast();
         }
@@ -613,6 +634,7 @@
         if (open) {
             showPast(false);
             showFx(false);
+            showConv(false);
             placePanel(stats);
             renderStats();
         }
@@ -730,6 +752,7 @@
         if (open) {
             showPast(false);
             showStats(false);
+            showConv(false);
             placePanel(fx);
             renderFx();
         }
@@ -871,12 +894,242 @@
         };
     }
 
-    // the statistics and the formulas have their button while they are turned on in the options
-    function setPanels(statsOn, fxOn) {
+    // ---------------- converter ---------------- //
+
+    // A value in one unit, and the list of what it is in the other units of its
+    // group, worked out as it is typed. A click on one puts it into the
+    // calculation, as Ans does. The value can be an equation too: 5*12
+    picker(convGroup, function (i) {
+        convAt.g = i;
+        renderConv(true);
+        saveConv();
+    });
+
+    picker(convUnit, function (i) {
+        convAt.u[CalcUnits.units[convAt.g].c] = convUnitName(i);
+        renderConv();
+        saveConv();
+    });
+
+    convButton.addEventListener('click', function () {
+        showConv(!conv.classList.contains('calc-open'));
+    }, false);
+
+    conv.querySelector('.calc-past-close').addEventListener('click', function () {
+        showConv(false);
+    }, false);
+
+    convInput.addEventListener('input', function () {
+        renderConv();
+        saveConv();
+    }, false);
+
+    convList.addEventListener('click', function (e) {
+        var row = e.target.closest('.calc-conv-row'), value = row && convNow[+row.dataset.i];
+        if (!row || !isFinite(value) || !engine.put(+value.toPrecision(15))) return; // 2.54 cm, not 2.5399999999999996
+        keyBoard['AC'].children[0].firstChild.data = 'C';
+        showConv(false);
+        refresh();
+        saveState();
+    }, false);
+
+    // Enter puts in the first value of the list
+    convInput.addEventListener('keydown', function (e) {
+        var row = convList.querySelector('.calc-conv-row:not(.calc-none)');
+        if (e.which !== 13) return;
+        e.preventDefault();
+        if (row) row.click();
+    }, false);
+
+    // A result in the display starts the value, as in the formulas
+    function showConv(open) {
+        if (open) {
+            showPast(false);
+            showStats(false);
+            showFx(false);
+            placePanel(conv);
+            if (!engine.edit && !engine.error && (engine.done || engine.plain()) && +engine.value) {
+                convInput.value = String(+(+engine.value).toPrecision(13));
+            }
+            renderConv(true);
+        }
+        conv.classList.toggle('calc-open', open);
+        convButton.classList.toggle('calc-on', open);
+        showPicker(convGroup, false);
+        showPicker(convUnit, false);
+        if (open) {
+            convInput.focus();
+            convInput.select(); // typing replaces it
+        } else if (conv.contains(document.activeElement)) {
+            document.activeElement.blur(); // the keys are the calculator's again
+        }
+    }
+
+    // A list to choose from, drawn as the calculator draws: a click or Enter, Space or
+    // an arrow key opens it; the arrows go along it, Enter or a click chooses, Esc
+    // closes it and leaves the panel open. pick gets the place of what was chosen
+    function picker(el, pick) {
+        var menu = el.querySelector('.calc-conv-menu');
+
+        el.addEventListener('click', function (e) {
+            var item = e.target.closest('.calc-conv-item');
+            if (item) choosePicker(el, +item.dataset.i);
+            else if (!menu.contains(e.target)) showPicker(el, menu.hidden);
+        }, false);
+
+        menu.addEventListener('mousemove', function (e) {
+            var item = e.target.closest('.calc-conv-item');
+            if (item) lightPicker(el, +item.dataset.i);
+        }, false);
+
+        el.addEventListener('keydown', function (e) {
+            var k = e.which, n = el.choices.length, at = menu.hidden ? el.at : el.lit;
+            if (k === 27 && !menu.hidden) {
+                showPicker(el, false);
+                e.stopPropagation(); // the panel stays open
+            } else if (k === 9) {
+                return showPicker(el, false); // Tab goes on to the next box
+            } else if (k === 38 || k === 40) { // up and down
+                if (menu.hidden) showPicker(el, true);
+                else lightPicker(el, Math.min(n - 1, Math.max(0, at + (k === 40 ? 1 : -1))), true);
+            } else if (k === 13 || k === 32) {
+                if (menu.hidden) showPicker(el, true);
+                else choosePicker(el, el.lit);
+            } else if (k === 36 || k === 35) { // Home and End
+                if (!menu.hidden) lightPicker(el, k === 36 ? 0 : n - 1, true);
+            } else {
+                return;
+            }
+            e.preventDefault();
+        }, false);
+
+        // a press anywhere else closes it
+        document.addEventListener('mousedown', function (e) {
+            if (!menu.hidden && !el.contains(e.target)) showPicker(el, false);
+        }, true);
+
+        el.pick = pick;
+    }
+
+    // its choices, as HTML, and the one chosen
+    function setPicker(el, choices, at) {
+        el.choices = choices;
+        el.at = at;
+        el.querySelector('.calc-conv-chosen').innerHTML = choices[at];
+    }
+
+    function showPicker(el, open) {
+        var menu = el.querySelector('.calc-conv-menu');
+        if (open) {
+            showPicker(el === convGroup ? convUnit : convGroup, false); // one list at a time
+            hideTip();
+            menu.innerHTML = el.choices.map(function (c, i) {
+                return '<div class="calc-conv-item' + (i === el.at ? ' calc-on' : '') + '" role="option" data-i="' + i + '">' + c + '</div>';
+            }).join('');
+            lightPicker(el, el.at, true);
+        }
+        menu.hidden = !open;
+        el.classList.toggle('calc-on', open);
+        el.setAttribute('aria-expanded', open);
+    }
+
+    // the choice the arrow keys or the pointer are on; scroll: kept in sight
+    function lightPicker(el, i, scroll) {
+        var items = el.querySelectorAll('.calc-conv-item');
+        el.lit = i;
+        [].forEach.call(items, function (item, k) {
+            item.classList.toggle('calc-lit', k === i);
+        });
+        if (scroll && items[i]) items[i].scrollIntoView({ block: 'nearest' });
+    }
+
+    // then the value has the focus, to type in
+    function choosePicker(el, i) {
+        showPicker(el, false);
+        if (i !== el.at) el.pick(i);
+        convInput.focus();
+    }
+
+    // the unit's name is kept, not its place, so a unit added later does not change the choice
+    function convUnitName(i) {
+        return CalcUnits.units[convAt.g].list[i].t;
+    }
+
+    // The value typed, worked out, in each unit of the group but its own. A new
+    // group fills the list of units first
+    function renderConv(newGroup) {
+        var group = CalcUnits.units[convAt.g], text = convInput.value.trim(), x, from, trial;
+
+        from = group.list.map(function (unit) { return unit.t; }).indexOf(convAt.u[group.c]);
+        if (from < 0) from = 0;
+        if (newGroup) {
+            setPicker(convGroup, CalcUnits.units.map(function (g) { return g.c; }), convAt.g);
+        }
+        setPicker(convUnit, group.list.map(function (unit) {
+            return unit.t + ' <span class="calc-conv-of">(' + unit.s + ')</span>';
+        }), from);
+
+        if (/^-?(\d+\.?\d*|\.\d+)$/.test(text)) {
+            x = +text;
+        } else if (text) { // an equation: worked out as the calculator would
+            trial = new CalcEngine();
+            trial.fnFirst = engine.fnFirst;
+            x = trial.paste(text, deg, true) && !trial.error && (trial.press('=', deg), !trial.error) ? +trial.value : NaN;
+        }
+        convInput.classList.toggle('calc-bad', !!text && !isFinite(x));
+        convNote.textContent = !text ? 'Type a value to convert.' : !isFinite(x) ? 'Not a number the calculator can read.' :
+            'Click a value to put it into the equation.';
+
+        convNow = group.list.map(function (unit, i) {
+            return isFinite(x) ? CalcUnits.convert(convAt.g, from, i, x) : NaN;
+        });
+        convList.innerHTML = group.list.map(function (unit, i) {
+            var known = isFinite(convNow[i]);
+            return i === from ? '' : '<div class="calc-conv-row' + (known ? '' : ' calc-none') + '" data-i="' + i + '">' +
+                '<span class="calc-conv-col"><span class="calc-conv-sym">' + unit.s + '</span>' +
+                '<span class="calc-conv-name">' + unit.t + '</span></span><span class="calc-conv-num">' +
+                (known ? convValue(convNow[i]) : '–') + '</span></div>';
+        }).join('');
+        hideTip();
+    }
+
+    // 12 digits, grouped as the display does, and very large or small ones as
+    // powers of 10: 1.609344 × 10³ is shown 1,609.344, 1 nm 1 × 10⁻⁹ m
+    function convValue(v) {
+        var a = Math.abs(v), parts = (+v.toPrecision(12)).toExponential().split('e');
+        return (a && (a >= 1e15 || a < 1e-6) ? parts[0] + ' × 10<sup>' + +parts[1] + '</sup>' :
+            CalcEngine.group(String(+v.toPrecision(12)))).replace(/-/g, '−');
+    }
+
+    function saveConv() {
+        store('conv', { g: CalcUnits.units[convAt.g].c, u: convAt.u, v: convInput.value });
+    }
+
+    // the converter as it was left: its group, kept by its name, the unit of each group, the value
+    function loadConv(s) {
+        var g = CalcUnits.units.map(function (group) { return group.c; }).indexOf(s && s.g);
+        convAt.g = g > -1 ? g : 0;
+        convAt.u = s && s.u && typeof s.u === 'object' ? s.u : {};
+        convInput.value = s && typeof s.v === 'string' ? s.v : '1';
+    }
+
+    // the tip of a value: what it is, and that a click puts it in
+    function convTip(el) {
+        var group = CalcUnits.units[convAt.g], unit;
+        if (el.classList.contains('calc-past-close')) return CalcTips['converter close'];
+        if (!el.classList.contains('calc-conv-row') || el.classList.contains('calc-none')) return null;
+        unit = group.list[+el.dataset.i];
+        return { t: unit.t.charAt(0).toUpperCase() + unit.t.slice(1), d: 'Click to put it into the equation.', k: '' };
+    }
+
+    // the statistics, the formulas and the converter have their button while they are turned on in the options
+    function setPanels(statsOn, fxOn, convOn) {
         statsButton.hidden = !statsOn;
         fxButton.hidden = !fxOn;
+        convButton.hidden = !convOn;
         if (!statsOn) showStats(false);
         if (!fxOn) showFx(false);
+        if (!convOn) showConv(false);
         showTools();
     }
 
@@ -1114,7 +1367,7 @@
         var s = {};
 
         // all read first: the keys pressed below must not save over what is still to be read
-        ['secondActive', 'deg', 'stat', 'statsOn', 'fxOn', 'fxTab', 'fraction', 'format', 'fnOrder', 'memory', 'calc'].forEach(function (key) {
+        ['secondActive', 'deg', 'stat', 'statsOn', 'fxOn', 'fxTab', 'convOn', 'conv', 'fraction', 'format', 'fnOrder', 'memory', 'calc'].forEach(function (key) {
             s[key] = stored(key);
         });
         // functions go before their number, tan 45; who used the calculator before this
@@ -1127,8 +1380,10 @@
         }
         if (s.deg === true) doKey('Deg', true);
         if (typeof s.stat === 'string') statsInput.value = s.stat;
-        setPanels(s.statsOn === true, s.fxOn !== false); // the formulas on, the statistics off, until changed in the options
+        // all three on, until changed in the options
+        setPanels(s.statsOn !== false, s.fxOn !== false, s.convOn !== false);
         if (s.fxTab === 'constants') fxTab = s.fxTab;
+        loadConv(s.conv);
         fracMode = engine.fraction = !!s.fraction;
         setFormat(s.format);
         engine.memory = +s.memory || 0;
@@ -1143,7 +1398,9 @@
 
     // the number format, the order of the function keys or the panels were changed on the options page
     window.addEventListener('storage', function (e) {
-        if (e.key === 'statsOn' || e.key === 'fxOn') return setPanels(stored('statsOn') === true, stored('fxOn') !== false);
+        if (e.key === 'statsOn' || e.key === 'fxOn' || e.key === 'convOn') {
+            return setPanels(stored('statsOn') !== false, stored('fxOn') !== false, stored('convOn') !== false);
+        }
         if (e.key === 'format') setFormat(stored('format'));
         else if (e.key === 'fnOrder') engine.fnFirst = stored('fnOrder') !== 'after';
         else return;

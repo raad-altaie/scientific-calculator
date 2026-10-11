@@ -206,23 +206,23 @@ function near(a, b) {
 async function calculator(page, at) {
     var t = at + ': ', note, found;
 
-    // the formulas are on at first, the statistics off, until changed in the options
+    // the formulas, the converter and the statistics are on at first, in the order of their options
     await page.fresh(at, {});
-    check(await buttons(page) === 'calc-fx-btn', t + 'only f(x) at first', await buttons(page));
-    check(await page.calc('document.getElementById("display-box").style.getPropertyValue("--tools")') === '1',
-        t + 'the line above a result clears it');
-    await page.fresh(at, { fxOn: false });
-    check(await buttons(page) === '', t + 'no buttons with the formulas off', await buttons(page));
+    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-stat-btn', t + 'all three at first', await buttons(page));
+    check(await page.calc('document.getElementById("display-box").style.getPropertyValue("--tools")') === '3',
+        t + 'the line above a result clears them');
+    await page.fresh(at, { fxOn: false, convOn: false, statsOn: false });
+    check(await buttons(page) === '', t + 'no buttons with all three off', await buttons(page));
     check(await page.calc('document.getElementById("display-box").style.getPropertyValue("--tools")') === '0',
         t + 'the line above a result starts at the left');
 
-    await page.fresh(at, { statsOn: true, fxOn: true });
-    check(await buttons(page) === 'calc-stat-btn calc-fx-btn', t + 'both buttons once turned on', await buttons(page));
+    await page.fresh(at, { convOn: false });
+    check(await buttons(page) === 'calc-fx-btn calc-stat-btn', t + 'two buttons with the converter off', await buttons(page));
 
     // the keys still work, and the history adds its clock
     await page.type('2+3\r');
     check(await shown(page) === '5', t + '2 + 3 = 5', await shown(page));
-    check(await buttons(page) === 'calc-hist calc-stat-btn calc-fx-btn', t + 'the clock comes with a history', await buttons(page));
+    check(await buttons(page) === 'calc-hist calc-fx-btn calc-stat-btn', t + 'the clock comes with a history', await buttons(page));
     check(await page.calc('document.getElementById("display-box").style.getPropertyValue("--tools")') === '3',
         t + 'the line above a result clears the three buttons');
 
@@ -319,13 +319,127 @@ async function calculator(page, at) {
     check(near(await value(page), Math.PI), t + 'a sector of 90° with r = 2 is π', await shown(page));
 }
 
+// a choice in a list of the converter, by the start of its text: the list opened
+// with a click, and the choice clicked
+async function choose(page, list, text) {
+    var i;
+    await page.click(list + ' .calc-conv-chosen');
+    i = await page.calc('[].map.call(document.querySelectorAll(' + JSON.stringify(list + ' .calc-conv-item') + '), function (c) {' +
+        ' return c.textContent; }).findIndex(function (c) { return c.indexOf(' + JSON.stringify(text) + ') === 0; })');
+    check(i > -1, 'the list ' + list + ' has ' + text);
+    await page.click(list + ' .calc-conv-item[data-i="' + i + '"]');
+}
+
+function chosen(page, list) {
+    return page.calc('document.querySelector(' + JSON.stringify(list + ' .calc-conv-chosen') + ').textContent');
+}
+
+function converted(page, name) { // the value shown for a unit, by its name
+    return page.calc('(function (r) { return r ? r.querySelector(".calc-conv-num").textContent : null; })(' +
+        '[].filter.call(document.querySelectorAll(".calc-conv-row"), function (r) { return r.querySelector(".calc-conv-name").textContent === ' +
+        JSON.stringify(name) + '; })[0])');
+}
+
+async function converter(page, at) {
+    var t = at + ': ', note;
+
+    // its button comes after f(x), as its option does
+    await page.fresh(at, {});
+    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-stat-btn', t + 'the converter between f(x) and the statistics',
+        await buttons(page));
+
+    // the result shown is the value to start from
+    await page.type('5\r');
+    await page.click('.calc-conv-btn');
+    check(await open(page, '.calc-conv'), t + 'the arrows open the converter');
+    check(await page.calc('document.activeElement.className') === 'calc-conv-value', t + 'the value has the focus');
+    check(await page.calc('document.activeElement.value') === '5', t + 'and starts with the result, 5');
+    await choose(page, '.calc-conv-group', 'Length');
+    await choose(page, '.calc-conv-unit', 'kilometers');
+    check(await converted(page, 'miles') === '3.10685596119', t + '5 km is 3.10685596119 mi', await converted(page, 'miles'));
+    check(await converted(page, 'kilometers') === null, t + 'its own unit is not in the list');
+
+    // an equation is worked out; typing in it presses no keys
+    await page.calc('document.querySelector(".calc-conv-value").select()');
+    await page.type('2*3');
+    check(await shown(page) === '5', t + 'typing in the value presses no keys', await shown(page));
+    check(await converted(page, 'meters') === '6,000', t + '2*3 km is 6,000 m', await converted(page, 'meters'));
+    // 2*3# is not read as 2, the number it starts with
+    await page.calc('(function (i) { i.value = "2*3#"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-conv-value"))');
+    note = await page.calc('document.querySelector(".calc-conv-note").textContent');
+    check(/Not a number/.test(note) && await page.calc('document.querySelector(".calc-conv-value").classList.contains("calc-bad")'),
+        t + 'a value it cannot read is marked', note);
+    check(await converted(page, 'meters') === '–', t + 'and has no values');
+    await page.key('Backspace', 8);
+    check(await converted(page, 'meters') === '6,000', t + 'without it, 6,000 m again', await converted(page, 'meters'));
+
+    // Enter puts in the first value, the meters
+    await page.type('\r');
+    check(!await open(page, '.calc-conv') && await shown(page) === '6000', t + 'Enter puts in 6000 m', await shown(page));
+    check(await page.calc('document.querySelector(".calc-log").textContent.trim()') === '', t + 'and presses no = after it',
+        await page.calc('document.querySelector(".calc-log").textContent'));
+
+    // the units of a group are its own; a click puts a value in
+    await page.click('.calc-conv-btn');
+    check(await page.calc('document.querySelector(".calc-conv-value").value') === '6000', t + 'the new result starts it', await page.calc('document.querySelector(".calc-conv-value").value') + ' / ' + await shown(page));
+    await choose(page, '.calc-conv-group', 'Temperature');
+    await choose(page, '.calc-conv-unit', 'Fahrenheit');
+    await page.calc('(function (i) { i.value = "212"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-conv-value"))');
+    check(await converted(page, 'Celsius') === '100', t + '212 °F is 100 °C', await converted(page, 'Celsius'));
+    await page.click('.calc-conv-row[data-i="0"]');
+    check(!await open(page, '.calc-conv') && await shown(page) === '100', t + 'a click puts 100 in', await shown(page));
+
+    // kept for the next time: the group, its unit, and the unit of the other groups
+    await page.go(page.base + at);
+    await page.click('.calc-conv-btn');
+    check(await chosen(page, '.calc-conv-group') === 'Temperature' && /^Fahrenheit/.test(await chosen(page, '.calc-conv-unit')),
+        t + 'the group and unit are kept');
+    await choose(page, '.calc-conv-group', 'Length');
+    check(/^kilometers/.test(await chosen(page, '.calc-conv-unit')), t + 'and the unit of Length too');
+
+    // the lists by the keys: an arrow opens one and goes along it, Enter chooses,
+    // Esc closes the list and not the panel; typing in it presses no keys
+    await page.calc('document.querySelector(".calc-conv-unit").focus()');
+    await page.key('ArrowDown', 40);
+    check(!await page.calc('document.querySelector(".calc-conv-unit .calc-conv-menu").hidden'), t + 'an arrow opens the list');
+    await page.key('ArrowDown', 40);
+    await page.key('Enter', 13);
+    check(/^inches/.test(await chosen(page, '.calc-conv-unit')), t + 'the next one, inches, is chosen', await chosen(page, '.calc-conv-unit'));
+    check(await page.calc('document.activeElement.className') === 'calc-conv-value', t + 'and the value has the focus again');
+    await page.calc('document.querySelector(".calc-conv-group").focus()');
+    await page.key('Enter', 13);
+    await page.key('Escape', 27);
+    check(await page.calc('document.querySelector(".calc-conv-group .calc-conv-menu").hidden') && await open(page, '.calc-conv'),
+        t + 'Esc closes the list, and the panel stays');
+    await page.type('7');
+    check(await shown(page) === '100', t + 'a key on a list presses none of the calculator', await shown(page));
+    await page.click('.calc-conv-group .calc-conv-chosen');
+    await page.click('.calc-conv-note');
+    check(await page.calc('document.querySelector(".calc-conv-group .calc-conv-menu").hidden'), t + 'a press beside the list closes it');
+
+    // no value: 0 L/100 km has no km/L
+    await choose(page, '.calc-conv-group', 'Fuel economy');
+    await choose(page, '.calc-conv-unit', 'liters per 100 km');
+    await page.calc('(function (i) { i.value = "0"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-conv-value"))');
+    check(await converted(page, 'kilometers per liter') === '–', t + '0 L/100 km has no km/L');
+    await page.click('.calc-conv-row[data-i="0"]');
+    check(await open(page, '.calc-conv'), t + 'and a click on it puts nothing in');
+
+    // one panel at a time; Esc closes it
+    await page.click('.calc-fx-btn');
+    check(await open(page, '.calc-fx') && !await open(page, '.calc-conv'), t + 'f(x) closes the converter');
+    await page.click('.calc-conv-btn');
+    await page.key('Escape', 27);
+    check(!await open(page, '.calc-conv'), t + 'Esc closes the converter');
+}
+
 // the options turn the buttons on and off in an open calculator, by the storage
 async function options(page) {
     var t;
 
-    await page.fresh('/frame.html', { statsOn: true, fxOn: true });
+    await page.fresh('/frame.html', {});
     t = 'in a frame: ';
-    check(await buttons(page) === 'calc-stat-btn calc-fx-btn', t + 'both buttons');
+    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-stat-btn', t + 'all three buttons');
     await page.click('.calc-fx-btn');
     await page.ev('localStorage.setItem("fxOn", "false")');
     check(await page.until('!(document.getElementById("calc-iframe").contentDocument.querySelector(".calc-fx-btn").offsetWidth)'),
@@ -334,24 +448,33 @@ async function options(page) {
     await page.ev('localStorage.setItem("statsOn", "false")');
     check(await page.until('document.getElementById("calc-iframe").contentDocument.querySelector(".calc-stat-btn").hidden'),
         t + 'the statistics go too');
+    await page.ev('localStorage.setItem("convOn", "false")');
+    check(await page.until('document.getElementById("calc-iframe").contentDocument.querySelector(".calc-conv-btn").hidden'),
+        t + 'and the converter');
+    await page.ev('localStorage.setItem("convOn", "true")');
+    check(await page.until('!document.getElementById("calc-iframe").contentDocument.querySelector(".calc-conv-btn").hidden'),
+        t + 'turned on again, it comes back');
 
     // the website: its switches
     t = 'web/index.html: ';
     await page.fresh('/web/index.html', {}, [1300, 900]);
-    check(await page.ev('!document.getElementById("panel-stats").checked && document.getElementById("panel-fx").checked'),
-        t + 'at first the formulas on, the statistics off');
-    check(await page.until('!document.getElementById("calc-iframe").contentDocument.querySelector(".calc-fx-btn").hidden'),
-        t + 'and f(x) in the calculator');
+    check(await page.ev('document.getElementById("panel-stats").checked && document.getElementById("panel-fx").checked && ' +
+        'document.getElementById("panel-conv").checked'), t + 'at first all three on');
+    check(await page.until('!document.getElementById("calc-iframe").contentDocument.querySelector(".calc-conv-btn").hidden'),
+        t + 'and their buttons in the calculator');
     await page.ev('document.getElementById("panel-fx").scrollIntoView({ block: "center" })');
     await page.click('#panel-stats');
-    check(await page.until('!document.getElementById("calc-iframe").contentDocument.querySelector(".calc-stat-btn").hidden'),
-        t + 'its switch puts the statistics in the calculator');
+    check(await page.until('document.getElementById("calc-iframe").contentDocument.querySelector(".calc-stat-btn").hidden'),
+        t + 'its switch takes the statistics out of the calculator');
     await page.click('#panel-fx');
     check(await page.until('document.getElementById("calc-iframe").contentDocument.querySelector(".calc-fx-btn").hidden'),
-        t + 'and takes f(x) out');
+        t + 'and f(x)');
+    await page.click('#panel-stats');
+    check(await page.until('!document.getElementById("calc-iframe").contentDocument.querySelector(".calc-stat-btn").hidden'),
+        t + 'and puts the statistics back');
     await page.go(page.base + '/web/index.html', [1300, 900]);
-    check(await page.ev('document.getElementById("panel-stats").checked && !document.getElementById("panel-fx").checked'),
-        t + 'the switches are kept');
+    check(await page.ev('document.getElementById("panel-stats").checked && !document.getElementById("panel-fx").checked && ' +
+        'document.getElementById("panel-conv").checked'), t + 'the switches are kept');
 }
 
 (async function () {
@@ -376,6 +499,8 @@ async function options(page) {
         await page.send('Network.setCacheDisabled', { cacheDisabled: true });
         await calculator(page, '/calc.html');
         await calculator(page, '/web/calc.html');
+        await converter(page, '/calc.html');
+        await converter(page, '/web/calc.html');
         await options(page);
         check(!pageErrors.length, 'no errors in the pages', pageErrors.join('\n      '));
     } catch (e) {

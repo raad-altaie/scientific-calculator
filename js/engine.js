@@ -1496,8 +1496,9 @@
         return ok;
     };
 
-    // a number replaces the displayed one; an equation is entered in its place
-    Engine.prototype.paste = function (str, deg) {
+    // a number replaces the displayed one; an equation is entered in its place.
+    // whole: only a number or an equation, not the number a text starts with
+    Engine.prototype.paste = function (str, deg, whole) {
         var s = separators(String(str).trim()), n, tree, snap, hist, equals, add, e = this.edit;
         if (e) { // while editing it goes in at the cursor
             s = s.replace(/^=\s*/, '').replace(/=[^]*$/, '');
@@ -1527,6 +1528,7 @@
                 this.history = hist;
                 return false; // an equation is pasted whole or not at all
             }
+            if (whole) return false;
             n = parseFloat(s); // not an equation: as before, a text that starts with a number
         }
         return this.put(n);

@@ -91,6 +91,19 @@
             k: 'Esc'
         },
 
+        // the converter
+        'converter': {
+            t: 'Converter',
+            d: 'Length, area, volume, mass, temperature, speed, time, data, pressure, energy, power, angles and ' +
+                'fuel economy. The result shown is the value to start from; click a converted value to put it in.',
+            k: ''
+        },
+        'converter close': {
+            t: 'Close the converter',
+            d: 'The value and units stay for the next time.',
+            k: 'Esc'
+        },
+
         // the statistics
         'stats': {
             t: 'Statistics',

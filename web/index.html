@@ -67,6 +67,24 @@
             <div class="option">
                 <span class="option-icon screen-icon">
                     <svg viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M3.5 5h9.5M10.5 2.5l2.5 2.5-2.5 2.5" stroke-width="1.6"></path>
+                        <path d="M12.5 11H3M5.5 8.5L3 11l2.5 2.5" stroke-width="1.6"></path>
+                    </svg>
+                </span>
+                <div class="option-text">
+                    <h3>Converter</h3>
+                    <p>A button at the top left of the display that converts units of length, area, volume, mass,
+                        temperature, speed, time, data, pressure, energy, power, angles and fuel economy. The result
+                        shown is the value to start from; click a converted value to put it into the display.</p>
+                </div>
+                <label class="switch" title="Converter">
+                    <input type="checkbox" id="panel-conv">
+                    <span></span>
+                </label>
+            </div>
+            <div class="option">
+                <span class="option-icon screen-icon">
+                    <svg viewBox="0 0 16 16" aria-hidden="true">
                         <path d="M3.5 13.5V9M8 13.5V3M12.5 13.5V6.5" stroke-width="1.8"></path>
                     </svg>
                 </span>
@@ -125,7 +143,7 @@
                 <li><kbd class="k k-red">DEL</kbd> button (or Backspace) to take back the last key you pressed, one key at a time.</li>
                 <li>Cursor: click into the equation, or use the <kbd class="k k-arrow"><svg class="arrow" viewBox="0 0 16 16" aria-label="left arrow"><path d="M10 3L5 8l5 5"/></svg></kbd> <kbd class="k k-arrow"><svg class="arrow" viewBox="0 0 16 16" aria-label="right arrow"><path d="M6 3l5 5-5 5"/></svg></kbd> keys (or the arrow keys), to fix a number or an
                     operator in the middle of it. Back at the end, the calculator goes on as before.</li>
-                <li>Statistics: turn it on in the Options tab, then click the bars at the top left
+                <li>Statistics: click the bars at the top left
                     of the display and type or paste a list of numbers, a column from a spreadsheet as well, for its count,
                     sum, mean, standard deviation (σ and s), min, median and max. Click a result to use it in your
                     calculation.</li>
@@ -134,6 +152,10 @@
                     fill in their letters, and the equation goes into the display, where you can still change it
                     before =. Constants of math and science (CODATA 2022) go in with a click. Rest the pointer on one
                     to see what it does.</li>
+                <li>Converter: click the arrows at the top left of the
+                    display. Pick what to convert and the unit, and the value is shown in all the other units of
+                    its kind; the result in the display is the value to start from. Click one to use it in your
+                    calculation.</li>
                 <li><kbd class="k">mod</kbd>, <kbd class="k">gcd</kbd> and <kbd class="k">lcm</kbd> on the <kbd class="k">2nd</kbd> layer of <kbd class="k">%</kbd>, <kbd class="k"><sup>n</sup>C<sub>r</sub></kbd> and <kbd class="k"><sup>n</sup>P<sub>r</sub></kbd>.</li>
                 <li>Fraction mode: the <kbd class="k">a/b</kbd> key draws each division as a fraction while you type, and shows results like
                     0.75 as 3/4.</li>

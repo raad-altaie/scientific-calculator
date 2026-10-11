@@ -443,6 +443,8 @@ dels.forEach(function (c) {
     e.press('=');
     check(state(e) === '44 | 2 + 42 =', 'paste is used as the operand', state(e));
     check(!e.paste('abc') && state(e) === '44 | 2 + 42 =', 'non numeric paste is ignored', state(e));
+    check(!e.paste('42abc', false, true) && state(e) === '44 | 2 + 42 =', 'whole: not the number a text starts with', state(e));
+    check(e.paste('6*7', false, true) && (e.press('='), e.value === '42'), 'whole: an equation still goes in', state(e));
     run(e, 'AC 2 + 3');
     e.paste('9');
     check(e.del() && state(e) === '2 | 2 +', 'DEL removes a pasted number', state(e));

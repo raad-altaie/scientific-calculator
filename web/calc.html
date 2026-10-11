@@ -28,7 +28,7 @@
                     <div class="calc-hold"></div>
                     <div class="calc-fmt"></div>
                     <div class="calc-frac"></div>
-                    <!-- at the top left: the history, and the panels turned on in the options -->
+                    <!-- at the top left: the history, and the panels turned on in the options, in their order there -->
                     <div class="calc-tools">
                         <div class="calc-hist" hidden>
                             <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
@@ -38,13 +38,6 @@
                                 <path d="M8 5.2v3l2 1.3" />
                             </svg>
                         </div>
-                        <!-- statistics of a list of numbers -->
-                        <div class="calc-stat-btn" hidden>
-                            <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
-                                stroke-width="1.8" stroke-linecap="round">
-                                <path d="M3.5 13.5V9M8 13.5V3M12.5 13.5V6.5" />
-                            </svg>
-                        </div>
                         <!-- formulas and constants -->
                         <div class="calc-fx-btn" hidden>
                             <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
@@ -52,6 +45,21 @@
                                 <path d="M8.5 2.3c-1.5-.4-2.6.3-2.9 1.9L4.3 11.8c-.3 1.6-1.2 2.2-2.6 1.9" />
                                 <path d="M3.3 6.3h4.2" />
                                 <path d="M9.6 8l4.4 5.2M14 8l-4.4 5.2" />
+                            </svg>
+                        </div>
+                        <!-- the converter of units -->
+                        <div class="calc-conv-btn" hidden>
+                            <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
+                                stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3.5 5h9.5M10.5 2.5l2.5 2.5-2.5 2.5" />
+                                <path d="M12.5 11H3M5.5 8.5L3 11l2.5 2.5" />
+                            </svg>
+                        </div>
+                        <!-- statistics of a list of numbers -->
+                        <div class="calc-stat-btn" hidden>
+                            <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
+                                stroke-width="1.8" stroke-linecap="round">
+                                <path d="M3.5 13.5V9M8 13.5V3M12.5 13.5V6.5" />
                             </svg>
                         </div>
                     </div>
@@ -282,6 +290,31 @@
             <div class="calc-fx-list"></div>
         </div>
 
+        <!-- the converter of units, over the keys like the history -->
+        <div class="calc-past calc-conv">
+            <div class="calc-past-head">
+                <span>Converter</span>
+                <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
+            </div>
+            <!-- lists drawn as the calculator draws, not by the browser -->
+            <div class="calc-conv-pick calc-conv-group" tabindex="0" role="combobox" aria-haspopup="listbox"
+                aria-expanded="false" aria-label="What to convert">
+                <span class="calc-conv-chosen"></span>
+                <div class="calc-conv-menu" role="listbox" hidden></div>
+            </div>
+            <div class="calc-conv-from">
+                <input class="calc-conv-value" type="text" inputmode="decimal" spellcheck="false" autocomplete="off"
+                    maxlength="40" aria-label="Value">
+                <div class="calc-conv-pick calc-conv-unit" tabindex="0" role="combobox" aria-haspopup="listbox"
+                    aria-expanded="false" aria-label="From">
+                    <span class="calc-conv-chosen"></span>
+                    <div class="calc-conv-menu" role="listbox" hidden></div>
+                </div>
+            </div>
+            <div class="calc-conv-note"></div>
+            <div class="calc-conv-list"></div>
+        </div>
+
         <!-- what a key above the digits does, while the pointer rests on it -->
         <div class="calc-tip" hidden></div>
 
@@ -298,6 +331,7 @@
         <script type="text/javascript" src="js/engine.js"></script>
         <script type="text/javascript" src="js/tips.js"></script>
         <script type="text/javascript" src="js/formulas.js"></script>
+        <script type="text/javascript" src="js/units.js"></script>
         <script type="text/javascript" src="js/main.js"></script>
 </body>
 

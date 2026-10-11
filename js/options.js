@@ -141,10 +141,10 @@ fnOrder.addEventListener('change', () => {
     localStorage.setItem('fnOrder', JSON.stringify(fnOrder.value));
 });
 
-// The statistics and the formulas: a button on the display for each while it is
-// turned on. The formulas start on, the statistics off; an open calculator gets the
-// change as a storage event
-[['panel-stats', 'statsOn', false], ['panel-fx', 'fxOn', true]].forEach(([id, key, on]) => {
+// The formulas, the converter and the statistics: a button on the display for each
+// while it is turned on. All three start on; an open calculator gets the change as a
+// storage event
+[['panel-fx', 'fxOn', true], ['panel-conv', 'convOn', true], ['panel-stats', 'statsOn', true]].forEach(([id, key, on]) => {
     const box = document.getElementById(id);
 
     box.checked = on;
