@@ -3,7 +3,7 @@
 // many of the group's first unit one of it is; or, for a scale that does not start at 0,
 // to and from: the group's first unit from a value in it, and back. Exact where the
 // unit is defined exactly (the inch is 2.54 cm, the pound 0.45359237 kg); US measures
-// of volume are the US ones
+// of volume are the US ones. dms: shown in degrees, minutes and seconds
 (function (root) {
     'use strict';
 
@@ -147,6 +147,7 @@
         {
             c: 'Angle', list: [
                 { s: '°', t: 'degrees', f: 1 },
+                { s: '°′″', t: 'degrees, minutes, seconds', f: 1, dms: true }, // shown 36°52′11.63″
                 { s: 'rad', t: 'radians', f: 180 / Math.PI },
                 { s: 'grad', t: 'gradians', f: 0.9 },
                 { s: '′', t: 'arcminutes', f: 1 / 60 },

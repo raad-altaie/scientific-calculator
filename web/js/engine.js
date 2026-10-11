@@ -49,6 +49,8 @@
         marks = null, // printing for editing: computed numbers are put here whole, a mark stands in for each
         stacking = false, // printing for fraction mode: a division is drawn as a fraction, one part over the other
         MARK = /^\uE000(\d+)\uE001/,
+        // an angle in degrees, minutes and seconds: 12°30′15″, 12°30'15", 51°30′26″N
+        DMS = /^(\d+\.?\d*|\.\d+)\s*°(?:\s*(\d+\.?\d*|\.\d+)\s*['′’](?!['′’]))?(?:\s*(\d+\.?\d*|\.\d+)\s*(?:["″”]|['′’]{2}))?(?:\s*([NSEW])(?![a-zA-Z]))?/,
         UNARY = { // t: how the key is printed, f: how it is computed
             '1/x': { t: 'inv', f: function (x) { return arith('÷', 1, x); } },
             'x2': { t: 'post', f: function (x) { return tidy(arith('×', x, x)); } },
@@ -549,6 +551,9 @@
                 // skipped
             } else if (table && (m = MARK.exec(s))) {
                 out.push({ t: 'num', v: table[m[1]], whole: true });
+            } else if ((m = DMS.exec(s))) { // in degrees whatever the unit in use: typing turns it into radians
+                out.push({ t: 'num', v: String((/[SW]/.test(m[4]) ? -1 : 1) * (+m[1] + (m[2] || 0) / 60 + (m[3] || 0) / 3600)),
+                    whole: true, angle: true });
             } else if ((m = /^(\d+\.?\d*|\.\d+)/.exec(s))) {
                 out.push({ t: 'num', v: m[0] });
             } else if (prev && (prev.t === 'num' || prev.v === ')') &&
@@ -945,6 +950,17 @@
         });
     }
 
+    // a number in degrees, minutes and seconds, the seconds to two places:
+    // 36.86989764584 is 36°52′11.63″, and 59.999″ is the next minute. Null for
+    // a number too large to show so
+    function dms(x) {
+        var cs, m;
+        if (!isFinite(x) || Math.abs(x) >= 1e9) return null;
+        cs = Math.round(Math.abs(x) * 360000); // in hundredths of a second
+        m = Math.floor(cs % 360000 / 6000);
+        return (x < 0 && cs ? '-' : '') + Math.floor(cs / 360000) + '°' + m + '′' + cs % 6000 / 100 + '″';
+    }
+
     // a number as a fraction [top, bottom] with at most 10 digits in all, found
     // from its continued fraction; null for a whole number or a number that
     // no such fraction is (π, √2). Within rounding error: 1 ÷ 3 is 1/3
@@ -1019,8 +1035,9 @@
     function Engine() {
         this.memory = 0;
         this.ans = 0; // the last result, for the Ans key
-        this.past = []; // finished calculations, oldest first: { node, value, frac: 1 if done in fraction mode }
+        this.past = []; // finished calculations, oldest first: { node, value, frac: 1 if done in fraction mode, dms: 1 in °′″ }
         this.fraction = false; // fraction mode is on: set by the display, kept with each calculation in the history
+        this.dms = false; // results are shown in degrees, minutes and seconds: the same
         this.fnFirst = false; // function keys go before their number, tan 45, not 45 tan: set by the display
         this.reset();
     }
@@ -1109,6 +1126,7 @@
         if (this.done.t === 'num') return; // "9 =" is not worth keeping
         entry = { node: this.done, value: this.value };
         if (this.fraction) entry.frac = 1; // shown as it was: fractions, or decimals
+        if (this.dms) entry.dms = 1; // or degrees, minutes and seconds
         if (last && JSON.stringify(last) === JSON.stringify(entry)) return; // the same one again
         this.past.push(entry);
         this.trimPast();
@@ -1504,7 +1522,7 @@
             switch (n.t) {
                 case 'num':
                     if (n.whole || n.v.replace(/\D/g, '').length > 15) { // not typed, or more digits than the keys take: entered whole
-                        if (ok && !halted) ok = self.put(+n.v);
+                        if (ok && !halted) ok = self.put(n.angle && !deg ? +n.v * PI / 180 : +n.v); // 30° is π/6 in Rad
                     } else { // typed: the same digits again, and a typed sign
                         for (i = n.v.charAt(0) === '-' ? 1 : 0; i < n.v.length; i++) key(n.v.charAt(i));
                         if (n.v.charAt(0) === '-') key('+/–');
@@ -1743,6 +1761,7 @@
     Engine.format = format;
     Engine.group = group;
     Engine.fraction = shownFraction;
+    Engine.dms = dms;
 
     root.CalcEngine = Engine;
     if (typeof module !== 'undefined' && module.exports) {

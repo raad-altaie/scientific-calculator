@@ -354,6 +354,70 @@ async function secondKeys(page, at) {
     check(near(await value(page), Math.E), t + 'h, p is e', await shown(page));
 }
 
+// °′″ on the 2nd layer of a/b: results in degrees, minutes and seconds, kept in the
+// history and after a reload; the converter has them among its angles
+async function degreesMinutes(page, at) {
+    var t = at + ': ', AB = '.calc-left > :nth-child(5)';
+
+    function mark() {
+        return page.calc('document.querySelector(".calc-frac").textContent');
+    }
+
+    function input(text) {
+        return page.calc('(function (i) { i.value = ' + JSON.stringify(text) + '; i.dispatchEvent(new Event("input")); })' +
+            '(document.querySelector(".calc-conv-value"))');
+    }
+
+    await page.fresh(at, {});
+    await page.click('.calc-left > :nth-child(1)'); // 2nd
+    check(await page.calc('document.querySelector(' + JSON.stringify(AB) + ').textContent.trim()') === '°′″',
+        t + '2nd turns a/b into °′″');
+    await page.click(AB);
+    check(await mark() === 'DMS', t + 'DMS shows it is on', await mark());
+    check(await page.calc('document.querySelector(' + JSON.stringify(AB) + ').classList.contains("calc-lit")'), t + 'its key has its dot');
+    await page.type('11/4\r'); // the type above sends '.' as Delete, so no decimals are typed here
+    check(await shown(page) === '2°45′0″', t + '11 ÷ 4 = 2°45′0″', await shown(page));
+    await page.type('3');
+    check(await shown(page) === '3', t + 'a number being typed shows as typed', await shown(page));
+    await page.type('/2\r');
+    check(await shown(page) === '1°30′0″', t + 'and its result in degrees, minutes and seconds', await shown(page));
+
+    // the history keeps it; the mark turns it off
+    await page.click('.calc-frac');
+    check(await shown(page) === '1.5' && await mark() === '', t + 'a click on DMS turns it off', await shown(page) + ' ' + await mark());
+    await page.type('1+1\r');
+    await page.click('.calc-hist');
+    check(await page.calc('[].map.call(document.querySelectorAll(".calc-past-res"), function (r) { return r.textContent.trim(); }).join(" ")') ===
+        '2 1°30′0″ 2°45′0″', t + 'the history shows each result as it was done',
+        await page.calc('[].map.call(document.querySelectorAll(".calc-past-res"), function (r) { return r.textContent.trim(); }).join(" ")'));
+    await page.key('Escape', 27);
+
+    // with fraction mode: one or the other
+    await page.type('hf');
+    check(await mark() === 'DMS', t + 'h, f turns it on', await mark());
+    await page.type('f');
+    check(await mark() === 'FRAC', t + 'fraction mode turns it off', await mark());
+    await page.type('hf');
+    check(await mark() === 'DMS', t + 'and it turns fraction mode off', await mark());
+    await page.go(page.base + at);
+    check(await mark() === 'DMS' && await shown(page) === '2°0′0″', t + 'on after a reload', await mark() + ' ' + await shown(page));
+
+    // the converter: degrees, minutes and seconds among the angles; typed so, in degrees in Rad as well
+    await page.click('.calc-conv-btn');
+    await choose(page, '.calc-conv-group', 'Angle');
+    await choose(page, '.calc-conv-unit', 'degrees');
+    await input('36.86989764584');
+    check(await converted(page, 'degrees, minutes, seconds') === '36°52′11.63″', t + 'the converter shows 36°52′11.63″',
+        await converted(page, 'degrees, minutes, seconds'));
+    await choose(page, '.calc-conv-unit', 'degrees, minutes, seconds');
+    await input('12°30′');
+    check(await converted(page, 'degrees') === '12.5', t + '12°30′ is 12.5° in Rad', await converted(page, 'degrees'));
+    await choose(page, '.calc-conv-unit', 'radians');
+    await input('180°');
+    check(await converted(page, 'degrees') === '180', t + '180° typed for radians is π radians', await converted(page, 'degrees'));
+    await page.key('Escape', 27);
+}
+
 async function choose(page, list, text) {
     var i;
     await page.click(list + ' .calc-conv-chosen');
@@ -534,6 +598,8 @@ async function options(page) {
         await calculator(page, '/web/calc.html');
         await secondKeys(page, '/calc.html');
         await secondKeys(page, '/web/calc.html');
+        await degreesMinutes(page, '/calc.html');
+        await degreesMinutes(page, '/web/calc.html');
         await converter(page, '/calc.html');
         await converter(page, '/web/calc.html');
         await options(page);

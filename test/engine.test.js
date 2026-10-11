@@ -608,6 +608,21 @@ dels.forEach(function (c) {
             ['logᵧ(8)', '8', 'log<sub>y</sub>(8)'],
             ['log₁(8)=', 'Error', 'log<sub>1</sub>(8) ='],
             ['10^3=', '1000', '10^3 ='],
+            // degrees, minutes and seconds: in degrees whatever the unit, so in Rad they go in as radians
+            ['12°30′15″', 12.504166666666666, '12.50416666667', true],
+            ['12°30\'15"', 12.504166666666666, '12.50416666667', true],
+            ['12° 30\' 15\'\'', 12.504166666666666, '12.50416666667', true],
+            ['12°30′', '12.5', '12.5', true],
+            ['45°', '45', '45', true],
+            ['-12°30′', '-12.5', '-12.5', true],
+            ['51°30′26″N', 51.50722222222222, '51.50722222222', true],
+            ['0°7′39″W', -0.1275, '-0.1275', true],
+            ['33°52′S', -(33 + 52 / 60), '-33.86666666667', true],
+            ['sin(30°)=', '0.5', 'sin(30) =', true],
+            ['sin(30°)=', '0.5', 'sin(0.5235987755983) ='],
+            ['30°', Math.PI / 6, '0.5235987755983'],
+            ['2×45°=', '90', '2 × 45 =', true],
+            ['12°30′ + 1=', '13.5', '12.5 + 1 =', true],
             ['sin 30', 0.5, 'sin(30)', true],
             ['sin(30', 0.5, 'sin(30)', true],
             ['-(2+3)', '-5', '-(2 + 3)'],
@@ -1264,6 +1279,45 @@ dels.forEach(function (c) {
         }
     }
     check(compared > 1000, 'fuzz compared ' + compared + ' sequences');
+})();
+
+// ---------- degrees, minutes and seconds ---------- //
+
+[
+    [36.86989764584, '36°52′11.63″'],
+    [45, '45°0′0″'],
+    [0, '0°0′0″'],
+    [12.504166666666666, '12°30′15″'],
+    [-12.504166666666666, '-12°30′15″'],
+    [2.75, '2°45′0″'],
+    [59.99999999, '60°0′0″'], // 59.99996″ is the next minute, the next degree
+    [10.0166666, '10°1′0″'], // 59.99976″ rounds up
+    [10.016663, '10°0′59.99″'],
+    [-0.000001, '0°0′0″'], // no -0°0′0″
+    [1234.5, '1234°30′0″'],
+    [999999999.5, '999999999°30′0″'],
+    [1e9, null],
+    [NaN, null],
+    [Infinity, null]
+].forEach(function (c) {
+    check(Engine.dms(c[0]) === c[1], c[0] + ' in degrees, minutes and seconds', Engine.dms(c[0]));
+});
+
+(function () {
+    var e = new Engine(), f = new Engine();
+    e.dms = true;
+    run(e, '0 . 6 sin-1 =', true);
+    e.dms = false;
+    run(e, '2 + 3 =');
+    check(e.past[0].dms === 1 && !e.past[1].dms, 'a calculation keeps °′″ in the history', JSON.stringify(e.past));
+    f.load(JSON.parse(JSON.stringify(e.save())));
+    check(f.past[0].dms === 1, 'and so after a reload');
+    check(Engine.dms(+e.past[0].value) === '36°52′11.63″', 'its result as the history shows it', Engine.dms(+e.past[0].value));
+    e = new Engine();
+    run(e, '1 +');
+    e.startEdit();
+    check(e.paste('30°', false) && e.move('end', false) && e.value === String(Math.PI / 6) &&
+        (e.press('=', false), e.value === String(1 + Math.PI / 6)), 'pasted at the cursor, 30° is still in degrees', state(e));
 })();
 
 // ---------- a root is drawn with a bar over what is under it ---------- //

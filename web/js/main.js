@@ -10,11 +10,12 @@
         fullTurn = radDeg.querySelector('.sign'),
         hold = Calc.querySelector('.calc-hold'),
         fmtMark = Calc.querySelector('.calc-fmt'), // FIX 2, SCI 3 or ENG 2 while that notation is on
-        fracMark = Calc.querySelector('.calc-frac'), // FRAC while fraction mode is on
+        fracMark = Calc.querySelector('.calc-frac'), // FRAC while fraction mode is on, DMS while °′″ is
         secondKeySet, // the keys the 2nd key changes, found by their names below
         CURSOR = '<span class="calc-cursor"></span>',
         fmt = { notation: 'norm', places: 2, group: false }, // set on the options page
         fracMode = false, // a/b: divisions drawn as fractions, and results shown as fractions when they are one
+        dmsMode = false, // °′″, the 2nd of a/b: results shown in degrees, minutes and seconds
         slid = false, // the pointer slid a long line, so it was not a click
         hiddenCopy = Calc.querySelector('textarea'),
         menu = document.querySelector('.calc-menu-box'), // the menu of a right click
@@ -64,12 +65,12 @@
         secondLayer = [
             [
                 'sin', 'cos', 'tan', 'ln', 'sinh', 'cosh', 'tanh', 'e<sup>x</sup>', '%', '<i>n</i>C<i>r</i>', '<i>n</i>P<i>r</i>',
-                'log', 'π', 'y<sup>x</sup>'
+                'log', 'π', 'y<sup>x</sup>', 'a/b'
             ],
             [
                 'sin<sup>-1</sup>', 'cos<sup>-1</sup>', 'tan<sup>-1</sup>', 'log<sub>2</sub>',
                 'sinh<sup>-1</sup>', 'cosh<sup>-1</sup>', 'tanh<sup>-1</sup>', '2<sup>x</sup>', 'mod', 'gcd', 'lcm',
-                '10<sup>x</sup>', 'e', 'log<sub>y</sub>'
+                '10<sup>x</sup>', 'e', 'log<sub>y</sub>', '°′″'
             ]
         ];
 
@@ -159,7 +160,7 @@
             keyMatch = (',|.|-|–|/|÷|*|×|#|+/–|x|x!|E|EE|e|ex| |2nd|r|x√y|R|√|p|π|^|yx|\'|yx|"|yx|m|mr|v|mc|b|m+|n|m-|a|Ans|' +
                 's|sin|c|cos|t|tan|S|sin-1|C|cos-1|T|tan-1|d|Deg|°|Deg|l|ln|L|log|\\|1/x|X|2x|N|nCr|P|nPr|f|a/b|M|mod|G|gcd|K|lcm').split('|'),
             keyMatchHold = ('sin|sinh|cos|cosh|tan|tanh|m-|Rand|Deg|Rand|sin-1|sinh-1|cos-1|cosh-1|tan-1|tanh-1|' +
-                '1|1/x|2|x2|3|x3|x√y|√|ln|log2|ex|2x|log|10x|π|e|yx|logy').split('|');
+                '1|1/x|2|x2|3|x3|x√y|√|ln|log2|ex|2x|log|10x|π|e|yx|logy|a/b|°′″').split('|');
 
         if (key === 13) key = 61;
         key = key === 124 ? 'abs' : String.fromCharCode(key); // | is the separator of the list above
@@ -178,8 +179,8 @@
         }
         if ((key === 'h' || key === 'H') && !holdKey) hold.textContent = 'hold';
         if (!keyBoard[key]) return;
-        if ((key.match(/-1$|log2$|2x$|^(mod|gcd|lcm|10x|e|logy)$/) && !secondActive) ||
-            (key.match(/h$|n$|cos$|ex$|^(%|nCr|nPr|log|π|yx)$/) && secondActive)) {
+        if ((key.match(/-1$|log2$|2x$|^(mod|gcd|lcm|10x|e|logy|°′″)$/) && !secondActive) ||
+            (key.match(/h$|n$|cos$|ex$|^(%|nCr|nPr|log|π|yx|a\/b)$/) && secondActive)) {
             keyDown(false, keyBoard['2nd']);
             doKey('2nd', true);
         }
@@ -393,7 +394,7 @@
         if (el.classList.contains('calc-past-btn')) {
             return CalcTips['history ' + el.dataset.act + (el.closest('.calc-past-eq') ? ' equation' : ' result')];
         }
-        if (el === fracMark) return CalcTips['FRAC'];
+        if (el === fracMark) return CalcTips[dmsMode ? 'DMS' : 'FRAC'];
         if (el === hold) return CalcTips['hold'];
         if (el === mem) {
             return {
@@ -441,6 +442,7 @@
             }
             if (deg) doKey('Deg', true);
             if (fracMode) toggleFraction();
+            if (dmsMode) toggleDms();
             engine.memory = 0;
             engine.reset(); // the equation too; the history and the statistics stay
             hold.textContent = '';
@@ -478,12 +480,13 @@
 
     // the unit at the bottom of the display switches Deg and Rad, as its key does
     // The marks in the display can be clicked: the unit switches Deg and Rad,
-    // FRAC turns fraction mode off and M recalls the memory, as their keys do;
+    // FRAC and DMS turn their mode off and M recalls the memory, as their keys do;
     // FIX opens the options, where the number format is set; hold is let go
     [[radDeg, 'Deg'], [fracMark, 'a/b'], [mem, 'mr']].forEach(function (mark) {
         mark[0].addEventListener('click', function () {
-            keyDown(false, keyBoard[mark[1]]);
-            doKey(mark[1]);
+            var key = mark[0] === fracMark && dmsMode ? '°′″' : mark[1];
+            keyDown(false, keyBoard[key]);
+            doKey(key);
             saveState();
         }, false);
     });
@@ -671,7 +674,7 @@
     }
 
     function statsValue(value) {
-        return shownResult({ value: String(value), frac: fracMode }, String(+(+value).toPrecision(13)));
+        return shownResult({ value: String(value), frac: fracMode, dms: dmsMode }, String(+(+value).toPrecision(13)));
     }
 
     // ---------------- formulas and constants ---------------- //
@@ -1062,7 +1065,7 @@
     // The value typed, worked out, in each unit of the group but its own. A new
     // group fills the list of units first
     function renderConv(newGroup) {
-        var group = CalcUnits.units[convAt.g], text = convInput.value.trim(), x, from, trial;
+        var group = CalcUnits.units[convAt.g], text = convInput.value.trim(), x, from, trial, unit, angle;
 
         from = group.list.map(function (unit) { return unit.t; }).indexOf(convAt.u[group.c]);
         if (from < 0) from = 0;
@@ -1078,7 +1081,10 @@
         } else if (text) { // an equation: worked out as the calculator would
             trial = new CalcEngine();
             trial.fnFirst = engine.fnFirst;
-            x = trial.paste(text, deg, true) && !trial.error && (trial.press('=', deg), !trial.error) ? +trial.value : NaN;
+            unit = group.list[from];
+            // 36°52′ typed for degrees is in degrees, for radians in radians, whatever the unit in use
+            angle = group.c === 'Angle' && /[°′″]/.test(text) && (unit.f === 1 || unit.t === 'radians') ? unit.f === 1 : deg;
+            x = trial.paste(text, angle, true) && !trial.error && (trial.press('=', angle), !trial.error) ? +trial.value : NaN;
         }
         convInput.classList.toggle('calc-bad', !!text && !isFinite(x));
         convNote.textContent = !text ? 'Type a value to convert.' : !isFinite(x) ? 'Not a number the calculator can read.' :
@@ -1092,7 +1098,7 @@
             return i === from ? '' : '<div class="calc-conv-row' + (known ? '' : ' calc-none') + '" data-i="' + i + '">' +
                 '<span class="calc-conv-col"><span class="calc-conv-sym">' + unit.s + '</span>' +
                 '<span class="calc-conv-name">' + unit.t + '</span></span><span class="calc-conv-num">' +
-                (known ? convValue(convNow[i]) : '–') + '</span></div>';
+                (known ? unit.dms && CalcEngine.dms(convNow[i]) || convValue(convNow[i]) : '–') + '</span></div>';
         }).join('');
         hideTip();
     }
@@ -1178,11 +1184,13 @@
     }
 
     // A result in the history: as a fraction if it was done in fraction mode,
-    // as each calculation keeps its unit; else in the number format of the
-    // options, with separators if they are on.
+    // in degrees, minutes and seconds if in °′″, as each calculation keeps its
+    // unit; else in the number format of the options, with separators if they are on.
     // text: what its copy button takes, as Ctrl+C would from the display
     function shownResult(entry, usual) {
-        var value = entry.value, x = +value, f = entry.frac && CalcEngine.fraction(x), parts, s;
+        var value = entry.value, x = +value, f = entry.frac && CalcEngine.fraction(x), parts,
+            s = entry.dms && CalcEngine.dms(x);
+        if (s) return { html: fmt.group ? CalcEngine.group(s) : s, text: s };
         if (f) {
             parts = [String(Math.abs(f[0])), String(f[1])].map(function (part) {
                 return fmt.group ? CalcEngine.group(part) : part;
@@ -1223,6 +1231,7 @@
         if (!ok) return;
         if (whole && /^(Deg|Rad)$/.test(unit) && (unit === 'Deg') !== deg) doKey('Deg', true); // shows its unit
         if (whole && !!engine.past[i].frac !== fracMode) toggleFraction(); // and its fractions, or decimals
+        if (whole && !!engine.past[i].dms !== dmsMode) toggleDms(); // or degrees, minutes and seconds
         keyBoard['AC'].children[0].firstChild.data = 'C';
         showPast(false);
         refresh();
@@ -1362,6 +1371,7 @@
         store('deg', deg);
         store('stat', statsInput.value);
         store('fraction', fracMode);
+        store('dms', dmsMode);
         store('memory', engine.memory);
         store('calc', engine.save());
     }
@@ -1371,7 +1381,7 @@
         var s = {};
 
         // all read first: the keys pressed below must not save over what is still to be read
-        ['secondActive', 'deg', 'stat', 'statsOn', 'fxOn', 'fxTab', 'convOn', 'conv', 'fraction', 'format', 'fnOrder', 'memory', 'calc'].forEach(function (key) {
+        ['secondActive', 'deg', 'stat', 'statsOn', 'fxOn', 'fxTab', 'convOn', 'conv', 'fraction', 'dms', 'format', 'fnOrder', 'memory', 'calc'].forEach(function (key) {
             s[key] = stored(key);
         });
         // functions go before their number, tan 45; who used the calculator before this
@@ -1389,6 +1399,7 @@
         if (s.fxTab === 'constants') fxTab = s.fxTab;
         loadConv(s.conv);
         fracMode = engine.fraction = !!s.fraction;
+        dmsMode = engine.dms = !fracMode && !!s.dms; // not both
         setFormat(s.format);
         engine.memory = +s.memory || 0;
         try {
@@ -1415,6 +1426,7 @@
         var hasComma = val.match(/\./),
             x = +val,
             frac = fracMode && !inp && CalcEngine.fraction(x), // a typed number shows as typed
+            angle = dmsMode && !inp && CalcEngine.dms(x), // in degrees, minutes and seconds
             drawn, // the fraction as HTML
             tmp,
             valAbs = Math.abs(+val),
@@ -1455,6 +1467,8 @@
                     return fmt.group ? CalcEngine.group(part) : part;
                 });
                 drawn = (frac[0] < 0 ? '-' : '') + CalcEngine.stack(tmp[0], tmp[1]);
+            } else if (angle) { // and copied so
+                resBuffer = tmp = angle;
             } else if (!inp) {
                 tmp = CalcEngine.format(x, fmt) || tmp;
             }
@@ -1498,6 +1512,16 @@
     // A number with no such fraction (π, √2) stays a decimal
     function toggleFraction() {
         fracMode = engine.fraction = !fracMode;
+        if (fracMode) dmsMode = engine.dms = false; // one or the other
+        refresh();
+    }
+
+    // °′″ turns its mode on and off: a result is shown in degrees, minutes and
+    // seconds, 36°52′11.63″, while the number stays as it is. A number too large
+    // for it stays a decimal. Not with fraction mode
+    function toggleDms() {
+        dmsMode = engine.dms = !dmsMode;
+        if (dmsMode) fracMode = engine.fraction = false;
         refresh();
     }
 
@@ -1545,6 +1569,7 @@
 
     function evalKey(key) {
         if (key === 'a/b') return toggleFraction();
+        if (key === '°′″') return toggleDms();
         if (key === '◀' || key === '▶') {
             engine.move(key === '◀' ? 'left' : 'right', deg);
         } else if (key === 'DEL') {
@@ -1590,8 +1615,8 @@
         logline.innerHTML = !engine.edit && (engine.error || engine.done) ? eq : '';
         slide(logline, logline.scrollWidth);
         mem.textContent = engine.memory ? 'M' : '';
-        fracMark.textContent = fracMode ? 'FRAC' : '';
-        keyBoard['a/b'].classList.toggle('calc-lit', fracMode); // a red dot on its key
+        fracMark.textContent = fracMode ? 'FRAC' : dmsMode ? 'DMS' : '';
+        keyBoard['a/b'].classList.toggle('calc-lit', secondActive ? dmsMode : fracMode); // a red dot on its key, for the mode it shows
         pastButton.hidden = !engine.past.length; // shown once there is a history
         showTools();
         if (stats.classList.contains('calc-open')) renderStats(); // the number format or fraction mode may have changed

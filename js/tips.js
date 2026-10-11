@@ -9,9 +9,9 @@
     root.CalcTips = {
         '2nd': {
             t: '2nd',
-            d: 'Switches sin, cos, tan, sinh, cosh, tanh, ln, e<sup>x</sup>, log, π and y<sup>x</sup> to their ' +
-                'second functions: sin<sup>-1</sup> …, log<sub>2</sub>, 2<sup>x</sup>, 10<sup>x</sup>, e and ' +
-                'log<sub>y</sub>. Click again to switch back.',
+            d: 'Switches sin, cos, tan, sinh, cosh, tanh, ln, e<sup>x</sup>, log, π, y<sup>x</sup> and a/b to their ' +
+                'second functions: sin<sup>-1</sup> …, log<sub>2</sub>, 2<sup>x</sup>, 10<sup>x</sup>, e, ' +
+                'log<sub>y</sub> and °′″. Click again to switch back.',
             k: 'Space'
         },
         'Deg': {
@@ -53,6 +53,11 @@
             d: 'Each ÷ is drawn as a fraction and results are shown as fractions. Click to turn it off, as the ' +
                 'a/b key does.',
             k: 'f'
+        },
+        'DMS': {
+            t: 'Degrees, minutes and seconds are on',
+            d: 'Results are shown as 36°52′11.63″. Click to turn it off, as the °′″ key does.',
+            k: 'h, f'
         },
         'hold': {
             t: 'Hold',
@@ -235,7 +240,18 @@
             t: 'Fraction mode',
             d: 'Draws each ÷ as a fraction while you type, and shows results as fractions: ' +
                 '1 ÷ 2 + 1 ÷ 3 = 5/6. FRAC in the display shows it is on. Click again for decimals.',
-            k: 'f'
+            k: 'f',
+            second: '°′″'
+        },
+        '°′″': {
+            t: 'Degrees, minutes, seconds',
+            d: 'Shows results as degrees, minutes and seconds: 0.6 sin<sup>-1</sup> = 36°52′11.63″ in Deg. ' +
+                'DMS in the display shows it is on. Click again for decimals. Hours work too: 2.75 is 2°45′0″, ' +
+                '2 h 45 min. To enter an angle so, paste it: 12°30′15″.',
+            first: 'Shows results as degrees, minutes and seconds: sin<sup>-1</sup> 0.6 = 36°52′11.63″ in Deg. ' +
+                'DMS in the display shows it is on. Click again for decimals. Hours work too: 2.75 is 2°45′0″, ' +
+                '2 h 45 min. To enter an angle so, paste it: 12°30′15″.',
+            k: 'h, f'
         },
         '(': {
             t: 'Open bracket',
