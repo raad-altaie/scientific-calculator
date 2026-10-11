@@ -55,25 +55,9 @@ if (new URLSearchParams(location.search).has('detached')) {
     fitWindow();
 }
 
-// what the calculator keeps in localStorage
-const storageKeys = ['secondActive', 'deg', 'memory', 'calc', 'format', 'fraction', 'stat'];
-
 // listen for messages from the iframe
 window.addEventListener('message', (event) => {
-    if (event.data?.command == 'clear-storage') {
-        // Clear localStorage
-        localStorage.clear();
-    } else if (event.data?.command == 'set-storage') {
-        // Set values in localStorage: only the calculator's own keys, and a full
-        // or blocked storage must not break the page
-        for (const key of storageKeys) {
-            if (event.data.storage && Object.prototype.hasOwnProperty.call(event.data.storage, key)) {
-                try {
-                    localStorage.setItem(key, JSON.stringify(event.data.storage[key]));
-                } catch (e) { }
-            }
-        }
-    } else if (event.data?.command == 'open-options') {
+    if (event.data?.command == 'open-options') {
         chrome.runtime.openOptionsPage();
     } else if (event.data?.command == 'read-clipboard') {
         pasteFromClipboard();
@@ -137,29 +121,4 @@ document.addEventListener('paste', function (e) {
     const clipboardData = e.clipboardData || window.clipboardData;
     const pastedText = clipboardData.getData('text/plain');
     iframe.contentWindow.postMessage({ type: 'paste', text: pastedText }, '*');
-});
-
-// pass storage data to the iframe
-iframe.addEventListener('load', () => {
-    // Get values from localStorage
-    const storageData = {};
-
-    storageKeys.forEach(key => {
-        try {
-            const item = localStorage.getItem(key);
-            if (item !== null) {
-                storageData[key] = JSON.parse(item);
-            }
-        } catch (e) { } // a damaged value is left out, the rest is restored
-    });
-
-    // Pass data to iframe
-    iframe.contentWindow.postMessage({ type: 'storage', text: JSON.stringify(storageData) }, '*');
-});
-
-// the number format was changed on the options page while the calculator is open
-window.addEventListener('storage', (event) => {
-    if (event.key === 'format') {
-        iframe.contentWindow.postMessage({ type: 'format', text: event.newValue }, '*');
-    }
 });

@@ -1,6 +1,6 @@
 // The page around the calculator. calc.html runs in an iframe, as in the extension's
-// popup.js: this page keeps its state, passes it the keyboard and the clipboard, scales
-// it to its pane, and shows or hides the options when the ? is clicked.
+// popup.js, and keeps its own state: this page passes it the keyboard and the clipboard,
+// scales it to its pane, and shows or hides the options when the ? is clicked.
 
 const iframe = document.getElementById('calc-iframe');
 const stage = document.getElementById('stage');
@@ -10,9 +10,6 @@ const optionsPane = document.getElementById('options-pane');
 const CALC_WIDTH = 388;
 const CALC_HEIGHT = 585;
 const MAX_SCALE = 1.4; // bigger than the popup on a big screen, but not huge
-
-// what the calculator keeps in localStorage
-const storageKeys = ['secondActive', 'deg', 'memory', 'calc', 'format', 'fraction', 'stat'];
 
 const toCalc = (message) => iframe.contentWindow.postMessage(message, '*');
 
@@ -79,18 +76,7 @@ window.addEventListener('message', (event) => {
 
     const data = event.data || {};
 
-    if (data.command === 'set-storage') {
-        // only the calculator's own keys; a full or blocked storage must not break the page
-        for (const key of storageKeys) {
-            if (data.storage && Object.prototype.hasOwnProperty.call(data.storage, key)) {
-                try {
-                    localStorage.setItem(key, JSON.stringify(data.storage[key]));
-                } catch (e) { }
-            }
-        }
-    } else if (data.command === 'clear-storage') {
-        try { localStorage.clear(); } catch (e) { }
-    } else if (data.command === 'open-options') {
+    if (data.command === 'open-options') {
         // the ? and the name: on a wide screen hide the panel, so the calculator
         // is in the middle, or show it again; on a small one open it over the calculator
         if (wide.matches) {
@@ -110,19 +96,7 @@ window.addEventListener('message', (event) => {
     }
 });
 
-// ---- state: sent to the calculator once it has loaded ----
-iframe.addEventListener('load', () => {
-    const storageData = {};
-
-    storageKeys.forEach((key) => {
-        try {
-            const item = localStorage.getItem(key);
-            if (item !== null) storageData[key] = JSON.parse(item);
-        } catch (e) { } // a damaged value is left out, the rest is restored
-    });
-    toCalc({ type: 'storage', text: JSON.stringify(storageData) });
-    fit();
-});
+iframe.addEventListener('load', fit);
 
 // ---- keyboard and paste: passed on, unless the user is typing in the options ----
 const inOptions = (e) => optionsPane.contains(e.target) &&

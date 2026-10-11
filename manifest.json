@@ -56,13 +56,7 @@
             "description": "Open Scientific Calculator"
         }
     },
-    "sandbox": {
-        "pages": [
-            "calc.html"
-        ]
-    },
     "content_security_policy": {
-        "extension_pages": "script-src 'self'; object-src 'self';",
-        "sandbox": "sandbox allow-scripts allow-forms allow-popups allow-modals; script-src 'self' 'unsafe-inline' 'unsafe-eval'; child-src 'self';"
+        "extension_pages": "script-src 'self'; object-src 'self';"
     }
 }

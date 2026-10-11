@@ -1,6 +1,5 @@
 (function (window) {
     'use strict';
-    let storage = {}
     let Calc = document.querySelector('.calc-main'),
         display = Calc.querySelector('.calc-display span'),
         logline = Calc.querySelector('.calc-log'),
@@ -80,50 +79,6 @@
         // listen for paste event from parent
         if (data.type === 'paste') {
             doPaste(data.text);
-
-            // handle storage data from parent
-        } else if (data.type === 'storage') {
-
-            try {
-                // recover after reload or crash...
-                const storageMs = JSON.parse(data.text);
-
-                if (!storageMs) {
-                    return; // for the very first run or after fatal crash
-                }
-
-                if (storageMs['secondActive']) {
-                    keyDown(false, keyBoard['2nd']);
-                    doKey('2nd', true);
-                }
-                if (storageMs['deg'] === true) doKey('Deg', true);
-                if (typeof storageMs['stat'] === 'string') statsInput.value = storageMs['stat'];
-                fracMode = engine.fraction = !!storageMs['fraction'];
-                if (storageMs['format']) setFormat(storageMs['format']);
-                delete storageMs['format']; // the options page keeps it; saving it here could undo a change made there
-                engine.memory = +storageMs['memory'] || 0;
-                try {
-                    if (storageMs['calc']) engine.load(storageMs['calc']);
-                } catch (e) {
-                    console.log('error', e)
-                    engine.reset();
-                }
-                if (engine.entry === 'typing') keyBoard['AC'].children[0].firstChild.data = 'C';
-                refresh();
-
-                storage = storageMs
-            } catch (e) {
-                console.log('error', e)
-            }
-        }
-        // the number format was changed on the options page
-        else if (data.type === 'format') {
-            try {
-                setFormat(JSON.parse(data.text));
-            } catch (e) {
-                setFormat({});
-            }
-            refresh();
         }
         // Paste in the menu: the browser did not allow reading the clipboard
         else if (data.type === 'paste-refused') {
@@ -854,15 +809,65 @@
         }
     }
 
-    function saveState() {
-        storage['secondActive'] = secondActive;
-        storage['deg'] = deg;
-        storage['stat'] = statsInput.value;
-        storage['fraction'] = fracMode;
-        storage['memory'] = engine.memory;
-        storage['calc'] = engine.save();
-        window.parent.postMessage({ command: 'set-storage', storage }, '*');
+    // ---------------- saved state ---------------- //
+
+    // a damaged value reads as missing, and a full or blocked storage must not break the calculator
+    function stored(key) {
+        try {
+            return JSON.parse(localStorage.getItem(key));
+        } catch (e) {
+            return null;
+        }
     }
+
+    function store(key, value) {
+        try {
+            localStorage.setItem(key, JSON.stringify(value));
+        } catch (e) { }
+    }
+
+    // the format is not saved here: the options page keeps it, and saving it could undo a change made there
+    function saveState() {
+        store('secondActive', secondActive);
+        store('deg', deg);
+        store('stat', statsInput.value);
+        store('fraction', fracMode);
+        store('memory', engine.memory);
+        store('calc', engine.save());
+    }
+
+    // back as it was left, after the popup is closed or the page reloaded
+    function loadState() {
+        var s = {};
+
+        // all read first: the keys pressed below must not save over what is still to be read
+        ['secondActive', 'deg', 'stat', 'fraction', 'format', 'memory', 'calc'].forEach(function (key) {
+            s[key] = stored(key);
+        });
+        if (s.secondActive) {
+            keyDown(false, keyBoard['2nd']);
+            doKey('2nd', true);
+        }
+        if (s.deg === true) doKey('Deg', true);
+        if (typeof s.stat === 'string') statsInput.value = s.stat;
+        fracMode = engine.fraction = !!s.fraction;
+        setFormat(s.format);
+        engine.memory = +s.memory || 0;
+        try {
+            if (s.calc) engine.load(s.calc);
+        } catch (e) {
+            engine.reset();
+        }
+        if (engine.entry === 'typing') keyBoard['AC'].children[0].firstChild.data = 'C';
+        refresh();
+    }
+
+    // the number format was changed on the options page
+    window.addEventListener('storage', function (e) {
+        if (e.key !== 'format') return;
+        setFormat(stored('format'));
+        refresh();
+    });
 
     function render(val, inp) {
         var hasComma = val.match(/\./),
@@ -1053,9 +1058,9 @@
         }
     }
 
-})(window);
+    loadState();
 
-// window.parent.postMessage({ command: 'clear-storage' }, '*');
+})(window);
 
 
 document.querySelectorAll('.logo, .calc-help').forEach(function (el) {

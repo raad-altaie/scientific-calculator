@@ -4,7 +4,7 @@ document.querySelectorAll('.year').forEach((el) => {
 });
 
 // The number format of the results. It is kept where the calculator reads it when
-// it opens, and an open calculator gets the change at once
+// it opens, and the calculator's frame gets a storage event, so it changes at once
 const notation = document.getElementById('format-notation');
 const places = document.getElementById('format-places');
 const group = document.getElementById('format-group');
@@ -44,12 +44,8 @@ showFormat();
 
 [notation, places, group].forEach((el) => {
     el.addEventListener('change', () => {
-        const text = JSON.stringify(showFormat());
-
         try {
-            localStorage.setItem('format', text);
+            localStorage.setItem('format', JSON.stringify(showFormat()));
         } catch (e) { }
-        // both are on this page, so no storage event is sent
-        iframe.contentWindow.postMessage({ type: 'format', text }, '*');
     });
 });
