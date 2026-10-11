@@ -247,10 +247,10 @@
             t: 'Degrees, minutes, seconds',
             d: 'Shows results as degrees, minutes and seconds: 0.6 sin<sup>-1</sup> = 36°52′11.63″ in Deg. ' +
                 'DMS in the display shows it is on. Click again for decimals. Hours work too: 2.75 is 2°45′0″, ' +
-                '2 h 45 min. To enter an angle so, paste it: 12°30′15″.',
+                '2 h 45 min. To enter an angle so, paste it: 12°30′15″ shows as written.',
             first: 'Shows results as degrees, minutes and seconds: sin<sup>-1</sup> 0.6 = 36°52′11.63″ in Deg. ' +
                 'DMS in the display shows it is on. Click again for decimals. Hours work too: 2.75 is 2°45′0″, ' +
-                '2 h 45 min. To enter an angle so, paste it: 12°30′15″.',
+                '2 h 45 min. To enter an angle so, paste it: 12°30′15″ shows as written.',
             k: 'h, f'
         },
         '(': {

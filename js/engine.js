@@ -551,7 +551,7 @@
                 // skipped
             } else if (table && (m = MARK.exec(s))) {
                 out.push({ t: 'num', v: table[m[1]], whole: true });
-            } else if ((m = DMS.exec(s))) { // in degrees whatever the unit in use: typing turns it into radians
+            } else if ((m = DMS.exec(s))) { // in degrees: sin, cos and tan of it are worked out in Deg
                 out.push({ t: 'num', v: String((/[SW]/.test(m[4]) ? -1 : 1) * (+m[1] + (m[2] || 0) / 60 + (m[3] || 0) / 3600)),
                     whole: true, angle: true });
             } else if ((m = /^(\d+\.?\d*|\.\d+)/.exec(s))) {
@@ -597,6 +597,17 @@
             s = s.slice(m[0].length);
         }
         return out;
+    }
+
+    // true if a number in n was written in degrees: 30°, 12°30′
+    function angled(n) {
+        return !!n && (!!n.angle || angled(n.arg) || angled(n.l) || angled(n.r));
+    }
+
+    // true for a text that is one angle in degrees, minutes and seconds alone: 12°30′15″, -12°30′
+    function angleAlone(s) {
+        var t = tokens(separators(String(s).trim()));
+        return !!t && (t.length === 1 ? !!t[0].angle : t.length === 2 && t[0].v === '-' && !!t[1].angle);
     }
 
     // false if the pasted text stops inside n
@@ -674,6 +685,7 @@
             if (t.t === 'fn') {
                 f = { t: 'fn', key: /^(sin|cos|tan)h?$/.test(t.v) && inverse() ? t.v + '-1' : t.v };
                 f.arg = need(shut(is('(') ? primary() : postfix(), f));
+                if (/^(sin|cos|tan)$/.test(f.key) && angled(f.arg)) f.deg = 1; // sin(30°) is 0.5 in Rad as well
                 return f;
             }
             if (t.t === 'op' && t.v === '√') {
@@ -1522,7 +1534,7 @@
             switch (n.t) {
                 case 'num':
                     if (n.whole || n.v.replace(/\D/g, '').length > 15) { // not typed, or more digits than the keys take: entered whole
-                        if (ok && !halted) ok = self.put(n.angle && !deg ? +n.v * PI / 180 : +n.v); // 30° is π/6 in Rad
+                        if (ok && !halted) ok = self.put(+n.v);
                     } else { // typed: the same digits again, and a typed sign
                         for (i = n.v.charAt(0) === '-' ? 1 : 0; i < n.v.length; i++) key(n.v.charAt(i));
                         if (n.v.charAt(0) === '-') key('+/–');
@@ -1762,6 +1774,7 @@
     Engine.group = group;
     Engine.fraction = shownFraction;
     Engine.dms = dms;
+    Engine.angleAlone = angleAlone;
 
     root.CalcEngine = Engine;
     if (typeof module !== 'undefined' && module.exports) {

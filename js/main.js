@@ -239,6 +239,7 @@
 
     function doPaste(text) {
         if (!engine.paste(text, deg)) return;
+        if (!engine.edit && CalcEngine.angleAlone(text) && !dmsMode) toggleDms(); // 12°30′15″ shows as written
         keyBoard['AC'].children[0].firstChild.data = 'C';
         refresh();
         notify('Paste');
@@ -1065,7 +1066,7 @@
     // The value typed, worked out, in each unit of the group but its own. A new
     // group fills the list of units first
     function renderConv(newGroup) {
-        var group = CalcUnits.units[convAt.g], text = convInput.value.trim(), x, from, trial, unit, angle;
+        var group = CalcUnits.units[convAt.g], text = convInput.value.trim(), x, from, trial;
 
         from = group.list.map(function (unit) { return unit.t; }).indexOf(convAt.u[group.c]);
         if (from < 0) from = 0;
@@ -1081,10 +1082,9 @@
         } else if (text) { // an equation: worked out as the calculator would
             trial = new CalcEngine();
             trial.fnFirst = engine.fnFirst;
-            unit = group.list[from];
-            // 36°52′ typed for degrees is in degrees, for radians in radians, whatever the unit in use
-            angle = group.c === 'Angle' && /[°′″]/.test(text) && (unit.f === 1 || unit.t === 'radians') ? unit.f === 1 : deg;
-            x = trial.paste(text, angle, true) && !trial.error && (trial.press('=', angle), !trial.error) ? +trial.value : NaN;
+            x = trial.paste(text, deg, true) && !trial.error && (trial.press('=', deg), !trial.error) ? +trial.value : NaN;
+            // 36°52′ is in degrees: for another angle, as 180° for radians, it is turned into that one
+            if (group.c === 'Angle' && CalcEngine.angleAlone(text)) x = CalcUnits.convert(convAt.g, 0, from, x);
         }
         convInput.classList.toggle('calc-bad', !!text && !isFinite(x));
         convNote.textContent = !text ? 'Type a value to convert.' : !isFinite(x) ? 'Not a number the calculator can read.' :

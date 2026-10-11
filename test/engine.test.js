@@ -608,7 +608,7 @@ dels.forEach(function (c) {
             ['logᵧ(8)', '8', 'log<sub>y</sub>(8)'],
             ['log₁(8)=', 'Error', 'log<sub>1</sub>(8) ='],
             ['10^3=', '1000', '10^3 ='],
-            // degrees, minutes and seconds: in degrees whatever the unit, so in Rad they go in as radians
+            // degrees, minutes and seconds: a number in degrees; sin, cos and tan of it are worked out in Deg
             ['12°30′15″', 12.504166666666666, '12.50416666667', true],
             ['12°30\'15"', 12.504166666666666, '12.50416666667', true],
             ['12° 30\' 15\'\'', 12.504166666666666, '12.50416666667', true],
@@ -619,8 +619,11 @@ dels.forEach(function (c) {
             ['0°7′39″W', -0.1275, '-0.1275', true],
             ['33°52′S', -(33 + 52 / 60), '-33.86666666667', true],
             ['sin(30°)=', '0.5', 'sin(30) =', true],
-            ['sin(30°)=', '0.5', 'sin(0.5235987755983) ='],
-            ['30°', Math.PI / 6, '0.5235987755983'],
+            ['sin(30°)=', '0.5', 'sin(30) ='],
+            ['cos(2×30°)=', '0.5', 'cos(2 × 30) ='],
+            ['tan(45°)+sin(30)=', 1 + Math.sin(30), 'tan(45) + sin(30) ='],
+            ['30°', '30', '30'],
+            ['12°30′15″', 12.504166666666666, '12.50416666667'],
             ['2×45°=', '90', '2 × 45 =', true],
             ['12°30′ + 1=', '13.5', '12.5 + 1 =', true],
             ['sin 30', 0.5, 'sin(30)', true],
@@ -1316,8 +1319,16 @@ dels.forEach(function (c) {
     e = new Engine();
     run(e, '1 +');
     e.startEdit();
-    check(e.paste('30°', false) && e.move('end', false) && e.value === String(Math.PI / 6) &&
-        (e.press('=', false), e.value === String(1 + Math.PI / 6)), 'pasted at the cursor, 30° is still in degrees', state(e));
+    check(e.paste('30°', false) && e.move('end', false) && (e.press('=', false), e.value === '31'),
+        'pasted at the cursor, 30° is 30', state(e));
+    e = new Engine();
+    check(e.paste('sin(30°)=', false) && e.value === '0.5' && e.pastLine(0).unit === 'Deg',
+        'sin(30°) in Rad is kept in the history as done in Deg', e.value + ' ' + e.pastLine(0).unit);
+    check(e.recall(0, false) && (e.press('=', false), e.value === '0.5'), 'and comes back so', state(e));
+    [['12°30′15″', true], ['-12°30′', true], [' 51°30′26″N ', true], ['30°', true], ['30° + 1', false], ['sin(30°)', false],
+        ['12.5', false], ['--12°', false], ['', false]].forEach(function (c) {
+        check(Engine.angleAlone(c[0]) === c[1], JSON.stringify(c[0]) + (c[1] ? ' is' : ' is not') + ' an angle alone');
+    });
 })();
 
 // ---------- a root is drawn with a bar over what is under it ---------- //

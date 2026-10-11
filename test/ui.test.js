@@ -402,6 +402,14 @@ async function degreesMinutes(page, at) {
     await page.go(page.base + at);
     check(await mark() === 'DMS' && await shown(page) === '2°0′0″', t + 'on after a reload', await mark() + ' ' + await shown(page));
 
+    // an angle pasted alone shows as written, and turns the mode on
+    await page.click('.calc-frac');
+    await page.ev('(function (d) { d.body.dispatchEvent(Object.assign(new Event("paste", { bubbles: true }), ' +
+        '{ clipboardData: { getData: function () { return "12°30′15″"; } } })); })' +
+        '((document.getElementById("calc-iframe") || {}).contentDocument || document)');
+    check(await shown(page) === '12°30′15″' && await mark() === 'DMS', t + 'a pasted 12°30′15″ shows as written',
+        await shown(page) + ' ' + await mark());
+
     // the converter: degrees, minutes and seconds among the angles; typed so, in degrees in Rad as well
     await page.click('.calc-conv-btn');
     await choose(page, '.calc-conv-group', 'Angle');
