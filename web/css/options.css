@@ -32,18 +32,17 @@ html, body {
 }
 
 .calc-main{
-    margin: 5em 0;
+    margin: 0;
 }
 
 .calc-sci{
-    margin: 5em 0;
+    margin: 0;
 }
 
 .info {
     text-align: left;
-    margin:.8em auto;
+    margin: .8em auto 1.4em;
     display: flex;
-    
 }
 
 .des{
@@ -64,7 +63,7 @@ html, body {
     font-family: 'Play', 'Russo One', sans-serif;
     font-size: 2.7em;
     color: #fff;
-    -webkit-user-select: none;
+    user-select: none;
 }
 
 .title{
@@ -240,7 +239,9 @@ html, body {
     background: #2b4753;
     border: 1px solid #1a2f38;
     border-radius: 5px;
-    display: inline-block;
+    display: inline-flex; /* the label sits in the middle of the key */
+    align-items: center;
+    justify-content: center;
     font-family: 'Play', 'Russo One', sans-serif;
     vertical-align: middle;
 }
@@ -276,7 +277,9 @@ html, body {
     border-bottom-left-radius: 1em;
     border-bottom-right-radius: 1em;
     background: #8696a5;
-    display: inline-block;
+    display: inline-flex; /* the label sits in the middle of the key */
+    align-items: center;
+    justify-content: center;
     vertical-align: middle;
 }
 
@@ -592,4 +595,16 @@ html, body {
 
 .option p {
     line-height: 1.55;
+}
+
+/* every section title sits the same distance below the text above it: the title's own
+   margin sets the gap, so nothing at the end of a section adds to it */
+.wrapper > :not(.options) > :last-child,
+.wrapper > :not(.options) > div > :last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.wrapper > .logo:not(.title) {
+    margin-bottom: 0;
 }
