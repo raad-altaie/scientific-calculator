@@ -2,7 +2,7 @@
    copied from the extension, so everything the web needs to change lives here and
    scripts/sync-web.sh links this file into calc.html. */
 
-/* Chrome's popup draws the calculator at a smaller base font than a web page does;
+/* The browser's popup draws the calculator at a smaller base font than a web page does;
    every size in style.css is in em, so this brings the web page to the same look */
 html {
     font-size: 12px;

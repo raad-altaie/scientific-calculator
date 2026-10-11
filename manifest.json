@@ -3,7 +3,7 @@
     "name": "Scientific Calculator",
     "version": "2.1.0",
     "author": "Raad Altaie",
-    "description": "Awesome Scientific Calculator for Google Chrome",
+    "description": "Awesome Scientific Calculator for your browser",
     "action": {
         "default_title": "Calculator",
         "default_popup": "popup.html",

@@ -244,6 +244,8 @@ html, body {
     justify-content: center;
     font-family: 'Play', 'Russo One', sans-serif;
     vertical-align: middle;
+    position: relative;
+    top: 3px; /* the key with its label, a bit down */
 }
 
 
@@ -277,9 +279,7 @@ html, body {
     border-bottom-left-radius: 1em;
     border-bottom-right-radius: 1em;
     background: #8696a5;
-    display: inline-flex; /* the label sits in the middle of the key */
-    align-items: center;
-    justify-content: center;
+    display: inline-block;
     vertical-align: middle;
 }
 

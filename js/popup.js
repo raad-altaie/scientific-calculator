@@ -20,7 +20,7 @@ if (new URLSearchParams(location.search).has('detached')) {
         iframe.style.transform = `translate(-50%, -50%) scale(${scale})`;
     };
 
-    // The window keeps the calculator's shape. Chrome cannot lock that while the
+    // The window keeps the calculator's shape. The browser cannot lock that while the
     // window is dragged, so once a resize settles the side that moved less
     // follows the other one
     const keepShape = () => {
@@ -81,7 +81,7 @@ window.addEventListener('message', (event) => {
 });
 
 // Paste in the menu of a right click. The calculator cannot read the clipboard,
-// so this page does: Chrome asks once to allow it, as the permission is optional
+// so this page does: the browser asks once to allow it, as the permission is optional
 // and not given at install. The text goes to the calculator as a paste
 const refusePaste = () => iframe.contentWindow.postMessage({ type: 'paste-refused' }, '*');
 

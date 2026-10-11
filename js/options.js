@@ -9,12 +9,12 @@ document.getElementById('launch-detached').addEventListener('click', () => {
 });
 
 // The button on every page is on while the extension holds this access, as in
-// background.js. Chrome asks for it when the switch is turned on; background.js then
+// background.js. The browser asks for it when the switch is turned on; background.js then
 // puts the button on the pages, and gives the access back when the switch is turned off
 const pageIcon = document.getElementById('page-icon');
 const pageIconAccess = { permissions: ['scripting', 'storage'], origins: ['http://*/*', 'https://*/*'] };
 
-// Chrome does not put the button on its own pages, so this page adds it itself
+// The browser does not put the button on its own pages, so this page adds it itself
 const pageIconId = 'scientific-calculator-page-icon'; // as in page-icon.js
 
 const showPageIconOption = () => {
@@ -43,7 +43,7 @@ pageIcon.addEventListener('change', () => {
     }
 });
 
-// the access can also be changed in the settings of Chrome
+// the access can also be changed in the settings of the browser
 chrome.permissions.onAdded.addListener(showPageIconOption);
 chrome.permissions.onRemoved.addListener(showPageIconOption);
 showPageIconOption();

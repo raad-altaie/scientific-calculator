@@ -125,7 +125,7 @@
             }
             refresh();
         }
-        // Paste in the menu: Chrome did not allow reading the clipboard
+        // Paste in the menu: the browser did not allow reading the clipboard
         else if (data.type === 'paste-refused') {
             notify('Use Ctrl+V');
         }
@@ -421,7 +421,7 @@
 
     // Copy, Paste, and Reset (everything but the history and the statistics). Copy takes the selected part of the display, else
     // what Ctrl+C takes. This page cannot read the clipboard, so for Paste
-    // popup.js asks Chrome once for that and sends the text back as a paste
+    // popup.js asks the browser once for that and sends the text back as a paste
     menu.addEventListener('click', function (e) {
         var item = e.target.closest('[data-act]');
         if (!item) return;

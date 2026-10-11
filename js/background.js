@@ -64,7 +64,7 @@ function openCalculatorInDetachedMode() {
 
 
 // The icon on every page is an option, off until it is turned on on the options
-// page. The option is on while the extension holds this access, which Chrome
+// page. The option is on while the extension holds this access, which the browser
 // asks the user for at that moment and not at install
 const pageIconSites = ["http://*/*", "https://*/*"];
 const pageIconAccess = { permissions: ["scripting", "storage"], origins: pageIconSites };
@@ -75,12 +75,12 @@ function addPageIconToOpenPages() {
     chrome.tabs.query({ discarded: false }, (tabs) => {
         tabs.forEach((tab) => {
             chrome.scripting.executeScript({ target: { tabId: tab.id }, files: pageIconScript.js })
-                .catch(() => { }); // Chrome keeps extensions out of some pages
+                .catch(() => { }); // The browser keeps extensions out of some pages
         });
     });
 }
 
-// Puts the icon on the pages, if the option is on. Chrome forgets the
+// Puts the icon on the pages, if the option is on. The browser forgets the
 // registered script when the extension is updated, so this also runs then
 function showPageIcon() {
     chrome.permissions.contains(pageIconAccess, (granted) => {
@@ -95,7 +95,7 @@ function showPageIcon() {
     });
 }
 
-// Takes the icon off the pages and gives the access back to Chrome
+// Takes the icon off the pages and gives the access back to the browser
 function removePageIcon() {
     chrome.permissions.contains(pageIconAccess, (granted) => {
         if (!granted) return;
@@ -138,7 +138,7 @@ chrome.runtime.onInstalled.addListener((details) => {
 
 
     // Create "Open as Popup Window" menu item
-    // removeAll first: the menu can already exist after a Chrome update
+    // removeAll first: the menu can already exist after a browser update
     chrome.contextMenus.removeAll(() => {
         chrome.contextMenus.create({
             id: "open-popup",

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Package the extension for the Chrome Web Store: runtime files only.
+# Package the extension for the extension stores: runtime files only.
 set -e
 cd "$(dirname "$0")/.."
 
