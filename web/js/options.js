@@ -70,6 +70,16 @@ showFormat();
     });
 });
 
+// MODE on the calculator goes on to the next notation: the choice here follows it
+window.addEventListener('storage', (e) => {
+    if (e.key !== 'format') return;
+    const f = readFormat();
+    notation.value = /^(fix|sci|eng)$/.test(f.notation) ? f.notation : 'norm';
+    places.value = Number.isInteger(f.places) ? f.places : 2;
+    group.checked = !!f.group;
+    showFormat();
+});
+
 // The order of the function keys: √ 9, or 9 √. Without a choice yet it is the
 // one the calculator starts with: √ 9, or 9 √ for who used it before the option came
 const fnOrder = document.getElementById('fn-order');

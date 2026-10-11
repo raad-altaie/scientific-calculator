@@ -1414,9 +1414,9 @@ html {
     vertical-align: middle;
 }
 
-/* the name of a key drawn as a picture: ◀ and ▶ */
-.calc-name {
-    display: none;
+/* MODE: four capitals, a little smaller to fit the key */
+.calc-mode {
+    font-size: 0.85em;
 }
 
 .trigo-keys svg {

@@ -321,6 +321,35 @@ async function calculator(page, at) {
 
 // a choice in a list of the converter, by the start of its text: the list opened
 // with a click, and the choice clicked
+// MODE goes Normal, Fix, Sci, Eng and Normal again; the options page follows it
+async function modeKey(page, at) {
+    var t = at + ': ', MODE = '.calc-left > :nth-child(5)';
+
+    function mark() {
+        return page.calc('document.querySelector(".calc-fmt").textContent');
+    }
+
+    await page.fresh(at, {});
+    check(await page.calc('document.querySelector(' + JSON.stringify(MODE) + ').textContent.trim()') === 'MODE', t + 'MODE is there');
+    await page.type('1500\r');
+    await page.click(MODE);
+    check(await mark() === 'FIX 2' && await shown(page) === '1500.00', t + 'MODE: Fix 2', await mark() + ' ' + await shown(page));
+    await page.click(MODE);
+    check(await mark() === 'SCI 2' && await shown(page) === '1.50e+3', t + 'then Sci', await mark() + ' ' + await shown(page));
+    await page.type('o');
+    check(await mark() === 'ENG 2', t + 'o, then Eng', await mark());
+    await page.click(MODE);
+    check(await mark() === '' && await shown(page) === '1500', t + 'and Normal again', await mark() + ' ' + await shown(page));
+    await page.click(MODE);
+    await page.go(page.base + at);
+    check(await mark() === 'FIX 2', t + 'kept after a reload', await mark());
+    check(await page.calc('[].some.call(document.querySelectorAll(".calc-left > *"), function (k) { return /[◀▶]/.test(k.textContent); })') === false,
+        t + 'no cursor keys');
+    await page.type('2+3');
+    await page.key('ArrowLeft', 37);
+    check(await page.calc('!!document.querySelector("#box .calc-cursor")'), t + 'the arrow keys still move the cursor');
+}
+
 // 10^x, e and log_y on the 2nd layer of log, π and y^x, by click and by the keyboard
 async function secondKeys(page, at) {
     var t = at + ': ', KEYS = '.calc-left > :nth-child(', LOG = KEYS + '22)', PI = KEYS + '21)', YX = KEYS + '10)';
@@ -354,10 +383,10 @@ async function secondKeys(page, at) {
     check(near(await value(page), Math.E), t + 'h, p is e', await shown(page));
 }
 
-// °′″ on the 2nd layer of a/b: results in degrees, minutes and seconds, kept in the
+// the °′″ key: results in degrees, minutes and seconds, kept in the
 // history and after a reload; the converter has them among its angles
 async function degreesMinutes(page, at) {
-    var t = at + ': ', AB = '.calc-left > :nth-child(5)';
+    var t = at + ': ', AB = '.calc-left > :nth-child(4)'; // °′″
 
     function mark() {
         return page.calc('document.querySelector(".calc-frac").textContent');
@@ -369,9 +398,8 @@ async function degreesMinutes(page, at) {
     }
 
     await page.fresh(at, {});
-    await page.click('.calc-left > :nth-child(1)'); // 2nd
     check(await page.calc('document.querySelector(' + JSON.stringify(AB) + ').textContent.trim()') === '°′″',
-        t + '2nd turns a/b into °′″');
+        t + 'the °′″ key is next to a/b');
     await page.click(AB);
     check(await mark() === 'DMS', t + 'DMS shows it is on', await mark());
     check(await page.calc('document.querySelector(' + JSON.stringify(AB) + ').classList.contains("calc-lit")'), t + 'its key has its dot');
@@ -608,6 +636,15 @@ async function options(page) {
     await page.go(page.base + '/web/index.html', [1300, 900]);
     check(await page.ev('document.getElementById("panel-stats").checked && !document.getElementById("panel-fx").checked && ' +
         'document.getElementById("panel-conv").checked'), t + 'the switches are kept');
+
+    // MODE in the calculator: the number format here follows it. The clicks of these checks do not
+    // reach into the frame on this page, so the key gets its mouse events in the frame itself
+    await page.calc('["mousedown", "mouseup"].forEach(function (type) { document.querySelector(".calc-left > :nth-child(5)")' +
+        '.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0 })); })');
+    check(await page.until('document.getElementById("format-notation").value === "fix"'), t + 'MODE turns the format here to Fix',
+        await page.ev('document.getElementById("format-notation").value'));
+    check(await page.ev('document.getElementById("format-icon").textContent') === '1500.00', t + 'and its icon',
+        await page.ev('document.getElementById("format-icon").textContent'));
 }
 
 (async function () {
@@ -638,6 +675,8 @@ async function options(page) {
         await degreesMinutes(page, '/web/calc.html');
         await angleUnits(page, '/calc.html');
         await angleUnits(page, '/web/calc.html');
+        await modeKey(page, '/calc.html');
+        await modeKey(page, '/web/calc.html');
         await converter(page, '/calc.html');
         await converter(page, '/web/calc.html');
         await options(page);

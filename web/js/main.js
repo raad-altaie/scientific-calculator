@@ -66,12 +66,12 @@
         secondLayer = [
             [
                 'sin', 'cos', 'tan', 'ln', 'sinh', 'cosh', 'tanh', 'e<sup>x</sup>', '%', '<i>n</i>C<i>r</i>', '<i>n</i>P<i>r</i>',
-                'log', 'π', 'y<sup>x</sup>', 'a/b'
+                'log', 'π', 'y<sup>x</sup>'
             ],
             [
                 'sin<sup>-1</sup>', 'cos<sup>-1</sup>', 'tan<sup>-1</sup>', 'log<sub>2</sub>',
                 'sinh<sup>-1</sup>', 'cosh<sup>-1</sup>', 'tanh<sup>-1</sup>', '2<sup>x</sup>', 'mod', 'gcd', 'lcm',
-                '10<sup>x</sup>', 'e', 'log<sub>y</sub>', '°′″'
+                '10<sup>x</sup>', 'e', 'log<sub>y</sub>'
             ]
         ];
 
@@ -159,7 +159,8 @@
     function onKeyPress(key) {
         var holdKey = hold.textContent,
             keyMatch = (',|.|-|–|/|÷|*|×|#|+/–|x|x!|E|EE|e|ex| |2nd|r|x√y|R|√|p|π|^|yx|\'|yx|"|yx|m|mr|v|mc|b|m+|n|m-|a|Ans|' +
-                's|sin|c|cos|t|tan|S|sin-1|C|cos-1|T|tan-1|d|Deg|°|Deg|l|ln|L|log|\\|1/x|X|2x|N|nCr|P|nPr|f|a/b|M|mod|G|gcd|K|lcm').split('|'),
+                's|sin|c|cos|t|tan|S|sin-1|C|cos-1|T|tan-1|d|Deg|°|Deg|l|ln|L|log|\\|1/x|X|2x|N|nCr|P|nPr|f|a/b|M|mod|G|gcd|K|lcm|' +
+                'o|MODE').split('|'),
             keyMatchHold = ('sin|sinh|cos|cosh|tan|tanh|m-|Rand|Deg|Rand|sin-1|sinh-1|cos-1|cosh-1|tan-1|tanh-1|' +
                 '1|1/x|2|x2|3|x3|x√y|√|ln|log2|ex|2x|log|10x|π|e|yx|logy|a/b|°′″').split('|');
 
@@ -180,8 +181,8 @@
         }
         if ((key === 'h' || key === 'H') && !holdKey) hold.textContent = 'hold';
         if (!keyBoard[key]) return;
-        if ((key.match(/-1$|log2$|2x$|^(mod|gcd|lcm|10x|e|logy|°′″)$/) && !secondActive) ||
-            (key.match(/h$|n$|cos$|ex$|^(%|nCr|nPr|log|π|yx|a\/b)$/) && secondActive)) {
+        if ((key.match(/-1$|log2$|2x$|^(mod|gcd|lcm|10x|e|logy)$/) && !secondActive) ||
+            (key.match(/h$|n$|cos$|ex$|^(%|nCr|nPr|log|π|yx)$/) && secondActive)) {
             keyDown(false, keyBoard['2nd']);
             doKey('2nd', true);
         }
@@ -210,9 +211,11 @@
             showPast(false);
             return true;
         }
-        if (key === 37 || key === 39) { // the arrow keys move the cursor, as its keys do
-            keyDown(false, keyBoard[key === 37 ? '◀' : '▶']);
-            doKey(key === 37 ? '◀' : '▶', true);
+        if (key === 37 || key === 39) { // the arrow keys move the cursor
+            if (engine.move(key === 37 ? 'left' : 'right', deg)) {
+                refresh();
+                saveState();
+            }
             return true;
         }
         if (key === 35 || key === 36) { // End, Home
@@ -412,7 +415,7 @@
                 d: (fmt.notation === 'fix' ? 'Results are rounded to ' + places + '.' :
                     'Results are shown in ' + (fmt.notation === 'sci' ? 'scientific notation, 1.23e+4,' :
                         'engineering notation, powers of ten in steps of three, 12.3e+3,') + ' with ' + places + '.') +
-                    ' Click to change it on the options page.',
+                    ' MODE goes on to the next; click here to change it on the options page.',
                 k: ''
             };
         }
@@ -1502,10 +1505,20 @@
         f = f || {};
         fmt = {
             notation: /^(fix|sci|eng)$/.test(f.notation) ? f.notation : 'norm',
-            places: Math.max(0, Math.min(9, f.places | 0)),
+            places: Number.isInteger(f.places) ? Math.max(0, Math.min(9, f.places)) : 2, // 2, as the options page starts
             group: !!f.group
         };
         fmtMark.textContent = fmt.notation === 'norm' ? '' : fmt.notation.toUpperCase() + ' ' + fmt.places;
+    }
+
+    // MODE goes through the notations of results: Normal, Fix, Sci, Eng and
+    // Normal again, with the places set on the options page, which follows it
+    function nextFormat() {
+        var order = ['norm', 'fix', 'sci', 'eng'];
+        setFormat({ notation: order[(order.indexOf(fmt.notation) + 1) % order.length], places: fmt.places, group: fmt.group });
+        store('format', fmt);
+        refresh();
+        notify(fmtMark.textContent || 'Normal'); // Normal has no mark of its own
     }
 
     // a/b turns fraction mode on and off: each division is drawn as a fraction
@@ -1576,9 +1589,8 @@
     function evalKey(key) {
         if (key === 'a/b') return toggleFraction();
         if (key === '°′″') return toggleDms();
-        if (key === '◀' || key === '▶') {
-            engine.move(key === '◀' ? 'left' : 'right', deg);
-        } else if (key === 'DEL') {
+        if (key === 'MODE') return nextFormat();
+        if (key === 'DEL') {
             engine.del(); // takes back the last key of this calculation, or the piece before the cursor
         } else {
             engine.press(key, deg);
@@ -1622,7 +1634,8 @@
         slide(logline, logline.scrollWidth);
         mem.textContent = engine.memory ? 'M' : '';
         fracMark.textContent = fracMode ? 'FRAC' : dmsMode ? 'DMS' : '';
-        keyBoard['a/b'].classList.toggle('calc-lit', secondActive ? dmsMode : fracMode); // a red dot on its key, for the mode it shows
+        keyBoard['a/b'].classList.toggle('calc-lit', fracMode); // a red dot on the key of the mode that is on
+        keyBoard['°′″'].classList.toggle('calc-lit', dmsMode);
         pastButton.hidden = !engine.past.length; // shown once there is a history
         showTools();
         if (stats.classList.contains('calc-open')) renderStats(); // the number format or fraction mode may have changed
