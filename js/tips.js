@@ -30,6 +30,14 @@
                 'left; click it there to switch as well.',
             k: 'd'
         },
+        'Grad': {
+            t: 'Gradians',
+            d: 'Works angles out in gradians, 400 to a full turn: 100 sin = 1. The display shows the unit in use at ' +
+                'its bottom left; click it there to switch as well.',
+            first: 'Works angles out in gradians, 400 to a full turn: sin 100 = 1. The display shows the unit in use ' +
+                'at its bottom left; click it there to switch as well.',
+            k: 'd'
+        },
         // the unit at the bottom left of the display
         'unit Rad': {
             t: 'Radians',
@@ -41,10 +49,18 @@
         },
         'unit Deg': {
             t: 'Degrees',
-            d: 'Angles are in degrees: a full turn is 360°, so 90 sin = 1. Click to switch to radians, where a ' +
-                'full turn is 2π.',
-            first: 'Angles are in degrees: a full turn is 360°, so sin 90 = 1. Click to switch to radians, where a ' +
-                'full turn is 2π.',
+            d: 'Angles are in degrees: a full turn is 360°, so 90 sin = 1. Click to switch to gradians, where a ' +
+                'full turn is 400.',
+            first: 'Angles are in degrees: a full turn is 360°, so sin 90 = 1. Click to switch to gradians, where a ' +
+                'full turn is 400.',
+            k: 'd'
+        },
+        'unit Grad': {
+            t: 'Gradians',
+            d: 'Angles are in gradians: a full turn is 400, a right angle 100, so 100 sin = 1. Click to switch to ' +
+                'radians, where a full turn is 2π.',
+            first: 'Angles are in gradians: a full turn is 400, a right angle 100, so sin 100 = 1. Click to switch to ' +
+                'radians, where a full turn is 2π.',
             k: 'd'
         },
         // the other marks in the display
@@ -218,10 +234,14 @@
             d: 'Its angles were worked out in radians, and are again when you insert it, whatever the unit then.',
             k: ''
         },
-        'history unit DegRad': {
-            t: 'Done in degrees and radians',
-            d: 'Some of its angles were worked out in degrees and some in radians; each is again when you ' +
-                'insert it.',
+        'history unit Grad': {
+            t: 'Done in gradians',
+            d: 'Its angles were worked out in gradians, and are again when you insert it, whatever the unit then.',
+            k: ''
+        },
+        'history unit mixed': {
+            t: 'Done in more than one unit',
+            d: 'Its angles were worked out in different units, as it shows; each is again when you insert it.',
             k: ''
         },
         '◀': {

@@ -43,6 +43,12 @@ Formulas.formulas.forEach(function (group) {
             }), false), false);
             e.press('=', false);
             check(close(+e.value, f.ex[1]), f.t + ': in radians', 'gave ' + e.value);
+            e = new Engine(); // and in gradians, the angle turned by hand: 90° is 100 grad
+            e.paste(Formulas.fill(f, f.ex[0].map(function (x, i) {
+                return f.rad.indexOf(keys[i]) > -1 ? x * 10 / 9 : x;
+            }), 2), 2);
+            e.press('=', 2);
+            check(close(+e.value, f.ex[1]), f.t + ': in gradians', 'gave ' + e.value);
         }
     });
 });

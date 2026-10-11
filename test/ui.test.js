@@ -426,6 +426,34 @@ async function degreesMinutes(page, at) {
     await page.key('Escape', 27);
 }
 
+// the Deg key goes from Rad to Deg to Grad and back; the display shows the unit and its full turn
+async function angleUnits(page, at) {
+    var t = at + ': ';
+
+    function units() { // the unit shown, its full turn, and the name on the key
+        return page.calc('[document.querySelector(".calc-rad").firstChild.data, document.querySelector(".calc-rad .sign").textContent, ' +
+            'document.getElementById("rad").textContent.trim()].join(" ")');
+    }
+
+    await page.fresh(at, {});
+    check(await units() === 'Rad 2π Deg', t + 'Rad at first, the key names Deg', await units());
+    await page.click('#rad');
+    check(await units() === 'Deg 360° Grad', t + 'then Deg, the key names Grad', await units());
+    await page.click('#rad');
+    check(await units() === 'Grad 400g Rad', t + 'then Grad, 400 to a full turn', await units());
+    await page.type('s100\r');
+    check(await shown(page) === '1', t + 'sin 100 = 1 in Grad', await shown(page));
+    await page.go(page.base + at);
+    check(await units() === 'Grad 400g Rad', t + 'Grad after a reload', await units());
+    await page.click('.calc-rad');
+    check(await units() === 'Rad 2π Deg', t + 'a click on the unit in the display goes on to Rad', await units());
+    await page.click('.calc-hist');
+    check(await page.calc('document.querySelector(".calc-past-unit").textContent') === 'Grad', t + 'the history marks Grad');
+    await page.hover('.calc-past-eq'); // its buttons show under the pointer
+    await page.click('.calc-past-eq .calc-past-btn[data-act="insert"]');
+    check(await units() === 'Grad 400g Rad', t + 'inserting it goes back to Grad', await units());
+}
+
 async function choose(page, list, text) {
     var i;
     await page.click(list + ' .calc-conv-chosen');
@@ -608,6 +636,8 @@ async function options(page) {
         await secondKeys(page, '/web/calc.html');
         await degreesMinutes(page, '/calc.html');
         await degreesMinutes(page, '/web/calc.html');
+        await angleUnits(page, '/calc.html');
+        await angleUnits(page, '/web/calc.html');
         await converter(page, '/calc.html');
         await converter(page, '/web/calc.html');
         await options(page);

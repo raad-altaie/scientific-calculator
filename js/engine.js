@@ -200,16 +200,19 @@
         return sign * (r > 45 ? 1 / Math.tan((90 - r) * PI / 180) : Math.tan(r * PI / 180)) || 0;
     }
 
-    // radians that are a whole number of degrees within rounding (π ÷ 6, 2 × π)
+    // The unit of an angle, deg: Rad (0 or false), Deg (1 or true) or Grad (2),
+    // 400 to a full turn. Gradians are worked out as degrees, so sin 100 is 1.
+    // Radians that are a whole number of degrees within rounding (π ÷ 6, 2 × π)
     // are computed as those degrees, so they give the same exact results
     function trig(x, deg, inDegrees, inRadians) {
         var d = deg ? x : x * 180 / PI, n = Math.round(d);
+        if (deg === 2) return inDegrees(x % 400 * 9 / 10);
         if (deg) return inDegrees(x);
         return Math.abs(d) <= 1e6 && Math.abs(d - n) <= 1e-15 * Math.max(1, Math.abs(d)) ? inDegrees(n) : inRadians(x);
     }
 
     function fromRad(x, deg) {
-        return deg ? tidy(x * 180 / PI) : x;
+        return deg === 2 ? tidy(x * 200 / PI) : deg ? tidy(x * 180 / PI) : x;
     }
 
     // gamma function, Lanczos approximation (g = 607/128, 15 terms); checked
@@ -357,7 +360,7 @@
     // when = closes tan(ln(0 and sin of degrees would make 0 of it
     function applied(key, arg, deg) {
         var val = isFinite(arg.val) ? UNARY[key].f(arg.val, deg) : NaN, node = bounded(unaryNode(key, arg.node), val);
-        if (ANGLE.test(key) && node.t === 'fn') node.deg = deg ? 1 : 0; // short, as DEL keeps many copies
+        if (ANGLE.test(key) && node.t === 'fn') node.deg = deg === 2 ? 2 : deg ? 1 : 0; // short, as DEL keeps many copies
         return { val: val, node: node };
     }
 
@@ -792,7 +795,7 @@
     function units(n, found) {
         found = found || {};
         if (n) {
-            if (n.deg !== undefined) found[n.deg ? 'Deg' : 'Rad'] = true;
+            if (n.deg !== undefined) found[n.deg === 2 ? 'Grad' : n.deg ? 'Deg' : 'Rad'] = true;
             units(n.arg, found);
             units(n.l, found);
             units(n.r, found);
@@ -1146,8 +1149,8 @@
 
     // a calculation in the history, for showing: the equation as text with
     // <sup>/<sub> tags (stacked: its divisions drawn as fractions), as plain
-    // text, the result, and the units its angles were in ('Deg', 'Rad',
-    // 'Deg Rad' or '')
+    // text, the result, and the units its angles were in ('Deg', 'Grad', 'Rad',
+    // 'Deg Rad' … or '')
     Engine.prototype.pastLine = function (i, stacked) {
         var p = this.past[i], line;
         stacking = !!stacked;
@@ -1510,9 +1513,9 @@
             if (unit.t !== 'bin') unit = null;
         }
 
-        function key(k, unit) { // unit: Deg (1) or Rad (0) for this key, if it has its own
+        function key(k, unit) { // unit: Grad (2), Deg (1) or Rad (0) for this key, if it has its own
             if (!ok || halted) return;
-            ok = self.press(k, unit === undefined ? deg : !!unit);
+            ok = self.press(k, unit === undefined ? deg : unit === 2 ? 2 : !!unit);
             halted = self.error; // an error ends the calculation
         }
 

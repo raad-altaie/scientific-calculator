@@ -139,6 +139,22 @@ var cases = [
     ['1 tan-1', Math.PI / 4, 'tan<sup>-1</sup>(1)'],
     ['1 sinh-1', Math.asinh(1), 'sinh<sup>-1</sup>(1)'],
     ['8 log2', '3', 'log<sub>2</sub>(8)'],
+    // in gradians, 400 to a full turn, the same exact values as in degrees
+    ['1 0 0 sin', '1', 'sin(100)', 2],
+    ['2 0 0 cos', '-1', 'cos(200)', 2],
+    ['3 0 0 sin', '-1', 'sin(300)', 2],
+    ['4 0 0 cos', '1', 'cos(400)', 2],
+    ['5 0 tan', '1', 'tan(50)', 2],
+    ['1 0 0 tan', 'Error', 'tan(100)', 2],
+    ['5 0 sin', Math.SQRT1_2, 'sin(50)', 2],
+    ['4 5 0 sin', Math.SQRT1_2, 'sin(450)', 2],
+    ['1 0 0 +/– sin', '-1', 'sin(-100)', 2],
+    ['1 0 sin', Math.sin(Math.PI / 20), 'sin(10)', 2],
+    ['1 sin-1', '100', 'sin<sup>-1</sup>(1)', 2],
+    ['0 cos-1', '100', 'cos<sup>-1</sup>(0)', 2],
+    ['1 tan-1', '50', 'tan<sup>-1</sup>(1)', 2],
+    ['0 . 5 sin-1', 100 / 3, 'sin<sup>-1</sup>(0.5)', 2],
+    ['1 0 0 sinh', Math.sinh(100), 'sinh(100)', 2],
     ['1 0 0 0 log', '3', 'log(1000)'],
     ['9 √', '3', '√(9)'],
     ['( 2 + 3 ) sin', Math.sin(5), 'sin(2 + 3)'],
@@ -1167,21 +1183,21 @@ dels.forEach(function (c) {
 
     for (n = 0; n < 3000; n++) {
         e = new Engine();
-        deg = rnd() < 0.5;
+        deg = Math.floor(rnd() * 3); // Rad, Deg or Grad
         keys = [];
         for (i = 5 + Math.floor(rnd() * 40); i--;) keys.push(pool[Math.floor(rnd() * pool.length)]);
         keys.push('=');
-        keys.forEach(function (key) { e.press(key, rnd() < 0.2 ? !deg : deg); }); // the unit changes now and then
+        keys.forEach(function (key) { e.press(key, rnd() < 0.2 ? (deg + 1) % 3 : deg); }); // the unit changes now and then
         for (j = 0; j < e.past.length; j++) {
             p = e.past[j];
             f = new Engine();
             f.load(JSON.parse(JSON.stringify(e.save())));
             before = f.pastLine(j);
-            if (!f.recall(j, rnd() < 0.5)) { // in either unit: each angle comes back in its own
+            if (!f.recall(j, Math.floor(rnd() * 3))) { // in any unit: each angle comes back in its own
                 check(false, 'fuzz recall  ' + keys.join(' '), 'line ' + j + ' ' + before.text + ' was refused');
                 continue;
             }
-            f.press('=', rnd() < 0.5);
+            f.press('=', Math.floor(rnd() * 3));
             compared++;
             if (f.value !== p.value || f.equation() !== before.line) {
                 check(false, 'fuzz recall  ' + keys.join(' '),
@@ -1329,6 +1345,32 @@ dels.forEach(function (c) {
         ['12.5', false], ['--12°', false], ['', false]].forEach(function (c) {
         check(Engine.angleAlone(c[0]) === c[1], JSON.stringify(c[0]) + (c[1] ? ' is' : ' is not') + ' an angle alone');
     });
+})();
+
+// ---------- gradians in the history ---------- //
+
+(function () {
+    var e = new Engine(), f = new Engine();
+    run(e, '1 0 0 sin =', 2);
+    run(e, '9 0 sin =', 1);
+    run(e, '1 0 0 sin + 9 0 cos =', 2);
+    check(e.pastLine(0).unit === 'Grad' && e.pastLine(1).unit === 'Deg', 'the history marks gradians',
+        e.pastLine(0).unit + ' ' + e.pastLine(1).unit);
+    f.load(JSON.parse(JSON.stringify(e.save())));
+    check(f.recall(0, false) && (f.press('=', false), f.value === '1'), 'sin(100) done in Grad comes back in Grad', state(f));
+    check(f.recall(2, 1) && (f.press('=', 1), same(f.value, 1 + Math.cos(Math.PI * 90 / 200))),
+        'a line done in Grad, recalled in Deg, is in Grad', state(f));
+    e = new Engine();
+    e.press('1', 2);
+    e.press('0', 2);
+    e.press('0', 2);
+    e.press('sin', 2);
+    e.press('+', 2);
+    e.press('3', 1);
+    e.press('0', 1);
+    e.press('sin', 1);
+    e.press('=', 1);
+    check(e.value === '1.5' && e.pastLine(0).unit === 'Deg Grad', 'one line in two units', state(e) + ' ' + e.pastLine(0).unit);
 })();
 
 // ---------- a root is drawn with a bar over what is under it ---------- //
@@ -1957,7 +1999,7 @@ dels.forEach(function (c) {
 
         for (n = 0; n < 4000 && failures < 20; n++) {
             e = first('');
-            deg = rnd() < 0.5;
+            deg = Math.floor(rnd() * 3); // Rad, Deg or Grad
             keys = [];
             for (i = 3 + Math.floor(rnd() * 30); i--;) keys.push(pool[Math.floor(rnd() * pool.length)]);
             if (rnd() < 0.7) keys.push('=');
@@ -1991,7 +2033,7 @@ dels.forEach(function (c) {
                 f.load(JSON.parse(JSON.stringify(e.save())));
                 f.fnFirst = rnd() < 0.5;
                 line = f.pastLine(i).line;
-                if (!f.recall(i, rnd() < 0.5)) {
+                if (!f.recall(i, Math.floor(rnd() * 3))) {
                     check(false, 'fuzz tan-first recall  ' + keys.join(' '), line + ' was refused');
                     continue;
                 }

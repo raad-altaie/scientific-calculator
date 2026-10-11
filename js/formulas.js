@@ -803,14 +803,14 @@
     // The equation of a formula with these values, as text the calculator takes in,
     // or null while a value is missing. A value that is not a plain number (-3,
     // 1.5e6, 2/3) goes in brackets, so it stays one number in the equation: -3² is 9.
-    // deg: angles are in degrees; an angle the formula takes in radians (rad) is turned into them
+    // deg: angles are in degrees (true) or gradians (2); an angle the formula takes in radians (rad) is turned into them
     function fill(f, values, deg) {
         var missing = false, s = f.x.replace(/\{(\w+)\}/g, function (all, key) {
             var i = f.v.map(function (v) { return v[0]; }).indexOf(key),
                 value = String(values[i] === undefined ? '' : values[i]).trim();
             if (!value) missing = true;
             value = /^(\d+\.?\d*|\.\d+)$/.test(value) ? value : '(' + value + ')';
-            return deg && f.rad && f.rad.indexOf(key) > -1 ? '(' + value + '*pi/180)' : value;
+            return deg && f.rad && f.rad.indexOf(key) > -1 ? '(' + value + '*pi/' + (deg === 2 ? 200 : 180) + ')' : value;
         });
         return missing ? null : s;
     }

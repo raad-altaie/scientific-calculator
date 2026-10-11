@@ -6,7 +6,7 @@
         notification = Calc.querySelector(".notification"),
         noticeTimer, // fades the notification out
         mem = Calc.querySelector('.calc-mem'), // 'M' while the memory holds a number
-        radDeg = Calc.querySelector('.calc-rad'), // the unit: its text, then a full turn in it, 2π or 360°
+        radDeg = Calc.querySelector('.calc-rad'), // the unit: its text, then a full turn in it, 2π, 360° or 400g
         fullTurn = radDeg.querySelector('.sign'),
         hold = Calc.querySelector('.calc-hold'),
         fmtMark = Calc.querySelector('.calc-fmt'), // FIX 2, SCI 3 or ENG 2 while that notation is on
@@ -59,7 +59,8 @@
         sliding, // long line being slid: its element and where the slide started
         secondActive = false, // 2nd key active?
         engine = new CalcEngine(), // the calculation and its equation line
-        deg = false, // Deg mode or Rad
+        deg = 0, // the unit of angles: 0 Rad, 1 Deg, 2 Grad, as the engine takes it
+        UNITS = ['Rad', 'Deg', 'Grad'], // their names, in the order the Deg key goes through them
         resBuffer = '0',
         keyBoard = {},
         secondLayer = [
@@ -83,7 +84,7 @@
         }
     }
     keyBoard['C'] = keyBoard['AC'];
-    keyBoard['Rad'] = keyBoard['Deg'];
+    keyBoard['Rad'] = keyBoard['Grad'] = keyBoard['Deg'];
     secondKeySet = secondLayer[0].map(function (label) {
         return keyBoard[label.replace(/<\/*\w+>/g, '')];
     });
@@ -391,7 +392,7 @@
         if (el.classList.contains('calc-past-clear')) return CalcTips['history clear'];
         if (el.classList.contains('calc-past-close')) return CalcTips['history close'];
         if (el.classList.contains('calc-past-del')) return CalcTips['history delete'];
-        if (el.classList.contains('calc-past-unit')) return CalcTips['history unit ' + name];
+        if (el.classList.contains('calc-past-unit')) return CalcTips['history unit ' + (UNITS.indexOf(name) > -1 ? name : 'mixed')];
         if (el.classList.contains('calc-past-btn')) {
             return CalcTips['history ' + el.dataset.act + (el.closest('.calc-past-eq') ? ' equation' : ' result')];
         }
@@ -441,7 +442,7 @@
                 keyDown(false, keyBoard['2nd']);
                 doKey('2nd', true);
             }
-            if (deg) doKey('Deg', true);
+            setUnit(0);
             if (fracMode) toggleFraction();
             if (dmsMode) toggleDms();
             engine.memory = 0;
@@ -824,7 +825,7 @@
                 '<input type="text" inputmode="decimal" spellcheck="false" autocomplete="off" maxlength="40" placeholder="' +
                 v[2] + '"></label>';
         }).join('') + '<div class="calc-fx-actions"><span class="calc-fx-note">' +
-            (f.deg ? 'Angles in ' + (deg ? 'degrees' : 'radians') + ', the unit in use' : '') +
+            (f.deg ? 'Angles in ' + ['radians', 'degrees', 'gradians'][deg] + ', the unit in use' : '') +
             '</span><span class="calc-fx-insert">Insert</span></div>';
         item.classList.add('calc-on');
         form.querySelector('.calc-fx-note').dataset.usual = form.querySelector('.calc-fx-note').innerHTML;
@@ -1229,7 +1230,7 @@
         unit = engine.pastLine(i).unit;
         ok = whole ? engine.recall(i, deg) : engine.put(+engine.past[i].value);
         if (!ok) return;
-        if (whole && /^(Deg|Rad)$/.test(unit) && (unit === 'Deg') !== deg) doKey('Deg', true); // shows its unit
+        if (whole && UNITS.indexOf(unit) > -1) setUnit(UNITS.indexOf(unit)); // shows its unit
         if (whole && !!engine.past[i].frac !== fracMode) toggleFraction(); // and its fractions, or decimals
         if (whole && !!engine.past[i].dms !== dmsMode) toggleDms(); // or degrees, minutes and seconds
         keyBoard['AC'].children[0].firstChild.data = 'C';
@@ -1368,7 +1369,7 @@
     // the format is not saved here: the options page keeps it, and saving it could undo a change made there
     function saveState() {
         store('secondActive', secondActive);
-        store('deg', deg);
+        store('deg', deg === 2 ? 'grad' : deg === 1); // true or false for Deg and Rad, as before Grad came
         store('stat', statsInput.value);
         store('fraction', fracMode);
         store('dms', dmsMode);
@@ -1392,7 +1393,7 @@
             keyDown(false, keyBoard['2nd']);
             doKey('2nd', true);
         }
-        if (s.deg === true) doKey('Deg', true);
+        setUnit(s.deg === true ? 1 : s.deg === 'grad' ? 2 : 0);
         if (typeof s.stat === 'string') statsInput.value = s.stat;
         // all three on, until changed in the options
         setPanels(s.statsOn !== false, s.fxOn !== false, s.convOn !== false);
@@ -1516,6 +1517,11 @@
         refresh();
     }
 
+    // the unit of angles: the Deg key is pressed until it is u
+    function setUnit(u) {
+        for (var n = 3; deg !== u && n--;) doKey('Deg', true); // three units: at most two presses
+    }
+
     // °′″ turns its mode on and off: a result is shown in degrees, minutes and
     // seconds, 36°52′11.63″, while the number stays as it is. A number too large
     // for it stays a decimal. Not with fraction mode
@@ -1551,11 +1557,11 @@
             keyBoard['AC'].children[0].firstChild.data = 'C';
         } else if (text === 'C') {
             key.children[0].firstChild.data = 'AC';
-        } else if (text.match(/Deg|Rad/)) {
-            radDeg.firstChild.data = deg ? 'Rad' : 'Deg';
-            key.children[0].firstChild.data = deg ? 'Deg' : 'Rad';
-            deg = !deg
-            fullTurn.innerHTML = deg ? '360°' : '2<span class="sign-pi">π</span>';
+        } else if (/^(Deg|Rad|Grad)$/.test(text)) { // Rad, Deg, Grad and Rad again; the key names the next one
+            deg = (deg + 1) % 3;
+            radDeg.firstChild.data = UNITS[deg];
+            key.children[0].firstChild.data = UNITS[(deg + 1) % 3];
+            fullTurn.innerHTML = ['2<span class="sign-pi">π</span>', '360°', '400g'][deg];
         } else if (text.match(/^mr$/) && engine.memory) {
             keyBoard['AC'].children[0].firstChild.data = 'C';
         }
