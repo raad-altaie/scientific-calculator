@@ -128,7 +128,7 @@
         'history': {
             t: 'History',
             d: 'The calculations you finished with =, newest first. Point at a line for its buttons: insert ' +
-                'and copy.',
+                'and copy; the x at the corner of a calculation deletes it.',
             k: ''
         },
         'history close': {
@@ -139,6 +139,11 @@
         'history clear': {
             t: 'Clear the history',
             d: 'Removes all the calculations in it. Ans and the memory stay.',
+            k: ''
+        },
+        'history delete': {
+            t: 'Delete this calculation',
+            d: 'Removes the equation and its result from the history. Ans and the memory stay.',
             k: ''
         },
         'history insert equation': {
@@ -198,12 +203,12 @@
         },
         '(': {
             t: 'Open bracket',
-            d: 'A number before it is multiplied: 5 ( 2 + 3 ) is 5 × (2 + 3). Brackets still open close at =.',
+            d: 'A number before it is multiplied: 5\u00a0(\u00a02\u00a0+\u00a03\u00a0) is 5\u00a0×\u00a0(2\u00a0+\u00a03). Brackets still open close at =.',
             k: '('
         },
         ')': {
             t: 'Close bracket',
-            d: 'Closes the last open bracket: ( 2 + 3 ) × 4 = 20.',
+            d: 'Closes the last open bracket: (\u00a02\u00a0+\u00a03\u00a0)\u00a0×\u00a04\u00a0=\u00a020.',
             k: ')'
         },
         'x2': {

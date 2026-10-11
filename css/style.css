@@ -23,8 +23,8 @@ html {
     border-bottom-left-radius: 1em;
     border-bottom-right-radius: 1em;
     position: relative; /* the history is placed over the keys */
-    -webkit-user-select: none; /* only the display can be selected */
-    user-select: none;
+    -webkit-user-select: none;
+    user-select: none; /* only the display can be selected */
 }
 
 /* the strip above the display: the name and the ? box */
@@ -45,6 +45,7 @@ html {
     color: #acb4c1;
     cursor: pointer;
     -webkit-user-select: none;
+    user-select: none;
 }
 
 /* the ? box beside the name: opens the options page. It sits in the middle
@@ -65,6 +66,7 @@ html {
     text-align: center;
     cursor: pointer;
     -webkit-user-select: none;
+    user-select: none;
 }
 
 .calc-help:hover {
@@ -87,6 +89,7 @@ html {
     opacity: 0.5;
     cursor: pointer;
     -webkit-user-select: none;
+    user-select: none;
 }
 
 .calc-hist svg {
@@ -115,6 +118,7 @@ html {
     opacity: 0.5;
     cursor: pointer;
     -webkit-user-select: none;
+    user-select: none;
 }
 
 /* no clock while there is no history: the bars take its place */
@@ -256,6 +260,7 @@ html {
     font-family: 'Play', 'Russo One', sans-serif;
     text-align: left;
     -webkit-user-select: none;
+    user-select: none;
 }
 
 .calc-past.calc-open {
@@ -296,9 +301,10 @@ html {
 }
 
 .calc-past-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     width: 22px;
-    font-size: 26px;
-    line-height: 21px;
 }
 
 .calc-past-clear:hover,
@@ -323,6 +329,7 @@ html {
 }
 
 .calc-past-row {
+    position: relative; /* holds its x */
     margin-bottom: 7px;
     padding: 6px 10px 4px;
     border-radius: 5px;
@@ -408,6 +415,38 @@ html {
 
 .calc-past-btn:active {
     opacity: 0.75;
+}
+
+/* the x at the top right corner of a calculation, while the pointer is over it */
+.calc-past-del {
+    position: absolute;
+    top: -3px;
+    right: -4px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #4a5f73;
+    color: #d3d9e2;
+    cursor: pointer;
+}
+
+.calc-past-row:hover .calc-past-del {
+    display: flex;
+}
+
+/* a touch screen has no hover: the x is always there */
+@media (hover: none) {
+    .calc-past-del {
+        display: flex;
+    }
+}
+
+.calc-past-del:hover {
+    background: #b4443c;
+    color: #fff;
 }
 
 /* fraction mode: the fractions in the history, a little larger than in the display's small line */
@@ -553,7 +592,7 @@ html {
     font-family: 'Play', 'Russo One', sans-serif;
 }
 
-/* the unit, Rad or Deg, with a full turn in it beside it: 2π or 360º. The
+/* the unit, Rad or Deg, with a full turn in it beside it: 2π or 360°. The
    two are one box, so its light fits around what is shown */
 .calc-rad {
     position: absolute;
@@ -569,7 +608,7 @@ html {
     outline-width: 5px;
 }
 
-/* 2π or 360º, in a light rounded frame like the unit of a calculation in the history */
+/* 2π or 360°, in a light rounded frame like the unit of a calculation in the history */
 .sign {
     position: relative;
     padding: 0 2px;
@@ -577,6 +616,11 @@ html {
     border-radius: 3px;
     font-size: 7px;
     line-height: 9px;
+}
+
+/* half a pixel between the 2 and the π */
+.sign-pi {
+    margin-left: 0.5px;
 }
 
 /* the marks in the display can be clicked: they light up under the pointer,
@@ -607,6 +651,7 @@ html {
     border-radius: 3px;
     cursor: pointer;
     -webkit-user-select: none;
+    user-select: none;
 }
 
 /* FIX 2, SCI 3, ENG 2: the notation the results are shown in */
@@ -629,19 +674,26 @@ html {
     font-family: 'Play', 'Russo One', sans-serif;
 }
 
-/* the a/b key while fraction mode is on */
+/* the a/b key while fraction mode is on: a small red dot at its top left corner */
 .trigo-keys.calc-lit {
-    color: #fff;
-    background: #c86e78; /* filled like the DEL key, as the active 2nd key is */
-    border: 1px solid #7d4a51;
+    position: relative;
 }
 
-.trigo-keys.calc-lit:hover,
+.trigo-keys.calc-lit::before {
+    content: '';
+    position: absolute;
+    top: 3px;
+    left: 4px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #c86e78;
+}
+
 .calc-second:hover {
     background: #da7d88;
 }
 
-.trigo-keys.calc-lit:active,
 .calc-second:active {
     background: #bb626c;
     border: 1px solid #000;
@@ -1007,6 +1059,7 @@ html {
 .calc-rad {
     cursor: pointer;
     -webkit-user-select: none;
+    user-select: none;
 }
 
 /* what a key does, over it while the pointer rests on it */
@@ -1025,6 +1078,7 @@ html {
     text-align: left;
     pointer-events: none;
     -webkit-user-select: none;
+    user-select: none;
     animation: calc-tip-in 0.12s ease-out;
 }
 
@@ -1039,27 +1093,46 @@ html {
     }
 }
 
-/* the point toward the middle of the key: a square turned on its corner,
-   its centre on --arrow */
+/* the point toward the middle of the key, centred on --arrow: a triangle in
+   the border colour from the box's edge, and the fill's triangle inset 1px
+   (45deg sides: 1.414px across) over it, so the outline runs unbroken from
+   the box's border into the point */
+.calc-tip::before,
 .calc-tip::after {
     content: '';
     position: absolute;
     left: var(--arrow, 50%);
-    bottom: -5px;
-    box-sizing: border-box;
-    width: 10px;
-    height: 10px;
-    margin-left: -5px;
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+.calc-tip::before {
+    top: 100%;
+    width: 14px;
+    height: 7px;
+    margin-left: -7px;
+    background: #4d6b80;
+}
+
+.calc-tip::after {
+    top: calc(100% - 1px);
+    width: 13.172px;
+    height: 6.586px;
+    margin-left: -6.586px;
     background: #1f333c;
-    border-right: 1px solid #4d6b80;
-    border-bottom: 1px solid #4d6b80;
-    transform: rotate(45deg);
+}
+
+.calc-tip.calc-tip-below::before,
+.calc-tip.calc-tip-below::after {
+    top: auto;
+    clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.calc-tip.calc-tip-below::before {
+    bottom: 100%;
 }
 
 .calc-tip.calc-tip-below::after {
-    top: -5px;
-    bottom: auto;
-    transform: rotate(225deg);
+    bottom: calc(100% - 1px);
 }
 
 .calc-tip-head {
@@ -1087,11 +1160,11 @@ html {
 
 .calc-tip kbd {
     padding: 0 5px;
-    background: #2b4753;
-    border: 1px solid #4d6b80;
-    border-bottom-width: 2px;
+    background: #fff; /* a white keyboard key */
+    border: 1px solid #c5ccd6;
+    border-bottom: 2px solid #9aa5b3;
     border-radius: 4px;
-    color: #fff;
+    color: #1f333c;
     font: 10px/15px 'Play', 'Russo One', sans-serif;
     white-space: nowrap;
 }
@@ -1125,6 +1198,7 @@ html {
     color: #d3d9e2;
     text-align: left;
     -webkit-user-select: none;
+    user-select: none;
 }
 
 .calc-menu-box[hidden] {

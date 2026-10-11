@@ -53,7 +53,6 @@ showPageIconOption();
 const notation = document.getElementById('format-notation');
 const places = document.getElementById('format-places');
 const group = document.getElementById('format-group');
-const preview = document.getElementById('format-preview');
 const icon = document.getElementById('format-icon');
 
 for (let n = 0; n <= 9; n++) {
@@ -76,15 +75,9 @@ const shown1500 = (f) => {
 
 const showFormat = () => {
     const f = { notation: notation.value, places: +places.value, group: group.checked };
-    const shown = [1234567.891, 0.000123].map((x) => {
-        const s = CalcEngine.format(x, f) || String(x);
-        return f.group ? CalcEngine.group(s) : s;
-    });
-
     places.disabled = f.notation === 'norm';
     // the icon shows 1,500 the way the chosen format writes it
     icon.textContent = shown1500(f);
-    preview.textContent = shown.join('   ');
     return f;
 };
 

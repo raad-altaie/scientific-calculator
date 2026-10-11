@@ -832,10 +832,11 @@
 
     // a computed number in Fix, Sci or Eng notation with f.places digits after
     // the point, rounded as the number reads (1.005 is 1.01); null for the
-    // usual notation. Fix shows numbers from 1e16 in Sci, as the usual one does
+    // usual notation, and 0 for zero in Sci and Eng. Fix shows numbers from 1e16 in Sci, as the usual one does
     function format(x, f) {
         var places = Math.max(0, Math.min(9, (f && f.places) | 0)), o, s;
         if (!f || !/^(fix|sci|eng)$/.test(f.notation) || !isFinite(x)) return null;
+        if (x === 0 && f.notation !== 'fix') return '0'; // no 0.000e+0; Fix keeps its places: 0.00
         o = { useGrouping: false, minimumFractionDigits: places, maximumFractionDigits: places };
         if (f.notation !== 'fix' || Math.abs(x) >= 1e16) o.notation = f.notation === 'eng' ? 'engineering' : 'scientific';
         s = new Intl.NumberFormat('en-US', o).format(x);
