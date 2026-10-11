@@ -25,10 +25,11 @@ body {
     min-width: 0;
     min-height: 0;
     background: #a8a8a8; /* the same as popup.html */
-    padding: 32px 16px;
-    padding-left: max(16px, env(safe-area-inset-left));
-    padding-right: max(16px, env(safe-area-inset-right));
-    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    padding: 4px;
+    padding-left: max(4px, env(safe-area-inset-left));
+    padding-right: max(4px, env(safe-area-inset-right));
+    padding-top: max(4px, env(safe-area-inset-top));
+    padding-bottom: max(4px, env(safe-area-inset-bottom));
 }
 
 /* sized by app.js to the scaled calculator, so the pane centres what you see */
@@ -151,9 +152,9 @@ body {
     .calc-pane {
         height: 100%;
         box-sizing: border-box;
-        padding: 12px 6px;
-        padding-top: max(12px, env(safe-area-inset-top));
-        padding-bottom: max(12px, env(safe-area-inset-bottom));
+        padding: 4px;
+        padding-top: max(4px, env(safe-area-inset-top));
+        padding-bottom: max(4px, env(safe-area-inset-bottom));
     }
 
     .options-pane {
