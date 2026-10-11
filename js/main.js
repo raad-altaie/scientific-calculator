@@ -23,7 +23,7 @@
         tipTimer,
         tipGone = 0, // when the last tip went, so the next one comes at once
         copying = null, // text a history button is copying, in place of the main line
-        past = document.querySelector('.calc-past:not(.calc-stats)'), // the history, over the keys
+        past = document.querySelector('.calc-past:not(.calc-stats):not(.calc-fx)'), // the history, over the keys
         pastList = past.querySelector('.calc-past-list'),
         pastButton = document.querySelector('.calc-hist'),
         pastShown = {}, // the history as the list shows it, so it is only built again after a change
@@ -38,6 +38,13 @@
             ['mean', '<span class="calc-x-bar">x</span>'], ['sdp', 'σ'], ['sds', 's'],
             ['min', 'min'], ['median', 'median'], ['max', 'max']
         ],
+        fx = document.querySelector('.calc-fx'), // formulas and constants, over the keys
+        fxButton = document.querySelector('.calc-fx-btn'),
+        fxSearch = fx.querySelector('.calc-fx-search'),
+        fxList = fx.querySelector('.calc-fx-list'),
+        fxTab = 'formulas', // the list shown: formulas or constants
+        fxItems = {}, // the entries of each list, with the text a search looks in
+        tools = Calc.querySelector('.calc-tools'), // the buttons at the top left of the display
         pressedKey,
         sliding, // long line being slid: its element and where the slide started
         secondActive = false, // 2nd key active?
@@ -99,25 +106,34 @@
 
     // ---------------- event listeners keys ---------------- //
 
-    // typing in the list of the statistics is typing there, not on the keys
+    // typing in a box of a panel, the list of the statistics, the search or a letter
+    // of a formula, is typing there, not on the keys
+    function field(el) {
+        return el === statsInput || el.tagName === 'INPUT';
+    }
+
     document.addEventListener('keypress', function (e) {
-        if (e.target !== statsInput) onKeyPress(e.which);
+        if (!field(e.target)) onKeyPress(e.which);
     }, false);
 
     document.addEventListener('keydown', function (e) {
-        if (e.target === statsInput) {
-            if (e.which === 27) showStats(false); // Esc closes it, as the history
+        if (field(e.target)) {
+            if (e.which === 27) { // Esc closes the panel, as the history
+                showStats(false);
+                showFx(false);
+                e.preventDefault();
+            }
             return;
         }
         if (onKeyDown(e.which, e.shiftKey)) e.preventDefault();
     }, false);
 
     document.addEventListener('keyup', function (e) {
-        if (e.target !== statsInput) onKeyUp();
+        if (!field(e.target)) onKeyUp();
     }, false);
 
     document.body.addEventListener('paste', function (e) {
-        if (e.target === statsInput) return; // the list takes it
+        if (field(e.target)) return; // the box takes it
         doPaste(e.clipboardData.getData("Text"));
         e.preventDefault();
     }, false);
@@ -164,6 +180,10 @@
         }
         if (key === 27 && stats.classList.contains('calc-open')) { // Esc closes the statistics
             showStats(false);
+            return true;
+        }
+        if (key === 27 && fx.classList.contains('calc-open')) { // and the formulas
+            showFx(false);
             return true;
         }
         if (key === 27 && past.classList.contains('calc-open')) { // Esc closes the history
@@ -214,7 +234,7 @@
     // what copy takes: the text a history button or the menu gives, a part of
     // the display selected with the mouse, or else the main line
     document.body.addEventListener('copy', function (e) {
-        if (e.target === statsInput && copying === null) return; // what is selected in the list
+        if (field(e.target) && copying === null) return; // what is selected in the box
         e.clipboardData.setData('text/plain', copying !== null ? copying : selectedText() || copyText());
         e.preventDefault(); // the text above is copied, not the page's selection as it is drawn
         notify('Copy');
@@ -269,7 +289,7 @@
     // have tips as well
     tip.parentNode.addEventListener('mouseover', function (e) {
         var key = e.target.closest('.calc-left > *, .calc-right > .del-ac, .calc-rad, .calc-mem, .calc-frac, .calc-fmt, .calc-hold, ' +
-            '.calc-stat-btn, .calc-stats-tile, ' +
+            '.calc-stat-btn, .calc-stats-tile, .calc-fx-btn, .calc-fx-row, ' +
             '.calc-hist, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit');
         if (key === tipKey) return;
         hideTip();
@@ -278,6 +298,7 @@
     }, false);
 
     pastList.addEventListener('scroll', hideTip, false);
+    fxList.addEventListener('scroll', hideTip, false);
 
     tip.parentNode.addEventListener('mouseleave', function () {
         hideTip();
@@ -329,6 +350,8 @@
     function tipFor(el, name) {
         var places = fmt.places + (fmt.places === 1 ? ' decimal place' : ' decimal places'), info, value;
         if (el === radDeg) return CalcTips['unit ' + radDeg.firstChild.data];
+        if (el === fxButton) return CalcTips[fx.classList.contains('calc-open') ? 'formulas close' : 'formulas'];
+        if (fx.contains(el)) return fxTip(el);
         if (el === statsButton) return CalcTips[stats.classList.contains('calc-open') ? 'stats close' : 'stats'];
         if (stats.contains(el)) {
             if (el.classList.contains('calc-past-clear')) return CalcTips['stats clear'];
@@ -410,7 +433,7 @@
 
     document.addEventListener('contextmenu', function (e) {
         var calc = menu.parentNode, frame = calc.getBoundingClientRect();
-        if (e.target === statsInput) return; // the list has the menu of the browser, to edit it
+        if (field(e.target)) return; // a box has the menu of the browser, to edit it
         e.preventDefault();
         if (!e.target.closest('.calc-display')) return; // only the display has the menu: right click does nothing elsewhere
         menu.text = selectedText(); // taken now: a click in the menu ends the selection
@@ -483,6 +506,9 @@
         if (stats.classList.contains('calc-open') && !stats.contains(e.target) && !statsButton.contains(e.target)) {
             showStats(false);
         }
+        if (fx.classList.contains('calc-open') && !fx.contains(e.target) && !fxButton.contains(e.target)) {
+            showFx(false);
+        }
     }, true);
 
     past.querySelector('.calc-past-close').addEventListener('click', function () {
@@ -526,6 +552,7 @@
     function showPast(open) {
         if (open) {
             showStats(false); // one panel at a time
+            showFx(false);
             placePanel(past);
             renderPast();
         }
@@ -585,6 +612,7 @@
     function showStats(open) {
         if (open) {
             showPast(false);
+            showFx(false);
             placePanel(stats);
             renderStats();
         }
@@ -618,6 +646,245 @@
 
     function statsValue(value) {
         return shownResult({ value: String(value), frac: fracMode }, String(+(+value).toPrecision(13)));
+    }
+
+    // ---------------- formulas and constants ---------------- //
+
+    // Two lists to search: formulas, whose letters are filled in to put the
+    // equation into the calculator, where it can still be changed before =;
+    // and constants, put in as a number, as Ans is. Each tip says what it is
+    ['formulas', 'constants'].forEach(function (tab) {
+        fxItems[tab] = [];
+        CalcFormulas[tab].forEach(function (group) {
+            group.list.forEach(function (item) {
+                var words = [group.c, item.t, item.d].concat(tab === 'formulas' ? [item.f].concat(item.v.map(function (v) {
+                    return v[1] + ' ' + v[2];
+                })) : [item.s, item.u]);
+                fxItems[tab].push({ c: group.c, item: item, words: words.join(' ').replace(/<[^>]*>/g, '').toLowerCase() });
+            });
+        });
+    });
+
+    fxButton.addEventListener('click', function () {
+        showFx(!fx.classList.contains('calc-open'));
+    }, false);
+
+    fx.querySelector('.calc-past-close').addEventListener('click', function () {
+        showFx(false);
+    }, false);
+
+    fx.querySelector('.calc-fx-tabs').addEventListener('click', function (e) {
+        var tab = e.target.closest('.calc-fx-tab');
+        if (!tab) return;
+        fxTab = tab.dataset.tab;
+        store('fxTab', fxTab);
+        fxSearch.value = ''; // a search is for one list
+        renderFx();
+        fxSearch.focus();
+    }, false);
+
+    fxSearch.addEventListener('input', renderFx, false);
+
+    // a formula opens its letters, or closes them; a constant is put in
+    fxList.addEventListener('click', function (e) {
+        var row = e.target.closest('.calc-fx-row'), item = row && row.parentNode;
+        if (!item) {
+            if (e.target.closest('.calc-fx-insert')) insertFormula(e.target.closest('.calc-fx-item'));
+            return;
+        }
+        if (fxTab === 'constants') putConstant(fxItems.constants[+item.dataset.i].item);
+        else openFormula(item.classList.contains('calc-on') ? null : item);
+    }, false);
+
+    fxList.addEventListener('input', function (e) {
+        var note = e.target.closest('.calc-fx-form').querySelector('.calc-fx-note');
+        e.target.classList.remove('calc-bad');
+        note.classList.remove('calc-fx-warn'); // a value changed: the usual note again
+        note.innerHTML = note.dataset.usual;
+    }, false);
+
+    // Enter in the search takes the first one found; in a letter it goes on
+    // to the next empty one, and puts the formula in once all are filled
+    fx.addEventListener('keydown', function (e) {
+        var item = e.target.closest('.calc-fx-item'), inputs, empty;
+        if (e.which !== 13) return;
+        e.preventDefault();
+        if (e.target === fxSearch) {
+            item = fxList.querySelector('.calc-fx-item');
+            if (item && fxTab === 'constants') putConstant(fxItems.constants[+item.dataset.i].item);
+            else if (item) openFormula(item);
+            return;
+        }
+        if (!item) return;
+        inputs = [].slice.call(item.querySelectorAll('input'));
+        empty = inputs.filter(function (input) {
+            return !input.value.trim();
+        });
+        if (!empty.length || !e.target.value.trim()) return insertFormula(item);
+        (empty.filter(function (input) {
+            return inputs.indexOf(input) > inputs.indexOf(e.target);
+        })[0] || empty[0]).focus();
+    }, false);
+
+    function showFx(open) {
+        if (open) {
+            showPast(false);
+            showStats(false);
+            placePanel(fx);
+            renderFx();
+        }
+        fx.classList.toggle('calc-open', open);
+        fxButton.classList.toggle('calc-on', open);
+        if (open) {
+            fxSearch.focus();
+            fxSearch.select(); // typing replaces the last search
+        } else if (fx.contains(document.activeElement)) {
+            document.activeElement.blur(); // the keys are the calculator's again
+        }
+    }
+
+    // the list of the tab, the entries the search finds, under the name of their group
+    function renderFx() {
+        var words = fxSearch.value.trim().toLowerCase().split(/\s+/).filter(Boolean), group = null, html = '';
+
+        [].forEach.call(fx.querySelectorAll('.calc-fx-tab'), function (tab) {
+            tab.classList.toggle('calc-on', tab.dataset.tab === fxTab);
+        });
+        fxSearch.placeholder = fxTab === 'formulas' ? 'Search formulas' : 'Search constants';
+        fxItems[fxTab].forEach(function (entry, i) {
+            var it = entry.item;
+            if (!words.every(function (w) { return entry.words.indexOf(w) > -1; })) return;
+            if (entry.c !== group) html += '<div class="calc-fx-cat">' + entry.c + '</div>';
+            group = entry.c;
+            html += '<div class="calc-fx-item" data-i="' + i + '"><div class="calc-fx-row">' +
+                (fxTab === 'constants' ? '<span class="calc-fx-sym">' + it.s + '</span>' : '') +
+                '<span class="calc-fx-col"><span class="calc-fx-name">' + it.t + '</span><span class="calc-fx-f">' +
+                (fxTab === 'constants' ? constantValue(it) : it.f) + '</span></span></div></div>';
+        });
+        fxList.innerHTML = html || '<div class="calc-fx-none">Nothing found</div>';
+        fxList.scrollTop = 0;
+        hideTip();
+    }
+
+    // 6.6743 × 10⁻¹¹ m³/(kg·s²); a value of a usual size written out, and a whole
+    // number up to a trillion too: 299,792,458. Shown to 12 digits; it is put in whole
+    function constantValue(k) {
+        var a = Math.abs(k.v), parts = (+k.v.toPrecision(12)).toExponential().split('e'),
+            shown = a >= (k.v % 1 ? 1e6 : 1e12) || a < 1e-3 ? parts[0] + ' × 10<sup>' + +parts[1] + '</sup>' : CalcEngine.group(String(+k.v.toPrecision(12)));
+        return shown.replace(/-/g, '−') + (k.u ? '<span class="calc-fx-unit">' + k.u + '</span>' : '');
+    }
+
+    // A box for each letter of the formula, and Insert. A result in the display
+    // is put in the first one, to start from; a formula with angles says their unit
+    function openFormula(item) {
+        var open = fxList.querySelector('.calc-fx-item.calc-on'), f, form, first;
+
+        if (open) {
+            open.classList.remove('calc-on');
+            open.removeChild(open.querySelector('.calc-fx-form'));
+        }
+        if (!item) return;
+        hideTip();
+        f = fxItems.formulas[+item.dataset.i].item;
+        form = item.appendChild(document.createElement('div'));
+        form.className = 'calc-fx-form';
+        form.innerHTML = f.v.map(function (v) {
+            return '<label class="calc-fx-var"><span class="calc-fx-sym">' + v[1] + '</span>' +
+                '<input type="text" inputmode="decimal" spellcheck="false" autocomplete="off" maxlength="40" placeholder="' +
+                v[2] + '"></label>';
+        }).join('') + '<div class="calc-fx-actions"><span class="calc-fx-note">' +
+            (f.deg ? 'Angles in ' + (deg ? 'degrees' : 'radians') + ', the unit in use' : '') +
+            '</span><span class="calc-fx-insert">Insert</span></div>';
+        item.classList.add('calc-on');
+        form.querySelector('.calc-fx-note').dataset.usual = form.querySelector('.calc-fx-note').innerHTML;
+        first = form.querySelector('input');
+        if (!engine.edit && !engine.error && (engine.done || engine.plain()) && +engine.value) {
+            first.value = String(+(+engine.value).toPrecision(13));
+        }
+        first.focus();
+        first.select();
+        item.scrollIntoView({ block: 'nearest' });
+    }
+
+    // The formula with its letters filled in goes into the display as an
+    // equation; into one being typed or edited it goes in brackets, as one part.
+    // It is worked out first on its own: values with no answer (the root of a
+    // negative number, a division by 0) stay in the boxes, and the note says why
+    function insertFormula(item) {
+        var f = fxItems.formulas[+item.dataset.i].item,
+            inputs = [].slice.call(item.querySelectorAll('input')),
+            note = item.querySelector('.calc-fx-note'),
+            s = CalcFormulas.fill(f, inputs.map(function (input) { return input.value; }), deg),
+            trial = new CalcEngine();
+
+        inputs.forEach(function (input) {
+            input.classList.toggle('calc-bad', !input.value.trim());
+        });
+        trial.fnFirst = engine.fnFirst;
+        if (s !== null && trial.paste(s, deg) && (trial.error || (trial.press('=', deg), trial.error))) {
+            note.classList.add('calc-fx-warn');
+            note.innerHTML = CalcFormulas.why(f, inputs.map(function (input) { return input.value; }));
+            return;
+        }
+        if (s !== null && (engine.edit || !(engine.done || engine.error || engine.plain()))) s = '(' + s + ')';
+        if (s !== null && !engine.paste(s, deg)) {
+            inputs.forEach(function (input) { // the calculator could not read it: the boxes that are not a plain number
+                input.classList.toggle('calc-bad', !/^\s*-?(\d+\.?\d*|\.\d+)\s*$/.test(input.value));
+            });
+            s = null;
+        }
+        if (s === null) {
+            (item.querySelector('.calc-bad') || inputs[0]).focus();
+            return;
+        }
+        keyBoard['AC'].children[0].firstChild.data = 'C';
+        showFx(false);
+        refresh();
+        saveState();
+    }
+
+    function putConstant(k) {
+        if (!engine.put(k.v)) return;
+        keyBoard['AC'].children[0].firstChild.data = 'C';
+        showFx(false);
+        refresh();
+        saveState();
+    }
+
+    // the tip of a formula: what it gives, its letters and an example; of a constant, what it is
+    function fxTip(el) {
+        var item = el.parentNode, it;
+        if (el.classList.contains('calc-past-close')) return CalcTips['formulas close'];
+        if (!el.classList.contains('calc-fx-row') || item.classList.contains('calc-on')) return null;
+        it = fxItems[fxTab][+item.dataset.i].item;
+        if (fxTab === 'constants') {
+            return { t: it.t, d: (it.d ? it.d + ' ' : '') + 'Click to put it into the equation.', k: '' };
+        }
+        return {
+            t: it.t,
+            d: it.d + '<div class="calc-tip-more">' + it.v.map(function (v) {
+                return '<i>' + v[1] + '</i> ' + v[2];
+            }).join(', ') + '<br>For example ' + it.v.map(function (v, i) {
+                return '<i>' + v[1] + '</i> = ' + it.ex[0][i] + (it.deg && /angle/.test(v[2]) ? '°' : '');
+            }).join(', ') + ' gives ' + +it.ex[1].toPrecision(10) + '.</div>',
+            k: ''
+        };
+    }
+
+    // the statistics and the formulas have their button while they are turned on in the options
+    function setPanels(statsOn, fxOn) {
+        statsButton.hidden = !statsOn;
+        fxButton.hidden = !fxOn;
+        if (!statsOn) showStats(false);
+        if (!fxOn) showFx(false);
+        showTools();
+    }
+
+    // the line above a result starts after the buttons shown at the top left
+    function showTools() {
+        display.parentNode.style.setProperty('--tools', [].filter.call(tools.children, function (b) {
+            return !b.hidden;
+        }).length);
     }
 
     // newest first
@@ -847,7 +1114,7 @@
         var s = {};
 
         // all read first: the keys pressed below must not save over what is still to be read
-        ['secondActive', 'deg', 'stat', 'fraction', 'format', 'fnOrder', 'memory', 'calc'].forEach(function (key) {
+        ['secondActive', 'deg', 'stat', 'statsOn', 'fxOn', 'fxTab', 'fraction', 'format', 'fnOrder', 'memory', 'calc'].forEach(function (key) {
             s[key] = stored(key);
         });
         // functions go before their number, tan 45; who used the calculator before this
@@ -860,6 +1127,8 @@
         }
         if (s.deg === true) doKey('Deg', true);
         if (typeof s.stat === 'string') statsInput.value = s.stat;
+        setPanels(s.statsOn === true, s.fxOn !== false); // the formulas on, the statistics off, until changed in the options
+        if (s.fxTab === 'constants') fxTab = s.fxTab;
         fracMode = engine.fraction = !!s.fraction;
         setFormat(s.format);
         engine.memory = +s.memory || 0;
@@ -872,8 +1141,9 @@
         refresh();
     }
 
-    // the number format or the order of the function keys was changed on the options page
+    // the number format, the order of the function keys or the panels were changed on the options page
     window.addEventListener('storage', function (e) {
+        if (e.key === 'statsOn' || e.key === 'fxOn') return setPanels(stored('statsOn') === true, stored('fxOn') !== false);
         if (e.key === 'format') setFormat(stored('format'));
         else if (e.key === 'fnOrder') engine.fnFirst = stored('fnOrder') !== 'after';
         else return;
@@ -1062,6 +1332,7 @@
         fracMark.textContent = fracMode ? 'FRAC' : '';
         keyBoard['a/b'].classList.toggle('calc-lit', fracMode); // a red dot on its key
         pastButton.hidden = !engine.past.length; // shown once there is a history
+        showTools();
         if (stats.classList.contains('calc-open')) renderStats(); // the number format or fraction mode may have changed
         if (past.classList.contains('calc-open') && (pastShown.list !== engine.past || pastShown.mode !== shownMode() ||
             pastShown.n !== engine.past.length || pastShown.last !== engine.past[engine.past.length - 1])) {

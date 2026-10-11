@@ -3,6 +3,26 @@ document.querySelectorAll('.year').forEach((el) => {
     el.textContent = new Date().getFullYear();
 });
 
+// Two tabs: the options, and the guide to the calculator. The page opens on the one
+// last chosen
+const tabs = document.querySelectorAll('.tab');
+const showTab = (name) => {
+    tabs.forEach((tab) => tab.setAttribute('aria-selected', tab.dataset.tabFor === name));
+    document.querySelector('.tabs').parentElement.dataset.show = name;
+};
+
+try {
+    showTab(localStorage.getItem('optionsTab') === 'guide' ? 'guide' : 'options');
+} catch (e) {
+    showTab('options');
+}
+tabs.forEach((tab) => tab.addEventListener('click', () => {
+    showTab(tab.dataset.tabFor);
+    try {
+        localStorage.setItem('optionsTab', tab.dataset.tabFor);
+    } catch (e) { }
+}));
+
 // The number format of the results. It is kept where the calculator reads it when
 // it opens, and the calculator's frame gets a storage event, so it changes at once
 const notation = document.getElementById('format-notation');
@@ -78,4 +98,22 @@ fnOrder.addEventListener('change', () => {
     try {
         localStorage.setItem('fnOrder', JSON.stringify(fnOrder.value));
     } catch (e) { }
+});
+
+// The statistics and the formulas: a button on the display for each while it is
+// turned on. The formulas start on, the statistics off; an open calculator gets the
+// change as a storage event
+[['panel-stats', 'statsOn', false], ['panel-fx', 'fxOn', true]].forEach(([id, key, on]) => {
+    const box = document.getElementById(id);
+
+    box.checked = on;
+    try {
+        const stored = JSON.parse(localStorage.getItem(key));
+        if (typeof stored === 'boolean') box.checked = stored;
+    } catch (e) { }
+    box.addEventListener('change', () => {
+        try {
+            localStorage.setItem(key, JSON.stringify(box.checked));
+        } catch (e) { }
+    });
 });

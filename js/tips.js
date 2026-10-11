@@ -78,6 +78,19 @@
             k: 'Delete'
         },
 
+        // the formulas and constants
+        'formulas': {
+            t: 'Formulas and constants',
+            d: 'Well-known formulas: fill in their letters to put the equation into the display, where you can ' +
+                'still change it before =. And constants of math and science, to put in as a number. Search to find one.',
+            k: ''
+        },
+        'formulas close': {
+            t: 'Close the formulas',
+            d: 'The search stays for the next time.',
+            k: 'Esc'
+        },
+
         // the statistics
         'stats': {
             t: 'Statistics',

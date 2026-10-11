@@ -77,12 +77,20 @@ html {
     opacity: 0.75;
 }
 
-/* the clock at the top left of the display: opens the history */
-.calc-hist {
+/* the buttons at the top left of the display, in a row: the clock opens the
+   history, the bars the statistics, f(x) the formulas. A hidden one leaves no gap */
+.calc-tools {
     position: absolute;
     z-index: 2;
     left: 6px;
     top: 4px;
+    display: flex;
+    gap: 3px;
+}
+
+.calc-hist,
+.calc-stat-btn,
+.calc-fx-btn {
     padding: 2px;
     border-radius: 4px;
     color: #1f333c;
@@ -92,51 +100,27 @@ html {
     user-select: none;
 }
 
-.calc-hist svg {
+.calc-tools [hidden] {
+    display: none;
+}
+
+.calc-tools svg {
     display: block;
 }
 
 .calc-hist:hover,
-.calc-hist.calc-on {
-    opacity: 0.9;
-    background: #a3bdaf;
-}
-
-.calc-hist:active {
-    opacity: 0.75;
-}
-
-/* the bars beside the clock: open the statistics; the look of the clock */
-.calc-stat-btn {
-    position: absolute;
-    z-index: 2;
-    left: 28px;
-    top: 4px;
-    padding: 2px;
-    border-radius: 4px;
-    color: #1f333c;
-    opacity: 0.5;
-    cursor: pointer;
-    -webkit-user-select: none;
-    user-select: none;
-}
-
-/* no clock while there is no history: the bars take its place */
-.calc-display:has(.calc-hist[hidden]) .calc-stat-btn {
-    left: 6px;
-}
-
-.calc-stat-btn svg {
-    display: block;
-}
-
+.calc-hist.calc-on,
 .calc-stat-btn:hover,
-.calc-stat-btn.calc-on {
+.calc-stat-btn.calc-on,
+.calc-fx-btn:hover,
+.calc-fx-btn.calc-on {
     opacity: 0.9;
     background: #a3bdaf;
 }
 
-.calc-stat-btn:active {
+.calc-hist:active,
+.calc-stat-btn:active,
+.calc-fx-btn:active {
     opacity: 0.75;
 }
 
@@ -239,6 +223,261 @@ html {
 /* x̄, the mean */
 .calc-x-bar {
     text-decoration: overline;
+}
+
+/* ---------- formulas and constants ---------- */
+
+/* the two tabs in the head of the panel */
+.calc-fx-tabs {
+    display: flex;
+    gap: 2px;
+    margin-left: -6px;
+}
+
+.calc-fx .calc-past-head .calc-fx-tab { /* not the first span of the head, which has the room left */
+    flex: none;
+    padding: 0 8px;
+    border-radius: 4px;
+    line-height: 22px;
+    font-weight: 400;
+    opacity: 0.7;
+    cursor: pointer;
+}
+
+.calc-fx-tab:hover {
+    opacity: 1;
+    background: #52687d;
+}
+
+.calc-fx .calc-past-head .calc-fx-tab.calc-on {
+    opacity: 1;
+    background: #5d748a;
+    color: #fff;
+    font-weight: 700;
+}
+
+/* the search, on a piece of display like the list of the statistics */
+.calc-fx-search {
+    margin: 4px 8px 6px;
+    padding: 5px 9px;
+    border: 0;
+    border-radius: 5px;
+    outline: none;
+    background: #b6d1c2;
+    box-shadow: 0 0 12px #36475a;
+    color: #000;
+    font: 14px/18px 'Play', 'Russo One', sans-serif;
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+.calc-fx-search::placeholder {
+    color: #5b7768;
+}
+
+.calc-fx-search:focus {
+    box-shadow: 0 0 0 2px #8eab9b, 0 0 12px #36475a;
+}
+
+.calc-fx-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 8px;
+}
+
+.calc-fx-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.calc-fx-list::-webkit-scrollbar-thumb {
+    background: #6b8196;
+    border-radius: 3px;
+}
+
+/* the name of a group: Geometry, Money … */
+.calc-fx-cat {
+    margin: 8px 2px 4px;
+    color: #acb4c1;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.calc-fx-cat:first-child {
+    margin-top: 2px;
+}
+
+.calc-fx-none {
+    margin: 14px 4px;
+    color: #acb4c1;
+    font-size: 13px;
+    text-align: center;
+}
+
+/* a formula or a constant, on a piece of display */
+.calc-fx-item {
+    margin-bottom: 6px;
+    border-radius: 5px;
+    background: #b6d1c2;
+    box-shadow: 0 0 12px #36475a;
+    color: #000;
+}
+
+.calc-fx-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 9px 4px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.calc-fx-row:hover {
+    background: #a3bdaf;
+}
+
+.calc-fx-row:active {
+    background: #98b3a5;
+}
+
+.calc-fx-item.calc-on .calc-fx-row {
+    border-radius: 5px 5px 0 0;
+    background: #a3bdaf;
+}
+
+/* its name, and under it the formula as it is written or the value of the constant */
+.calc-fx-col {
+    flex: 1;
+    min-width: 0;
+}
+
+.calc-fx-name,
+.calc-fx-f {
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.calc-fx-name {
+    color: #33443b;
+    font-size: 12px;
+    line-height: 15px;
+}
+
+.calc-fx-f {
+    font-size: 15px;
+    line-height: 21px;
+}
+
+.calc-fx-f sup,
+.calc-fx-f sub,
+.calc-fx-sym sup,
+.calc-fx-sym sub,
+.calc-fx-name sup,
+.calc-fx-name sub {
+    font-size: 9px;
+    line-height: 0;
+}
+
+/* a constant: its symbol, its name and its value */
+.calc-fx-sym {
+    flex: none;
+    width: 30px;
+    font-size: 15px;
+    font-style: italic;
+}
+
+.calc-fx-unit {
+    margin-left: 3px;
+    color: #33443b;
+    font-size: 11px;
+}
+
+/* the letters of an open formula: a box for each, then Insert */
+.calc-fx-form {
+    padding: 6px 9px 8px;
+}
+
+.calc-fx-var {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 5px;
+}
+
+.calc-fx-var .calc-fx-sym {
+    width: auto;
+    min-width: 30px;
+    text-align: right;
+}
+
+.calc-fx-var input {
+    flex: 1;
+    min-width: 0;
+    padding: 3px 7px;
+    border: 1px solid #8eab9b;
+    border-radius: 4px;
+    outline: none;
+    background: #d3e6db;
+    color: #000;
+    font: 14px/18px 'Play', 'Russo One', sans-serif;
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+.calc-fx-var input::placeholder {
+    color: #6f8a7c;
+}
+
+.calc-fx-var input:focus {
+    border-color: #3a5872;
+    background: #e4f1e9;
+}
+
+/* empty, or not a number the calculator can read */
+.calc-fx-var input.calc-bad {
+    border-color: #d86672;
+    box-shadow: 0 0 0 1px #d86672;
+}
+
+.calc-fx-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 7px;
+}
+
+.calc-fx-note {
+    flex: 1;
+    color: #4f6659;
+    font-size: 11px;
+    line-height: 13px;
+}
+
+/* why the values give no answer */
+.calc-fx-note.calc-fx-warn {
+    color: #a8323e;
+    font-size: 12px;
+    line-height: 14px;
+}
+
+.calc-fx-insert {
+    padding: 0 14px;
+    border-radius: 4px;
+    background: #3a5872;
+    color: #fff;
+    font-size: 13px;
+    line-height: 26px;
+    cursor: pointer;
+}
+
+.calc-fx-insert:hover {
+    background: #46677f;
+}
+
+.calc-fx-insert:active {
+    background: #31495e;
 }
 
 /* ---------- history ---------- */
@@ -555,7 +794,7 @@ html {
 .calc-log {
     position: absolute;
     z-index: 1;
-    left: 52px; /* clear of the clock and the bars */
+    left: calc(8px + var(--tools, 0) * 22px); /* clear of the buttons at the top left: main.js counts them */
     right: 8px;
     top: 3px;
     height: 32px;
@@ -566,11 +805,6 @@ html {
     text-align: right;
     white-space: nowrap;
     overflow: hidden;
-}
-
-/* no clock while there is no history: the line has the room of the clock too */
-.calc-display:has(.calc-hist[hidden]) .calc-log {
-    left: 30px;
 }
 
 .calc-log sup,
@@ -839,6 +1073,15 @@ html {
 .calc-log .calc-fr .calc-root {
     padding-top: 0;
     line-height: 0.95;
+}
+
+/* the small lines give a power a fixed size, about that of the text in a
+   fraction: there it is set smaller than the text it stands on */
+.calc-log .calc-fr sup,
+.calc-log .calc-fr sub,
+.calc-past-eq .calc-fr sup,
+.calc-past-eq .calc-fr sub {
+    font-size: 70%;
 }
 
 /* the part still to be entered */
