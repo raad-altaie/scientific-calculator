@@ -7,7 +7,7 @@
         notification = Calc.querySelector(".notification"),
         noticeTimer, // fades the notification out
         mem = Calc.querySelector('.calc-mem'), // 'M' while the memory holds a number
-        radDeg = Calc.querySelector('.calc-rad'), // the unit: its text, then a full turn in it, 2π or 360º
+        radDeg = Calc.querySelector('.calc-rad'), // the unit: its text, then a full turn in it, 2π or 360°
         fullTurn = radDeg.querySelector('.sign'),
         hold = Calc.querySelector('.calc-hold'),
         fmtMark = Calc.querySelector('.calc-fmt'), // FIX 2, SCI 3 or ENG 2 while that notation is on
@@ -315,7 +315,7 @@
     tip.parentNode.addEventListener('mouseover', function (e) {
         var key = e.target.closest('.calc-left > *, .calc-right > .del-ac, .calc-rad, .calc-mem, .calc-frac, .calc-fmt, .calc-hold, ' +
             '.calc-stat-btn, .calc-stats-tile, ' +
-            '.calc-hist, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-unit');
+            '.calc-hist, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit');
         if (key === tipKey) return;
         hideTip();
         tipKey = key;
@@ -383,6 +383,7 @@
         if (el === pastButton) return CalcTips[past.classList.contains('calc-open') ? 'history close' : 'history'];
         if (el.classList.contains('calc-past-clear')) return CalcTips['history clear'];
         if (el.classList.contains('calc-past-close')) return CalcTips['history close'];
+        if (el.classList.contains('calc-past-del')) return CalcTips['history delete'];
         if (el.classList.contains('calc-past-unit')) return CalcTips['history unit ' + name];
         if (el.classList.contains('calc-past-btn')) {
             return CalcTips['history ' + el.dataset.act + (el.closest('.calc-past-eq') ? ' equation' : ' result')];
@@ -534,6 +535,17 @@
         saveState();
     }, false);
 
+    // the x on a row takes the calculation out of the history, equation and result
+    pastList.addEventListener('click', function (e) {
+        var del = e.target.closest('.calc-past-del'), i = del && +del.parentNode.dataset.i;
+
+        if (!del || !engine.past[i]) return;
+        engine.past.splice(i, 1);
+        if (engine.past.length) renderPast(); else showPast(false);
+        refresh();
+        saveState();
+    }, false);
+
     // the buttons on a line: insert enters the equation again, to change or
     // finish, or puts the result in as a number, like Ans; copy copies it
     pastList.addEventListener('click', function (e) {
@@ -649,7 +661,7 @@
 
     // newest first
     function renderPast() {
-        var n = engine.past.length, i, p, row, eq, line, res, unit;
+        var n = engine.past.length, i, p, row, eq, line, res, unit, del;
 
         pastShown = { list: engine.past, n: n, last: engine.past[n - 1], mode: shownMode() };
         pastList.textContent = '';
@@ -672,6 +684,10 @@
             res.className = 'calc-past-res';
             res.innerHTML = shownResult(engine.past[i], p.result).html;
             pastButtons(res, 'result');
+            del = row.appendChild(document.createElement('span'));
+            del.className = 'calc-past-del';
+            del.innerHTML = '<svg viewBox="0 0 16 16" width="8" height="8" fill="none" stroke="currentColor" ' +
+                'stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg>';
             pastList.appendChild(row);
         }
     }
@@ -966,7 +982,7 @@
             radDeg.firstChild.data = deg ? 'Rad' : 'Deg';
             key.children[0].firstChild.data = deg ? 'Deg' : 'Rad';
             deg = !deg
-            fullTurn.textContent = deg ? '360º' : '2π';
+            fullTurn.innerHTML = deg ? '360°' : '2<span class="sign-pi">π</span>';
         } else if (text.match(/^mr$/) && engine.memory) {
             keyBoard['AC'].children[0].firstChild.data = 'C';
         }
@@ -1014,7 +1030,9 @@
             render('Error');
             resBuffer = '0';
         } else if (engine.done || engine.plain()) { // a number alone keeps the usual formatting
-            render(engine.value, engine.entry === 'typing'); // a typed number shows as typed
+            // a typed number shows as typed, and so does the 0 of a calculator waiting for a number:
+            // Fix, Sci and Eng are for results. A result that is 0 is formatted
+            render(engine.value, engine.entry === 'typing' || (engine.entry === 'fresh' && !engine.done && engine.value === '0'));
         } else {
             resBuffer = engine.value;
             display.innerHTML = eq;
@@ -1024,7 +1042,7 @@
         slide(logline, logline.scrollWidth);
         mem.textContent = engine.memory ? 'M' : '';
         fracMark.textContent = fracMode ? 'FRAC' : '';
-        keyBoard['a/b'].classList.toggle('calc-lit', fracMode); // its label lit, like an active 2nd key
+        keyBoard['a/b'].classList.toggle('calc-lit', fracMode); // a red dot on its key
         pastButton.hidden = !engine.past.length; // shown once there is a history
         if (stats.classList.contains('calc-open')) renderStats(); // the number format or fraction mode may have changed
         if (past.classList.contains('calc-open') && (pastShown.list !== engine.past || pastShown.mode !== shownMode() ||

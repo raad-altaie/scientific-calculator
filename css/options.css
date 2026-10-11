@@ -9,6 +9,7 @@ html, body {
     }
 
 .wrapper{
+    font-size: 17px; /* the page is in em, so this scales it all */
     text-align: center;
     max-width: 800px;
     margin: 7em auto;
@@ -63,6 +64,7 @@ html, body {
     font-family: 'Play', 'Russo One', sans-serif;
     font-size: 2.7em;
     color: #fff;
+    -webkit-user-select: none;
     user-select: none;
 }
 
@@ -134,28 +136,28 @@ html, body {
 
 .option h3 {
     margin: 0 0 0.25em;
-    font-size: 1.1em;
+    font-size: 1.2em;
     font-weight: 700;
 }
 
 .option p {
     margin: 0;
-    font-size: 0.95em;
+    font-size: 1.05em;
     line-height: 1.4em;
     color: #dde3ea;
 }
 
 .option .option-note {
     margin-top: 0.4em;
-    font-size: 0.8em;
+    font-size: 0.88em;
     color: #acb4c1;
 }
 
 .switch {
     flex: none;
     position: relative;
-    width: 46px;
-    height: 26px;
+    width: 40px;
+    height: 22px;
     cursor: pointer;
 }
 
@@ -172,7 +174,7 @@ html, body {
     display: block;
     height: 100%;
     background: #1a2f38;
-    border-radius: 13px;
+    border-radius: 11px;
     transition: background 0.2s;
 }
 
@@ -181,8 +183,8 @@ html, body {
     position: absolute;
     left: 3px;
     top: 3px;
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
     background: #8696a5;
     border-radius: 50%;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
@@ -194,7 +196,7 @@ html, body {
 }
 
 .switch input:checked + span::after {
-    left: 23px;
+    left: 21px;
     background: #fff;
 }
 
@@ -245,7 +247,7 @@ html, body {
     font-family: 'Play', 'Russo One', sans-serif;
     vertical-align: middle;
     position: relative;
-    top: 3px; /* the key with its label, a bit down */
+    top: 2px; /* the key with its label, a bit down */
 }
 
 
@@ -281,6 +283,7 @@ html, body {
     background: #8696a5;
     display: inline-block;
     vertical-align: middle;
+    line-height: 44px; /* the label a bit lower in the key */
 }
 
 .keys:hover {
@@ -312,7 +315,6 @@ html, body {
     width: 62px;
     /* DEL and C: slightly smaller letters, like on the calculator */
     font-size: 1.7em;
-    line-height: 37px;
 }
 
 .del-ac:hover {
@@ -370,10 +372,10 @@ html, body {
 .format-row {
     display: flex;
     flex-wrap: wrap;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: center;
     gap: 0.8em;
-    margin: 0.7em 0 0.2em;
+    margin: 0.6em 0 0.6em;
 }
 
 /* the icon shows 1,500 as the chosen format writes it */
@@ -382,15 +384,20 @@ html, body {
     width: auto;
     min-width: 40px; /* as wide as the other option icons, until the number needs more */
     padding: 0 6px;
-    color: #fff;
+    background: #b6d1c2; /* a piece of the calculator's screen */
+    border-radius: 5px;
+    color: #000;
+    font-family: 'Play', 'Russo One', sans-serif;
     font-size: 12px;
     font-weight: 700;
     white-space: nowrap;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 .format-row select {
     appearance: none;
-    padding: 0.3em 1.9em 0.3em 0.6em;
+    padding: 0.45em 1.9em 0.45em 0.6em;
     color: #fff;
     background: #1a2f38 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23fff' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 0.7em center / 8px 5px;
     border: 1px solid #4d6b80;
@@ -415,11 +422,6 @@ html, body {
     gap: 0.6em;
     margin-left: 0.4em;
     cursor: pointer;
-}
-
-/* the example under the number format, centered under its controls */
-#format-preview-line {
-    text-align: center;
 }
 
 /* phones: less space around the page, and the options stack where they don't fit */
@@ -581,7 +583,7 @@ html, body {
     box-sizing: border-box;
     width: 100%;
     margin: 0 auto;
-    padding: 2em 16px 1em;
+    padding: 3em 16px 2em;
     font-size: 12.5px;
 }
 

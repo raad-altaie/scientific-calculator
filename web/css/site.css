@@ -74,7 +74,7 @@ body {
     flex-direction: column;
     box-sizing: border-box;
     min-height: 100%; /* a short page still puts the footer at the bottom */
-    font-size: 12.5px;
+    font-size: 13.5px;
     margin-top: 0;
     margin-bottom: 0; /* options.css leaves 7em under the page */
     padding-top: 3em;
@@ -82,8 +82,8 @@ body {
 
 .options-pane .footer {
     margin: auto auto 0; /* pushed to the bottom */
-    padding: 2em 16px 1em; /* and kept off the text above */
-    font-size: 12.5px;
+    padding: 3em 16px 2em; /* and kept off the text above */
+    font-size: 13.5px;
 }
 
 .options-pane .footer p {
