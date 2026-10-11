@@ -4,7 +4,7 @@ A scientific calculator for your browser: light, fast and it works offline. It r
 
 <div align="center"><img src="screenshot.png" alt="Scientific Calculator" height="700" /></div>
 
-# <p align="left"> <b>[check it out](https://goo.gl/dvrvUY) </b></p>
+# <p align="left"> <b>[check it out](https://goo.gl/dvrvUY) · [try the web version](https://raad.dev/calculator/) </b></p>
 
 ## What it does
 
