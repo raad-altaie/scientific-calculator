@@ -1037,8 +1037,8 @@ html {
     border: 2px solid #3f4969;
 }
 
-/* a key moves down a little while it is pressed; the small keys move less, and
-   keep their own border: only the fill gets darker */
+/* a key moves down 1px while it is pressed; the small keys keep their own
+   border: only the fill gets darker */
 .keys,
 .trigo-keys,
 .calc-second {
@@ -1046,7 +1046,7 @@ html {
 }
 
 .keys:active {
-    transform: translateY(2px);
+    transform: translateY(1px);
 }
 
 .trigo-keys:active,
