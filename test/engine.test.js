@@ -487,6 +487,7 @@ dels.forEach(function (c) {
     check(state(e) === '44 | 2 + 42 =', 'paste is used as the operand', state(e));
     check(!e.paste('abc') && state(e) === '44 | 2 + 42 =', 'non numeric paste is ignored', state(e));
     check(!e.paste('42abc', false, true) && state(e) === '44 | 2 + 42 =', 'whole: not the number a text starts with', state(e));
+    check(!e.paste('5$3', false, true) && state(e) === '44 | 2 + 42 =', 'whole: a currency between two numbers does not join them', state(e));
     check(e.paste('6*7', false, true) && (e.press('='), e.value === '42'), 'whole: an equation still goes in', state(e));
     run(e, 'AC 2 + 3');
     e.paste('9');
@@ -595,6 +596,14 @@ dels.forEach(function (c) {
             ['1.5e-7 + 1', '1', '1.5E-7 + 1'],
             ['1,234.5 + 1', '1', '1234.5 + 1'],
             ['1.234,5 + 1', '1', '1234.5 + 1'],
+            ['$1,200', '1200', '1200'],
+            ['€1.200,50', '1200.5', '1200.5'],
+            ['-¥1000', '-1000', '-1000'],
+            ['$1,200.50 + $300=', '1500.5', '1200.50 + 300 ='],
+            ['45.99 € * 2=', '91.98', '45.99 × 2 ='],
+            ['US$ 5 + 5 USD=', '10', '5 + 5 ='],
+            ['10 MOD 3=', '1', '10 mod 3 ='],
+            ['SIN(30)', 0.5, 'sin(30)', true],
             ['1,500 + 1=', '1501', '1500 + 1 ='],
             ['1,5 + 2,5=', '4', '1.5 + 2.5 ='],
             ['2,50 + 0,5=', '3', '2.50 + 0.5 ='],
@@ -692,7 +701,7 @@ dels.forEach(function (c) {
         check(e.equation() === c[2], 'paste ' + c[0] + '  line', 'expected "' + c[2] + '", got "' + e.equation() + '"');
     });
 
-    ['abc', '× 2', '', '   ', '()', '$5.00', new Array(40).join('(') + '2', new Array(5000).join('(')].forEach(function (text) {
+    ['abc', '× 2', '', '   ', '()', '$', 'USD', '$abc', new Array(40).join('(') + '2', new Array(5000).join('(')].forEach(function (text) {
         var e = new Engine(), before;
         run(e, '2 + 3');
         before = e.snapshot() + e.history.length;

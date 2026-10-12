@@ -538,6 +538,14 @@
         });
     }
 
+    // money is read as its number: $1,200, 45.99 €, US$ 5 and 5 USD. A currency is its
+    // sign, with the capitals before it, or three capitals that name no function
+    function money(s) {
+        return s.replace(/[A-Z]{0,3}\p{Sc}/gu, ' ').replace(/(^|[^a-zA-Z])([A-Z]{3})(?![a-zA-Z])/g, function (all, before, code) {
+            return WORDS.hasOwnProperty(code.toLowerCase()) || /^(MOD|GCD|LCM|NCR|NPR)$/.test(code) ? all : before + ' ';
+        });
+    }
+
     // true for a token an operator can follow: a number, π, a closing bracket, x², 5!
     function operand(t) {
         return !!t && (t.t === 'num' || t.t === 'const' || t.t === 'sup' || (t.t === 'op' && /^[)!%]$/.test(t.v)));
@@ -1587,7 +1595,7 @@
     // a number replaces the displayed one; an equation is entered in its place.
     // whole: only a number or an equation, not the number a text starts with
     Engine.prototype.paste = function (str, deg, whole) {
-        var s = separators(String(str).trim()), n, tree, snap, hist, equals, add, e = this.edit;
+        var s = separators(money(String(str)).trim()), n, tree, snap, hist, equals, add, e = this.edit;
         if (e) { // while editing it goes in at the cursor
             s = s.replace(/^=\s*/, '').replace(/=[^]*$/, '');
             add = s.length <= MAX_PASTE && tokens(s);

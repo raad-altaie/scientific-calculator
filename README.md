@@ -35,7 +35,7 @@ A scientific calculator for your browser: light, fast and it works offline. It r
 
 **Keyboard, copy and paste**
 - Full keyboard support for every button; a `h` hold key gives the second function (`h`, `s` = `sinh`).
-- Ctrl+C / Ctrl+V and a right-click menu per area. You can paste a whole equation such as `2 + 3 × sin(30)` or `sqrt(16) + 2^3`; `1,234.5` and `1.234,5` are both read as 1234.5.
+- Ctrl+C / Ctrl+V and a right-click menu per area. You can paste a whole equation such as `2 + 3 × sin(30)` or `sqrt(16) + 2^3`; `1,234.5` and `1.234,5` are both read as 1234.5, and a currency is left out: `$1,200` or `5 USD` is the number alone.
 
 **The extension**
 - Opens from the toolbar icon or `Alt+S`.
