@@ -995,8 +995,8 @@ html {
     --calc-lead: calc(23px - var(--calc-line) / 2);
     display: block;
     position: relative;
-    margin-left: 8px;
-    padding: var(--calc-lead) 0;
+    margin: 0 -7px 0 0; /* out to the edges of the display, so the dots can cover all the way */
+    padding: var(--calc-lead) 7px var(--calc-lead) 8px;
     line-height: var(--calc-line);
     word-spacing: -0.08em;
     white-space: nowrap;
@@ -1031,15 +1031,15 @@ html {
 }
 
 .calc-more-left::before {
-    left: calc(var(--slid) - 2px); /* from the very edge: nothing shows past the dots */
-    padding: 0 0.1em 0 calc(2px + 0.1em);
+    left: var(--slid); /* from the very edge of the display */
+    padding: 0 0.1em 0 calc(8px + 0.1em);
     border-right: 0.35em solid transparent; /* the box goes past the dots, over what they cut */
     background-clip: border-box;
 }
 
 .calc-more-right::after {
-    right: calc(0px - var(--slid) - 2px);
-    padding: 0 calc(2px + 0.1em) 0 0.1em;
+    right: calc(0px - var(--slid));
+    padding: 0 calc(7px + 0.1em) 0 0.1em;
     border-left: 0.35em solid transparent;
     background-clip: border-box;
 }
@@ -1060,8 +1060,9 @@ html {
 .calc-log {
     position: absolute;
     z-index: 1;
-    left: calc(8px + var(--tools, 0) * 22px); /* clear of the buttons at the top left: main.js counts them */
-    right: 8px;
+    left: calc(var(--tools, 0) * 22px); /* clear of the buttons at the top left: main.js counts them */
+    right: 0;
+    padding: 0 8px; /* the room at the sides is inside, so the dots cover it */
     top: 3px;
     height: 32px;
     line-height: 28px;
