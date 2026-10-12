@@ -21,7 +21,20 @@ if (new URLSearchParams(location.search).has('detached')) {
 
         if (scale > 1 && scale < 1.01) scale = 1; // a window opened at the normal size stays sharp; never bigger than fits
         scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale));
-        calculator.style.transform = `translate(-50%, -50%) scale(${scale})`;
+        // The calculator is drawn a whole number of pixels wide and tall, with the same
+        // whole number of pixels on both sides of it: with a half pixel to share, one side
+        // would get more. The change to the scale is under a pixel
+        const fit = (room, size) => {
+            const drawn = Math.round(size * scale);
+
+            return (room - drawn) % 2 ? drawn + 1 : drawn;
+        };
+        const width = fit(window.innerWidth, calculator.offsetWidth);
+        const height = fit(window.innerHeight, calculator.offsetHeight);
+        const x = (window.innerWidth - width) / 2;
+        const y = (window.innerHeight - height) / 2;
+
+        calculator.style.transform = `translate(${x}px, ${y}px) scale(${width / calculator.offsetWidth}, ${height / calculator.offsetHeight})`;
     };
 
     // The window keeps the calculator's shape. The browser cannot lock that while the
@@ -41,7 +54,7 @@ if (new URLSearchParams(location.search).has('detached')) {
 
             scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, room, scale));
             lastSize = { width: Math.round(baseWidth * scale), height: Math.round(baseHeight * scale) };
-            if (Math.abs(lastSize.width - window.innerWidth) > 1 || Math.abs(lastSize.height - window.innerHeight) > 1) {
+            if (lastSize.width !== window.innerWidth || lastSize.height !== window.innerHeight) {
                 const width = lastSize.width + frameWidth;
                 const height = lastSize.height + frameHeight;
                 // a window that grows past the bottom or the right of the screen moves up or left, to stay in view

@@ -16,18 +16,18 @@
         }
 
         /* The popup is as tall as the browser lets a popup be, 600px: the calculator is
-           drawn a little bigger to fill it, 594 for its 580px, with a little room around it */
+           drawn a little bigger to fill it, 596 for its 580px, with 2px of room on every side */
         body {
             box-sizing: border-box;
-            width: 397px;
+            width: 394.5px;
             height: 600px;
-            padding: 3px 4px;
+            padding: 2px;
             overflow: hidden;
         }
 
         html:not(.detached) #calculator {
             margin: 0;
-            transform: scale(1.0241);
+            transform: scale(1.0276);
             transform-origin: 0 0;
         }
 
@@ -43,10 +43,10 @@
 
         .detached #calculator {
             position: fixed;
-            left: 50%;
-            top: 50%;
+            left: 0;
+            top: 0;
             margin: 0;
-            transform: translate(-50%, -50%);
+            transform-origin: 0 0;
         }
     </style>
 </head>

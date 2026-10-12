@@ -22,26 +22,72 @@ chrome.runtime.getPlatformInfo(function (info) {
 // to follow the window size and the window can be found again
 const detachedUrl = chrome.runtime.getURL("popup.html?detached");
 
+// The place and the size of the detached window are kept here, for the next
+// time it opens. A service worker has no localStorage, and chrome.storage is
+// only held while the page icon is on
+function detachedBoundsStore(mode, run, failed) {
+    const open = indexedDB.open("detached", 1);
+
+    open.onupgradeneeded = () => open.result.createObjectStore("window");
+    open.onsuccess = () => run(open.result.transaction("window", mode).objectStore("window"));
+    open.onerror = () => failed && failed();
+}
+
+function readDetachedBounds(done) {
+    detachedBoundsStore("readonly", (store) => {
+        const read = store.get("bounds");
+
+        read.onsuccess = () => done(read.result);
+        read.onerror = () => done();
+    }, done);
+}
+
+// The window is moved or resized: its new place is remembered
+chrome.windows.onBoundsChanged.addListener((win) => {
+    if (win.type !== "popup" || win.state !== "normal") return; // not maximised or full screen
+
+    chrome.tabs.query({ windowId: win.id }, (tabs) => {
+        if (!tabs.some((t) => t.url && t.url.startsWith(detachedUrl))) return;
+
+        detachedBoundsStore("readwrite", (store) => {
+            store.put({ left: win.left, top: win.top, width: win.width, height: win.height }, "bounds");
+        });
+    });
+});
+
 function createPopupWindow() {
     chrome.system.display.getInfo((displayInfo) => {
-        const displayWidth = displayInfo[0].workArea.width;
-        const displayHeight = displayInfo[0].workArea.height;
-        const width = popupWidth + 2 * detachedMargin.x;
-        const height = popupHeight + 2 * detachedMargin.y;
+        readDetachedBounds((saved) => {
+            const displayWidth = displayInfo[0].workArea.width;
+            const displayHeight = displayInfo[0].workArea.height;
+            const width = popupWidth + 2 * detachedMargin.x;
+            const height = popupHeight + 2 * detachedMargin.y;
 
-        // Calculate the centered position
-        const left = Math.round((displayWidth - width) / 2);
-        const top = Math.round((displayHeight - height) / 2);
+            // Calculate the centered position
+            let bounds = {
+                width: width,
+                height: height,
+                left: Math.round((displayWidth - width) / 2),
+                top: Math.round((displayHeight - height) / 2),
+            };
 
-        // Create the centered popup window
-        chrome.windows.create({
-            type: "popup",
-            url: detachedUrl,
-            width: width,
-            height: height,
-            left: left,
-            top: top,
-            focused: true,
+            // It opens where it was left, at the size it was left, if a screen
+            // still shows that place: its title bar and 100px of its width
+            const inView = saved && displayInfo.some(({ workArea: area }) =>
+                saved.top >= area.top && saved.top < area.top + area.height - 50 &&
+                saved.left + saved.width > area.left + 100 && saved.left < area.left + area.width - 100);
+
+            if (inView) bounds = saved;
+
+            chrome.windows.create({
+                type: "popup",
+                url: detachedUrl,
+                width: bounds.width,
+                height: bounds.height,
+                left: bounds.left,
+                top: bounds.top,
+                focused: true,
+            });
         });
     });
 }

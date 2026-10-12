@@ -152,20 +152,20 @@ body {
         display: block;
     }
 
-    /* a phone is narrow: the calculator goes almost from side to side, 2px short of each */
+    /* a phone is narrow: the calculator goes almost from side to side, 2px short of each, and of the top and bottom */
     .calc-pane {
         height: 100%;
         box-sizing: border-box;
-        padding: 4px 0;
+        padding: 0;
         padding-left: env(safe-area-inset-left);
         padding-right: env(safe-area-inset-right);
-        padding-top: max(4px, env(safe-area-inset-top));
-        padding-bottom: max(4px, env(safe-area-inset-bottom));
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
     }
 
     #calculator {
-        margin: 3px 2px;
-        transform-origin: -2px -3px;
+        margin: 2px;
+        transform-origin: -2px -2px;
     }
 
     .options-pane {

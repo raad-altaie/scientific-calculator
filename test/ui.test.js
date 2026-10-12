@@ -51,7 +51,7 @@ function serve() {
             var url = decodeURIComponent(req.url.split('?')[0]), file;
             if (url === '/frame.html') {
                 res.writeHead(200, { 'Content-Type': 'text/html' });
-                return res.end('<!DOCTYPE html><iframe id="calc-iframe" src="popup.html" width="397" height="600"></iframe>');
+                return res.end('<!DOCTYPE html><iframe id="calc-iframe" src="popup.html" width="395" height="600"></iframe>');
             }
             file = path.join(ROOT, url);
             if (file.indexOf(ROOT) !== 0 || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {

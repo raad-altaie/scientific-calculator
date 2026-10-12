@@ -1502,7 +1502,7 @@
         box.innerHTML =
             '<span class="calc-past-btn" data-act="insert">' +
             '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" ' +
-            'stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h5a2 2 0 0 0 2-2V3" /><path d="M7 6l3-3 3 3" /></svg>' +
+            'stroke-linecap="round" stroke-linejoin="round"><path d="M13 13h-5a2 2 0 0 1-2-2V3" /><path d="M9 6l-3-3-3 3" /></svg>' +
             '</span>' +
             '<span class="calc-past-btn" data-act="copy">' +
             '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" ' +

@@ -54,8 +54,12 @@ try {
 
 // on a small screen the options open over the calculator, which is out of use meanwhile:
 // what is typed is not for its keys
+const themeColor = document.querySelector('meta[name="theme-color"]');
+
 const showOptions = (open) => {
     document.body.classList.toggle('options-open', open);
+    // the bar of the installed app: the calculator's grey, the options' navy while they are open
+    if (themeColor) themeColor.content = open ? '#39576f' : '#a8a8a8';
     pane.inert = open;
     if (open) {
         optionsPane.scrollTop = 0;
