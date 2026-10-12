@@ -1022,7 +1022,10 @@ html {
 .calc-more-right::after {
     content: '…';
     position: absolute;
-    top: var(--calc-lead);
+    top: 0;
+    bottom: 0; /* the whole height of the line, so no digit shows above or below the dots */
+    display: flex;
+    align-items: center;
     background: #b6d1c2;
 }
 
