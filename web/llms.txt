@@ -1,0 +1,15 @@
+# Scientific Calculator
+
+> A free scientific calculator that works offline: fractions, trigonometry, logarithms, statistics, unit converter, formulas and constants, and a history of past calculations. Nothing leaves your browser.
+
+A static web app (no account, no server, no tracking): everything is calculated in the browser. Installable as an app on iOS, Android and desktop. Also available as a Chrome extension.
+
+## Links
+- [Calculator](https://raad.dev/calculator/): the app, with options and a guide to every function
+- [Source code and documentation](https://github.com/raad-altaie/scientific-calculator): README, tests, MIT license
+
+## Facts
+- Precision: about 15 significant digits (IEEE 754 doubles), shown to 13.
+- Angle units: degrees, radians, gradians. Fraction mode. Fix, Sci and Eng formats.
+- Panels: formulas and constants, unit converter, statistics (mean, median, standard deviation, min, max).
+- Author: Raad Altaie. License: MIT.

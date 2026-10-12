@@ -1,14 +1,17 @@
-const iframe = document.getElementById('calc-iframe');
+// The page of the popup and of the detached window: it holds the calculator, and does
+// for it what needs the extension: it opens the options and reads the clipboard
+
+const calculator = document.getElementById('calculator');
 
 // detached mode: the calculator grows and shrinks with its window, within limits
 if (new URLSearchParams(location.search).has('detached')) {
     const MIN_SCALE = 0.5;
     const MAX_SCALE = 3;
-    // room around the calculator at the normal size, as in background.js: a little less on Windows
-    const MARGIN = { x: 1, y: navigator.userAgent.includes('Windows') ? 1 : 2 };
+    // room around the calculator at the normal size, the same on every side, as in background.js
+    const MARGIN = 2;
     // the calculator with its margin: this is what the window is filled with
-    const baseWidth = iframe.offsetWidth + 2 * MARGIN.x;
-    const baseHeight = iframe.offsetHeight + 2 * MARGIN.y;
+    const baseWidth = calculator.offsetWidth + 2 * MARGIN;
+    const baseHeight = calculator.offsetHeight + 2 * MARGIN;
     let lastSize = { width: window.innerWidth, height: window.innerHeight };
     let settled;
 
@@ -16,9 +19,9 @@ if (new URLSearchParams(location.search).has('detached')) {
         // the largest size that still shows the whole calculator and its margin
         let scale = Math.min(window.innerWidth / baseWidth, window.innerHeight / baseHeight);
 
-        if (Math.abs(scale - 1) < 0.01) scale = 1; // a window opened at the normal size stays sharp
+        if (scale > 1 && scale < 1.01) scale = 1; // a window opened at the normal size stays sharp; never bigger than fits
         scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale));
-        iframe.style.transform = `translate(-50%, -50%) scale(${scale})`;
+        calculator.style.transform = `translate(-50%, -50%) scale(${scale})`;
     };
 
     // The window keeps the calculator's shape. The browser cannot lock that while the
@@ -39,9 +42,17 @@ if (new URLSearchParams(location.search).has('detached')) {
             scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, room, scale));
             lastSize = { width: Math.round(baseWidth * scale), height: Math.round(baseHeight * scale) };
             if (Math.abs(lastSize.width - window.innerWidth) > 1 || Math.abs(lastSize.height - window.innerHeight) > 1) {
+                const width = lastSize.width + frameWidth;
+                const height = lastSize.height + frameHeight;
+                // a window that grows past the bottom or the right of the screen moves up or left, to stay in view
+                const left = screen.availLeft || 0;
+                const top = screen.availTop || 0;
+
                 chrome.windows.update(win.id, {
-                    width: lastSize.width + frameWidth,
-                    height: lastSize.height + frameHeight
+                    width: width,
+                    height: height,
+                    left: Math.max(left, Math.min(win.left, left + screen.availWidth - width)),
+                    top: Math.max(top, Math.min(win.top, top + screen.availHeight - height))
                 });
             }
         });
@@ -54,72 +65,41 @@ if (new URLSearchParams(location.search).has('detached')) {
         settled = setTimeout(keepShape, 200);
     });
     fitWindow();
+    // the title bar is not as tall in every system: a window opened a little off the shape is put right
+    keepShape();
 }
 
-// listen for messages from the iframe
-window.addEventListener('message', (event) => {
-    if (event.data?.command == 'open-options') {
-        chrome.runtime.openOptionsPage();
-    } else if (event.data?.command == 'read-clipboard') {
-        pasteFromClipboard();
-    }
+// the name, the ? and the FIX mark of the calculator open the options page
+document.addEventListener('calc-options', () => {
+    chrome.runtime.openOptionsPage();
 });
 
-// Paste in the menu of a right click. The calculator cannot read the clipboard,
-// so this page does: the browser asks once to allow it, as the permission is optional
-// and not given at install. The text goes to the calculator as a paste
-const refusePaste = () => iframe.contentWindow.postMessage({ type: 'paste-refused' }, '*');
-
+// Paste in the menu of a right click: the browser asks once to allow reading the
+// clipboard, as the permission is optional and not given at install. The calculator
+// gets the text, or is told that there is none
 const readClipboard = () => navigator.clipboard.readText().catch(() => {
-    // the older way, which the permission allows as well, while the calculator has the focus
+    // the older way, which the permission allows as well
     const box = document.createElement('textarea');
     document.body.appendChild(box);
     box.focus();
     const pasted = document.execCommand('paste');
     const text = box.value;
     box.remove();
-    iframe.focus();
     return pasted ? text : Promise.reject();
 });
 
-function pasteFromClipboard() {
+document.addEventListener('calc-paste', (event) => {
+    const { text, refused } = event.detail;
+
     try {
         chrome.permissions.request({ permissions: ['clipboardRead'] }, (granted) => {
             if (chrome.runtime.lastError || !granted) {
-                refusePaste();
+                refused();
                 return;
             }
-            readClipboard().then((text) => {
-                iframe.contentWindow.postMessage({ type: 'paste', text }, '*');
-            }, refusePaste);
+            readClipboard().then(text, refused);
         });
     } catch (e) {
-        refusePaste(); // asked for outside a click
+        refused(); // asked for outside a click
     }
-}
-
-
-// Pass keyboard events to the iframe
-['keydown', 'keyup', 'keypress'].forEach(eventType => {
-    document.addEventListener(eventType, function (e) {
-        const { key, keyCode, altKey, ctrlKey, shiftKey, metaKey } = e;
-        iframe.contentWindow.postMessage({
-            type: eventType,
-            key,
-            keyCode,
-            altKey,
-            ctrlKey,
-            shiftKey,
-            metaKey
-        }, '*');
-    });
-});
-
-
-// pass paste event to the iframe
-document.addEventListener('paste', function (e) {
-    // Get clipboard data
-    const clipboardData = e.clipboardData || window.clipboardData;
-    const pastedText = clipboardData.getData('text/plain');
-    iframe.contentWindow.postMessage({ type: 'paste', text: pastedText }, '*');
 });

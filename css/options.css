@@ -32,11 +32,11 @@ html, body {
     
 }
 
-.calc-main{
+:where(.wrapper) .calc-main{
     margin: 0;
 }
 
-.calc-sci{
+:where(.wrapper) .calc-sci{
     margin: 0;
 }
 
@@ -55,7 +55,7 @@ html, body {
 
 }
 
-.logo {
+:where(.wrapper) .logo {
     margin-top: 10px;
     margin-left: 15px;
     margin-bottom: 5px;
@@ -231,7 +231,7 @@ html, body {
     transform: translateY(2px); /* pressed, it moves down a little, as the keys do */
 }
 
-.trigo-keys {
+:where(.wrapper) .trigo-keys {
     text-align: center;
     width: 40px;
     height: 27px;
@@ -252,13 +252,13 @@ html, body {
 }
 
 
-.trigo-keys:hover {
+:where(.wrapper) .trigo-keys:hover {
     background: #345361;
     border: 1px solid #1a2f38;
     border-radius: 5px;
 }
 
-.trigo-keys:active {
+:where(.wrapper) .trigo-keys:active {
     font-size: 1em;
     color: #fff;
     background: #2b4753;
@@ -266,7 +266,7 @@ html, body {
     border-radius: 5px;
 }
 
-.keys {
+:where(.wrapper) .keys {
     text-align: center;
     padding: 0px;
     color: #fff;
@@ -287,42 +287,42 @@ html, body {
     line-height: 44px; /* the label a bit lower in the key */
 }
 
-.keys:hover {
+:where(.wrapper) .keys:hover {
     color: #fff;
     background: #91a4b5;
 }
 
-.keys:active {
+:where(.wrapper) .keys:active {
     color: #fff;
     background: #758492;
     border: 2px solid #3f4969;
 }
 
-.keys2 {
+:where(.wrapper) .keys2 {
     background: #4a5f73;
 }
 
-.keys2:hover {
+:where(.wrapper) .keys2:hover {
     background: #52687d;
 }
 
-.keys2:active {
+:where(.wrapper) .keys2:active {
     background: #425669;
     border: 2px solid #3f4969;
 }
 
-.del-ac {
+:where(.wrapper) .del-ac {
     background: #bf777f;
     width: 62px;
     /* DEL and C: slightly smaller letters, like on the calculator */
     font-size: 1.7em;
 }
 
-.del-ac:hover {
+:where(.wrapper) .del-ac:hover {
     background: #d1868f;
 }
 
-.del-ac:active {
+:where(.wrapper) .del-ac:active {
     color: #fff;
     background: #b26b73;
     border: 2px solid #3f4969;
@@ -330,30 +330,30 @@ html, body {
 
 /* a key moves down 1px while it is pressed, as in the calculator; the small
    keys keep their own border: only the fill gets darker */
-.trigo-keys,
-.keys {
+:where(.wrapper) .trigo-keys,
+:where(.wrapper) .keys {
     transition: transform 0.04s;
 }
 
-.keys:active {
+:where(.wrapper) .keys:active {
     transform: translateY(1px);
 }
 
-.trigo-keys:active {
+:where(.wrapper) .trigo-keys:active {
     transform: translateY(1px);
     background: #223a45;
     border-color: #1a2f38;
 }
 
-.equal {
+:where(.wrapper) .equal {
     width: 62px;
 }
 
-.calc-buttons {
+:where(.wrapper) .calc-buttons {
     display: none;
 }
 
-.calc-blank {
+:where(.wrapper) .calc-blank {
     position: absolute;
     z-index: -1;
     opacity: 0;
@@ -462,7 +462,7 @@ html, body {
         margin: 2.5em auto;
     }
 
-    .logo {
+    :where(.wrapper) .logo {
         margin-left: 0;
         font-size: 2em;
     }
@@ -520,7 +520,7 @@ html, body {
     stroke-linejoin: round;
 }
 
-.trigo-keys .arrow {
+:where(.wrapper) .trigo-keys .arrow {
     width: 13px;
     height: 13px;
     margin: 0;
@@ -581,9 +581,9 @@ html, body {
 
 /* the key pictures that start each description cannot be selected;
    the keys named inside the text can, except the < > arrows */
-.keys,
-.trigo-keys,
-.calc-down,
+:where(.wrapper) .keys,
+:where(.wrapper) .trigo-keys,
+:where(.wrapper) .calc-down,
 .k-arrow {
     -webkit-user-select: none;
     user-select: none;

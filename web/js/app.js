@@ -1,17 +1,24 @@
-// The page around the calculator. calc.html runs in an iframe, as in the extension's
-// popup.js, and keeps its own state: this page passes it the keyboard and the clipboard,
-// scales it to its pane, and shows or hides the options when the ? is clicked.
+// The page around the calculator. It scales the calculator to its pane, shows or hides
+// the options when the ? is clicked, and reads the clipboard for it, as popup.js does
+// in the extension.
 
-const iframe = document.getElementById('calc-iframe');
+const calculator = document.getElementById('calculator');
 const stage = document.getElementById('stage');
 const pane = document.getElementById('calc-pane');
 const optionsPane = document.getElementById('options-pane');
 
-const CALC_WIDTH = 388;
-const CALC_HEIGHT = 585;
 const MAX_SCALE = 1.4; // bigger than the popup on a big screen, but not huge
 
-const toCalc = (message) => iframe.contentWindow.postMessage(message, '*');
+// the calculator with the room around it, which site.css gives it as its margin: as in
+// the popup of the extension, with less at the sides on a small screen
+const whole = () => {
+    const style = getComputedStyle(calculator);
+
+    return {
+        width: calculator.offsetWidth + parseFloat(style.marginLeft) + parseFloat(style.marginRight),
+        height: calculator.offsetHeight + parseFloat(style.marginTop) + parseFloat(style.marginBottom)
+    };
+};
 
 // ---- size: the calculator fits its pane, whatever the screen ----
 const fit = () => {
@@ -20,13 +27,14 @@ const fit = () => {
         width: pane.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
         height: pane.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom)
     };
-    let scale = Math.min(room.width / CALC_WIDTH, room.height / CALC_HEIGHT, MAX_SCALE);
+    const size = whole();
+    let scale = Math.min(room.width / size.width, room.height / size.height, MAX_SCALE);
 
     if (!(scale > 0)) return;
-    if (Math.abs(scale - 1) < 0.02) scale = 1; // the normal size stays sharp
-    stage.style.width = Math.round(CALC_WIDTH * scale) + 'px';
-    stage.style.height = Math.round(CALC_HEIGHT * scale) + 'px';
-    iframe.style.transform = `scale(${scale})`;
+    if (Math.abs(scale - 1) < 0.01) scale = 1; // the normal size stays sharp
+    stage.style.width = Math.round(size.width * scale) + 'px';
+    stage.style.height = Math.round(size.height * scale) + 'px';
+    calculator.style.transform = `scale(${scale})`;
 };
 
 new ResizeObserver(fit).observe(pane);
@@ -44,13 +52,16 @@ try {
     document.documentElement.classList.toggle('options-hidden', localStorage.getItem(hideKey) === 'true');
 } catch (e) { }
 
+// on a small screen the options open over the calculator, which is out of use meanwhile:
+// what is typed is not for its keys
 const showOptions = (open) => {
     document.body.classList.toggle('options-open', open);
+    pane.inert = open;
     if (open) {
         optionsPane.scrollTop = 0;
         optionsPane.focus({ preventScroll: true });
     } else {
-        iframe.focus();
+        optionsPane.blur();
     }
 };
 
@@ -68,51 +79,50 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && document.body.classList.contains('options-open')) showOptions(false);
 });
 // the panel is always there on a wide screen
-wide.addEventListener('change', () => document.body.classList.remove('options-open'));
+wide.addEventListener('change', () => showOptions(false));
 
-// ---- messages from the calculator ----
-window.addEventListener('message', (event) => {
-    if (event.source !== iframe.contentWindow) return;
+// ---- what the calculator asks of its page ----
 
-    const data = event.data || {};
-
-    if (data.command === 'open-options') {
-        // the ? and the name: on a wide screen hide the panel, so the calculator
-        // is in the middle, or show it again; on a small one open it over the calculator
-        if (wide.matches) {
-            toggleWide();
-        } else {
-            showOptions(!document.body.classList.contains('options-open'));
-        }
-    } else if (data.command === 'read-clipboard') {
-        // the menu's Paste: the browser may ask once for permission to read it
-        const refuse = () => toCalc({ type: 'paste-refused' });
-
-        if (navigator.clipboard && navigator.clipboard.readText) {
-            navigator.clipboard.readText().then((text) => toCalc({ type: 'paste', text }), refuse);
-        } else {
-            refuse();
-        }
+// the ? and the name: on a wide screen hide the panel, so the calculator
+// is in the middle, or show it again; on a small one open it over the calculator
+document.addEventListener('calc-options', () => {
+    if (wide.matches) {
+        toggleWide();
+    } else {
+        showOptions(!document.body.classList.contains('options-open'));
     }
 });
 
-iframe.addEventListener('load', fit);
+// the menu's Paste: the browser may ask once for permission to read the clipboard
+document.addEventListener('calc-paste', (event) => {
+    const { text, refused } = event.detail;
 
-// ---- keyboard and paste: passed on, unless the user is typing in the options ----
-const inOptions = (e) => optionsPane.contains(e.target) &&
-    /^(INPUT|SELECT|TEXTAREA|BUTTON)$/.test(e.target.tagName);
-
-['keydown', 'keyup', 'keypress'].forEach((type) => {
-    document.addEventListener(type, (e) => {
-        if (inOptions(e) || document.body.classList.contains('options-open') && !wide.matches) return;
-
-        const { key, keyCode, altKey, ctrlKey, shiftKey, metaKey } = e;
-
-        toCalc({ type, key, keyCode, altKey, ctrlKey, shiftKey, metaKey });
-    });
+    if (navigator.clipboard && navigator.clipboard.readText) {
+        navigator.clipboard.readText().then(text, refused);
+    } else {
+        refused();
+    }
 });
 
-document.addEventListener('paste', (e) => {
-    if (inOptions(e)) return;
-    toCalc({ type: 'paste', text: (e.clipboardData || window.clipboardData).getData('text/plain') });
-});
+// ---- one page, one storage ----
+
+// The options and the calculator tell each other of a change through the storage. The
+// browser sends its storage event to the other pages only, and here both are on this
+// one, so the page sends it to itself
+const setItem = Storage.prototype.setItem;
+
+Storage.prototype.setItem = function (key, value) {
+    const before = this.getItem(key);
+
+    setItem.call(this, key, value);
+    if (this === localStorage && before !== String(value)) {
+        window.dispatchEvent(new StorageEvent('storage', {
+            key: key, oldValue: before, newValue: String(value), storageArea: this, url: location.href
+        }));
+    }
+};
+
+// ---- offline: the service worker keeps the calculator for use without a connection ----
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => { }));
+}

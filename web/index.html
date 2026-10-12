@@ -5,12 +5,97 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#39576f">
-    <meta name="description" content="A fast scientific calculator with history, fractions, statistics and number formats. Works offline.">
     <link rel="icon" href="imgs/icon.png" type="image/png">
-    <link rel="apple-touch-icon" href="imgs/icon128.png">
+    <link rel="apple-touch-icon" href="imgs/apple-touch-icon.png">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="application-name" content="Calculator">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Calculator">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="msapplication-TileColor" content="#39576f">
+    <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/options.css">
     <link rel="stylesheet" href="css/site.css">
-    <title>Scientific Calculator</title>
+    <title>Scientific Calculator Online Free: Trig, Log, Fractions, Formulas</title>
+    <meta name="description" content="A free scientific calculator that works offline: fractions, trigonometry, logarithms, statistics, unit converter, formulas and constants, and a history of past calculations. Nothing leaves your browser.">
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
+    <meta name="author" content="Raad Altaie">
+    <meta name="keywords" content="scientific calculator, online calculator, offline calculator, fraction calculator, statistics calculator, unit converter, trigonometry, logarithm, standard deviation">
+    <link rel="canonical" href="https://raad.dev/calculator/">
+    <link rel="alternate" type="text/plain" href="https://raad.dev/calculator/llms.txt" title="Summary for AI agents">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Scientific Calculator">
+    <meta property="og:url" content="https://raad.dev/calculator/">
+    <meta property="og:locale" content="en_US">
+    <meta property="og:title" content="Scientific Calculator: free, with fractions and statistics">
+    <meta property="og:description" content="A free scientific calculator that works offline: fractions, trigonometry, logarithms, statistics, unit converter, formulas and constants, and a history of past calculations. Nothing leaves your browser.">
+    <meta property="og:image" content="https://raad.dev/calculator/imgs/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Scientific Calculator icon">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Scientific Calculator: free, with fractions and statistics">
+    <meta name="twitter:description" content="A free scientific calculator that works offline: fractions, trigonometry, logarithms, statistics, unit converter, formulas and constants, and a history of past calculations. Nothing leaves your browser.">
+    <meta name="twitter:image" content="https://raad.dev/calculator/imgs/og-image.png">
+    <script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@graph": [
+        {
+            "@type": "WebSite",
+            "@id": "https://raad.dev/calculator/#website",
+            "url": "https://raad.dev/calculator/",
+            "name": "Scientific Calculator",
+            "alternateName": "Calculator",
+            "inLanguage": "en",
+            "author": {
+                "@type": "Person",
+                "name": "Raad Altaie"
+            }
+        },
+        {
+            "@type": "WebApplication",
+            "@id": "https://raad.dev/calculator/#app",
+            "url": "https://raad.dev/calculator/",
+            "name": "Scientific Calculator",
+            "alternateName": "Calculator",
+            "description": "A free scientific calculator that works offline: fractions, trigonometry, logarithms, statistics, unit converter, formulas and constants, and a history of past calculations. Nothing leaves your browser.",
+            "applicationCategory": "UtilitiesApplication",
+            "applicationSubCategory": "Calculator",
+            "operatingSystem": "Any",
+            "browserRequirements": "Requires JavaScript",
+            "isAccessibleForFree": true,
+            "image": "https://raad.dev/calculator/imgs/og-image.png",
+            "screenshot": "https://raad.dev/calculator/imgs/og-image.png",
+            "inLanguage": "en",
+            "softwareVersion": "2.2.2",
+            "author": {
+                "@type": "Person",
+                "name": "Raad Altaie"
+            },
+            "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "USD"
+            },
+            "featureList": [
+                "Order of operations (PEMDAS) with nested parentheses",
+                "Trigonometry in degrees, radians and gradians",
+                "Logarithms, powers, roots, factorials",
+                "Fraction mode",
+                "Fix, Sci and Eng number formats with thousands separators",
+                "Statistics: mean, median, standard deviation",
+                "Unit converter",
+                "Formulas and constants (CODATA 2022)",
+                "History and memory keys",
+                "Works offline as an installable app"
+            ]
+        }
+    ]
+}
+    </script>
     <script>
         // the options hidden with the ? stay hidden: set before the page is drawn, so they do not flash
         try {
@@ -20,11 +105,332 @@
 </head>
 
 <body>
+    <noscript>
+        <h1>Scientific Calculator</h1>
+        <p>A free scientific calculator with fractions, trigonometry, logarithms, statistics, a unit converter and a
+            formula list. It needs JavaScript to run; nothing you type leaves your browser.</p>
+    </noscript>
     <div class="app">
         <!-- left: the calculator, scaled to fit its pane -->
         <main class="calc-pane" id="calc-pane">
             <div class="stage" id="stage">
-                <iframe id="calc-iframe" src="calc.html" title="Scientific Calculator" scrolling="no"></iframe>
+    <!-- calculator: scripts/sync-web.sh copies it here from popup.html; it is not edited here -->
+    <div id="calculator" class="text-center">
+        <div class="calc-head">
+            <span class="logo">Scientific Calculator</span>
+            <span class="calc-help">?</span>
+
+        </div>
+        <form class="form-control">
+            <div class="calc-main">
+                <div id="display-box" class="calc-display">
+                    <span id="box">0</span>
+                    <div class="calc-rad">Rad<span class="sign">2<span class="sign-pi">π</span></span></div>
+                    <div class="calc-mem"></div>
+                    <div class="notification"></div>
+                    <div class="calc-log"></div>
+                    <div class="calc-hold"></div>
+                    <div class="calc-fmt"></div>
+                    <div class="calc-frac"></div>
+                    <!-- at the top left: the history, and the panels turned on in the options, in their order there -->
+                    <div class="calc-tools">
+                        <div class="calc-hist" hidden>
+                            <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
+                                stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M2 8a6 6 0 1 0 6-6 6.5 6.5 0 0 0-4.5 1.83L2 5.33" />
+                                <path d="M2 2v3.33h3.33" transform="rotate(2 2 5.33)" />
+                                <path d="M8 5.2v3l2 1.3" />
+                            </svg>
+                        </div>
+                        <!-- formulas and constants -->
+                        <div class="calc-fx-btn" hidden>
+                            <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
+                                stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M8.5 2.3c-1.5-.4-2.6.3-2.9 1.9L4.3 11.8c-.3 1.6-1.2 2.2-2.6 1.9" />
+                                <path d="M3.3 6.3h4.2" />
+                                <path d="M9.6 8l4.4 5.2M14 8l-4.4 5.2" />
+                            </svg>
+                        </div>
+                        <!-- the converter of units -->
+                        <div class="calc-conv-btn" hidden>
+                            <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
+                                stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3.5 5h9.5M10.5 2.5l2.5 2.5-2.5 2.5" />
+                                <path d="M12.5 11H3M5.5 8.5L3 11l2.5 2.5" />
+                            </svg>
+                        </div>
+                        <!-- statistics of a list of numbers -->
+                        <div class="calc-stat-btn" hidden>
+                            <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
+                                stroke-width="1.8" stroke-linecap="round">
+                                <path d="M3.5 13.5V9M8 13.5V3M12.5 13.5V6.5" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+
+                <div class="calc-left calc-top">
+                    <!-- modes, the display of results, and brackets -->
+                    <div class="trigo-keys">
+                        <div>2nd</div>
+                    </div>
+                    <div class="trigo-keys" id="rad">
+                        <div>Deg</div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div>a/b</div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div>°′″</div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div>(</div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div>)</div>
+                    </div>
+                    <div class="trigo-keys calc-mode">
+                        <div>MODE</div>
+                    </div>
+
+                    <!-- powers and roots -->
+                    <div class="trigo-keys">
+                        <div>x<sup>2</sup></div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div>x<sup>3</sup></div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div>y<sup>x</sup></div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div>1/x</div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div><span class="calc-sq">√</span></div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div class="calc-radxy">
+                            <sup>x</sup><em class="calc-sq">√</em><span>y</span>
+                        </div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div>EE</div>
+                    </div>
+
+                    <!-- trigonometry; 2nd turns them into their inverses -->
+                    <div class="trigo-keys">
+                        <div>sin</div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div>cos</div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div>tan</div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div>sinh</div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div>cosh</div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div>tanh</div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div>&pi;</div>
+                    </div>
+
+                    <!-- logarithms and functions -->
+                    <div class="trigo-keys">
+                        <div>log</div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div>ln</div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div>e<sup>x</sup></div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div>abs</div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div>x!</div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div class="calc-ncr"><i>n</i>C<i>r</i></div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div class="calc-ncr"><i>n</i>P<i>r</i></div>
+                    </div>
+
+                    <!-- numbers and the memory -->
+                    <div class="trigo-keys">
+                        <div>%</div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div>Rand</div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div>Ans</div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div>mc</div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div>m+</div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div>m-</div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div>mr</div>
+                    </div>
+                </div>
+                <div class="calc-right ">
+
+                    <div class="calc-black keys ">
+                        <div>7</div>
+                    </div>
+                    <div class="calc-black keys">
+                        <div>8</div>
+                    </div>
+                    <div class="calc-black keys">
+                        <div>9</div>
+                    </div>
+                    <div id="del" class="calc-brown keys del-ac">
+                        <div>DEL</div>
+                    </div>
+                    <div class="calc-brown keys del-ac">
+                        <div>AC</div>
+                    </div>
+                    <div class="calc-black keys">
+                        <div>4</div>
+                    </div>
+                    <div class="calc-black keys">
+                        <div>5</div>
+                    </div>
+                    <div class="calc-black keys">
+                        <div>6</div>
+                    </div>
+                    <div class="calc-brown calc-f21 keys keys2">
+                        <div>&times;</div>
+                    </div>
+                    <div class="calc-brown calc-f19 keys keys2">
+                        <div>&divide;</div>
+                    </div>
+                    <div class="calc-black keys">
+                        <div>1</div>
+                    </div>
+                    <div class="calc-black keys">
+                        <div>2</div>
+                    </div>
+                    <div class="calc-black keys">
+                        <div>3</div>
+                    </div>
+                    <div class="calc-brown calc-f18 keys keys2 ">
+                        <div>+</div>
+                    </div>
+                    <div class="calc-brown calc-f18 keys keys2">
+                        <div>&#8211;</div>
+                    </div>
+                    <div class="calc-black calc-zero keys">
+                        <div>
+                            <span>0</span>
+                        </div>
+                    </div>
+                    <div class="calc-black calc-f21 keys">
+                        <div>.</div>
+                    </div>
+                    <div class="calc-brown keys  ">
+                        <div>+/&#8211;</div>
+                    </div>
+
+                    <div class="calc-down equal keys calc-orange calc-eq calc-f17 keys2">=</div>
+                    <span class="raad"> raad.dev </span>
+                    <textarea class="calc-blank" tabindex="-1" aria-hidden="true"></textarea>
+
+                </div>
+            </div>
+        </form>
+
+        <!-- the menu of a right click; main.js fills it for where it opens -->
+        <div class="calc-menu-box" hidden></div>
+
+        <!-- statistics of a list of numbers, over the keys like the history -->
+        <div class="calc-past calc-stats">
+            <div class="calc-past-head">
+                <span>Statistics</span>
+                <!-- what is between the numbers: found by itself, or the one chosen -->
+                <span class="calc-stats-by-label">Separator</span>
+                <div class="calc-conv-pick calc-stats-by" tabindex="0" role="combobox" aria-haspopup="listbox"
+                    aria-expanded="false" aria-label="Between the numbers" title="What is between the numbers">
+                    <span class="calc-conv-chosen"></span>
+                    <div class="calc-conv-menu" role="listbox" hidden></div>
+                </div>
+                <span class="calc-past-clear">Clear</span>
+                <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
+            </div>
+            <textarea class="calc-stats-input" spellcheck="false" maxlength="20000"
+                placeholder="Type or paste numbers: 4 8 15 16 23 42"></textarea>
+            <div class="calc-stats-note"></div>
+            <div class="calc-stats-grid"></div>
+        </div>
+
+        <!-- formulas and constants, over the keys like the history -->
+        <div class="calc-past calc-fx">
+            <div class="calc-past-head">
+                <span class="calc-fx-tabs">
+                    <span class="calc-fx-tab" data-tab="formulas">Formulas</span>
+                    <span class="calc-fx-tab" data-tab="constants">Constants</span>
+                </span>
+                <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
+            </div>
+            <input class="calc-fx-search" type="text" spellcheck="false" autocomplete="off" maxlength="60" placeholder="Search">
+            <div class="calc-fx-list"></div>
+        </div>
+
+        <!-- the converter of units, over the keys like the history -->
+        <div class="calc-past calc-conv">
+            <div class="calc-past-head">
+                <span>Converter</span>
+                <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
+            </div>
+            <!-- lists drawn as the calculator draws, not by the browser -->
+            <div class="calc-conv-pick calc-conv-group" tabindex="0" role="combobox" aria-haspopup="listbox"
+                aria-expanded="false" aria-label="What to convert">
+                <span class="calc-conv-chosen"></span>
+                <div class="calc-conv-menu" role="listbox" hidden></div>
+            </div>
+            <div class="calc-conv-from">
+                <input class="calc-conv-value" type="text" inputmode="decimal" pattern="-?[0-9°′″]*[.,]?[0-9°′″]*" spellcheck="false" autocomplete="off"
+                    maxlength="40" aria-label="Value">
+                <div class="calc-conv-pick calc-conv-unit" tabindex="0" role="combobox" aria-haspopup="listbox"
+                    aria-expanded="false" aria-label="From">
+                    <span class="calc-conv-chosen"></span>
+                    <div class="calc-conv-menu" role="listbox" hidden></div>
+                </div>
+            </div>
+            <div class="calc-conv-note"></div>
+            <div class="calc-conv-list"></div>
+        </div>
+
+        <!-- what a key above the digits does, while the pointer rests on it -->
+        <div class="calc-tip" hidden></div>
+
+
+        <!-- the calculations done so far, over the keys -->
+        <div class="calc-past">
+            <div class="calc-past-head">
+                <span>History</span>
+                <span class="calc-past-clear">Clear</span>
+                <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
+            </div>
+            <div class="calc-past-list"></div>
+        </div>
+    </div>
+    <!-- /calculator -->
             </div>
         </main>
 
@@ -38,7 +444,7 @@
 
             <div class="wrapper">
 
-        <div class="logo">Scientific Calculator <span class="v">v 2.2</span></div>
+        <div class="logo" role="heading" aria-level="1">Scientific Calculator <span class="v">v 2.2</span></div>
 
         <div class="tabs" role="tablist" aria-label="Page">
             <button type="button" class="tab" role="tab" data-tab-for="options">Options</button>
@@ -144,6 +550,8 @@
                 <li>Light, super fast and nothing leaves your browser.</li>
                 <li>Equation line: the display shows the whole equation while you type it. After the equation sign
                     it shows the result, with the finished equation on a small line above.</li>
+                <li>History: click the clock at the top left of the display to see your past calculations. Insert
+                    an equation or a result into the display again, copy it, or delete it. It is kept when you close the calculator.</li>
                 <li><kbd class="k k-red">DEL</kbd> button (or Backspace) to take back the last key you pressed, one key at a time.</li>
                 <li>Cursor: click into the equation, or use the arrow keys, to fix a number or an
                     operator in the middle of it. Back at the end, the calculator goes on as before.</li>
@@ -758,6 +1166,10 @@
     </div>
 
     <script src="js/engine.js"></script>
+    <script src="js/tips.js"></script>
+    <script src="js/formulas.js"></script>
+    <script src="js/units.js"></script>
+    <script src="js/main.js"></script>
     <script src="js/app.js"></script>
     <script src="js/options.js"></script>
 </body>

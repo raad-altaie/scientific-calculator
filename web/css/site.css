@@ -1,5 +1,5 @@
-/* The page: calculator left, options right. Below 900px the options hide
-   until the ? on the calculator is clicked. Loaded after options.css. */
+/* The page: calculator left, options right. Below 1100px the options hide
+   until the ? on the calculator is clicked. Loaded after style.css and options.css. */
 
 html,
 body {
@@ -32,7 +32,8 @@ body {
     padding-bottom: max(4px, env(safe-area-inset-bottom));
 }
 
-/* sized by app.js to the scaled calculator, so the pane centres what you see */
+/* the calculator and the little room around it that the popup of the extension gives
+   it; sized by app.js to the scaled calculator, so the pane centres what you see */
 .stage {
     position: relative;
     flex: none;
@@ -40,16 +41,16 @@ body {
     height: 585px;
 }
 
-#calc-iframe {
+/* The calculator, as style.css draws it in the popup, scaled by app.js from the corner
+   of the stage. The browser's popup draws it at a smaller base font than a web page
+   does; every size in style.css is in em, so this brings the web page to the same look */
+#calculator {
     position: absolute;
     left: 0;
     top: 0;
-    display: block;
-    width: 388px;
-    height: 585px;
-    border: 0;
-    transform-origin: 0 0;
-    background: transparent;
+    margin: 2px 4px 3px;
+    transform-origin: -4px -2px;
+    font-size: 12px;
 }
 
 /* ---- the options ---- */
@@ -151,12 +152,20 @@ body {
         display: block;
     }
 
+    /* a phone is narrow: the calculator goes almost from side to side, 2px short of each */
     .calc-pane {
         height: 100%;
         box-sizing: border-box;
-        padding: 4px;
+        padding: 4px 0;
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
         padding-top: max(4px, env(safe-area-inset-top));
         padding-bottom: max(4px, env(safe-area-inset-bottom));
+    }
+
+    #calculator {
+        margin: 2px 2px 3px;
+        transform-origin: -2px -2px;
     }
 
     .options-pane {

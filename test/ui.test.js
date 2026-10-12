@@ -42,8 +42,8 @@ function findChrome() {
     return paths.filter(function (p) { return p && fs.existsSync(p); })[0];
 }
 
-// the files of the project, and a page that holds the calculator in a frame, as
-// the options page and the popup do, so a change in the storage reaches it as an event
+// the files of the project, and a page that holds the calculator in a frame: another
+// page, as the options page is to the popup, so a change in the storage reaches it as an event
 function serve() {
     var types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.ttf': 'font/ttf' };
     return new Promise(function (done) {
@@ -51,7 +51,7 @@ function serve() {
             var url = decodeURIComponent(req.url.split('?')[0]), file;
             if (url === '/frame.html') {
                 res.writeHead(200, { 'Content-Type': 'text/html' });
-                return res.end('<!DOCTYPE html><iframe id="calc-iframe" src="calc.html" width="388" height="585"></iframe>');
+                return res.end('<!DOCTYPE html><iframe id="calc-iframe" src="popup.html" width="388" height="585"></iframe>');
             }
             file = path.join(ROOT, url);
             if (file.indexOf(ROOT) !== 0 || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
@@ -112,6 +112,8 @@ Page.prototype.calc = function (code) {
 };
 
 Page.prototype.go = async function (url, size) {
+    // the website fits the calculator to the window: this wide, it is drawn at its own size
+    if (!size && url.indexOf('/web/') > -1) size = [384, 620];
     await this.send('Emulation.setDeviceMetricsOverride', { width: size ? size[0] : 400, height: size ? size[1] : 620, deviceScaleFactor: 1, mobile: false });
     await this.send('Page.navigate', { url: url });
     await this.until('document.readyState === "complete" && ' +
@@ -121,7 +123,7 @@ Page.prototype.go = async function (url, size) {
 
 // a new calculator: the storage emptied, then these values in it before it starts
 Page.prototype.fresh = async function (url, storage, size) {
-    await this.go(this.base + '/calc.html');
+    await this.go(this.base + '/popup.html');
     await this.ev('localStorage.clear();' + Object.keys(storage || {}).map(function (k) {
         return 'localStorage.setItem(' + JSON.stringify(k) + ',' + JSON.stringify(JSON.stringify(storage[k])) + ');';
     }).join(''));
@@ -787,6 +789,14 @@ function menu(page) {
         '(document.querySelector(".calc-menu-box"))');
 }
 
+// Paste of the menu. The page around the calculator reads the clipboard for it and gives the
+// text back; here the check stands in for the page, with this text as what the clipboard holds
+async function paste(page, text) {
+    await page.calc('document.defaultView.addEventListener("calc-paste", function (e) { e.stopImmediatePropagation(); ' +
+        'e.detail.text(' + JSON.stringify(text) + '); }, { capture: true, once: true })');
+    await pick(page, 'Paste');
+}
+
 async function pick(page, name) {
     var i = (await menu(page)).split('|').indexOf(name);
     check(i > -1, 'the menu has ' + name, await menu(page));
@@ -823,9 +833,8 @@ async function menus(page, at) {
     await page.click('.calc-menu-box > .calc-off');
     check(await menu(page) !== '', t + 'a line that cannot be done does nothing');
 
-    // Paste: the page around the calculator reads the clipboard and sends the text back
-    await pick(page, 'Paste');
-    await page.calc('window.postMessage({ type: "paste", text: "3\\n" }, "*")');
+    // Paste: the page around the calculator reads the clipboard and gives the text back
+    await paste(page, '3\n');
     check(await page.until('((document.getElementById("calc-iframe") || {}).contentDocument || document)' +
         '.querySelector(".calc-conv-value").value === "3"'), t + 'Paste goes into the box', await page.calc(box + '.value'));
     check(await shown(page) === '0' && await converted(page, 'feet') !== '–', t + 'not into the equation; the list follows');
@@ -900,8 +909,7 @@ async function menus(page, at) {
     await page.type('12+34');
     await page.calc('document.getSelection().selectAllChildren(document.body)'); // as Ctrl+A
     await page.rightClick('#box');
-    await pick(page, 'Paste');
-    await page.calc('window.postMessage({ type: "paste", text: "7" }, "*")');
+    await paste(page, '7');
     await sleep(60);
     check(await shown(page) === '7', t + 'Paste replaces the equation when all of it is selected', await shown(page));
     await page.type('23'); // a new number after the pasted one
@@ -909,8 +917,7 @@ async function menus(page, at) {
     check(await page.calc('!!document.querySelector("#box .calc-cursor")'), t + 'a click in 23 puts the cursor in it');
     await page.calc('document.getSelection().selectAllChildren(document.body)');
     await page.rightClick('#box');
-    await pick(page, 'Paste');
-    await page.calc('window.postMessage({ type: "paste", text: "45+6" }, "*")');
+    await paste(page, '45+6');
     await sleep(60);
     check(await shown(page) === '45 + 6', t + 'and with the cursor in it, not at the cursor', await shown(page));
 
@@ -1147,26 +1154,24 @@ async function options(page) {
     await page.fresh('/web/index.html', {}, [1300, 900]);
     check(await page.ev('document.getElementById("panel-stats").checked && document.getElementById("panel-fx").checked && ' +
         'document.getElementById("panel-conv").checked'), t + 'at first all three on');
-    check(await page.until('!document.getElementById("calc-iframe").contentDocument.querySelector(".calc-conv-btn").hidden'),
+    check(await page.until('!document.querySelector(".calc-conv-btn").hidden'),
         t + 'and their buttons in the calculator');
     await page.ev('document.getElementById("panel-fx").scrollIntoView({ block: "center" })');
     await page.click('#panel-stats');
-    check(await page.until('document.getElementById("calc-iframe").contentDocument.querySelector(".calc-stat-btn").hidden'),
+    check(await page.until('document.querySelector(".calc-stat-btn").hidden'),
         t + 'its switch takes the statistics out of the calculator');
     await page.click('#panel-fx');
-    check(await page.until('document.getElementById("calc-iframe").contentDocument.querySelector(".calc-fx-btn").hidden'),
+    check(await page.until('document.querySelector(".calc-fx-btn").hidden'),
         t + 'and f(x)');
     await page.click('#panel-stats');
-    check(await page.until('!document.getElementById("calc-iframe").contentDocument.querySelector(".calc-stat-btn").hidden'),
+    check(await page.until('!document.querySelector(".calc-stat-btn").hidden'),
         t + 'and puts the statistics back');
     await page.go(page.base + '/web/index.html', [1300, 900]);
     check(await page.ev('document.getElementById("panel-stats").checked && !document.getElementById("panel-fx").checked && ' +
         'document.getElementById("panel-conv").checked'), t + 'the switches are kept');
 
-    // MODE in the calculator: the number format here follows it. The clicks of these checks do not
-    // reach into the frame on this page, so the key gets its mouse events in the frame itself
-    await page.calc('["mousedown", "mouseup"].forEach(function (type) { document.querySelector(".calc-left > :nth-child(7)")' +
-        '.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0 })); })');
+    // MODE in the calculator: the number format here follows it
+    await page.click('.calc-left > :nth-child(7)');
     check(await page.until('document.getElementById("format-notation").value === "fix"'), t + 'MODE turns the format here to Fix',
         await page.ev('document.getElementById("format-notation").value'));
     check(await page.ev('document.getElementById("format-places").value') === 'auto' &&
@@ -1195,6 +1200,91 @@ async function options(page) {
         await page.ev('document.getElementById("format-group").value'));
 }
 
+// the website: the calculator and its options on one page, the calculator drawn to fit its room
+async function website(page) {
+    var t = 'web/index.html: ', calc = 'document.getElementById("calculator")', k, at, box;
+
+    // is this event left to the browser, there
+    function left(type, selector) {
+        return page.ev('(function (e) { document.querySelector(' + JSON.stringify(selector) + ').dispatchEvent(e); ' +
+            'return !e.defaultPrevented; })(new ' + (type === 'copy' ? 'ClipboardEvent("copy", { clipboardData: new DataTransfer(), ' :
+                'MouseEvent("contextmenu", { ') + 'bubbles: true, cancelable: true }))');
+    }
+
+    // where a box is on the screen, from the top left of another
+    function from(selector, other) {
+        return page.ev('(function (a, b) { a = a.getBoundingClientRect(); b = b.getBoundingClientRect(); ' +
+            'return { left: a.left - b.left, top: a.top - b.top, mid: a.left + a.width / 2 - b.left - b.width / 2, ' +
+            'above: b.top - a.bottom, below: a.top - b.bottom }; })' +
+            '(document.querySelector(' + JSON.stringify(selector) + '), document.querySelector(' + JSON.stringify(other) + '))');
+    }
+
+    // on a big screen the calculator is drawn bigger: what goes by the pointer or by a key is still there
+    await page.fresh('/web/index.html', {}, [1300, 900]);
+    k = await page.ev('(function (c) { return c.getBoundingClientRect().width / c.offsetWidth; })(' + calc + ')');
+    check(k > 1.3, t + 'on a big screen the calculator is drawn bigger', k);
+    await page.type('12+34');
+    check(await shown(page) === '12 + 34', t + 'the keyboard types on it', await shown(page));
+    at = await page.at('#box');
+    await page.rightClick('#box');
+    box = await page.ev('(function (m) { m = m.getBoundingClientRect(); return [m.left, m.top]; })(document.querySelector(".calc-menu-box"))');
+    check(Math.abs(box[0] - at[0]) < 2 && Math.abs(box[1] - at[1]) < 2, t + 'the menu opens at the pointer', box + ' | ' + at);
+    await page.key('Escape', 27);
+    await page.click('.calc-stat-btn');
+    box = await from('.calc-stats.calc-open', '#display-box');
+    check(Math.abs(box.left + k) < 1 && Math.abs(box.below - 7 * k) < 1, t + 'a panel is just below the display', JSON.stringify(box));
+    await page.click('.calc-stat-btn');
+    await page.hover('.calc-left > :nth-child(3)');
+    check(await page.until('!document.querySelector(".calc-tip").hidden', 2500), t + 'resting on a key shows its tip');
+    await sleep(300); // it has come up into its place
+    box = await from('.calc-tip', '.calc-left > :nth-child(3)');
+    check(Math.abs(box.mid) < 2 && Math.abs(box.above - 10 * k) < 2, t + 'the tip is above its key, in the middle of it', JSON.stringify(box));
+    await page.hover('#box');
+
+    // the options beside it are a page of their own: its boxes, its menu and its text
+    await page.ev('document.getElementById("format-notation").focus()');
+    await page.type('5');
+    check(await shown(page) === '12 + 34', t + 'typing in a box of the options is not typing on the keys', await shown(page));
+    await page.click('.calc-right > :first-child');
+    check(await page.ev('document.activeElement === document.body') && await shown(page) === '12 + 347',
+        t + 'a press on a key takes the keyboard back', await shown(page));
+    await page.type('5');
+    check(await shown(page) === '12 + 3475', t + 'and the keyboard types on the calculator again', await shown(page));
+    check(await left('contextmenu', '.options-pane .logo') && !await left('contextmenu', '#box'),
+        t + 'the options have the menu of the browser, the calculator its own');
+    await page.key('Escape', 27);
+    check(await left('copy', '.options-pane .logo') && !await left('copy', '#box'),
+        t + 'text of the options is copied as the browser does, the calculator gives its own');
+    await page.click('.calc-stat-btn');
+    await page.click('#panel-fx');
+    check(await open(page, '.calc-stats'), t + 'a click in the options leaves a panel of the calculator open');
+    await page.click('#panel-fx');
+    await page.click('.calc-stat-btn');
+
+    // the ? hides the options there, and shows them again
+    await page.click('.calc-help');
+    check(await page.ev('document.documentElement.classList.contains("options-hidden") && !document.getElementById("options-pane").offsetWidth'),
+        t + 'the ? hides the options');
+    await page.click('.calc-help');
+    check(await page.ev('!document.documentElement.classList.contains("options-hidden") && document.getElementById("options-pane").offsetWidth > 0'),
+        t + 'and shows them again');
+
+    // on a small screen the options open over the calculator, which is out of use meanwhile
+    await page.fresh('/web/index.html', {}, [390, 800]);
+    check(await page.ev('getComputedStyle(document.getElementById("options-pane")).visibility') === 'hidden', t + 'on a phone the options are out of view');
+    box = await page.ev('(function (c) { c = c.getBoundingClientRect(); return [c.left, innerWidth - c.right]; })(' + calc + ')');
+    check(box[0] > 1 && box[0] < 3 && Math.abs(box[0] - box[1]) < 0.5, t + 'and the calculator goes almost from side to side', box);
+    await page.type('7');
+    await page.click('.calc-help');
+    check(await page.ev('document.body.classList.contains("options-open")'), t + 'the ? opens them over the calculator');
+    await page.type('8');
+    check(await shown(page) === '7', t + 'what is typed then is not for the keys', await shown(page));
+    await page.key('Escape', 27);
+    check(await page.ev('!document.body.classList.contains("options-open")'), t + 'Esc closes them');
+    await page.type('9');
+    check(await shown(page) === '79', t + 'and the keys work again', await shown(page));
+}
+
 (async function () {
     var chrome = findChrome(), server, browser, page;
 
@@ -1215,21 +1305,22 @@ async function options(page) {
         await page.send('Runtime.enable');
         await page.send('Network.enable');
         await page.send('Network.setCacheDisabled', { cacheDisabled: true });
-        await calculator(page, '/calc.html');
-        await calculator(page, '/web/calc.html');
-        await secondKeys(page, '/calc.html');
-        await secondKeys(page, '/web/calc.html');
-        await degreesMinutes(page, '/calc.html');
-        await degreesMinutes(page, '/web/calc.html');
-        await angleUnits(page, '/calc.html');
-        await angleUnits(page, '/web/calc.html');
-        await modeKey(page, '/calc.html');
-        await modeKey(page, '/web/calc.html');
-        await converter(page, '/calc.html');
-        await converter(page, '/web/calc.html');
-        await menus(page, '/calc.html');
-        await menus(page, '/web/calc.html');
+        await calculator(page, '/popup.html');
+        await calculator(page, '/web/index.html');
+        await secondKeys(page, '/popup.html');
+        await secondKeys(page, '/web/index.html');
+        await degreesMinutes(page, '/popup.html');
+        await degreesMinutes(page, '/web/index.html');
+        await angleUnits(page, '/popup.html');
+        await angleUnits(page, '/web/index.html');
+        await modeKey(page, '/popup.html');
+        await modeKey(page, '/web/index.html');
+        await converter(page, '/popup.html');
+        await converter(page, '/web/index.html');
+        await menus(page, '/popup.html');
+        await menus(page, '/web/index.html');
         await options(page);
+        await website(page);
         check(!pageErrors.length, 'no errors in the pages', pageErrors.join('\n      '));
     } catch (e) {
         check(false, 'the browser checks ran to the end', e.stack);

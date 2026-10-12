@@ -1,6 +1,7 @@
 (function (window) {
     'use strict';
-    let Calc = document.querySelector('.calc-main'),
+    let root = document.getElementById('calculator'), // the calculator: the page can hold more than it, as the website does
+        Calc = root.querySelector('.calc-main'),
         display = Calc.querySelector('.calc-display span'),
         logline = Calc.querySelector('.calc-log'),
         notification = Calc.querySelector(".notification"),
@@ -18,19 +19,18 @@
         dmsMode = false, // °′″, the 2nd of a/b: results shown in degrees, minutes and seconds
         slid = false, // the pointer moved along a long line, to slide it or select in it, so it was not a click
         hiddenCopy = Calc.querySelector('textarea'),
-        menu = document.querySelector('.calc-menu-box'), // the menu of a right click
-        pasteBox = null, // the box of a panel the menu's Paste is for; none: the equation
-        tip = document.querySelector('.calc-tip'), // what the key under the pointer does
+        menu = root.querySelector('.calc-menu-box'), // the menu of a right click
+        tip = root.querySelector('.calc-tip'), // what the key under the pointer does
         tipKey = null, // that key
         tipTimer,
         tipGone = 0, // when the last tip went, so the next one comes at once
         copying = null, // text a history button is copying, in place of the main line
-        past = document.querySelector('.calc-past:not(.calc-stats):not(.calc-fx):not(.calc-conv)'), // the history, over the keys
+        past = root.querySelector('.calc-past:not(.calc-stats):not(.calc-fx):not(.calc-conv)'), // the history, over the keys
         pastList = past.querySelector('.calc-past-list'),
-        pastButton = document.querySelector('.calc-hist'),
+        pastButton = root.querySelector('.calc-hist'),
         pastShown = {}, // the history as the list shows it, so it is only built again after a change
-        stats = document.querySelector('.calc-stats'), // statistics of a list of numbers, over the keys
-        statsButton = document.querySelector('.calc-stat-btn'),
+        stats = root.querySelector('.calc-stats'), // statistics of a list of numbers, over the keys
+        statsButton = root.querySelector('.calc-stat-btn'),
         statsInput = stats.querySelector('textarea'),
         statsGrid = stats.querySelector('.calc-stats-grid'),
         statsNote = stats.querySelector('.calc-stats-note'),
@@ -46,14 +46,14 @@
             ['mean', '<span class="calc-x-bar">x</span>'], ['sdp', 'σ'], ['sds', 's'],
             ['min', 'min'], ['median', 'median'], ['max', 'max']
         ],
-        fx = document.querySelector('.calc-fx'), // formulas and constants, over the keys
-        fxButton = document.querySelector('.calc-fx-btn'),
+        fx = root.querySelector('.calc-fx'), // formulas and constants, over the keys
+        fxButton = root.querySelector('.calc-fx-btn'),
         fxSearch = fx.querySelector('.calc-fx-search'),
         fxList = fx.querySelector('.calc-fx-list'),
         fxTab = 'formulas', // the list shown: formulas or constants
         fxItems = {}, // the entries of each list, with the text a search looks in
-        conv = document.querySelector('.calc-conv'), // the converter of units, over the keys
-        convButton = document.querySelector('.calc-conv-btn'),
+        conv = root.querySelector('.calc-conv'), // the converter of units, over the keys
+        convButton = root.querySelector('.calc-conv-btn'),
         convGroup = conv.querySelector('.calc-conv-group'),
         convUnit = conv.querySelector('.calc-conv-unit'),
         convInput = conv.querySelector('.calc-conv-value'),
@@ -105,33 +105,44 @@
 
 
 
-    // listen for messages from the parent window popup.html 
-    window.addEventListener('message', (event) => {
-        const data = event.data || {};
+    // ---------------- the page around the calculator ---------------- //
 
-        // listen for paste event from parent
-        if (data.type === 'paste') {
-            if (!pasteBox) doPaste(data.text);
-            else if (pasteBox.offsetParent) typeInto(pasteBox, data.text); // its panel is still open
-            pasteBox = null;
-        }
-        // Paste in the menu: the browser did not allow reading the clipboard
-        else if (data.type === 'paste-refused') {
-            pasteBox = null;
-            notify('Use Ctrl+V');
-        }
-        // handle key events from parent
-        else if (data.type === 'keypress') {
-            onKeyPress(data.keyCode);
-        } else if (data.type === 'keydown') {
-            onKeyDown(data.keyCode, data.shiftKey);
-        } else if (data.type === 'keyup') {
-            onKeyUp();
-        }
+    // The page does what the calculator cannot: it opens the options, and reads the
+    // clipboard for Paste. It is asked with an event on the calculator, which popup.js
+    // answers in the extension and app.js on the website
+    function ask(what, detail) {
+        root.dispatchEvent(new CustomEvent('calc-' + what, { bubbles: true, detail: detail }));
+    }
 
-    });
+    // A press in the calculator takes the keyboard back from the rest of the page: the keys
+    // leave the focus where it is, so a box or a button there would go on taking what is typed
+    root.addEventListener('pointerdown', function () {
+        var el = document.activeElement;
+        if (el && el !== document.body && !root.contains(el)) el.blur();
+    }, true);
 
+    // typing in a box or on a button of the rest of the page is not typing on the keys;
+    // nor is any typing while the page has put the calculator out of use, under its options
+    function elsewhere(el) {
+        return !!root.closest('[inert]') || (!root.contains(el) && /^(INPUT|SELECT|TEXTAREA|BUTTON)$/.test(el.tagName));
+    }
 
+    // The page may draw the calculator bigger or smaller than it is, to fit its room.
+    // What the browser measures on the screen is then that much bigger than the sizes set here
+    function scale() {
+        return root.getBoundingClientRect().width / root.offsetWidth || 1;
+    }
+
+    // a place on the screen, a box or a point of the pointer, as the calculator counts it:
+    // in its own pixels, from inside its border, where left and top count from
+    function inside(box) {
+        var frame = root.getBoundingClientRect(), k = scale(),
+            x0 = frame.left + root.clientLeft * k, y0 = frame.top + root.clientTop * k;
+        return {
+            left: (box.left - x0) / k, top: (box.top - y0) / k, right: (box.right - x0) / k, bottom: (box.bottom - y0) / k,
+            width: box.width / k, height: box.height / k
+        };
+    }
 
     // ---------------- event listeners keys ---------------- //
 
@@ -142,10 +153,11 @@
     }
 
     document.addEventListener('keypress', function (e) {
-        if (!field(e.target)) onKeyPress(e.which);
+        if (!elsewhere(e.target) && !field(e.target)) onKeyPress(e.which);
     }, false);
 
     document.addEventListener('keydown', function (e) {
+        if (elsewhere(e.target)) return;
         if (field(e.target)) {
             if (e.which === 27 && !menu.hidden) { // Esc closes the menu first
                 showMenu(false);
@@ -162,16 +174,14 @@
     }, false);
 
     document.addEventListener('keyup', function (e) {
-        if (!field(e.target)) onKeyUp();
+        if (!elsewhere(e.target) && !field(e.target)) onKeyUp();
     }, false);
 
     document.body.addEventListener('paste', function (e) {
-        if (field(e.target)) return; // the box takes it
+        if (elsewhere(e.target) || field(e.target)) return; // the box takes it
         doPaste(e.clipboardData.getData("Text"));
         e.preventDefault();
     }, false);
-
-    // keys come from this document or, as messages, from popup.html
 
     function onKeyPress(key) {
         var holdKey = hold.textContent,
@@ -274,9 +284,15 @@
         return local(engine.error || engine.done || engine.plain() ? resBuffer.replace(/\s/g, '') : engine.text());
     }
 
+    // in the rest of the page, beside the calculator: its text is copied as the browser does, and has its menu
+    function beside(el) {
+        return !root.contains(el) && !el.contains(root);
+    }
+
     // what copy takes: the text a history button or the menu gives, a part of
     // the display selected with the mouse, or else the main line
     document.body.addEventListener('copy', function (e) {
+        if (beside(e.target)) return; // what is selected in the rest of the page
         if (field(e.target) && copying === null) return; // what is selected in the box
         e.clipboardData.setData('text/plain', copying !== null ? copying : selectedText() || copyText());
         e.preventDefault(); // the text above is copied, not the page's selection as it is drawn
@@ -285,7 +301,7 @@
 
     // Ctrl+X takes what Ctrl+C does, and takes it out
     document.body.addEventListener('cut', function (e) {
-        if (field(e.target) || empty()) return; // what is selected in the box; nothing to take
+        if (beside(e.target) || field(e.target) || empty()) return; // what is selected there, or in the box; nothing to take
         e.clipboardData.setData('text/plain', selectedText() || copyText());
         e.preventDefault();
         cutOut(selectedSpan());
@@ -451,8 +467,7 @@
 
     function showTip() {
         var name = tipKey.textContent.replace(/\s*/g, ''), info = tipOf(tipKey, name), calc = tip.parentNode,
-            frame = calc.getBoundingClientRect(), at = tipKey.getBoundingClientRect(), left, top, below,
-            x0 = frame.left + calc.clientLeft, y0 = frame.top + calc.clientTop; // inside the border, where left and top count from
+            at = inside(tipKey.getBoundingClientRect()), left, top, below;
 
         if (!info) return;
         tip.innerHTML = '<div class="calc-tip-head"><b>' + info.t + '</b>' +
@@ -461,14 +476,14 @@
             (info.second && !secondActive ? '<div class="calc-tip-more">With 2nd: ' + info.second + '</div>' : '');
         tip.hidden = false;
         // above the key, in the middle of it; below it where there is no room above
-        left = at.left + at.width / 2 - x0 - tip.offsetWidth / 2;
+        left = at.left + at.width / 2 - tip.offsetWidth / 2;
         left = Math.max(6, Math.min(calc.clientWidth - tip.offsetWidth - 6, left));
-        top = at.top - y0 - tip.offsetHeight - 10;
+        top = at.top - tip.offsetHeight - 10;
         below = top < 4;
-        if (below) top = at.bottom - y0 + 10;
+        if (below) top = at.bottom + 10;
         tip.style.left = left + 'px';
         tip.style.top = top + 'px';
-        tip.style.setProperty('--arrow', at.left + at.width / 2 - x0 - left - tip.clientLeft + 'px'); // from inside its border
+        tip.style.setProperty('--arrow', at.left + at.width / 2 - left - tip.clientLeft + 'px'); // from inside its border
         tip.classList.toggle('calc-tip-below', below);
     }
 
@@ -566,16 +581,18 @@
     }, false);
 
     document.addEventListener('contextmenu', function (e) {
-        var calc = menu.parentNode, frame = calc.getBoundingClientRect(), items = menuItems(e.target);
-        e.preventDefault(); // the menu of the browser is never shown
+        var calc = menu.parentNode, at = inside({ left: e.clientX, top: e.clientY }), items;
+        if (!root.contains(e.target)) return; // the rest of the page has the menu of the browser
+        items = menuItems(e.target);
+        e.preventDefault(); // in the calculator the menu of the browser is never shown
         if (!items) return;
         menu.items = items;
         menu.innerHTML = items.map(function (item, i) {
             return '<div data-i="' + i + '"' + (item[2] === false ? ' class="calc-off"' : '') + '>' + item[0] + '</div>';
         }).join('');
         showMenu(true);
-        menu.style.left = Math.min(e.clientX - frame.left - calc.clientLeft, calc.clientWidth - menu.offsetWidth - 4) + 'px';
-        menu.style.top = Math.min(e.clientY - frame.top - calc.clientTop, calc.clientHeight - menu.offsetHeight - 4) + 'px';
+        menu.style.left = Math.min(at.left, calc.clientWidth - menu.offsetWidth - 4) + 'px';
+        menu.style.top = Math.min(at.top, calc.clientHeight - menu.offsetHeight - 4) + 'px';
     }, false);
 
     document.addEventListener('mousedown', function (e) {
@@ -664,12 +681,19 @@
         ];
     }
 
-    // This page cannot read the clipboard, so for Paste popup.js asks the browser
-    // once for that and sends the text back as a paste: into the box, or the equation
+    // Paste of the menu: the page around the calculator reads the clipboard, as the browser
+    // may ask once to allow that, and gives the text back: for the box, or the equation
     function askPaste(box) {
-        pasteBox = box;
         if (box) box.focus();
-        window.parent.postMessage({ command: 'read-clipboard' }, '*');
+        ask('paste', {
+            text: function (text) {
+                if (!box) doPaste(text);
+                else if (box.offsetParent) typeInto(box, text); // its panel is still open
+            },
+            refused: function () { // the browser did not allow reading the clipboard
+                notify('Use Ctrl+V');
+            }
+        });
     }
 
     // text put into a box as if typed, over what is selected there; a box of one line takes it as one line
@@ -713,7 +737,7 @@
     });
 
     fmtMark.addEventListener('click', function () {
-        window.parent.postMessage({ command: 'open-options' }, '*');
+        ask('options');
     }, false);
 
     hold.addEventListener('click', function () {
@@ -746,7 +770,7 @@
     // any press outside the history closes it; the button toggles it itself.
     // The menu is over the panel it was opened in
     document.addEventListener('pointerdown', function (e) {
-        if (menu.contains(e.target)) return;
+        if (menu.contains(e.target) || !root.contains(e.target)) return; // not a press in the rest of the page
         if (past.classList.contains('calc-open') && !past.contains(e.target) && !pastButton.contains(e.target)) {
             showPast(false);
         }
@@ -814,10 +838,9 @@
 
     // a panel over the keys: just below the display, 1px wider on each side
     function placePanel(panel) {
-        var calc = panel.parentNode, shown = display.parentNode.getBoundingClientRect(),
-            frame = calc.getBoundingClientRect();
-        panel.style.top = shown.bottom - frame.top - calc.clientTop + 7 + 'px';
-        panel.style.left = shown.left - frame.left - calc.clientLeft - 1 + 'px';
+        var shown = inside(display.parentNode.getBoundingClientRect());
+        panel.style.top = shown.bottom + 7 + 'px';
+        panel.style.left = shown.left - 1 + 'px';
         panel.style.width = shown.width + 2 + 'px';
     }
 
@@ -1547,7 +1570,7 @@
         for (side = 0; side < 2; side++) {
             if (!el.classList.contains(side ? 'calc-more-right' : 'calc-more-left')) continue;
             st = getComputedStyle(el, side ? '::after' : '::before');
-            w = parseFloat(st.width) + parseFloat(st.paddingLeft) + parseFloat(st.paddingRight);
+            w = (parseFloat(st.width) + parseFloat(st.paddingLeft) + parseFloat(st.paddingRight)) * scale();
             if (side ? x > box.right - w : x < box.left + w) return side ? 'right' : 'left';
         }
         return '';
@@ -1701,7 +1724,7 @@
         var box = picking.el.getBoundingClientRect(), at = textAt(picking.el, Math.max(box.left, Math.min(box.right, x)));
         if (!picking.el.contains(picking.node)) return endPick(); // the line was written again meanwhile
         picking.x = x;
-        picking.edge = x < box.left + 16 ? -1 : x > box.right - 16 ? 1 : 0;
+        picking.edge = x < box.left + 16 * scale() ? -1 : x > box.right - 16 * scale() ? 1 : 0;
         window.getSelection().setBaseAndExtent(picking.node, picking.offset, at.node, at.offset);
     }
 
@@ -1725,7 +1748,7 @@
         if (!held) return;
         if (Math.abs(e.clientX - held.x) > 3) slid = true;
         if (picking) pickTo(e.clientX);
-        else slide(sliding.el, sliding.left - (e.clientX - sliding.x));
+        else slide(sliding.el, sliding.left - (e.clientX - sliding.x) / scale());
     }, false);
 
     ['pointerup', 'pointercancel'].forEach(function (type) {
@@ -2098,9 +2121,9 @@
 })(window);
 
 
-document.querySelectorAll('.logo, .calc-help').forEach(function (el) {
+// the name and the ? open the options: the page around the calculator does that
+document.querySelectorAll('#calculator .logo, #calculator .calc-help').forEach(function (el) {
     el.addEventListener('click', function () {
-        // send msg to to the options page for the extension
-        window.parent.postMessage({ command: 'open-options' }, '*');
+        el.dispatchEvent(new CustomEvent('calc-options', { bubbles: true }));
     });
 });

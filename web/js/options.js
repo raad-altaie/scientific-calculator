@@ -24,7 +24,8 @@ tabs.forEach((tab) => tab.addEventListener('click', () => {
 }));
 
 // The number format of the results. It is kept where the calculator reads it when
-// it opens, and the calculator's frame gets a storage event, so it changes at once
+// it opens, and the calculator gets a storage event, which app.js sends within this
+// page, so it changes at once
 const notation = document.getElementById('format-notation');
 const places = document.getElementById('format-places');
 const group = document.getElementById('format-group');

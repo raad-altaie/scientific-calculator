@@ -3,14 +3,6 @@
     src: url('../fonts/Play-Regular.ttf');
 }
 
-body,
-html {
-    padding: 0;
-    margin: 0;
-    padding: 1px;
-    padding-bottom: 0;
-}
-
 #calculator {
     width: 376px;
     height: 576px;
@@ -28,12 +20,12 @@ html {
 }
 
 /* the strip above the display: the name and the ? box */
-.calc-head {
+#calculator .calc-head {
     position: relative;
     display: flow-root; /* as tall as the name, which floats */
 }
 
-.logo {
+#calculator .logo {
     margin-top: 10px;
     margin-left: 15px;
     margin-bottom: 5px;
@@ -50,7 +42,7 @@ html {
 
 /* the ? box beside the name: opens the options page. It sits in the middle
    between the top of the calculator and the display, 5px below the strip */
-.calc-help {
+#calculator .calc-help {
     position: absolute;
     top: 0;
     bottom: -5px;
@@ -69,18 +61,18 @@ html {
     user-select: none;
 }
 
-.calc-help:hover {
+#calculator .calc-help:hover {
     opacity: 1;
 }
 
-.calc-help:active {
+#calculator .calc-help:active {
     opacity: 0.75;
 }
 
 /* the buttons at the top left of the display, in a row: the clock opens the
    history, f(x) the formulas, the arrows the converter, the bars the statistics.
    A hidden one leaves no gap */
-.calc-tools {
+#calculator .calc-tools {
     position: absolute;
     z-index: 2;
     left: 6px;
@@ -89,10 +81,10 @@ html {
     gap: 3px;
 }
 
-.calc-hist,
-.calc-stat-btn,
-.calc-fx-btn,
-.calc-conv-btn {
+#calculator .calc-hist,
+#calculator .calc-stat-btn,
+#calculator .calc-fx-btn,
+#calculator .calc-conv-btn {
     padding: 2px;
     border-radius: 4px;
     color: #1f333c;
@@ -102,37 +94,37 @@ html {
     user-select: none;
 }
 
-.calc-tools [hidden] {
+#calculator .calc-tools [hidden] {
     display: none;
 }
 
-.calc-tools svg {
+#calculator .calc-tools svg {
     display: block;
 }
 
-.calc-hist:hover,
-.calc-hist.calc-on,
-.calc-stat-btn:hover,
-.calc-stat-btn.calc-on,
-.calc-fx-btn:hover,
-.calc-fx-btn.calc-on,
-.calc-conv-btn:hover,
-.calc-conv-btn.calc-on {
+#calculator .calc-hist:hover,
+#calculator .calc-hist.calc-on,
+#calculator .calc-stat-btn:hover,
+#calculator .calc-stat-btn.calc-on,
+#calculator .calc-fx-btn:hover,
+#calculator .calc-fx-btn.calc-on,
+#calculator .calc-conv-btn:hover,
+#calculator .calc-conv-btn.calc-on {
     opacity: 0.9;
     background: #a3bdaf;
 }
 
-.calc-hist:active,
-.calc-stat-btn:active,
-.calc-fx-btn:active,
-.calc-conv-btn:active {
+#calculator .calc-hist:active,
+#calculator .calc-stat-btn:active,
+#calculator .calc-fx-btn:active,
+#calculator .calc-conv-btn:active {
     opacity: 0.75;
 }
 
 /* ---------- statistics ---------- */
 
 /* the list, a box to type in like the search; it takes the room the results leave */
-.calc-stats-input {
+#calculator .calc-stats-input {
     flex: 1;
     min-height: 70px;
     margin: 4px 8px 0;
@@ -147,17 +139,17 @@ html {
     resize: none;
 }
 
-.calc-stats-input::placeholder {
+#calculator .calc-stats-input::placeholder {
     color: #5b7768;
 }
 
-.calc-stats-input:focus {
+#calculator .calc-stats-input:focus {
     background: #b3cdbf;
     box-shadow: 0 0 0 2px #c9e0d3, 0 0 12px #36475a;
 }
 
 /* what is between the numbers: a small list at the top, beside the name of the panel */
-.calc-past-head .calc-stats-by {
+#calculator .calc-past-head .calc-stats-by {
     flex: none;
     margin-right: 4px;
     padding: 1px 17px 1px 6px;
@@ -168,37 +160,37 @@ html {
     line-height: 16px;
 }
 
-.calc-past-head .calc-stats-by .calc-conv-chosen {
+#calculator .calc-past-head .calc-stats-by .calc-conv-chosen {
     font-weight: 400;
 }
 
 /* its label, quiet beside it */
-.calc-stats-by-label {
+#calculator .calc-stats-by-label {
     font-size: 11px;
     opacity: 0.6;
     white-space: nowrap;
 }
 
 /* the list of them opens over the numbers, small as well */
-.calc-stats-by .calc-conv-menu {
+#calculator .calc-stats-by .calc-conv-menu {
     left: auto;
     right: 0;
     width: max-content;
     padding: 2px;
 }
 
-.calc-stats-by .calc-conv-item {
+#calculator .calc-stats-by .calc-conv-item {
     padding: 1px 7px;
     line-height: 17px;
 }
 
 /* the sign of each, after its name */
-.calc-stats-by b {
+#calculator .calc-stats-by b {
     margin-left: 3px;
 }
 
 /* how many numbers, and what was left out */
-.calc-stats-note {
+#calculator .calc-stats-note {
     min-height: 15px;
     margin: 6px 12px 2px;
     overflow: hidden;
@@ -210,14 +202,14 @@ html {
 }
 
 /* the results: a click puts one into the calculation */
-.calc-stats-grid {
+#calculator .calc-stats-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 7px;
     margin: 4px 8px 0;
 }
 
-.calc-stats-tile {
+#calculator .calc-stats-tile {
     min-width: 0;
     padding: 4px 8px 3px;
     border-radius: 5px;
@@ -227,33 +219,33 @@ html {
     cursor: pointer;
 }
 
-.calc-stats-tile:hover {
+#calculator .calc-stats-tile:hover {
     background: #a3bdaf;
 }
 
-.calc-stats-tile:active {
+#calculator .calc-stats-tile:active {
     background: #98b3a5;
 }
 
 /* no value yet: nothing to put in */
-.calc-stats-tile.calc-none {
+#calculator .calc-stats-tile.calc-none {
     cursor: default;
     background: #b6d1c2;
 }
 
-.calc-stats-label {
+#calculator .calc-stats-label {
     display: block;
     color: #33443b;
     font-size: 12px;
     line-height: 15px;
 }
 
-.calc-stats-label sup {
+#calculator .calc-stats-label sup {
     font-size: 9px;
     line-height: 0;
 }
 
-.calc-stats-value {
+#calculator .calc-stats-value {
     display: block;
     overflow: hidden;
     font-size: 17px;
@@ -263,25 +255,25 @@ html {
     text-overflow: ellipsis;
 }
 
-.calc-stats-value .calc-fr {
+#calculator .calc-stats-value .calc-fr {
     font-size: 0.65em;
 }
 
 /* x̄, the mean */
-.calc-x-bar {
+#calculator .calc-x-bar {
     text-decoration: overline;
 }
 
 /* ---------- formulas and constants ---------- */
 
 /* the two tabs in the head of the panel */
-.calc-fx-tabs {
+#calculator .calc-fx-tabs {
     display: flex;
     gap: 2px;
     margin-left: -6px;
 }
 
-.calc-fx .calc-past-head .calc-fx-tab { /* not the first span of the head, which has the room left */
+#calculator .calc-fx .calc-past-head .calc-fx-tab { /* not the first span of the head, which has the room left */
     flex: none;
     padding: 0 8px;
     border-radius: 4px;
@@ -291,12 +283,12 @@ html {
     cursor: pointer;
 }
 
-.calc-fx-tab:hover {
+#calculator .calc-fx-tab:hover {
     opacity: 1;
     background: #52687d;
 }
 
-.calc-fx .calc-past-head .calc-fx-tab.calc-on {
+#calculator .calc-fx .calc-past-head .calc-fx-tab.calc-on {
     opacity: 1;
     background: #5d748a;
     color: #fff;
@@ -304,7 +296,7 @@ html {
 }
 
 /* the search: a box to type in, the green of the display a little darker */
-.calc-fx-search {
+#calculator .calc-fx-search {
     margin: 4px 8px 6px;
     padding: 5px 9px;
     border: 0;
@@ -318,32 +310,32 @@ html {
     user-select: text;
 }
 
-.calc-fx-search::placeholder {
+#calculator .calc-fx-search::placeholder {
     color: #5b7768;
 }
 
-.calc-fx-search:focus {
+#calculator .calc-fx-search:focus {
     background: #b3cdbf;
     box-shadow: 0 0 0 2px #c9e0d3, 0 0 12px #36475a;
 }
 
-.calc-fx-list {
+#calculator .calc-fx-list {
     flex: 1;
     overflow-y: auto;
     padding: 0 8px;
 }
 
-.calc-fx-list::-webkit-scrollbar {
+#calculator .calc-fx-list::-webkit-scrollbar {
     width: 6px;
 }
 
-.calc-fx-list::-webkit-scrollbar-thumb {
+#calculator .calc-fx-list::-webkit-scrollbar-thumb {
     background: #6b8196;
     border-radius: 3px;
 }
 
 /* the name of a group: Geometry, Money … */
-.calc-fx-cat {
+#calculator .calc-fx-cat {
     margin: 18px 2px 5px;
     color: #acb4c1;
     font-size: 11px;
@@ -352,11 +344,11 @@ html {
     text-transform: uppercase;
 }
 
-.calc-fx-cat:first-child {
+#calculator .calc-fx-cat:first-child {
     margin-top: 2px;
 }
 
-.calc-fx-none {
+#calculator .calc-fx-none {
     margin: 14px 4px;
     color: #acb4c1;
     font-size: 13px;
@@ -364,7 +356,7 @@ html {
 }
 
 /* a formula or a constant, on a piece of display */
-.calc-fx-item {
+#calculator .calc-fx-item {
     margin-bottom: 6px;
     border-radius: 5px;
     background: #b6d1c2;
@@ -372,7 +364,7 @@ html {
     color: #000;
 }
 
-.calc-fx-row {
+#calculator .calc-fx-row {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -381,40 +373,40 @@ html {
     cursor: pointer;
 }
 
-.calc-fx-row:hover {
+#calculator .calc-fx-row:hover {
     background: #a3bdaf;
 }
 
-.calc-fx-row:active {
+#calculator .calc-fx-row:active {
     background: #98b3a5;
 }
 
-.calc-fx-item.calc-on .calc-fx-row {
+#calculator .calc-fx-item.calc-on .calc-fx-row {
     border-radius: 5px 5px 0 0;
     background: #a3bdaf;
 }
 
 /* its name, and the formula as it is written or the constant with its value */
-.calc-fx-col {
+#calculator .calc-fx-col {
     flex: 1;
     min-width: 0;
 }
 
-.calc-fx-name,
-.calc-fx-f {
+#calculator .calc-fx-name,
+#calculator .calc-fx-f {
     display: block;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
 }
 
-.calc-fx-name {
+#calculator .calc-fx-name {
     color: #33443b;
     font-size: 12px;
     line-height: 15px;
 }
 
-.calc-fx-f {
+#calculator .calc-fx-f {
     font-size: 15px;
     line-height: 21px;
 }
@@ -422,20 +414,20 @@ html {
 /* a formula, or a constant as its symbol = its value: its name is a label at the top
    left of its card, and the formula sits at the middle of the room under it. Every
    card of formulas is as high as one with a fraction in it, two rows, so the list is even */
-.calc-fx-row:has(.calc-fx-eq) {
+#calculator .calc-fx-row:has(.calc-fx-eq) {
     position: relative;
     padding-top: 0;
     padding-bottom: 0;
 }
 
-.calc-fx-row:has(.calc-fx-eq) .calc-fx-name {
+#calculator .calc-fx-row:has(.calc-fx-eq) .calc-fx-name {
     position: absolute;
     left: 9px;
     top: 3px;
     max-width: calc(100% - 18px);
 }
 
-.calc-fx-eq {
+#calculator .calc-fx-eq {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -446,12 +438,12 @@ html {
 }
 
 /* a constant is one row: its card is only as high as its name and that row */
-.calc-fx-val {
+#calculator .calc-fx-val {
     height: 23px;
     padding: 17px 0 4px;
 }
 
-.calc-fx-eq > span {
+#calculator .calc-fx-eq > span {
     min-width: 0;
     padding: 2px 0; /* the bar and the foot of a root are not cut */
     overflow: hidden;
@@ -460,56 +452,56 @@ html {
 }
 
 /* a root is drawn as on the display, its bar over all that is under it */
-.calc-fx-f .calc-root {
+#calculator .calc-fx-f .calc-root {
     margin-left: 0.72em; /* the foot of the sign keeps off the letter before it */
 }
 
-.calc-fx-f .calc-fr {
+#calculator .calc-fx-f .calc-fr {
     font-size: 0.85em;
 }
 
-.calc-fx-f sup,
-.calc-fx-f sub,
-.calc-fx-sym sup,
-.calc-fx-sym sub,
-.calc-fx-name sup,
-.calc-fx-name sub {
+#calculator .calc-fx-f sup,
+#calculator .calc-fx-f sub,
+#calculator .calc-fx-sym sup,
+#calculator .calc-fx-sym sub,
+#calculator .calc-fx-name sup,
+#calculator .calc-fx-name sub {
     font-size: 9px;
     line-height: 0;
 }
 
 /* the symbol of a constant, and the letter of a formula by its box */
-.calc-fx-sym {
+#calculator .calc-fx-sym {
     flex: none;
     width: 30px;
     font-size: 15px;
 }
 
-.calc-fx-unit {
+#calculator .calc-fx-unit {
     margin-left: 3px;
     color: #33443b;
     font-size: 11px;
 }
 
 /* the letters of an open formula: a box for each, then Insert */
-.calc-fx-form {
+#calculator .calc-fx-form {
     padding: 11px 9px 8px;
 }
 
-.calc-fx-var {
+#calculator .calc-fx-var {
     display: flex;
     align-items: center;
     gap: 4px;
     margin-bottom: 5px;
 }
 
-.calc-fx-var .calc-fx-sym {
+#calculator .calc-fx-var .calc-fx-sym {
     width: auto;
     min-width: 30px;
     text-align: right;
 }
 
-.calc-fx-var input {
+#calculator .calc-fx-var input {
     flex: 1;
     min-width: 0;
     padding: 3px 7px;
@@ -523,29 +515,29 @@ html {
     user-select: text;
 }
 
-.calc-fx-var input::placeholder {
+#calculator .calc-fx-var input::placeholder {
     color: #5b7768;
 }
 
-.calc-fx-var input:focus {
+#calculator .calc-fx-var input:focus {
     border-color: #3a5872;
     background: #b3cdbf;
 }
 
 /* empty, or not a number the calculator can read */
-.calc-fx-var input.calc-bad {
+#calculator .calc-fx-var input.calc-bad {
     border-color: #d86672;
     box-shadow: 0 0 0 1px #d86672;
 }
 
-.calc-fx-actions {
+#calculator .calc-fx-actions {
     display: flex;
     align-items: center;
     gap: 8px;
     margin-top: 7px;
 }
 
-.calc-fx-note {
+#calculator .calc-fx-note {
     flex: 1;
     color: #4f6659;
     font-size: 11px;
@@ -553,13 +545,13 @@ html {
 }
 
 /* why the values give no answer */
-.calc-fx-note.calc-fx-warn {
+#calculator .calc-fx-note.calc-fx-warn {
     color: #a8323e;
     font-size: 12px;
     line-height: 14px;
 }
 
-.calc-fx-insert {
+#calculator .calc-fx-insert {
     padding: 0 14px;
     border-radius: 4px;
     background: #3a5872;
@@ -569,19 +561,19 @@ html {
     cursor: pointer;
 }
 
-.calc-fx-insert:hover {
+#calculator .calc-fx-insert:hover {
     background: #46677f;
 }
 
-.calc-fx-insert:active {
+#calculator .calc-fx-insert:active {
     background: #31495e;
 }
 
 /* ---------- converter ---------- */
 
 /* what to convert, and the value with its unit: boxes like the search */
-.calc-conv-pick,
-.calc-conv-value {
+#calculator .calc-conv-pick,
+#calculator .calc-conv-value {
     min-width: 0;
     border: 0;
     border-radius: 5px;
@@ -593,7 +585,7 @@ html {
 }
 
 /* a list, drawn as the calculator draws: what is chosen, and an arrow */
-.calc-conv-pick {
+#calculator .calc-conv-pick {
     position: relative;
     box-sizing: border-box;
     padding: 5px 24px 5px 9px;
@@ -606,25 +598,25 @@ html {
     user-select: none;
 }
 
-.calc-conv-chosen {
+#calculator .calc-conv-chosen {
     display: block;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
 }
 
-.calc-conv-group {
+#calculator .calc-conv-group {
     margin: 4px 8px 0;
     font-weight: 700;
 }
 
-.calc-conv-from {
+#calculator .calc-conv-from {
     display: flex;
     gap: 7px;
     margin: 7px 8px 0;
 }
 
-.calc-conv-value {
+#calculator .calc-conv-value {
     flex: 1;
     padding: 5px 9px;
     font-size: 16px;
@@ -632,27 +624,27 @@ html {
     user-select: text;
 }
 
-.calc-conv-unit {
+#calculator .calc-conv-unit {
     flex: 0 1 50%;
 }
 
-.calc-conv-pick:hover,
-.calc-conv-pick.calc-on {
+#calculator .calc-conv-pick:hover,
+#calculator .calc-conv-pick.calc-on {
     background-color: #b3cdbf;
 }
 
-.calc-conv-pick:focus,
-.calc-conv-value:focus {
+#calculator .calc-conv-pick:focus,
+#calculator .calc-conv-value:focus {
     box-shadow: 0 0 0 2px #c9e0d3, 0 0 12px #36475a;
 }
 
-.calc-conv-value:focus {
+#calculator .calc-conv-value:focus {
     background: #b3cdbf;
 }
 
 /* the open list: a piece of display under it, at least as wide; the one of the
    unit grows to the left, where there is room */
-.calc-conv-menu {
+#calculator .calc-conv-menu {
     position: absolute;
     z-index: 2;
     top: calc(100% + 4px);
@@ -669,27 +661,27 @@ html {
     cursor: default;
 }
 
-.calc-conv-unit .calc-conv-menu {
+#calculator .calc-conv-unit .calc-conv-menu {
     left: auto;
     right: 0;
     width: max-content;
     max-width: 280px;
 }
 
-.calc-conv-menu[hidden] {
+#calculator .calc-conv-menu[hidden] {
     display: none;
 }
 
-.calc-conv-menu::-webkit-scrollbar {
+#calculator .calc-conv-menu::-webkit-scrollbar {
     width: 6px;
 }
 
-.calc-conv-menu::-webkit-scrollbar-thumb {
+#calculator .calc-conv-menu::-webkit-scrollbar-thumb {
     background: #8eab9b;
     border-radius: 3px;
 }
 
-.calc-conv-item {
+#calculator .calc-conv-item {
     padding: 3px 8px;
     border-radius: 4px;
     white-space: nowrap;
@@ -697,32 +689,32 @@ html {
 }
 
 /* under the pointer or the arrow keys; the one chosen is bold */
-.calc-conv-item.calc-lit {
+#calculator .calc-conv-item.calc-lit {
     background: #98b3a5;
 }
 
-.calc-conv-item.calc-on {
+#calculator .calc-conv-item.calc-on {
     font-weight: 700;
 }
 
 /* the symbol after a unit's name: (km) */
-.calc-conv-of {
+#calculator .calc-conv-of {
     color: #33443b;
 }
 
-.calc-conv-of sup,
-.calc-conv-chosen sup {
+#calculator .calc-conv-of sup,
+#calculator .calc-conv-chosen sup {
     font-size: 9px;
     line-height: 0;
 }
 
 /* not a number the calculator can read */
-.calc-conv-value.calc-bad {
+#calculator .calc-conv-value.calc-bad {
     box-shadow: 0 0 0 2px #d86672, 0 0 12px #36475a;
 }
 
 /* what to do, or why nothing is shown */
-.calc-conv-note {
+#calculator .calc-conv-note {
     min-height: 15px;
     margin: 6px 12px 4px;
     overflow: hidden;
@@ -733,23 +725,23 @@ html {
     text-overflow: ellipsis;
 }
 
-.calc-conv-list {
+#calculator .calc-conv-list {
     flex: 1;
     overflow-y: auto;
     padding: 0 8px;
 }
 
-.calc-conv-list::-webkit-scrollbar {
+#calculator .calc-conv-list::-webkit-scrollbar {
     width: 6px;
 }
 
-.calc-conv-list::-webkit-scrollbar-thumb {
+#calculator .calc-conv-list::-webkit-scrollbar-thumb {
     background: #6b8196;
     border-radius: 3px;
 }
 
 /* the value in another unit: its symbol over its name, and the value; a click puts it in */
-.calc-conv-row {
+#calculator .calc-conv-row {
     display: flex;
     align-items: center;
     gap: 10px;
@@ -762,47 +754,47 @@ html {
     cursor: pointer;
 }
 
-.calc-conv-row:hover {
+#calculator .calc-conv-row:hover {
     background: #a3bdaf;
 }
 
-.calc-conv-row:active {
+#calculator .calc-conv-row:active {
     background: #98b3a5;
 }
 
 /* no value: nothing to put in */
-.calc-conv-row.calc-none {
+#calculator .calc-conv-row.calc-none {
     cursor: default;
     background: #b6d1c2;
 }
 
-.calc-conv-col {
+#calculator .calc-conv-col {
     flex: 0 1 auto;
     min-width: 60px;
 }
 
-.calc-conv-sym,
-.calc-conv-name,
-.calc-conv-num {
+#calculator .calc-conv-sym,
+#calculator .calc-conv-name,
+#calculator .calc-conv-num {
     display: block;
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
 }
 
-.calc-conv-sym {
+#calculator .calc-conv-sym {
     font-size: 14px;
     line-height: 18px;
 }
 
-.calc-conv-name {
+#calculator .calc-conv-name {
     color: #33443b;
     font-size: 11px;
     line-height: 14px;
 }
 
 /* the value takes the room left, and keeps its digits first */
-.calc-conv-num {
+#calculator .calc-conv-num {
     flex: 1 0 auto;
     max-width: 70%;
     margin-left: auto;
@@ -811,8 +803,8 @@ html {
     text-align: right;
 }
 
-.calc-conv-sym sup,
-.calc-conv-num sup {
+#calculator .calc-conv-sym sup,
+#calculator .calc-conv-num sup {
     font-size: 9px;
     line-height: 0;
 }
@@ -821,7 +813,7 @@ html {
 
 /* as wide as the display, with each calculation on a piece of display;
    main.js lines it up with the display */
-.calc-past {
+#calculator .calc-past {
     position: absolute;
     z-index: 3; /* over raad.dev too */
     bottom: 5px;
@@ -840,7 +832,7 @@ html {
     overflow: hidden; /* the history and the statistics: nothing goes out over their rounded corners */
 }
 
-.calc-past.calc-open {
+#calculator .calc-past.calc-open {
     display: flex;
 }
 
@@ -849,7 +841,7 @@ html {
     visibility: hidden;
 }
 
-.calc-past-head {
+#calculator .calc-past-head {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -858,13 +850,13 @@ html {
     font-size: 14px;
 }
 
-.calc-past-head span:first-child {
+#calculator .calc-past-head span:first-child {
     flex: 1;
     font-weight: 700;
 }
 
-.calc-past-clear,
-.calc-past-close {
+#calculator .calc-past-clear,
+#calculator .calc-past-close {
     height: 22px;
     border-radius: 4px;
     text-align: center;
@@ -872,40 +864,40 @@ html {
     opacity: 0.7;
 }
 
-.calc-past-clear {
+#calculator .calc-past-clear {
     padding: 0 6px;
     line-height: 22px;
 }
 
-.calc-past-close {
+#calculator .calc-past-close {
     display: flex;
     align-items: center;
     justify-content: center;
     width: 22px;
 }
 
-.calc-past-clear:hover,
-.calc-past-close:hover {
+#calculator .calc-past-clear:hover,
+#calculator .calc-past-close:hover {
     opacity: 1;
     background: #52687d;
 }
 
-.calc-past-list {
+#calculator .calc-past-list {
     flex: 1;
     overflow-y: auto;
     padding: 4px 8px 0;
 }
 
-.calc-past-list::-webkit-scrollbar {
+#calculator .calc-past-list::-webkit-scrollbar {
     width: 6px;
 }
 
-.calc-past-list::-webkit-scrollbar-thumb {
+#calculator .calc-past-list::-webkit-scrollbar-thumb {
     background: #6b8196;
     border-radius: 3px;
 }
 
-.calc-past-row {
+#calculator .calc-past-row {
     position: relative; /* holds its x */
     margin-bottom: 7px;
     padding: 6px 10px 4px;
@@ -915,8 +907,8 @@ html {
     color: #000;
 }
 
-.calc-past-eq,
-.calc-past-res {
+#calculator .calc-past-eq,
+#calculator .calc-past-res {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
@@ -929,7 +921,7 @@ html {
 
 /* on the right like the equation line in the display, and like it a long
    line shows its end, with the dots on the left */
-.calc-past-eq {
+#calculator .calc-past-eq {
     direction: rtl;
     text-align: right;
     color: #33443b;
@@ -937,25 +929,25 @@ html {
     line-height: 18px;
 }
 
-.calc-past-res {
+#calculator .calc-past-res {
     font-size: 20px;
     line-height: 26px;
     text-align: right;
 }
 
-.calc-past-eq:hover,
-.calc-past-res:hover {
+#calculator .calc-past-eq:hover,
+#calculator .calc-past-res:hover {
     background: #a3bdaf;
 }
 
-.calc-past-eq > span {
+#calculator .calc-past-eq > span {
     direction: ltr;
     unicode-bidi: isolate;
 }
 
 /* insert and copy, on the left of a line while the pointer is over it; over
    the start of a long line, so they have the line's background */
-.calc-past-btns {
+#calculator .calc-past-btns {
     position: absolute;
     z-index: 1; /* over the equation, roots inside roots included, so they can be clicked */
     top: 0;
@@ -970,12 +962,12 @@ html {
     word-spacing: normal;
 }
 
-.calc-past-eq:hover .calc-past-btns,
-.calc-past-res:hover .calc-past-btns {
+#calculator .calc-past-eq:hover .calc-past-btns,
+#calculator .calc-past-res:hover .calc-past-btns {
     display: flex;
 }
 
-.calc-past-btn {
+#calculator .calc-past-btn {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -987,17 +979,17 @@ html {
     cursor: pointer;
 }
 
-.calc-past-btn:hover {
+#calculator .calc-past-btn:hover {
     opacity: 1;
     background: #8eab9b;
 }
 
-.calc-past-btn:active {
+#calculator .calc-past-btn:active {
     opacity: 0.75;
 }
 
 /* the x at the top right corner of a calculation, while the pointer is over it */
-.calc-past-del {
+#calculator .calc-past-del {
     position: absolute;
     top: -3px;
     right: -3px;
@@ -1012,39 +1004,39 @@ html {
     cursor: pointer;
 }
 
-.calc-past-row:hover .calc-past-del {
+#calculator .calc-past-row:hover .calc-past-del {
     display: flex;
 }
 
 /* a touch screen has no hover: the x is always there */
 @media (hover: none) {
-    .calc-past-del {
+    #calculator .calc-past-del {
         display: flex;
     }
 }
 
-.calc-past-del:hover {
+#calculator .calc-past-del:hover {
     background: #b4443c;
     color: #fff;
 }
 
 /* fraction mode: the fractions in the history, a little larger than in the display's small line */
-.calc-past-eq .calc-fr {
+#calculator .calc-past-eq .calc-fr {
     font-size: 0.78em;
 }
 
-.calc-past-res .calc-fr {
+#calculator .calc-past-res .calc-fr {
     font-size: 0.7em;
 }
 
-.calc-past-eq sup,
-.calc-past-eq sub {
+#calculator .calc-past-eq sup,
+#calculator .calc-past-eq sub {
     font-size: 10px;
     line-height: 0;
 }
 
 /* the unit a calculation with angles is entered again in */
-.calc-past-unit {
+#calculator .calc-past-unit {
     margin-right: 6px;
     padding: 0 3px;
     border: 1px solid #6f8a7c;
@@ -1052,7 +1044,7 @@ html {
     font-size: 10px;
 }
 
-.raad {
+#calculator .raad {
     font-size: 0.7em;
     margin-top: 3px;
     margin-right: 22px;
@@ -1061,11 +1053,11 @@ html {
     font-family: 'Play', 'Russo One', sans-serif;
 }
 
-.form-control {
+#calculator .form-control {
     text-align: center;
 }
 
-#display-box {
+#calculator #display-box {
     position: relative;
     padding-right: 7px;
     padding-top: 34px;
@@ -1086,7 +1078,7 @@ html {
 /* the line is as tall as its font asks, set with the size of the font, so the
    shade of selected text gets smaller with it; the room above and below keeps
    it 46px, the text in the middle */
-#box {
+#calculator #box {
     --edge-l: 8px; /* the room at the sides of the line, which the dots cover */
     --edge-r: 7px;
     --dots-gap: 8px; /* from the edge of the solid box of the dots to the small one in it: where the dots were before it */
@@ -1107,31 +1099,31 @@ html {
 }
 
 /* a line too long for the screen: held for a moment it slides, dots mark what is hidden */
-.calc-slide {
+#calculator .calc-slide {
     touch-action: none;
 }
 
-.calc-grab,
-.calc-log.calc-slide:active {
+#calculator .calc-grab,
+#calculator .calc-log.calc-slide:active {
     cursor: grabbing;
 }
 
 /* the line above a result slides at once */
-.calc-log.calc-slide {
+#calculator .calc-log.calc-slide {
     cursor: grab;
 }
 
 /* room after the last character: the padding of a line that scrolls is not
    scrolled to, so the end of the line gets a spacer that is */
-:where(#box)::after,
-.calc-log::after {
+#calculator :where(#box)::after,
+#calculator .calc-log::after {
     content: '';
     display: inline-block;
     vertical-align: top;
     width: 7px;
 }
 
-.calc-log::after {
+#calculator .calc-log::after {
     width: 8px;
 }
 
@@ -1139,8 +1131,8 @@ html {
    which clips it, and over the whole height of the line, so nothing shows round
    the dots and a selection ends square against it. In it a small round box,
    drawn as its picture, the height of the digits and in the middle of them */
-.calc-more-left::before,
-.calc-more-right::after {
+#calculator .calc-more-left::before,
+#calculator .calc-more-right::after {
     content: '…';
     width: auto;
     text-indent: 0; /* not the indent of the line */
@@ -1156,20 +1148,20 @@ html {
     background-size: calc(100% - 2px - 2 * var(--dots-gap)) var(--pill-h);
 }
 
-.calc-more-left::before {
+#calculator .calc-more-left::before {
     left: calc(var(--slid) - 2px);
     padding: 0 calc(var(--dots-gap) + var(--dots-pad)) var(--dots-up) calc(2px + var(--dots-gap) + var(--dots-pad));
     background-position: calc(2px + var(--dots-gap)) var(--pill-y);
 }
 
-.calc-more-right::after {
+#calculator .calc-more-right::after {
     right: calc(0px - var(--slid) - 2px);
     padding: 0 calc(2px + var(--dots-gap) + var(--dots-pad)) var(--dots-up) calc(var(--dots-gap) + var(--dots-pad));
     background-position: right calc(2px + var(--dots-gap)) top var(--pill-y);
 }
 
-.calc-edge-left::before,
-.calc-edge-right::after {
+#calculator .calc-edge-left::before,
+#calculator .calc-edge-right::after {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'%3E%3Crect x='.5' y='.5' style='width:calc(100%25 - 1px);height:calc(100%25 - 1px)' rx='6.5' ry='6.5' fill='none' stroke='%235b7768' stroke-width='1'/%3E%3C/svg%3E");
 }
 
@@ -1178,7 +1170,7 @@ html {
    beyond it, up to the small box of the dots. The line is masked as a whole,
    solid box and text together, which a clip at a half pixel does not do (it left
    a thread of text) */
-.calc-slide {
+#calculator .calc-slide {
     --mask-l: 1px;
     --mask-r: 1px;
     -webkit-mask-image:
@@ -1195,33 +1187,33 @@ html {
     mask-composite: intersect;
 }
 
-.calc-slide.calc-more-left {
+#calculator .calc-slide.calc-more-left {
     --mask-l: calc(var(--dots-gap) - 1px);
 }
 
-.calc-slide.calc-more-right {
+#calculator .calc-slide.calc-more-right {
     --mask-r: calc(var(--dots-gap) - 1px);
 }
 
-.calc-slide.calc-edge-left,
-.calc-slide.calc-edge-right {
+#calculator .calc-slide.calc-edge-left,
+#calculator .calc-slide.calc-edge-right {
     cursor: pointer;
 }
 
-#box sup,
-#box sub {
+#calculator #box sup,
+#calculator #box sub {
     font-size: 60%;
     line-height: 0;
 }
 
 /* a root or a fraction taller than the line goes into that room before the line grows */
-#box :is(.calc-root, .calc-fr):not(:is(.calc-root, .calc-fr) *) {
+#calculator #box :is(.calc-root, .calc-fr):not(:is(.calc-root, .calc-fr) *) {
     margin-top: calc(0px - var(--calc-lead));
     margin-bottom: calc(0px - var(--calc-lead));
 }
 
 /* the finished equation, at the right above the result */
-.calc-log {
+#calculator .calc-log {
     --edge-l: 8px;
     --edge-r: 8px;
     --dots-gap: 5px; /* from the edge of the solid box to the small one: room for it to breathe, away from the icons and the text */
@@ -1246,13 +1238,13 @@ html {
     overflow: hidden;
 }
 
-.calc-log sup,
-.calc-log sub {
+#calculator .calc-log sup,
+#calculator .calc-log sub {
     font-size: 11px;
     line-height: 0;
 }
 
-.calc-mem {
+#calculator .calc-mem {
     position: absolute;
     z-index: 1;
     left: 56px;
@@ -1260,7 +1252,7 @@ html {
     font-size: 12px;
 }
 
-.notification {
+#calculator .notification {
     position: absolute;
     z-index: 1;
     left: 76px;
@@ -1271,7 +1263,7 @@ html {
 
 /* the unit, Rad or Deg, with a full turn in it beside it: 2π or 360°. The
    two are one box, so its light fits around what is shown */
-.calc-rad {
+#calculator .calc-rad {
     position: absolute;
     left: 1px;
     bottom: 2px;
@@ -1286,7 +1278,7 @@ html {
 }
 
 /* 2π or 360°, in a light rounded frame like the unit of a calculation in the history */
-.sign {
+#calculator .sign {
     position: relative;
     top: 0.5px; /* half a pixel lower */
     padding: 0 2px;
@@ -1297,33 +1289,33 @@ html {
 }
 
 /* half a pixel between the 2 and the π */
-.sign-pi {
+#calculator .sign-pi {
     margin-left: 0.5px;
 }
 
 /* the marks in the display can be clicked: they light up under the pointer,
    in the colour of the clock */
-.calc-rad:hover,
-.calc-mem:hover,
-.calc-frac:hover,
-.calc-fmt:hover,
-.calc-hold:hover {
+#calculator .calc-rad:hover,
+#calculator .calc-mem:hover,
+#calculator .calc-frac:hover,
+#calculator .calc-fmt:hover,
+#calculator .calc-hold:hover {
     background: #a3bdaf;
 }
 
-.calc-rad:active,
-.calc-mem:active,
-.calc-frac:active,
-.calc-fmt:active,
-.calc-hold:active {
+#calculator .calc-rad:active,
+#calculator .calc-mem:active,
+#calculator .calc-frac:active,
+#calculator .calc-fmt:active,
+#calculator .calc-hold:active {
     background: #98b3a5;
 }
 
 /* a little room around each mark for its light, without moving it */
-.calc-mem,
-.calc-frac,
-.calc-fmt,
-.calc-hold {
+#calculator .calc-mem,
+#calculator .calc-frac,
+#calculator .calc-fmt,
+#calculator .calc-hold {
     margin: -1px -4px;
     padding: 1px 4px;
     border-radius: 3px;
@@ -1333,7 +1325,7 @@ html {
 }
 
 /* FIX 2, SCI 3, ENG 2: the notation the results are shown in */
-.calc-fmt {
+#calculator .calc-fmt {
     position: absolute;
     z-index: 1;
     right: 42px;
@@ -1343,7 +1335,7 @@ html {
 }
 
 /* FRAC while fraction mode is on; left of FIX 2 */
-.calc-frac {
+#calculator .calc-frac {
     position: absolute;
     z-index: 1;
     right: 74px;
@@ -1353,11 +1345,11 @@ html {
 }
 
 /* the a/b key while fraction mode is on: a small red dot at its top left corner */
-.trigo-keys.calc-lit {
+#calculator .trigo-keys.calc-lit {
     position: relative;
 }
 
-.trigo-keys.calc-lit::before {
+#calculator .trigo-keys.calc-lit::before {
     content: '';
     position: absolute;
     top: 3px;
@@ -1368,11 +1360,11 @@ html {
     background: #bf777f;
 }
 
-.calc-second:hover {
+#calculator .calc-second:hover {
     background: #d1868f;
 }
 
-.calc-second:active {
+#calculator .calc-second:active {
     background: #b26b73;
     border: 1px solid #000;
 }
@@ -1381,12 +1373,12 @@ html {
    its key, it stands in for the character, which stays for copying. Its
    strokes are as thick as the bar over a root, 0.056em: 0.9 of the 10 units
    across its 0.62em; its arm turns into the bar through a rounded corner, level with the top of the bar */
-:root {
+#calculator {
     --calc-root-whole: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='82' height='130' viewBox='0 0 82 130'%3E%3Cpath d='M7 80 L20 70 L33.6 126 L50.6 20' fill='none' stroke='black' stroke-width='5.6' stroke-linejoin='round' stroke-linecap='round'/%3E%3Cpath d='M46.16 30 L49.36 10 Q50.96 0 54.5 0 L72 0 L72 5.6 L59 5.6 Q55.74 5.6 55.34 8.1 L51.84 30 Z' fill='black'/%3E%3C/svg%3E");
     --calc-root-sign: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 16' preserveAspectRatio='none'%3E%3Cpath d='M0.7 9.4 L2.7 8.3 L4.5 15 L7.645 4.6' fill='none' stroke='black' stroke-width='0.9' stroke-linejoin='round' stroke-linecap='round'/%3E%3Cpath d='M7.175 4.6 L8.05 1.7 Q8.566 0 9 0 L10.3 0 L10.3 0.68 L9.7 0.68 Q9.3 0.68 9.2 1 L8.115 4.6 Z' fill='black'/%3E%3C/svg%3E");
 }
 
-.calc-sq {
+#calculator .calc-sq {
     display: inline-block;
     width: 0.62em;
     height: 1.05em;
@@ -1399,7 +1391,7 @@ html {
 }
 
 /* in an equation, the √ and a bar over what is under it, as tall as that is */
-.calc-root {
+#calculator .calc-root {
     position: relative;
     display: inline-block;
     margin-left: 0.62em;
@@ -1409,7 +1401,7 @@ html {
     line-height: 1.15;
 }
 
-.calc-root::before {
+#calculator .calc-root::before {
     content: '';
     position: absolute;
     left: -0.62em;
@@ -1423,12 +1415,12 @@ html {
     -webkit-mask-box-image: var(--calc-root-whole) 30 10 10 62 / 0.3em 0 0.1em 0.62em stretch;
 }
 
-.calc-hide {
+#calculator .calc-hide {
     display: none;
 }
 
 /* fraction mode: a division drawn as a fraction, one part over the other */
-.calc-fr {
+#calculator .calc-fr {
     display: inline-flex;
     flex-direction: column;
     align-items: stretch; /* the bar runs the width of the wider part, a root or a product included */
@@ -1439,92 +1431,92 @@ html {
     line-height: 1.05;
 }
 
-.calc-fr > span {
+#calculator .calc-fr > span {
     padding: 0 0.15em;
     white-space: nowrap;
 }
 
 /* a root in a fraction keeps the rows close, and the whole fraction on the display
    sits above the FRAC and FIX labels under the line, not over them */
-.calc-fr .calc-root {
+#calculator .calc-fr .calc-root {
     line-height: 1;
 }
 
-#box > .calc-fr {
+#calculator #box > .calc-fr {
     position: relative;
     top: -7px;
 }
 
 /* the line clips what is past its edge: room above it, so the bar of a root
    in the top row is not cut off */
-#box:has(> .calc-fr) {
+#calculator #box:has(> .calc-fr) {
     padding-top: calc(10px + var(--calc-lead));
     margin-top: -10px;
 }
 
-.calc-fr > span:first-child {
+#calculator .calc-fr > span:first-child {
     padding-bottom: 0.1em; /* the foot of a root keeps off the line */
 }
 
-.calc-fr > span + span {
+#calculator .calc-fr > span + span {
     border-top: 1px solid currentColor;
     padding-top: 0.14em; /* the bar of a root keeps off the line */
 }
 
 /* a fraction in a fraction is written with a slash, so the line keeps two rows */
-.calc-fr .calc-fr {
+#calculator .calc-fr .calc-fr {
     display: inline;
     margin: 0;
     font-size: 1em;
 }
 
-.calc-fr .calc-fr > span {
+#calculator .calc-fr .calc-fr > span {
     padding: 0;
 }
 
-.calc-fr .calc-fr > span + span {
+#calculator .calc-fr .calc-fr > span + span {
     border-top: 0;
 }
 
-.calc-fr .calc-fr > span + span::before {
+#calculator .calc-fr .calc-fr > span + span::before {
     content: '/';
 }
 
 /* the line above the result is small already */
-.calc-log .calc-fr {
+#calculator .calc-log .calc-fr {
     font-size: 0.75em;
 }
 
 /* the line is 32px high: the rows of a fraction in it sit close, and a root's
    bar and foot take little room, so none of it is cut */
-.calc-log .calc-fr {
+#calculator .calc-log .calc-fr {
     line-height: 1;
 }
 
-.calc-log .calc-fr > span:first-child {
+#calculator .calc-log .calc-fr > span:first-child {
     padding-bottom: 0.03em;
 }
 
-.calc-log .calc-fr > span + span {
+#calculator .calc-log .calc-fr > span + span {
     padding-top: 0.06em;
 }
 
-.calc-log .calc-fr .calc-root {
+#calculator .calc-log .calc-fr .calc-root {
     padding-top: 0;
     line-height: 0.95;
 }
 
 /* the small lines give a power a fixed size, about that of the text in a
    fraction: there it is set smaller than the text it stands on */
-.calc-log .calc-fr sup,
-.calc-log .calc-fr sub,
-.calc-past-eq .calc-fr sup,
-.calc-past-eq .calc-fr sub {
+#calculator .calc-log .calc-fr sup,
+#calculator .calc-log .calc-fr sub,
+#calculator .calc-past-eq .calc-fr sup,
+#calculator .calc-past-eq .calc-fr sub {
     font-size: 70%;
 }
 
 /* the part still to be entered */
-.calc-fr-empty::before {
+#calculator .calc-fr-empty::before {
     content: '';
     display: inline-block;
     width: 0.55em;
@@ -1534,7 +1526,7 @@ html {
 }
 
 /* the cursor while the equation is edited; it takes no room of its own */
-.calc-cursor {
+#calculator .calc-cursor {
     display: inline-block;
     width: 2px;
     height: 0.85em;
@@ -1550,7 +1542,7 @@ html {
     }
 }
 
-.calc-hold {
+#calculator .calc-hold {
     position: absolute;
     z-index: 1;
     right: 8px;
@@ -1559,23 +1551,23 @@ html {
     font-family: 'Play', 'Russo One', sans-serif;
 }
 
-.calc-top {
+#calculator .calc-top {
     margin: 7px;
     display: inline-block;
 }
 
-.calc-left {
+#calculator .calc-left {
     position: relative;
 }
 
-.calc-down {
+#calculator .calc-down {
     margin: 11px;
     display: inline-block;
 }
 
 
 
-.trigo-keys {
+#calculator .trigo-keys {
     width: 40px;
     height: 26px;
     padding-bottom: 1px; /* the font draws its letters a little low */
@@ -1593,7 +1585,7 @@ html {
     vertical-align: middle;
 }
 
-.calc-second {
+#calculator .calc-second {
     background-color: #222;
     width: 40px;
     height: 26px;
@@ -1614,43 +1606,43 @@ html {
 
 /* MODE: four capitals, a little smaller to fit the key. Set on the label, so a
    press, which sets the key's own size, does not make it bigger */
-.calc-mode > div {
+#calculator .calc-mode > div {
     font-size: 0.85em;
 }
 
-.trigo-keys svg {
+#calculator .trigo-keys svg {
     display: block;
 }
 
 /* nCr and nPr: n and r smaller, at the sides of the C or P */
-.calc-ncr i {
+#calculator .calc-ncr i {
     font-size: 0.75em;
     font-style: normal;
 }
 
-.calc-ncr i:first-child {
+#calculator .calc-ncr i:first-child {
     vertical-align: 0.35em;
 }
 
-.calc-ncr i:last-child {
+#calculator .calc-ncr i:last-child {
     vertical-align: -0.2em;
 }
 
 /* raised and lowered letters must not push the label off centre */
-.trigo-keys sup,
-.trigo-keys sub,
-.calc-second sup,
-.calc-second sub {
+#calculator .trigo-keys sup,
+#calculator .trigo-keys sub,
+#calculator .calc-second sup,
+#calculator .calc-second sub {
     line-height: 0;
 }
 
-.trigo-keys:hover {
+#calculator .trigo-keys:hover {
     background: #345361;
     border: 1px solid #1a2f38;
     border-radius: 5px;
 }
 
-.trigo-keys:active {
+#calculator .trigo-keys:active {
     font-size: 1em;
     color: #fff;
     background: #2b4753;
@@ -1658,7 +1650,7 @@ html {
     border-radius: 5px;
 }
 
-.keys {
+#calculator .keys {
     padding: 0px;
     color: #fff;
     font-family: 'Play', 'Russo One', sans-serif;
@@ -1677,45 +1669,45 @@ html {
     vertical-align: middle;
 }
 
-.keys:hover {
+#calculator .keys:hover {
     color: #fff;
     background: #91a4b5;
 }
 
-.keys:active {
+#calculator .keys:active {
     color: #fff;
     background: #758492;
     border: 2px solid #3f4969;
 }
 
-.keys2 {
+#calculator .keys2 {
     background: #4a5f73;
 }
 
-.keys2:hover {
+#calculator .keys2:hover {
     background: #52687d;
 }
 
-.keys2:active {
+#calculator .keys2:active {
     background: #425669;
     border: 2px solid #3f4969;
 }
 
-.del-ac {
+#calculator .del-ac {
     background: #bf777f;
 }
 
 /* DEL and C: slightly smaller letters, on the same centre line as the digits */
-.del-ac > div {
+#calculator .del-ac > div {
     font-size: 0.85em;
     line-height: 37px;
 }
 
-.del-ac:hover {
+#calculator .del-ac:hover {
     background: #d1868f;
 }
 
-.del-ac:active {
+#calculator .del-ac:active {
     color: #fff;
     background: #b26b73;
     border: 2px solid #3f4969;
@@ -1723,38 +1715,38 @@ html {
 
 /* a key moves down 1px while it is pressed; the small keys keep their own
    border: only the fill gets darker */
-.keys,
-.trigo-keys,
-.calc-second {
+#calculator .keys,
+#calculator .trigo-keys,
+#calculator .calc-second {
     transition: transform 0.04s;
 }
 
-.keys:active {
+#calculator .keys:active {
     transform: translateY(1px);
 }
 
-.trigo-keys:active,
-.calc-second:active {
+#calculator .trigo-keys:active,
+#calculator .calc-second:active {
     transform: translateY(1px);
 }
 
-.trigo-keys:active {
+#calculator .trigo-keys:active {
     background: #223a45;
     border-color: #1a2f38;
 }
 
-.calc-second:active {
+#calculator .calc-second:active {
     background: #b05a64;
     border-color: #7d4a51;
 }
 
-.equal {
+#calculator .equal {
     width: 134px;
     /*    background: #3f4661;*/
 }
 
 /* the display can be selected and copied, and the boxes too; the line above it opens in the display for that, with a double click */
-#box,
+#calculator #box,
 #calculator textarea {
     -webkit-user-select: text;
     user-select: text;
@@ -1767,14 +1759,14 @@ html {
 }
 
 /* the unit can be clicked to switch it */
-.calc-rad {
+#calculator .calc-rad {
     cursor: pointer;
     -webkit-user-select: none;
     user-select: none;
 }
 
 /* what a key does, over it while the pointer rests on it */
-.calc-tip {
+#calculator .calc-tip {
     position: absolute;
     z-index: 6;
     width: 214px;
@@ -1793,7 +1785,7 @@ html {
     animation: calc-tip-in 0.12s ease-out;
 }
 
-.calc-tip[hidden] {
+#calculator .calc-tip[hidden] {
     display: none;
 }
 
@@ -1808,15 +1800,15 @@ html {
    the border colour from the box's edge, and the fill's triangle inset 1px
    (45deg sides: 1.414px across) over it, so the outline runs unbroken from
    the box's border into the point */
-.calc-tip::before,
-.calc-tip::after {
+#calculator .calc-tip::before,
+#calculator .calc-tip::after {
     content: '';
     position: absolute;
     left: var(--arrow, 50%);
     clip-path: polygon(0 0, 100% 0, 50% 100%);
 }
 
-.calc-tip::before {
+#calculator .calc-tip::before {
     top: 100%;
     width: 14px;
     height: 7px;
@@ -1824,7 +1816,7 @@ html {
     background: #4d6b80;
 }
 
-.calc-tip::after {
+#calculator .calc-tip::after {
     top: calc(100% - 1px);
     width: 13.172px;
     height: 6.586px;
@@ -1832,35 +1824,35 @@ html {
     background: #1f333c;
 }
 
-.calc-tip.calc-tip-below::before,
-.calc-tip.calc-tip-below::after {
+#calculator .calc-tip.calc-tip-below::before,
+#calculator .calc-tip.calc-tip-below::after {
     top: auto;
     clip-path: polygon(50% 0, 100% 100%, 0 100%);
 }
 
-.calc-tip.calc-tip-below::before {
+#calculator .calc-tip.calc-tip-below::before {
     bottom: 100%;
 }
 
-.calc-tip.calc-tip-below::after {
+#calculator .calc-tip.calc-tip-below::after {
     bottom: calc(100% - 1px);
 }
 
-.calc-tip-head {
+#calculator .calc-tip-head {
     display: flex;
     align-items: center;
     gap: 6px;
     margin-bottom: 3px;
 }
 
-.calc-tip-head b {
+#calculator .calc-tip-head b {
     flex: 1;
     color: #fff;
     font-size: 13px;
 }
 
 /* the function 2nd gave the key */
-.calc-tip-2nd {
+#calculator .calc-tip-2nd {
     padding: 0 4px;
     border-radius: 3px;
     background: #d86672;
@@ -1869,7 +1861,7 @@ html {
     line-height: 15px;
 }
 
-.calc-tip kbd {
+#calculator .calc-tip kbd {
     padding: 0 5px;
     background: #fff; /* a white keyboard key */
     border: 1px solid #c5ccd6;
@@ -1881,7 +1873,7 @@ html {
 }
 
 /* what 2nd turns the key into */
-.calc-tip-more {
+#calculator .calc-tip-more {
     margin-top: 5px;
     padding-top: 4px;
     border-top: 1px solid #34505e;
@@ -1889,14 +1881,14 @@ html {
     font-size: 11px;
 }
 
-.calc-tip sup,
-.calc-tip sub {
+#calculator .calc-tip sup,
+#calculator .calc-tip sub {
     font-size: 9px;
     line-height: 0;
 }
 
 /* the menu of a right click, in the colours of the history */
-.calc-menu-box {
+#calculator .calc-menu-box {
     position: absolute;
     z-index: 5;
     min-width: 92px;
@@ -1913,33 +1905,33 @@ html {
     user-select: none;
 }
 
-.calc-menu-box[hidden] {
+#calculator .calc-menu-box[hidden] {
     display: none;
 }
 
-.calc-menu-box > div {
+#calculator .calc-menu-box > div {
     padding: 4px 10px;
     border-radius: 4px;
     cursor: pointer;
 }
 
-.calc-menu-box > div:hover {
+#calculator .calc-menu-box > div:hover {
     background: #52687d;
     color: #fff;
 }
 
 /* what cannot be done now: Cut with nothing selected */
-.calc-menu-box > .calc-off {
+#calculator .calc-menu-box > .calc-off {
     opacity: 0.4;
     cursor: default;
 }
 
-.calc-menu-box > .calc-off:hover {
+#calculator .calc-menu-box > .calc-off:hover {
     background: none;
     color: inherit;
 }
 
-.calc-blank {
+#calculator .calc-blank {
     position: absolute;
     z-index: -1;
     opacity: 0;
