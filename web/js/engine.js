@@ -527,9 +527,13 @@
 
     // ---------- pasted text ---------- //
 
-    // numbers written with separators: 1,234.5 and 1.234,5 are both 1234.5.
-    // A lone comma is a decimal mark (1,5) unless it splits groups of three (1,234)
+    // numbers written with separators: 1,234.5, 1.234,5 and 1 234,5 are all 1234.5.
+    // A lone comma is a decimal mark (1,5) unless it splits groups of three (1,234);
+    // a space, a thin or a no-break one as well, only splits groups of three (1 234, not 5 3)
     function separators(s) {
+        s = s.replace(/(^|[^\d.,])([1-9]\d{0,2}(?:[ \u00A0\u2009\u202F]\d{3})+)(?!\d)/g, function (all, before, n) {
+            return before + n.replace(/\D/g, '');
+        });
         return s.replace(/\d[\d.,]*\d/g, function (n) {
             var c = n.lastIndexOf(','), d = n.lastIndexOf('.');
             if (c < 0) return /^[1-9]\d{0,2}(\.\d{3}){2,}$/.test(n) ? n.replace(/\./g, '') : n;

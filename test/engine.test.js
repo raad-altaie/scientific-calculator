@@ -488,6 +488,9 @@ dels.forEach(function (c) {
     check(!e.paste('abc') && state(e) === '44 | 2 + 42 =', 'non numeric paste is ignored', state(e));
     check(!e.paste('42abc', false, true) && state(e) === '44 | 2 + 42 =', 'whole: not the number a text starts with', state(e));
     check(!e.paste('5$3', false, true) && state(e) === '44 | 2 + 42 =', 'whole: a currency between two numbers does not join them', state(e));
+    ['5 3', '12 50', '1 2000', '0 200', '1234 567', '1 200 3'].forEach(function (text) {
+        check(!e.paste(text, false, true) && state(e) === '44 | 2 + 42 =', 'whole: ' + text + ' is not one number', state(e));
+    });
     check(e.paste('6*7', false, true) && (e.press('='), e.value === '42'), 'whole: an equation still goes in', state(e));
     run(e, 'AC 2 + 3');
     e.paste('9');
@@ -596,6 +599,12 @@ dels.forEach(function (c) {
             ['1.5e-7 + 1', '1', '1.5E-7 + 1'],
             ['1,234.5 + 1', '1', '1234.5 + 1'],
             ['1.234,5 + 1', '1', '1234.5 + 1'],
+            ['1 234,5 + 1', '1', '1234.5 + 1'],
+            ['1 200', '1200', '1200'],
+            ['12 500 000', '12500000', '12500000'],
+            ['1\u00A0200,50', '1200.5', '1200.5'],
+            ['1\u202F200.50 + 3 000=', '4200.5', '1200.50 + 3000 ='],
+            ['1 200,50 €', '1200.5', '1200.5'],
             ['$1,200', '1200', '1200'],
             ['€1.200,50', '1200.5', '1200.5'],
             ['-¥1000', '-1000', '-1000'],
