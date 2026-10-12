@@ -1,11 +1,17 @@
 let popupWidth = 387;
 let popupHeight = 613;
 
+// the detached window leaves this much room around the calculator: x at the
+// left and right, y at the top and bottom; popup.js keeps the same room when
+// the window is resized
+let detachedMargin = { x: 1, y: 2 };
+
 chrome.runtime.getPlatformInfo(function (info) {
     // Output might be 'win', 'mac', 'linux', etc.
     if (info.os === 'win') {
         popupWidth = 402;
         popupHeight = 625;
+        detachedMargin = { x: 1, y: 1 }; // a little less room on Windows
     } else if (info.os === 'cros') {
         popupWidth = 388;
         popupHeight = 621;
@@ -15,11 +21,6 @@ chrome.runtime.getPlatformInfo(function (info) {
 // the detached window shows the popup page with this mark, so the page knows
 // to follow the window size and the window can be found again
 const detachedUrl = chrome.runtime.getURL("popup.html?detached");
-
-// the detached window leaves this much room around the calculator: x at the
-// left and right, y at the top and bottom; popup.js keeps the same room when
-// the window is resized
-const detachedMargin = { x: 1, y: 2 };
 
 function createPopupWindow() {
     chrome.system.display.getInfo((displayInfo) => {

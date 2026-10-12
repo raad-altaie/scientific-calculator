@@ -1036,17 +1036,25 @@
     // the numbers of a list as typed or pasted, a column of a spreadsheet as
     // well: apart by spaces, new lines, tabs, commas or semicolons. In a list
     // with semicolons a comma is the decimal mark (1,5; 2,5), and so it is
-    // wherever it is the one in use (comma): 1.234,5 is then one number.
+    // wherever it is the one in use (comma): 1.234,5 is then one number. A thin or
+    // a no-break space before three digits is of the number, as a page or the display writes 1 234.
+    // by: what alone is between two numbers, with new lines and tabs, in place of all that:
+    // 'line', 'tab', 'space', 'comma', 'semi', 'pipe' or 'colon'. Each part is then read as a pasted number is, so
+    // 1 234,5, 1,234.5 and $1,200 are one number each.
     // bad: the parts that are no numbers
-    function numbers(text, comma) {
-        var s = String(text), semi = comma || s.indexOf(';') > -1, values = [], bad = [];
-        s.split(semi ? /[\s;]+/ : /[\s,]+/).forEach(function (part) {
-            var t = part.replace(/^[−–]/, '-');
+    function numbers(text, comma, by) {
+        var s = String(text), semi = comma || s.indexOf(';') > -1, values = [], bad = [],
+            only = { line: /[\t\r\n]+/, tab: /[\t\r\n]+/, space: /[ \t\r\n]+/, comma: /[,\t\r\n]+/, semi: /[;\t\r\n]+/,
+                pipe: /[|\t\r\n]+/, colon: /[:\t\r\n]+/ }[by];
+        if (!only) s = s.replace(/(\d)[\u00A0\u2009\u202F](?=\d{3}(?!\d))/g, '$1');
+        s.split(only || (semi ? /[\s;]+/ : /[\s,]+/)).forEach(function (part) {
+            var t = part.trim().replace(/^[−–]/, '-');
             if (!t) return;
-            if (comma) t = separators(t, true);
+            if (only) t = separators(money(t).trim(), comma).replace(/^-\s+/, '-');
+            else if (comma) t = separators(t, true);
             else if (semi) t = t.replace(',', '.');
             if (/^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(t) && isFinite(+t)) values.push(+t);
-            else bad.push(part);
+            else bad.push(part.trim());
         });
         return { values: values, bad: bad };
     }
@@ -1055,8 +1063,8 @@
     // the list as the whole population (σ) and as a sample of one (s, NaN for
     // a single number), min, median and max. The sums and the mean are worked
     // out exactly, as + – × ÷ are: the mean of 0.1, 0.2 and 0.3 is 0.2
-    function stats(text, comma) {
-        var read = numbers(text, comma), xs = read.values, n = xs.length, r = { n: n, bad: read.bad },
+    function stats(text, comma, by) {
+        var read = numbers(text, comma, by), xs = read.values, n = xs.length, r = { n: n, bad: read.bad },
             sum = 0, squares = 0, spread = 0, sorted, mid;
         if (!n) return r;
         xs.forEach(function (x) {

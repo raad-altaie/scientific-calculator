@@ -31,7 +31,7 @@ A scientific calculator for your browser: light, fast and it works offline. It r
 **Panels** (each can be turned on or off in the options)
 - **Formulas and constants** (`fx`): search well-known formulas of algebra, geometry, trigonometry, physics, electricity, chemistry, statistics, money and everyday life, fill in the letters and the equation goes into the display. Constants of math and science (CODATA 2022) go in with a click.
 - **Converter**: length, area, volume, mass, temperature, speed, time, data, pressure, energy, power, angle and fuel economy; the value is shown in every other unit of its kind.
-- **Statistics**: type or paste a list (a spreadsheet column works too) for count, sum, sum of squares, mean, standard deviation (σ and s), minimum, median and maximum.
+- **Statistics**: type or paste a list (a spreadsheet column works too) for count, sum, sum of squares, mean, standard deviation (σ and s), minimum, median and maximum. It finds what is between the numbers by itself; choose new lines, tabs, spaces, commas, semicolons, pipes or colons instead, and numbers written `1,234.5`, `1 234,5` or `$1,200` are read whole.
 
 **Keyboard, copy and paste**
 - Full keyboard support for every button; a `h` hold key gives the second function (`h`, `s` = `sinh`).

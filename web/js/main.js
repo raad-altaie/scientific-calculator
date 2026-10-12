@@ -34,6 +34,12 @@
         statsInput = stats.querySelector('textarea'),
         statsGrid = stats.querySelector('.calc-stats-grid'),
         statsNote = stats.querySelector('.calc-stats-note'),
+        statsBy = stats.querySelector('.calc-stats-by'), // what is between the numbers of the list
+        BY = [ // its choices: the name the engine takes, as shown with its sign, and in the note
+            ['auto', 'Auto'], ['line', 'New line', 'new lines'], ['tab', 'Tab', 'tabs'], ['space', 'Space', 'spaces'],
+            ['comma', 'Comma <b>,</b>', 'commas'], ['semi', 'Semicolon <b>;</b>', 'semicolons'], ['pipe', 'Pipe <b>|</b>', 'pipes'],
+            ['colon', 'Colon <b>:</b>', 'colons']
+        ],
         statsNow = { n: 0 }, // what the list gives
         STATS = [ // the results in the order shown: the name the engine gives each, and its label
             ['n', 'n'], ['sum', 'Σx'], ['squares', 'Σx<sup>2</sup>'],
@@ -854,6 +860,20 @@
         saveState();
     }, false);
 
+    // Auto finds what is between the numbers by itself; a choice has only that between them,
+    // so a number written 1 234,5 or 1,234.5 stays one
+    function setStatsBy(i) {
+        setPicker(statsBy, BY.map(function (by) { return by[1]; }), i);
+    }
+
+    picker(statsBy, function (i) {
+        setStatsBy(i);
+        renderStats();
+        saveState();
+    });
+    statsBy.box = statsInput; // the list has the focus again after a choice
+    setStatsBy(0);
+
     statsGrid.addEventListener('click', function (e) {
         var tile = e.target.closest('.calc-stats-tile'), value = tile && statsNow[tile.dataset.k];
         if (!tile || !statsNow.n || !isFinite(value) || !engine.put(value)) return;
@@ -883,7 +903,7 @@
     // the results as the display shows numbers: in the number format, and as
     // fractions in fraction mode
     function renderStats() {
-        var s = statsNow = CalcEngine.stats(statsInput.value, engine.comma);
+        var s = statsNow = CalcEngine.stats(statsInput.value, engine.comma, BY[statsBy.at][0]);
         [].forEach.call(statsGrid.children, function (tile) {
             var value = s[tile.dataset.k], known = s.n > 0 && isFinite(value), shown = tile.lastChild, size = 17;
             tile.classList.toggle('calc-none', !known);
@@ -893,7 +913,8 @@
                 shown.style.fontSize = --size + 'px';
             }
         });
-        statsNote.textContent = !s.n && !s.bad.length ? 'Apart by spaces, ' + (engine.comma ? 'semicolons' : 'commas') + ' or new lines; a column from a spreadsheet works too.' :
+        statsNote.textContent = !s.n && !s.bad.length ? (statsBy.at ? 'Only ' + BY[statsBy.at][2] + (statsBy.at > 1 ? ' and new lines' : '') + ' are between two numbers.' :
+            'Apart by spaces, ' + (engine.comma ? 'semicolons' : 'commas') + ' or new lines; a column from a spreadsheet works too.') :
             s.n + (s.n === 1 ? ' number' : ' numbers') +
             (s.bad.length ? ' · left out: ' + s.bad.slice(0, 3).join(', ') + (s.bad.length > 3 ? ' …' : '') : '');
     }
@@ -1088,7 +1109,7 @@
             inputs = [].slice.call(item.querySelectorAll('input')),
             note = item.querySelector('.calc-fx-note'),
             s = CalcFormulas.fill(f, inputs.map(boxValue), deg),
-            trial = new CalcEngine();
+            trial = new CalcEngine(), read;
 
         inputs.forEach(function (input) {
             input.classList.toggle('calc-bad', !input.value.trim());
@@ -1100,7 +1121,10 @@
             return;
         }
         if (s !== null && (engine.edit || !(engine.done || engine.error || engine.plain()))) s = '(' + s + ')';
-        if (s !== null && !engine.paste(s, deg)) {
+        engine.comma = false; // the formula is written with points, whatever the decimal mark shown: 1.234 is not 1234
+        read = s === null || engine.paste(s, deg);
+        engine.comma = CalcEngine.comma(fmt.group);
+        if (!read) {
             inputs.forEach(function (input) { // the calculator could not read it: the boxes that are not a plain number
                 input.classList.toggle('calc-bad', !/^\s*-?(\d+\.?\d*|\.\d+)\s*$/.test(boxValue(input)));
             });
@@ -1293,11 +1317,11 @@
         if (scroll && items[i]) items[i].scrollIntoView({ block: 'nearest' });
     }
 
-    // then the value has the focus, to type in
+    // then the value has the focus, to type in; or the box the list is of
     function choosePicker(el, i) {
         showPicker(el, false);
         if (i !== el.at) el.pick(i);
-        focusBox(convInput);
+        focusBox(el.box || convInput);
     }
 
     // the unit's name is kept, not its place, so a unit added later does not change the choice
@@ -1762,6 +1786,7 @@
         store('secondActive', secondActive);
         store('deg', deg === 2 ? 'grad' : deg === 1); // true or false for Deg and Rad, as before Grad came
         store('stat', statsInput.value);
+        store('statBy', BY[statsBy.at][0]);
         store('fraction', fracMode);
         store('dms', dmsMode);
         store('memory', engine.memory);
@@ -1773,7 +1798,7 @@
         var s = {};
 
         // all read first: the keys pressed below must not save over what is still to be read
-        ['secondActive', 'deg', 'stat', 'statsOn', 'fxOn', 'fxTab', 'convOn', 'conv', 'fraction', 'dms', 'format', 'fnOrder', 'memory', 'calc'].forEach(function (key) {
+        ['secondActive', 'deg', 'stat', 'statBy', 'statsOn', 'fxOn', 'fxTab', 'convOn', 'conv', 'fraction', 'dms', 'format', 'fnOrder', 'memory', 'calc'].forEach(function (key) {
             s[key] = stored(key);
         });
         // functions go before their number, tan 45; who used the calculator before this
@@ -1786,6 +1811,7 @@
         }
         setUnit(s.deg === true ? 1 : s.deg === 'grad' ? 2 : 0);
         if (typeof s.stat === 'string') statsInput.value = s.stat;
+        setStatsBy(Math.max(0, BY.map(function (by) { return by[0]; }).indexOf(s.statBy)));
         // all three on, until changed in the options
         setPanels(s.statsOn !== false, s.fxOn !== false, s.convOn !== false);
         if (s.fxTab === 'constants') fxTab = s.fxTab;

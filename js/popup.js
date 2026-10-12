@@ -4,7 +4,8 @@ const iframe = document.getElementById('calc-iframe');
 if (new URLSearchParams(location.search).has('detached')) {
     const MIN_SCALE = 0.5;
     const MAX_SCALE = 3;
-    const MARGIN = { x: 1, y: 2 }; // room around the calculator at the normal size, as in background.js
+    // room around the calculator at the normal size, as in background.js: a little less on Windows
+    const MARGIN = { x: 1, y: navigator.userAgent.includes('Windows') ? 1 : 2 };
     // the calculator with its margin: this is what the window is filled with
     const baseWidth = iframe.offsetWidth + 2 * MARGIN.x;
     const baseHeight = iframe.offsetHeight + 2 * MARGIN.y;

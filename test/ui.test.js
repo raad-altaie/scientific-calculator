@@ -338,6 +338,37 @@ async function calculator(page, at) {
     await page.type('4 8 15 16 23 42');
     check(await page.calc('document.querySelector(".calc-stats-tile[data-k=mean] .calc-stats-value").textContent') === '18',
         t + 'the statistics: the mean of 4 8 15 16 23 42 is 18');
+    // what is between the numbers: found by itself, or the one chosen, kept after a reload
+    var count = 'document.querySelector(".calc-stats-tile[data-k=n] .calc-stats-value").textContent',
+        by = 'document.querySelector(".calc-stats-by .calc-conv-chosen").textContent';
+    await page.calc('(function (i) { i.value = "1,234.5\\n1 000\\n$2"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-stats-input"))');
+    check(await page.calc('document.querySelector(".calc-stats-by").previousElementSibling.textContent') === 'Separator', t + 'the list of what is between the numbers has its label');
+    check(await page.calc(by) === 'Auto' && await page.calc(count) === '4', t + 'by itself 1,234.5 and 1 000 are two numbers each',
+        await page.calc(by) + ' ' + await page.calc(count));
+    await page.click('.calc-stats-by');
+    check(await page.calc('[].map.call(document.querySelectorAll(".calc-stats-by .calc-conv-item"), function (i) { return i.textContent; }).join("|")') ===
+        'Auto|New line|Tab|Space|Comma ,|Semicolon ;|Pipe ||Colon :', t + 'the choices of what is between the numbers');
+    await page.click('.calc-stats-by .calc-conv-item[data-i="1"]');
+    check(await page.calc(by) === 'New line' && await page.calc(count) === '3' &&
+        await page.calc('document.querySelector(".calc-stats-tile[data-k=sum] .calc-stats-value").textContent') === '2236.5',
+        t + 'apart by new lines they are one each, and $2 is 2', await page.calc(by) + ' ' + await page.calc(count));
+    check(await page.calc('document.activeElement.className') === 'calc-stats-input', t + 'the list has the focus again');
+    await page.go(page.base + at);
+    await page.click('.calc-stat-btn');
+    check(await page.calc(by) === 'New line' && await page.calc(count) === '3', t + 'the choice is kept after a reload',
+        await page.calc(by) + ' ' + await page.calc(count));
+    await page.calc('(function (i) { i.value = "1,5|1 000|3"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-stats-input"))');
+    await page.click('.calc-stats-by');
+    await page.click('.calc-stats-by .calc-conv-item[data-i="6"]');
+    check(await page.calc(by) === 'Pipe |' && await page.calc(count) === '3' &&
+        await page.calc('document.querySelector(".calc-stats-tile[data-k=sum] .calc-stats-value").textContent') === '1004.5',
+        t + 'apart by pipes', await page.calc(by) + ' ' + await page.calc(count));
+    check(await page.calc('document.querySelector(".calc-stats-by .calc-conv-menu").hidden'), t + 'its list closes after the choice');
+    await page.click('.calc-stats-by');
+    check(await page.calc('(function (m, p) { m = m.getBoundingClientRect(); p = p.getBoundingClientRect(); return m.bottom <= p.bottom && m.height > 100; })' +
+        '(document.querySelector(".calc-stats-by .calc-conv-menu"), document.querySelector(".calc-stats"))'), t + 'the open list fits inside the panel');
+    await page.click('.calc-stats-by .calc-conv-item[data-i="0"]');
+    await page.calc('(function (i) { i.value = "4 8 15 16 23 42"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-stats-input"))');
     await page.click('.calc-fx-btn');
     check(await open(page, '.calc-fx') && !await open(page, '.calc-stats'), t + 'f(x) closes the statistics');
 
@@ -474,6 +505,17 @@ async function modeKey(page, at) {
     await page.calc('(function (i) { i.value = "-1.2,3-4e5"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-conv-value"))');
     check(await page.calc('document.querySelector(".calc-conv-value").value') === '-1,2345', t + 'a number box: one comma, a point typed is it',
         await page.calc('document.querySelector(".calc-conv-value").value'));
+    // a letter of a formula: typed with the comma, and 1,234 for it is 1.234 in the equation, not 1234
+    await page.type('\x1b');
+    await page.click('.calc-fx-btn');
+    await page.type('pythag\r1,234\r');
+    check(await page.calc('document.querySelector(".calc-fx-var input").value') === '1,234', t + 'a letter of a formula takes the comma',
+        await page.calc('document.querySelector(".calc-fx-var input").value'));
+    await page.type('0\r');
+    check(!await open(page, '.calc-fx') && /1,234/.test(await page.calc(raw)) && !/1\.234/.test(await page.calc(raw)),
+        t + 'the formula goes in with 1,234', await page.calc(raw));
+    await page.type('\r');
+    check(await page.calc(raw) === '1,234', t + 'and gives 1,234: the root of 1,234 squared', await page.calc(raw));
     await page.fresh(at, { format: { notation: 'fix', places: 2, group: 'spacecomma' } });
     await page.type('1234567,5\r');
     check(await page.calc(raw) === '1\u2009234\u2009567,50', t + 'thin spaces and a comma, in Fix 2', await page.calc(raw));

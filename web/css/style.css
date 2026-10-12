@@ -156,6 +156,47 @@ html {
     box-shadow: 0 0 0 2px #c9e0d3, 0 0 12px #36475a;
 }
 
+/* what is between the numbers: a small list at the top, beside the name of the panel */
+.calc-past-head .calc-stats-by {
+    flex: none;
+    margin-right: 4px;
+    padding: 1px 17px 1px 6px;
+    background-position: right 6px center;
+    background-size: 8px 5px;
+    box-shadow: none;
+    font-size: 11px;
+    line-height: 16px;
+}
+
+.calc-past-head .calc-stats-by .calc-conv-chosen {
+    font-weight: 400;
+}
+
+/* its label, quiet beside it */
+.calc-stats-by-label {
+    font-size: 11px;
+    opacity: 0.6;
+    white-space: nowrap;
+}
+
+/* the list of them opens over the numbers, small as well */
+.calc-stats-by .calc-conv-menu {
+    left: auto;
+    right: 0;
+    width: max-content;
+    padding: 2px;
+}
+
+.calc-stats-by .calc-conv-item {
+    padding: 1px 7px;
+    line-height: 17px;
+}
+
+/* the sign of each, after its name */
+.calc-stats-by b {
+    margin-left: 3px;
+}
+
 /* how many numbers, and what was left out */
 .calc-stats-note {
     min-height: 15px;
@@ -303,10 +344,11 @@ html {
 
 /* the name of a group: Geometry, Money … */
 .calc-fx-cat {
-    margin: 8px 2px 4px;
+    margin: 18px 2px 5px;
     color: #acb4c1;
     font-size: 11px;
     letter-spacing: 0.04em;
+    text-align: center;
     text-transform: uppercase;
 }
 

@@ -1824,6 +1824,32 @@ dels.forEach(function (c) {
         check(s.n === 4 && s.sum === 1241.5 && !s.bad.length, 'a list with decimal commas', JSON.stringify(s));
         check(usual.n === 4 && usual.sum === 13, 'and with a decimal point a comma is between two numbers, as before', JSON.stringify(usual));
     })();
+    // what is between the numbers of a list: found by itself, or the one chosen, and then only that
+    [
+        // [list, decimal comma, between, how many, sum, left out]
+        ['1\u2009234.5 10', false, undefined, 2, 1244.5],
+        ['1\u00A0234,5 10', true, 'auto', 2, 1244.5],
+        ['1\u202F234\u202F567 1', false, 'auto', 2, 1234568],
+        ['1 234.5 10', false, 'auto', 3, 245.5], // a space typed is between two numbers
+        ['1,234.5 10', false, 'auto', 3, 245.5],
+        ['1 234,5\n1.234,5\n-3', true, 'line', 3, 2466],
+        ['1,234.5\n1 234.5\n€ 10\n$1,200', false, 'line', 4, 3679],
+        ['4\t8\r\n15', false, 'line', 3, 27], // a row and a column of a spreadsheet
+        ['1,234.5 10 1.5', false, 'space', 3, 1246],
+        ['1.234,5 10', true, 'space', 2, 1244.5],
+        ['1,234.5; 1 000; 2', false, 'semi', 3, 2236.5],
+        ['1,5;2,5', true, 'semi', 2, 4],
+        ['1 234.5, 10, 2.5', false, 'comma', 3, 1247],
+        ['1.234, 10', true, 'comma', 2, 1244],
+        ['1 234,5\t10\n2', true, 'tab', 3, 1246.5],
+        ['1,234.5 | 10 | $2', false, 'pipe', 3, 1246.5],
+        ['1,5:2,5: 1 000', true, 'colon', 3, 1004],
+        ['abc\n12\n1 2', false, 'line', 1, 12, 'abc|1 2']
+    ].forEach(function (c) {
+        var s = Engine.stats(c[0], c[1], c[2]);
+        check(s.n === c[3] && s.sum === c[4] && s.bad.join('|') === (c[5] || ''),
+            'a list ' + JSON.stringify(c[0]) + ' apart by ' + (c[2] || 'auto') + (c[1] ? ', decimal comma' : ''), JSON.stringify(s));
+    });
     [
         [0.75, '3/4'], [1 / 3, '1/3'], [-7 / 4, '-7/4'], [0.1 + 0.2, '3/10'], [2 / 3 + 1 / 6, '5/6'],
         [Math.PI, null], [Math.SQRT2, null], [5, null], [0.123, '123/1000'], [1 / 7, '1/7'],
