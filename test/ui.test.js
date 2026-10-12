@@ -251,6 +251,18 @@ async function calculator(page, at) {
     await page.click('.calc-fx-btn');
     check(await open(page, '.calc-fx'), t + 'f(x) opens the panel');
     check(await page.calc('document.activeElement.className') === 'calc-fx-search', t + 'the search has the focus');
+    // the formulas are even: one height, each at the same place of its card, clear of its name
+    found = await page.calc('(function () { var bad = [], high = {}, mid = [];' +
+        ' [].forEach.call(document.querySelectorAll(".calc-fx-item"), function (item) {' +
+        ' var name = item.querySelector(".calc-fx-name"), eq = item.querySelector(".calc-fx-eq > span"), r = document.createRange(), n, e, c;' +
+        ' r.selectNodeContents(name); n = r.getBoundingClientRect(); e = eq.getBoundingClientRect(); c = item.getBoundingClientRect();' +
+        ' high[Math.round(c.height)] = 1;' +
+        ' mid.push((e.top + e.bottom - c.top - c.bottom) / 2);' +
+        ' if (eq.scrollWidth > eq.clientWidth) bad.push(name.textContent);' +
+        ' [].forEach.call(eq.querySelectorAll(".calc-fr"), function (fr) { var f = fr.getBoundingClientRect();' +
+        ' if (f.left < n.right + 2 && f.top < n.bottom - 2) bad.push(name.textContent); }); });' +
+        ' return Object.keys(high).length + "|" + (Math.max.apply(null, mid) - Math.min.apply(null, mid) <= 1) + "|" + bad.join(", "); })()');
+    check(found === '1|true|', t + 'every formula has the same height, at the same place of its card, clear of its name', found);
     await page.type('circle');
     check(await shown(page) === '5', t + 'typing in the search presses no keys', await shown(page));
     found = await page.calc('[].map.call(document.querySelectorAll(".calc-fx-item .calc-fx-name"), function (n) { return n.textContent; }).join("|")');
@@ -338,6 +350,29 @@ async function calculator(page, at) {
     check(/degrees/.test(await page.calc('document.querySelector(".calc-fx-note").textContent')), t + 'the note says the angles are in degrees');
     await page.type('2\r90\r\r');
     check(near(await value(page), Math.PI), t + 'a sector of 90° with r = 2 is π', await shown(page));
+
+    // a touch screen: no box is given the focus, so its keyboard stays down until one is touched
+    await page.send('Emulation.setTouchEmulationEnabled', { enabled: true });
+    await page.click('.calc-fx-btn');
+    check(await open(page, '.calc-fx') && await page.calc('document.activeElement.tagName') === 'BODY',
+        t + 'on a touch screen the search is left without the focus', await page.calc('document.activeElement.tagName'));
+    await page.click('.calc-fx-tab[data-tab="constants"]');
+    await page.click('.calc-fx-tab[data-tab="formulas"]');
+    check(await page.calc('document.activeElement.tagName') === 'BODY', t + 'and after another tab too');
+    await page.click('.calc-fx-row');
+    check(await page.calc('!!document.querySelector(".calc-fx-item.calc-on input") && document.activeElement.tagName') === 'BODY',
+        t + 'the boxes of a formula are left too');
+    await page.click('.calc-fx-search');
+    check(await page.calc('document.activeElement.className') === 'calc-fx-search', t + 'a touch on a box gives it the focus');
+    await page.type('sector\r');
+    check(await page.calc('!!document.activeElement.closest(".calc-fx-var")'), t + 'and with the keyboard up, the focus goes on to the next box');
+    await page.click('.calc-stat-btn');
+    check(await open(page, '.calc-stats') && await page.calc('document.activeElement.tagName') === 'BODY',
+        t + 'the list of the statistics is left without the focus');
+    await page.click('.calc-stats .calc-past-clear');
+    check(await page.calc('document.activeElement.tagName') === 'BODY', t + 'and after it is cleared');
+    await page.click('#box');
+    await page.send('Emulation.setTouchEmulationEnabled', { enabled: false });
 }
 
 // a choice in a list of the converter, by the start of its text: the list opened
@@ -559,19 +594,18 @@ async function converter(page, at) {
     check(await converted(page, 'miles') === '3.10685596119', t + '5 km is 3.10685596119 mi', await converted(page, 'miles'));
     check(await converted(page, 'kilometers') === null, t + 'its own unit is not in the list');
 
-    // an equation is worked out; typing in it presses no keys
+    // only a number can be typed in it, and typing in it presses no keys
     await page.calc('document.querySelector(".calc-conv-value").select()');
-    await page.type('2*3');
+    await page.type('6');
     check(await shown(page) === '5', t + 'typing in the value presses no keys', await shown(page));
-    check(await converted(page, 'meters') === '6,000', t + '2*3 km is 6,000 m', await converted(page, 'meters'));
-    // 2*3# is not read as 2, the number it starts with
-    await page.calc('(function (i) { i.value = "2*3#"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-conv-value"))');
-    note = await page.calc('document.querySelector(".calc-conv-note").textContent');
-    check(/Not a number/.test(note) && await page.calc('document.querySelector(".calc-conv-value").classList.contains("calc-bad")'),
-        t + 'a value it cannot read is marked', note);
-    check(await converted(page, 'meters') === '–', t + 'and has no values');
-    await page.key('Backspace', 8);
-    check(await converted(page, 'meters') === '6,000', t + 'without it, 6,000 m again', await converted(page, 'meters'));
+    check(await converted(page, 'meters') === '6,000', t + '6 km is 6,000 m', await converted(page, 'meters'));
+    await page.type('a*+#');
+    check(await page.calc('document.querySelector(".calc-conv-value").value') === '6', t + 'letters and signs are not taken',
+        await page.calc('document.querySelector(".calc-conv-value").value'));
+    await page.calc('(function (i) { i.value = "-1.2.3-4e5"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-conv-value"))');
+    check(await page.calc('document.querySelector(".calc-conv-value").value') === '-1.2345', t + 'one point and a minus first only',
+        await page.calc('document.querySelector(".calc-conv-value").value'));
+    await page.calc('(function (i) { i.value = "6"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-conv-value"))');
 
     // Enter puts in the first value, the meters
     await page.type('\r');
@@ -631,6 +665,16 @@ async function converter(page, at) {
     await page.click('.calc-conv-btn');
     await page.key('Escape', 27);
     check(!await open(page, '.calc-conv'), t + 'Esc closes the converter');
+
+    // a touch screen: the value is not given the focus, so its keyboard stays down
+    await page.send('Emulation.setTouchEmulationEnabled', { enabled: true });
+    await page.click('.calc-conv-btn');
+    check(await open(page, '.calc-conv') && await page.calc('document.activeElement.tagName') === 'BODY',
+        t + 'on a touch screen the value is left without the focus', await page.calc('document.activeElement.tagName'));
+    await page.click('.calc-conv-value');
+    check(await page.calc('document.activeElement.className') === 'calc-conv-value', t + 'a touch on it gives it the focus');
+    await page.key('Escape', 27);
+    await page.send('Emulation.setTouchEmulationEnabled', { enabled: false });
 }
 
 // the lines of the open menu, the ones that cannot be chosen in brackets; '' while it is closed

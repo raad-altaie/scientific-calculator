@@ -254,10 +254,8 @@
         },
         'MODE': {
             t: 'Number format',
-            d: 'Goes on to the next way of showing results: Normal, Fix (1500.00), Sci (1.50e+3), Eng (1.50e+3 in ' +
-                'steps of three) and Normal again. The display shows FIX 2, SCI 2 or ENG 2; the decimal places are ' +
-                'set on the options page. With Auto places, the first choice, it shows SCI or ENG and as many digits ' +
-                'as each result needs (1.5e+3), and Fix is as Normal.',
+            d: 'Steps through the ways of showing results: Normal, Fix (1500.00), Sci (1.50e+3) and Eng (powers ' +
+                'in steps of three). The decimal places are set on the options page.',
             k: 'o'
         },
         'a/b': {

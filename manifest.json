@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "Scientific Calculator",
-    "version": "2.2.0",
+    "version": "2.2.1",
     "author": "Raad Altaie",
     "description": "Awesome Scientific Calculator for your browser",
     "action": {

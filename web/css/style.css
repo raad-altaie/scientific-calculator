@@ -131,7 +131,7 @@ html {
 
 /* ---------- statistics ---------- */
 
-/* the list, on a piece of display; it takes the room the results leave */
+/* the list, a box to type in like the search; it takes the room the results leave */
 .calc-stats-input {
     flex: 1;
     min-height: 70px;
@@ -140,7 +140,7 @@ html {
     border: 0;
     border-radius: 5px;
     outline: none;
-    background: #b6d1c2;
+    background: #a9c4b5;
     box-shadow: 0 0 12px #36475a;
     color: #000;
     font: 15px/1.4 'Play', 'Russo One', sans-serif;
@@ -152,7 +152,8 @@ html {
 }
 
 .calc-stats-input:focus {
-    box-shadow: 0 0 0 2px #8eab9b, 0 0 12px #36475a;
+    background: #b3cdbf;
+    box-shadow: 0 0 0 2px #c9e0d3, 0 0 12px #36475a;
 }
 
 /* how many numbers, and what was left out */
@@ -261,14 +262,14 @@ html {
     font-weight: 700;
 }
 
-/* the search, on a piece of display like the list of the statistics */
+/* the search: a box to type in, the green of the display a little darker */
 .calc-fx-search {
     margin: 4px 8px 6px;
     padding: 5px 9px;
     border: 0;
     border-radius: 5px;
     outline: none;
-    background: #b6d1c2;
+    background: #a9c4b5;
     box-shadow: 0 0 12px #36475a;
     color: #000;
     font: 14px/18px 'Play', 'Russo One', sans-serif;
@@ -281,7 +282,8 @@ html {
 }
 
 .calc-fx-search:focus {
-    box-shadow: 0 0 0 2px #8eab9b, 0 0 12px #36475a;
+    background: #b3cdbf;
+    box-shadow: 0 0 0 2px #c9e0d3, 0 0 12px #36475a;
 }
 
 .calc-fx-list {
@@ -350,7 +352,7 @@ html {
     background: #a3bdaf;
 }
 
-/* its name, and under it the formula as it is written or the value of the constant */
+/* its name, and the formula as it is written or the constant with its value */
 .calc-fx-col {
     flex: 1;
     min-width: 0;
@@ -375,6 +377,55 @@ html {
     line-height: 21px;
 }
 
+/* a formula, or a constant as its symbol = its value: its name is a label at the top
+   left of its card, and the formula sits at the middle of the room under it. Every
+   card of formulas is as high as one with a fraction in it, two rows, so the list is even */
+.calc-fx-row:has(.calc-fx-eq) {
+    position: relative;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.calc-fx-row:has(.calc-fx-eq) .calc-fx-name {
+    position: absolute;
+    left: 9px;
+    top: 3px;
+    max-width: calc(100% - 18px);
+}
+
+.calc-fx-eq {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: content-box;
+    height: 46px;
+    padding-top: 8px; /* a fraction starts by the name, a formula of one row under it */
+    line-height: 17px;
+}
+
+/* a constant is one row: its card is only as high as its name and that row */
+.calc-fx-val {
+    height: 23px;
+    padding: 17px 0 4px;
+}
+
+.calc-fx-eq > span {
+    min-width: 0;
+    padding: 2px 0; /* the bar and the foot of a root are not cut */
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* a root is drawn as on the display, its bar over all that is under it */
+.calc-fx-f .calc-root {
+    margin-left: 0.72em; /* the foot of the sign keeps off the letter before it */
+}
+
+.calc-fx-f .calc-fr {
+    font-size: 0.85em;
+}
+
 .calc-fx-f sup,
 .calc-fx-f sub,
 .calc-fx-sym sup,
@@ -385,12 +436,11 @@ html {
     line-height: 0;
 }
 
-/* a constant: its symbol, its name and its value */
+/* the symbol of a constant, and the letter of a formula by its box */
 .calc-fx-sym {
     flex: none;
     width: 30px;
     font-size: 15px;
-    font-style: italic;
 }
 
 .calc-fx-unit {
@@ -401,13 +451,13 @@ html {
 
 /* the letters of an open formula: a box for each, then Insert */
 .calc-fx-form {
-    padding: 6px 9px 8px;
+    padding: 11px 9px 8px;
 }
 
 .calc-fx-var {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
     margin-bottom: 5px;
 }
 
@@ -424,7 +474,7 @@ html {
     border: 1px solid #8eab9b;
     border-radius: 4px;
     outline: none;
-    background: #d3e6db;
+    background: #a9c4b5;
     color: #000;
     font: 14px/18px 'Play', 'Russo One', sans-serif;
     -webkit-user-select: text;
@@ -432,12 +482,12 @@ html {
 }
 
 .calc-fx-var input::placeholder {
-    color: #6f8a7c;
+    color: #5b7768;
 }
 
 .calc-fx-var input:focus {
     border-color: #3a5872;
-    background: #e4f1e9;
+    background: #b3cdbf;
 }
 
 /* empty, or not a number the calculator can read */
@@ -487,14 +537,14 @@ html {
 
 /* ---------- converter ---------- */
 
-/* what to convert, and the value with its unit, on pieces of display like the search */
+/* what to convert, and the value with its unit: boxes like the search */
 .calc-conv-pick,
 .calc-conv-value {
     min-width: 0;
     border: 0;
     border-radius: 5px;
     outline: none;
-    background: #b6d1c2;
+    background: #a9c4b5;
     box-shadow: 0 0 12px #36475a;
     color: #000;
     font: 14px/18px 'Play', 'Russo One', sans-serif;
@@ -546,12 +596,16 @@ html {
 
 .calc-conv-pick:hover,
 .calc-conv-pick.calc-on {
-    background-color: #a3bdaf;
+    background-color: #b3cdbf;
 }
 
 .calc-conv-pick:focus,
 .calc-conv-value:focus {
-    box-shadow: 0 0 0 2px #8eab9b, 0 0 12px #36475a;
+    box-shadow: 0 0 0 2px #c9e0d3, 0 0 12px #36475a;
+}
+
+.calc-conv-value:focus {
+    background: #b3cdbf;
 }
 
 /* the open list: a piece of display under it, at least as wide; the one of the
@@ -903,13 +957,13 @@ html {
 /* the x at the top right corner of a calculation, while the pointer is over it */
 .calc-past-del {
     position: absolute;
-    top: -3px;
-    right: -4px;
+    top: -5px;
+    right: -5px;
     display: none;
     align-items: center;
     justify-content: center;
-    width: 14px;
-    height: 14px;
+    width: 18px;
+    height: 18px;
     border-radius: 50%;
     background: #4a5f73;
     color: #d3d9e2;
@@ -991,6 +1045,13 @@ html {
    shade of selected text gets smaller with it; the room above and below keeps
    it 46px, the text in the middle */
 #box {
+    --edge-l: 8px; /* the room at the sides of the line, which the dots cover */
+    --edge-r: 7px;
+    --dots-gap: 8px; /* from the edge of the solid box of the dots to the small one in it: where the dots were before it */
+    --pill-h: calc(100% - 24px); /* the small box: as high as the digits, in the middle of the line, and of a tall one */
+    --pill-y: 12px;
+    --dots-pad: 0.25em; /* between the small box and the dots */
+    --dots-up: 0.2em; /* the dots are low in their glyph: this lifts them to the middle of the small box */
     --calc-line: 46px;
     --calc-lead: calc(23px - var(--calc-line) / 2);
     display: block;
@@ -1018,30 +1079,91 @@ html {
     cursor: grab;
 }
 
+/* room after the last character: the padding of a line that scrolls is not
+   scrolled to, so the end of the line gets a spacer that is */
+:where(#box)::after,
+.calc-log::after {
+    content: '';
+    display: inline-block;
+    vertical-align: top;
+    width: 7px;
+}
+
+.calc-log::after {
+    width: 8px;
+}
+
+/* the dots: a solid box, square, out to the edge of the line and past it by 2px,
+   which clips it, and over the whole height of the line, so nothing shows round
+   the dots and a selection ends square against it. In it a small round box,
+   drawn as its picture, the height of the digits and in the middle of them */
 .calc-more-left::before,
 .calc-more-right::after {
     content: '…';
+    width: auto;
+    text-indent: 0; /* not the indent of the line */
     position: absolute;
     z-index: 1; /* over the cursor and anything else that blinks or is animated under it */
     top: 0;
-    bottom: 0; /* the whole height of the line, so no digit shows above or below the dots */
+    bottom: 0;
     display: flex;
     align-items: center;
-    background: #b6d1c2;
+    background-color: #b6d1c2;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'%3E%3Crect x='.5' y='.5' style='width:calc(100%25 - 1px);height:calc(100%25 - 1px)' rx='6.5' ry='6.5' fill='none' stroke='%23a3bdaf' stroke-width='1'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-size: calc(100% - 2px - 2 * var(--dots-gap)) var(--pill-h);
 }
 
 .calc-more-left::before {
-    left: var(--slid); /* from the very edge of the display */
-    padding: 0 0.1em 0 calc(8px + 0.1em);
-    border-right: 0.35em solid transparent; /* the box goes past the dots, over what they cut */
-    background-clip: border-box;
+    left: calc(var(--slid) - 2px);
+    padding: 0 calc(var(--dots-gap) + var(--dots-pad)) var(--dots-up) calc(2px + var(--dots-gap) + var(--dots-pad));
+    background-position: calc(2px + var(--dots-gap)) var(--pill-y);
 }
 
 .calc-more-right::after {
-    right: calc(0px - var(--slid));
-    padding: 0 calc(7px + 0.1em) 0 0.1em;
-    border-left: 0.35em solid transparent;
-    background-clip: border-box;
+    right: calc(0px - var(--slid) - 2px);
+    padding: 0 calc(2px + var(--dots-gap) + var(--dots-pad)) var(--dots-up) calc(var(--dots-gap) + var(--dots-pad));
+    background-position: right calc(2px + var(--dots-gap)) top var(--pill-y);
+}
+
+.calc-edge-left::before,
+.calc-edge-right::after {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100%25' height='100%25'%3E%3Crect x='.5' y='.5' style='width:calc(100%25 - 1px);height:calc(100%25 - 1px)' rx='6.5' ry='6.5' fill='none' stroke='%235b7768' stroke-width='1'/%3E%3C/svg%3E");
+}
+
+/* nothing at all is drawn in a strip on any of the four sides of a line that
+   slides: not at its top or its bottom, nor at its ends; at an end with more
+   beyond it, up to the small box of the dots. The line is masked as a whole,
+   solid box and text together, which a clip at a half pixel does not do (it left
+   a thread of text) */
+.calc-slide {
+    --mask-l: 1px;
+    --mask-r: 1px;
+    -webkit-mask-image:
+        linear-gradient(to right, transparent var(--mask-l), #000 var(--mask-l)),
+        linear-gradient(to left, transparent var(--mask-r), #000 var(--mask-r)),
+        linear-gradient(to bottom, transparent 1px, #000 1px),
+        linear-gradient(to top, transparent 1px, #000 1px);
+    mask-image:
+        linear-gradient(to right, transparent var(--mask-l), #000 var(--mask-l)),
+        linear-gradient(to left, transparent var(--mask-r), #000 var(--mask-r)),
+        linear-gradient(to bottom, transparent 1px, #000 1px),
+        linear-gradient(to top, transparent 1px, #000 1px);
+    -webkit-mask-composite: source-in;
+    mask-composite: intersect;
+}
+
+.calc-slide.calc-more-left {
+    --mask-l: calc(var(--dots-gap) - 1px);
+}
+
+.calc-slide.calc-more-right {
+    --mask-r: calc(var(--dots-gap) - 1px);
+}
+
+.calc-slide.calc-edge-left,
+.calc-slide.calc-edge-right {
+    cursor: pointer;
 }
 
 #box sup,
@@ -1058,11 +1180,19 @@ html {
 
 /* the finished equation, at the right above the result */
 .calc-log {
+    --edge-l: 8px;
+    --edge-r: 8px;
+    --dots-gap: 5px; /* from the edge of the solid box to the small one: room for it to breathe, away from the icons and the text */
+    --pill-h: 18px;
+    --dots-pad: 0.3em;
+    --pill-y: 4px; /* the text is 28px high, at the top of the 32 */
+    --dots-up: calc(0.2em + 11px);
     position: absolute;
     z-index: 1;
-    left: calc(var(--tools, 0) * 22px); /* clear of the buttons at the top left: main.js counts them */
+    left: calc(3px + var(--tools, 0) * 22px); /* clear of the buttons at the top left: main.js counts them */
     right: 0;
-    padding: 0 8px; /* the room at the sides is inside, so the dots cover it */
+    padding: 0 8px 0 0; /* the room at the right is inside, so the dots cover it */
+    text-indent: 5px; /* the line starts 5px from the buttons, as before the dots moved left */
     top: 3px;
     height: 32px;
     line-height: 28px;

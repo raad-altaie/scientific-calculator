@@ -350,6 +350,21 @@
         if (sel.rangeCount && !sel.isCollapsed && sel.getRangeAt(0).intersectsNode(display)) sel.removeAllRanges();
     }
 
+    // a formula's drawn fractions as a ÷ b, a part with spaces in brackets, and its roots as √(…)
+    function fractionsAsText(html) {
+        var box = document.createElement('div');
+        box.innerHTML = html;
+        [].slice.call(box.querySelectorAll('.calc-fr, .calc-root')).reverse().forEach(function (el) { // the innermost first
+            var span = document.createElement('span');
+            span.innerHTML = el.classList.contains('calc-root') ? '√(' + el.innerHTML + ')' :
+                [].slice.call(el.children).map(function (part) {
+                    return /\s/.test(part.textContent) ? '(' + part.innerHTML + ')' : part.innerHTML;
+                }).join(' ÷ ');
+            el.replaceWith(span);
+        });
+        return box.innerHTML;
+    }
+
     // what is drawn, HTML or an element, as text: raised and lowered numbers as ² and ₂
     function plain(what) {
         var box = what;
@@ -599,7 +614,7 @@
                 ];
             }
             return [
-                ['Copy', function () { copy(plain(k.f)); }],
+                ['Copy', function () { copy(plain(fractionsAsText(k.f))); }],
                 row.classList.contains('calc-on') ? ['Insert', function () { insertFormula(row); }] :
                     ['Open', function () { openFormula(row); }]
             ];
@@ -784,6 +799,15 @@
         panel.style.width = shown.width + 2 + 'px';
     }
 
+    // A box of a panel gets the focus, to type in. A touch screen brings its keyboard
+    // up over the panel at that, so there the box is left until it is touched,
+    // unless the keyboard is up already for another box
+    function focusBox(box) {
+        if (window.matchMedia('(hover: none)').matches && !/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) return false;
+        box.focus();
+        return true;
+    }
+
     // ---------------- statistics ---------------- //
 
     // A list of numbers, typed or pasted, and what it gives: n, the sums, the
@@ -806,7 +830,7 @@
         statsInput.value = '';
         renderStats();
         saveState();
-        statsInput.focus();
+        focusBox(statsInput);
     }, false);
 
     statsInput.addEventListener('input', function () {
@@ -834,8 +858,7 @@
         stats.classList.toggle('calc-open', open);
         statsButton.classList.toggle('calc-on', open);
         if (open) {
-            statsInput.focus();
-            statsInput.setSelectionRange(statsInput.value.length, statsInput.value.length);
+            if (focusBox(statsInput)) statsInput.setSelectionRange(statsInput.value.length, statsInput.value.length);
         } else if (document.activeElement === statsInput) {
             statsInput.blur(); // the keys are the calculator's again
         }
@@ -895,7 +918,7 @@
         store('fxTab', fxTab);
         fxSearch.value = ''; // a search is for one list
         renderFx();
-        fxSearch.focus();
+        focusBox(fxSearch);
     }, false);
 
     fxSearch.addEventListener('input', renderFx, false);
@@ -911,7 +934,23 @@
         else openFormula(item.classList.contains('calc-on') ? null : item);
     }, false);
 
+    // a number box keeps only what a number is made of: digits, one point, a minus first;
+    // marks: the °′″ of an angle
+    function onlyNumber(input, marks) {
+        var v = input.value, at = input.selectionStart, clean = '', point = false, n, c;
+        for (n = 0; n < v.length; n++) {
+            c = v.charAt(n);
+            if (/\d/.test(c) || (marks && /[°′″]/.test(c)) || (c === '-' && !clean) || (c === '.' && !point && (point = true))) clean += c;
+            else if (n < at) at--;
+        }
+        if (clean !== v) {
+            input.value = clean;
+            input.setSelectionRange(at, at);
+        }
+    }
+
     fxList.addEventListener('input', function (e) {
+        onlyNumber(e.target);
         var note = e.target.closest('.calc-fx-form').querySelector('.calc-fx-note');
         e.target.classList.remove('calc-bad');
         note.classList.remove('calc-fx-warn'); // a value changed: the usual note again
@@ -952,8 +991,7 @@
         fx.classList.toggle('calc-open', open);
         fxButton.classList.toggle('calc-on', open);
         if (open) {
-            fxSearch.focus();
-            fxSearch.select(); // typing replaces the last search
+            if (focusBox(fxSearch)) fxSearch.select(); // typing replaces the last search
         } else if (fx.contains(document.activeElement)) {
             document.activeElement.blur(); // the keys are the calculator's again
         }
@@ -972,10 +1010,13 @@
             if (!words.every(function (w) { return entry.words.indexOf(w) > -1; })) return;
             if (entry.c !== group) html += '<div class="calc-fx-cat">' + entry.c + '</div>';
             group = entry.c;
+            // a constant is written as a formula is: its symbol = its value, a root drawn
             html += '<div class="calc-fx-item" data-i="' + i + '"><div class="calc-fx-row">' +
-                (fxTab === 'constants' ? '<span class="calc-fx-sym">' + it.s + '</span>' : '') +
-                '<span class="calc-fx-col"><span class="calc-fx-name">' + it.t + '</span><span class="calc-fx-f">' +
-                (fxTab === 'constants' ? constantValue(it) : it.f) + '</span></span></div></div>';
+                '<span class="calc-fx-col"><span class="calc-fx-name">' + it.t + '</span>' +
+                '<span class="calc-fx-f calc-fx-eq' + (fxTab === 'constants' ? ' calc-fx-val' : '') + '"><span>' +
+                (fxTab === 'constants' ? '<span class="calc-fx-sym">' +
+                    it.s.replace(/√(\w+)/, '<span class="calc-root">$1</span>') + '</span> = ' + constantValue(it) : it.f) +
+                '</span></span></span></div></div>';
         });
         fxList.innerHTML = html || '<div class="calc-fx-none">Nothing found</div>';
         fxList.scrollTop = 0;
@@ -1006,7 +1047,7 @@
         form.className = 'calc-fx-form';
         form.innerHTML = f.v.map(function (v) {
             return '<label class="calc-fx-var"><span class="calc-fx-sym">' + v[1] + '</span>' +
-                '<input type="text" inputmode="decimal" spellcheck="false" autocomplete="off" maxlength="40" placeholder="' +
+                '<input type="text" inputmode="decimal" pattern="-?[0-9]*\\.?[0-9]*" spellcheck="false" autocomplete="off" maxlength="40" placeholder="' +
                 v[2] + '"></label>';
         }).join('') + '<div class="calc-fx-actions"><span class="calc-fx-note">' +
             (f.deg ? 'Angles in ' + ['radians', 'degrees', 'gradians'][deg] + ', the unit in use' : '') +
@@ -1017,8 +1058,7 @@
         if (!engine.edit && !engine.error && (engine.done || engine.plain()) && +engine.value) {
             first.value = String(+(+engine.value).toPrecision(13));
         }
-        first.focus();
-        first.select();
+        if (focusBox(first)) first.select();
         item.scrollIntoView({ block: 'nearest' });
     }
 
@@ -1050,7 +1090,7 @@
             s = null;
         }
         if (s === null) {
-            (item.querySelector('.calc-bad') || inputs[0]).focus();
+            focusBox(item.querySelector('.calc-bad') || inputs[0]);
             return;
         }
         keyBoard['AC'].children[0].firstChild.data = 'C';
@@ -1113,6 +1153,7 @@
     }, false);
 
     convInput.addEventListener('input', function () {
+        onlyNumber(convInput, true); // the degree, minute and second of an angle too
         renderConv();
         saveConv();
     }, false);
@@ -1151,8 +1192,7 @@
         showPicker(convGroup, false);
         showPicker(convUnit, false);
         if (open) {
-            convInput.focus();
-            convInput.select(); // typing replaces it
+            if (focusBox(convInput)) convInput.select(); // typing replaces it
         } else if (conv.contains(document.activeElement)) {
             document.activeElement.blur(); // the keys are the calculator's again
         }
@@ -1240,7 +1280,7 @@
     function choosePicker(el, i) {
         showPicker(el, false);
         if (i !== el.at) el.pick(i);
-        convInput.focus();
+        focusBox(convInput);
     }
 
     // the unit's name is kept, not its place, so a unit added later does not change the choice
@@ -1362,7 +1402,7 @@
             pastButtons(res, 'result');
             del = row.appendChild(document.createElement('span'));
             del.className = 'calc-past-del';
-            del.innerHTML = '<svg viewBox="0 0 16 16" width="8" height="8" fill="none" stroke="currentColor" ' +
+            del.innerHTML = '<svg viewBox="0 0 16 16" width="10" height="10" fill="none" stroke="currentColor" ' +
                 'stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg>';
             pastList.appendChild(row);
         }
@@ -1398,7 +1438,7 @@
         box.innerHTML =
             '<span class="calc-past-btn" data-act="insert">' +
             '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" ' +
-            'stroke-linecap="round" stroke-linejoin="round"><path d="M13 3v5a2 2 0 0 1-2 2H3" /><path d="M6 7l-3 3 3 3" /></svg>' +
+            'stroke-linecap="round" stroke-linejoin="round"><path d="M3 13h5a2 2 0 0 0 2-2V3" /><path d="M7 6l3-3 3 3" /></svg>' +
             '</span>' +
             '<span class="calc-past-btn" data-act="copy">' +
             '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" ' +
@@ -1458,10 +1498,39 @@
     // fits, and held still for a moment first it slides the line, to see the rest
     // of it. A finger does the other way round: it slides, and after a hold it selects.
     // The line above a result is not selected: it slides at once, and a double click opens it in the display
+    // which dots, if any, are at x of a line: the box of them is solid out to the
+    // edge of the line, and a click on it goes to that end
+    function edgeAt(el, x) {
+        var box = el.getBoundingClientRect(), side, st, w;
+
+        for (side = 0; side < 2; side++) {
+            if (!el.classList.contains(side ? 'calc-more-right' : 'calc-more-left')) continue;
+            st = getComputedStyle(el, side ? '::after' : '::before');
+            w = parseFloat(st.width) + parseFloat(st.paddingLeft) + parseFloat(st.paddingRight);
+            if (side ? x > box.right - w : x < box.left + w) return side ? 'right' : 'left';
+        }
+        return '';
+    }
+
+    // slides a line to its start or its end
+    function goEdge(el, side) {
+        var from = el.scrollLeft, to = side === 'left' ? 0 : el.scrollWidth, t0 = null;
+
+        function step(t) {
+            var k;
+            if (t0 === null) t0 = t;
+            k = Math.min(1, (t - t0) / 200);
+            slide(el, from + (to - from) * (1 - Math.pow(1 - k, 3)));
+            if (k < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+    }
+
     [display, logline].forEach(function (el) {
         el.addEventListener('pointerdown', function (e) {
             slid = false;
             endHold();
+            if (edgeAt(el, e.clientX)) return; // a click on the dots, not a slide or a selection
             if (el.scrollWidth <= el.clientWidth || e.button) return; // a right click keeps what is selected, for the menu
             if (el === logline) return startSlide(el, e.clientX);
             window.getSelection().removeAllRanges(); // as a press in a line that fits does
@@ -1476,8 +1545,20 @@
 
         // a click in the equation puts the cursor there; on the line above a
         // result it puts the cursor into that finished equation
+        el.addEventListener('pointermove', function (e) { // the dots under the pointer light up
+            var side = edgeAt(el, e.clientX);
+            el.classList.toggle('calc-edge-left', side === 'left');
+            el.classList.toggle('calc-edge-right', side === 'right');
+        }, false);
+
+        el.addEventListener('pointerleave', function () {
+            el.classList.remove('calc-edge-left', 'calc-edge-right');
+        }, false);
+
         el.addEventListener('click', function (e) {
-            var again;
+            var again, edge = edgeAt(el, e.clientX);
+
+            if (edge) return goEdge(el, edge);
             // the second click of two: the first one put the cursor in, and wrote the line again
             if (e.detail === 2 && !slid && el === display) return pickValue(el, e.clientX, e.clientY);
             if (slid || (el === display && !window.getSelection().isCollapsed)) return; // a slide or a selection, not a click
@@ -1860,6 +1941,15 @@
         el.classList.toggle('calc-more-right', el.scrollLeft < max - 1);
     }
 
+    // the dots follow the line however it moves: the browser can scroll it on
+    // its own (a font that loads late, the width changing), and the box of the
+    // dots, set once, would be left where the line was, and show a cut digit
+    [display, logline].forEach(function (el) {
+        el.addEventListener('scroll', function () {
+            el.style.setProperty('--slid', el.scrollLeft + 'px');
+        });
+    });
+
     function doKey(text, alt) {
         var key = keyBoard[text]; // text = key.textContent.replace(/\s*/g, '');
 
@@ -1938,13 +2028,13 @@
             fit();
         }
         logline.innerHTML = !engine.edit && (engine.error || engine.done) ? eq : '';
-        slide(logline, logline.scrollWidth);
         mem.textContent = engine.memory ? 'M' : '';
         fracMark.textContent = fracMode ? 'FRAC' : dmsMode ? 'DMS' : '';
         keyBoard['a/b'].classList.toggle('calc-lit', fracMode); // a red dot on the key of the mode that is on
         keyBoard['°′″'].classList.toggle('calc-lit', dmsMode);
         pastButton.hidden = !engine.past.length; // shown once there is a history
         showTools();
+        slide(logline, logline.scrollWidth); // after the tools: they take room from the line, and its end must be in view
         if (stats.classList.contains('calc-open')) renderStats(); // the number format or fraction mode may have changed
         if (past.classList.contains('calc-open') && (pastShown.list !== engine.past || pastShown.mode !== shownMode() ||
             pastShown.n !== engine.past.length || pastShown.last !== engine.past[engine.past.length - 1])) {
@@ -1953,6 +2043,10 @@
     }
 
     loadState();
+
+    // the lines are measured with the font they are shown in: once it has loaded
+    // they are measured again, or their end could be left out of view
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(refresh);
 
 })(window);
 
