@@ -1757,7 +1757,13 @@ dels.forEach(function (c) {
         ['12345 + 6789 × 0.5', '12,345 + 6,789 × 0.5']
     ].forEach(function (c) {
         check(Engine.group(c[0]) === c[1], 'group ' + c[0], Engine.group(c[0]));
+        check(Engine.group(c[0], true) === c[1], 'group ' + c[0] + ' with commas', Engine.group(c[0], true));
+        check(Engine.group(c[0], 'space') === c[1].replace(/,/g, '\u202F'), 'group ' + c[0] + ' with spaces', Engine.group(c[0], 'space'));
     });
+    (function () { // what is shown with spaces pastes back as the same number
+        var e = new Engine();
+        check(e.paste(Engine.group('1234567.891', 'space')) && e.value === '1234567.891', 'a number grouped with spaces pastes back', e.value);
+    })();
     [
         [0.75, '3/4'], [1 / 3, '1/3'], [-7 / 4, '-7/4'], [0.1 + 0.2, '3/10'], [2 / 3 + 1 / 6, '5/6'],
         [Math.PI, null], [Math.SQRT2, null], [5, null], [0.123, '123/1000'], [1 / 7, '1/7'],

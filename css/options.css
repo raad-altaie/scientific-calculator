@@ -456,14 +456,6 @@ html, body {
     cursor: default;
 }
 
-.format-group {
-    display: flex;
-    align-items: center;
-    gap: 0.6em;
-    margin-left: 0.4em;
-    cursor: pointer;
-}
-
 /* phones: less space around the page, and the options stack where they don't fit */
 @media (max-width: 600px) {
     .wrapper {
@@ -501,10 +493,6 @@ html, body {
 
     .format-option {
         padding-bottom: 0.6em;
-    }
-
-    .format-group {
-        margin-left: 0;
     }
 
     .launch {

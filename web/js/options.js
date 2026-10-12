@@ -36,6 +36,10 @@ for (let n = 0; n <= 9; n++) {
     places.add(new Option(n + (n === 1 ? ' decimal place' : ' decimal places'), n));
 }
 
+// kept as the calculator reads it: true for commas, as it was while they were the only ones
+const groupOf = { '': false, comma: true, space: 'space' };
+const groupIn = (f) => (f.group === 'space' ? 'space' : f.group ? 'comma' : '');
+
 const placesOf = (f) => (Number.isInteger(f.places) && f.places >= 0 && f.places <= 9 ? String(f.places) : 'auto');
 
 const readFormat = () => {
@@ -49,11 +53,11 @@ const readFormat = () => {
 const shown1500 = (f) => {
     const s = CalcEngine.format(1500, f) || '1500';
 
-    return f.group ? CalcEngine.group(s) : s;
+    return f.group ? CalcEngine.group(s, f.group) : s;
 };
 
 const showFormat = () => {
-    const f = { notation: notation.value, places: places.value === 'auto' ? 'auto' : +places.value, group: group.checked };
+    const f = { notation: notation.value, places: places.value === 'auto' ? 'auto' : +places.value, group: groupOf[group.value] };
     places.disabled = f.notation === 'norm';
     // the icon shows 1,500 the way the chosen format writes it
     icon.textContent = shown1500(f);
@@ -63,7 +67,7 @@ const showFormat = () => {
 const format = readFormat();
 notation.value = /^(fix|sci|eng)$/.test(format.notation) ? format.notation : 'norm';
 places.value = placesOf(format);
-group.checked = !!format.group;
+group.value = groupIn(format);
 showFormat();
 
 [notation, places, group].forEach((el) => {
@@ -80,7 +84,7 @@ window.addEventListener('storage', (e) => {
     const f = readFormat();
     notation.value = /^(fix|sci|eng)$/.test(f.notation) ? f.notation : 'norm';
     places.value = placesOf(f);
-    group.checked = !!f.group;
+    group.value = groupIn(f);
     showFormat();
 });
 

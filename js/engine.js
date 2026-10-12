@@ -972,10 +972,11 @@
         });
     }
 
-    // commas between the thousands of each number in a line: 1,234,567.891
-    function group(s) {
+    // commas between the thousands of each number in a line: 1,234,567.891; with
+    // how 'space', narrow spaces that do not break the line: 1 234 567.891
+    function group(s, how) {
         return s.replace(/(?<![\d.])\d{4,}/g, function (d) {
-            return d.replace(/\B(?=(\d{3})+$)/g, ',');
+            return d.replace(/\B(?=(\d{3})+$)/g, how === 'space' ? '\u202F' : ',');
         });
     }
 

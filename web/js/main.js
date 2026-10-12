@@ -13,7 +13,7 @@
         fracMark = Calc.querySelector('.calc-frac'), // FRAC while fraction mode is on, DMS while °′″ is
         secondKeySet, // the keys the 2nd key changes, found by their names below
         CURSOR = '<span class="calc-cursor"></span>',
-        fmt = { notation: 'norm', places: 'auto', group: false }, // set on the options page
+        fmt = { notation: 'norm', places: 'auto', group: false }, // set on the options page; group: true for commas, 'space'
         fracMode = false, // a/b: divisions drawn as fractions, and results shown as fractions when they are one
         dmsMode = false, // °′″, the 2nd of a/b: results shown in degrees, minutes and seconds
         slid = false, // the pointer moved along a long line, to slide it or select in it, so it was not a click
@@ -328,7 +328,7 @@
             var part = all.cloneRange(), where = all.comparePoint(node, offset);
             if (where < 0) return 0;
             if (!where) part.setEnd(node, offset);
-            return part.toString().replace(engine.edit ? '' : /,/g, '').length; // not the commas between the thousands
+            return part.toString().replace(engine.edit ? '' : /[,\u202F]/g, '').length; // not the commas or spaces between the thousands
         }
 
         if (!sel.rangeCount || sel.isCollapsed) return null;
@@ -1027,7 +1027,7 @@
     // number up to a trillion too: 299,792,458. Shown to 12 digits; it is put in whole
     function constantValue(k) {
         var a = Math.abs(k.v), parts = (+k.v.toPrecision(12)).toExponential().split('e'),
-            shown = a >= (k.v % 1 ? 1e6 : 1e12) || a < 1e-3 ? parts[0] + ' × 10<sup>' + +parts[1] + '</sup>' : CalcEngine.group(String(+k.v.toPrecision(12)));
+            shown = a >= (k.v % 1 ? 1e6 : 1e12) || a < 1e-3 ? parts[0] + ' × 10<sup>' + +parts[1] + '</sup>' : CalcEngine.group(String(+k.v.toPrecision(12)), fmt.group);
         return shown.replace(/-/g, '−') + (k.u ? '<span class="calc-fx-unit">' + k.u + '</span>' : '');
     }
 
@@ -1333,7 +1333,7 @@
     function convValue(v) {
         var a = Math.abs(v), parts = (+v.toPrecision(12)).toExponential().split('e');
         return (a && (a >= 1e15 || a < 1e-6) ? parts[0] + ' × 10<sup>' + +parts[1] + '</sup>' :
-            CalcEngine.group(String(+v.toPrecision(12)))).replace(/-/g, '−');
+            CalcEngine.group(String(+v.toPrecision(12)), fmt.group)).replace(/-/g, '−');
     }
 
     function saveConv() {
@@ -1390,7 +1390,7 @@
             eq.className = 'calc-past-eq';
             pastButtons(eq, 'equation');
             line = eq.appendChild(document.createElement('span')); // keeps its order in the right to left box
-            line.innerHTML = fmt.group ? CalcEngine.group(p.line) : p.line; // made by the engine, like the equation in the display
+            line.innerHTML = fmt.group ? CalcEngine.group(p.line, fmt.group) : p.line; // made by the engine, like the equation in the display
             if (p.unit) { // its angles are worked out in this unit again
                 unit = line.insertBefore(document.createElement('span'), line.firstChild);
                 unit.className = 'calc-past-unit';
@@ -1415,15 +1415,15 @@
     function shownResult(entry, usual) {
         var value = entry.value, x = +value, f = entry.frac && CalcEngine.fraction(x), parts,
             s = entry.dms && CalcEngine.dms(x);
-        if (s) return { html: fmt.group ? CalcEngine.group(s) : s, text: s };
+        if (s) return { html: fmt.group ? CalcEngine.group(s, fmt.group) : s, text: s };
         if (f) {
             parts = [String(Math.abs(f[0])), String(f[1])].map(function (part) {
-                return fmt.group ? CalcEngine.group(part) : part;
+                return fmt.group ? CalcEngine.group(part, fmt.group) : part;
             });
             return { html: (f[0] < 0 ? '-' : '') + CalcEngine.stack(parts[0], parts[1]), text: f[0] + '/' + f[1] };
         }
         s = CalcEngine.format(x, fmt) || usual;
-        return { html: fmt.group ? CalcEngine.group(s) : s, text: value };
+        return { html: fmt.group ? CalcEngine.group(s, fmt.group) : s, text: value };
     }
 
     // the number format the history is shown in, to know when to show it again
@@ -1839,7 +1839,7 @@
             if (frac) { // drawn as a fraction, and copied as 3/4
                 resBuffer = frac[0] + '/' + frac[1];
                 tmp = [String(Math.abs(frac[0])), String(frac[1])].map(function (part) {
-                    return fmt.group ? CalcEngine.group(part) : part;
+                    return fmt.group ? CalcEngine.group(part, fmt.group) : part;
                 });
                 drawn = (frac[0] < 0 ? '-' : '') + CalcEngine.stack(tmp[0], tmp[1]);
             } else if (angle) { // and copied so
@@ -1847,7 +1847,7 @@
             } else if (!inp) {
                 tmp = CalcEngine.format(x, fmt) || tmp;
             }
-            if (fmt.group && !frac) tmp = CalcEngine.group(tmp);
+            if (fmt.group && !frac) tmp = CalcEngine.group(tmp, fmt.group);
         }
         if (drawn) display.innerHTML = drawn;
         else display.textContent = tmp;
@@ -1885,13 +1885,13 @@
     }
 
     // the number format from the options page: Norm, Fix, Sci or Eng, the
-    // digits after the point or Auto, and commas between the thousands
+    // digits after the point or Auto, and commas or spaces between the thousands
     function setFormat(f) {
         f = f || {};
         fmt = {
             notation: /^(fix|sci|eng)$/.test(f.notation) ? f.notation : 'norm',
             places: Number.isInteger(f.places) ? Math.max(0, Math.min(9, f.places)) : 'auto', // Auto, as the options page starts
-            group: !!f.group
+            group: f.group === 'space' ? 'space' : !!f.group
         };
         fmtMark.textContent = fmt.notation === 'norm' ? '' : fmt.notation.toUpperCase() + (fmt.places === 'auto' ? '' : ' ' + fmt.places);
     }
@@ -2006,7 +2006,7 @@
     function refresh() {
         var eq = engine.equation(fracMode), view;
 
-        if (fmt.group && !engine.edit) eq = CalcEngine.group(eq);
+        if (fmt.group && !engine.edit) eq = CalcEngine.group(eq, fmt.group);
         if (engine.edit) { // the equation with the cursor in it
             view = engine.editView();
             resBuffer = engine.value;

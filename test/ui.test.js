@@ -416,6 +416,23 @@ async function modeKey(page, at) {
     check(await mark() === 'FIX 2' && await shown(page) === '1500.00', t + 'Fix 2', await mark() + ' ' + await shown(page));
     await page.click(MODE);
     check(await mark() === 'SCI 2' && await shown(page) === '1.50e+3', t + 'and Sci 2', await mark() + ' ' + await shown(page));
+    // the thousands apart by commas, or by narrow spaces that do not break the line
+    var raw = 'document.getElementById("box").textContent.trim()';
+    await page.fresh(at, { format: { notation: 'norm', places: 'auto', group: true } });
+    await page.type('1234567\r');
+    check(await page.calc(raw) === '1,234,567', t + 'separators: commas', await page.calc(raw));
+    await page.fresh(at, { format: { notation: 'norm', places: 'auto', group: 'space' } });
+    await page.type('1234567\r');
+    check(await page.calc(raw) === '1\u202F234\u202F567', t + 'separators: narrow spaces', await page.calc(raw));
+    await page.type('\x1b1234567+89');
+    check(await page.calc(raw) === '1\u202F234\u202F567 + 89', t + 'in the equation as it is typed too', await page.calc(raw));
+    // a part selected in it is where a key writes: the spaces between the thousands are not counted
+    await page.calc('(function () { var box = document.getElementById("box"), walk = document.createTreeWalker(box, NodeFilter.SHOW_TEXT), ' +
+        'last, node, range = document.createRange(); while ((node = walk.nextNode())) if (/\\d/.test(node.data)) last = node; ' +
+        'range.setStart(last, last.data.length - 2); range.setEnd(last, last.data.length); ' +
+        'getSelection().removeAllRanges(); getSelection().addRange(range); })()');
+    await page.type('5');
+    check(await page.calc(raw) === '1\u202F234\u202F567 + 5', t + 'a key over the selected 89 replaces it', await page.calc(raw));
     await page.fresh(at, {});
     check(await page.calc('[].some.call(document.querySelectorAll(".calc-left > *"), function (k) { return /[◀▶]/.test(k.textContent); })') === false,
         t + 'no cursor keys');
@@ -1069,6 +1086,22 @@ async function options(page) {
     check(await page.ev('document.getElementById("format-places").value') === 'auto' &&
         await page.ev('document.getElementById("format-icon").textContent') === '1500', t + 'and its icon, with Auto places',
         await page.ev('document.getElementById("format-icon").textContent'));
+
+    // the separators of the thousands: none, commas or spaces
+    async function separators(value) {
+        await page.ev('(function () { var g = document.getElementById("format-group"); g.value = ' + JSON.stringify(value) +
+            '; g.dispatchEvent(new Event("change")); })()');
+        return JSON.stringify(await page.ev('JSON.parse(localStorage.getItem("format")).group')) + ' ' +
+            await page.ev('document.getElementById("format-icon").textContent');
+    }
+    check(await page.ev('document.getElementById("format-group").value') === '', t + 'no separators at first');
+    check(await separators('space') === '"space" 1\u202F500', t + 'separators: spaces, kept and in the icon', await separators('space'));
+    check(await separators('comma') === 'true 1,500', t + 'commas, kept as before there was a choice', await separators('comma'));
+    check(await separators('') === 'false 1500', t + 'and none', await separators(''));
+    await page.ev('localStorage.setItem("format", JSON.stringify({ notation: "norm", places: "auto", group: true }))');
+    await page.go(page.base + '/web/index.html', [1300, 900]);
+    check(await page.ev('document.getElementById("format-group").value') === 'comma', t + 'separators turned on before the choice came are commas',
+        await page.ev('document.getElementById("format-group").value'));
 }
 
 (async function () {
