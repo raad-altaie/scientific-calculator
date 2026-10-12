@@ -49,16 +49,17 @@ function createPopupWindow() {
 
 function openCalculatorInDetachedMode() {
     // The window can be resized, so it is found by its page, not by its size
-    chrome.runtime.getContexts({ contextTypes: ["TAB"], documentUrls: [detachedUrl] }, (contexts) => {
-        if (contexts.length) {
-            // it is already open: it comes to the front, out of the dock or
-            // taskbar if it was minimised
-            chrome.windows.get(contexts[0].windowId, (win) => {
-                chrome.windows.update(win.id, win.state === "minimized" ? { state: "normal", focused: true } : { focused: true });
-            });
-        } else {
+    chrome.tabs.query({ url: detachedUrl.replace("?detached", "*") }, (tabs) => {
+        const tab = tabs.find((t) => t.url.includes("?detached"));
+        if (!tab) {
             createPopupWindow();
+            return;
         }
+        // it is already open: it comes to the front, out of the dock or
+        // taskbar if it was minimised
+        chrome.windows.get(tab.windowId, (win) => {
+            chrome.windows.update(win.id, win.state === "minimized" ? { state: "normal", focused: true } : { focused: true });
+        });
     });
 }
 
