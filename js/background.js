@@ -185,6 +185,15 @@ chrome.runtime.onInstalled.addListener((details) => {
     }
 
 
+    // The detached window left open by the old version is blank, as its page
+    // lost the extension: it is closed
+    if (details.reason == "update") {
+        chrome.tabs.query({ url: detachedUrl.replace("?detached", "*") }, (tabs) => {
+            tabs.filter((t) => t.url.includes("?detached"))
+                .forEach((t) => chrome.windows.remove(t.windowId).catch(() => { }));
+        });
+    }
+
     // Create "Open as Popup Window" menu item
     // removeAll first: the menu can already exist after a browser update
     chrome.contextMenus.removeAll(() => {
