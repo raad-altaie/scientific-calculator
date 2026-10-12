@@ -529,15 +529,16 @@
 
     // numbers written with separators: 1,234.5, 1.234,5 and 1 234,5 are all 1234.5.
     // A lone comma is a decimal mark (1,5) unless it splits groups of three (1,234);
-    // a space, a thin or a no-break one as well, only splits groups of three (1 234, not 5 3)
-    function separators(s) {
+    // a space, a thin or a no-break one as well, only splits groups of three (1 234, not 5 3).
+    // comma: the decimal mark in use is a comma, so 1.234 is 1234 and 1,234 is 1.234
+    function separators(s, comma) {
         s = s.replace(/(^|[^\d.,])([1-9]\d{0,2}(?:[ \u00A0\u2009\u202F]\d{3})+)(?!\d)/g, function (all, before, n) {
             return before + n.replace(/\D/g, '');
         });
         return s.replace(/\d[\d.,]*\d/g, function (n) {
             var c = n.lastIndexOf(','), d = n.lastIndexOf('.');
-            if (c < 0) return /^[1-9]\d{0,2}(\.\d{3}){2,}$/.test(n) ? n.replace(/\./g, '') : n;
-            if (d < 0) return /^[1-9]\d{0,2}(,\d{3})+$/.test(n) ? n.replace(/,/g, '') : n.replace(',', '.');
+            if (c < 0) return (comma ? /^[1-9]\d{0,2}(\.\d{3})+$/ : /^[1-9]\d{0,2}(\.\d{3}){2,}$/).test(n) ? n.replace(/\./g, '') : n;
+            if (d < 0) return (comma ? /^[1-9]\d{0,2}(,\d{3}){2,}$/ : /^[1-9]\d{0,2}(,\d{3})+$/).test(n) ? n.replace(/,/g, '') : n.replace(',', '.');
             return c > d ? n.replace(/\./g, '').replace(/,/g, '.') : n.replace(/,/g, '');
         });
     }
@@ -972,12 +973,29 @@
         });
     }
 
-    // commas between the thousands of each number in a line: 1,234,567.891; with
-    // how 'space', thin spaces: 1 234 567.891
-    function group(s, how) {
-        return s.replace(/(?<![\d.])\d{4,}/g, function (d) {
-            return d.replace(/\B(?=(\d{3})+$)/g, how === 'space' ? '\u2009' : ',');
+    // true for a way to write numbers whose decimal mark is a comma: 'dot', 1.234,5, and 'spacecomma', 1 234,5
+    function comma(how) {
+        return how === 'dot' || how === 'spacecomma';
+    }
+
+    // each number in a line with sep between its thousands, none for '', and point as its decimal mark
+    function numerals(s, sep, point) {
+        return s.replace(/(?<![\d.])(\d+)(\.\d*)?/g, function (all, whole, rest) {
+            return (sep && whole.length > 3 ? whole.replace(/\B(?=(\d{3})+$)/g, sep) : whole) + (rest ? point + rest.slice(1) : '');
         });
+    }
+
+    // commas between the thousands of each number in a line: 1,234,567.891; with
+    // how 'space', thin spaces: 1 234 567.891. With 'dot' and 'spacecomma' the
+    // decimal mark is a comma: 1.234.567,891 and 1 234 567,891
+    function group(s, how) {
+        return numerals(s, how === 'dot' ? '.' : how === 'space' || how === 'spacecomma' ? '\u2009' : ',', comma(how) ? ',' : '.');
+    }
+
+    // the decimal mark alone, as how writes it: where the thousands are not apart,
+    // in an equation with the cursor in it, a key of it at a time, and in what is copied
+    function decimal(s, how) {
+        return !comma(how) ? s : s === '.' ? ',' : numerals(s, '', ',');
     }
 
     // a number in degrees, minutes and seconds, the seconds to two places:
@@ -1017,14 +1035,16 @@
 
     // the numbers of a list as typed or pasted, a column of a spreadsheet as
     // well: apart by spaces, new lines, tabs, commas or semicolons. In a list
-    // with semicolons a comma is the decimal mark (1,5; 2,5).
+    // with semicolons a comma is the decimal mark (1,5; 2,5), and so it is
+    // wherever it is the one in use (comma): 1.234,5 is then one number.
     // bad: the parts that are no numbers
-    function numbers(text) {
-        var s = String(text), semi = s.indexOf(';') > -1, values = [], bad = [];
+    function numbers(text, comma) {
+        var s = String(text), semi = comma || s.indexOf(';') > -1, values = [], bad = [];
         s.split(semi ? /[\s;]+/ : /[\s,]+/).forEach(function (part) {
             var t = part.replace(/^[−–]/, '-');
             if (!t) return;
-            if (semi) t = t.replace(',', '.');
+            if (comma) t = separators(t, true);
+            else if (semi) t = t.replace(',', '.');
             if (/^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(t) && isFinite(+t)) values.push(+t);
             else bad.push(part);
         });
@@ -1035,8 +1055,8 @@
     // the list as the whole population (σ) and as a sample of one (s, NaN for
     // a single number), min, median and max. The sums and the mean are worked
     // out exactly, as + – × ÷ are: the mean of 0.1, 0.2 and 0.3 is 0.2
-    function stats(text) {
-        var read = numbers(text), xs = read.values, n = xs.length, r = { n: n, bad: read.bad },
+    function stats(text, comma) {
+        var read = numbers(text, comma), xs = read.values, n = xs.length, r = { n: n, bad: read.bad },
             sum = 0, squares = 0, spread = 0, sorted, mid;
         if (!n) return r;
         xs.forEach(function (x) {
@@ -1069,6 +1089,7 @@
         this.fraction = false; // fraction mode is on: set by the display, kept with each calculation in the history
         this.dms = false; // results are shown in degrees, minutes and seconds: the same
         this.fnFirst = false; // function keys go before their number, tan 45, not 45 tan: set by the display
+        this.comma = false; // the decimal mark shown is a comma, so a pasted 1.234 is 1234: the same
         this.reset();
     }
 
@@ -1600,7 +1621,7 @@
     // a number replaces the displayed one; an equation is entered in its place.
     // whole: only a number or an equation, not the number a text starts with
     Engine.prototype.paste = function (str, deg, whole) {
-        var s = separators(money(String(str)).trim()), n, tree, snap, hist, equals, add, e = this.edit;
+        var s = separators(money(String(str)).trim(), this.comma), n, tree, snap, hist, equals, add, e = this.edit;
         if (e) { // while editing it goes in at the cursor
             s = s.replace(/^=\s*/, '').replace(/=[^]*$/, '');
             add = s.length <= MAX_PASTE && tokens(s);
@@ -1859,6 +1880,8 @@
     Engine.stats = stats;
     Engine.format = format;
     Engine.group = group;
+    Engine.decimal = decimal;
+    Engine.comma = comma;
     Engine.fraction = shownFraction;
     Engine.dms = dms;
     Engine.angleAlone = angleAlone;

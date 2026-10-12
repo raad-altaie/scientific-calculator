@@ -111,10 +111,12 @@
                             <option value="eng">Eng</option>
                         </select>
                         <select id="format-places" title="Decimal places"></select>
-                        <select id="format-group" title="Thousands separators">
-                            <option value="">No separators</option>
-                            <option value="comma">Comma: 1,234</option>
-                            <option value="space">Space: 1 234</option>
+                        <select id="format-group" title="Thousands separators and decimal mark">
+                            <option value="">No separators: 1234.5</option>
+                            <option value="comma">Comma: 1,234.5</option>
+                            <option value="space">Space: 1 234.5</option>
+                            <option value="dot">Dot, decimal comma: 1.234,5</option>
+                            <option value="spacecomma">Space, decimal comma: 1 234,5</option>
                         </select>
                     </div>
                 </div>
@@ -163,8 +165,9 @@
                 <li>Degrees, minutes and seconds: the <kbd class="k">°′″</kbd> key shows results as 36°52′11.63″, and DMS in the display shows it is on. Paste an angle written so, 12°30′15″, 12°30'15" or 51°30′26″N: alone it shows as written, and DMS turns on. In an equation it is a number of degrees, and sin, cos and tan of it are worked out in degrees whatever the unit in use: sin(30°) is 0.5 in Rad as well. The converter has degrees, minutes and seconds among its angles too.</li>
                 <li>Fraction mode: the <kbd class="k">a/b</kbd> key draws each division as a fraction while you type, and shows results like
                     0.75 as 3/4.</li>
-                <li>Number format: Fix, Sci or Eng notation with Auto or 0 to 9 decimal places, and thousands separators, a comma or a space
-                    (1,234,567.89 or 1 234 567.89). <kbd class="k">MODE</kbd> goes from one notation to the next; the places and the
+                <li>Number format: Fix, Sci or Eng notation with Auto or 0 to 9 decimal places, and thousands separators: 1,234.5, 1 234.5, 1.234,5
+                    or 1 234,5. With the last two the decimal mark is a comma: the point key types it, and what you copy
+                    and paste is written so too. <kbd class="k">MODE</kbd> goes from one notation to the next; the places and the
                     separators are on the Options tab.</li>
                 <li>Function keys before the number, √ 9, as most calculators do, or after it, 9 √. See the Options
                     tab.</li>
@@ -219,7 +222,8 @@
                         This makes the followed key function different: [s] = sin, but [h, s] = sinh, etc.</li>
                     <li>Copy/Paste from/to display with Ctrl+C and Ctrl+V. Ctrl+C copies the result or, while you
                         are still entering an equation, the equation as text.<br>
-                        Ctrl+V pastes a number (1,234.5, 1.234,5 and 1 234,5 are all read as 1234.5, and $1,200 or 5 USD as
+                        Ctrl+V pastes a number (1,234.5, 1.234,5 and 1 234,5 are all read as 1234.5; 1.234 alone is read with the decimal mark
+                        the options set, and $1,200 or 5 USD as
                         the number alone) or a whole equation,
                         such as 2 + 3 × sin(30) or sqrt(16) + 2^3. If the pasted text contains an equation sign, it
                         is calculated right away.<br>

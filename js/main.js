@@ -13,7 +13,7 @@
         fracMark = Calc.querySelector('.calc-frac'), // FRAC while fraction mode is on, DMS while °′″ is
         secondKeySet, // the keys the 2nd key changes, found by their names below
         CURSOR = '<span class="calc-cursor"></span>',
-        fmt = { notation: 'norm', places: 'auto', group: false }, // set on the options page; group: true for commas, 'space'
+        fmt = { notation: 'norm', places: 'auto', group: false }, // set on the options page; group: true for 1,234.5, 'space', 'dot' 1.234,5, 'spacecomma'
         fracMode = false, // a/b: divisions drawn as fractions, and results shown as fractions when they are one
         dmsMode = false, // °′″, the 2nd of a/b: results shown in degrees, minutes and seconds
         slid = false, // the pointer moved along a long line, to slide it or select in it, so it was not a click
@@ -88,6 +88,7 @@
         }
     }
     keyBoard['C'] = keyBoard['AC'];
+    keyBoard[','] = keyBoard['.'];
     keyBoard['Rad'] = keyBoard['Grad'] = keyBoard['Deg'];
     secondKeySet = secondLayer[0].map(function (label) {
         return keyBoard[label.replace(/<\/*\w+>/g, '')];
@@ -261,10 +262,10 @@
         notify('Paste');
     }
 
-    // what copy takes: the main line, an equation as plain text
+    // what copy takes: the main line, an equation as plain text, with the decimal mark in use
     function copyText() {
-        if (engine.edit) return engine.text();
-        return engine.error || engine.done || engine.plain() ? resBuffer.replace(/\s/g, '') : engine.text();
+        if (engine.edit) return local(engine.text());
+        return local(engine.error || engine.done || engine.plain() ? resBuffer.replace(/\s/g, '') : engine.text());
     }
 
     // what copy takes: the text a history button or the menu gives, a part of
@@ -318,6 +319,21 @@
         return plain(box);
     }
 
+    // a number as the format in use writes its decimal mark: for what is copied, and a box of a panel
+    function local(s) {
+        return CalcEngine.decimal(String(s), fmt.group);
+    }
+
+    // what the display puts between the thousands, which is not of the equation: a dot is, while the decimal mark is a comma
+    function grouping() {
+        return fmt.group === 'dot' ? /\./g : fmt.group === 'spacecomma' ? /\u2009/g : /[,\u2009]/g;
+    }
+
+    // what a number box holds, with a point as its decimal mark
+    function boxValue(input) {
+        return input.value.replace(',', '.');
+    }
+
     // the part of the equation in the display that is selected, which a paste or
     // a key goes in place of: [from, to] in characters from its start, [] for all
     // of it. Null if none is, or the display has a result, which they replace anyway
@@ -328,7 +344,7 @@
             var part = all.cloneRange(), where = all.comparePoint(node, offset);
             if (where < 0) return 0;
             if (!where) part.setEnd(node, offset);
-            return part.toString().replace(engine.edit ? '' : /[,\u2009]/g, '').length; // not the commas or spaces between the thousands
+            return part.toString().replace(engine.edit ? '' : grouping(), '').length; // not what is between the thousands
         }
 
         if (!sel.rangeCount || sel.isCollapsed) return null;
@@ -498,7 +514,7 @@
         if (el === mem) {
             return {
                 t: 'Memory',
-                d: 'The memory holds ' + String(+(+engine.memory).toPrecision(13)) +
+                d: 'The memory holds ' + local(+(+engine.memory).toPrecision(13)) +
                     '. Click to put it into the equation, as mr does. mc empties it.',
                 k: 'm'
             };
@@ -590,15 +606,15 @@
 
         if (panel === conv && (row = el.closest('.calc-conv-row')) && isFinite(convNow[i = +row.dataset.i])) {
             unit = CalcUnits.units[convAt.g].list[i];
-            text = unit.dms && CalcEngine.dms(convNow[i]); // degrees, minutes and seconds have their signs
+            text = unit.dms && local(CalcEngine.dms(convNow[i])); // degrees, minutes and seconds have their signs
             return [
-                ['Copy', function () { copy(text || String(+convNow[i].toPrecision(15))); }],
-                ['Copy with unit', function () { copy(text || +convNow[i].toPrecision(15) + ' ' + plain(unit.s)); }],
+                ['Copy', function () { copy(text || local(+convNow[i].toPrecision(15))); }],
+                ['Copy with unit', function () { copy(text || local(+convNow[i].toPrecision(15)) + ' ' + plain(unit.s)); }],
                 ['Insert', function () { row.click(); }]
             ];
         }
         if (panel === stats && (row = el.closest('.calc-stats-tile')) && statsNow.n && isFinite(statsNow[row.dataset.k])) {
-            text = statsValue(statsNow[row.dataset.k]).text;
+            text = local(statsValue(statsNow[row.dataset.k]).text);
             return [
                 ['Copy', function () { copy(text); }],
                 ['Insert', function () { row.click(); }]
@@ -608,8 +624,8 @@
             k = fxItems[fxTab][+row.dataset.i].item;
             if (fxTab === 'constants') {
                 return [
-                    ['Copy', function () { copy(String(k.v)); }],
-                    ['Copy with unit', function () { copy(k.v + ' ' + plain(k.u)); }, !!k.u],
+                    ['Copy', function () { copy(local(k.v)); }],
+                    ['Copy with unit', function () { copy(local(k.v) + ' ' + plain(k.u)); }, !!k.u],
                     ['Insert', function () { putConstant(k); }]
                 ];
             }
@@ -773,7 +789,7 @@
         if (button.dataset.act === 'insert') {
             usePast(i, whole);
         } else {
-            copy(whole ? engine.pastLine(i).text.replace(/ =$/, '') : shownResult(engine.past[i], '').text);
+            copy(local(whole ? engine.pastLine(i).text.replace(/ =$/, '') : shownResult(engine.past[i], '').text));
         }
     }, false);
 
@@ -867,7 +883,7 @@
     // the results as the display shows numbers: in the number format, and as
     // fractions in fraction mode
     function renderStats() {
-        var s = statsNow = CalcEngine.stats(statsInput.value);
+        var s = statsNow = CalcEngine.stats(statsInput.value, engine.comma);
         [].forEach.call(statsGrid.children, function (tile) {
             var value = s[tile.dataset.k], known = s.n > 0 && isFinite(value), shown = tile.lastChild, size = 17;
             tile.classList.toggle('calc-none', !known);
@@ -877,7 +893,7 @@
                 shown.style.fontSize = --size + 'px';
             }
         });
-        statsNote.textContent = !s.n && !s.bad.length ? 'Apart by spaces, commas or new lines; a column from a spreadsheet works too.' :
+        statsNote.textContent = !s.n && !s.bad.length ? 'Apart by spaces, ' + (engine.comma ? 'semicolons' : 'commas') + ' or new lines; a column from a spreadsheet works too.' :
             s.n + (s.n === 1 ? ' number' : ' numbers') +
             (s.bad.length ? ' · left out: ' + s.bad.slice(0, 3).join(', ') + (s.bad.length > 3 ? ' …' : '') : '');
     }
@@ -935,12 +951,13 @@
     }, false);
 
     // a number box keeps only what a number is made of: digits, one point, a minus first;
-    // marks: the °′″ of an angle
+    // marks: the °′″ of an angle. The point is a comma while that is the decimal mark, whichever is typed
     function onlyNumber(input, marks) {
-        var v = input.value, at = input.selectionStart, clean = '', point = false, n, c;
+        var v = input.value, at = input.selectionStart, clean = '', point = false, mark = engine.comma ? ',' : '.', n, c;
         for (n = 0; n < v.length; n++) {
             c = v.charAt(n);
-            if (/\d/.test(c) || (marks && /[°′″]/.test(c)) || (c === '-' && !clean) || (c === '.' && !point && (point = true))) clean += c;
+            if (engine.comma && c === '.') c = ',';
+            if (/\d/.test(c) || (marks && /[°′″]/.test(c)) || (c === '-' && !clean) || (c === mark && !point && (point = true))) clean += c;
             else if (n < at) at--;
         }
         if (clean !== v) {
@@ -1027,7 +1044,7 @@
     // number up to a trillion too: 299,792,458. Shown to 12 digits; it is put in whole
     function constantValue(k) {
         var a = Math.abs(k.v), parts = (+k.v.toPrecision(12)).toExponential().split('e'),
-            shown = a >= (k.v % 1 ? 1e6 : 1e12) || a < 1e-3 ? parts[0] + ' × 10<sup>' + +parts[1] + '</sup>' : CalcEngine.group(String(+k.v.toPrecision(12)), fmt.group);
+            shown = a >= (k.v % 1 ? 1e6 : 1e12) || a < 1e-3 ? local(parts[0]) + ' × 10<sup>' + +parts[1] + '</sup>' : CalcEngine.group(String(+k.v.toPrecision(12)), fmt.group);
         return shown.replace(/-/g, '−') + (k.u ? '<span class="calc-fx-unit">' + k.u + '</span>' : '');
     }
 
@@ -1047,7 +1064,7 @@
         form.className = 'calc-fx-form';
         form.innerHTML = f.v.map(function (v) {
             return '<label class="calc-fx-var"><span class="calc-fx-sym">' + v[1] + '</span>' +
-                '<input type="text" inputmode="decimal" pattern="-?[0-9]*\\.?[0-9]*" spellcheck="false" autocomplete="off" maxlength="40" placeholder="' +
+                '<input type="text" inputmode="decimal" pattern="-?[0-9]*[.,]?[0-9]*" spellcheck="false" autocomplete="off" maxlength="40" placeholder="' +
                 v[2] + '"></label>';
         }).join('') + '<div class="calc-fx-actions"><span class="calc-fx-note">' +
             (f.deg ? 'Angles in ' + ['radians', 'degrees', 'gradians'][deg] + ', the unit in use' : '') +
@@ -1056,7 +1073,7 @@
         form.querySelector('.calc-fx-note').dataset.usual = form.querySelector('.calc-fx-note').innerHTML;
         first = form.querySelector('input');
         if (!engine.edit && !engine.error && (engine.done || engine.plain()) && +engine.value) {
-            first.value = String(+(+engine.value).toPrecision(13));
+            first.value = local(+(+engine.value).toPrecision(13));
         }
         if (focusBox(first)) first.select();
         item.scrollIntoView({ block: 'nearest' });
@@ -1070,7 +1087,7 @@
         var f = fxItems.formulas[+item.dataset.i].item,
             inputs = [].slice.call(item.querySelectorAll('input')),
             note = item.querySelector('.calc-fx-note'),
-            s = CalcFormulas.fill(f, inputs.map(function (input) { return input.value; }), deg),
+            s = CalcFormulas.fill(f, inputs.map(boxValue), deg),
             trial = new CalcEngine();
 
         inputs.forEach(function (input) {
@@ -1079,13 +1096,13 @@
         trial.fnFirst = engine.fnFirst;
         if (s !== null && trial.paste(s, deg) && (trial.error || (trial.press('=', deg), trial.error))) {
             note.classList.add('calc-fx-warn');
-            note.innerHTML = CalcFormulas.why(f, inputs.map(function (input) { return input.value; }));
+            note.innerHTML = CalcFormulas.why(f, inputs.map(boxValue));
             return;
         }
         if (s !== null && (engine.edit || !(engine.done || engine.error || engine.plain()))) s = '(' + s + ')';
         if (s !== null && !engine.paste(s, deg)) {
             inputs.forEach(function (input) { // the calculator could not read it: the boxes that are not a plain number
-                input.classList.toggle('calc-bad', !/^\s*-?(\d+\.?\d*|\.\d+)\s*$/.test(input.value));
+                input.classList.toggle('calc-bad', !/^\s*-?(\d+\.?\d*|\.\d+)\s*$/.test(boxValue(input)));
             });
             s = null;
         }
@@ -1183,7 +1200,7 @@
             showFx(false);
             placePanel(conv);
             if (!engine.edit && !engine.error && (engine.done || engine.plain()) && +engine.value) {
-                convInput.value = String(+(+engine.value).toPrecision(13));
+                convInput.value = local(+(+engine.value).toPrecision(13));
             }
             renderConv(true);
         }
@@ -1291,7 +1308,7 @@
     // The value typed, worked out, in each unit of the group but its own. A new
     // group fills the list of units first
     function renderConv(newGroup) {
-        var group = CalcUnits.units[convAt.g], text = convInput.value.trim(), x, from, trial;
+        var group = CalcUnits.units[convAt.g], text = boxValue(convInput).trim(), x, from, trial;
 
         from = group.list.map(function (unit) { return unit.t; }).indexOf(convAt.u[group.c]);
         if (from < 0) from = 0;
@@ -1323,7 +1340,7 @@
             return i === from ? '' : '<div class="calc-conv-row' + (known ? '' : ' calc-none') + '" data-i="' + i + '">' +
                 '<span class="calc-conv-col"><span class="calc-conv-sym">' + unit.s + '</span>' +
                 '<span class="calc-conv-name">' + unit.t + '</span></span><span class="calc-conv-num">' +
-                (known ? unit.dms && CalcEngine.dms(convNow[i]) || convValue(convNow[i]) : '–') + '</span></div>';
+                (known ? unit.dms && local(CalcEngine.dms(convNow[i]) || '') || convValue(convNow[i]) : '–') + '</span></div>';
         }).join('');
         hideTip();
     }
@@ -1332,7 +1349,7 @@
     // powers of 10: 1.609344 × 10³ is shown 1,609.344, 1 nm 1 × 10⁻⁹ m
     function convValue(v) {
         var a = Math.abs(v), parts = (+v.toPrecision(12)).toExponential().split('e');
-        return (a && (a >= 1e15 || a < 1e-6) ? parts[0] + ' × 10<sup>' + +parts[1] + '</sup>' :
+        return (a && (a >= 1e15 || a < 1e-6) ? local(parts[0]) + ' × 10<sup>' + +parts[1] + '</sup>' :
             CalcEngine.group(String(+v.toPrecision(12)), fmt.group)).replace(/-/g, '−');
     }
 
@@ -1885,14 +1902,16 @@
     }
 
     // the number format from the options page: Norm, Fix, Sci or Eng, the
-    // digits after the point or Auto, and commas or spaces between the thousands
+    // digits after the point or Auto, and what is between the thousands, with the decimal mark
     function setFormat(f) {
         f = f || {};
         fmt = {
             notation: /^(fix|sci|eng)$/.test(f.notation) ? f.notation : 'norm',
             places: Number.isInteger(f.places) ? Math.max(0, Math.min(9, f.places)) : 'auto', // Auto, as the options page starts
-            group: f.group === 'space' ? 'space' : !!f.group
+            group: /^(space|dot|spacecomma)$/.test(f.group) ? f.group : !!f.group
         };
+        engine.comma = CalcEngine.comma(fmt.group); // what is pasted is read with the decimal mark shown
+        keyBoard['.'].children[0].firstChild.data = engine.comma ? ',' : '.';
         fmtMark.textContent = fmt.notation === 'norm' ? '' : fmt.notation.toUpperCase() + (fmt.places === 'auto' ? '' : ' ' + fmt.places);
     }
 
@@ -1953,6 +1972,8 @@
     function doKey(text, alt) {
         var key = keyBoard[text]; // text = key.textContent.replace(/\s*/g, '');
 
+        if (text === ',') text = '.'; // the point key while the decimal mark is a comma
+
         if (text === '2nd') {
             secondActive = secondActive ? null : true;
             key.className = secondActive ? 'calc-press calc-second' : 'trigo-keys'; // !!!
@@ -2011,7 +2032,7 @@
             view = engine.editView();
             resBuffer = engine.value;
             display.innerHTML = view.parts.map(function (part, i) {
-                return (i === view.at ? CURSOR : '') + '<span>' + part + '</span>';
+                return (i === view.at ? CURSOR : '') + '<span>' + CalcEngine.decimal(part, fmt.group) + '</span>';
             }).join('') + (view.at === view.parts.length ? CURSOR : '');
             fit(display.querySelector('.calc-cursor'));
             eq = '';

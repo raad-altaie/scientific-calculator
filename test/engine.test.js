@@ -1764,6 +1764,66 @@ dels.forEach(function (c) {
         var e = new Engine();
         check(e.paste(Engine.group('1234567.891', 'space')) && e.value === '1234567.891', 'a number grouped with spaces pastes back', e.value);
     })();
+    // a comma as the decimal mark: dots, or thin spaces, between the thousands, and the mark alone
+    [
+        ['1234567.891', '1.234.567,891', '1234567,891'],
+        ['-1234', '-1.234', '-1234'],
+        ['999', '999', '999'],
+        ['0.12345', '0,12345', '0,12345'],
+        ['1.234567e+20', '1,234567e+20', '1,234567e+20'],
+        ['12345 + 6789 × 0.5', '12.345 + 6.789 × 0,5', '12345 + 6789 × 0,5'],
+        ['12.', '12,', '12,'],
+        ['36°52′11.63″', '36°52′11,63″', '36°52′11,63″'],
+        ['2<sup>10</sup> + 1500.25', '2<sup>10</sup> + 1.500,25', '2<sup>10</sup> + 1500,25']
+    ].forEach(function (c) {
+        var spaced = c[1].replace(/\./g, '\u2009');
+        check(Engine.group(c[0], 'dot') === c[1], 'group ' + c[0] + ' with dots', Engine.group(c[0], 'dot'));
+        check(Engine.group(c[0], 'spacecomma') === spaced, 'group ' + c[0] + ' with spaces and a comma', Engine.group(c[0], 'spacecomma'));
+        check(Engine.decimal(c[0], 'dot') === c[2] && Engine.decimal(c[0], 'spacecomma') === c[2], 'the decimal comma alone in ' + c[0],
+            Engine.decimal(c[0], 'dot'));
+        check(Engine.decimal(c[0], true) === c[0] && Engine.decimal(c[0], 'space') === c[0] && Engine.decimal(c[0], false) === c[0],
+            'and the point kept in ' + c[0]);
+    });
+    check(Engine.decimal('.', 'dot') === ',' && Engine.decimal('.', 'space') === '.', 'the point key alone, in an equation with the cursor in it');
+    check(Engine.comma('dot') && Engine.comma('spacecomma') && !Engine.comma('space') && !Engine.comma(true) && !Engine.comma(false),
+        'which formats have a decimal comma');
+    // what is pasted is read with the decimal mark in use: 1.234 and 1,234 are each two numbers
+    [
+        // [pasted, its value with a point as the mark, with a comma]
+        ['1.234', '1.234', '1234'],
+        ['1,234', '1234', '1.234'],
+        ['12.345.678', '12345678', '12345678'],
+        ['1,234,567', '1234567', '1234567'],
+        ['1.234,5', '1234.5', '1234.5'],
+        ['1,234.5', '1234.5', '1234.5'],
+        ['3.14', '3.14', '3.14'],
+        ['0.5', '0.5', '0.5'],
+        ['1,5', '1.5', '1.5'],
+        ['1.5e3', '1500', '1500'],
+        ['2.500 + 1.250 =', '3.75', '3750'],
+        ['12.345,67 €', '12345.67', '12345.67']
+    ].forEach(function (c) {
+        [false, true].forEach(function (comma) {
+            var e = new Engine();
+            e.comma = comma;
+            check(e.paste(c[0], false, true) && e.value === c[comma ? 2 : 1], 'paste ' + c[0] + (comma ? ' with a decimal comma' : ' with a decimal point'),
+                e.value);
+        });
+    });
+    ['dot', 'spacecomma'].forEach(function (how) { // what is shown or copied so pastes back as the same number
+        ['1234567.891', '1234', '1.234', '0.5', '1234.5'].forEach(function (n) {
+            [Engine.group(n, how), Engine.decimal(n, how)].forEach(function (text) {
+                var e = new Engine();
+                e.comma = true;
+                check(e.paste(text) && e.value === n, how + ': ' + text + ' pastes back as ' + n, e.value);
+            });
+        });
+    });
+    (function () { // a list of the statistics: the comma is the decimal mark, so it is not between two numbers
+        var s = Engine.stats('1,5 2,5; 1.234,5\n3', true), usual = Engine.stats('1,5 2,5');
+        check(s.n === 4 && s.sum === 1241.5 && !s.bad.length, 'a list with decimal commas', JSON.stringify(s));
+        check(usual.n === 4 && usual.sum === 13, 'and with a decimal point a comma is between two numbers, as before', JSON.stringify(usual));
+    })();
     [
         [0.75, '3/4'], [1 / 3, '1/3'], [-7 / 4, '-7/4'], [0.1 + 0.2, '3/10'], [2 / 3 + 1 / 6, '5/6'],
         [Math.PI, null], [Math.SQRT2, null], [5, null], [0.123, '123/1000'], [1 / 7, '1/7'],

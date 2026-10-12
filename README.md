@@ -25,7 +25,7 @@ A scientific calculator for your browser: light, fast and it works offline. It r
 - Combinatorics and number theory: `nCr`, `nPr`, `gcd`, `lcm`, `mod`, `%`, `Rand`, `EE` for scientific entry.
 - Angle units: Deg, Rad and Grad. `°′″` shows results as degrees, minutes and seconds, and `12°30′15″` can be pasted.
 - Fraction mode (`a/b`) draws each division as a fraction and shows results like 0.75 as 3/4.
-- Number format: Fix, Sci or Eng notation, Auto or 0 to 9 decimal places, and thousands separators, a comma (1,234) or a space (1 234).
+- Number format: Fix, Sci or Eng notation, Auto or 0 to 9 decimal places, and thousands separators with the decimal mark of your country: `1,234.5`, `1 234.5`, `1.234,5` or `1 234,5`.
 - Function keys can go before the number (`√ 9`) or after it (`9 √`).
 
 **Panels** (each can be turned on or off in the options)

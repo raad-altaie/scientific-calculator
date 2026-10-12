@@ -433,6 +433,50 @@ async function modeKey(page, at) {
         'getSelection().removeAllRanges(); getSelection().addRange(range); })()');
     await page.type('5');
     check(await page.calc(raw) === '1\u2009234\u2009567 + 5', t + 'a key over the selected 89 replaces it', await page.calc(raw));
+
+    // a comma as the decimal mark, with dots between the thousands: typed, shown, edited, copied and pasted so
+    var pointKey = '[].filter.call(document.querySelectorAll(".calc-right > *"), function (k) { return /^[.,]$/.test(k.textContent.trim()); })[0]',
+        copied = '(function () { var t; document.body.dispatchEvent(Object.assign(new Event("copy", { bubbles: true, cancelable: true }), ' +
+            '{ clipboardData: { setData: function (type, text) { t = text; } } })); return t; })()';
+    function pasted(text) {
+        return page.calc('document.body.dispatchEvent(Object.assign(new Event("paste", { bubbles: true }), ' +
+            '{ clipboardData: { getData: function () { return ' + JSON.stringify(text) + '; } } }))');
+    }
+    await page.fresh(at, {});
+    check(await page.calc(pointKey + '.textContent.trim()') === '.', t + 'the point key is a point');
+    await page.fresh(at, { format: { notation: 'norm', places: 'auto', group: 'dot' } });
+    check(await page.calc(pointKey + '.textContent.trim()') === ',', t + 'decimal comma: the point key is a comma');
+    await page.type('1234567,');
+    check(await page.calc(raw) === '1.234.567,', t + 'the comma typed, the thousands apart by dots', await page.calc(raw));
+    await page.calc('(function (k) { ["mousedown", "mouseup"].forEach(function (type) { k.dispatchEvent(new MouseEvent(type, { bubbles: true, button: 0 })); }); })(' +
+        pointKey + '.firstElementChild)');
+    await page.type('5');
+    check(await page.calc(raw) === '1.234.567,5', t + 'a second comma from its key is not taken', await page.calc(raw));
+    await page.type('\r');
+    check(await page.calc(raw) === '1.234.567,5', t + 'the result so too', await page.calc(raw));
+    check(await page.calc(copied) === '1234567,5', t + 'copied with the comma', await page.calc(copied));
+    await page.type('\x1b1234,5+0,25');
+    check(await page.calc(raw) === '1.234,5 + 0,25', t + 'the equation as it is typed', await page.calc(raw));
+    check(await page.calc(copied) === '1234,5 + 0,25', t + 'and its copy', await page.calc(copied));
+    await page.key('ArrowLeft', 37);
+    check(await page.calc(raw) === '1234,5 + 0,25', t + 'with the cursor in it: the comma, the thousands together', await page.calc(raw));
+    await page.type('\r');
+    check(await page.calc(raw) === '1.234,75', t + 'worked out', await page.calc(raw));
+    await page.type('\x1b');
+    await pasted('1.234');
+    check(await page.calc(raw) === '1.234' && await page.calc(copied) === '1234', t + 'a pasted 1.234 is 1234', await page.calc(copied));
+    await page.type('\x1b');
+    await pasted('1,234');
+    check(await page.calc(raw) === '1,234' && await page.calc(copied) === '1,234', t + 'and a pasted 1,234 is 1.234', await page.calc(copied));
+    await page.type('\x1b');
+    await pasted('2.500,5 + 1.250 =');
+    check(await page.calc(raw) === '3.750,5', t + 'a pasted equation written so', await page.calc(raw));
+    await page.calc('(function (i) { i.value = "-1.2,3-4e5"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-conv-value"))');
+    check(await page.calc('document.querySelector(".calc-conv-value").value') === '-1,2345', t + 'a number box: one comma, a point typed is it',
+        await page.calc('document.querySelector(".calc-conv-value").value'));
+    await page.fresh(at, { format: { notation: 'fix', places: 2, group: 'spacecomma' } });
+    await page.type('1234567,5\r');
+    check(await page.calc(raw) === '1\u2009234\u2009567,50', t + 'thin spaces and a comma, in Fix 2', await page.calc(raw));
     await page.fresh(at, {});
     check(await page.calc('[].some.call(document.querySelectorAll(".calc-left > *"), function (k) { return /[◀▶]/.test(k.textContent); })') === false,
         t + 'no cursor keys');
@@ -1097,6 +1141,11 @@ async function options(page) {
     check(await page.ev('document.getElementById("format-group").value') === '', t + 'no separators at first');
     check(await separators('space') === '"space" 1\u2009500', t + 'separators: spaces, kept and in the icon', await separators('space'));
     check(await separators('comma') === 'true 1,500', t + 'commas, kept as before there was a choice', await separators('comma'));
+    check(await separators('dot') === '"dot" 1.500', t + 'dots, with a decimal comma', await separators('dot'));
+    check(await separators('spacecomma') === '"spacecomma" 1\u2009500', t + 'spaces, with a decimal comma', await separators('spacecomma'));
+    check(await page.ev('[].map.call(document.getElementById("format-group").options, function (o) { return o.textContent; }).join("|")') ===
+        'No separators: 1234.5|Comma: 1,234.5|Space: 1 234.5|Dot, decimal comma: 1.234,5|Space, decimal comma: 1 234,5',
+        t + 'each choice shows a number written so, with its decimal mark');
     check(await separators('') === 'false 1500', t + 'and none', await separators(''));
     await page.ev('localStorage.setItem("format", JSON.stringify({ notation: "norm", places: "auto", group: true }))');
     await page.go(page.base + '/web/index.html', [1300, 900]);

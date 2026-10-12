@@ -37,8 +37,8 @@ for (let n = 0; n <= 9; n++) {
 }
 
 // kept as the calculator reads it: true for commas, as it was while they were the only ones
-const groupOf = { '': false, comma: true, space: 'space' };
-const groupIn = (f) => (f.group === 'space' ? 'space' : f.group ? 'comma' : '');
+const groupOf = { '': false, comma: true, space: 'space', dot: 'dot', spacecomma: 'spacecomma' };
+const groupIn = (f) => (/^(space|dot|spacecomma)$/.test(f.group) ? f.group : f.group ? 'comma' : '');
 
 const placesOf = (f) => (Number.isInteger(f.places) && f.places >= 0 && f.places <= 9 ? String(f.places) : 'auto');
 
