@@ -1027,7 +1027,7 @@ html {
     display: flex;
     align-items: center;
     background: #b6d1c2;
-    box-shadow: 0 0 0.25em 0.25em #b6d1c2; /* fades the digit cut by the edge, not a fragment of it */
+    box-shadow: 0 0 0.3em 0.6em #b6d1c2; /* fades the digit cut by the edge, not a fragment of it */
 }
 
 .calc-more-left::before {
