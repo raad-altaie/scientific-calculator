@@ -1758,7 +1758,7 @@ dels.forEach(function (c) {
     ].forEach(function (c) {
         check(Engine.group(c[0]) === c[1], 'group ' + c[0], Engine.group(c[0]));
         check(Engine.group(c[0], true) === c[1], 'group ' + c[0] + ' with commas', Engine.group(c[0], true));
-        check(Engine.group(c[0], 'space') === c[1].replace(/,/g, '\u202F'), 'group ' + c[0] + ' with spaces', Engine.group(c[0], 'space'));
+        check(Engine.group(c[0], 'space') === c[1].replace(/,/g, '\u2009'), 'group ' + c[0] + ' with spaces', Engine.group(c[0], 'space'));
     });
     (function () { // what is shown with spaces pastes back as the same number
         var e = new Engine();

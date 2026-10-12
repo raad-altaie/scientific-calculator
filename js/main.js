@@ -328,7 +328,7 @@
             var part = all.cloneRange(), where = all.comparePoint(node, offset);
             if (where < 0) return 0;
             if (!where) part.setEnd(node, offset);
-            return part.toString().replace(engine.edit ? '' : /[,\u202F]/g, '').length; // not the commas or spaces between the thousands
+            return part.toString().replace(engine.edit ? '' : /[,\u2009]/g, '').length; // not the commas or spaces between the thousands
         }
 
         if (!sel.rangeCount || sel.isCollapsed) return null;
