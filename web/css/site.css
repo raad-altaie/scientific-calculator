@@ -38,7 +38,7 @@ body {
     position: relative;
     flex: none;
     width: 388px;
-    height: 585px;
+    height: 586px;
 }
 
 /* The calculator, as style.css draws it in the popup, scaled by app.js from the corner
@@ -48,8 +48,8 @@ body {
     position: absolute;
     left: 0;
     top: 0;
-    margin: 2px 4px 3px;
-    transform-origin: -4px -2px;
+    margin: 3px 4px;
+    transform-origin: -4px -3px;
     font-size: 12px;
 }
 
@@ -164,8 +164,8 @@ body {
     }
 
     #calculator {
-        margin: 2px 2px 3px;
-        transform-origin: -2px -2px;
+        margin: 3px 2px;
+        transform-origin: -2px -3px;
     }
 
     .options-pane {

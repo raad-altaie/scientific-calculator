@@ -1,11 +1,11 @@
 let popupWidth = 387;
 let popupHeight = 613;
 
-// the detached window leaves this much room around the popup's size: x at the
-// left and right, y at the top and bottom. Both take room away: the popup has
-// more around the calculator than the window, which keeps 2px on every side;
+// The detached window is this much bigger than the sizes above: x at the left
+// and right, y at the top and bottom. It opens with the calculator as big as
+// the popup draws it, 594 for its 580px, and 2px around it on every side;
 // popup.js keeps that room when the window is resized
-const detachedMargin = { x: -2, y: -0.5 };
+const detachedMargin = { x: 2.5, y: 6.5 };
 
 chrome.runtime.getPlatformInfo(function (info) {
     // Output might be 'win', 'mac', 'linux', etc.

@@ -51,7 +51,7 @@ function serve() {
             var url = decodeURIComponent(req.url.split('?')[0]), file;
             if (url === '/frame.html') {
                 res.writeHead(200, { 'Content-Type': 'text/html' });
-                return res.end('<!DOCTYPE html><iframe id="calc-iframe" src="popup.html" width="388" height="585"></iframe>');
+                return res.end('<!DOCTYPE html><iframe id="calc-iframe" src="popup.html" width="397" height="600"></iframe>');
             }
             file = path.join(ROOT, url);
             if (file.indexOf(ROOT) !== 0 || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
@@ -118,6 +118,8 @@ Page.prototype.go = async function (url, size) {
     await this.send('Page.navigate', { url: url });
     await this.until('document.readyState === "complete" && ' +
         '!!((document.getElementById("calc-iframe") || {}).contentDocument || document).querySelector(".calc-tools")');
+    // the popup draws the calculator a little bigger, to fill its height: the checks measure it at its own size
+    if (url.indexOf('/web/') < 0) await this.calc('document.getElementById("calculator").style.transform = "none"');
     await sleep(80);
 };
 
