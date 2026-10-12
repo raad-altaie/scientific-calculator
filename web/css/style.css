@@ -1027,17 +1027,20 @@ html {
     display: flex;
     align-items: center;
     background: #b6d1c2;
-    box-shadow: 0 0 0.1em 0.4em #b6d1c2; /* fades the digit cut by the edge, not a fragment of it */
 }
 
 .calc-more-left::before {
-    left: var(--slid);
-    padding-right: 0.15em;
+    left: calc(var(--slid) - 2px); /* from the very edge: nothing shows past the dots */
+    padding: 0 0.1em 0 calc(2px + 0.1em);
+    border-right: 0.35em solid transparent; /* the box goes past the dots, over what they cut */
+    background-clip: border-box;
 }
 
 .calc-more-right::after {
-    right: calc(0px - var(--slid));
-    padding-left: 0.15em;
+    right: calc(0px - var(--slid) - 2px);
+    padding: 0 calc(2px + 0.1em) 0 0.1em;
+    border-left: 0.35em solid transparent;
+    background-clip: border-box;
 }
 
 #box sup,
