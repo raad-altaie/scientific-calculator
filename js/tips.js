@@ -102,9 +102,9 @@
 
         // the ? beside the name
         'help': {
-            t: 'Help and options',
-            d: 'What each key does and its keyboard shortcut, and the options: the panels, the number format ' +
-                'and the order of the function keys.',
+            t: 'Options and guide',
+            d: 'The options: the panels, the number format and the order of the function keys, and a guide ' +
+                'to what each key does and its keyboard shortcut.',
             k: ''
         },
 

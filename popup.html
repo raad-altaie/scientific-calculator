@@ -15,6 +15,14 @@
             background: #a8a8a8;
         }
 
+        /* a darker grey when the browser is in its dark theme */
+        @media (prefers-color-scheme: dark) {
+            html,
+            body {
+                background: #373737;
+            }
+        }
+
         /* The popup is as tall as the browser lets a popup be, 600px: the calculator is
            drawn a little bigger to fill it, 596 for its 580px, with 2px of room on every side */
         body {

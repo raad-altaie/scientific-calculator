@@ -5,9 +5,14 @@ html,
 body {
     height: 100%;
     margin: 0;
-    background: #39576f;
+    background: #a8a8a8; /* the calculator's grey also behind the iPhone's home bar */
     overflow: hidden;
     overscroll-behavior: none;
+}
+
+html:has(.options-open),
+.options-open {
+    background: #39576f;
 }
 
 .app {
@@ -79,6 +84,12 @@ body {
     margin-top: 0;
     margin-bottom: 0; /* options.css leaves 7em under the page */
     padding-top: calc(2em + max(22px, env(safe-area-inset-top)));
+}
+
+/* the website's calculator draws the digits and the signs higher in the key than
+   DEL and AC (its keys are scaled up from a smaller font): the guide's sign keys too */
+.options-pane .wrapper .keys:not(.del-ac) {
+    line-height: 28px;
 }
 
 .options-pane .footer {

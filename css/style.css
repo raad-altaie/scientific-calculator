@@ -493,6 +493,7 @@
     align-items: center;
     gap: 4px;
     margin-bottom: 5px;
+    margin-right: 26px; /* the boxes keep off the right edge, a little less than the letters take at the left */
 }
 
 #calculator .calc-fx-var .calc-fx-sym {
@@ -530,18 +531,25 @@
     box-shadow: 0 0 0 1px #d86672;
 }
 
+/* the note on a line of its own, then Insert in the middle */
 #calculator .calc-fx-actions {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     margin-top: 7px;
 }
 
 #calculator .calc-fx-note {
-    flex: 1;
+    align-self: stretch;
+    text-align: center;
     color: #4f6659;
     font-size: 11px;
     line-height: 13px;
+}
+
+#calculator .calc-fx-note:empty {
+    display: none;
 }
 
 /* why the values give no answer */
@@ -552,13 +560,26 @@
 }
 
 #calculator .calc-fx-insert {
-    padding: 0 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 0 5px 0 10px; /* less after the arrow, which has room of its own */
     border-radius: 4px;
     background: #3a5872;
     color: #fff;
     font-size: 13px;
     line-height: 26px;
     cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* the arrow of insert in the history, mirrored: here it is at the right */
+#calculator .calc-fx-insert svg {
+    flex: none;
+    width: 11px;
+    height: 11px;
+    transform: scaleX(-1);
 }
 
 #calculator .calc-fx-insert:hover {
@@ -567,6 +588,31 @@
 
 #calculator .calc-fx-insert:active {
     background: #31495e;
+}
+
+/* insert of a constant, drawn as insert in the history, a little bigger and lighter and
+   with no hover of its own: at the right of its card, while the pointer is over it */
+#calculator .calc-fx-row .calc-fx-put {
+    position: absolute;
+    right: 6px;
+    top: 12px; /* a little under the middle */
+    bottom: 0;
+    margin: auto 0;
+    display: none;
+    width: 18px;
+    height: 18px;
+    opacity: 0.45;
+}
+
+/* mirrored: the line starts at the left and turns up at the right; the converter has it too */
+#calculator .calc-fx-put svg {
+    width: 13px;
+    height: 13px;
+    transform: scaleX(-1);
+}
+
+#calculator .calc-fx-row:hover .calc-fx-put {
+    display: flex;
 }
 
 /* ---------- converter ---------- */
@@ -809,6 +855,21 @@
     line-height: 0;
 }
 
+/* insert, as a constant has it: its room at the right of every row is kept, so the
+   values do not move; it shows while the pointer is over a row that has a value */
+#calculator .calc-conv-row .calc-fx-put {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    margin: 0 -6px 0 -8px; /* close to the value and to the edge */
+    opacity: 0.45;
+    visibility: hidden;
+}
+
+#calculator .calc-conv-row:not(.calc-none):hover .calc-fx-put {
+    visibility: visible;
+}
+
 /* ---------- history ---------- */
 
 /* as wide as the display, with each calculation on a piece of display;
@@ -967,7 +1028,9 @@
     display: flex;
 }
 
-#calculator .calc-past-btn {
+/* and insert of a constant, drawn the same */
+#calculator .calc-past-btn,
+#calculator .calc-fx-put {
     display: flex;
     align-items: center;
     justify-content: center;

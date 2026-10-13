@@ -1077,7 +1077,10 @@
                 '<span class="calc-fx-f calc-fx-eq' + (fxTab === 'constants' ? ' calc-fx-val' : '') + '"><span>' +
                 (fxTab === 'constants' ? '<span class="calc-fx-sym">' +
                     it.s.replace(/√(\w+)/, '<span class="calc-root">$1</span>') + '</span> = ' + constantValue(it) : it.f) +
-                '</span></span></span></div></div>';
+                '</span>' +
+                // a constant has insert at the right of its value, while the pointer is over it
+                (fxTab === 'constants' ? '<span class="calc-fx-put">' + insertIcon() + '</span>' : '') +
+                '</span></span></div></div>';
         });
         fxList.innerHTML = html || '<div class="calc-fx-none">Nothing found</div>';
         fxList.scrollTop = 0;
@@ -1112,7 +1115,7 @@
                 v[2] + '"></label>';
         }).join('') + '<div class="calc-fx-actions"><span class="calc-fx-note">' +
             (f.deg ? 'Angles in ' + ['radians', 'degrees', 'gradians'][deg] + ', the unit in use' : '') +
-            '</span><span class="calc-fx-insert">Insert</span></div>';
+            '</span><span class="calc-fx-insert">Insert' + insertIcon() + '</span></div>';
         item.classList.add('calc-on');
         form.querySelector('.calc-fx-note').dataset.usual = form.querySelector('.calc-fx-note').innerHTML;
         first = form.querySelector('input');
@@ -1387,7 +1390,9 @@
             return i === from ? '' : '<div class="calc-conv-row' + (known ? '' : ' calc-none') + '" data-i="' + i + '">' +
                 '<span class="calc-conv-col"><span class="calc-conv-sym">' + unit.s + '</span>' +
                 '<span class="calc-conv-name">' + unit.t + '</span></span><span class="calc-conv-num">' +
-                (known ? unit.dms && local(CalcEngine.dms(convNow[i]) || '') || convValue(convNow[i]) : '–') + '</span></div>';
+                (known ? unit.dms && local(CalcEngine.dms(convNow[i]) || '') || convValue(convNow[i]) : '–') + '</span>' +
+                // insert at the right, as a constant has it
+                '<span class="calc-fx-put">' + insertIcon() + '</span></div>';
         }).join('');
         hideTip();
     }
@@ -1495,15 +1500,18 @@
         return JSON.stringify(fmt);
     }
 
+    // the arrow of insert: up into the display; the Insert of the formulas shows it too
+    function insertIcon() {
+        return '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" ' +
+            'stroke-linecap="round" stroke-linejoin="round"><path d="M13 13h-5a2 2 0 0 1-2-2V3" /><path d="M9 6l-3-3-3 3" /></svg>';
+    }
+
     // insert and copy, on the left of a line; shown while the pointer is over it
     function pastButtons(part, what) {
         var box = part.appendChild(document.createElement('span'));
         box.className = 'calc-past-btns';
         box.innerHTML =
-            '<span class="calc-past-btn" data-act="insert">' +
-            '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" ' +
-            'stroke-linecap="round" stroke-linejoin="round"><path d="M13 13h-5a2 2 0 0 1-2-2V3" /><path d="M9 6l-3-3-3 3" /></svg>' +
-            '</span>' +
+            '<span class="calc-past-btn" data-act="insert">' + insertIcon() + '</span>' +
             '<span class="calc-past-btn" data-act="copy">' +
             '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" ' +
             'stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />' +

@@ -238,7 +238,7 @@ async function calculator(page, at) {
     await page.hover('.calc-help');
     check(await page.until('!document.querySelector(".calc-tip").hidden', 2500), t + 'resting on the ? shows its tip');
     note = await page.calc('document.querySelector(".calc-tip").textContent');
-    check(/^Help and options/.test(note), t + 'the tip says it is the help and the options', note);
+    check(/^Options and guide/.test(note), t + 'the tip says it is the options and the guide', note);
     check(await page.calc('document.querySelector(".calc-tip").classList.contains("calc-tip-below") && ' +
         '!document.querySelector(".calc-help").title'), t + 'it is below the ?, which has no title');
     await page.hover('#box');

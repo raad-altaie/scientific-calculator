@@ -87,8 +87,33 @@ function createPopupWindow() {
                 left: bounds.left,
                 top: bounds.top,
                 focused: true,
+            }, (win) => {
+                // kept to close it on an update, when its page no longer tells
+                // what it is
+                detachedBoundsStore("readwrite", (store) => store.put(win.id, "id"));
             });
         });
+    });
+}
+
+// An update takes the page out of the detached window and leaves it blank,
+// and its tab no longer gives its address: it is found by the kept id, and
+// closed if it is still a popup with nothing else in it
+function closeDetachedWindow() {
+    detachedBoundsStore("readonly", (store) => {
+        const read = store.get("id");
+
+        read.onsuccess = () => {
+            if (read.result === undefined) return;
+
+            chrome.windows.get(read.result, { populate: true })
+                .then((win) => {
+                    if (win.type === "popup" && win.tabs.every((t) => !t.url || t.url.startsWith(detachedUrl))) {
+                        return chrome.windows.remove(win.id);
+                    }
+                })
+                .catch(() => { }); // it was already closed
+        };
     });
 }
 
@@ -185,13 +210,9 @@ chrome.runtime.onInstalled.addListener((details) => {
     }
 
 
-    // The detached window left open by the old version is blank, as its page
-    // lost the extension: it is closed
+    // The detached window left open by the old version is blank: it is closed
     if (details.reason == "update") {
-        chrome.tabs.query({ url: detachedUrl.replace("?detached", "*") }, (tabs) => {
-            tabs.filter((t) => t.url.includes("?detached"))
-                .forEach((t) => chrome.windows.remove(t.windowId).catch(() => { }));
-        });
+        closeDetachedWindow();
     }
 
     // Create "Open as Popup Window" menu item
