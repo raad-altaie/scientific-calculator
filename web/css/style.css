@@ -1631,8 +1631,9 @@
 
 
 #calculator .trigo-keys {
-    width: 40px;
-    height: 26px;
+    box-sizing: border-box; /* zoomed out, the browser draws a border thicker: inside the key, not around it */
+    width: 42px;
+    height: 29px;
     padding-bottom: 1px; /* the font draws its letters a little low */
     font-size: 1em;
     color: #fff;
@@ -1650,8 +1651,9 @@
 
 #calculator .calc-second {
     background-color: #222;
-    width: 40px;
-    height: 26px;
+    box-sizing: border-box;
+    width: 42px;
+    height: 29px;
     padding-bottom: 1px; /* the font draws its letters a little low */
     font-size: 1em;
     color: #fff;
@@ -1720,8 +1722,9 @@
     font-size: 2em;
     cursor: pointer;
     margin: 1px;
-    width: 62px;
-    height: 50px;
+    box-sizing: border-box;
+    width: 66px;
+    height: 54px;
     border: 2px solid #697394;
     border-top-left-radius: .6em;
     border-top-right-radius: .6em;
@@ -1804,7 +1807,7 @@
 }
 
 #calculator .equal {
-    width: 134px;
+    width: 138px;
     /*    background: #3f4661;*/
 }
 
