@@ -1475,10 +1475,11 @@
         return some.length > 0;
     }
 
-    // A value of the popup or the table pressed: the sliders stop first, so it is the one
-    // pressed that a click takes, and not drawn again under the pointer before the click
-    [graphPop, graphList].forEach(function (el) {
-        el.addEventListener('pointerdown', function () {
+    // The sliders stop for a value to be taken: as the pointer comes onto the popup, which
+    // moves with its point while they play, and as a value of the table is pressed, so it is
+    // the one pressed that a click takes, and not drawn again under the pointer before the click
+    [[graphPop, 'pointerenter'], [graphList, 'pointerdown']].forEach(function (on) {
+        on[0].addEventListener(on[1], function () {
             if (stopSliders()) saveState();
         }, false);
     });

@@ -148,8 +148,29 @@ function openGraphWindow() {
     });
 }
 
+// A window to the front, once the system has put it there: a moment after it is
+// asked, or half a second at most
+function focusWindow(id) {
+    return new Promise((done) => {
+        const ready = (focused) => {
+            if (focused !== id) return;
+            clearTimeout(late);
+            chrome.windows.onFocusChanged.removeListener(ready);
+            done();
+        };
+        const late = setTimeout(() => {
+            chrome.windows.onFocusChanged.removeListener(ready);
+            done();
+        }, 500);
+        chrome.windows.onFocusChanged.addListener(ready);
+        chrome.windows.update(id, { focused: true });
+    });
+}
+
 // A value put in from the graph's window: the calculator comes up with it, the
-// detached window if it is open, else the popup over the browser's window
+// detached window if it is open, else the popup over the browser's window, which
+// comes to the front first: the graph's window has the focus, and a popup is
+// only shown over the window in front
 function showCalculator() {
     chrome.tabs.query({ url: popupPages }, (tabs) => {
         const tab = tabs.find((t) => t.url.startsWith(detachedUrl));
@@ -159,7 +180,7 @@ function showCalculator() {
             return;
         }
         chrome.windows.getLastFocused({ windowTypes: ["normal"] })
-            .then((win) => chrome.action.openPopup({ windowId: win.id }))
+            .then((win) => focusWindow(win.id).then(() => chrome.action.openPopup({ windowId: win.id })))
             .catch(() => openCalculatorInDetachedMode()); // no browser window, or no popup allowed now
     });
 }

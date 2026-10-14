@@ -733,11 +733,13 @@ async function graphSlide(page, at) {
     await sleep(200);
     check(!await page.calc(playing) && await page.calc(b) === '-3', t + 'dragged, it stops', await page.calc(b));
 
-    // the y of a point clicked, pressed while b plays: it stops, and the y goes in
+    // the popup of a point clicked moves with it while b plays: the pointer on it stops b, and its y goes in
     await page.clickAt('.calc-graph-plot', 0.3, -0.75);
     check(/^On the curve/.test(await page.calc('document.querySelector(".calc-graph-pop").textContent.trim()')), t + 'a point on the curve');
     await page.click('.calc-graph-slider[data-k=b] .calc-graph-play');
     check(await page.until('+' + b + ' > -2', 2000), t + 'played, b goes up', await page.calc(b));
+    await page.hover('.calc-graph-pop-row[data-put="y"]');
+    check(!await page.calc(playing), t + 'the pointer on the popup stops b');
     await page.click('.calc-graph-pop-row[data-put="y"]', 150);
     check(!await page.calc(playing) && !await open(page, '.calc-graph') && await value(page) > -0.2, t + 'its y pressed: b stops and the y goes in',
         await shown(page));
