@@ -195,6 +195,16 @@
             d: 'Takes this curve away. The ones below it move up, each with its color.',
             k: ''
         },
+        'graph fit on': {
+            t: 'Draw the best fit',
+            d: 'Draws the straight line nearest these points, by least squares; point at it for its r².',
+            k: ''
+        },
+        'graph fit off': {
+            t: 'Hide the best fit',
+            d: 'Takes the line of the best fit away.',
+            k: ''
+        },
         'graph slope on': {
             t: 'Draw the slope',
             d: 'Draws the slope of this curve as well, its derivative dy/dx, dashed in its color.',
@@ -213,6 +223,11 @@
         'graph show': {
             t: 'Show the curve',
             d: 'Draws this curve again.',
+            k: ''
+        },
+        'graph put u': {
+            t: 'Insert t',
+            d: 'Puts the parameter of this point, t or θ, into the equation, as Ans does. ← and → move the point along its curve.',
             k: ''
         },
         'graph put x': {

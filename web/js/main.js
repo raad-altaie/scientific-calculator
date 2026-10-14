@@ -586,7 +586,10 @@
             if (el === graphSize) return CalcTips[root.classList.contains('calc-big') ? 'graph small' : 'graph big'];
             if (el === graphAdd) return CalcTips['graph add'];
             if (el.classList.contains('calc-graph-del')) return CalcTips['graph remove'];
-            if (el.classList.contains('calc-graph-diff')) return CalcTips[graphDiff[graphRows.indexOf(el.parentNode)] ? 'graph slope off' : 'graph slope on'];
+            if (el.classList.contains('calc-graph-diff')) {
+                return CalcTips[(graphRows[graphRows.indexOf(el.parentNode)].classList.contains('calc-graph-data') ? 'graph fit ' : 'graph slope ') +
+                    (graphDiff[graphRows.indexOf(el.parentNode)] ? 'off' : 'on')];
+            }
             if (el.classList.contains('calc-graph-pop-end')) return CalcTips['graph end ' + el.dataset.end];
             if (el.classList.contains('calc-graph-pop-row')) return CalcTips['graph put ' + el.dataset.put];
             if (el.classList.contains('calc-graph-play')) return CalcTips[graphPlay[el.parentNode.dataset.k] ? 'graph pause' : 'graph play'];
@@ -1068,9 +1071,9 @@
         graphPlay = {}, // the sliders playing: the way each goes, 1 up or -1 down
         graphFrame = 0, // the frame asked for while one plays
         graphLast = 0, // the time of the frame before
-        GRAPH_NAMES = { root: 'Root', xint: 'x-intercept', min: 'Min', max: 'Max', yint: 'y-intercept', cross: 'Crossing' },
+        GRAPH_NAMES = { root: 'Root', xint: 'x-intercept', min: 'Min', max: 'Max', yint: 'y-intercept', cross: 'Crossing', data: 'Data point' },
         // the rows of the popup: of a point, x, y and the slope; of an area, where it starts and ends, and how much
-        GRAPH_ROWS = { x: '<i>x</i>', y: '<i>y</i>', m: 'Slope', a: 'From <i>x</i>', b: 'To <i>x</i>', s: 'Area' },
+        GRAPH_ROWS = { u: '<i>t</i>', x: '<i>x</i>', y: '<i>y</i>', m: 'Slope', a: 'From <i>x</i>', b: 'To <i>x</i>', s: 'Area' },
         graphTouch = {}, // the pointers pressed on the plot, where each is now
         graphStart = null, // where they were when the last one went down or up, and the view then
         graphMoved = false, // the press became a drag or a pinch, so it is not a click
@@ -1078,6 +1081,10 @@
         graphOff = [false, false, false, false, false, false, false], // the curves hidden by a click on their dot: kept, not drawn
         graphDiff = [false, false, false, false, false, false, false], // the curves whose slope is drawn too, by their y′
         graphRels = [], // the boxes with an equation or an inequality of x and y in place of a function of x, x² + y² = 25
+        graphPlanes = [], // the boxes with a curve of a parameter, polar, r = 2sin(3θ), or parametric, (cos t, sin t)
+        graphData = [], // the boxes with points, (1, 2), (2, 4.1): their { x, y }; the function of such a box is its best fit, if on
+        graphVersion = 0, // goes up as the boxes are read again, so the marks found are found again
+        graphMarksKept = null, // the marks found, while the view, the unit, the letters and the boxes stay
         graphSharp = 0, // pixels of the canvas to each of the plot at least: 2 while a picture is made
         graphPop = graphPlot.querySelector('.calc-graph-pop'), // the point clicked: its x and y, each to insert
         GRAPH_POP_WAIT = 2000, // the popup opened with the mouse goes this many ms after the mouse is off it
@@ -1319,23 +1326,33 @@
     function readGraph(typing) {
         var letters = [];
         graphRels = [];
+        graphPlanes = [];
+        graphData = [];
+        graphVersion++;
         graphFns = graphInputs.map(function (box, i) {
             var text = i < graphCount ? box.value.trim() : '', fn = text ? CalcEngine.graph(text, engine.comma, graphVars) : null,
-                rel = text && !fn ? CalcEngine.relation(text, engine.comma, graphVars) : null, row = graphRows[i];
-            (fn || rel || { letters: [] }).letters.forEach(function (k) {
+                rel = text && !fn ? CalcEngine.relation(text, engine.comma, graphVars) : null,
+                plane = text && !fn && !rel ? CalcEngine.plane(text, engine.comma, graphVars) : null,
+                data = text && !fn && !rel && !plane ? CalcEngine.points(text, engine.comma) : null, fit, row = graphRows[i];
+            (fn || rel || plane || { letters: [] }).letters.forEach(function (k) {
                 if (letters.indexOf(k) < 0) letters.push(k);
             });
             graphRels[i] = graphOff[i] ? null : rel;
-            if (!text || rel) graphDiff[i] = false; // an equation has no slope of its own to draw
+            graphPlanes[i] = graphOff[i] ? null : plane;
+            graphData[i] = graphOff[i] ? null : data;
+            if (!text || rel || plane) graphDiff[i] = false; // an equation has no slope of its own to draw
             if (!text) graphOff[i] = false; // what is typed next is shown, without its slope
+            fit = data && graphDiff[i] && CalcEngine.fitLine(data); // the y′ of points is their best fit
             row.hidden = i >= graphCount;
-            row.classList.toggle('calc-bad', !!text && !fn && !rel);
-            row.classList.toggle('calc-graph-rel', !!rel);
+            row.classList.toggle('calc-bad', !!text && !fn && !rel && !plane && !data);
+            row.classList.toggle('calc-graph-rel', !!(rel || plane));
+            row.classList.toggle('calc-graph-data', !!data);
             row.classList.toggle('calc-graph-off', graphOff[i]);
             row.querySelector('.calc-graph-diff').classList.toggle('calc-on', graphDiff[i]);
+            row.querySelector('.calc-graph-diff').textContent = data ? 'fit' : 'y′';
             row.classList.toggle('calc-graph-empty', !text);
             row.querySelector('.calc-graph-swatch').style.setProperty('--c', curveColor(i));
-            return graphOff[i] ? null : fn;
+            return graphOff[i] ? null : data ? fit && fitCurve(fit) : fn;
         });
         graphFnList.classList.toggle('calc-graph-single', graphCount < 2);
         graphFnList.classList.toggle('calc-graph-many', graphCount > 3);
@@ -1543,6 +1560,28 @@
         if (graphTab === 'table') renderTable(); else drawGraph();
     }
 
+    // the best fit of points as a curve: y = m x + b, with fit, its m, b and r²
+    function fitCurve(fit) {
+        return { at: function (x) { return fit.m * x + fit.b; }, angles: false, letters: [], fit: fit };
+    }
+
+    // y = 1.95x + 0.1, r² = 0.998, as the picture names a best fit
+    function fitText(f) {
+        return 'y = ' + local(String(f.m)) + 'x ' + (f.b < 0 ? '– ' : '+ ') + local(String(Math.abs(f.b))) + ',  r² = ' + local(String(+f.r2.toPrecision(4)));
+    }
+
+    // the line of an equation that a point is on: the equation, or of an inequality of two, its part k
+    function relPart(p) {
+        var r = graphRels[p.i];
+        return r && (r.parts ? r.parts[p.k || 0] : r);
+    }
+
+    // how far into a region a place is, as the engine has it: of an inequality where it holds,
+    // of an equation on the side of it where its difference has the sign side
+    function regionInto(rel, side) {
+        return function (x, y) { return CalcEngine.within(rel, x, y, deg, side); };
+    }
+
     // true if a curve has a function of an angle, so its x follows Deg or Rad
     function graphAngles() {
         return graphFns.concat(graphRels).some(function (fn) { return fn && fn.angles; });
@@ -1616,7 +1655,7 @@
 
     function drawGraph() {
         var w = graphPlot.clientWidth, h = graphPlot.clientHeight, r = Math.max(graphSharp, (window.devicePixelRatio || 1) * scale()),
-            ctx = graphCanvas.getContext('2d'), v;
+            ctx = graphCanvas.getContext('2d'), v, key;
         if (!graph.classList.contains('calc-open') || !w || !h) return;
         graphWidth = w;
         v = viewNow();
@@ -1630,18 +1669,26 @@
         if (graphPinned && graphPinned.area) graphShade(ctx, v, w, h, graphPinned);
         graphFns.forEach(function (fn, i) {
             if (fn) drawCurve(ctx, v, w, h, fn, curveColor(i));
-            if (fn && graphDiff[i]) drawCurve(ctx, v, w, h, slopeCurve(fn), curveColor(i), true);
+            if (fn && graphDiff[i] && !graphData[i]) drawCurve(ctx, v, w, h, slopeCurve(fn), curveColor(i), true);
             if (graphRels[i]) drawRelation(ctx, v, w, h, graphRels[i], curveColor(i));
+            if (graphPlanes[i]) drawPlane(ctx, v, w, h, graphPlanes[i], curveColor(i));
         });
         graphTangent(ctx, v, w + h, graphPinned);
-        graphMarks = graphBusy(CalcEngine.keyPoints(graphFns, { x0: graphX(v, 0), x1: graphX(v, w), y0: graphY(v, h), y1: graphY(v, 0) }, deg, graphRels));
+        key = [graphVersion, v.x, v.y, v.ux, v.uy, w, h, deg, JSON.stringify(graphVars)].join();
+        if (!graphMarksKept || graphMarksKept.key !== key) {
+            graphMarksKept = { key: key, marks: CalcEngine.keyPoints(graphFns, { x0: graphX(v, 0), x1: graphX(v, w), y0: graphY(v, h), y1: graphY(v, 0) },
+                deg, graphRels, graphPlanes) };
+        }
+        graphMarks = graphBusy(graphMarksKept.marks).concat(dataMarks());
         graphMarks.forEach(function (p) {
-            graphDot(ctx, v, p, 3.5, GRAPH_INK.paper, curveColor(p.i));
+            if (p.data) graphDot(ctx, v, p, 3.5, curveColor(p.i), curveColor(p.i)); // a point typed: full
+            else graphDot(ctx, v, p, 3.5, GRAPH_INK.paper, curveColor(p.i));
         });
         if (graphShading && graphEdge) graphEdgeLine(ctx, v, h, graphEdge);
         [graphAt, graphPinned].forEach(function (p, at) {
             if (!p || p.area || (at && p === graphAt)) return;
-            if (!p.t && !p.spot && graphFns[p.i]) p.y = graphFns[p.i].at(p.x, deg, true); // on the curve as the unit is now
+            if (!p.t && !p.spot && p.u !== undefined && graphPlanes[p.i]) onPlane(p);
+            else if (!p.t && !p.spot && graphFns[p.i]) p.y = graphFns[p.i].at(p.x, deg, true); // on the curve as the unit is now
             else if (!p.t && !p.spot && graphRels[p.i]) onEquation(v, p);
             if (!isFinite(p.y) || Math.abs(plotY(v, p.y)) > 1e6) return;
             if (p.spot) {
@@ -1653,10 +1700,26 @@
         fillWindow(v, w, h);
     }
 
+    // the points typed in the boxes, as marks to point at and click
+    function dataMarks() {
+        var out = [];
+        graphData.forEach(function (list, i) {
+            (list || []).forEach(function (q) { out.push({ t: ['data'], x: q.x, y: q.y, i: i, data: true }); });
+        });
+        return out;
+    }
+
+    // a point on a curve of a parameter, at its parameter as the letters are now
+    function onPlane(p) {
+        var q = graphPlanes[p.i].at(p.u, deg);
+        p.x = q[0];
+        p.y = q[1];
+    }
+
     // a point on an equation, on it again as the letters and the view are now: where it was if
     // it is not
     function onEquation(v, p) {
-        var q = CalcEngine.onRelation(graphRels[p.i], p.x, p.y, v.ux, v.uy, deg);
+        var q = CalcEngine.onRelation(relPart(p), p.x, p.y, v.ux, v.uy, deg);
         if (q) {
             p.x = q.x;
             p.y = q.y;
@@ -1668,12 +1731,13 @@
     // equation, upright where it goes straight up, with no slope in the popup. None for a
     // place off the curves, where two cross, or where the curve has no slope
     function graphTangent(ctx, v, far, p) {
-        var one = p && !p.spot && !p.area && p.j === undefined, fn = one && graphFns[p.i], rel = one && !fn && graphRels[p.i], x, y, k;
+        var one = p && !p.spot && !p.area && !p.data && p.j === undefined, plane = one && p.u !== undefined && graphPlanes[p.i],
+            fn = one && !plane && graphFns[p.i], rel = one && !fn && !plane && relPart(p), x, y, k;
         if (!p) return;
         p.m = NaN;
-        if (!fn && !rel) return;
+        if (!fn && !rel && !plane) return;
         if (fn && !p.t) p.y = fn.at(p.x, deg, true); // on the curve as the unit and the letters are now
-        p.m = fn ? CalcEngine.slope(fn, p.x, deg) : CalcEngine.relationSlope(rel, p.x, p.y, deg);
+        p.m = fn ? CalcEngine.slope(fn, p.x, deg) : rel ? CalcEngine.relationSlope(rel, p.x, p.y, deg) : planeSlope(plane, p.u);
         if (isNaN(p.m) || !isFinite(p.y)) return;
         x = plotX(v, p.x);
         y = plotY(v, p.y);
@@ -1700,11 +1764,53 @@
         ctx.setLineDash([]);
     }
 
+    // the slope of a curve of a parameter at u, dy/dx: how y goes with it over how x goes;
+    // Infinity where x stands still, none where both do
+    function planeSlope(c, u) {
+        var span = c.range(deg), h = 1e-6 * Math.max(1, Math.abs(span[1] - span[0])), a = c.at(u - h, deg), b = c.at(u + h, deg),
+            dx = b[0] - a[0], dy = b[1] - a[1], m;
+        if (!isFinite(dx) || !isFinite(dy) || (!dx && !dy)) return NaN;
+        if (Math.abs(dx) <= 1e-9 * Math.abs(dy)) return Infinity;
+        m = dy / dx;
+        return Math.abs(m) <= 1e-9 ? 0 : +m.toPrecision(8);
+    }
+
+    // A curve of a parameter, from 2000 places along it, as the parameter goes from its start
+    // to its end. It breaks where it has no value and where it jumps across most of the plot,
+    // as (t, tan t) does. The places are kept while the view, the unit and its letters stay
+    function drawPlane(ctx, v, w, h, c, color) {
+        var key = [v.x, v.y, v.ux, v.uy, w, h, deg].concat(c.letters.map(function (k) { return graphVars[k]; })).join(), pts, on = false;
+        if (!c.kept || c.kept.key !== key) {
+            pts = [];
+            (function () {
+                var ends = c.range(deg), n = 2000, k, u, q;
+                for (k = 0; k <= n; k++) {
+                    u = ends[0] + (ends[1] - ends[0]) * k / n;
+                    q = c.at(u, deg);
+                    pts.push({ u: u, px: plotX(v, q[0]), py: plotY(v, q[1]) });
+                }
+            })();
+            c.kept = { key: key, pts: pts };
+        }
+        ctx.beginPath();
+        c.kept.pts.forEach(function (p, k) {
+            var q = c.kept.pts[k - 1], ok = isFinite(p.px) && isFinite(p.py) && Math.abs(p.px) < 1e6 && Math.abs(p.py) < 1e6;
+            if (ok && on && Math.abs(p.px - q.px) + Math.abs(p.py - q.py) < (w + h) / 2) ctx.lineTo(p.px, p.py);
+            else if (ok) ctx.moveTo(p.px, p.py);
+            on = ok;
+        });
+        ctx.lineWidth = 2;
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = color;
+        ctx.stroke();
+    }
+
     // The area of a curve from a to b, shaded in its color down to the x axis, or to the curve
     // below it (j), and its value, as the letters are now: the integral of the curve, or of the
     // one less the other; the popup is in the middle of what is in the view. Where a curve has
     // no value it is not shaded, and the area is none
     function graphShade(ctx, v, w, h, p) {
+        if (p.rel) return shadeRegion(ctx, v, w, h, p);
         var fn = graphFns[p.i], low = p.j !== undefined ? graphFns[p.j] : null, x0 = Math.max(0, plotX(v, p.a)),
             x1 = Math.min(w, plotX(v, p.b)), at = [x0], run = [], k, x;
         function edge(y) {
@@ -1745,11 +1851,67 @@
         ctx.globalAlpha = 1;
     }
 
-    // The region a place is in, for its area: between the curve just above it and the one just
-    // below at its x; else, over or under every curve, the nearest one down or up to the x axis.
-    // Null where no curve has a value there
+    // The area of a region from a to b: of an inequality where it holds, or inside an equation on
+    // the side the drag began, shaded in its color a column of pixels at a time, and its value,
+    // found once the drag ends: none where it goes on past five views high (lo to hi). The
+    // columns are kept while the view and its letters stay, and the value while its ends stay
+    function shadeRegion(ctx, v, w, h, p) {
+        var rel = graphRels[p.i], into = rel && regionInto(rel, p.side), x0 = Math.max(0, plotX(v, p.a)), x1 = Math.min(w, plotX(v, p.b)),
+            letters = rel ? rel.letters.map(function (k) { return graphVars[k]; }).join() : '', key, px, mid;
+        p.x = graphX(v, (x0 + x1) / 2);
+        p.y = (graphY(v, 0) + graphY(v, h)) / 2;
+        if (!rel) {
+            p.s = NaN;
+            return;
+        }
+        key = [p.a, p.b, p.side, p.lo, p.hi, deg, letters].join();
+        if (!(graphStart && graphShading) && p.sKey !== key) { // not while it is dragged
+            p.s = CalcEngine.regionArea(into, p.a, p.b, p.lo, p.hi, deg);
+            p.sKey = key;
+        }
+        if (p.sKey !== key) p.s = NaN;
+        if (x1 <= x0) return;
+        key = [v.x, v.y, v.ux, v.uy, w, h, x0, x1, key].join();
+        if (!p.cols || p.cols.key !== key) {
+            p.cols = { key: key, at: [] };
+            for (px = Math.floor(x0); px < Math.ceil(x1); px++) p.cols.at.push({ px: px, s: CalcEngine.spans(into, graphX(v, px + 0.5), p.lo, p.hi) });
+        }
+        ctx.beginPath();
+        p.cols.at.forEach(function (col) {
+            col.s.forEach(function (s) {
+                var top = Math.max(-1, plotY(v, s[1])), bottom = Math.min(h + 1, plotY(v, s[0]));
+                if (bottom > top) ctx.rect(col.px, top, 1, bottom - top);
+            });
+        });
+        ctx.globalAlpha = 0.3;
+        ctx.fillStyle = curveColor(p.i);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        mid = p.cols.at[Math.floor(p.cols.at.length / 2)];
+        mid = mid && mid.s.filter(function (s) { return s[1] > graphY(v, h) && s[0] < graphY(v, 0); })[0];
+        if (mid) p.y = (Math.max(mid[0], graphY(v, h)) + Math.min(mid[1], graphY(v, 0))) / 2;
+    }
+
+    // The region a place is in, for its area: inside an inequality where it holds, or inside an
+    // equation, x² + y² = 25, the smallest in y there that ends both ways; else between the curve
+    // just above it and the one just below at its x; else, over or under every curve, the nearest
+    // one down or up to the x axis; else an inequality that goes on without end, whose area is
+    // none. Null where no curve has a value there
     function areaRegion(at) {
-        var v = viewNow(), x = graphX(v, at.x), y = graphY(v, at.y), above = null, below = null, near = null;
+        var v = viewNow(), x = graphX(v, at.x), y = graphY(v, at.y), above = null, below = null, near = null, open = null, inner = null,
+            tall = graphPlot.clientHeight * v.uy, lo = graphY(v, graphPlot.clientHeight) - 2 * tall, hi = graphY(v, 0) + 2 * tall;
+        graphRels.forEach(function (rel, i) {
+            var side = rel && rel.op === '=' ? (rel.at(x, y, deg) < 0 ? -1 : 1) : 0, s;
+            if (!rel || !(CalcEngine.within(rel, x, y, deg, side) > 0)) return;
+            s = CalcEngine.spans(regionInto(rel, side), x, lo, hi).filter(function (q) { return q[0] <= y && y <= q[1]; })[0];
+            if (!s) return;
+            if (!isFinite(s[1] - s[0])) {
+                if (rel.op !== '=' && !open) open = { i: i, rel: true, side: side, lo: lo, hi: hi };
+                return;
+            }
+            if (!inner || s[1] - s[0] < inner.len) inner = { i: i, rel: true, side: side, lo: lo, hi: hi, len: s[1] - s[0] };
+        });
+        if (inner) return inner;
         graphFns.forEach(function (fn, i) {
             var fy = fn ? fn.at(x, deg) : NaN, d = Math.abs(plotY(v, fy) - at.y);
             if (!isFinite(fy)) return;
@@ -1758,7 +1920,7 @@
             if (!near || d < near.d) near = { i: i, d: d };
         });
         if (above && below) return { i: above.i, j: below.i };
-        return near && { i: near.i };
+        return near ? { i: near.i } : open;
     }
 
     // an end of an area, at px of the plot: the x of a dot within reach of a curve of it, a
@@ -1790,6 +1952,12 @@
         a = areaEnd(v, s.r, s.p[0].x);
         b = areaEnd(v, s.r, at.x);
         graphPinned = { area: true, i: s.r.i, j: s.r.j, a: Math.min(a, b), b: Math.max(a, b) };
+        if (s.r.rel) {
+            graphPinned.rel = true;
+            graphPinned.side = s.r.side;
+            graphPinned.lo = s.r.lo;
+            graphPinned.hi = s.r.hi;
+        }
         graphAt = graphEdge = null;
         popShut();
         drawGraph();
@@ -1805,10 +1973,20 @@
             dir = key === 39 || key === 38 ? 1 : -1, i, x, next = null, px, py, dx = 0, dy = 0;
         if (!p || p.spot || p.area || !graph.classList.contains('calc-open') || graphTab !== 'graph') return false;
         i = p.j !== undefined && p.j === graphTracing ? p.j : p.i;
-        if (!graphFns[i] && !graphRels[i]) return false;
-        if (graphRels[i] && (key === 37 || key === 39)) {
+        if (!graphFns[i] && !graphRels[i] && !graphPlanes[i] && !graphData[i]) return false;
+        if (p.data && (key === 37 || key === 39)) {
+            next = graphMarks.filter(function (m) { return m.data && m.i === p.i && (m.x - p.x) * dir > 0; }).sort(function (a, b) {
+                return (a.x - b.x) * dir;
+            })[0];
+            if (!next) return true;
+        } else if (graphPlanes[i] && p.u !== undefined && (key === 37 || key === 39)) {
+            next = tracePlane(v, p, i, dir, GRAPH_TRACE * (shift ? 10 : 1));
+            if (!next) return true;
+        } else if (graphRels[i] && (key === 37 || key === 39)) {
             next = traceEquation(v, p, i, dir, GRAPH_TRACE * (shift ? 10 : 1));
             if (!next) return true;
+        } else if (!graphFns[i] && (key === 37 || key === 39)) {
+            return true;
         } else
         if (key === 38 || key === 40) {
             graphFns.forEach(function (fn, k) {
@@ -1846,7 +2024,7 @@
     // goes right, or up where it goes straight up, and on from there the way the last press
     // went, round a circle and not back at its side; ← back. Null where it has no more
     function traceEquation(v, p, i, dir, s) {
-        var rel = graphRels[i], a = plotX(v, p.x), b = plotY(v, p.y), last = graphStep && graphStep.p === p ? graphStep : null,
+        var rel = relPart(p), a = plotX(v, p.x), b = plotY(v, p.y), last = graphStep && graphStep.p === p ? graphStep : null,
             fx = rel.at(graphX(v, a + 0.5), p.y, deg) - rel.at(graphX(v, a - 0.5), p.y, deg),
             fy = rel.at(p.x, graphY(v, b + 0.5), deg) - rel.at(p.x, graphY(v, b - 0.5), deg),
             n = Math.hypot(fx, fy), t, near = null, q, d;
@@ -1862,15 +2040,35 @@
         });
         q = near ? near.m : CalcEngine.onRelation(rel, graphX(v, a + t.x * s), graphY(v, b + t.y * s), v.ux, v.uy, deg);
         if (!q) return null;
-        if (!near) q = { i: i, x: q.x, y: q.y };
+        if (!near && graphRels[i].parts && !CalcEngine.holds(graphRels[i], q.x, q.y, deg)) return null; // past a corner
+        if (!near) q = { i: i, x: q.x, y: q.y, k: p.k };
         d = Math.hypot(plotX(v, q.x) - a, plotY(v, q.y) - b);
         if (d > 3 * s + 3) return null; // found on another part of it, not the next place along
         graphStep = { p: q, x: d ? (plotX(v, q.x) - a) / d : t.x, y: d ? (plotY(v, q.y) - b) / d : t.y, dir: dir };
         return q;
     }
 
+    // The point after p along curve i of a parameter, s pixels on, or the dot before that: →
+    // the way the parameter grows, ← back, as far as its ends
+    function tracePlane(v, p, i, dir, s) {
+        var c = graphPlanes[i], ends = c.range(deg), h = (ends[1] - ends[0]) * 1e-5, a = c.at(p.u - h, deg), b = c.at(p.u + h, deg),
+            speed = Math.hypot(plotX(v, b[0]) - plotX(v, a[0]), plotY(v, b[1]) - plotY(v, a[1])) / (2 * h),
+            u = p.u + dir * (speed > 0 && isFinite(speed) ? s / speed : (ends[1] - ends[0]) / 2000), near = null, q;
+        u = Math.max(ends[0], Math.min(ends[1], u));
+        if (u === p.u) return null;
+        graphMarks.forEach(function (m) {
+            if ((m.i === i || m.j === i) && m.u !== undefined && (m.u - p.u) * dir > 1e-12 && (m.u - u) * dir <= 0 &&
+                (!near || Math.abs(m.u - p.u) < Math.abs(near.u - p.u))) near = m;
+        });
+        if (near) return near;
+        q = c.at(u, deg);
+        return { i: i, u: u, x: q[0], y: q[1] };
+    }
+
     // a place on the area shaded, or by its edge
     function onArea(v, p, at) {
+        if (p.rel) return graphX(v, at.x) >= p.a && graphX(v, at.x) <= p.b && !!graphRels[p.i] &&
+            CalcEngine.within(graphRels[p.i], graphX(v, at.x), graphY(v, at.y), deg, p.side) > 0;
         var x = graphX(v, at.x), fn = graphFns[p.i], low = p.j === undefined ? null : graphFns[p.j],
             top = plotY(v, fn ? fn.at(x, deg) : NaN), bottom = plotY(v, p.j === undefined ? 0 : low ? low.at(x, deg) : NaN);
         return x >= p.a && x <= p.b && at.y >= Math.min(top, bottom) - 4 && at.y <= Math.max(top, bottom) + 4;
@@ -2002,39 +2200,46 @@
     // Not where it only jumps from one sign to the other, as x y = 1 does across x = 0: there
     // the middle of the cell is farther from 0 than its corners. An inequality, y < x², is
     // shaded where it is true, a cell at a time, or the part of a cell on its side of the line;
-    // its line is dashed where the line itself is not in it, for < and >. Its values are kept
-    // while the view, the unit and its letters stay, as the pointer moving draws it again
+    // its line is dashed where the line itself is not in it, for < and >. Of two, 1 < x < 3,
+    // where both are, each line drawn where the other holds. The values are kept while the
+    // view, the unit and the letters stay, as the pointer moving draws it again
     function drawRelation(ctx, v, w, h, rel, color) {
-        var c = 3, nx = Math.ceil(w / c), ny = Math.ceil(h / c), grid = [], lines = [], op = rel.op || '=',
-            want = op === '<' || op === '≤' ? -1 : 1, strict = op === '<' || op === '>', i, j, run,
+        var c = 3, nx = Math.ceil(w / c), ny = Math.ceil(h / c), parts = rel.parts || [rel], grids, i, j, run,
             key = [v.x, v.y, v.ux, v.uy, w, h, deg].concat(rel.letters.map(function (k) { return graphVars[k]; })).join();
-        function f(px, py) {
-            return rel.at(graphX(v, px), graphY(v, py), deg);
+        function corners(g, i, j) {
+            return [g[j][i], g[j][i + 1], g[j + 1][i + 1], g[j + 1][i]];
         }
-        function inside(k) {
-            return k * want > 0 || (k === 0 && !strict);
+        function strict(part) {
+            return part.op === '<' || part.op === '>';
+        }
+        function inside(part, k) {
+            return k * (part.op === '<' || part.op === '≤' ? -1 : 1) > 0 || (k === 0 && !strict(part));
         }
         if (rel.kept && rel.kept.key === key) {
-            grid = rel.kept.grid;
+            grids = rel.kept.grids;
         } else {
-            for (j = 0; j <= ny; j++) {
-                grid.push([]);
-                for (i = 0; i <= nx; i++) grid[j].push(f(i * c, j * c));
-            }
-            rel.kept = { key: key, grid: grid };
+            grids = parts.map(function (part) {
+                var grid = [];
+                for (j = 0; j <= ny; j++) {
+                    grid.push([]);
+                    for (i = 0; i <= nx; i++) grid[j].push(part.at(graphX(v, i * c), graphY(v, j * c), deg));
+                }
+                return grid;
+            });
+            rel.kept = { key: key, grids: grids };
         }
-        if (op !== '=') {
+        if (rel.op !== '=') {
             ctx.beginPath();
             for (j = 0; j < ny; j++) {
                 run = -1; // the first of the cells in a row wholly in it, drawn as one
                 for (i = 0; i <= nx; i++) {
-                    if (i < nx && [grid[j][i], grid[j][i + 1], grid[j + 1][i + 1], grid[j + 1][i]].every(inside)) {
+                    if (i < nx && parts.every(function (part, k) { return corners(grids[k], i, j).every(function (n) { return inside(part, n); }); })) {
                         if (run < 0) run = i;
                         continue;
                     }
                     if (run >= 0) ctx.rect(run * c, j * c, (i - run) * c, c);
                     run = -1;
-                    if (i < nx) part(i * c, j * c, [grid[j][i], grid[j][i + 1], grid[j + 1][i + 1], grid[j + 1][i]]);
+                    if (i < nx) piece(i * c, j * c, i, j);
                 }
             }
             ctx.globalAlpha = 0.22;
@@ -2042,22 +2247,31 @@
             ctx.fill();
             ctx.globalAlpha = 1;
         }
-        for (j = 0; j < ny; j++) {
-            for (i = 0; i < nx; i++) cell(i * c, j * c, [grid[j][i], grid[j][i + 1], grid[j + 1][i + 1], grid[j + 1][i]]);
-        }
-        ctx.beginPath();
-        (strict ? chains(lines) : lines).forEach(function (line) {
-            ctx.moveTo(line[0][0], line[0][1]);
-            line.slice(1).forEach(function (p) { ctx.lineTo(p[0], p[1]); });
+        parts.forEach(function (part, k) {
+            var lines = [];
+            for (j = 0; j < ny; j++) {
+                for (i = 0; i < nx; i++) cell(i * c, j * c, corners(grids[k], i, j), part, lines);
+            }
+            if (parts.length > 1) { // where the other holds
+                lines = lines.filter(function (l) {
+                    var x = graphX(v, (l[0][0] + l[1][0]) / 2), y = graphY(v, (l[0][1] + l[1][1]) / 2);
+                    return parts.every(function (other, m) { return m === k || inside(other, other.at(x, y, deg)); });
+                });
+            }
+            ctx.beginPath();
+            (strict(part) ? chains(lines) : lines).forEach(function (line) {
+                ctx.moveTo(line[0][0], line[0][1]);
+                line.slice(1).forEach(function (p) { ctx.lineTo(p[0], p[1]); });
+            });
+            ctx.lineWidth = 2;
+            ctx.lineCap = strict(part) ? 'butt' : 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = color;
+            ctx.setLineDash(strict(part) ? [6, 4] : []);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.lineCap = 'butt';
         });
-        ctx.lineWidth = 2;
-        ctx.lineCap = strict ? 'butt' : 'round';
-        ctx.lineJoin = 'round';
-        ctx.strokeStyle = color;
-        ctx.setLineDash(strict ? [6, 4] : []);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.lineCap = 'butt';
 
         // where edge e of a cell from px, py crosses 0, its corners k: found from its left or top
         // end, so the cell beside it finds the same place
@@ -2073,29 +2287,40 @@
             return [px + p[0] + (q[0] - p[0]) * t, py + p[1] + (q[1] - p[1]) * t];
         }
 
-        // the part of a cell from px, py that is in it: its corners in it, and the places
-        // between where its edges cross 0
-        function part(px, py, k) {
-            var corner = [[0, 0], [c, 0], [c, c], [0, c]], poly = [], e;
-            for (e = 0; e < 4; e++) {
-                if (inside(k[e])) poly.push([px + corner[e][0], py + corner[e][1]]);
-                if (inside(k[e]) !== inside(k[(e + 1) % 4])) poly.push(edge(px, py, k, e));
-            }
+        // the part of cell i, j from px, py that is in it: the square cut by each line in turn, a
+        // corner kept where it is in, and a place put where an edge crosses out, its values there
+        // as they go along the edge
+        function piece(px, py, i, j) {
+            var corner = [[0, 0], [c, 0], [c, c], [0, c]], poly = corner.map(function (q, e) {
+                return { x: px + q[0], y: py + q[1], v: parts.map(function (part, k) { return corners(grids[k], i, j)[e]; }) };
+            });
+            parts.forEach(function (part, k) {
+                var out = [];
+                poly.forEach(function (a, e) {
+                    var b = poly[(e + 1) % poly.length], inA = inside(part, a.v[k]), t;
+                    if (inA) out.push(a);
+                    if (inA !== inside(part, b.v[k])) {
+                        t = isFinite(a.v[k]) && isFinite(b.v[k]) ? a.v[k] / (a.v[k] - b.v[k]) : 0.5;
+                        out.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, v: a.v.map(function (n, m) { return n + (b.v[m] - n) * t; }) });
+                    }
+                });
+                poly = out;
+            });
             if (poly.length < 3) return;
-            ctx.moveTo(poly[0][0], poly[0][1]);
-            poly.slice(1).forEach(function (p) { ctx.lineTo(p[0], p[1]); });
+            ctx.moveTo(poly[0].x, poly[0].y);
+            poly.slice(1).forEach(function (q) { ctx.lineTo(q.x, q.y); });
             ctx.closePath();
         }
 
-        // the line across a cell from px, py: its corners top left, top right, bottom right and bottom left
-        function cell(px, py, k) {
+        // the line of part across a cell from px, py: its corners top left, top right, bottom right and bottom left
+        function cell(px, py, k, part, lines) {
             var at = [], e, mid;
             if (!k.every(isFinite)) return;
             for (e = 0; e < 4; e++) {
                 if ((k[e] > 0) !== (k[(e + 1) % 4] > 0)) at.push(edge(px, py, k, e));
             }
             if (at.length < 2) return;
-            mid = f(px + c / 2, py + c / 2);
+            mid = part.at(graphX(v, px + c / 2), graphY(v, py + c / 2), deg);
             if (!(Math.abs(mid) <= 2 * Math.max.apply(null, k.map(Math.abs)))) return; // a jump, not a 0
             lines.push([at[0], at[1]]);
             if (at.length === 4) lines.push([at[2], at[3]]);
@@ -2182,17 +2407,46 @@
             var y = fn ? fn.at(x, deg, true) : NaN, d = Math.abs(plotY(v, y) - at.y);
             if (isFinite(y) && d <= reach * 1.2 && (!best || d < best.d)) best = { d: d, p: { i: i, x: x, y: y } };
         });
-        graphRels.forEach(function (rel, i) { // an equation: the place on it nearest
-            var q = rel && CalcEngine.onRelation(rel, graphX(v, at.x), graphY(v, at.y), v.ux, v.uy, deg, graphNice),
-                d = q ? Math.hypot(plotX(v, q.x) - at.x, plotY(v, q.y) - at.y) : Infinity;
-            if (d <= reach * 1.2 && (!best || d < best.d)) best = { d: d, p: { i: i, x: q.x, y: q.y } };
+        graphRels.forEach(function (rel, i) { // an equation: the place on it nearest; of an inequality of two, on either line where the other holds
+            (rel ? rel.parts || [rel] : []).forEach(function (part, k) {
+                var q = CalcEngine.onRelation(part, graphX(v, at.x), graphY(v, at.y), v.ux, v.uy, deg, graphNice),
+                    d = q && (!rel.parts || CalcEngine.holds(rel, q.x, q.y, deg)) ? Math.hypot(plotX(v, q.x) - at.x, plotY(v, q.y) - at.y) : Infinity;
+                if (d <= reach * 1.2 && (!best || d < best.d)) best = { d: d, p: { i: i, x: q.x, y: q.y } };
+                if (best && best.d === d && k) best.p.k = k;
+            });
+        });
+        graphPlanes.forEach(function (c, i) { // a curve of a parameter: the nearest of its places drawn, then nearer between them
+            var pts = c && c.kept && c.kept.pts, near = null, lo, hi, k, m1, m2, q, d;
+            function off(u) {
+                var q = c.at(u, deg);
+                return Math.hypot(plotX(v, q[0]) - at.x, plotY(v, q[1]) - at.y);
+            }
+            if (!pts) return;
+            pts.forEach(function (q, k) {
+                var d = Math.hypot(q.px - at.x, q.py - at.y);
+                if (d < (near ? near.d : Infinity)) near = { d: d, k: k };
+            });
+            if (!near || near.d > reach * 2) return;
+            lo = pts[Math.max(0, near.k - 1)].u;
+            hi = pts[Math.min(pts.length - 1, near.k + 1)].u;
+            for (k = 0; k < 50; k++) {
+                m1 = lo + (hi - lo) / 3;
+                m2 = hi - (hi - lo) / 3;
+                if (off(m1) <= off(m2)) hi = m2; else lo = m1;
+            }
+            q = c.at((lo + hi) / 2, deg);
+            d = off((lo + hi) / 2);
+            if (d <= reach * 1.2 && (!best || d < best.d)) best = { d: d, p: { i: i, u: (lo + hi) / 2, x: q[0], y: q[1] } };
         });
         return best ? best.p : { x: x, y: graphNice(graphY(v, at.y), v.uy), spot: true };
     }
 
     // what a point is, and its x and y, as the line above the plot and the popup show them
     function graphName(p) {
-        return p.spot ? 'Point' : p.area ? (p.j === undefined ? 'Area under the curve' : 'Area between the curves') : p.t ? p.t.map(function (t) { return GRAPH_NAMES[t]; }).join(', ') : 'On the curve';
+        var fit = !p.spot && !p.area && !p.t && graphData[p.i] && graphFns[p.i] && graphFns[p.i].fit;
+        if (fit) return 'Best fit, r² = ' + local(String(+fit.r2.toPrecision(4)));
+        return p.spot ? 'Point' : p.area ? (p.rel ? 'Area of the region' : p.j === undefined ? 'Area under the curve' : 'Area between the curves') :
+            p.t ? p.t.map(function (t) { return GRAPH_NAMES[t]; }).join(', ') : 'On the curve';
     }
 
     // to 13 digits, as the display shows a result: 1.732050807569. What is inserted is the whole number
@@ -2221,20 +2475,20 @@
         var unit = graphAngles() ? UNITS[deg] : '', p = graphAt;
         if (graphRows.some(function (row) { return row.classList.contains('calc-bad'); })) {
             graphNote.textContent = 'Not a function of x yet: write x^2 for x², 2x for 2 × x.';
-        } else if (!graphFns.some(Boolean) && !graphRels.some(Boolean) && graphOff.some(Boolean)) {
+        } else if (!graphFns.concat(graphRels, graphPlanes, graphData).some(Boolean) && graphOff.some(Boolean)) {
             graphNote.textContent = 'Every curve is hidden: click its dot to show it.';
         } else if (graphTab === 'table') {
             graphNote.textContent = !graphFns.some(Boolean) ? 'Type a function of x for its values.' :
                 graphTable.querySelector('.calc-bad') ? 'Start and step are numbers, the step above 0.' :
                     'Click a value to put it in the equation.' + (unit ? ' · ' + unit : '');
-        } else if (graphShading && graphFns.some(Boolean) && graphStart && graphPinned && graphPinned.area) {
+        } else if (graphShading && graphFns.concat(graphRels).some(Boolean) && graphStart && graphPinned && graphPinned.area) {
             graphNote.innerHTML = graphSwatches(graphPinned) + '<span>From <i>x</i> = ' + graphValue(graphPinned, 'a') + '</span>' +
                 '<span>to <i>x</i> = ' + graphValue(graphPinned, 'b') + '</span>';
         } else if (graphShading && graphEdge) {
             graphNote.innerHTML = graphSwatches(graphEdge) + '<span>From <i>x</i> = ' + graphValue(graphEdge, 'x') + '</span>' +
                 '<span>Drag to where it ends</span>';
-        } else if (graphShading && graphFns.some(Boolean)) {
-            graphNote.textContent = 'Drag along a curve for the area under it, between two for the area between; an end near a dot goes to it.';
+        } else if (graphShading && graphFns.concat(graphRels).some(Boolean)) {
+            graphNote.textContent = 'Drag along a curve for the area under it, between two for the area between, in a region for its area.';
         } else if (p) {
             graphNote.innerHTML = graphSwatches(p) + '<em>' + graphName(p) + '</em>' +
                 '<span><i>x</i> = ' + graphValue(p, 'x') + '</span>' +
@@ -2264,10 +2518,11 @@
             return;
         }
         html = '<div class="calc-graph-pop-head">' + graphSwatches(p) + '<b>' + graphName(p) + '</b></div>' +
-            (p.area ? ['a', 'b', 's'] : ['x', 'y', 'm']).map(function (k) {
+            (p.area ? ['a', 'b', 's'] : p.u !== undefined ? ['u', 'x', 'y', 'm'] : ['x', 'y', 'm']).map(function (k) {
                 if (k === 'm' && !isFinite(p.m)) return '';
                 if (k === 's' && !isFinite(p.s)) return '<div class="calc-graph-pop-none">Area = none</div>';
-                return '<div class="calc-graph-pop-row" data-put="' + k + '"><span>' + GRAPH_ROWS[k] + ' = ' +
+                return '<div class="calc-graph-pop-row" data-put="' + k + '"><span>' + (k === 'u' && graphPlanes[p.i] &&
+                    graphPlanes[p.i].kind === 'polar' ? 'θ' : GRAPH_ROWS[k]) + ' = ' +
                     (k === 'a' || k === 'b' ? '<input class="calc-graph-pop-end" data-end="' + k + '" value="' + endValue(p, k) +
                         '" aria-label="' + (k === 'a' ? 'From x' : 'To x') + '">' : graphValue(p, k)) + '</span>' + insertIcon() + '</div>';
             }).join('');
@@ -2606,8 +2861,13 @@
 
         lines = [];
         graphFns.forEach(function (fn, i) {
+            if (graphData[i] && !graphOff[i]) {
+                lines.push({ i: i, text: graphData[i].length === 1 ? '1 point' : graphData[i].length + ' points' });
+                if (fn) lines.push({ i: i, text: 'Best fit ' + fitText(fn.fit) });
+                return;
+            }
             if (fn) lines.push({ i: i, text: 'y = ' + graphInputs[i].value.trim().replace(/^(y|f\s*\(\s*x\s*\))\s*=\s*/i, '') });
-            if (graphRels[i]) lines.push({ i: i, text: graphInputs[i].value.trim() });
+            if (graphRels[i] || graphPlanes[i]) lines.push({ i: i, text: graphInputs[i].value.trim() });
             if (fn && graphDiff[i]) lines.push({ i: i, text: 'y′ of ' + graphInputs[i].value.trim(), dashed: true });
         });
         if (!lines.length) return pic;

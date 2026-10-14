@@ -589,7 +589,8 @@
     display: none;
 }
 
-/* an equation of x and y, x² + y² = 25, has no y = before it: it is written in the box */
+/* an equation of x and y, x² + y² = 25, has no y = before it: it is written in the box; nor have points */
+#calculator .calc-graph-fn.calc-graph-data > span:not([class]),
 #calculator .calc-graph-fn.calc-graph-rel > span:not([class]) {
     display: none;
 }
