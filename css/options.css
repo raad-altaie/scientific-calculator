@@ -27,6 +27,10 @@ html, body {
     padding: 0 1.3em 1.3em;
 }
 
+.features a {
+    color: #f0b8be;
+}
+
 .features li {
     padding: 0.15em 0.1em;
     
@@ -73,8 +77,17 @@ html, body {
     font-size: 22px;
     text-align: center;
     margin: 2em 0 0.6em;
+    -webkit-user-select: text; /* the section titles can be selected and copied, as the text under them */
+    user-select: text;
 }
 
+
+/* a line in the guide before For Schools and Companies, a part of its own */
+.guide-rule {
+    margin: 4em 0;
+    border: none;
+    border-top: 1px solid #8a929c;
+}
 
 /* the options: one panel, one row for each option */
 .options {
@@ -715,6 +728,11 @@ html, body {
 .wrapper[data-show="options"] > [data-tab="guide"],
 .wrapper[data-show="guide"] > [data-tab="options"] {
     display: none;
+}
+
+/* the last section of the guide, For Schools and Companies, has room under it before the footer */
+.wrapper > .features:last-child {
+    margin-bottom: 3em;
 }
 
 /* the guide starts under the tabs, as the options do */
