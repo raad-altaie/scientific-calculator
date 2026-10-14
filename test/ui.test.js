@@ -750,6 +750,25 @@ async function graphPanel(page, at) {
     check(await page.calc('document.querySelector(".calc-graph-sliders").hidden') && await page.calc(dashes(1, 2)) > 0 &&
         await page.calc(dashes(1, -2)) === 0, t + 'd/dx(x^2) is drawn as 2x, with no slider', await page.calc(note));
 
+    // an equation of x and y is drawn where its two sides are equal: the circle x² + y² = 25 through
+    // (3, 4) and (0, -5), and not at the middle; x = 3 upright through (3, -6)
+    await page.click('.calc-graph .calc-past-clear');
+    await page.calc('(function (b) { b.value = "x^2+y^2=25"; b.dispatchEvent(new Event("input", { bubbles: true })); })' +
+        '(document.querySelector(".calc-graph-input"))');
+    await sleep(300);
+    check(!await page.calc('document.querySelector(".calc-graph-fn").classList.contains("calc-bad")') &&
+        await page.calc(dashes(3, 4)) > 0 && await page.calc(dashes(0, -5)) > 0 && await page.calc(dashes(0, 0)) === 0 &&
+        await page.calc('getComputedStyle(document.querySelector(".calc-graph-fn .calc-graph-diff")).display') === 'none',
+        t + 'x² + y² = 25 is drawn, a circle, without a y′', await page.calc(note));
+    await page.calc('(function (b) { b.value = "x=3"; b.dispatchEvent(new Event("input", { bubbles: true })); })' +
+        '(document.querySelector(".calc-graph-input"))');
+    await sleep(300);
+    check(await page.calc(dashes(3, -6)) > 0 && await page.calc(dashes(3, 6)) > 0 && await page.calc(dashes(1, 0)) === 0, t + 'x = 3 is an upright line');
+    await page.calc('(function (b) { b.value = "x^2+y^2=r^2"; b.dispatchEvent(new Event("input", { bubbles: true })); })' +
+        '(document.querySelector(".calc-graph-input"))');
+    await sleep(900);
+    check(await page.calc('!!document.querySelector(".calc-graph-slider[data-k=r]")'), t + 'its letters have sliders');
+
     // what is not a function says so, and draws nothing
     await page.click('.calc-graph .calc-past-clear');
     await page.click('.calc-graph-zoom [data-zoom="in"]');

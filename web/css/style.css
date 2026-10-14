@@ -584,7 +584,13 @@
     color: #d3d9e2;
 }
 
-#calculator .calc-graph-fn.calc-graph-empty > .calc-graph-diff {
+#calculator .calc-graph-fn.calc-graph-empty > .calc-graph-diff,
+#calculator .calc-graph-fn.calc-graph-rel > .calc-graph-diff {
+    display: none;
+}
+
+/* an equation of x and y, x² + y² = 25, has no y = before it: it is written in the box */
+#calculator .calc-graph-fn.calc-graph-rel > span:not([class]) {
     display: none;
 }
 
