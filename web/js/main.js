@@ -587,8 +587,12 @@
             if (el === graphAdd) return CalcTips['graph add'];
             if (el.classList.contains('calc-graph-del')) return CalcTips['graph remove'];
             if (el.classList.contains('calc-graph-diff')) {
-                return CalcTips[(graphRows[graphRows.indexOf(el.parentNode)].classList.contains('calc-graph-data') ? 'graph fit ' : 'graph slope ') +
-                    (graphDiff[graphRows.indexOf(el.parentNode)] ? 'off' : 'on')];
+                value = graphRows.indexOf(el.parentNode);
+                if (graphRows[value].classList.contains('calc-graph-data')) return CalcTips['graph fit ' + (nextFit(graphDiff[value]) || 'off')];
+                return CalcTips['graph slope ' + (graphDiff[value] ? 'off' : 'on')];
+            }
+            if (el.classList.contains('calc-graph-points')) {
+                return CalcTips[graphCellsRow === graphRows.indexOf(el.parentNode) ? 'graph points off' : 'graph points'];
             }
             if (el.classList.contains('calc-graph-pop-end')) return CalcTips['graph end ' + el.dataset.end];
             if (el.classList.contains('calc-graph-pop-row')) return CalcTips['graph put ' + el.dataset.put];
@@ -1071,7 +1075,12 @@
         graphPlay = {}, // the sliders playing: the way each goes, 1 up or -1 down
         graphFrame = 0, // the frame asked for while one plays
         graphLast = 0, // the time of the frame before
-        GRAPH_NAMES = { root: 'Root', xint: 'x-intercept', min: 'Min', max: 'Max', yint: 'y-intercept', cross: 'Crossing', data: 'Data point' },
+        GRAPH_NAMES = { root: 'Root', xint: 'x-intercept', min: 'Min', max: 'Max', infl: 'Inflection point', yint: 'y-intercept', cross: 'Crossing', data: 'Data point' },
+        // the best fits of points, one after the other on their button: a line, a parabola, aˣ, a power and ln x
+        GRAPH_FITS = ['lin', 'quad', 'exp', 'pow', 'log'],
+        GRAPH_FIT_NAMES = { lin: 'linear', quad: 'quadratic', exp: 'exponential', pow: 'power', log: 'logarithmic' },
+        // what each needs of the points, said when they do not have it
+        GRAPH_FIT_NEEDS = { lin: 'two x or more', quad: 'three x or more', exp: 'every y above 0', pow: 'every x and y above 0', log: 'every x above 0' },
         // the rows of the popup: of a point, x, y and the slope; of an area, where it starts and ends, and how much
         GRAPH_ROWS = { u: '<i>t</i>', x: '<i>x</i>', y: '<i>y</i>', m: 'Slope', a: 'From <i>x</i>', b: 'To <i>x</i>', s: 'Area' },
         graphTouch = {}, // the pointers pressed on the plot, where each is now
@@ -1079,7 +1088,10 @@
         graphMoved = false, // the press became a drag or a pinch, so it is not a click
         graphSaving, // saves the view once the wheel stops
         graphOff = [false, false, false, false, false, false, false], // the curves hidden by a click on their dot: kept, not drawn
-        graphDiff = [false, false, false, false, false, false, false], // the curves whose slope is drawn too, by their y′
+        graphDiff = [false, false, false, false, false, false, false], // the curves whose slope is drawn too, by their y′; of points, the kind of their fit
+        graphTwice = '', // a name two boxes give their functions, f of f(x) = …: the second is none
+        graphCells = graph.querySelector('.calc-graph-cells'), // the points of a box as a table of x and y, to type in
+        graphCellsRow = -1, // the box that table is of
         graphRels = [], // the boxes with an equation or an inequality of x and y in place of a function of x, x² + y² = 25
         graphPlanes = [], // the boxes with a curve of a parameter, polar, r = 2sin(3θ), or parametric, (cos t, sin t)
         graphData = [], // the boxes with points, (1, 2), (2, 4.1): their { x, y }; the function of such a box is its best fit, if on
@@ -1107,7 +1119,7 @@
         row.querySelector('.calc-graph-diff').addEventListener('click', function (e) {
             e.preventDefault(); // not the label's focus of the box
             if (!graphInputs[i].value.trim()) return;
-            graphDiff[i] = !graphDiff[i];
+            graphDiff[i] = row.classList.contains('calc-graph-data') ? nextFit(graphDiff[i]) : !graphDiff[i];
             hideTip();
             readGraph();
             saveState();
@@ -1115,6 +1127,11 @@
         row.querySelector('.calc-graph-del').addEventListener('click', function (e) {
             e.preventDefault(); // not the label's focus of the box
             removeCurve(i);
+        }, false);
+        row.querySelector('.calc-graph-points').addEventListener('click', function (e) {
+            e.preventDefault(); // not the label's focus of the box
+            showCells(graphCellsRow === i ? -1 : i);
+            hideTip();
         }, false);
         dot.addEventListener('click', function (e) {
             e.preventDefault(); // not the label's focus of the box
@@ -1125,6 +1142,78 @@
             saveState();
         }, false);
     });
+
+    // the fit after this one on its button, from none to a line and on to none again
+    function nextFit(kind) {
+        var at = kind === true ? 0 : GRAPH_FITS.indexOf(kind);
+        return kind === false ? GRAPH_FITS[0] : GRAPH_FITS[at + 1] || false;
+    }
+
+    // the kind of fit a box of points has on, or none
+    function fitKind(i) {
+        return graphDiff[i] === true ? 'lin' : graphDiff[i] || '';
+    }
+
+    // The points of a box as a table: a row of x and y for each, and an empty one below to add
+    // another, the box written again as they are typed, (1, 2), (2, 4.1), with the pairs of
+    // numbers only. Shown under the boxes, which may scroll, with the color of its box; i of -1 puts it away
+    function showCells(i) {
+        var pts = i > -1 && CalcEngine.points(graphInputs[i].value.trim(), engine.comma) || [];
+        graphCellsRow = i;
+        graphRows.forEach(function (row, k) { row.querySelector('.calc-graph-points').classList.toggle('calc-on', k === i); });
+        graphCells.hidden = i < 0;
+        if (i < 0) return;
+        graphRows[i].scrollIntoView({ block: 'nearest' });
+        graphCells.style.setProperty('--c', curveColor(i));
+        graphCells.innerHTML = '<div class="calc-graph-cells-head"><i>x</i><i>y</i></div>';
+        pts.forEach(function (p) { addCell(local(String(p.x)), local(String(p.y))); });
+        addCell('', '');
+        graphCells.querySelector('input').focus();
+    }
+
+    // a row of the table, with its x and y
+    function addCell(x, y) {
+        var row = document.createElement('div'), box = ' type="text" inputmode="decimal" spellcheck="false" autocomplete="off" maxlength="20"';
+        row.className = 'calc-graph-pair';
+        row.innerHTML = '<input' + box + ' data-c="x" aria-label="x"><input' + box + ' data-c="y" aria-label="y">';
+        row.children[0].value = x;
+        row.children[1].value = y;
+        graphCells.appendChild(row);
+        return row;
+    }
+
+    // a number typed in the table: the box is written again with the rows of two numbers, and
+    // the last row typed in has an empty one after it
+    graphCells.addEventListener('input', function (e) {
+        var rows = [].slice.call(graphCells.querySelectorAll('.calc-graph-pair')), box = graphInputs[graphCellsRow];
+        if (e.target.tagName !== 'INPUT' || !box) return;
+        onlyNumber(e.target);
+        box.value = rows.map(function (row) {
+            var x = +boxValue(row.children[0]), y = +boxValue(row.children[1]);
+            if (!row.children[0].value.trim() || !row.children[1].value.trim() || !isFinite(x) || !isFinite(y)) return '';
+            return '(' + local(String(x)) + (engine.comma ? '; ' : ', ') + local(String(y)) + ')';
+        }).filter(Boolean).join(engine.comma ? '; ' : ', ');
+        if (rows[rows.length - 1].children[0].value || rows[rows.length - 1].children[1].value) addCell('', '');
+        readGraph(true);
+        saveState();
+    }, false);
+
+    // Enter goes down to the row below, Shift+Enter up; Esc puts the table away
+    graphCells.addEventListener('keydown', function (e) {
+        var cell = e.target, row = cell.parentNode, to;
+        if (cell.tagName !== 'INPUT') return;
+        if (e.which === 27) {
+            e.preventDefault();
+            e.stopPropagation();
+            to = graphInputs[graphCellsRow];
+            showCells(-1);
+            if (to) to.focus();
+        } else if (e.which === 13) {
+            e.preventDefault();
+            to = e.shiftKey ? row.previousElementSibling : row.nextElementSibling;
+            if (to && to.classList.contains('calc-graph-pair')) to.children[cell.dataset.c === 'x' ? 0 : 1].focus();
+        }
+    }, false);
 
     graphButton.addEventListener('click', function () {
         showGraph(!graph.classList.contains('calc-open'));
@@ -1168,6 +1257,7 @@
         graphOff.push(false);
         graphDiff.splice(i, 1);
         graphDiff.push(false);
+        showCells(-1);
         graphHue.splice(i, 1);
         graphHue.splice(graphCount - 1, 0, hue);
         graphCount--;
@@ -1226,6 +1316,7 @@
         graphHue = [0, 1, 2, 3, 4, 5, 6];
         graphOff = graphOff.map(function () { return false; });
         graphDiff = graphDiff.map(function () { return false; });
+        showCells(-1);
         forgetLetters();
         graphView = null;
         graphLines = 0;
@@ -1237,6 +1328,7 @@
     graphInputs.forEach(function (box, i) {
         box.addEventListener('input', function () {
             readGraph(true);
+            if (graphCellsRow === i) showCells(i), box.focus();
             saveState();
         }, false);
         // Enter goes on to the box of the next curve; after the last one, to a new box
@@ -1295,7 +1387,11 @@
         }
         graphView = v && [v.x, v.y, v.ux, v.uy].every(isFinite) && v.ux > 0 && v.uy > 0 ? { x: v.x, y: v.y, ux: v.ux, uy: v.uy } : null;
         graphOff = graphOff.map(function (off, i) { return !!(saved && Array.isArray(saved.off) && saved.off[i] === true); });
-        graphDiff = graphDiff.map(function (on, i) { return !!(saved && Array.isArray(saved.d) && saved.d[i] === true); });
+        graphDiff = graphDiff.map(function (on, i) {
+            var d = saved && Array.isArray(saved.d) ? saved.d[i] : false;
+            return d === true || GRAPH_FITS.indexOf(d) > -1 ? d : false;
+        });
+        showCells(-1);
         graphFrom.value = saved && typeof saved.from === 'string' ? saved.from : '';
         graphBy.value = saved && typeof saved.by === 'string' ? saved.by : '';
         // the sliders: { a: [its value, from, to] }
@@ -1322,18 +1418,42 @@
 
     // The functions are read again: a box that is not one yet is marked. A hidden curve has
     // none. The point kept on the old curves goes. Each letter but x has a slider, at 1 from
-    // -10 to 10 at first; while a function is typed, the sliders wait until the typing stops
+    // -10 to 10 at first; while a function is typed, the sliders wait until the typing stops.
+    // A function named, f(x) = x^2, is made before the boxes that use it, f(x) + 1, f′(x),
+    // wherever they are: each time round, the boxes that can be read now; what is left at the
+    // end uses a name not made, or one made of itself. A name given twice is of the first box
     function readGraph(typing) {
-        var letters = [];
+        var letters = [], texts = graphInputs.map(function (box, i) { return i < graphCount ? box.value.trim() : ''; }),
+            names = texts.map(CalcEngine.named), defs = {}, read = [], left = [], more = true;
         graphRels = [];
         graphPlanes = [];
         graphData = [];
+        graphTwice = '';
         graphVersion++;
+        names.forEach(function (k, i) {
+            if (!k) return;
+            if (defs.hasOwnProperty(k)) {
+                graphTwice = k;
+                names[i] = false;
+            } else {
+                defs[k] = null;
+            }
+        });
+        texts.forEach(function (text, i) { if (text && names[i] !== false) left.push(i); });
+        while (more) {
+            more = false;
+            left = left.filter(function (i) {
+                var r = readBox(texts[i], defs);
+                if (!r) return true;
+                read[i] = r;
+                if (names[i] && r.fn) defs[names[i]] = r.fn;
+                more = true;
+                return false;
+            });
+        }
         graphFns = graphInputs.map(function (box, i) {
-            var text = i < graphCount ? box.value.trim() : '', fn = text ? CalcEngine.graph(text, engine.comma, graphVars) : null,
-                rel = text && !fn ? CalcEngine.relation(text, engine.comma, graphVars) : null,
-                plane = text && !fn && !rel ? CalcEngine.plane(text, engine.comma, graphVars) : null,
-                data = text && !fn && !rel && !plane ? CalcEngine.points(text, engine.comma) : null, fit, row = graphRows[i];
+            var text = texts[i], r = read[i] || {}, fn = r.fn || null, rel = r.rel || null, plane = r.plane || null,
+                data = r.data || null, fit, row = graphRows[i];
             (fn || rel || plane || { letters: [] }).letters.forEach(function (k) {
                 if (letters.indexOf(k) < 0) letters.push(k);
             });
@@ -1341,19 +1461,24 @@
             graphPlanes[i] = graphOff[i] ? null : plane;
             graphData[i] = graphOff[i] ? null : data;
             if (!text || rel || plane) graphDiff[i] = false; // an equation has no slope of its own to draw
+            if (!data && graphDiff[i]) graphDiff[i] = true; // the fit of points is the slope of a function typed in their place
             if (!text) graphOff[i] = false; // what is typed next is shown, without its slope
-            fit = data && graphDiff[i] && CalcEngine.fitLine(data); // the y′ of points is their best fit
+            fit = data && graphDiff[i] && CalcEngine.fit(data, fitKind(i)); // the y′ of points is their best fit
             row.hidden = i >= graphCount;
             row.classList.toggle('calc-bad', !!text && !fn && !rel && !plane && !data);
             row.classList.toggle('calc-graph-rel', !!(rel || plane));
             row.classList.toggle('calc-graph-data', !!data);
+            row.classList.toggle('calc-graph-named', !!CalcEngine.named(text));
             row.classList.toggle('calc-graph-off', graphOff[i]);
-            row.querySelector('.calc-graph-diff').classList.toggle('calc-on', graphDiff[i]);
-            row.querySelector('.calc-graph-diff').textContent = data ? 'fit' : 'y′';
+            row.querySelector('.calc-graph-diff').classList.toggle('calc-on', !!graphDiff[i]);
+            row.querySelector('.calc-graph-diff').classList.toggle('calc-bad', !!(data && graphDiff[i] && !fit));
+            row.querySelector('.calc-graph-diff').textContent = data ? (graphDiff[i] ? fitKind(i) : 'fit') : 'y′';
             row.classList.toggle('calc-graph-empty', !text);
             row.querySelector('.calc-graph-swatch').style.setProperty('--c', curveColor(i));
             return graphOff[i] ? null : data ? fit && fitCurve(fit) : fn;
         });
+        if (graphCellsRow > -1 && (graphCellsRow >= graphCount || !(graphData[graphCellsRow] || !texts[graphCellsRow] ||
+            CalcEngine.points(texts[graphCellsRow], engine.comma)))) showCells(-1); // its box is not of points now
         graphFnList.classList.toggle('calc-graph-single', graphCount < 2);
         graphFnList.classList.toggle('calc-graph-many', graphCount > 3);
         graphAdd.hidden = graphCount >= graphRows.length;
@@ -1560,14 +1685,33 @@
         if (graphTab === 'table') renderTable(); else drawGraph();
     }
 
-    // the best fit of points as a curve: y = m x + b, with fit, its m, b and r²
-    function fitCurve(fit) {
-        return { at: function (x) { return fit.m * x + fit.b; }, angles: false, letters: [], fit: fit };
+    // What a box is: a function of x, an equation or an inequality, a curve of a parameter or
+    // points, as { fn }, { rel }, { plane } or { data }; null if none. defs: the functions named
+    function readBox(text, defs) {
+        var r = CalcEngine.graph(text, engine.comma, graphVars, defs);
+        if (r) return { fn: r };
+        if ((r = CalcEngine.relation(text, engine.comma, graphVars, defs))) return { rel: r };
+        if ((r = CalcEngine.plane(text, engine.comma, graphVars, defs))) return { plane: r };
+        return (r = CalcEngine.points(text, engine.comma)) ? { data: r } : null;
     }
 
-    // y = 1.95x + 0.1, r² = 0.998, as the picture names a best fit
+    // the best fit of points as a curve, with fit: its kind, numbers and r²
+    function fitCurve(fit) {
+        return { at: fit.at, angles: false, letters: [], fit: fit };
+    }
+
+    // y = 1.95x + 0.1, r² = 0.998, as the picture names a best fit; a number of 0 leaves its part out
     function fitText(f) {
-        return 'y = ' + local(String(f.m)) + 'x ' + (f.b < 0 ? '– ' : '+ ') + local(String(Math.abs(f.b))) + ',  r² = ' + local(String(+f.r2.toPrecision(4)));
+        var k = f.k, terms = {
+            lin: [[k[0], 'x'], [k[1], '']],
+            quad: [[k[0], 'x²'], [k[1], 'x'], [k[2], '']],
+            exp: [[k[0], ' · ' + local(String(k[1])) + 'ˣ']],
+            pow: [[k[0], 'x^' + local(String(k[1]))]],
+            log: [[k[0], ''], [k[1], ' ln x']]
+        }[f.kind].filter(function (t, i, all) { return t[0] || (i === all.length - 1 && all.every(function (u) { return !u[0]; })); });
+        return 'y = ' + terms.map(function (t, i) {
+            return (t[0] < 0 ? (i ? ' – ' : '–') : i ? ' + ' : '') + local(String(Math.abs(t[0]))) + t[1];
+        }).join('') + ',  r² = ' + local(String(+f.r2.toPrecision(4)));
     }
 
     // the line of an equation that a point is on: the equation, or of an inequality of two, its part k
@@ -2367,7 +2511,7 @@
     // where there is no value, and where it leaves by one edge and comes back by the other,
     // as tan x does at 90°, unless the value between the two is between them too: a steep line
     function drawCurve(ctx, v, w, h, fn, color, dashed) {
-        var n = Math.ceil(w * 2), i, x, y, py, last = null, mid;
+        var n = Math.ceil(w * 2), i, x, y, py, last = null, mid, k;
         ctx.beginPath();
         for (i = 0; i <= n; i++) {
             x = graphX(v, i / 2);
@@ -2381,9 +2525,11 @@
                 mid = fn.at((last.x + x) / 2, deg);
                 if (!(mid >= Math.min(last.y, y) && mid <= Math.max(last.y, y))) last = null;
             }
+            k = fn.piece ? fn.piece(x, deg) : 0;
+            if (last && k !== last.k) last = null; // a function in pieces is not joined where they meet
             if (last) ctx.lineTo(i / 2, Math.max(-h, Math.min(2 * h, py)));
             else ctx.moveTo(i / 2, Math.max(-h, Math.min(2 * h, py)));
-            last = { x: x, y: y, py: py };
+            last = { x: x, y: y, py: py, k: k };
         }
         ctx.lineWidth = 2;
         ctx.lineJoin = 'round';
@@ -2472,9 +2618,14 @@
 
     // the line above the plot: the point under the pointer, what it is and its x and y; else what to do
     function graphShown() {
-        var unit = graphAngles() ? UNITS[deg] : '', p = graphAt;
-        if (graphRows.some(function (row) { return row.classList.contains('calc-bad'); })) {
+        var unit = graphAngles() ? UNITS[deg] : '', p = graphAt, kind;
+        if (graphTwice) {
+            graphNote.textContent = graphTwice + '(x) is named twice: give each function its own letter.';
+        } else if (graphRows.some(function (row) { return row.classList.contains('calc-bad'); })) {
             graphNote.textContent = 'Not a function of x yet: write x^2 for x², 2x for 2 × x.';
+        } else if (graphRows.some(function (row, i) { return graphData[i] && graphDiff[i] && !graphFns[i]; })) {
+            kind = fitKind(graphRows.findIndex(function (row, i) { return graphData[i] && graphDiff[i] && !graphFns[i]; }));
+            graphNote.textContent = 'No ' + GRAPH_FIT_NAMES[kind] + ' fit: it needs ' + GRAPH_FIT_NEEDS[kind] + '.';
         } else if (!graphFns.concat(graphRels, graphPlanes, graphData).some(Boolean) && graphOff.some(Boolean)) {
             graphNote.textContent = 'Every curve is hidden: click its dot to show it.';
         } else if (graphTab === 'table') {
@@ -2866,7 +3017,8 @@
                 if (fn) lines.push({ i: i, text: 'Best fit ' + fitText(fn.fit) });
                 return;
             }
-            if (fn) lines.push({ i: i, text: 'y = ' + graphInputs[i].value.trim().replace(/^(y|f\s*\(\s*x\s*\))\s*=\s*/i, '') });
+            if (fn) lines.push({ i: i, text: CalcEngine.named(graphInputs[i].value) ? graphInputs[i].value.trim() :
+                'y = ' + graphInputs[i].value.trim().replace(/^y\s*=\s*/i, '') });
             if (graphRels[i] || graphPlanes[i]) lines.push({ i: i, text: graphInputs[i].value.trim() });
             if (fn && graphDiff[i]) lines.push({ i: i, text: 'y′ of ' + graphInputs[i].value.trim(), dashed: true });
         });

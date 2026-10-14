@@ -449,7 +449,8 @@ async function calculator(page, at) {
 // the graph: a function of x drawn on x and y axes, the point under the pointer,
 // its y put into the calculation, and the view zoomed and kept
 async function graphPanel(page, at) {
-    var t = at + ': ', note = 'document.querySelector(".calc-graph-note").textContent', ink, cross, plain, dashes, shade, traced, red, i,
+    var t = at + ': ', note = 'document.querySelector(".calc-graph-note").textContent', ink, cross, plain, dashes, shade, traced, red, i, found = [],
+        diff = 'document.querySelector(".calc-graph-diff").textContent', cells = 'document.querySelectorAll(".calc-graph-pair input")',
         pop = '(function (p) { var c = p.cloneNode(true), b = p.querySelectorAll("input");' +
             ' c.querySelectorAll("input").forEach(function (i, n) { i.replaceWith(b[n].value); });' +
             ' return c.textContent.replace(/\\s+/g, " ").trim(); })(document.querySelector(".calc-graph-pop"))';
@@ -883,7 +884,7 @@ async function graphPanel(page, at) {
     check(/^Data point\s*x = 2\s*y = 4\.1$/.test((await page.calc(note)).trim()), t + 'a point pointed at', await page.calc(note));
     check(await page.calc(dashes(0, 0.1)) === 0, t + 'no line until fit');
     await page.click('.calc-graph-diff');
-    check(await page.calc(dashes(-3, -5.75)) > 0 && await page.calc('JSON.parse(localStorage.getItem("graph")).d[0]') === true,
+    check(await page.calc(dashes(-3, -5.75)) > 0 && await page.calc('JSON.parse(localStorage.getItem("graph")).d[0]') === 'lin',
         t + 'fit draws the line nearest them, y = 1.95x + 0.1, and is kept');
     await page.hoverAt('.calc-graph-plot', -3, -5.75);
     check(/^Best fit, r² = 0\.998\s*x = /.test((await page.calc(note)).trim()), t + 'the line pointed at: its r²', await page.calc(note));
@@ -892,6 +893,16 @@ async function graphPanel(page, at) {
     check(/^Data point\s*x = 2\s*y = 4\.1/.test(await page.calc(pop)), t + '→ goes to the next point', await page.calc(pop));
     await page.key('Escape', 27);
     await page.click('.calc-graph-diff');
+    check(await page.calc(diff) === 'quad' && await page.calc('JSON.parse(localStorage.getItem("graph")).d[0]') === 'quad' &&
+        await page.calc(dashes(-1, -3.1)) > 0 && await page.calc(dashes(-1, -1.85)) === 0, t + 'fit again: the parabola through them, not the line');
+    for (i of ['exp', 'pow', 'log', 'fit']) await page.click('.calc-graph-diff'), found.push(await page.calc(diff));
+    check(found.join() === 'exp,pow,log,fit' && await page.calc('JSON.parse(localStorage.getItem("graph")).d[0]') === false &&
+        await page.calc(dashes(-1, -3.1)) === 0, t + 'then aˣ, a power, ln x and none', found.join());
+    await typeIn('(1,-1),(2,3)');
+    await page.click('.calc-graph-diff');
+    await page.click('.calc-graph-diff');
+    check(await page.calc(note) === 'No quadratic fit: it needs three x or more.' &&
+        await page.calc('document.querySelector(".calc-graph-diff").classList.contains("calc-bad")'), t + 'a fit the points cannot have says so', await page.calc(note));
     await typeIn('1<x<=3');
     await sleep(300);
     check(await page.calc(shade(2, 0)) > 10 && await page.calc(shade(4, 0)) === 0 && await page.calc(shade(0, 0)) === 0, t + '1 < x ≤ 3 is shaded between');
@@ -908,6 +919,65 @@ async function graphPanel(page, at) {
         t + 'the area inside the circle, 25π', await page.calc(pop));
     await page.key('Escape', 27);
     await page.click('.calc-graph-fn:nth-child(2) .calc-graph-del');
+
+    // a function named, and others using it: f′(x) in another box; a box using one below it; a name given twice
+    function setBox(n, text) {
+        return page.calc('(function (b) { b.value = ' + JSON.stringify(text) + '; b.dispatchEvent(new Event("input", { bubbles: true })); })' +
+            '(document.querySelectorAll(".calc-graph-input")[' + n + '])');
+    }
+    await typeIn('f(x)=x^2-3');
+    await page.click('.calc-graph-add');
+    await setBox(1, "f'(x)");
+    await sleep(300);
+    check(await page.calc('getComputedStyle(document.querySelector(".calc-graph-fn > span:not([class])")).display') === 'none' &&
+        await page.calc(dashes(2, 1)) > 0 && !await page.calc('document.querySelector(".calc-graph-fn.calc-bad")'),
+        t + 'f(x) = x² – 3 is drawn, without y = before it');
+    await page.hoverAt('.calc-graph-plot', 1, 2.05);
+    check(/^On the curve\s*x = 1\s*y = 2$/.test((await page.calc(note)).trim()), t + "f′(x) in another box is 2x", await page.calc(note));
+    await typeIn('g(x)+1');
+    await setBox(1, 'g(x)=x/2');
+    await sleep(300);
+    await page.hoverAt('.calc-graph-plot', 2, 2.05);
+    check(!await page.calc('document.querySelector(".calc-graph-fn.calc-bad")') && /^On the curve\s*x = 2\s*y = 2$/.test((await page.calc(note)).trim()),
+        t + 'g(x) + 1 above g(x) = x/2', await page.calc(note));
+    await typeIn('g(x)=2x');
+    await sleep(300);
+    check(await page.calc(note) === 'g(x) is named twice: give each function its own letter.', t + 'a name twice says so', await page.calc(note));
+    await page.click('.calc-graph-fn:nth-child(2) .calc-graph-del');
+
+    // kept to where inequalities hold, and in pieces; where a curve bends the other way
+    await typeIn('x^2 {0<x<2}');
+    await sleep(300);
+    check(await page.calc(dashes(1, 1)) > 0 && await page.calc(dashes(-1, 1)) === 0, t + 'x² {0 < x < 2} only there');
+    await typeIn('{x<0: -x, x^2}');
+    await sleep(300);
+    check(await page.calc(dashes(-2, 2)) > 0 && await page.calc(dashes(2, 4)) > 0 && await page.calc(dashes(-2, 4)) === 0,
+        t + '{x < 0: –x, x²} in two pieces');
+    await typeIn('x^3-3x^2');
+    await sleep(300);
+    await page.hoverAt('.calc-graph-plot', 1.05, -2.05);
+    check(/^Inflection point\s*x = 1\s*y = -2$/.test((await page.calc(note)).trim()), t + 'x³ – 3x² bends the other way at (1, –2)', await page.calc(note));
+
+    // points typed in a table: the box is written as they are, a row more each time
+    await typeIn('');
+    await page.click('.calc-graph-points');
+    check(await page.calc('!document.querySelector(".calc-graph-cells").hidden && document.activeElement === ' + cells + '[0]'),
+        t + 'an empty box opens a table of points');
+    await page.type('1');
+    await page.calc(cells + '[1].focus()');
+    await page.type('2\r4');
+    await page.calc(cells + '[2].focus()');
+    await page.type('3');
+    await sleep(300);
+    check(await page.calc('document.querySelector(".calc-graph-input").value') === '(1, 2), (3, 4)' && await page.calc(cells + '.length') === 6 &&
+        await page.calc('document.querySelector(".calc-graph-fn").classList.contains("calc-graph-data")') && await page.calc(dashes(3, 4)) > 0,
+        t + 'the points typed are written in the box and drawn', await page.calc('document.querySelector(".calc-graph-input").value'));
+    await page.key('Escape', 27);
+    check(await page.calc('document.querySelector(".calc-graph-cells").hidden && document.activeElement.className === "calc-graph-input"') &&
+        await open(page, '.calc-graph'), t + 'Esc puts the table away, back to the box');
+    await page.click('.calc-graph-points');
+    check(await page.calc('[].map.call(' + cells + ', function (c) { return c.value; }).join()') === '1,2,3,4,,', t + 'opened again, with its points');
+    await page.key('Escape', 27);
 
     // what is not a function says so, and draws nothing
     await page.click('.calc-graph .calc-past-clear');

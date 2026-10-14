@@ -54,6 +54,7 @@
         marks = null, // printing for editing: computed numbers are put here whole, a mark stands in for each
         stacking = false, // printing for fraction mode: a division is drawn as a fraction, one part over the other
         MARK = /^\uE000(\d+)\uE001/,
+        HEAD = /^(y|[a-df-wz]\s*\(\s*x\s*\))\s*=\s*/i, // before a function of x: y =, f(x) =
         // an angle in degrees, minutes and seconds: 12°30′15″, 12°30'15", 51°30′26″N
         DMS = /^(\d+\.?\d*|\.\d+)\s*°(?:\s*(\d+\.?\d*|\.\d+)\s*['′’](?!['′’]))?(?:\s*(\d+\.?\d*|\.\d+)\s*(?:["″”]|['′’]{2}))?(?:\s*([NSEW])(?![a-zA-Z]))?/,
         UNARY = { // t: how the key is printed, f: how it is computed
@@ -564,8 +565,10 @@
     // the pieces of an expression in text. table: the numbers that marks
     // stand for, when the text was printed for editing. variable: x is the
     // variable of a graph, not ×, and letters may run together: 2xsinx; any
-    // other letter but e and y is a number of its own, set by a slider: a in ax² + b
-    function tokens(s, table, variable) {
+    // other letter but e and y is a number of its own, set by a slider: a in ax² + b. defs: the
+    // functions of other boxes by their names, f of f(x) = x^2: f(2x) and its slope f′(x) are of
+    // it, and a name whose function is not made yet (null) makes the text none for now
+    function tokens(s, table, variable, defs) {
         var out = [], m, c, prev, word;
         while (s) {
             c = s.charAt(0);
@@ -606,6 +609,11 @@
                 else if (word === 'ncr' || word === 'npr') out.push({ t: 'op', v: word === 'ncr' ? 'nCr' : 'nPr' });
                 else if (word === 'mod' || word === 'gcd' || word === 'lcm') out.push({ t: 'op', v: word, c: word });
                 else return null;
+            } else if (variable && defs && (m = /^([a-df-wzA-DF-WZ])\s*(['′’″]*)\s*(?=\()/.exec(s)) &&
+                    defs.hasOwnProperty(m[1].toLowerCase())) {
+                word = defs[m[1].toLowerCase()];
+                if (!word) return null;
+                out.push({ t: 'fn', v: 'call', of: derived(word, m[2].replace(/″/g, "''").length) });
             } else if (variable === 2 && (m = /^[yY]/.exec(s))) { // the other variable, of an equation
                 out.push({ t: 'const', v: 'y' });
             } else if (variable && (m = /^[a-df-wzA-DF-WZ]/.exec(s))) {
@@ -703,6 +711,11 @@
                 }
                 if (!end()) throw BAD;
                 return { t: 'group', arg: n, open: true };
+            }
+            if (t.t === 'fn' && t.v === 'call') { // f(2x): what f of another box is there
+                f = { t: 'call', c: t.of };
+                f.arg = need(shut(primary(), f));
+                return f;
             }
             if (t.t === 'fn' && t.v === 'logy') { // log₂(8): the number, then its base
                 n = is('(') ? primary() : postfix();
@@ -824,7 +837,12 @@
 
     // true if the expression has a function of an angle, whose graph depends on Deg or Rad
     function angular(n) {
-        return !!n && ((n.t === 'fn' && ANGLE.test(n.key)) || angular(n.arg) || angular(n.l) || angular(n.r));
+        return !!n && ((n.t === 'fn' && ANGLE.test(n.key)) || (n.t === 'call' && !!n.c.angles) || angular(n.arg) || angular(n.l) || angular(n.r));
+    }
+
+    // true if the expression has a slope found by steps, whose values are only so near: d/dx, f′(x)
+    function rough(n) {
+        return !!n && ((n.t === 'call' && !!n.c.rough) || rough(n.arg) || rough(n.l) || rough(n.r));
     }
 
     // The value of an expression read by parse, at x, angles in unit deg, its letters of
@@ -839,6 +857,9 @@
                 if (n.p) return vars && typeof vars[n.v] === 'number' ? vars[n.v] : 1;
                 return n.v === 'x' ? x : n.v === 'y' ? y : n.v === 'π' ? PI : Math.E;
             case 'group': return valueAt(n.arg, x, deg, exact, vars, y);
+            case 'call':
+                a = valueAt(n.arg, x, deg, exact, vars, y);
+                return isFinite(a) ? n.c.at(a, deg, exact) : NaN;
             case 'neg': return -valueAt(n.arg, x, deg, exact, vars, y);
             case 'fn':
             case 'post':
@@ -869,9 +890,122 @@
     // function of an angle; letters: its letters of their own, in the order they come,
     // which vars holds the values of, as their sliders set them. comma: the decimal mark in use is a comma.
     // d/dx before a function is its slope: d/dx(x^2) is 2x; anywhere else it is not a function,
-    // where it would be d ÷ d × x
-    function graph(text, comma, vars) {
-        return curveOf(separators(String(text).trim(), comma).replace(/^(y|f\s*\(\s*x\s*\))\s*=\s*/i, ''), vars);
+    // where it would be d ÷ d × x. Named, g(x) = x^2 + 1, it is g, which defs gives other boxes.
+    // Inequalities in braces after it keep it to where they hold, x^2 {0 < x < 3}, {y > 0} of its
+    // value, and in braces with a colon it is in pieces, {x < 0: -x, x^2}: the first whose
+    // inequality holds, the last without one where none does; piece(x, deg) is which. rough: its values are found by steps
+    function graph(text, comma, vars, defs) {
+        var s = String(text).trim().replace(HEAD, ''), cut = conditions(s, comma, vars, defs), c;
+        if (!cut) return null;
+        c = /^\{[^{}]*\}$/.test(cut.s) ? cases(cut.s.slice(1, -1), comma, vars, defs) :
+            curveOf(separators(cut.s, comma), vars, defs);
+        if (!c || !cut.when.length) return c;
+        return {
+            at: function (x, deg, exact) {
+                var y = c.at(x, deg, exact);
+                return cut.when.every(function (r) { return holds(r, x, y, deg); }) ? y : NaN;
+            },
+            angles: c.angles || cut.when.some(function (r) { return r.angles; }),
+            letters: joined([c].concat(cut.when)),
+            rough: c.rough,
+            piece: c.piece
+        };
+    }
+
+    // the name of the function a box makes, g of g(x) = x^2 + 1, or null
+    function named(text) {
+        var m = /^\s*([a-df-wz])\s*\(\s*x\s*\)\s*=/i.exec(String(text));
+        return m ? m[1].toLowerCase() : null;
+    }
+
+    // the letters of things that relation, graph or plane give, each once, in the order they come
+    function joined(list) {
+        var out = [];
+        list.forEach(function (c) {
+            c.letters.forEach(function (k) { if (out.indexOf(k) < 0) out.push(k); });
+        });
+        return out;
+    }
+
+    // The inequalities in braces at the end of s, as relation reads them: x^2 {0 < x < 3},
+    // {x > 0}{y < 4}. { s: what is before them, when: the inequalities }; null if one is not an
+    // inequality. Braces with a colon are pieces, not that
+    function conditions(s, comma, vars, defs) {
+        var when = [], m, r;
+        while ((m = /\{([^{}:]*)\}\s*$/.exec(s)) && m.index > 0) {
+            r = relation(m[1], comma, vars, defs);
+            if (!r || r.op === '=') return null;
+            when.unshift(r);
+            s = s.slice(0, m.index).trim();
+        }
+        return { s: s, when: when };
+    }
+
+    // the parts of s between its marks that are not in brackets: a comma or ;, only ; with the comma in use
+    function apart(s, comma) {
+        var out = [], depth = 0, from = 0, k, c;
+        for (k = 0; k < s.length; k++) {
+            c = s.charAt(k);
+            if (c === '(') depth++;
+            if (c === ')') depth--;
+            if (!depth && (c === ';' || (c === ',' && !comma))) {
+                out.push(s.slice(from, k));
+                from = k + 1;
+            }
+        }
+        out.push(s.slice(from));
+        return out;
+    }
+
+    // A function in pieces, x < 0: -x, x^2 as written in its braces: each an inequality, a colon
+    // and its function, the last maybe a function alone; an inequality alone is 1 where it holds.
+    // Its value is of the first piece whose inequality holds at x, else of the last alone, else none
+    function cases(s, comma, vars, defs) {
+        var parts = apart(s, comma), list = [], all = [];
+        parts.forEach(function (part, k) {
+            var colon = part.indexOf(':'), when = colon < 0 ? null : relation(part.slice(0, colon), comma, vars, defs),
+                then = colon < 0 ? part : part.slice(colon + 1), c;
+            if (list === null) return;
+            if (colon < 0 && /[<>≤≥]/.test(part)) {
+                when = relation(part, comma, vars, defs);
+                then = '1';
+            }
+            c = then.trim() && curveOf(separators(then.trim(), comma), vars, defs);
+            if (!c || (colon > -1 && (!when || when.op === '=')) || (colon < 0 && !when && k < parts.length - 1) || (when && when.op === '=')) {
+                list = null;
+                return;
+            }
+            list.push({ when: when, c: c });
+            all.push(c);
+            if (when) all.push(when);
+        });
+        if (!list || !list.length) return null;
+        function piece(x, deg) {
+            var k;
+            for (k = 0; k < list.length; k++) if (!list[k].when || holds(list[k].when, x, NaN, deg)) return k;
+            return -1;
+        }
+        return {
+            at: function (x, deg, exact) {
+                var k = piece(x, deg);
+                return k < 0 ? NaN : list[k].c.at(x, deg, exact);
+            },
+            piece: piece,
+            angles: all.some(function (c) { return c.angles; }),
+            letters: joined(all),
+            rough: all.some(function (c) { return c.rough; })
+        };
+    }
+
+    // the slope of a curve as a curve of its own; d times over, for f″
+    function derived(c, d) {
+        if (!d) return c;
+        return derived({
+            at: function (x, deg) { return slope(c, x, deg); },
+            angles: c.angles,
+            letters: c.letters,
+            rough: true
+        }, d - 1);
     }
 
     // true unless s starts with a bracket that a sum goes on from: (x^2) + 1, not (x + 1)(x – 1)
@@ -885,25 +1019,23 @@
         return true; // left open, as a paste can
     }
 
-    function curveOf(s, vars) {
-        var d = /^d\s*\/\s*dx\s*/.exec(s), of = d && curveOf(s.slice(d[0].length), vars),
-            toks = !d && !/d\s*\/\s*dx/.test(s) && s.length <= MAX_PASTE && tokens(s, null, true), tree = toks && parse(toks), letters = [];
+    function curveOf(s, vars, defs) {
+        var d = /^d\s*\/\s*dx\s*/.exec(s), of = d && curveOf(s.slice(d[0].length), vars, defs),
+            toks = !d && !/d\s*\/\s*dx/.test(s) && s.length <= MAX_PASTE && tokens(s, null, true, defs), tree = toks && parse(toks), letters = [];
         if (d) {
             if (!allOf(s.slice(d[0].length))) return null; // d/dx(x^2) + 1 is not the slope of all of it
-            return of && {
-                at: function (x, deg) { return slope(of, x, deg); },
-                angles: of.angles,
-                letters: of.letters
-            };
+            return of && derived(of, 1);
         }
         if (!tree || !complete(tree)) return null;
         toks.forEach(function (t) {
             if (t.p && letters.indexOf(t.v) < 0) letters.push(t.v);
+            if (t.of) t.of.letters.forEach(function (k) { if (letters.indexOf(k) < 0) letters.push(k); });
         });
         return {
             at: function (x, deg, exact) { return valueAt(tree, x, deg, exact, vars); },
             angles: angular(tree),
-            letters: letters
+            letters: letters,
+            rough: rough(tree)
         };
     }
 
@@ -912,8 +1044,25 @@
     // one, as y = 2x is a function of x instead, which graph gives. at(x, y, deg) is the left side
     // less the right; op is =, <, >, ≤ or ≥ (<= and >= as typed); angles and letters as of graph.
     // Two inequalities the same way, 1 < x < 3 or 0 < x^2 + y^2 <= 9, are both: parts holds each,
-    // the first less the middle and the middle less the last, and op is 'and'
-    function relation(text, comma, vars) {
+    // the first less the middle and the middle less the last, and op is 'and'. Inequalities in
+    // braces after it keep it to where they hold, x^2 + y^2 = 25 {y > 0}: none (NaN) elsewhere
+    function relation(text, comma, vars, defs) {
+        var cut = conditions(String(text).trim(), comma, vars, defs), r;
+        if (!cut || !cut.when.length) return cut && relationOf(cut.s, comma, vars, defs);
+        r = relationOf(cut.s, comma, vars, defs);
+        if (!r) return null;
+        (r.parts || [r]).forEach(function (part) {
+            var at = part.at;
+            part.at = function (x, y, deg) {
+                return cut.when.every(function (w) { return holds(w, x, y, deg); }) ? at(x, y, deg) : NaN;
+            };
+        });
+        r.angles = r.angles || cut.when.some(function (w) { return w.angles; });
+        r.letters = joined([r].concat(cut.when));
+        return r;
+    }
+
+    function relationOf(text, comma, vars, defs) {
         var s = separators(String(text).trim(), comma), ops = s.match(/<=|>=|=<|=>|[<>≤≥=]/g), sides,
             letters = [], trees, xy = false, names;
         if (!ops || ops.length > 2 || s.length > MAX_PASTE || /d\s*\/\s*dx/.test(s)) return null;
@@ -921,10 +1070,11 @@
         if (ops.length === 2 && !(/[<≤]/.test(names[0]) && /[<≤]/.test(names[1]) || /[>≥]/.test(names[0]) && /[>≥]/.test(names[1]))) return null;
         sides = s.split(/<=|>=|=<|=>|[<>≤≥=]/);
         trees = sides.map(function (side) {
-            var toks = side.trim() && tokens(side, null, 2), tree = toks && parse(toks);
+            var toks = side.trim() && tokens(side, null, 2, defs), tree = toks && parse(toks);
             if (!tree || !complete(tree)) return null;
             toks.forEach(function (t) {
                 if (t.p && letters.indexOf(t.v) < 0) letters.push(t.v);
+                if (t.of) t.of.letters.forEach(function (k) { if (letters.indexOf(k) < 0) letters.push(k); });
                 if (t.t === 'const' && (t.v === 'x' || t.v === 'y')) xy = true;
             });
             return tree;
@@ -977,7 +1127,7 @@
     // unit of angles, unless {from, to} follows: r = θ {0, 6π}. Null if the text is not one, as
     // (3, 4) is a point instead. at(t, deg) is [x, y]; range(deg) is [from, to]; kind is polar
     // or param; letters and angles as of graph. In the comma's place a ; with the comma in use
-    function plane(text, comma, vars) {
+    function plane(text, comma, vars, defs) {
         var s = String(text).trim().replace(/θ|theta/gi, 't'), mark = comma ? ';' : /[,;]/, ends = /\{([^{}]*)\}\s*$/.exec(s),
             letters = [], polar = /^r\s*(\(\s*t\s*\))?\s*=/i.exec(s), parts, trees, found = false, range, full = [2 * PI, 360, 400];
         if (s.length > MAX_PASTE) return null;
@@ -993,7 +1143,7 @@
         else if (/^\(.*\)$/.test(s) && whole(s)) parts = split(s.slice(1, -1));
         if (!parts || parts.length !== (polar ? 1 : 2)) return null;
         trees = parts.map(function (part) {
-            var toks = part.trim() && tokens(separators(part, comma), null, true), tree;
+            var toks = part.trim() && tokens(separators(part, comma), null, true, defs), tree;
             if (!toks || toks.some(function (t) { return t.t === 'const' && t.v === 'x' && !t.p; })) return null;
             toks = toks.map(function (t) {
                 if (t.t !== 'const' || t.v !== 't' || !t.p) return t;
@@ -1004,6 +1154,7 @@
             if (!tree || !complete(tree)) return null;
             toks.forEach(function (t) {
                 if (t.p && letters.indexOf(t.v) < 0) letters.push(t.v);
+                if (t.of) t.of.letters.forEach(function (k) { if (letters.indexOf(k) < 0) letters.push(k); });
             });
             return tree;
         });
@@ -1063,8 +1214,8 @@
     }
 
     // The straight line nearest points, by least squares: y = m x + b, and r², how much of how
-    // the y differ it tells, 1 for points on it. Null for fewer than two x
-    function fitLine(points) {
+    // the y differ it tells, 1 for points on it. Null for fewer than two x. raw: m and b not rounded
+    function fitLine(points, raw) {
         var n = points.length, sx = 0, sy = 0, sxx = 0, sxy = 0, syy = 0, m, b, top, all;
         points.forEach(function (p) {
             sx += p.x;
@@ -1083,10 +1234,91 @@
         top = syy - m * sxy; // what is left off the line
         all = syy;
         return {
-            m: +m.toPrecision(10),
-            b: Math.abs(b) <= 1e-12 * Math.max(Math.abs(sy), 1) ? 0 : +b.toPrecision(10),
+            m: raw ? m : +m.toPrecision(10),
+            b: raw ? b : Math.abs(b) <= 1e-12 * Math.max(Math.abs(sy), 1) ? 0 : +b.toPrecision(10),
             r2: all > 0 ? +Math.max(0, Math.min(1, 1 - top / all)).toPrecision(10) : 1
         };
+    }
+
+    // The curve of a kind nearest points, by least squares: lin, y = m x + b; quad, y = a x² + b x + c;
+    // exp, y = a·bˣ; pow, y = a·xᵇ; log, y = a + b ln x. The last three are the straight line of
+    // ln y or ln x, as calculators fit them, with that line's r². { kind, k: its numbers in that
+    // order, r2, at(x) }. Null where the points cannot have one: too few x, or a y or an x not
+    // above 0 where its logarithm is taken
+    function fit(points, kind) {
+        var line, k, logX = kind === 'pow' || kind === 'log', logY = kind === 'exp' || kind === 'pow', at;
+        if (kind === 'quad') return fitQuad(points);
+        if (points.some(function (p) { return (logX && !(p.x > 0)) || (logY && !(p.y > 0)); })) return null;
+        if (kind === 'lin') line = fitLine(points);
+        else line = fitLine(points.map(function (p) { return { x: logX ? Math.log(p.x) : p.x, y: logY ? Math.log(p.y) : p.y }; }), true);
+        if (!line) return null;
+        k = kind === 'exp' ? [Math.exp(line.b), Math.exp(line.m)] : kind === 'pow' ? [Math.exp(line.b), line.m] :
+            kind === 'log' ? [line.b, line.m] : [line.m, line.b];
+        k = k.map(function (n) { return +n.toPrecision(10); });
+        at = {
+            lin: function (x) { return k[0] * x + k[1]; },
+            exp: function (x) { return k[0] * Math.pow(k[1], x); },
+            pow: function (x) { return k[0] * Math.pow(x, k[1]); },
+            log: function (x) { return k[0] + k[1] * Math.log(x); }
+        }[kind];
+        return at ? { kind: kind, k: k, r2: line.r2, at: at } : null;
+    }
+
+    // y = a x² + b x + c nearest points: the sums of x from their middle, so they stay small,
+    // solved by elimination; a number as small as the values' rounding is 0. Null for fewer than three x
+    function fitQuad(points) {
+        var n = points.length, mx = 0, my = 0, s = [0, 0, 0, 0, 0], t = [0, 0, 0], big = 0, top = 0, all = 0, xs = [], m, q, k;
+        points.forEach(function (p) {
+            mx += p.x / n;
+            my += p.y / n;
+            if (xs.indexOf(p.x) < 0) xs.push(p.x);
+        });
+        if (xs.length < 3) return null;
+        points.forEach(function (p) {
+            var u = p.x - mx;
+            for (k = 0; k <= 4; k++) s[k] += Math.pow(u, k);
+            for (k = 0; k <= 2; k++) t[k] += Math.pow(u, k) * p.y;
+            big = Math.max(big, Math.abs(p.y));
+        });
+        m = solve([[s[4], s[3], s[2]], [s[3], s[2], s[1]], [s[2], s[1], s[0]]], [t[2], t[1], t[0]]);
+        if (!m) return null;
+        q = [m[0], m[1] - 2 * m[0] * mx, m[0] * mx * mx - m[1] * mx + m[2]]; // in x, not x less its middle
+        xs = Math.max.apply(null, xs.map(Math.abs));
+        q = q.map(function (c, k) { return Math.abs(c) * Math.pow(Math.max(xs, 1), 2 - k) <= 1e-12 * Math.max(big, 1e-300) ? 0 : +c.toPrecision(10); });
+        points.forEach(function (p) {
+            top += Math.pow(p.y - ((q[0] * p.x + q[1]) * p.x + q[2]), 2);
+            all += (p.y - my) * (p.y - my);
+        });
+        return {
+            kind: 'quad',
+            k: q,
+            r2: all > 0 ? +Math.max(0, Math.min(1, 1 - top / all)).toPrecision(10) : 1,
+            at: function (x) { return (q[0] * x + q[1]) * x + q[2]; }
+        };
+    }
+
+    // a times x is b, for a square a, by elimination with the largest first; null if it has no one answer
+    function solve(a, b) {
+        var n = b.length, i, j, k, p, f, x = [];
+        a = a.map(function (row, i) { return row.concat([b[i]]); });
+        for (i = 0; i < n; i++) {
+            p = i;
+            for (j = i + 1; j < n; j++) if (Math.abs(a[j][i]) > Math.abs(a[p][i])) p = j;
+            if (!(Math.abs(a[p][i]) > 1e-300)) return null;
+            f = a[i];
+            a[i] = a[p];
+            a[p] = f;
+            for (j = i + 1; j < n; j++) {
+                f = a[j][i] / a[i][i];
+                for (k = i; k <= n; k++) a[j][k] -= f * a[i][k];
+            }
+        }
+        for (i = n - 1; i >= 0; i--) {
+            f = a[i][n];
+            for (k = i + 1; k < n; k++) f -= a[i][k] * x[k];
+            x[i] = f / a[i][i];
+        }
+        return x.every(isFinite) ? x : null;
     }
 
     // ---------- the points of a graph worth marking ---------- //
@@ -1218,7 +1450,7 @@
     }
 
     // The points of the curves worth marking within the view x0 to x1, y0 to y1: where each
-    // is 0 (root), its lowest and highest points (min, max), where it meets the y axis (yint),
+    // is 0 (root), its lowest and highest points (min, max), where it bends the other way (infl), where it meets the y axis (yint),
     // and where two of them cross (cross). Each is { t: what it is, one or more of those,
     // x, y, i: the curve, j: the other curve of a crossing }. curves: what graph gives, or
     // null; deg: the unit of angles. A kind with more than KEY_MAX points is left out.
@@ -1240,8 +1472,9 @@
         }
 
         curves.forEach(function (c, i) {
-            var y = ys[i], highs = [], lows = [], a, b, d;
+            var y = ys[i], highs = [], lows = [], a, b, d, pc = c && c.piece && xs.map(function (x) { return c.piece(x, deg); });
             if (!c) return;
+            if (pc) y = y.map(function (v, k) { return k && pc[k] !== pc[k - 1] ? NaN : v; }); // no top or bend across where its pieces meet
 
             function f(x) {
                 return c.at(x, deg);
@@ -1275,8 +1508,53 @@
                 });
             });
 
+            // two samples a few apart whose bends, their second differences, go opposite ways, with
+            // no jump between: halving finds where the bend is 0, with the step of the samples and
+            // then more finely. Not of a slope found by steps, whose bends its rounding makes
+            if (!c.rough) {
+                bends(y).forEach(function (h) {
+                    var r = bisect(function (x) { return bend(x, dx); }, xs[h[0]], xs[h[1]], h[2]), lo, hi;
+                    if (r === null || !(Math.abs(bend(r, dx)) <= h[3])) return;
+                    lo = fine(r - dx);
+                    hi = fine(r + dx);
+                    if (lo * hi < 0) r = bisect(fine, r - dx, r + dx, lo) || r;
+                    hi = Math.abs(fine(r));
+                    r = snap(r, dx * 1e-6, function (q) { // as small, or as small as its rounding tells: 2, not 1.999999999987
+                        return Math.abs(fine(q)) <= Math.max(hi, 2e-14 * (Math.abs(f(q - dx / 2)) + Math.abs(f(q)) + Math.abs(f(q + dx / 2))));
+                    });
+                    found.push({ t: ['infl'], x: r, y: c.at(r, deg, true), i: i });
+                });
+            }
+            function bend(x, s) {
+                return f(x - s) - 2 * f(x) + f(x + s);
+            }
+            // the bend with a quarter of the step, and the part of it that the step makes taken away
+            function fine(x) {
+                return 16 * bend(x, dx / 4) - bend(x, dx / 2);
+            }
+
             if (view.x0 <= 0 && view.x1 >= 0) found.push({ t: ['yint'], x: 0, y: c.at(0, deg, true), i: i });
         });
+
+        // the places where the samples y bend the other way: [one before, one after, its bend, the
+        // smaller of their bends]. A bend as small as the values' rounding is none, as of a line
+        function bends(y) {
+            var out = [], last = -1, b = [], k, p, q, r;
+            for (k = 1; k < n; k++) {
+                p = y[k - 1];
+                q = y[k];
+                r = y[k + 1];
+                if (!isFinite(p) || !isFinite(q) || !isFinite(r) || Math.abs(q - p) > jump || Math.abs(r - q) > jump) {
+                    last = -1;
+                    continue;
+                }
+                b[k] = p - 2 * q + r;
+                if (Math.abs(b[k]) <= 1e-11 * (Math.abs(p) + Math.abs(q) + Math.abs(r))) continue;
+                if (last > 0 && k - last <= 4 && b[last] * b[k] < 0) out.push([last, k, b[last], Math.min(Math.abs(b[last]), Math.abs(b[k]))]);
+                last = k;
+            }
+            return out.length > KEY_MAX ? [] : out;
+        }
 
         curves.forEach(function (c, i) {
             curves.forEach(function (e, j) {
@@ -1390,6 +1668,10 @@
                 return q.i === p.i && Math.abs(q.x - p.x) < dx / 2 && Math.abs(q.y - p.y) <= 1e-9 * Math.max(1, Math.abs(p.y));
             })[0];
             if (same && same.t.indexOf(p.t[0]) < 0) same.t.push(p.t[0]);
+            if (same && /^(root|yint|cross)$/.test(p.t[0]) && same.t.every(function (t) { return /^(min|max|infl)$/.test(t) || t === p.t[0]; })) {
+                same.x = p.x; // found by halving, nearer than a top or a bend
+                same.y = p.y;
+            }
             return !same;
         });
     }
@@ -2717,6 +2999,8 @@
     Engine.plane = plane;
     Engine.points = points;
     Engine.fitLine = fitLine;
+    Engine.fit = fit;
+    Engine.named = named;
     Engine.spans = spans;
     Engine.regionArea = regionArea;
     Engine.onRelation = onRelation;

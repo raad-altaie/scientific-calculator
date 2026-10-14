@@ -356,9 +356,13 @@
                     <input class="calc-graph-input" type="text" spellcheck="false" autocomplete="off" maxlength="200"
                         placeholder="x^2 – 3, 2sin(x), 1/x" aria-label="y = , curve 1">
                     <span class="calc-graph-diff">y′</span>
+                    <!-- the points as a table of x and y, to type in -->
+                    <span class="calc-graph-points"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2.5" width="12" height="11" rx="1.5" /><path d="M8 2.5v11M2 6.2h12M2 9.9h12" /></svg></span>
                     <span class="calc-graph-del"><svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8" /></svg></span>
                 </label>
             </div>
+            <!-- the points of a box as a table, under the boxes while it is open; main.js fills it -->
+            <div class="calc-graph-cells" hidden></div>
             <!-- a slider for each letter of the functions but x: a and b of a x² + b; main.js makes them -->
             <div class="calc-graph-sliders" hidden></div>
             <div class="calc-graph-note"></div>
