@@ -93,6 +93,7 @@
         graphView = null, // what the plot shows: x and y at its middle, and the units of x and y in a pixel; null for the start
         graphMarks = [], // the points of the curves in the view worth marking: roots, highs and lows, crossings
         graphAt = null, // the point under the pointer: { i: its curve, x, y, t: what it is if it is a mark, spot: true off the curves }
+        graphEdge = null, // with ∫ pressed, where an area would start from the pointer: { x, i, j: its curves }
         graphPinned = null, // the point clicked, which has the popup
         tools = Calc.querySelector('.calc-tools'), // the buttons at the top left of the display
         pressedKey,
@@ -494,7 +495,7 @@
     tip.parentNode.addEventListener('mouseover', function (e) {
         var key = e.target.closest('.calc-left > *, .calc-right > .del-ac, .calc-rad, .calc-mem, .calc-frac, .calc-fmt, .calc-hold, ' +
             '.calc-stat-btn, .calc-stats-tile, .calc-fx-btn, .calc-fx-row, .calc-conv-btn, .calc-conv-row, ' +
-            '.calc-graph-btn, .calc-graph-size, .calc-graph-add, .calc-graph-del, .calc-graph-diff, .calc-graph-zoom > span, .calc-graph-pop-row, .calc-graph-play, ' +
+            '.calc-graph-btn, .calc-graph-size, .calc-graph-add, .calc-graph-del, .calc-graph-diff, .calc-graph-zoom > span, .calc-graph-pop-end, .calc-graph-pop-row, .calc-graph-play, ' +
             '.calc-graph-fn > .calc-graph-swatch, ' +
             '.calc-hist, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit, .calc-help');
         if (key === tipKey) return;
@@ -585,6 +586,7 @@
             if (el === graphAdd) return CalcTips['graph add'];
             if (el.classList.contains('calc-graph-del')) return CalcTips['graph remove'];
             if (el.classList.contains('calc-graph-diff')) return CalcTips[graphDiff[graphRows.indexOf(el.parentNode)] ? 'graph slope off' : 'graph slope on'];
+            if (el.classList.contains('calc-graph-pop-end')) return CalcTips['graph end ' + el.dataset.end];
             if (el.classList.contains('calc-graph-pop-row')) return CalcTips['graph put ' + el.dataset.put];
             if (el.classList.contains('calc-graph-play')) return CalcTips[graphPlay[el.parentNode.dataset.k] ? 'graph pause' : 'graph play'];
             if (el.classList.contains('calc-graph-swatch')) {
@@ -1617,6 +1619,7 @@
         graphMarks.forEach(function (p) {
             graphDot(ctx, v, p, 3.5, GRAPH_INK.paper, curveColor(p.i));
         });
+        if (graphShading && graphEdge) graphEdgeLine(ctx, v, h, graphEdge);
         [graphAt, graphPinned].forEach(function (p, at) {
             if (!p || p.area || (at && p === graphAt)) return;
             if (!p.t && !p.spot && graphFns[p.i]) p.y = graphFns[p.i].at(p.x, deg, true); // on the curve as the unit is now
@@ -1745,7 +1748,7 @@
         a = areaEnd(v, s.r, s.p[0].x);
         b = areaEnd(v, s.r, at.x);
         graphPinned = { area: true, i: s.r.i, j: s.r.j, a: Math.min(a, b), b: Math.max(a, b) };
-        graphAt = null;
+        graphAt = graphEdge = null;
         popShut();
         drawGraph();
         return true;
@@ -1802,9 +1805,28 @@
     // The ∫ button, pressed or let go: pressed, the next drag along a curve shades its area
     function areaOn(on) {
         graphShading = on;
+        graphEdge = null;
         graphAreaButton.classList.toggle('calc-on', on);
         graphPlot.classList.toggle('calc-graph-shading', on);
         if (graph.classList.contains('calc-open')) graphShown();
+    }
+
+    // where an area would start from the pointer, with ∫ pressed: an upright line at its x, and
+    // a dot on its curve there, or on both it would be between
+    function graphEdgeLine(ctx, v, h, e) {
+        var x = Math.round(plotX(v, e.x)) + 0.5;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = curveColor(e.i);
+        ctx.setLineDash([4, 3]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        [e.i, e.j].forEach(function (i) {
+            var y = i !== undefined && graphFns[i] ? graphFns[i].at(e.x, deg) : NaN;
+            if (isFinite(y) && Math.abs(plotY(v, y)) < 1e6) graphDot(ctx, v, { x: e.x, y: y }, 4.5, curveColor(i), GRAPH_INK.paper);
+        });
     }
 
     // a place away from the curves, clicked: a cross
@@ -1990,6 +2012,12 @@
             graphNote.textContent = !graphFns.some(Boolean) ? 'Type a function of x for its values.' :
                 graphTable.querySelector('.calc-bad') ? 'Start and step are numbers, the step above 0.' :
                     'Click a value to put it in the equation.' + (unit ? ' · ' + unit : '');
+        } else if (graphShading && graphFns.some(Boolean) && graphStart && graphPinned && graphPinned.area) {
+            graphNote.innerHTML = graphSwatches(graphPinned) + '<span>From <i>x</i> = ' + graphValue(graphPinned, 'a') + '</span>' +
+                '<span>to <i>x</i> = ' + graphValue(graphPinned, 'b') + '</span>';
+        } else if (graphShading && graphEdge) {
+            graphNote.innerHTML = graphSwatches(graphEdge) + '<span>From <i>x</i> = ' + graphValue(graphEdge, 'x') + '</span>' +
+                '<span>Drag to where it ends</span>';
         } else if (graphShading && graphFns.some(Boolean)) {
             graphNote.textContent = 'Drag along a curve for the area under it, between two for the area between; an end near a dot goes to it.';
         } else if (p) {
@@ -2175,7 +2203,12 @@
     graphCanvas.addEventListener('pointermove', function (e) {
         var at = onPlot(e), s = graphStart, p, d0, d1;
         if (!graphTouch[e.pointerId]) { // the mouse over the plot: the point under it
-            if (e.pointerType === 'mouse') {
+            if (e.pointerType === 'mouse' && graphShading) { // where an area would start, as a drag from here takes it
+                p = areaRegion(at);
+                graphAt = null;
+                graphEdge = p && { x: areaEnd(viewNow(), p, at.x), i: p.i, j: p.j };
+                drawGraph();
+            } else if (e.pointerType === 'mouse') {
                 graphAt = graphPoint(at, 10);
                 drawGraph();
             }
@@ -2234,7 +2267,7 @@
     // the pointer leaves: the line above says what to do again; the popup stays
     graphCanvas.addEventListener('pointerleave', function (e) {
         if (e.pointerType !== 'mouse' || graphTouch[e.pointerId]) return;
-        graphAt = null;
+        graphAt = graphEdge = null;
         drawGraph();
     }, false);
 

@@ -587,6 +587,10 @@ async function graphPanel(page, at) {
     await page.clickAt('.calc-graph-plot', 0, -1.5);
     check(await page.calc('!document.querySelector(".calc-graph-pop").hidden'), t + 'a click on the area brings its popup back');
 
+    // the box of an end has a tip of its own, to type it
+    await page.hover('.calc-graph-pop-end[data-end="a"]');
+    check(await page.until('/^Type the start/.test(document.querySelector(".calc-tip").textContent)', 2000), t + 'the box of an end has its tip');
+
     // its ends typed: from 0 to 1, -8/3; an end not past the other is marked and not taken; Esc
     // goes back to the plot, the popup staying with the ends as they are
     await page.click('.calc-graph-pop-end[data-end="a"]');
@@ -607,6 +611,9 @@ async function graphPanel(page, at) {
     // a drag from near 0.5 to near -1 ends at 0.5 and -1, round numbers, not where the pointer was to a pixel
     await page.key('Escape', 27);
     await page.click('.calc-graph-zoom [data-zoom="area"]');
+    await page.hoverAt('.calc-graph-plot', 0.53, -1);
+    check(/^From x = 0\.5\s*Drag to where it ends$/.test((await page.calc(note)).trim()), t + 'pointed at with ∫ pressed: where the area would start, 0.5',
+        await page.calc(note));
     await page.dragAt('.calc-graph-plot', 0.53, -1, -0.97, -0.5);
     check(/From x = -1\s*To x = 0\.5\s*Area = -4\.125$/.test(await page.calc(pop)), t + 'the ends of a drag are round numbers', await page.calc(pop));
     await page.click('.calc-graph-pop-row[data-put="s"] svg');
