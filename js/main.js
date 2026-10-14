@@ -4473,8 +4473,22 @@
         return { t: unit.t.charAt(0).toUpperCase() + unit.t.slice(1), d: 'Click to put it into the equation.', k: '' };
     }
 
-    // the statistics, the formulas, the converter, the graph, the solver and the numbers have their button while they are turned on in the options
+    // what an administrator turned off, which the options cannot turn on: the extension keeps it (policy.js), the website has none
+    function policyOff(key) {
+        var policy = stored('policy');
+        return !!policy && policy[key] === false;
+    }
+
+    // the statistics, the formulas, the converter, the graph, the solver and the numbers have their button while they are
+    // turned on in the options, and not turned off by an administrator. The graph's own window closes with the graph
     function setPanels(statsOn, fxOn, convOn, graphOn, solveOn, numbersOn) {
+        statsOn = statsOn && !policyOff('statistics');
+        fxOn = fxOn && !policyOff('formulas');
+        convOn = convOn && !policyOff('converter');
+        graphOn = graphOn && !policyOff('graph');
+        solveOn = solveOn && !policyOff('solve');
+        numbersOn = numbersOn && !policyOff('numbers');
+        if (!graphOn && graphAlone) ask('graph-close');
         statsButton.hidden = !statsOn;
         fxButton.hidden = !fxOn;
         convButton.hidden = !convOn;
@@ -4489,6 +4503,15 @@
         if (!numbersOn) showNumbers(false);
         showTools();
     }
+
+    // the panels as the options and the administrator have them now
+    function readPanels() {
+        setPanels(stored('statsOn') !== false, stored('fxOn') !== false, stored('convOn') !== false, stored('graphOn') !== false,
+            stored('solveOn') !== false, stored('numbersOn') !== false);
+    }
+
+    // the page tells of a change of the administrator's, which it heard first: it is not a storage event here
+    root.addEventListener('calc-policy', readPanels, false);
 
     // the line above a result starts after the buttons shown at the top left
     function showTools() {
@@ -4931,7 +4954,7 @@
         refresh();
     }
 
-    // The number format, the order of the function keys or the panels were changed on the options page.
+    // The number format, the order of the function keys or the panels were changed on the options page, or by an administrator.
     // The graph, the calculation and the angle unit follow another page of the calculator: the graph's
     // own window and the popup or the detached window show the same ones. Not what this page saved
     window.addEventListener('storage', function (e) {
@@ -4953,10 +4976,7 @@
             ownSaves.deg = e.newValue;
             return setUnit(stored('deg') === true ? 1 : stored('deg') === 'grad' ? 2 : 0);
         }
-        if (/^(statsOn|fxOn|convOn|graphOn|solveOn|numbersOn)$/.test(e.key)) {
-            return setPanels(stored('statsOn') !== false, stored('fxOn') !== false, stored('convOn') !== false, stored('graphOn') !== false,
-                stored('solveOn') !== false, stored('numbersOn') !== false);
-        }
+        if (/^(statsOn|fxOn|convOn|graphOn|solveOn|numbersOn|policy)$/.test(e.key)) return readPanels();
         if (e.key === 'format') setFormat(stored('format'));
         else if (e.key === 'fnOrder') engine.fnFirst = stored('fnOrder') !== 'after';
         else return;

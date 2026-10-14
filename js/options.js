@@ -32,7 +32,7 @@ document.getElementById('launch-detached').addEventListener('click', () => {
 // background.js. The browser asks for it when the switch is turned on; background.js then
 // puts the button on the pages, and gives the access back when the switch is turned off
 const pageIcon = document.getElementById('page-icon');
-const pageIconAccess = { permissions: ['scripting', 'storage'], origins: ['http://*/*', 'https://*/*'] };
+const pageIconAccess = { permissions: ['scripting'], origins: ['http://*/*', 'https://*/*'] };
 
 // The browser does not put the button on its own pages, so this page adds it itself
 const pageIconId = 'scientific-calculator-page-icon'; // as in page-icon.js
@@ -41,6 +41,7 @@ const showPageIconOption = () => {
     chrome.permissions.contains(pageIconAccess, (granted) => {
         const button = document.getElementById(pageIconId);
 
+        granted = granted && !CalcPolicy.off('pageButton'); // background.js gives the access back
         pageIcon.checked = granted;
         if (granted && !button) {
             const script = document.createElement('script');
@@ -177,3 +178,41 @@ fnOrder.addEventListener('change', () => {
         } catch (e) { }
     });
 });
+
+// What an administrator turned off (policy.js): its switch or button cannot be used, and
+// says why. Turned on again, the switch shows the choice that was kept
+const managed = [['panel-fx', 'formulas', 'fxOn'], ['panel-conv', 'converter', 'convOn'], ['panel-graph', 'graph', 'graphOn'],
+    ['panel-stats', 'statistics', 'statsOn'], ['panel-solve', 'solve', 'solveOn'], ['panel-numbers', 'numbers', 'numbersOn'],
+    ['launch-detached', 'detachedMode'], ['page-icon', 'pageButton']];
+
+const showPolicy = () => {
+    managed.forEach(([id, key, kept]) => {
+        const control = document.getElementById(id);
+        const option = control.closest('.option');
+        const off = CalcPolicy.off(key);
+
+        if (off === control.disabled) return;
+        control.disabled = off;
+        option.classList.toggle('managed', off);
+        if (off) {
+            const note = option.querySelector('.option-text').appendChild(document.createElement('p'));
+
+            note.className = 'option-note managed-note';
+            note.textContent = 'Turned off by your administrator.';
+        } else {
+            option.querySelector('.managed-note').remove();
+        }
+        if (id === 'page-icon') {
+            showPageIconOption();
+        } else if (kept) {
+            try {
+                control.checked = !off && JSON.parse(localStorage.getItem(kept)) !== false;
+            } catch (e) {
+                control.checked = !off;
+            }
+        }
+    });
+};
+
+CalcPolicy.onChange(showPolicy);
+showPolicy();

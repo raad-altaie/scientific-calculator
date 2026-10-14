@@ -160,6 +160,120 @@
         return (a + b) / 2;
     }
 
+    // ---------- inequalities ---------- //
+
+    // An inequality of x solved: x^2 – 4 > 0, 1/x <= 2, sqrt(x) < 3, or two the same way,
+    // 1 < x^2 < 4: where it holds, as intervals. Their ends are the roots of its sides equal,
+    // as solve finds them, and where it starts or stops holding without one, at a jump, as 1/x
+    // at 0, or at the edge of where it has values, as sqrt(x) at 0, found by halving between
+    // samples. From and to keep it between them, else it is looked for as solve looks.
+    // { parts: [{ from, to, fromIn, toIn }] ascending, ends: where it changes, ascending, more:
+    // there were more ends than these, the ones nearest 0 } or { error: 'inequality' | 'letters' }
+    function inequality(text, comma, deg, from, to) {
+        var s = String(text), ops = s.match(/<=|>=|=<|=>|[<>≤≥]/g), sides, curves, parts = [], ends = [], more,
+            bounded = isFinite(from) && isFinite(to) && from < to, n = 2000, xs = [], states = [], marks, k, u, r, p, lo, hi, out = [], cur;
+        if (!ops || ops.length > 2 || /=/.test(s.replace(/<=|>=|=<|=>/g, ''))) return { error: 'inequality' };
+        ops = ops.map(function (op) { return { '<=': '≤', '=<': '≤', '>=': '≥', '=>': '≥' }[op] || op; });
+        if (ops.length === 2 && /[<≤]/.test(ops[0]) !== /[<≤]/.test(ops[1])) return { error: 'inequality' };
+        sides = s.split(/<=|>=|=<|=>|[<>≤≥]/);
+        if (sides.some(function (side) { return !side.trim(); })) return { error: 'inequality' };
+        curves = sides.map(function (side) { return Engine.graph(side, comma, {}); });
+        if (!curves.every(Boolean)) return { error: 'inequality' };
+        if (curves.some(function (c) { return c.letters.length; })) return { error: 'letters' };
+        for (k = 0; k < ops.length; k++) parts.push({ l: curves[k], r: curves[k + 1], op: ops[k], text: sides[k] + '=' + sides[k + 1] });
+
+        // True where it holds at x, false where not, null where a side has no value. Its sides
+        // are equal at a root of them, root the part's, or where they are to 12 digits; loose,
+        // to 6, for an end that is only as near as a number goes
+        function holds(x, root, loose) {
+            var j, a, b, d;
+            for (j = 0; j < parts.length; j++) {
+                a = parts[j].l.at(x, deg);
+                b = parts[j].r.at(x, deg);
+                if (!isFinite(a) || !isFinite(b)) return null;
+                d = j === root || Math.abs(a - b) <= (loose ? 1e-6 * Math.max(1, Math.abs(a) + Math.abs(b)) : 1e-12 * (Math.abs(a) + Math.abs(b))) ? 0 : a - b;
+                if (!(parts[j].op === '<' ? d < 0 : parts[j].op === '>' ? d > 0 : parts[j].op === '≤' ? d <= 0 : d >= 0)) return false;
+            }
+            return true;
+        }
+
+        // the ends: the roots of each part's sides equal where it changes there, as (x – 1)² > 0
+        // at 1, not where they are equal all along, as floor(x) = 2 …
+        parts.forEach(function (part, j) {
+            var found = solve(part.text, comma, deg, bounded ? from : NaN, bounded ? to : NaN);
+            (found.roots || []).forEach(function (x) {
+                var h = 1e-8 * Math.max(1, Math.abs(x)), at = holds(x, j);
+                if (holds(x - h) !== at || holds(x + h) !== at) ends.push({ x: x, root: j });
+            });
+        });
+        // … and where it changes between samples without one, as near as a number goes. An end
+        // that is a number is in where it holds; one between two numbers, made shorter, is in
+        // where it holds by the one side and the other has no value or holds as well, loosely:
+        // sqrt(2 – x²) ≥ 0 at √2, not tan(x) > 1 at π/2
+        for (k = 0; k <= n; k++) {
+            u = Math.asinh(SEARCH) * (2 * k / n - 1);
+            xs.push(bounded ? from + (to - from) * k / n : k === n / 2 ? 0 : Math.sinh(u));
+            states.push(holds(xs[k]));
+            if (k && states[k] !== states[k - 1]) {
+                lo = xs[k - 1];
+                hi = xs[k];
+                for (r = 0; r < 200; r++) {
+                    p = (lo + hi) / 2;
+                    if (p <= lo || p >= hi) break;
+                    if (holds(p) === states[k - 1]) lo = p;
+                    else hi = p;
+                }
+                p = snap(hi);
+                if (ends.some(function (e) { return Math.abs(p - e.x) <= 1e-9 * Math.max(1, Math.abs(p)); })) continue; // a root of solve's, as it has it
+                ends.push({ x: p, in: p === lo || p === hi ? holds(p) === true :
+                    holds(lo, -1, true) !== false && holds(hi, -1, true) !== false && (holds(lo, -1, true) || holds(hi, -1, true)) === true });
+            }
+        }
+        if (typeof DEBUG !== "undefined") console.log(JSON.stringify(ends));
+        ends.sort(function (a, b) { return a.x - b.x; });
+        ends = ends.filter(function (e, i) { return !i || e.x !== ends[i - 1].x; });
+        more = ends.length > ROOTS_MAX;
+        if (more) ends = ends.slice().sort(function (a, b) { return Math.abs(a.x) - Math.abs(b.x) || a.x - b.x; }).slice(0, ROOTS_MAX).sort(function (a, b) { return a.x - b.x; });
+        lo = bounded ? { x: from } : more ? ends[0] : { x: -Infinity };
+        hi = bounded ? { x: to } : more ? ends[ends.length - 1] : { x: Infinity };
+
+        // the pieces between the ends, each tried at a point inside it, and the ends themselves
+        function inside(a, b) {
+            return a === -Infinity ? (b === Infinity ? 0 : b - Math.max(1, Math.abs(b))) : b === Infinity ? a + Math.max(1, Math.abs(a)) : (a + b) / 2;
+        }
+        function isIn(e) {
+            return isFinite(e.x) && (e.in !== undefined ? e.in : holds(e.x, e.root) === true);
+        }
+        function add(a, aIn, b, bIn) {
+            if (cur && cur.to === a && (cur.toIn || aIn)) {
+                cur.to = b;
+                cur.toIn = bIn;
+            } else {
+                cur = { from: a, to: b, fromIn: aIn, toIn: bIn };
+                out.push(cur);
+            }
+        }
+        marks = [lo].concat(ends.filter(function (e) { return e.x > lo.x && e.x < hi.x; }), [hi]);
+        for (k = 0; k < marks.length; k++) {
+            if (isIn(marks[k])) add(marks[k].x, true, marks[k].x, true);
+            if (k < marks.length - 1 && marks[k].x < marks[k + 1].x && holds(inside(marks[k].x, marks[k + 1].x))) {
+                add(marks[k].x, isIn(marks[k]), marks[k + 1].x, isIn(marks[k + 1]));
+            }
+        }
+        return { parts: out, ends: ends.map(function (e) { return e.x + 0; }), more: more };
+    }
+
+    // an end found by halving, which is as near as a number goes: as short as it can be to 12
+    // digits, 0 not -6e-65
+    function snap(x) {
+        var d, q;
+        for (d = 0; d <= 15; d++) {
+            q = +x.toFixed(d);
+            if (Math.abs(q - x) <= 1e-12 * Math.max(1, Math.abs(x))) return q + 0;
+        }
+        return +x.toPrecision(13);
+    }
+
     // ---------- complex numbers, as [re, im] ---------- //
 
     function cmul(a, b) {
@@ -1074,6 +1188,7 @@
         number: number,
         fn: fn,
         solve: solve,
+        inequality: inequality,
         poly: poly,
         linear: linear,
         integral: integral,

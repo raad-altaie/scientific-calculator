@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#39576f">
+    <link rel="icon" href="imgs/icon.png" type="image/png">
+    <link rel="stylesheet" href="css/options.css">
+    <title>Scientific Calculator for Schools: Admin Settings</title>
+    <meta name="description" content="Turn features of the Scientific Calculator extension off for students, such as the graph or the formulas, from the Google Admin Console or a Chrome policy.">
+    <link rel="canonical" href="https://raad.dev/calculator/admin.html">
+    <style>
+        /* the page is the options page's panels and rows; only what they lack is here */
+        /* in the place of the options page's tabs: as far below the name, and the panels as far below it */
+        /* as big as the website's guide: its scale, and its text */
+        .page .wrapper {
+            font-size: 13.5px;
+        }
+
+        .intro,
+        .option p {
+            font-size: 1.1em;
+        }
+
+        .intro {
+            margin: 2em auto 3em;
+            max-width: 40em;
+            color: #dde3ea;
+            line-height: 1.5;
+        }
+
+        .intro + .title {
+            margin-top: 0;
+        }
+
+        .options a {
+            color: #f0b8be;
+        }
+
+        .options code,
+        .setting {
+            padding: 0.1em 0.4em;
+            color: #fff;
+            background: #1a2f38;
+            border-radius: 5px;
+            font-size: 0.9em;
+            overflow-wrap: anywhere; /* the long paths wrap on a phone */
+        }
+
+        /* a policy's name, where an option has its switch */
+        .setting {
+            flex: none;
+            padding: 0.35em 0.7em;
+            overflow-wrap: normal;
+        }
+
+        /* back to the calculator: the round button of the website's options, at the top left */
+        .back {
+            position: fixed; /* it stays in view as the page scrolls */
+            top: max(22px, env(safe-area-inset-top));
+            left: max(22px, env(safe-area-inset-left));
+            z-index: 2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            background: #c3cad1;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+            -webkit-tap-highlight-color: transparent;
+            transition: background 0.2s, transform 0.15s ease;
+        }
+
+        .back svg {
+            width: 20px;
+            height: 20px;
+            fill: none;
+            stroke: #2b4753;
+            stroke-width: 1.8;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .back:hover {
+            background: #d3d9de;
+            transform: scale(1.12);
+        }
+
+        .back:active {
+            background: #b2bac2;
+            transform: scale(1.02);
+        }
+
+        .back:focus-visible {
+            outline: 2px solid #fff;
+            outline-offset: 2px;
+        }
+
+        /* the steps are numbered in their icons */
+        .step {
+            color: #fff;
+            font-weight: 700;
+            font-size: 1.15em;
+        }
+
+        /* the settings to paste: a bar with their name and the copy button, over the code */
+        .json {
+            margin-top: 0.9em;
+            background: #1a2f38;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .json-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.35em 0.5em 0.35em 1.1em;
+            color: #acb4c1;
+            font-size: 0.88em;
+            border-bottom: 1px solid #2b4753;
+        }
+
+        .json pre {
+            margin: 0;
+            padding: 0.9em 1.1em;
+            overflow-x: auto;
+            color: #fff;
+            font-size: 0.92em;
+            line-height: 1.5;
+        }
+
+        .copy {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4em;
+            padding: 0.35em 0.75em;
+            color: #dde3ea;
+            font: inherit;
+            cursor: pointer;
+            background: transparent;
+            border: 1px solid #39576f;
+            border-radius: 6px;
+            transition: background 0.15s, color 0.15s, border-color 0.15s;
+        }
+
+        .copy:hover {
+            color: #fff;
+            background: #2b4753;
+        }
+
+        .copy:focus-visible {
+            outline: 2px solid #fff;
+            outline-offset: 2px;
+        }
+
+        .copy svg {
+            width: 14px;
+            height: 14px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .copy.done {
+            color: #9fd8a8;
+            border-color: #5f9c69;
+        }
+
+        /* room above the footer, under the last panel */
+        .page .footer {
+            margin-top: 3em;
+        }
+    </style>
+</head>
+
+<body class="page">
+    <a class="back" href="./" aria-label="Back to the calculator" title="Back to the calculator">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12H4M10 6l-6 6 6 6" /></svg>
+    </a>
+
+    <div class="wrapper">
+
+        <div class="logo">Scientific Calculator</div>
+        <p class="intro">For schools and companies: an administrator can turn features of the Chrome extension off for
+            everyone they manage, for a class during a test for example. A feature turned off leaves the calculator at
+            once, its option is locked with "Turned off by your administrator", and students cannot turn it back on.</p>
+
+        <h2 class="logo title">What can be turned off</h2>
+        <div class="options">
+            <div class="option">
+                <span class="option-icon screen-icon">
+                    <svg viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M8.5 2.3c-1.5-.4-2.6.3-2.9 1.9L4.3 11.8c-.3 1.6-1.2 2.2-2.6 1.9" stroke-width="1.6"></path>
+                        <path d="M3.3 6.3h4.2" stroke-width="1.6"></path>
+                        <path d="M9.6 8l4.4 5.2M14 8l-4.4 5.2" stroke-width="1.6"></path>
+                    </svg>
+                </span>
+                <div class="option-text">
+                    <h3>Formulas and constants</h3>
+                    <p>The searchable formulas of geometry, physics, money and more, and the constants of math and science.</p>
+                </div>
+                <code class="setting">formulas</code>
+            </div>
+            <div class="option">
+                <span class="option-icon screen-icon">
+                    <svg viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M3.5 5h9.5M10.5 2.5l2.5 2.5-2.5 2.5" stroke-width="1.6"></path>
+                        <path d="M12.5 11H3M5.5 8.5L3 11l2.5 2.5" stroke-width="1.6"></path>
+                    </svg>
+                </span>
+                <div class="option-text">
+                    <h3>Converter</h3>
+                    <p>Units of length, area, volume, mass, temperature, speed and more.</p>
+                </div>
+                <code class="setting">converter</code>
+            </div>
+            <div class="option">
+                <span class="option-icon screen-icon">
+                    <svg viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M2.5 2v11.5H14" stroke-width="1.6"></path>
+                        <path d="M4.5 11c1.6-6 3.2-6 4.6-3s2.6 2.5 4.4-3.5" stroke-width="1.6"></path>
+                    </svg>
+                </span>
+                <div class="option-text">
+                    <h3>Graph</h3>
+                    <p>The graph of functions, equations and points, with its own window.</p>
+                </div>
+                <code class="setting">graph</code>
+            </div>
+            <div class="option">
+                <span class="option-icon screen-icon">
+                    <svg viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M3.5 13.5V9M8 13.5V3M12.5 13.5V6.5" stroke-width="1.8"></path>
+                    </svg>
+                </span>
+                <div class="option-text">
+                    <h3>Statistics</h3>
+                    <p>The count, sum, mean, standard deviation, median and more of a list of numbers.</p>
+                </div>
+                <code class="setting">statistics</code>
+            </div>
+            <div class="option">
+                <span class="option-icon screen-icon">
+                    <svg viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M2 4.5l5 7M7 4.5l-5 7" stroke-width="1.6"></path>
+                        <path d="M9.5 6.5H14M9.5 9.5H14" stroke-width="1.6"></path>
+                    </svg>
+                </span>
+                <div class="option-text">
+                    <h3>Solve</h3>
+                    <p>The roots of equations, integrals, slopes and sums, and probability.</p>
+                </div>
+                <code class="setting">solve</code>
+            </div>
+            <div class="option">
+                <span class="option-icon screen-icon">
+                    <svg viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M5 2.5H3v11h2M11 2.5h2v11h-2" stroke-width="1.6"></path>
+                        <path d="M8 7.2v4.3M8 4.6v.1" stroke-width="1.6"></path>
+                    </svg>
+                </span>
+                <div class="option-text">
+                    <h3>Numbers</h3>
+                    <p>Complex numbers, bases and bits, matrices, prime factors and rounding.</p>
+                </div>
+                <code class="setting">numbers</code>
+            </div>
+            <div class="option">
+                <span class="option-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                        <path d="M15 3h6v6M10 14L21 3"></path>
+                    </svg>
+                </span>
+                <div class="option-text">
+                    <h3>Detached Mode</h3>
+                    <p>The calculator in a window of its own.</p>
+                    <p class="option-note">Turns off the calculator on every page too, which opens this window.</p>
+                </div>
+                <code class="setting">detachedMode</code>
+            </div>
+            <div class="option">
+                <span class="option-icon page-button"><img src="imgs/icon128.png" alt=""></span>
+                <div class="option-text">
+                    <h3>Calculator on every page</h3>
+                    <p>The calculator button on the side of every page.</p>
+                </div>
+                <code class="setting">pageButton</code>
+            </div>
+        </div>
+
+        <h2 class="logo title">In the Google Admin Console</h2>
+        <div class="options">
+            <div class="option">
+                <span class="option-icon step">1</span>
+                <div class="option-text">
+                    <h3>Open the extensions</h3>
+                    <p>In <a href="https://admin.google.com" target="_blank" rel="noopener">admin.google.com</a>, go to
+                        Devices › Chrome › Apps &amp; extensions › Users &amp; browsers.</p>
+                </div>
+            </div>
+            <div class="option">
+                <span class="option-icon step">2</span>
+                <div class="option-text">
+                    <h3>Choose the students</h3>
+                    <p>Pick their organizational unit on the left.</p>
+                </div>
+            </div>
+            <div class="option">
+                <span class="option-icon step">3</span>
+                <div class="option-text">
+                    <h3>Add the extension</h3>
+                    <p>If it is not listed yet: the yellow +, then Add from Chrome Web Store, and search for Scientific
+                        Calculator by Raad Altaie.</p>
+                </div>
+            </div>
+            <div class="option">
+                <span class="option-icon step">4</span>
+                <div class="option-text">
+                    <h3>Paste the settings</h3>
+                    <p>Click the extension, paste into Policy for extensions on the right, set each feature to false to
+                        turn it off or true to leave it on, as the formulas here, and Save.</p>
+                    <div class="json">
+                        <div class="json-bar">
+                            <span>Policy for extensions</span>
+                            <button type="button" class="copy" id="copy">
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <rect x="9" y="9" width="12" height="12" rx="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                                <span>Copy</span>
+                            </button>
+                        </div>
+                        <pre id="json">{
+    "formulas": { "Value": true },
+    "converter": { "Value": false },
+    "graph": { "Value": false },
+    "statistics": { "Value": false },
+    "solve": { "Value": false },
+    "numbers": { "Value": false },
+    "detachedMode": { "Value": false },
+    "pageButton": { "Value": false }
+}</pre>
+                    </div>
+                    <p class="option-note">The browsers take it within minutes, or at once after a restart. To turn a
+                        feature on again, set it to true or take its line out.</p>
+                </div>
+            </div>
+            <div class="option">
+                <span class="option-icon step">5</span>
+                <div class="option-text">
+                    <h3>Check it on a student's device</h3>
+                    <p>Open <code>chrome://policy</code>, click Reload policies, and find the extension's settings
+                        under its name. Its options page shows each feature turned off as locked.</p>
+                </div>
+            </div>
+        </div>
+
+        <h2 class="logo title">Without the Admin Console</h2>
+        <div class="options">
+            <div class="option">
+                <div class="option-text">
+                    <h3>Windows</h3>
+                    <p>DWORD values, 0 for off, under
+                        <code>HKEY_LOCAL_MACHINE\Software\Policies\Google\Chrome\3rdparty\extensions\fnplhdldnhaodknidfddmkfdhlhjihpd\policy</code></p>
+                </div>
+            </div>
+            <div class="option">
+                <div class="option-text">
+                    <h3>macOS</h3>
+                    <p>A configuration profile for the domain <code>com.google.Chrome.extensions.fnplhdldnhaodknidfddmkfdhlhjihpd</code>, with a
+                        boolean for each setting.</p>
+                </div>
+            </div>
+            <div class="option">
+                <div class="option-text">
+                    <h3>Linux</h3>
+                    <p>The same settings in a JSON policy file in <code>/etc/opt/chrome/policies/managed/</code>, under
+                        <code>3rdparty › extensions › fnplhdldnhaodknidfddmkfdhlhjihpd</code>.</p>
+                    <p class="option-note">fnplhdldnhaodknidfddmkfdhlhjihpd is the extension's ID, the 32 letters at the
+                        end of its address in the
+                        <a href="https://chromewebstore.google.com/detail/fnplhdldnhaodknidfddmkfdhlhjihpd" target="_blank"
+                            rel="noopener">Chrome Web Store</a>.</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="footer">
+        <p>© <span class="year"></span> <a href="https://raad.dev" target="_blank" rel="noopener">raad.dev</a> all rights reserved.</p>
+    </div>
+
+    <script>
+        document.querySelectorAll('.year').forEach(function (el) {
+            el.textContent = new Date().getFullYear();
+        });
+
+        // the settings to paste, copied with a click
+        document.getElementById('copy').addEventListener('click', function () {
+            var button = this, label = button.querySelector('span');
+
+            navigator.clipboard.writeText(document.getElementById('json').textContent).then(function () {
+                label.textContent = 'Copied';
+                button.classList.add('done');
+                setTimeout(function () {
+                    label.textContent = 'Copy';
+                    button.classList.remove('done');
+                }, 1500);
+            }, function () { });
+        });
+    </script>
+</body>
+
+</html>

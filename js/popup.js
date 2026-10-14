@@ -2,9 +2,22 @@
 // for it what needs the extension: it opens the options and reads the clipboard
 
 const calculator = document.getElementById('calculator');
+const params = new URLSearchParams(location.search);
+
+// An administrator's change (policy.js): the calculator takes its panels out, and the detached
+// window or the graph's own window closes when what it shows is turned off
+const followPolicy = () => {
+    if ((params.has('detached') && CalcPolicy.off('detachedMode')) || (params.has('graph') && CalcPolicy.off('graph'))) {
+        window.close();
+        return;
+    }
+    calculator.dispatchEvent(new CustomEvent('calc-policy'));
+};
+
+CalcPolicy.onChange(followPolicy);
 
 // detached mode: the calculator grows and shrinks with its window, within limits
-if (new URLSearchParams(location.search).has('detached')) {
+if (params.has('detached')) {
     const MIN_SCALE = 0.5;
     const MAX_SCALE = 3;
     // room around the calculator at the normal size, the same on every side, as in background.js
@@ -94,7 +107,7 @@ if (new URLSearchParams(location.search).has('detached')) {
 // The graph's own window, popup.html?graph: only the graph, as big as the window. Its close
 // button and Esc close the window; a value put in brings the calculator up, which has it
 // through the storage
-if (new URLSearchParams(location.search).has('graph')) {
+if (params.has('graph')) {
     document.title = 'Graph';
     calculator.dispatchEvent(new CustomEvent('calc-graph', { detail: { big: true, alone: true } }));
     document.addEventListener('calc-graph-close', () => window.close());
@@ -109,6 +122,9 @@ if (new URLSearchParams(location.search).has('graph')) {
         chrome.runtime.sendMessage({ command: 'open-graph' }).catch(() => { });
     });
 }
+
+// as it was kept last, until the browser answers
+followPolicy();
 
 // the name, the ? and the FIX mark of the calculator open the options page
 document.addEventListener('calc-options', () => {

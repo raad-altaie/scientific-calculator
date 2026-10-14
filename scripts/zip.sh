@@ -9,7 +9,7 @@ OUT="dist/scientific-calculator-$VERSION.zip"
 mkdir -p dist
 rm -f "$OUT"
 zip -r -X -q "$OUT" \
-    manifest.json options.html popup.html \
+    manifest.json managed_schema.json options.html popup.html \
     css js imgs \
     fonts/Play-Regular.ttf \
     -x '*.DS_Store'
