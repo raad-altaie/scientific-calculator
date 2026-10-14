@@ -29,8 +29,8 @@ const graphUrl = chrome.runtime.getURL("popup.html?graph");
 const popupPages = chrome.runtime.getURL("popup.html*");
 
 // The place and the size of the detached window are kept here, for the next
-// time it opens. A service worker has no localStorage, and chrome.storage is
-// only held while the page icon is on
+// time it opens. A service worker has no localStorage, and chrome.storage.local
+// is the page icon's
 function detachedBoundsStore(mode, run, failed) {
     const open = indexedDB.open("detached", 1);
 
@@ -181,7 +181,7 @@ function showCalculator() {
         }
         chrome.windows.getLastFocused({ windowTypes: ["normal"] })
             .then((win) => focusWindow(win.id).then(() => chrome.action.openPopup({ windowId: win.id })))
-            .catch(() => openCalculatorInDetachedMode()); // no browser window, or no popup allowed now
+            .catch(() => unlessOff("detachedMode", openCalculatorInDetachedMode)); // no browser window, or no popup allowed now
     });
 }
 
@@ -208,7 +208,7 @@ function openCalculatorInDetachedMode() {
 // page. The option is on while the extension holds this access, which the browser
 // asks the user for at that moment and not at install
 const pageIconSites = ["http://*/*", "https://*/*"];
-const pageIconAccess = { permissions: ["scripting", "storage"], origins: pageIconSites };
+const pageIconAccess = { permissions: ["scripting"], origins: pageIconSites };
 const pageIconScript = { id: "page-icon", js: ["js/page-icon.js"], matches: pageIconSites };
 
 // pages that are already open get the icon without a reload
@@ -221,11 +221,16 @@ function addPageIconToOpenPages() {
     });
 }
 
-// Puts the icon on the pages, if the option is on. The browser forgets the
-// registered script when the extension is updated, so this also runs then
+// Puts the icon on the pages, if the option is on and an administrator did not turn
+// it off. The browser forgets the registered script when the extension is updated, so
+// this also runs then
 function showPageIcon() {
-    chrome.permissions.contains(pageIconAccess, (granted) => {
+    chrome.permissions.contains(pageIconAccess, async (granted) => {
         if (!granted) return;
+        if (await policyOff("pageButton")) {
+            removePageIcon();
+            return;
+        }
 
         chrome.scripting.getRegisteredContentScripts({ ids: [pageIconScript.id] })
             .then((scripts) => scripts.length || chrome.scripting.registerContentScripts([pageIconScript]))
@@ -256,6 +261,30 @@ function removePageIcon() {
 }
 
 chrome.permissions.onAdded.addListener(showPageIcon);
+
+
+// What the administrator of a school or a company turned off for everyone they manage,
+// as managed_schema.json describes; the pages read it through policy.js. Each feature is
+// on unless its policy is false. The button on every page opens Detached Mode, so it goes with it
+function policyOff(key) {
+    return chrome.storage.managed.get(null)
+        .catch(() => ({})) // no policy can be read: nothing is turned off
+        .then((policy) => policy[key] === false || (key === "pageButton" && policy.detachedMode === false));
+}
+
+// The menu of the toolbar icon has Detached Mode while it is allowed, and the button on
+// the pages goes when it is not. The open windows close themselves, in popup.js
+async function followPolicy() {
+    chrome.contextMenus.update("open-popup", { visible: !await policyOff("detachedMode") }, () => chrome.runtime.lastError);
+    if (await policyOff("pageButton")) removePageIcon();
+}
+
+chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "managed") followPolicy();
+});
+
+// a policy changed while the browser was closed
+chrome.runtime.onStartup.addListener(followPolicy);
 
 
 // Listen for commands
@@ -290,7 +319,7 @@ chrome.runtime.onInstalled.addListener((details) => {
             id: "open-popup",
             title: "Detached Mode",
             contexts: ["action"] // This will make it appear when clicking the extension icon
-        });
+        }, followPolicy);
     });
 
     showPageIcon();
@@ -300,22 +329,27 @@ chrome.runtime.onInstalled.addListener((details) => {
 // Listen for clicks on the context menu items
 chrome.contextMenus.onClicked.addListener((info) => {
     if (info.menuItemId === "open-popup") {
-        openCalculatorInDetachedMode();
+        unlessOff("detachedMode", openCalculatorInDetachedMode);
     }
 });
 
 
-// Listen for the options page and for the icon on the pages
+// Listen for the options page and for the icon on the pages. A window an administrator
+// turned off does not open
+function unlessOff(key, open) {
+    policyOff(key).then((off) => off || open());
+}
+
 chrome.runtime.onMessage.addListener((message) => {
     if (message?.command === "open-detached") {
-        openCalculatorInDetachedMode();
+        unlessOff("detachedMode", openCalculatorInDetachedMode);
     } else if (message?.command === "open-graph") {
-        openGraphWindow();
+        unlessOff("graph", openGraphWindow);
     } else if (message?.command === "show-calculator") {
         showCalculator();
     } else if (message?.command === "open-calculator") {
         // the button on a page opens the detached window
-        openCalculatorInDetachedMode();
+        unlessOff("detachedMode", openCalculatorInDetachedMode);
     } else if (message?.command === "turn-off-page-icon") {
         removePageIcon();
     }

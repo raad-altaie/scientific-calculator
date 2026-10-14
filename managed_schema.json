@@ -1,0 +1,35 @@
+{
+    "type": "object",
+    "properties": {
+        "formulas": {
+            "title": "Formulas and constants",
+            "description": "false turns off the panel of formulas and constants for everyone, and its option cannot turn it on.",
+            "type": "boolean"
+        },
+        "converter": {
+            "title": "Converter",
+            "description": "false turns off the unit converter for everyone, and its option cannot turn it on.",
+            "type": "boolean"
+        },
+        "graph": {
+            "title": "Graph",
+            "description": "false turns off the graph for everyone, with its own window, and its option cannot turn it on.",
+            "type": "boolean"
+        },
+        "statistics": {
+            "title": "Statistics",
+            "description": "false turns off the statistics for everyone, and its option cannot turn it on.",
+            "type": "boolean"
+        },
+        "detachedMode": {
+            "title": "Detached Mode",
+            "description": "false turns off the calculator in a window of its own, and with it the calculator button on every page, which opens that window.",
+            "type": "boolean"
+        },
+        "pageButton": {
+            "title": "Calculator on every page",
+            "description": "false turns off the calculator button on the side of every page, and its option cannot turn it on.",
+            "type": "boolean"
+        }
+    }
+}

@@ -44,6 +44,28 @@ A scientific calculator for your browser: light, fast and it works offline. It r
 - **Calculator on every page** (optional): a small button on the side of every page that opens Detached Mode. It asks for website access only when turned on, and reads nothing from the pages.
 - No permission is needed to read your browser data.
 
+**For schools and companies**: an administrator can turn features off for everyone they manage, for a class during a test for example. A feature turned off goes from the calculator at once, its option on the options page is locked off with "Turned off by your administrator", and an open window of it closes. Each one is on unless its policy is `false`:
+
+| Policy | Turns off |
+| --- | --- |
+| `formulas` | Formulas and constants |
+| `converter` | The converter |
+| `graph` | The graph, with its own window |
+| `statistics` | The statistics |
+| `detachedMode` | Detached Mode, and with it the calculator on every page, which opens it |
+| `pageButton` | The calculator on every page |
+
+In the Google Admin Console: **Devices › Chrome › Apps & extensions › Users & browsers**, choose the organizational unit, add the extension by its ID (shown on `chrome://extensions`) and paste into **Policy for extensions**:
+
+```json
+{
+    "graph": { "Value": false },
+    "formulas": { "Value": false }
+}
+```
+
+Elsewhere it is the extension's policy of Chrome, as [`managed_schema.json`](managed_schema.json) describes: on Windows the DWORD values (0 for off) under `HKEY_LOCAL_MACHINE\Software\Policies\Google\Chrome\3rdparty\extensions\<ID>\policy`, on macOS a profile for the domain `com.google.Chrome.extensions.<ID>`. `chrome://policy` shows what the browser has.
+
 **Precision**: about 15 significant digits (IEEE 754 doubles), shown to 13 so that `0.1 + 0.2` is `0.3`.
 
 # License

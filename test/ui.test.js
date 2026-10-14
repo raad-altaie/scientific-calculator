@@ -267,6 +267,9 @@ async function calculator(page, at) {
     check(await page.calc('document.getElementById("display-box").style.getPropertyValue("--tools")') === '0',
         t + 'the line above a result starts at the left');
 
+    // what an administrator turned off, as the extension keeps it: on in the options does not bring it
+    await page.fresh(at, { statsOn: true, policy: { statistics: false, formulas: false } });
+    check(await buttons(page) === 'calc-conv-btn calc-graph-btn', t + 'the statistics and f(x) turned off by an administrator', await buttons(page));
     await page.fresh(at, { convOn: false });
     check(await buttons(page) === 'calc-fx-btn calc-graph-btn calc-stat-btn', t + 'three buttons with the converter off', await buttons(page));
 
@@ -2145,6 +2148,12 @@ async function options(page) {
     await page.ev('localStorage.setItem("convOn", "true")');
     check(await page.until('!document.getElementById("calc-iframe").contentDocument.querySelector(".calc-conv-btn").hidden'),
         t + 'turned on again, it comes back');
+    await page.ev('localStorage.setItem("policy", JSON.stringify({ converter: false }))');
+    check(await page.until('document.getElementById("calc-iframe").contentDocument.querySelector(".calc-conv-btn").hidden'),
+        t + 'turned off by an administrator, it goes');
+    await page.ev('localStorage.setItem("policy", "{}")');
+    check(await page.until('!document.getElementById("calc-iframe").contentDocument.querySelector(".calc-conv-btn").hidden'),
+        t + 'and comes back when the administrator turns it on');
 
     // the website: its switches
     t = 'web/index.html: ';
@@ -2198,6 +2207,64 @@ async function options(page) {
 }
 
 // the website: the calculator and its options on one page, the calculator drawn to fit its room
+// An administrator's policy, which policy.js reads from chrome.storage.managed: the browser
+// is a stub here, with the policy it holds and the listeners told of a change of it
+async function adminPolicy(page) {
+    var t = 'policy: ', script, shut = 'document.defaultView.shut.length',
+        stub = 'window.managed = { graph: false, detachedMode: false }; window.changed = []; window.shut = [];' +
+            ' window.close = function () { window.shut.push(1); };' +
+            ' Object.defineProperty(window, "chrome", { configurable: true, value: {' +
+            ' runtime: { sendMessage: function () { return Promise.resolve(); }, getManifest: function () { return { version: "0" }; } }, windows: { getCurrent: function () { } },' +
+            ' permissions: { contains: function (a, done) { done(false); }, request: function () { },' +
+            ' onAdded: { addListener: function () { } }, onRemoved: { addListener: function () { } } },' +
+            ' storage: { managed: { get: function (k, done) { setTimeout(function () { done(JSON.parse(JSON.stringify(window.managed))); }); } },' +
+            ' onChanged: { addListener: function (f) { window.changed.push(f); } } } } });',
+        change = function (policy) {
+            return page.ev('window.managed = ' + JSON.stringify(policy) + '; window.changed.forEach(function (f) { f({}, "managed"); })');
+        },
+        // the options page has no calculator to wait for
+        options = async function () {
+            await page.send('Page.navigate', { url: page.base + '/options.html' });
+            await page.until('document.readyState === "complete" && !!document.getElementById("panel-graph")');
+            await sleep(80);
+        };
+
+    await page.send('Page.enable');
+    script = (await page.send('Page.addScriptToEvaluateOnNewDocument', { source: stub })).result.identifier;
+
+    // the popup: the graph goes, kept for the next time it opens
+    await page.fresh('/popup.html', {});
+    check(await page.until('document.querySelector(".calc-graph-btn").hidden'), t + 'the graph turned off goes from the popup');
+    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-stat-btn', t + 'the rest stays', await buttons(page));
+    check(await page.ev('localStorage.getItem("policy")') === '{"graph":false,"detachedMode":false,"pageButton":false}',
+        t + 'kept, with the button on the pages, which opens Detached Mode', await page.ev('localStorage.getItem("policy")'));
+    await change({});
+    check(await page.until('!document.querySelector(".calc-graph-btn").hidden'), t + 'turned on again, it comes back');
+
+    // the windows of what is turned off close
+    await change({ graph: false, detachedMode: false });
+    await page.go(page.base + '/popup.html?detached');
+    check(await page.until(shut + ' > 0'), t + 'the detached window closes');
+    await page.go(page.base + '/popup.html?graph', [700, 500]);
+    check(await page.until(shut + ' > 0'), t + 'and the graph\'s own window');
+
+    // the options page: what is turned off cannot be turned on, and says why
+    await options();
+    check(await page.until('document.getElementById("panel-graph").disabled') && !await page.ev('document.getElementById("panel-graph").checked') &&
+        /administrator/.test(await page.ev('document.getElementById("panel-graph").closest(".option").textContent')),
+        t + 'the graph\'s switch is off and locked, and says it is the administrator\'s');
+    check(await page.ev('document.getElementById("launch-detached").disabled && document.getElementById("page-icon").disabled'),
+        t + 'Detached Mode cannot be launched, nor the button on the pages turned on');
+    check(await page.ev('!document.getElementById("panel-fx").disabled && document.getElementById("panel-fx").checked && ' +
+        '!document.querySelector("#panel-fx").closest(".option").querySelector(".managed-note")'), t + 'f(x) is as it was');
+    await change({});
+    check(await page.until('!document.getElementById("panel-graph").disabled') && await page.ev('document.getElementById("panel-graph").checked') &&
+        !await page.ev('document.querySelector(".managed-note")') && !await page.ev('document.getElementById("launch-detached").disabled'),
+        t + 'turned on again, the switches are as they were kept');
+
+    await page.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: script });
+}
+
 async function website(page) {
     var t = 'web/index.html: ', calc = 'document.getElementById("calculator")', k, at, box;
 
@@ -2329,6 +2396,7 @@ async function website(page) {
         await menus(page, '/popup.html');
         await menus(page, '/web/index.html');
         await options(page);
+        await adminPolicy(page);
         await website(page);
         check(!pageErrors.length, 'no errors in the pages', pageErrors.join('\n      '));
     } catch (e) {

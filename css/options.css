@@ -200,6 +200,30 @@ html, body {
     background: #fff;
 }
 
+/* turned off by an administrator: it cannot be used, and its note says why */
+.option.managed .option-icon,
+.option.managed h3,
+.option.managed .switch,
+.option.managed .launch {
+    opacity: 0.45;
+}
+
+.option.managed .switch,
+.option.managed .switch input,
+.option.managed .launch {
+    cursor: not-allowed;
+}
+
+.option.managed .launch {
+    background: #39576f;
+    box-shadow: none;
+    transform: none;
+}
+
+.option .managed-note {
+    color: #e3a5ac;
+}
+
 .switch input:focus-visible + span,
 .launch:focus-visible {
     outline: 2px solid #fff;
