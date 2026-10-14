@@ -1068,6 +1068,9 @@ async function solver(page, at) {
     check((await page.calc(tiles)).indexOf('x=0 ≤ x ≤ 9 | Intervals=[0, 9]') === 0, t + 'sqrt(x) ≤ 3 from where it has values', await page.calc(tiles));
     await set(0, 'x^2+1<0');
     check(/^It holds for no x/.test(await page.calc(note)) && (await page.calc(tiles)).indexOf('x=none') === 0, t + 'x² + 1 < 0 holds for none', await page.calc(note));
+    check(/Looked for from –1e15 to 1e15/.test(await page.calc(note)), t + 'none, where it was looked for only so far, says how far', await page.calc(note));
+    await set(0, 'x<2e9');
+    check((await page.calc(tiles)).indexOf('x=x < 2000000000 | ') === 0, t + 'an end past 1e8', await page.calc(tiles));
     await card('Quadratic');
     await set(1, '2');
     await set(2, '5');
@@ -1097,6 +1100,8 @@ async function solver(page, at) {
     check(await page.calc(tiles) === 'Limit=1 | From below=1 | From above=1', t + 'sin(x)/x comes to 1 at 0, in Rad', await page.calc(tiles));
     await set(0, '1/x');
     check(await page.calc(tiles) === 'Limit=– | From below=–∞ | From above=∞' && /^No limit/.test(await page.calc(note)), t + '1/x goes to –∞ and ∞', await page.calc(tiles));
+    await set(1, 'abc');
+    check(await page.calc(note) === '', t + 'a limit at what is not a number blames not the function', await page.calc(note));
     await set(0, '(1+1/x)^x');
     await set(1, 'inf');
     check(await page.calc(tiles) === 'Limit=2.71828182846', t + '(1 + 1/x)^x comes to e at ∞, one side only', await page.calc(tiles));
@@ -1169,6 +1174,8 @@ async function numbersPanel(page, at) {
     check(await page.calc(tiles) === 'Decimal=-1 | Unsigned=255 | Hexadecimal=FF | Octal=377 | Binary=1111 1111', t + '-1 in 8 bits', await page.calc(tiles));
     await set(0, '0x81 rol 1');
     check((await page.calc(tiles)).indexOf('Decimal=3 | ') === 0, t + 'ROL turns the bits round', await page.calc(tiles));
+    await set(0, '0x81 rol');
+    check(/ROL ROR\.$/.test(await page.calc(note)), t + 'what is not one says ROL and ROR as well', await page.calc(note));
     await card('Bits');
     await set(1, '8');
     check(await page.calc('document.querySelectorAll("' + on + ' .calc-sv-bit").length') === 8 && await page.calc('document.querySelectorAll("' + on + ' .calc-sv-bit.calc-on").length') === 0,
@@ -1212,6 +1219,10 @@ async function numbersPanel(page, at) {
     check(await page.calc(tiles) === 'λ1=1 | λ2=3 | Trace=4 | det(λI – A)=λ2 – 4λ + 3 | v1 of λ = 1=-11 | v2 of λ = 3=11', t + 'the eigenvalues and vectors of [2 1; 1 2]', await page.calc(tiles));
     for (const [n, v] of [[1, '0'], [2, '-1'], [3, '1'], [4, '0']]) await set(n, v);
     check(await page.calc(tiles) === 'λ1=i | λ2=–i | Trace=0 | det(λI – A)=λ2 + 1' && /^Its complex eigenvalues/.test(await page.calc(note)), t + 'a turn has eigenvalues ±i', await page.calc(tiles));
+    await set(1, 'abc');
+    check(await page.calc(note) === '' && await page.calc(tiles) === 'λ=–', t + 'eigenvalues: a box that is not a number is not called not square', await page.calc(note));
+    await set(0, '5');
+    check(/^A size/.test(await page.calc(note)) && await page.calc(tiles) === 'λ=–', t + 'eigenvalues: a size that is not one is said so', await page.calc(note));
     await card('A x = b');
     check(await page.calc('document.querySelectorAll("' + on + ' input").length') === 7 && await page.calc('document.querySelectorAll("' + on + ' .calc-sv-rhs").length') === 2,
         t + 'A x = b: a size, and a row of A and of b for each equation');

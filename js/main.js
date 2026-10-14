@@ -3658,15 +3658,24 @@
         return (z.re ? local(String(z.re)) + (z.im < 0 ? ' – ' : ' + ') : z.im < 0 ? '–' : '') + im + '<i>i</i>';
     }
 
-    function runEquation(n, raw) {
-        var ends = isFinite(n.from) && isFinite(n.to), r, none = [{ l: 'x', v: NaN }];
-        if (!raw.eq) return { rows: none };
-        if (ends && n.from >= n.to) return { rows: none, note: 'From is less than To.', warn: true };
-        r = CalcMaths.solve(raw.eq, engine.comma, deg, ends ? n.from : NaN, ends ? n.to : NaN);
+    // What an equation or an inequality of x gives, find solve or inequality, between From and
+    // To where both are typed: { r, ends: they were }, or { out: the tiles while there is none,
+    // with why, example where it is not one }
+    function lookFor(n, raw, find, none, example) {
+        var ends = isFinite(n.from) && isFinite(n.to), r;
+        if (!raw.eq) return { out: { rows: none } };
+        if (ends && n.from >= n.to) return { out: { rows: none, note: 'From is less than To.', warn: true } };
+        r = find(raw.eq, engine.comma, deg, ends ? n.from : NaN, ends ? n.to : NaN);
         if (r.error) {
-            return { rows: none, bad: ['eq'], warn: true, note: r.error === 'letters' ? 'Only x has a value here: write the other letters as numbers.' :
-                'Not an equation of x yet: x^2 = 2x + 3, or one side alone, which is 0.' };
+            return { out: { rows: none, bad: ['eq'], warn: true, note: r.error === 'letters' ? 'Only x has a value here: write the other letters as numbers.' : example } };
         }
+        return { r: r, ends: ends };
+    }
+
+    function runEquation(n, raw) {
+        var none = [{ l: 'x', v: NaN }], found = lookFor(n, raw, CalcMaths.solve, none, 'Not an equation of x yet: x^2 = 2x + 3, or one side alone, which is 0.'),
+            r = found.r, ends = found.ends;
+        if (found.out) return found.out;
         if (!r.roots.length) return { rows: none, note: ends ? 'No root between ' + local(String(n.from)) + ' and ' + local(String(n.to)) + '.' : 'No root found.' };
         return {
             rows: r.roots.map(function (x, i) { return { l: rootName(i, r.roots.length), v: x }; }),
@@ -3681,14 +3690,12 @@
 
     // Where an inequality holds: x < –2 or x > 2, and as intervals, (–∞, –2) ∪ (2, ∞); its ends to put in
     function runInequality(n, raw) {
-        var ends = isFinite(n.from) && isFinite(n.to), r, none = [{ l: 'x', v: NaN, wide: true }], words, sets, gap = engine.comma ? '; ' : ', ';
-        if (!raw.eq) return { rows: none };
-        if (ends && n.from >= n.to) return { rows: none, note: 'From is less than To.', warn: true };
-        r = CalcMaths.inequality(raw.eq, engine.comma, deg, ends ? n.from : NaN, ends ? n.to : NaN);
-        if (r.error) {
-            return { rows: none, bad: ['eq'], warn: true, note: r.error === 'letters' ? 'Only x has a value here: write the other letters as numbers.' :
-                'Not an inequality of x yet: x^2 - 4 > 0, with <, >, <= or >=.' };
-        }
+        var none = [{ l: 'x', v: NaN, wide: true }], found = lookFor(n, raw, CalcMaths.inequality, none, 'Not an inequality of x yet: x^2 - 4 > 0, with <, >, <= or >=.'),
+            r = found.r, ends = found.ends, words, sets, gap = engine.comma ? '; ' : ', ', all, far;
+        if (found.out) return found.out;
+        all = r.parts.length === 1 && r.parts[0].from === -Infinity && r.parts[0].to === Infinity;
+        far = local(String(r.within).replace(/^1(0+)$/, function (m, z) { return '1e' + z.length; })); // 1e15
+        far = r.within && (!r.parts.length || all) ? ' Looked for from –' + far + ' to ' + far + ': give From and To to look farther.' : '';
         words = r.parts.map(function (p) {
             if (p.from === p.to) return 'x = ' + shown(p.from);
             if (p.from === -Infinity && p.to === Infinity) return 'every x';
@@ -3703,8 +3710,8 @@
             rows: [{ l: 'x', text: words.length ? words.join(' or ') : 'none', wide: true, wrap: true },
                 { l: 'Intervals', text: sets.length ? sets.join(' ∪ ') : '∅', wide: true, wrap: true }]
                 .concat(r.ends.map(function (x, i) { return { l: 'End ' + (i + 1), v: x }; })),
-            note: !r.parts.length ? 'It holds for no x' + (ends ? ' between ' + shown(n.from) + ' and ' + shown(n.to) : '') + '.' :
-                r.more ? 'Of its many ends, the ' + r.ends.length + ' nearest 0: give From and To for others.' : ''
+            note: !r.parts.length ? 'It holds for no x' + (ends ? ' between ' + shown(n.from) + ' and ' + shown(n.to) : '') + '.' + far :
+                r.more ? 'Of its many ends, the ' + r.ends.length + ' nearest 0: give From and To for others.' : far.trim()
         };
     }
 
@@ -3718,7 +3725,7 @@
         return {
             rows: [limitTile('Limit', r.value)].concat(endless ? [] : [limitTile('From below', r.left), limitTile('From above', r.right)]),
             bad: f.bad, warn: !!f.note,
-            note: f.note || (!f.c || !isNaN(r.value) ? '' : !isNaN(r.left) && !isNaN(r.right) ? 'No limit: it comes to one value from below and another from above.' :
+            note: f.note || (!f.c || isNaN(n.a) || !isNaN(r.value) ? '' : !isNaN(r.left) && !isNaN(r.right) ? 'No limit: it comes to one value from below and another from above.' :
                 'No limit: it does not settle' + (endless ? '.' : ', or has no values, by a.'))
         };
     }
@@ -3894,7 +3901,7 @@
         var bits = n.bits, r = raw.e ? CalcMaths.bitwise(raw.e, bits) : null, big, none = [{ l: 'Decimal', v: NaN }];
         if (raw.e && r && r.error) {
             return { rows: none, bad: r.error === 'expression' ? ['e'] : [], warn: true, note: {
-                expression: 'Whole numbers, 255, 0xFF, 0b1010 or 0o17, with + – × ÷ mod AND OR XOR NOT << >>.',
+                expression: 'Whole numbers, 255, 0xFF, 0b1010 or 0o17, with + – × ÷ mod AND OR XOR NOT NAND NOR XNOR << >> ROL ROR.',
                 zero: 'Division by 0.',
                 bits: 'Bits are 8, 16, 32 or 64.'
             }[r.error] };
@@ -4021,10 +4028,10 @@
     }
 
     function runEigen(n, raw) {
-        var a = matrixOf(n, 'a', raw.size), square = a.length === a[0].length, e = square ? CalcMaths.eigen(a) : null, bad = sizeOf(raw.size) ? [] : ['size'], rows;
-        if (!e) {
-            return { rows: [{ l: 'λ', v: NaN }], bad: bad, warn: true, note: bad.length ? 'A size of rows and columns, each 1 to 4: 3×3, or 3.' : 'Not square: an eigenvalue is of a square matrix.' };
-        }
+        var size = sizeOf(raw.size), a = matrixOf(n, 'a', raw.size), square = a.length === a[0].length, e = size && square ? CalcMaths.eigen(a) : null, rows;
+        if (!size) return { rows: [{ l: 'λ', v: NaN }], bad: ['size'], warn: true, note: 'A size of rows and columns, each 1 to 4: 3×3, or 3.' };
+        if (!square) return { rows: [{ l: 'λ', v: NaN }], warn: true, note: 'Not square: an eigenvalue is of a square matrix.' };
+        if (!e) return { rows: [{ l: 'λ', v: NaN }] }; // a box that is not a number, marked
         rows = e.values.map(function (z, i) {
             var l = 'λ<sub>' + (i + 1) + '</sub>';
             return z.im ? { l: l, text: complexText(z) } : { l: l, v: z.re };

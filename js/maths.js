@@ -12,6 +12,7 @@
     var Engine = root.CalcEngine || require('./engine.js'),
         PI = Math.PI,
         SEARCH = 1e8, // an equation's roots are looked for between -SEARCH and SEARCH, unless given ends
+        FAR = 1e15, // and where an inequality changes, past them to -FAR and FAR
         ROOTS_MAX = 12, // more roots than these: the ones nearest 0
         TERMS_MAX = 1e6, // a sum or a product of more terms is not worked out
         LANCZOS = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313,
@@ -97,23 +98,26 @@
                 found.push(xs[k]);
             } else if (k && isFinite(a) && a !== 0 && (a < 0) !== (b < 0)) {
                 r = halve(f, xs[k - 1], xs[k], a);
-                if (r !== null && Math.abs(f(r)) <= Math.min(Math.abs(a), Math.abs(b))) found.push(polish(r));
+                if (r !== null && Math.abs(f(r)) <= Math.min(Math.abs(a), Math.abs(b))) found.push(polish(r, 1e-12));
             } else if (k && k < n && isFinite(a) && isFinite(fs[k + 1]) && Math.abs(b) < Math.abs(a) && Math.abs(b) <= Math.abs(fs[k + 1]) &&
                 (a < 0) === (b < 0) && (b < 0) === (fs[k + 1] < 0)) {
                 r = lowest(function (x) { return -Math.abs(f(x)); }, xs[k - 1], xs[k + 1]); // touching 0: where it comes nearest
-                if (zero(r) || Math.abs(f(r)) <= 1e-9 * Math.max(1, size(r)) && Math.abs(f(r)) < 1e-6 * Math.abs(b)) found.push(polish(r));
+                if (zero(r) || Math.abs(f(r)) <= 1e-9 * Math.max(1, size(r)) && Math.abs(f(r)) < 1e-6 * Math.abs(b)) found.push(polish(r, 1e-9));
             }
         }
-        function polish(r) {
+        // r as short as it goes, to tol: a root found by halving is as near as a number goes, so
+        // to 12 digits, not moved onto another root a little way off; one touching 0 only as near
+        // as the golden section comes, to 9
+        function polish(r, tol) {
             var best = Math.abs(f(r));
-            return tidy(r, 1e-9 * Math.max(1, Math.abs(r)), function (q) {
+            return tidy(r, tol * Math.max(1, Math.abs(r)), function (q) {
                 var v = Math.abs(f(q));
                 return v <= best || v <= 1e-14 * Math.max(1, size(q));
             });
         }
         found.sort(function (p, q) { return p - q; });
         found = found.filter(function (x, i) { // one root once, not twice from the two sides of a sample
-            return !i || Math.abs(x - found[i - 1]) > 1e-9 * Math.max(1, Math.abs(x));
+            return !i || Math.abs(x - found[i - 1]) > 1e-11 * Math.max(1, Math.abs(x));
         }).map(function (x) { return x + 0; });
         if (found.length <= ROOTS_MAX) return { roots: found, more: false };
         return {
@@ -168,12 +172,14 @@
     // 1 < x^2 < 4: where it holds, as intervals. Their ends are the roots of its sides equal,
     // as solve finds them, and where it starts or stops holding without one, at a jump, as 1/x
     // at 0, or at the edge of where it has values, as sqrt(x) at 0, found by halving between
-    // samples. From and to keep it between them, else it is looked for as solve looks.
+    // samples. From and to keep it between them, else it is looked for as solve looks, and on
+    // to ±FAR, past which it is taken to go on as it does there.
     // { parts: [{ from, to, fromIn, toIn }] ascending, ends: where it changes, ascending, more:
-    // there were more ends than these, the ones nearest 0 } or { error: 'inequality' | 'letters' }
+    // there were more ends than these, the ones nearest 0, within: FAR where it was looked for only
+    // so far } or { error: 'inequality' | 'letters' }
     function inequality(text, comma, deg, from, to) {
         var s = String(text), ops = s.match(/<=|>=|=<|=>|[<>≤≥]/g), sides, curves, parts = [], ends = [], more,
-            bounded = isFinite(from) && isFinite(to) && from < to, n = 2000, xs = [], states = [], marks, k, u, r, p, lo, hi, out = [], cur;
+            bounded = isFinite(from) && isFinite(to) && from < to, n = 2000, xs = [], far, states = [], marks, k, u, r, p, lo, hi, out = [], cur;
         if (!ops || ops.length > 2 || /=/.test(s.replace(/<=|>=|=<|=>/g, ''))) return { error: 'inequality' };
         ops = ops.map(function (op) { return { '<=': '≤', '=<': '≤', '>=': '≥', '=>': '≥' }[op] || op; });
         if (ops.length === 2 && /[<≤]/.test(ops[0]) !== /[<≤]/.test(ops[1])) return { error: 'inequality' };
@@ -200,14 +206,20 @@
         }
 
         // the ends: the roots of each part's sides equal where it changes there, as (x – 1)² > 0
-        // at 1, not where they are equal all along, as floor(x) = 2 …
-        parts.forEach(function (part, j) {
-            var found = solve(part.text, comma, deg, bounded ? from : NaN, bounded ? to : NaN);
-            (found.roots || []).forEach(function (x) {
-                var h = 1e-8 * Math.max(1, Math.abs(x)), at = holds(x, j);
-                if (holds(x - h) !== at || holds(x + h) !== at) ends.push({ x: x, root: j });
+        // at 1, not where they are equal all along, as floor(x) = 2; between a and b, or as solve
+        // looks; how many there were …
+        function roots(a, b) {
+            var before = ends.length;
+            parts.forEach(function (part, j) {
+                var found = solve(part.text, comma, deg, a, b);
+                (found.roots || []).forEach(function (x) {
+                    var h = 1e-8 * Math.max(1, Math.abs(x)), at = holds(x, j);
+                    if (holds(x - h) !== at || holds(x + h) !== at) ends.push({ x: x, root: j });
+                });
             });
-        });
+            return ends.length - before;
+        }
+        roots(bounded ? from : NaN, bounded ? to : NaN);
         // … and where it changes between samples without one, as near as a number goes. An end
         // that is a number is in where it holds; one between two numbers, made shorter, where it
         // holds with the sides of a part equal to 6 digits there, as they are loosely: floor(x) ≥ 2
@@ -221,8 +233,15 @@
         for (k = 0; k <= n; k++) {
             u = Math.asinh(SEARCH) * (2 * k / n - 1);
             xs.push(bounded ? from + (to - from) * k / n : k === n / 2 ? 0 : Math.sinh(u));
+        }
+        if (!bounded) { // on past ±SEARCH, 8 to each power of 10, as 2e9 for x < 2e9
+            for (k = 1, far = []; Math.pow(10, k / 8) * SEARCH <= FAR; k++) far.push(Math.pow(10, k / 8) * SEARCH);
+            xs = far.map(function (x) { return -x; }).reverse().concat(xs, far);
+        }
+        for (k = 0; k < xs.length; k++) {
             states.push(holds(xs[k]));
-            if (k && states[k] !== states[k - 1]) {
+            if (k && states[k] !== states[k - 1] && (states[k] === true || states[k - 1] === true)) { // not from no value to false, as sqrt(x) < -1 at 0
+                if (!bounded && Math.abs(xs[k - 1] + xs[k]) > 2 * SEARCH && roots(xs[k - 1], xs[k])) continue; // past where solve looked, its roots there
                 lo = xs[k - 1];
                 hi = xs[k];
                 for (r = 0; r < 200; r++) {
@@ -232,7 +251,7 @@
                     else hi = p;
                 }
                 p = snap(hi);
-                if (ends.some(function (e) { return Math.abs(p - e.x) <= 1e-9 * Math.max(1, Math.abs(p)); })) continue; // a root of solve's, as it has it
+                if (ends.some(function (e) { return Math.abs(p - e.x) <= 1e-11 * Math.max(1, Math.abs(p)); })) continue; // a root of solve's, as it has it, to 12 digits
                 ends.push({ x: p, in: holds(p) === true && (p === lo || p === hi || holds(p, -1, true) === true && equal(p)) });
             }
         }
@@ -266,7 +285,7 @@
                 add(marks[k].x, isIn(marks[k]), marks[k + 1].x, isIn(marks[k + 1]));
             }
         }
-        return { parts: out, ends: ends.map(function (e) { return e.x + 0; }), more: more };
+        return { parts: out, ends: ends.map(function (e) { return e.x + 0; }), more: more, within: bounded ? undefined : FAR };
     }
 
     // an end found by halving, which is as near as a number goes: as short as it can be to 12
@@ -573,10 +592,12 @@
 
     // y′ = f(x, y), a function of x and y typed, as x + y, or y' = x y, from y(x0) = y0 to x:
     // Runge and Kutta's way of the fourth order in 16 steps, then twice as many, until two
-    // agree to 11 digits, up to a quarter of a million steps. { y, slope: y′ there } or
-    // { error: 'function' | 'letters' }; y NaN where it has no value on the way or does not settle
+    // agree to 11 digits, up to a quarter of a million steps or a fifth of a second, as it is
+    // worked out at each key; else to the digits the last two agree to, 4 at least, as of a
+    // function that jumps. { y, slope: y′ there } or { error: 'function' | 'letters' }; y NaN
+    // where it has no value on the way or does not settle
     function ode(text, comma, deg, x0, y0, x1) {
-        var s = String(text).trim().replace(/^(y\s*['′’]|dy\s*\/\s*dx)\s*=\s*/i, ''), c, n, y, last = NaN, f;
+        var s = String(text).trim().replace(/^(y\s*['′’]|dy\s*\/\s*dx)\s*=\s*/i, ''), c, n, y, last = NaN, before = NaN, digits, f, start = Date.now();
         // of x and y as an equation of them is read, its left side less 0; of x alone, or neither, as a function
         c = s && !/[=<>≤≥]/.test(s) && Engine.relation('(' + s + ') = 0', comma, {});
         if (c) {
@@ -602,16 +623,20 @@
             }
             return y;
         }
-        for (n = 16; n <= 262144; n *= 2) {
+        for (n = 16; n <= 262144 && 2 * (Date.now() - start) < 200; n *= 2) { // the next as long as all before it
             y = walk(n);
-            if (isNaN(y)) break;
+            if (isNaN(y)) return { y: NaN, slope: NaN };
             if (Math.abs(y - last) <= 1e-11 * Math.max(1, Math.abs(y))) {
                 y += (y - last) / 15; // the error of the fourth order, a sixteenth for twice the steps
                 return { y: +y.toPrecision(10) + 0, slope: +f(x1, y).toPrecision(10) + 0 };
             }
+            before = last;
             last = y;
         }
-        return { y: NaN, slope: NaN };
+        digits = Math.floor(Math.log10(Math.max(1, Math.abs(y)) / Math.abs(y - before)));
+        if (!(digits >= 4)) return { y: NaN, slope: NaN };
+        digits = Math.min(10, digits);
+        return { y: +y.toPrecision(digits) + 0, slope: +f(x1, y).toPrecision(digits) + 0 };
     }
 
     // ---------- probability ---------- //
@@ -1102,7 +1127,7 @@
             exact: exactly(x),
             exact32: exactly(Math.fround(x)),
             float: Math.fround(x),
-            ulp: isFinite(x) ? next - Math.abs(x) : NaN
+            ulp: !isFinite(x) ? NaN : isFinite(next) ? next - Math.abs(x) : Math.pow(2, 971) // the largest's next is ∞: the gap of its own exponent
         };
     }
 
@@ -1282,7 +1307,7 @@
         var rows = a.length, cols = a[0].length, r, i, big;
         if (!a.every(function (row) { return row.every(isFinite); }) || !b.every(isFinite)) return null;
         r = reduce(a.map(function (row, i) { return row.concat([b[i]]); }), cols);
-        big = Math.max(1, Math.max.apply(null, b.map(Math.abs)));
+        big = Math.max.apply(null, b.map(Math.abs)); // left over of b, as small as b is: none where it is 0 throughout
         for (i = r.rank; i < rows; i++) if (Math.abs(r.m[i][cols]) > 1e-9 * big) return { none: true };
         if (r.rank < cols) return { many: true };
         return { x: clean(r.m.slice(0, cols).map(function (row) { return [row[cols]]; }), [a, [b]]).map(function (row) { return row[0]; }) };

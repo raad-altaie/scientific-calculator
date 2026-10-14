@@ -211,10 +211,18 @@ function holds(text, from, to) {
     ['floor(x) >= 2', '[2 Infinity)', 'from a jump at a number, in'],
     ['sqrt(2 - x^2) > 0', '(-1.414213562373 1.414213562373)', 'not at the edge where it is 0'],
     ['tan(x) > 1', '(0.78539816339745 1.570796326795)', 'not at the jump at π/2', 0, 3],
-    ['sin(x) > 0', '(0 3.1415926535898) (6.28318530717958 9.42477796076938)', 'between its own ends', 0, 10]
+    ['sin(x) > 0', '(0 3.1415926535898) (6.28318530717958 9.42477796076938)', 'between its own ends', 0, 10],
+    ['x^2 > 1e-20', '(-Infinity -1e-10) (1e-10 Infinity)', 'two ends nearer than 1e-9, not one'],
+    ['x < 2e9', '(-Infinity 2000000000)', 'an end past where solve looks'],
+    ['x >= -3e12', '[-3000000000000 Infinity)', 'and one below it, in'],
+    ['x < 2e16', '(-Infinity Infinity)', 'past where it is looked for, as it is there'],
+    ['sqrt(x) < -1', '', 'nowhere, from no value to false no end']
 ].forEach(function (c) {
     check(holds(c[0], c[3], c[4]) === c[1], 'inequality: ' + c[0] + ': ' + c[2], holds(c[0], c[3], c[4]));
 });
+check(M.inequality('sqrt(x) < -1', false, 0).ends.length === 0 && M.inequality('x < 2e16', false, 0).within === 1e15 &&
+    M.inequality('x > 1', false, 0, 0, 5).within === undefined, 'inequality: no ends where it never holds; how far it was looked for, but between From and To');
+check(roots('x^2 = 1e-20') === '-1e-10 1e-10', 'solve: two roots nearer than 1e-9', roots('x^2 = 1e-20'));
 check(/ …$/.test(holds('sin(x) > 0')) && M.inequality('sin(x) > 0', false, 0).ends.length === 12, 'inequality: of very many ends, the twelve nearest 0');
 check(holds('x^2 = 4') === 'inequality' && holds('x <') === 'inequality' && holds('1 < x > 2') === 'inequality' && holds('a x > 1') === 'letters',
     'inequality: an equation, half of one, two ways at once, a letter of its own');
@@ -255,6 +263,11 @@ function ode(text, x0, y0, x) {
     check(ode(c[0], c[1], c[2], c[3]) === c[4], 'ode: ' + c[5], ode(c[0], c[1], c[2], c[3]));
 });
 
+(function () { // of a function that jumps: to the digits it settles to, as many as there is time for, in time
+    var t = Date.now(), r = M.ode('sin(x)^2 + floor(10x)', false, 0, 0, 0, 3), exact = 43.5 + 1.5 - Math.sin(6) / 4;
+    check(near(r.y, exact, 1e-3) && Date.now() - t < 1000, 'ode: of a function that jumps, near enough and in time', r.y + ' in ' + (Date.now() - t) + ' ms');
+})();
+
 // eigenvalues and vectors, and A x = b
 function eig(a) {
     var e = M.eigen(a);
@@ -276,7 +289,8 @@ function eig(a) {
 check(M.eigen([[1, 2, 3], [4, 5, 6], [7, 8, 9]]).poly.join(' ') === '1 -15 -18 0' && M.eigen([[1, 2, 3]]) === null, 'eigen: the characteristic polynomial; none of a matrix not square');
 check(JSON.stringify(M.system([[2, 1, -1], [-3, -1, 2], [-2, 1, 2]], [8, -11, -3])) === '{"x":[2,3,-1]}' &&
     JSON.stringify(M.system([[1, 0], [0, 1], [1, 1]], [1, 2, 3])) === '{"x":[1,2]}' && M.system([[1, 0], [0, 1], [1, 1]], [1, 2, 4]).none &&
-    M.system([[1, 1], [2, 2]], [3, 6]).many && M.system([[1, 1, 1]], [3]).many, 'system: three of three; three of two that hold, or not; many answers');
+    M.system([[1, 1], [2, 2]], [3, 6]).many && M.system([[1, 1, 1]], [3]).many && M.system([[1, 1], [1, 1]], [1e-10, 0]).none &&
+    M.system([[1, 1], [3, 3]], [0.1, 0.3]).many, 'system: none where what is left over is small, as b is; three of three; three of two that hold, or not; many answers');
 
 // bits: turned round, counted and turned over
 check(String(M.bitwise('1 rol 1', 32).value) === '2' && String(M.bitwise('0x80000000 rol 1', 32).value) === '1' &&
@@ -300,6 +314,8 @@ check(JSON.stringify(M.bitCount(BigInt(0xB0), 8)) === '{"ones":3,"leading":0,"tr
         'float: the smallest, and a large one, as e-324 and e+300', M.float('5e-324', false, 0).exact);
     check(M.float('inf', false, 0).kind === 'Infinity' && M.float('nan', false, 0).kind === 'NaN' && M.float('0', false, 0).kind === 'Zero' &&
         M.float('-0', false, 0).exact === '–0' && M.float('abc', false, 0).error === 'number', 'float: ∞, NaN, 0 and -0; what is not a number');
+    check(M.float('1.7976931348623157e308', false, 0).ulp === Math.pow(2, 971) && M.float('-1.7976931348623157e308', false, 0).ulp === Math.pow(2, 971),
+        'float: the gap by the largest, not ∞', M.float('1.7976931348623157e308', false, 0).ulp);
 })();
 
 console.log(failures ? failures + ' of ' + checks + ' checks failed' : 'all ' + checks + ' checks passed');
