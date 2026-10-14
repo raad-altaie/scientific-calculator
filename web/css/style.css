@@ -564,6 +564,30 @@
     box-shadow: 0 0 0 3px #c9e0d3;
 }
 
+/* its y′, to draw its slope as well: quiet until pointed at or on, and none while the box is empty */
+#calculator .calc-graph-fn > .calc-graph-diff {
+    padding: 0 4px;
+    border-radius: 4px;
+    font-size: 13px;
+    opacity: 0.55;
+    cursor: pointer;
+}
+
+#calculator .calc-graph-fn > .calc-graph-diff:hover {
+    opacity: 1;
+    background: #97b3a4;
+}
+
+#calculator .calc-graph-fn > .calc-graph-diff.calc-on {
+    opacity: 1;
+    background: #1f333c;
+    color: #d3d9e2;
+}
+
+#calculator .calc-graph-fn.calc-graph-empty > .calc-graph-diff {
+    display: none;
+}
+
 /* its × at the right, quiet until pointed at; none while it is the only box */
 #calculator .calc-graph-fn > .calc-graph-del {
     display: flex;

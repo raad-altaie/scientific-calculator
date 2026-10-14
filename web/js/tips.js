@@ -195,6 +195,16 @@
             d: 'Takes this curve away. The ones below it move up, each with its color.',
             k: ''
         },
+        'graph slope on': {
+            t: 'Draw the slope',
+            d: 'Draws the slope of this curve as well, its derivative dy/dx, dashed in its color.',
+            k: ''
+        },
+        'graph slope off': {
+            t: 'Hide the slope',
+            d: 'Takes the dashed curve of the slope away.',
+            k: ''
+        },
         'graph hide': {
             t: 'Hide the curve',
             d: 'Hides this curve and its points, and leaves it out of the table. What is typed stays.',

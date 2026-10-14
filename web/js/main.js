@@ -491,7 +491,7 @@
     tip.parentNode.addEventListener('mouseover', function (e) {
         var key = e.target.closest('.calc-left > *, .calc-right > .del-ac, .calc-rad, .calc-mem, .calc-frac, .calc-fmt, .calc-hold, ' +
             '.calc-stat-btn, .calc-stats-tile, .calc-fx-btn, .calc-fx-row, .calc-conv-btn, .calc-conv-row, ' +
-            '.calc-graph-btn, .calc-graph-size, .calc-graph-add, .calc-graph-del, .calc-graph-zoom > span, .calc-graph-pop-row, .calc-graph-play, ' +
+            '.calc-graph-btn, .calc-graph-size, .calc-graph-add, .calc-graph-del, .calc-graph-diff, .calc-graph-zoom > span, .calc-graph-pop-row, .calc-graph-play, ' +
             '.calc-graph-fn > .calc-graph-swatch, ' +
             '.calc-hist, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit, .calc-help');
         if (key === tipKey) return;
@@ -581,6 +581,7 @@
             if (el === graphSize) return CalcTips[root.classList.contains('calc-big') ? 'graph small' : 'graph big'];
             if (el === graphAdd) return CalcTips['graph add'];
             if (el.classList.contains('calc-graph-del')) return CalcTips['graph remove'];
+            if (el.classList.contains('calc-graph-diff')) return CalcTips[graphDiff[graphRows.indexOf(el.parentNode)] ? 'graph slope off' : 'graph slope on'];
             if (el.classList.contains('calc-graph-pop-row')) return CalcTips['graph put ' + el.dataset.put];
             if (el.classList.contains('calc-graph-play')) return CalcTips[graphPlay[el.parentNode.dataset.k] ? 'graph pause' : 'graph play'];
             if (el.classList.contains('calc-graph-swatch')) {
@@ -1069,6 +1070,7 @@
         graphMoved = false, // the press became a drag or a pinch, so it is not a click
         graphSaving, // saves the view once the wheel stops
         graphOff = [false, false, false, false, false, false, false], // the curves hidden by a click on their dot: kept, not drawn
+        graphDiff = [false, false, false, false, false, false, false], // the curves whose slope is drawn too, by their y′
         graphSharp = 0, // pixels of the canvas to each of the plot at least: 2 while a picture is made
         graphPop = graphPlot.querySelector('.calc-graph-pop'), // the point clicked: its x and y, each to insert
         GRAPH_POP_WAIT = 2000, // the popup opened with the mouse goes this many ms after the mouse is off it
@@ -1085,9 +1087,17 @@
         graphAlone = false; // the page is the graph's own window, in the extension: only the graph, always big
 
     // A click on the dot of a curve hides it, and shows it again: it stays typed, but is not
-    // drawn, marked or in the table. Its × removes it
+    // drawn, marked or in the table. Its y′ draws its slope as well, and its × removes it
     graphRows.forEach(function (row, i) {
         var dot = row.querySelector('.calc-graph-swatch');
+        row.querySelector('.calc-graph-diff').addEventListener('click', function (e) {
+            e.preventDefault(); // not the label's focus of the box
+            if (!graphInputs[i].value.trim()) return;
+            graphDiff[i] = !graphDiff[i];
+            hideTip();
+            readGraph();
+            saveState();
+        }, false);
         row.querySelector('.calc-graph-del').addEventListener('click', function (e) {
             e.preventDefault(); // not the label's focus of the box
             removeCurve(i);
@@ -1142,6 +1152,8 @@
         graphInputs[graphCount - 1].value = '';
         graphOff.splice(i, 1);
         graphOff.push(false);
+        graphDiff.splice(i, 1);
+        graphDiff.push(false);
         graphHue.splice(i, 1);
         graphHue.splice(graphCount - 1, 0, hue);
         graphCount--;
@@ -1199,6 +1211,7 @@
         graphCount = 1;
         graphHue = [0, 1, 2, 3, 4, 5, 6];
         graphOff = graphOff.map(function () { return false; });
+        graphDiff = graphDiff.map(function () { return false; });
         forgetLetters();
         graphView = null;
         graphLines = 0;
@@ -1268,6 +1281,7 @@
         }
         graphView = v && [v.x, v.y, v.ux, v.uy].every(isFinite) && v.ux > 0 && v.uy > 0 ? { x: v.x, y: v.y, ux: v.ux, uy: v.uy } : null;
         graphOff = graphOff.map(function (off, i) { return !!(saved && Array.isArray(saved.off) && saved.off[i] === true); });
+        graphDiff = graphDiff.map(function (on, i) { return !!(saved && Array.isArray(saved.d) && saved.d[i] === true); });
         graphFrom.value = saved && typeof saved.from === 'string' ? saved.from : '';
         graphBy.value = saved && typeof saved.by === 'string' ? saved.by : '';
         // the sliders: { a: [its value, from, to] }
@@ -1305,10 +1319,11 @@
                     if (letters.indexOf(k) < 0) letters.push(k);
                 });
             }
-            if (!text) graphOff[i] = false; // what is typed next is shown
+            if (!text) graphOff[i] = graphDiff[i] = false; // what is typed next is shown, without its slope
             row.hidden = i >= graphCount;
             row.classList.toggle('calc-bad', !!text && !fn);
             row.classList.toggle('calc-graph-off', graphOff[i]);
+            row.querySelector('.calc-graph-diff').classList.toggle('calc-on', graphDiff[i]);
             row.classList.toggle('calc-graph-empty', !text);
             row.querySelector('.calc-graph-swatch').style.setProperty('--c', curveColor(i));
             return graphOff[i] ? null : fn;
@@ -1592,6 +1607,7 @@
         if (graphPinned && graphPinned.area) graphShade(ctx, v, w, h, graphPinned);
         graphFns.forEach(function (fn, i) {
             if (fn) drawCurve(ctx, v, w, h, fn, curveColor(i));
+            if (fn && graphDiff[i]) drawCurve(ctx, v, w, h, slopeCurve(fn), curveColor(i), true);
         });
         graphTangent(ctx, v, w + h, graphPinned);
         graphMarks = graphBusy(CalcEngine.keyPoints(graphFns, { x0: graphX(v, 0), x1: graphX(v, w), y0: graphY(v, h), y1: graphY(v, 0) }, deg));
@@ -1878,10 +1894,16 @@
         }
     }
 
-    // A curve, from two values of each pixel across. It breaks where there is no
-    // value, and where it leaves by one edge and comes back by the other, as tan x
-    // does at 90°, unless the value between the two is between them too: a steep line
-    function drawCurve(ctx, v, w, h, fn, color) {
+    // the slope of a curve as a curve of its own, dy/dx at each x: none where it has none,
+    // at a corner or a break
+    function slopeCurve(fn) {
+        return { at: function (x, deg) { return CalcEngine.slope(fn, x, deg); } };
+    }
+
+    // A curve, from two values of each pixel across, dashed for the slope of one. It breaks
+    // where there is no value, and where it leaves by one edge and comes back by the other,
+    // as tan x does at 90°, unless the value between the two is between them too: a steep line
+    function drawCurve(ctx, v, w, h, fn, color, dashed) {
         var n = Math.ceil(w * 2), i, x, y, py, last = null, mid;
         ctx.beginPath();
         for (i = 0; i <= n; i++) {
@@ -1903,7 +1925,9 @@
         ctx.lineWidth = 2;
         ctx.lineJoin = 'round';
         ctx.strokeStyle = color;
+        ctx.setLineDash(dashed ? [7, 4] : []);
         ctx.stroke();
+        ctx.setLineDash([]);
     }
 
     // The point at a place of the plot: a mark within reach of it, the nearest; else the
@@ -2267,9 +2291,11 @@
         graphSharp = 0;
         drawGraph();
 
-        lines = graphFns.map(function (fn, i) {
-            return fn && { i: i, text: 'y = ' + graphInputs[i].value.trim() };
-        }).filter(Boolean);
+        lines = [];
+        graphFns.forEach(function (fn, i) {
+            if (fn) lines.push({ i: i, text: 'y = ' + graphInputs[i].value.trim() });
+            if (fn && graphDiff[i]) lines.push({ i: i, text: 'y′ of ' + graphInputs[i].value.trim(), dashed: true });
+        });
         if (!lines.length) return pic;
         if (pinned && pinned.area) {
             lines.push({
@@ -2310,9 +2336,11 @@
             ctx.moveTo(17, y);
             ctx.lineTo(35, y);
             ctx.lineWidth = 3;
-            ctx.lineCap = 'round';
+            ctx.lineCap = l.dashed ? 'butt' : 'round';
             ctx.strokeStyle = curveColor(l.i);
+            ctx.setLineDash(l.dashed ? [5, 3] : []);
             ctx.stroke();
+            ctx.setLineDash([]);
             ctx.fillText(l.text, 42, y);
         });
         return pic;
@@ -3353,7 +3381,7 @@
     function saveState() {
         store('graph', {
             f: graphInputs.slice(0, graphCount).map(function (box) { return box.value; }), c: graphHue.slice(0, graphCount),
-            view: graphView, tab: graphTab, from: graphFrom.value, by: graphBy.value, off: graphOff.slice(0, graphCount),
+            view: graphView, tab: graphTab, from: graphFrom.value, by: graphBy.value, off: graphOff.slice(0, graphCount), d: graphDiff.slice(0, graphCount),
             p: graphLetters.reduce(function (p, k) {
                 if (graphRange[k]) p[k] = [graphVars[k], graphRange[k][0], graphRange[k][1]];
                 return p;

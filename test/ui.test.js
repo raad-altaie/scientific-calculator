@@ -719,6 +719,18 @@ async function graphPanel(page, at) {
     await page.click('.calc-graph-zoom [data-zoom="window"]');
     await page.click('.calc-graph-zoom [data-zoom="home"]');
 
+    // y′ draws the slope of a curve, dashed: 2x for x² – 3, through x = 1, y = 2; kept, and taken away again
+    check(await page.calc(dashes(1, 2)) === 0 && await page.calc('getComputedStyle(document.querySelector(".calc-graph-fn:nth-child(3) .calc-graph-diff")).display') === 'none',
+        t + 'no slope drawn, and no y′ for an empty box');
+    await page.hover('.calc-graph-diff');
+    check(await page.until('/^Draw the slope/.test(document.querySelector(".calc-tip").textContent)', 2000), t + 'y′ has its tip');
+    await page.click('.calc-graph-diff');
+    check(await page.calc(dashes(1, 2)) > 0 && await page.calc(dashes(-2, -4)) > 0 &&
+        await page.calc('document.querySelector(".calc-graph-diff").classList.contains("calc-on")'), t + 'y′ draws the slope of x² – 3, 2x');
+    check(await page.calc('JSON.parse(localStorage.getItem("graph")).d.join()') === 'true,false', t + 'and it is kept');
+    await page.click('.calc-graph-diff');
+    check(await page.calc(dashes(1, 2)) === 0, t + 'a click again takes it away');
+
     // what is not a function says so, and draws nothing
     await page.click('.calc-graph .calc-past-clear');
     await page.click('.calc-graph-zoom [data-zoom="in"]');
