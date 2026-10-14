@@ -1065,6 +1065,9 @@
         graphOff = [false, false, false, false, false, false, false], // the curves hidden by a click on their dot: kept, not drawn
         graphSharp = 0, // pixels of the canvas to each of the plot at least: 2 while a picture is made
         graphPop = graphPlot.querySelector('.calc-graph-pop'), // the point clicked: its x and y, each to insert
+        GRAPH_POP_WAIT = 2000, // the popup opened with the mouse goes this many ms after the mouse is off it
+        graphHiding, // that wait
+        graphPopShut = false, // the popup put away, the point clicked and its tangent still drawn
         graphSize = graph.querySelector('.calc-graph-size'), // the graph as big as the page, and back
         graphAlone = false; // the page is the graph's own window, in the extension: only the graph, always big
 
@@ -1803,7 +1806,7 @@
         var p = graphPinned, w = graphPlot.clientWidth, h = graphPlot.clientHeight, px, py, html, left, top, below;
         px = p && plotX(v, p.x);
         py = p && plotY(v, p.y);
-        if (!p || !isFinite(p.y) || px < 0 || px > w || py < 0 || py > h) {
+        if (!p || graphPopShut || !isFinite(p.y) || px < 0 || px > w || py < 0 || py > h) {
             graphPop.hidden = true;
             return;
         }
@@ -1827,11 +1830,39 @@
 
     // the point clicked goes, and its popup; false if there was none
     function graphUnpin() {
+        popLater(false);
         if (!graphPinned || !graph.classList.contains('calc-open') || graphTab !== 'graph') return false;
         graphPinned = null;
         drawGraph();
         return true;
     }
+
+    // A popup opened with the mouse goes a while after the mouse is off it, so the graph can be
+    // seen again; back on it in time, it stays. Not while the menu of a right click on it is open.
+    // One opened by a touch stays, as no pointer rests on it
+    function popLater(on) {
+        clearTimeout(graphHiding);
+        if (!on) return;
+        graphHiding = setTimeout(function () {
+            if (!menu.hidden) popLater(true); else popShut();
+        }, GRAPH_POP_WAIT);
+    }
+
+    // The popup goes, after that wait or at once on a zoom, by the wheel, a pinch or the buttons;
+    // the point and its tangent stay, and a click on the point brings the popup back
+    function popShut() {
+        popLater(false);
+        graphPopShut = true;
+        graphPop.hidden = true;
+    }
+
+    graphPop.addEventListener('pointerenter', function () {
+        popLater(false);
+    }, false);
+
+    graphPop.addEventListener('pointerleave', function (e) {
+        popLater(e.pointerType === 'mouse' && !!graphPinned);
+    }, false);
 
     // x or y of the point clicked goes into the calculation, as a result of the statistics does
     graphPop.addEventListener('click', function (e) {
@@ -1900,6 +1931,7 @@
             graphMove(s.view, s.p[0], at, 1);
         } else if (p.length === 2 && s.p.length === 2) {
             graphMoved = true;
+            popShut();
             d0 = Math.hypot(s.p[0].x - s.p[1].x, s.p[0].y - s.p[1].y);
             d1 = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
             if (d0 > 10 && d1 > 10) {
@@ -1910,18 +1942,21 @@
     }, false);
 
     // A click opens the popup of the point there; a finger reaches a dot or a curve from
-    // farther. A click on the point that has it open closes it
+    // farther. A click on the point that has it open takes the point away; one on the point
+    // whose popup went brings it back
     function graphUp(e) {
         var at = graphTouch[e.pointerId], v = viewNow(), p = graphPinned, mouse = e.pointerType === 'mouse';
         if (!at) return;
         delete graphTouch[e.pointerId];
         if (e.type === 'pointerup' && !graphMoved && !graphPointers().length) {
             if (p && Math.hypot(plotX(v, p.x) - at.x, plotY(v, p.y) - at.y) <= (mouse ? 8 : 16)) {
-                graphPinned = null;
+                if (graphPopShut) graphPopShut = false; else graphPinned = null;
             } else {
                 graphPinned = graphPoint(at, mouse ? 10 : 18);
+                graphPopShut = false;
                 if (mouse) graphAt = graphPinned;
             }
+            popLater(mouse && !!graphPinned); // the mouse is on the point, off the popup
             drawGraph();
         }
         graphBegin();
@@ -1942,6 +1977,7 @@
     graphCanvas.addEventListener('wheel', function (e) {
         var at = onPlot(e), dy = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1);
         e.preventDefault();
+        popShut();
         graphMove(viewNow(), at, at, Math.pow(1.002, Math.max(-300, Math.min(300, dy))));
         clearTimeout(graphSaving);
         graphSaving = setTimeout(saveState, 300);
@@ -1956,6 +1992,7 @@
             saveGraph();
             return;
         }
+        popShut();
         if (b.dataset.zoom === 'home') {
             graphView = null;
             drawGraph();
