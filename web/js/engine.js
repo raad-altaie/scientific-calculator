@@ -912,6 +912,14 @@
         };
     }
 
+    // An expression read as the graph reads it, its letters each a number of its own: what
+    // parse gives, for others to work out in their own way, as with complex numbers; null if
+    // the text is not one, or stops before its end
+    function tree(text, comma) {
+        var s = separators(String(text).trim(), comma), toks = s.length <= MAX_PASTE && tokens(s, null, true), t = toks && parse(toks);
+        return t && complete(t) ? t : null;
+    }
+
     // the name of the function a box makes, g of g(x) = x^2 + 1, or null
     function named(text) {
         var m = /^\s*([a-df-wz])\s*\(\s*x\s*\)\s*=/i.exec(String(text));
@@ -3001,6 +3009,7 @@
     Engine.fitLine = fitLine;
     Engine.fit = fit;
     Engine.named = named;
+    Engine.tree = tree;
     Engine.spans = spans;
     Engine.regionArea = regionArea;
     Engine.onRelation = onRelation;

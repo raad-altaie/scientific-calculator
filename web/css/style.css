@@ -86,7 +86,9 @@
 #calculator .calc-stat-btn,
 #calculator .calc-fx-btn,
 #calculator .calc-conv-btn,
-#calculator .calc-graph-btn {
+#calculator .calc-graph-btn,
+#calculator .calc-solve-btn,
+#calculator .calc-numbers-btn {
     padding: 2px;
     border-radius: 4px;
     color: #1f333c;
@@ -113,7 +115,11 @@
 #calculator .calc-conv-btn:hover,
 #calculator .calc-conv-btn.calc-on,
 #calculator .calc-graph-btn:hover,
-#calculator .calc-graph-btn.calc-on {
+#calculator .calc-graph-btn.calc-on,
+#calculator .calc-solve-btn:hover,
+#calculator .calc-solve-btn.calc-on,
+#calculator .calc-numbers-btn:hover,
+#calculator .calc-numbers-btn.calc-on {
     opacity: 0.9;
     background: #a3bdaf;
 }
@@ -122,7 +128,9 @@
 #calculator .calc-stat-btn:active,
 #calculator .calc-fx-btn:active,
 #calculator .calc-conv-btn:active,
-#calculator .calc-graph-btn:active {
+#calculator .calc-graph-btn:active,
+#calculator .calc-solve-btn:active,
+#calculator .calc-numbers-btn:active {
     opacity: 0.75;
 }
 
@@ -1319,7 +1327,8 @@
 
 #calculator .calc-fx .calc-past-head .calc-fx-tab, /* not the first span of the head, which has the room left */
 #calculator .calc-graph .calc-past-head .calc-graph-tab,
-#calculator .calc-solve .calc-past-head .calc-solve-tab {
+#calculator .calc-solve .calc-past-head .calc-solve-tab,
+#calculator .calc-numbers .calc-past-head .calc-solve-tab {
     flex: none;
     padding: 0 8px;
     border-radius: 4px;
@@ -1338,7 +1347,8 @@
 
 #calculator .calc-fx .calc-past-head .calc-fx-tab.calc-on,
 #calculator .calc-graph .calc-past-head .calc-graph-tab.calc-on,
-#calculator .calc-solve .calc-past-head .calc-solve-tab.calc-on {
+#calculator .calc-solve .calc-past-head .calc-solve-tab.calc-on,
+#calculator .calc-numbers .calc-past-head .calc-solve-tab.calc-on {
     opacity: 1;
     background: #5d748a;
     color: #fff;
@@ -1787,6 +1797,67 @@
 
 #calculator .calc-sv-form .calc-sv-tile.calc-none {
     background: #a9c4b5;
+}
+
+/* a result as wide as all of them: a complex number, a binary one, a matrix */
+#calculator .calc-sv-grid .calc-sv-wide {
+    grid-column: 1 / -1;
+}
+
+/* the bits of a binary number, 64 of them on two lines */
+#calculator .calc-sv-bits .calc-sv-value {
+    font-size: 13px;
+    line-height: 19px;
+    word-spacing: 0.15em;
+}
+
+/* the head of the boxes of a matrix, and of its numbers among the results */
+#calculator .calc-sv-head {
+    margin: 4px 0 3px;
+    color: #33443b;
+    font: italic 14px/18px 'Play', 'Russo One', sans-serif;
+}
+
+#calculator .calc-sv-cells-in {
+    column-gap: 5px;
+}
+
+#calculator .calc-sv-cells-in .calc-sv-var input {
+    padding: 3px 5px;
+    text-align: center;
+}
+
+/* a matrix of results: a number of it goes in with a click */
+#calculator .calc-sv-matrix {
+    cursor: default;
+}
+
+#calculator .calc-sv-form .calc-sv-matrix:hover {
+    background: #a9c4b5;
+}
+
+#calculator .calc-sv-cells {
+    display: grid;
+    grid-template-columns: repeat(var(--cols, 1), minmax(0, 1fr));
+    gap: 2px 6px;
+    margin: 2px 0 3px;
+}
+
+#calculator .calc-sv-cell {
+    min-width: 0;
+    padding: 1px 4px;
+    overflow: hidden;
+    border-radius: 3px;
+    font-size: 15px;
+    line-height: 22px;
+    text-align: right;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    cursor: pointer;
+}
+
+#calculator .calc-sv-cell:hover {
+    background: #98b3a5;
 }
 
 /* Again: more random numbers */

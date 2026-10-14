@@ -25,7 +25,7 @@
         tipTimer,
         tipGone = 0, // when the last tip went, so the next one comes at once
         copying = null, // text a history button is copying, in place of the main line
-        past = root.querySelector('.calc-past:not(.calc-stats):not(.calc-fx):not(.calc-conv):not(.calc-graph):not(.calc-solve)'), // the history, over the keys
+        past = root.querySelector('.calc-past:not(.calc-stats):not(.calc-fx):not(.calc-conv):not(.calc-graph):not(.calc-solve):not(.calc-numbers)'), // the history, over the keys
         pastList = past.querySelector('.calc-past-list'),
         pastButton = root.querySelector('.calc-hist'),
         pastShown = {}, // the history as the list shows it, so it is only built again after a change
@@ -65,7 +65,8 @@
         graphButton = root.querySelector('.calc-graph-btn'),
         solvePanel = root.querySelector('.calc-solve'), // equations solved, calculus and probability, over the keys
         solveButton = root.querySelector('.calc-solve-btn'),
-        solveList = solvePanel.querySelector('.calc-sv-list'),
+        numbersPanel = root.querySelector('.calc-numbers'), // complex numbers, bases and matrices, over the keys
+        numbersButton = root.querySelector('.calc-numbers-btn'),
         graphRows = (function (first) { // a box for each curve, seven: the + shows the next one, its × takes it away
             var rows = [first], row;
             while (rows.length < 7) {
@@ -216,6 +217,7 @@
                 showFx(false);
                 showConv(false);
                 showSolve(false);
+                showNumbers(false);
                 closeGraph();
                 e.preventDefault();
             }
@@ -287,6 +289,10 @@
         }
         if (key === 27 && solvePanel.classList.contains('calc-open')) { // and the solver
             showSolve(false);
+            return true;
+        }
+        if (key === 27 && numbersPanel.classList.contains('calc-open')) { // and the numbers
+            showNumbers(false);
             return true;
         }
         if (key === 27 && graph.classList.contains('calc-open')) { // and the graph, after the point clicked on it and its big view
@@ -503,7 +509,7 @@
     // the ? beside the name have tips as well
     tip.parentNode.addEventListener('mouseover', function (e) {
         var key = e.target.closest('.calc-left > *, .calc-right > .del-ac, .calc-rad, .calc-mem, .calc-frac, .calc-fmt, .calc-hold, ' +
-            '.calc-stat-btn, .calc-stats-tile, .calc-fx-btn, .calc-fx-row, .calc-gx-row, .calc-conv-btn, .calc-conv-row, .calc-solve-btn, .calc-sv-row, ' +
+            '.calc-stat-btn, .calc-stats-tile, .calc-fx-btn, .calc-fx-row, .calc-gx-row, .calc-conv-btn, .calc-conv-row, .calc-solve-btn, .calc-numbers-btn, .calc-sv-row, ' +
             '.calc-graph-btn, .calc-graph-size, .calc-graph-add, .calc-graph-del, .calc-graph-diff, .calc-graph-points, .calc-graph-zoom > span, .calc-graph-pop-end, .calc-graph-pop-row, .calc-graph-play, ' +
             '.calc-graph-fn > .calc-graph-swatch, ' +
             '.calc-hist, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit, .calc-help');
@@ -585,7 +591,9 @@
             };
         }
         if (el === solveButton) return CalcTips[solvePanel.classList.contains('calc-open') ? 'solve close' : 'solve'];
-        if (solvePanel.contains(el)) return solveTip(el);
+        if (solvePanel.contains(el)) return solver.tip(el);
+        if (el === numbersButton) return CalcTips[numbersPanel.classList.contains('calc-open') ? 'numbers close' : 'numbers'];
+        if (numbersPanel.contains(el)) return numbers.tip(el);
         if (el === graphButton) return CalcTips[graph.classList.contains('calc-open') ? 'graph close' : 'graph'];
         if (graph.contains(el)) {
             if (el.classList.contains('calc-gx-row')) return exampleTip(el);
@@ -901,6 +909,9 @@
         if (solvePanel.classList.contains('calc-open') && !solvePanel.contains(e.target) && !solveButton.contains(e.target)) {
             showSolve(false);
         }
+        if (numbersPanel.classList.contains('calc-open') && !numbersPanel.contains(e.target) && !numbersButton.contains(e.target)) {
+            showNumbers(false);
+        }
     }, true);
 
     past.querySelector('.calc-past-close').addEventListener('click', function () {
@@ -948,6 +959,7 @@
             showConv(false);
             showGraph(false);
             showSolve(false);
+            showNumbers(false);
             placePanel(past);
             renderPast();
         }
@@ -1033,6 +1045,7 @@
             showConv(false);
             showGraph(false);
             showSolve(false);
+            showNumbers(false);
             placePanel(stats);
             renderStats();
         }
@@ -1365,7 +1378,10 @@
     function showGraph(open) {
         var box;
         if (!open && graphAlone) return; // its own window stays, even as a value is put in
-        if (open) showSolve(false);
+        if (open) {
+            showSolve(false);
+            showNumbers(false);
+        }
         if (!open) graphBig(false); // a value put in from the big graph: the calculator again
         if (!open && stopSliders()) saveState(); // the sliders played stop where they are
         if (!open) areaOn(false);
@@ -3356,6 +3372,7 @@
             showConv(false);
             showGraph(false);
             showSolve(false);
+            showNumbers(false);
             placePanel(fx);
             renderFx();
         }
@@ -3510,7 +3527,12 @@
     // formulas have, which opens its boxes. What it gives is worked out as they are typed, in
     // tiles that put a value into the calculation with a click, as the statistics do. A box of
     // a number takes what the calculator reads, pi/4 or sqrt(2), in the unit of angles in use,
-    // and an empty one its default, which it shows; a box of a function what the graph reads
+    // and an empty one its default, which it shows; a box of a function what the graph reads.
+    // Each tool: t its name, f how it is written, d what it gives; fields its boxes, each of a
+    // key k, a label l, a placeholder ph, and fn for a function, text for words read as they
+    // are, def for the number of an empty one, inf where ∞ is a number; cols the columns of the
+    // boxes; run(numbers, typed) its results: { rows: [{ l, v: a number, text, m: a matrix,
+    // wide }], note, warn, bad: the keys of the boxes that are not what they should be }
     var MEAN = { k: 'mu', l: 'μ', ph: '0', def: 0 }, // the boxes of a normal distribution
         SPREAD = { k: 'sigma', l: 'σ', ph: '1', def: 1 },
         SOLVE_TOOLS = {
@@ -3582,11 +3604,7 @@
                     return { rows: rows, note: isNaN(rows[0].v) && isFinite(n.a) && isFinite(n.b) ? 'Whole numbers, From the smaller.' : '', warn: isNaN(rows[0].v) };
                 } }
         ]
-    },
-        solveTab = 'solve', // the tab shown: solve, calculus or chance
-        solveOpen = '', // the tool open, by its id
-        solveValues = {}, // what is typed in the boxes of each tool, by its id, kept for the next time
-        solveNow = []; // the results of the tool open, as its tiles show them
+    };
 
     // a box for each coefficient, a of 1 and the others of 0 while they are empty
     function coefficients(letters) {
@@ -3625,9 +3643,10 @@
         return n > 1 ? 'x<sub>' + (i + 1) + '</sub>' : 'x';
     }
 
-    // -1 + 2i, 2i, as a number is shown
+    // -1 + 2i, 2i, -1, as a number is shown
     function complexText(z) {
         var im = Math.abs(z.im) === 1 ? '' : local(String(Math.abs(z.im)));
+        if (!z.im) return local(String(z.re));
         return (z.re ? local(String(z.re)) + (z.im < 0 ? ' – ' : ' + ') : z.im < 0 ? '–' : '') + im + '<i>i</i>';
     }
 
@@ -3705,177 +3724,379 @@
         return { rows: [{ l: product ? 'Π' : 'Σ', v: r.error ? NaN : r.value }], bad: r.error === 'function' || r.error === 'letters' ? ['f'] : [], note: why || '', warn: !!why };
     }
 
-    solveButton.addEventListener('click', function () {
-        showSolve(!solvePanel.classList.contains('calc-open'));
-    }, false);
+    // ---------------- numbers ---------------- //
 
-    solvePanel.querySelector('.calc-past-close').addEventListener('click', function () {
-        showSolve(false);
-    }, false);
+    // Complex numbers, whole numbers in bits and their bases, and matrices, a tab each, with
+    // cards as the solver has. A matrix has a box for each number, as many as its size says
+    var NUMBER_TOOLS = {
+        complex: [
+            { id: 'complex', t: 'Complex number', f: 'a + b<i>i</i>, r∠θ', d: 'Work out a complex number: (2 + 3i)(1 – i), sqrt(-4), e^(iπ), or 2∠30 in polar form. Its real and imaginary parts, its length, angle and conjugate.',
+                fields: [{ k: 'z', ph: '(2 + 3i)(1 - i)', fn: true }], run: runComplex },
+            { id: 'croots', t: 'Roots of a complex number', f: 'z<sup>1/n</sup>', d: 'The n n-th roots of a complex number: the cube roots of 1, the fourth roots of -16.',
+                fields: [{ k: 'z', ph: '-16', fn: true }, { k: 'n', l: 'n', ph: '4', def: 4 }], run: runRoots }
+        ],
+        base: [
+            { id: 'bits', t: 'Bases', f: '0xFF AND 0b1010', d: 'Whole numbers as a computer keeps them, in 8, 16, 32 or 64 bits: decimal, 0x hexadecimal, 0b binary or 0o octal, with + – × ÷ mod AND OR XOR NOT NAND NOR XNOR << >>. Each result in every base.',
+                fields: [{ k: 'e', ph: '0xFF AND 0b1010', fn: true }, { k: 'bits', l: 'Bits', ph: '32', def: 32 }], run: runBits }
+        ],
+        matrix: [
+            { id: 'matrix', t: 'A matrix', f: 'det A, A<sup>–1</sup>, A<sup>T</sup>', d: 'Its determinant, rank, inverse, transpose and square. Type its size, 3×3 or 2 3, and a number in each box; an empty one is 0.',
+                fields: function (raw) { return [{ k: 'size', l: 'Size', ph: '2×2', text: true, shape: true }].concat(cells('a', 'A', raw.size)); }, run: runMatrix },
+            { id: 'matrices', t: 'Two matrices', f: 'A + B, A × B', d: 'The sum, difference and products of two matrices, where their sizes allow. Type each size, 3×3 or 2 3, and a number in each box; an empty one is 0.',
+                fields: function (raw) {
+                    return [{ k: 'sizeA', l: 'Size of A', ph: '2×2', text: true, shape: true }, { k: 'sizeB', l: 'Size of B', ph: '2×2', text: true, shape: true }]
+                        .concat(cells('a', 'A', raw.sizeA), cells('b', 'B', raw.sizeB));
+                }, cols: 2, run: runMatrices }
+        ]
+    };
 
-    solvePanel.querySelector('.calc-solve-tabs').addEventListener('click', function (e) {
-        var tab = e.target.closest('.calc-solve-tab');
-        if (!tab) return;
-        solveTab = tab.dataset.tab;
-        renderSolve();
-        keepSolve();
-    }, false);
+    // the rows and columns of a size typed: 3×3, 2 3, 2x3, 2,3, or 3 for a square; [2, 2] while
+    // empty; null for a size that is not one, of more than 4 or fewer than 1
+    function sizeOf(text) {
+        var m = /^\s*([1-4])\s*(?:[x×*,\s]\s*([1-4]))?\s*$/i.exec(text || '');
+        if (!String(text || '').trim()) return [2, 2];
+        return m ? [+m[1], +(m[2] || m[1])] : null;
+    }
+
+    // a box for each number of a matrix of the size typed, its letter and a row and column to
+    // each, a11, a12 …, under the head of its name
+    function cells(letter, name, size) {
+        var s = sizeOf(size) || [2, 2], out = [{ head: name, cols: s[1] }], i, j;
+        for (i = 1; i <= s[0]; i++) {
+            for (j = 1; j <= s[1]; j++) out.push({ k: letter + i + j, ph: '0', def: 0, aria: name + ' row ' + i + ' column ' + j });
+        }
+        return out;
+    }
+
+    // the matrix of the boxes of a letter, as big as its size
+    function matrixOf(n, letter, size) {
+        var s = sizeOf(size) || [2, 2], m = [], i, j;
+        for (i = 1; i <= s[0]; i++) {
+            m.push([]);
+            for (j = 1; j <= s[1]; j++) m[i - 1].push(n[letter + i + j]);
+        }
+        return m;
+    }
+
+    function runComplex(n, raw) {
+        var z = raw.z ? CalcMaths.complex(raw.z, engine.comma, deg) : null, p, none = [{ l: 'a + b<i>i</i>', v: NaN, wide: true }];
+        if (!raw.z) return { rows: none };
+        if (!z) return { rows: none, bad: ['z'], warn: true, note: 'Not a complex number yet: 2 + 3i, with i; 2∠30 for a length and an angle.' };
+        if (!isFinite(z.re) || !isFinite(z.im)) return { rows: none, warn: true, note: 'No value, as of 1/0.' };
+        p = CalcMaths.polar(z, deg);
+        return {
+            rows: [{ l: 'a + b<i>i</i>', text: complexText(z), wide: true }, { l: 'Real part', v: z.re }, { l: 'Imaginary part', v: z.im },
+                { l: 'Length |z|', v: p.r }, { l: 'Angle', v: p.theta }, { l: 'Polar', text: local(String(p.r)) + ' ∠ ' + local(String(p.theta)) + (deg === 1 ? '°' : ''), wide: true },
+                { l: 'Conjugate', text: complexText({ re: z.re, im: CalcMaths.round(0 - z.im) }) }],
+            note: 'Angles in ' + ['radians', 'degrees', 'gradians'][deg] + ', the unit in use.'
+        };
+    }
+
+    function runRoots(n, raw) {
+        var z = raw.z ? CalcMaths.complex(raw.z, engine.comma, deg) : null, roots = z && CalcMaths.croots(z, n.n);
+        if (raw.z && !z) return { rows: [{ l: 'Roots', v: NaN, wide: true }], bad: ['z'], warn: true, note: 'Not a complex number yet: -16, 1 + i, with i.' };
+        if (!roots) return { rows: [{ l: 'Roots', v: NaN, wide: true }], warn: isFinite(n.n), note: isFinite(n.n) && z ? 'n is a whole number from 1 to 24.' : '' };
+        return { rows: roots.map(function (r, i) { return { l: 'z<sub>' + (i + 1) + '</sub>', text: complexText(r), wide: true }; }) };
+    }
+
+    function runBits(n, raw) {
+        var bits = n.bits, r = raw.e ? CalcMaths.bitwise(raw.e, bits) : null, big, none = [{ l: 'Decimal', v: NaN }];
+        if (raw.e && r && r.error) {
+            return { rows: none, bad: r.error === 'expression' ? ['e'] : [], warn: true, note: {
+                expression: 'Whole numbers, 255, 0xFF, 0b1010 or 0o17, with + – × ÷ mod AND OR XOR NOT << >>.',
+                zero: 'Division by 0.',
+                bits: 'Bits are 8, 16, 32 or 64.'
+            }[r.error] };
+        }
+        if (!r) return { rows: none };
+        big = BigInt.asUintN(bits, r.value);
+        return {
+            rows: [
+                Math.abs(Number(r.value)) <= Number.MAX_SAFE_INTEGER ? { l: 'Decimal', v: Number(r.value) } : { l: 'Decimal', text: String(r.value) },
+                big <= BigInt(Number.MAX_SAFE_INTEGER) ? { l: 'Unsigned', v: Number(big) } : { l: 'Unsigned', text: String(big) },
+                { l: 'Hexadecimal', text: CalcMaths.inBase(r.value, bits, 16) }, { l: 'Octal', text: CalcMaths.inBase(r.value, bits, 8), wide: bits === 64 },
+                { l: 'Binary', text: CalcMaths.inBase(r.value, bits, 2).replace(/^(.{39}) /, bits === 64 ? '$1<br>' : '$1 '), wide: true, bits: true }
+            ],
+            note: r.wrapped ? 'Out of ' + bits + ' bits: kept to them, as a computer does.' : ''
+        };
+    }
+
+    function runMatrix(n, raw) {
+        var a = matrixOf(n, 'a', raw.size), square = a.length === a[0].length, inv = square ? CalcMaths.inverse(a) : null,
+            bad = sizeOf(raw.size) ? [] : ['size'];
+        return {
+            rows: [{ l: 'det A', v: square ? CalcMaths.det(a) : NaN }, { l: 'Rank', v: CalcMaths.rank(a) },
+                { l: 'A<sup>–1</sup>', m: inv }, { l: 'A<sup>T</sup>', m: CalcMaths.transpose(a) }, { l: 'A<sup>2</sup>', m: square ? CalcMaths.times(a, a) : null }],
+            bad: bad, warn: !!bad.length || (square && !inv),
+            note: bad.length ? 'A size of rows and columns, each 1 to 4: 3×3, or 2 3.' : !square ? 'Not square: no determinant, inverse or square.' :
+                !inv ? 'No inverse: its determinant is 0.' : ''
+        };
+    }
+
+    function runMatrices(n, raw) {
+        var a = matrixOf(n, 'a', raw.sizeA), b = matrixOf(n, 'b', raw.sizeB), bad = [];
+        if (!sizeOf(raw.sizeA)) bad.push('sizeA');
+        if (!sizeOf(raw.sizeB)) bad.push('sizeB');
+        return {
+            rows: [{ l: 'A + B', m: CalcMaths.plus(a, b) }, { l: 'A – B', m: CalcMaths.plus(a, b, true) },
+                { l: 'A × B', m: CalcMaths.times(a, b) }, { l: 'B × A', m: CalcMaths.times(b, a) }],
+            bad: bad, warn: !!bad.length,
+            note: bad.length ? 'A size of rows and columns, each 1 to 4: 3×3, or 2 3.' :
+                'A sum needs one size; a product A × B as many columns of A as rows of B.'
+        };
+    }
+
+    // ---------------- panels of tools ---------------- //
+
+    // A panel of tools on tabs, as the solver and the numbers are: a card for each, which opens
+    // its boxes; what it gives worked out as they are typed, in tiles that put a value into the
+    // calculation with a click, a number of a matrix as well. A tab of one tool has it open.
+    // key: where its tab, its tool open and what is typed in each are kept for the next time;
+    // tip: the name of the tip of its button and its close. { show(open), load(saved), tip(el), open() }
+    function toolPanel(panel, button, tools, key, tip) {
+        var list = panel.querySelector('.calc-sv-list'), tab = Object.keys(tools)[0], openId = '', values = {}, now = [], self;
+
+        // the boxes of a tool, as what is typed in it says: a matrix has as many as its size
+        function fieldsOf(tool, raw) {
+            return typeof tool.fields === 'function' ? tool.fields(raw) : tool.fields;
+        }
+
+        // what is typed in each box of the tool open, trimmed
+        function rawOf(tool) {
+            var kept = values[tool.id] || {}, raw = {};
+            Object.keys(kept).forEach(function (k) { raw[k] = typeof kept[k] === 'string' ? kept[k].trim() : ''; });
+            return raw;
+        }
+
+        function show(open) {
+            var box;
+            if (open) {
+                showPast(false);
+                showStats(false);
+                showFx(false);
+                showConv(false);
+                showGraph(false);
+                toolPanels.forEach(function (p) { if (p !== self) p.show(false); }); // one panel at a time
+                placePanel(panel);
+                render();
+            }
+            panel.classList.toggle('calc-open', open);
+            button.classList.toggle('calc-on', open);
+            if (open) {
+                box = list.querySelector('.calc-sv-item.calc-on input');
+                if (box && focusBox(box)) box.select();
+            } else if (panel.contains(document.activeElement)) {
+                document.activeElement.blur(); // the keys are the calculator's again
+            }
+        }
+
+        // the cards of the tab, the one open with its boxes
+        function render() {
+            var open;
+            [].forEach.call(panel.querySelectorAll('.calc-solve-tab'), function (t) {
+                t.classList.toggle('calc-on', t.dataset.tab === tab);
+            });
+            list.innerHTML = tools[tab].map(function (tool, i) {
+                if (tool.id === openId) open = i;
+                return '<div class="calc-sv-item" data-i="' + i + '"><div class="calc-sv-row"><span class="calc-sv-col">' +
+                    '<span class="calc-sv-name">' + tool.t + '</span><span class="calc-sv-f calc-sv-eq calc-sv-val"><span>' + tool.f + '</span></span></span></div></div>';
+            }).join('');
+            list.scrollTop = 0;
+            if (open === undefined && tools[tab].length === 1) open = 0;
+            if (open !== undefined) openTool(list.children[open], true);
+            hideTip();
+        }
+
+        // A card opened: a box for each of its numbers and functions, as they were typed last, and
+        // its results; the one open before closes. null closes it
+        function openTool(item, quiet) {
+            var open = list.querySelector('.calc-sv-item.calc-on'), tool, form, box;
+            if (open) {
+                open.classList.remove('calc-on');
+                open.removeChild(open.querySelector('.calc-sv-form'));
+            }
+            openId = '';
+            if (!item) return keep();
+            hideTip();
+            tool = tools[tab][+item.dataset.i];
+            openId = tool.id;
+            form = item.appendChild(document.createElement('div'));
+            form.className = 'calc-sv-form';
+            form.innerHTML = '<div class="calc-sv-boxes"></div><div class="calc-sv-note"></div>' + (tool.again ? '<span class="calc-sv-again">Again</span>' : '') +
+                '<div class="calc-sv-grid"></div>';
+            item.classList.add('calc-on');
+            boxes(tool, item);
+            run();
+            keep();
+            box = form.querySelector('input');
+            if (!quiet && focusBox(box)) box.select();
+            item.scrollIntoView({ block: 'nearest' });
+        }
+
+        // the boxes of a tool, in columns, a head before each group of them, filled as they were typed
+        function boxes(tool, item) {
+            var kept = values[tool.id] || {}, cols = tool.cols || 1, html = '<div class="calc-sv-fields" style="--cols: ' + cols + '">';
+            fieldsOf(tool, rawOf(tool)).forEach(function (f) {
+                if (f.head) {
+                    html += '</div><div class="calc-sv-head">' + f.head + '</div><div class="calc-sv-fields calc-sv-cells-in" style="--cols: ' + f.cols + '">';
+                    return;
+                }
+                html += '<label class="calc-sv-var' + (f.fn ? ' calc-sv-wide' : '') + '">' + (f.l ? '<span class="calc-sv-sym">' + f.l + '</span>' : '') +
+                    '<input type="text"' + (f.fn || f.text ? '' : ' inputmode="decimal"') + ' spellcheck="false" autocomplete="off" maxlength="' + (f.fn ? 200 : 40) +
+                    '" data-k="' + f.k + '" placeholder="' + f.ph + '" aria-label="' + (f.aria || (f.fn ? tool.t : f.l.replace(/<[^>]*>/g, ''))) + '"></label>';
+            });
+            item.querySelector('.calc-sv-boxes').innerHTML = html + '</div>';
+            [].forEach.call(item.querySelectorAll('.calc-sv-boxes input'), function (input) {
+                input.value = typeof kept[input.dataset.k] === 'string' ? kept[input.dataset.k] : '';
+            });
+        }
+
+        // What the open tool gives from its boxes now: each number read, or its default while
+        // empty, a box that is not one marked; then its tiles, and its note
+        function run() {
+            var item = list.querySelector('.calc-sv-item.calc-on'), tool, raw, n = {}, out, inputs, fields;
+            if (!item) return;
+            tool = tools[tab][+item.dataset.i];
+            raw = rawOf(tool);
+            fields = fieldsOf(tool, raw);
+            inputs = [].slice.call(item.querySelectorAll('.calc-sv-boxes input'));
+            fields.forEach(function (f) {
+                var text = raw[f.k] || '', v, box = inputs.filter(function (b) { return b.dataset.k === f.k; })[0];
+                if (f.head) return;
+                raw[f.k] = text;
+                if (f.fn || f.text) return;
+                v = text ? CalcMaths.number(text, engine.comma, deg, f.inf) : f.def !== undefined ? f.def : NaN;
+                if (box) box.classList.toggle('calc-bad', !!text && isNaN(v));
+                n[f.k] = v;
+            });
+            out = tool.run(n, raw);
+            inputs.forEach(function (box) {
+                if (fields.some(function (f) { return f.k === box.dataset.k && (f.fn || f.text); })) box.classList.toggle('calc-bad', (out.bad || []).indexOf(box.dataset.k) > -1);
+            });
+            now = out.rows;
+            item.querySelector('.calc-sv-grid').innerHTML = out.rows.map(tile).join('');
+            [].forEach.call(item.querySelectorAll('.calc-sv-value, .calc-sv-cell'), function (shown) {
+                var size = shown.classList.contains('calc-sv-cell') ? 15 : 17;
+                while (size > 11 && shown.scrollWidth > shown.clientWidth) shown.style.fontSize = --size + 'px'; // a long one gets smaller, as on the display
+            });
+            item.querySelector('.calc-sv-note').textContent = out.note || '';
+            item.querySelector('.calc-sv-note').classList.toggle('calc-sv-warn', !!out.warn);
+        }
+
+        // A result: a number to put in, a text to read, as a complex number, or a matrix, each of
+        // its numbers to put in; – while it has none
+        function tile(r, i) {
+            var known = r.text === undefined && (r.m ? !!r.m : isFinite(r.v)), shown;
+            if (r.m !== undefined) {
+                shown = r.m ? '<span class="calc-sv-cells" style="--cols: ' + r.m[0].length + '">' + r.m.map(function (row, a) {
+                    return row.map(function (x, b) { return '<span class="calc-sv-cell" data-a="' + a + '" data-b="' + b + '">' + statsValue(x).html + '</span>'; }).join('');
+                }).join('') + '</span>' : '<span class="calc-sv-value">–</span>';
+            } else {
+                shown = '<span class="calc-sv-value">' + (r.text !== undefined ? r.text : known ? statsValue(r.v).html : '–') + '</span>';
+            }
+            return '<div class="calc-sv-tile' + (r.m !== undefined || r.wide ? ' calc-sv-wide' : '') + (r.m ? ' calc-sv-matrix' : '') + (r.bits ? ' calc-sv-bits' : '') +
+                (known && !r.m ? '' : ' calc-none') + '" data-r="' + i + '"><span class="calc-sv-label">' + r.l + '</span>' + shown + '</div>';
+        }
+
+        // the tab, the tool open and what is typed in each, for the next time
+        function keep() {
+            store(key, { tab: tab, open: openId, v: values });
+        }
+
+        function load(saved) {
+            if (!saved || typeof saved !== 'object') return;
+            if (tools.hasOwnProperty(saved.tab)) tab = saved.tab;
+            if (typeof saved.open === 'string') openId = saved.open;
+            if (saved.v && typeof saved.v === 'object') values = saved.v;
+        }
+
+        button.addEventListener('click', function () {
+            show(!panel.classList.contains('calc-open'));
+        }, false);
+
+        panel.querySelector('.calc-past-close').addEventListener('click', function () {
+            show(false);
+        }, false);
+
+        panel.querySelector('.calc-solve-tabs').addEventListener('click', function (e) {
+            var t = e.target.closest('.calc-solve-tab');
+            if (!t) return;
+            tab = t.dataset.tab;
+            render();
+            keep();
+        }, false);
+
+        // a card opens its boxes, or closes them; Again draws more random numbers; a tile, or a
+        // number of a matrix, is put in
+        list.addEventListener('click', function (e) {
+            var row = e.target.closest('.calc-sv-row'), t = e.target.closest('.calc-sv-tile'), cell = e.target.closest('.calc-sv-cell'), r, v;
+            if (row) return openTool(row.parentNode.classList.contains('calc-on') ? null : row.parentNode);
+            if (e.target.closest('.calc-sv-again')) return run();
+            r = t && now[+t.dataset.r];
+            v = !r ? NaN : r.m ? (cell ? r.m[+cell.dataset.a][+cell.dataset.b] : NaN) : r.text === undefined ? r.v : NaN;
+            if (!isFinite(v) || !engine.put(v)) return;
+            keyBoard['AC'].children[0].firstChild.data = 'C';
+            show(false);
+            refresh();
+            saveState();
+        }, false);
+
+        // a box typed in: the results again; a size typed, the boxes of its matrix first, the
+        // box typed in keeping the focus
+        list.addEventListener('input', function (e) {
+            var item = e.target.closest('.calc-sv-item'), tool = item && tools[tab][+item.dataset.i], k = e.target.dataset.k, at, input;
+            if (!tool || e.target.tagName !== 'INPUT') return;
+            values[tool.id] = values[tool.id] || {};
+            values[tool.id][k] = e.target.value;
+            if (fieldsOf(tool, rawOf(tool)).some(function (f) { return f.k === k && f.shape; })) {
+                at = e.target.selectionStart;
+                boxes(tool, item);
+                input = item.querySelector('.calc-sv-boxes input[data-k="' + k + '"]');
+                input.focus();
+                input.setSelectionRange(at, at);
+            }
+            run();
+            keep();
+        }, false);
+
+        // Enter goes on to the next box
+        list.addEventListener('keydown', function (e) {
+            var inputs, at;
+            if (e.which !== 13 || e.target.tagName !== 'INPUT') return;
+            e.preventDefault();
+            inputs = [].slice.call(e.target.closest('.calc-sv-form').querySelectorAll('input'));
+            at = inputs.indexOf(e.target);
+            if (at < inputs.length - 1) inputs[at + 1].focus();
+        }, false);
+
+        self = {
+            show: show,
+            load: load,
+            open: function () { return panel.classList.contains('calc-open'); },
+            // the tip of a card: what it gives
+            tip: function (el) {
+                var tool;
+                if (el.classList.contains('calc-past-close')) return CalcTips[tip + ' close'];
+                if (!el.classList.contains('calc-sv-row') || el.parentNode.classList.contains('calc-on')) return null;
+                tool = tools[tab][+el.parentNode.dataset.i];
+                return { t: tool.t, d: tool.d + ' Click to open it.', k: '' };
+            }
+        };
+        return self;
+    }
+
+    var solver = toolPanel(solvePanel, solveButton, SOLVE_TOOLS, 'solve', 'solve'),
+        numbers = toolPanel(numbersPanel, numbersButton, NUMBER_TOOLS, 'numbers', 'numbers'),
+        toolPanels = [solver, numbers];
 
     function showSolve(open) {
-        var box;
-        if (open) {
-            showPast(false);
-            showStats(false);
-            showFx(false);
-            showConv(false);
-            showGraph(false);
-            placePanel(solvePanel);
-            renderSolve();
-        }
-        solvePanel.classList.toggle('calc-open', open);
-        solveButton.classList.toggle('calc-on', open);
-        if (open) {
-            box = solveList.querySelector('.calc-sv-item.calc-on input');
-            if (box && focusBox(box)) box.select();
-        } else if (solvePanel.contains(document.activeElement)) {
-            document.activeElement.blur(); // the keys are the calculator's again
-        }
+        solver.show(open);
     }
 
-    // the cards of the tab, the one open with its boxes
-    function renderSolve() {
-        var open;
-        [].forEach.call(solvePanel.querySelectorAll('.calc-solve-tab'), function (tab) {
-            tab.classList.toggle('calc-on', tab.dataset.tab === solveTab);
-        });
-        solveList.innerHTML = SOLVE_TOOLS[solveTab].map(function (tool, i) {
-            if (tool.id === solveOpen) open = i;
-            return '<div class="calc-sv-item" data-i="' + i + '"><div class="calc-sv-row"><span class="calc-sv-col">' +
-                '<span class="calc-sv-name">' + tool.t + '</span><span class="calc-sv-f calc-sv-eq calc-sv-val"><span>' + tool.f + '</span></span></span></div></div>';
-        }).join('');
-        solveList.scrollTop = 0;
-        if (open !== undefined) openTool(solveList.children[open], true);
-        hideTip();
+    function showNumbers(open) {
+        numbers.show(open);
     }
 
-    // A card opened: a box for each of its numbers and functions, as they were typed last, and
-    // its results; the one open before closes. null closes it
-    function openTool(item, quiet) {
-        var open = solveList.querySelector('.calc-sv-item.calc-on'), tool, form, kept, box;
-        if (open) {
-            open.classList.remove('calc-on');
-            open.removeChild(open.querySelector('.calc-sv-form'));
-        }
-        solveOpen = '';
-        if (!item) return keepSolve();
-        hideTip();
-        tool = SOLVE_TOOLS[solveTab][+item.dataset.i];
-        kept = solveValues[tool.id] || {};
-        solveOpen = tool.id;
-        form = item.appendChild(document.createElement('div'));
-        form.className = 'calc-sv-form';
-        form.innerHTML = '<div class="calc-sv-fields" style="--cols: ' + (tool.cols || 1) + '">' + tool.fields.map(function (f) {
-            return '<label class="calc-sv-var' + (f.fn ? ' calc-sv-wide' : '') + '">' + (f.l ? '<span class="calc-sv-sym">' + f.l + '</span>' : '') +
-                '<input type="text"' + (f.fn ? '' : ' inputmode="decimal"') + ' spellcheck="false" autocomplete="off" maxlength="' + (f.fn ? 200 : 40) +
-                '" data-k="' + f.k + '" placeholder="' + f.ph + '" aria-label="' + (f.fn ? tool.t : f.l.replace(/<[^>]*>/g, '')) + '"></label>';
-        }).join('') + '</div><div class="calc-sv-note"></div>' + (tool.again ? '<span class="calc-sv-again">Again</span>' : '') +
-            '<div class="calc-sv-grid"></div>';
-        [].forEach.call(form.querySelectorAll('input'), function (input) {
-            input.value = typeof kept[input.dataset.k] === 'string' ? kept[input.dataset.k] : '';
-        });
-        item.classList.add('calc-on');
-        runTool();
-        keepSolve();
-        box = form.querySelector('input');
-        if (!quiet && focusBox(box)) box.select();
-        item.scrollIntoView({ block: 'nearest' });
-    }
-
-    // What the open tool gives from its boxes now: each number read, or its default while
-    // empty, a box that is not one marked; then its tiles, and its note
-    function runTool() {
-        var item = solveList.querySelector('.calc-sv-item.calc-on'), tool, raw = {}, n = {}, out, inputs;
-        if (!item) return;
-        tool = SOLVE_TOOLS[solveTab][+item.dataset.i];
-        inputs = [].slice.call(item.querySelectorAll('input'));
-        inputs.forEach(function (box) {
-            var f = tool.fields.filter(function (f) { return f.k === box.dataset.k; })[0], text = box.value.trim(), v;
-            raw[f.k] = text;
-            if (f.fn) return;
-            v = text ? CalcMaths.number(text, engine.comma, deg, f.inf) : f.def !== undefined ? f.def : NaN;
-            box.classList.toggle('calc-bad', !!text && isNaN(v));
-            n[f.k] = v;
-        });
-        out = tool.run(n, raw);
-        inputs.forEach(function (box) {
-            if (tool.fields.some(function (f) { return f.k === box.dataset.k && f.fn; })) box.classList.toggle('calc-bad', (out.bad || []).indexOf(box.dataset.k) > -1);
-        });
-        solveNow = out.rows;
-        item.querySelector('.calc-sv-grid').innerHTML = out.rows.map(function (r, i) {
-            var known = r.text === undefined && isFinite(r.v);
-            return '<div class="calc-sv-tile' + (known ? '' : ' calc-none') + '" data-r="' + i + '"><span class="calc-sv-label">' + r.l + '</span>' +
-                '<span class="calc-sv-value">' + (r.text !== undefined ? r.text : known ? statsValue(r.v).html : '–') + '</span></div>';
-        }).join('');
-        [].forEach.call(item.querySelectorAll('.calc-sv-value'), function (shown) {
-            var size = 17;
-            while (size > 11 && shown.scrollWidth > shown.clientWidth) shown.style.fontSize = --size + 'px'; // a long one gets smaller, as on the display
-        });
-        item.querySelector('.calc-sv-note').textContent = out.note || '';
-        item.querySelector('.calc-sv-note').classList.toggle('calc-sv-warn', !!out.warn);
-    }
-
-    // the tab, the tool open and what is typed in each, for the next time
-    function keepSolve() {
-        store('solve', { tab: solveTab, open: solveOpen, v: solveValues });
-    }
-
-    function loadSolve(saved) {
-        if (!saved || typeof saved !== 'object') return;
-        if (SOLVE_TOOLS.hasOwnProperty(saved.tab)) solveTab = saved.tab;
-        if (typeof saved.open === 'string') solveOpen = saved.open;
-        if (saved.v && typeof saved.v === 'object') solveValues = saved.v;
-    }
-
-    // a card opens its boxes, or closes them; Again draws more random numbers; a tile is put in
-    solveList.addEventListener('click', function (e) {
-        var row = e.target.closest('.calc-sv-row'), tile = e.target.closest('.calc-sv-tile'), r;
-        if (row) return openTool(row.parentNode.classList.contains('calc-on') ? null : row.parentNode);
-        if (e.target.closest('.calc-sv-again')) return runTool();
-        r = tile && solveNow[+tile.dataset.r];
-        if (!r || r.text !== undefined || !isFinite(r.v) || !engine.put(r.v)) return;
-        keyBoard['AC'].children[0].firstChild.data = 'C';
-        showSolve(false);
-        refresh();
-        saveState();
-    }, false);
-
-    solveList.addEventListener('input', function (e) {
-        var item = e.target.closest('.calc-sv-item'), tool = item && SOLVE_TOOLS[solveTab][+item.dataset.i];
-        if (!tool || e.target.tagName !== 'INPUT') return;
-        solveValues[tool.id] = solveValues[tool.id] || {};
-        solveValues[tool.id][e.target.dataset.k] = e.target.value;
-        runTool();
-        keepSolve();
-    }, false);
-
-    // Enter goes on to the next box
-    solveList.addEventListener('keydown', function (e) {
-        var inputs, at;
-        if (e.which !== 13 || e.target.tagName !== 'INPUT') return;
-        e.preventDefault();
-        inputs = [].slice.call(e.target.closest('.calc-sv-form').querySelectorAll('input'));
-        at = inputs.indexOf(e.target);
-        if (at < inputs.length - 1) inputs[at + 1].focus();
-    }, false);
-
-    // the tip of a card: what it gives
-    function solveTip(el) {
-        var tool;
-        if (el.classList.contains('calc-past-close')) return CalcTips['solve close'];
-        if (!el.classList.contains('calc-sv-row') || el.parentNode.classList.contains('calc-on')) return null;
-        tool = SOLVE_TOOLS[solveTab][+el.parentNode.dataset.i];
-        return { t: tool.t, d: tool.d + ' Click to open it.', k: '' };
-    }
 
     // ---------------- examples of the graph ---------------- //
 
@@ -4021,6 +4242,7 @@
             showFx(false);
             showGraph(false);
             showSolve(false);
+            showNumbers(false);
             placePanel(conv);
             if (!engine.edit && !engine.error && (engine.done || engine.plain()) && +engine.value) {
                 convInput.value = local(+(+engine.value).toPrecision(13));
@@ -4199,18 +4421,20 @@
         return { t: unit.t.charAt(0).toUpperCase() + unit.t.slice(1), d: 'Click to put it into the equation.', k: '' };
     }
 
-    // the statistics, the formulas, the converter, the graph and the solver have their button while they are turned on in the options
-    function setPanels(statsOn, fxOn, convOn, graphOn, solveOn) {
+    // the statistics, the formulas, the converter, the graph, the solver and the numbers have their button while they are turned on in the options
+    function setPanels(statsOn, fxOn, convOn, graphOn, solveOn, numbersOn) {
         statsButton.hidden = !statsOn;
         fxButton.hidden = !fxOn;
         convButton.hidden = !convOn;
         graphButton.hidden = !graphOn;
         solveButton.hidden = !solveOn;
+        numbersButton.hidden = !numbersOn;
         if (!statsOn) showStats(false);
         if (!fxOn) showFx(false);
         if (!convOn) showConv(false);
         if (!graphOn) showGraph(false);
         if (!solveOn) showSolve(false);
+        if (!numbersOn) showNumbers(false);
         showTools();
     }
 
@@ -4621,7 +4845,7 @@
         var s = {};
 
         // all read first: the keys pressed below must not save over what is still to be read
-        ['secondActive', 'deg', 'stat', 'statBy', 'statsOn', 'fxOn', 'fxTab', 'convOn', 'conv', 'graphOn', 'graph', 'solveOn', 'solve', 'fraction', 'dms', 'format', 'fnOrder', 'memory', 'calc'].forEach(function (key) {
+        ['secondActive', 'deg', 'stat', 'statBy', 'statsOn', 'fxOn', 'fxTab', 'convOn', 'conv', 'graphOn', 'graph', 'solveOn', 'solve', 'numbersOn', 'numbers', 'fraction', 'dms', 'format', 'fnOrder', 'memory', 'calc'].forEach(function (key) {
             s[key] = stored(key);
         });
         // functions go before their number, tan 45; who used the calculator before this
@@ -4636,9 +4860,10 @@
         if (typeof s.stat === 'string') statsInput.value = s.stat;
         setStatsBy(Math.max(0, BY.map(function (by) { return by[0]; }).indexOf(s.statBy)));
         // all on, until changed in the options
-        setPanels(s.statsOn !== false, s.fxOn !== false, s.convOn !== false, s.graphOn !== false, s.solveOn !== false);
+        setPanels(s.statsOn !== false, s.fxOn !== false, s.convOn !== false, s.graphOn !== false, s.solveOn !== false, s.numbersOn !== false);
         loadGraph(s.graph);
-        loadSolve(s.solve);
+        solver.load(s.solve);
+        numbers.load(s.numbers);
         if (s.fxTab === 'constants') fxTab = s.fxTab;
         loadConv(s.conv);
         fracMode = engine.fraction = !!s.fraction;
@@ -4676,9 +4901,9 @@
             ownSaves.deg = e.newValue;
             return setUnit(stored('deg') === true ? 1 : stored('deg') === 'grad' ? 2 : 0);
         }
-        if (e.key === 'statsOn' || e.key === 'fxOn' || e.key === 'convOn' || e.key === 'graphOn' || e.key === 'solveOn') {
+        if (/^(statsOn|fxOn|convOn|graphOn|solveOn|numbersOn)$/.test(e.key)) {
             return setPanels(stored('statsOn') !== false, stored('fxOn') !== false, stored('convOn') !== false, stored('graphOn') !== false,
-                stored('solveOn') !== false);
+                stored('solveOn') !== false, stored('numbersOn') !== false);
         }
         if (e.key === 'format') setFormat(stored('format'));
         else if (e.key === 'fnOrder') engine.fnFirst = stored('fnOrder') !== 'after';

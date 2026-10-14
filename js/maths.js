@@ -1,6 +1,7 @@
 // The maths of the Solve panel: equations solved for x, the roots of a polynomial and of a
 // system of linear equations; integrals, slopes, sums and products; and the normal, binomial
-// and Poisson distributions. Functions are read as the graph reads them, by the engine.
+// and Poisson distributions. And of the Numbers panel: complex numbers, whole numbers in bits
+// and their bases, and matrices. Functions are read as the graph reads them, by the engine.
 // It works on its own in Node as well, for the tests
 (function (root) {
     'use strict';
@@ -492,6 +493,381 @@
         return a + Math.floor((random || Math.random)() * (b - a + 1));
     }
 
+    // ---------- complex numbers ---------- //
+
+    // a complex number of re and im, a tiny part beside a large one being 0: e^(iπ) is -1
+    function tidyComplex(z) {
+        var size = cabs(z), re = Math.abs(z[0]) <= 1e-14 * size ? 0 : z[0], im = Math.abs(z[1]) <= 1e-14 * size ? 0 : z[1];
+        return { re: round(re), im: round(im) };
+    }
+
+    function cexp(z) {
+        var r = Math.exp(z[0]);
+        return z[1] ? [r * Math.cos(z[1]), r * Math.sin(z[1])] : [r, 0];
+    }
+
+    function clog(z) {
+        return [Math.log(cabs(z)), Math.atan2(z[1], z[0])];
+    }
+
+    // z to the power w; a real power of a real number that has one stays real, (-8)^3 as well
+    function cpow(z, w) {
+        var n, out, k;
+        if (!w[1] && !z[1] && (z[0] >= 0 || w[0] === Math.floor(w[0]))) return [Math.pow(z[0], w[0]), 0];
+        if (!w[1] && w[0] === Math.floor(w[0]) && Math.abs(w[0]) <= 64) { // a whole power by products, exact as far as they go
+            n = Math.abs(w[0]);
+            for (out = [1, 0], k = 0; k < n; k++) out = cmul(out, z);
+            return w[0] < 0 ? cdiv([1, 0], out) : out;
+        }
+        if (!z[0] && !z[1]) return w[0] > 0 ? [0, 0] : [NaN, NaN];
+        return cexp(cmul(w, clog(z)));
+    }
+
+    function csqrt(z) {
+        var r = cabs(z), a, b;
+        if (!z[1]) return z[0] >= 0 ? [Math.sqrt(z[0]), 0] : [0, Math.sqrt(-z[0])];
+        a = Math.sqrt((r + z[0]) / 2);
+        b = Math.sqrt((r - z[0]) / 2);
+        return [a, z[1] < 0 ? -b : b];
+    }
+
+    function csin(z) {
+        return [Math.sin(z[0]) * Math.cosh(z[1]), Math.cos(z[0]) * Math.sinh(z[1])];
+    }
+
+    function ccos(z) {
+        return [Math.cos(z[0]) * Math.cosh(z[1]), -Math.sin(z[0]) * Math.sinh(z[1])];
+    }
+
+    // the inverses by their logarithms: asin z = -i ln(iz + √(1 – z²)), and the like
+    function casin(z) {
+        var w = clog(add(cmul([0, 1], z), csqrt(sub([1, 0], cmul(z, z)))));
+        return [w[1], -w[0]];
+    }
+
+    function cacos(z) {
+        var a = casin(z);
+        return [PI / 2 - a[0], -a[1]];
+    }
+
+    function catan(z) {
+        var w = cdiv(add([1, 0], cmul([0, 1], z)), sub([1, 0], cmul([0, 1], z))); // (1 + iz) / (1 – iz)
+        w = clog(w);
+        return [w[1] / 2, -w[0] / 2];
+    }
+
+    function add(a, b) {
+        return [a[0] + b[0], a[1] + b[1]];
+    }
+
+    function sub(a, b) {
+        return [a[0] - b[0], a[1] - b[1]];
+    }
+
+    // Γ(x) of a real x, by Lanczos's sum, the reflection for x below 1/2
+    function gammaOf(x) {
+        if (x === Math.floor(x) && x <= 0) return NaN;
+        if (x < 0.5) return PI / (Math.sin(PI * x) * gammaOf(1 - x));
+        if (x === Math.floor(x) && x <= 171) {
+            for (var f = 1, k = 2; k < x; k++) f *= k;
+            return f;
+        }
+        return Math.exp(lnGamma(x));
+    }
+
+    // The value of a complex expression, as the engine reads it, i its imaginary unit: [re, im].
+    // Functions of an angle take it in the unit deg, as the calculator does, and their inverses
+    // give one; what has no complex sense here, as 5! of a complex number, is none (NaN)
+    function cvalue(n, deg) {
+        var a, b, toRad = [1, PI / 180, PI / 200][deg || 0], k;
+        function real(f) { // a function of real numbers only
+            return !a[1] ? [f(a[0]), 0] : [NaN, NaN];
+        }
+        function both(f) {
+            return !a[1] && !b[1] ? [f(a[0], b[0]), 0] : [NaN, NaN];
+        }
+        switch (n.t) {
+            case 'num': return [+n.v, 0];
+            case 'const':
+                if (n.v === 'i' && n.p) return [0, 1];
+                return n.v === 'π' ? [PI, 0] : n.v === 'e' ? [Math.E, 0] : [NaN, NaN];
+            case 'group': return cvalue(n.arg, deg);
+            case 'neg':
+                a = cvalue(n.arg, deg);
+                return [0 - a[0], 0 - a[1]]; // not -0, whose angle is the other way: ln(-1) is iπ
+            case 'fn':
+            case 'post':
+                a = cvalue(n.arg, deg);
+                k = n.deg === undefined ? toRad : PI / 180; // sin(30°) in degrees whatever the unit
+                switch (n.key) {
+                    case '%': return [a[0] / 100, a[1] / 100];
+                    case '1/x': return cdiv([1, 0], a);
+                    case 'x2': return cmul(a, a);
+                    case 'x3': return cmul(cmul(a, a), a);
+                    case 'x!': return real(function (x) { return gammaOf(x + 1); });
+                    case 'ex': return cexp(a);
+                    case '2x': return cpow([2, 0], a);
+                    case '10x': return cpow([10, 0], a);
+                    case '√': return csqrt(a);
+                    case 'ln': return clog(a);
+                    case 'log': b = clog(a); return [b[0] / Math.LN10, b[1] / Math.LN10];
+                    case 'log2': b = clog(a); return [b[0] / Math.LN2, b[1] / Math.LN2];
+                    case 'sin': return csin([a[0] * k, a[1] * k]);
+                    case 'cos': return ccos([a[0] * k, a[1] * k]);
+                    case 'tan': return cdiv(csin([a[0] * k, a[1] * k]), ccos([a[0] * k, a[1] * k]));
+                    case 'sin-1': b = casin(a); return [b[0] / toRad, b[1] / toRad];
+                    case 'cos-1': b = cacos(a); return [b[0] / toRad, b[1] / toRad];
+                    case 'tan-1': b = catan(a); return [b[0] / toRad, b[1] / toRad];
+                    case 'sinh': return cmul([0, -1], csin(cmul([0, 1], a)));
+                    case 'cosh': return ccos(cmul([0, 1], a));
+                    case 'tanh': return cdiv(cmul([0, -1], csin(cmul([0, 1], a))), ccos(cmul([0, 1], a)));
+                    case 'sinh-1': return clog(add(a, csqrt(add(cmul(a, a), [1, 0]))));
+                    case 'cosh-1': return clog(add(a, cmul(csqrt(add(a, [1, 0])), csqrt(sub(a, [1, 0])))));
+                    case 'tanh-1': b = clog(cdiv(add([1, 0], a), sub([1, 0], a))); return [b[0] / 2, b[1] / 2];
+                    case 'abs': return [cabs(a), 0];
+                }
+                return [NaN, NaN];
+            case 'bin':
+                a = cvalue(n.l, deg);
+                b = cvalue(n.r, deg);
+                switch (n.op) {
+                    case '+': return add(a, b);
+                    case '–': return sub(a, b);
+                    case '×': return cmul(a, b);
+                    case '÷': return cdiv(a, b);
+                    case 'yx': return cpow(a, b);
+                    case 'x√y': // the b-th root of a: of a negative number an odd root is real
+                        if (!a[1] && !b[1] && a[0] < 0 && b[0] === Math.floor(b[0]) && b[0] % 2) return [-Math.pow(-a[0], 1 / b[0]), 0];
+                        return cpow(a, cdiv([1, 0], b));
+                    case 'logy': return cdiv(clog(a), clog(b));
+                    case 'EE': return cmul(a, cpow([10, 0], b));
+                    case 'mod': return both(function (x, y) { return x - y * Math.floor(x / y); });
+                    case 'gcd': return both(function (x, y) { x = Math.abs(x); y = Math.abs(y); while (y) { var t = y; y = x % y; x = t; } return x; });
+                    case 'lcm': return both(function (x, y) { var g = x, h = y; while (h) { var t = h; h = g % h; g = t; } return Math.abs(x * y / g); });
+                    case 'nCr':
+                    case 'nPr': return both(function (x, y) {
+                        return n.op === 'nCr' ? gammaOf(x + 1) / (gammaOf(y + 1) * gammaOf(x - y + 1)) : gammaOf(x + 1) / gammaOf(x - y + 1);
+                    });
+                }
+        }
+        return [NaN, NaN];
+    }
+
+    // A complex number typed: (2 + 3i)(1 – i), sqrt(-4), e^(iπ), or in polar form, 2∠30 for a
+    // length of 2 at an angle of 30 in the unit deg. { re, im }, or null where it is not one, as
+    // with x or a letter but i
+    function complex(text, comma, deg) {
+        var s = String(text).replace(/(\d+\.?\d*|\.\d+)\s*∠\s*([-+−–]?\s*(?:\d+\.?\d*|\.\d+)°?)/g, '($1)(cos($2) + i sin($2))'),
+            t = s.trim() && Engine.tree(s, comma), z, bad = false;
+        (function letters(n) {
+            if (!n) return;
+            if (n.t === 'const' && (n.v === 'x' || (n.p && n.v !== 'i'))) bad = true;
+            letters(n.arg);
+            letters(n.l);
+            letters(n.r);
+        })(t);
+        if (!t || bad) return null;
+        z = cvalue(t, deg);
+        return isFinite(z[0]) && isFinite(z[1]) ? tidyComplex(z) : { re: NaN, im: NaN };
+    }
+
+    // its length and angle, the angle in the unit deg, from -half a turn to half a turn
+    function polar(z, deg) {
+        return { r: round(Math.hypot(z.re, z.im)), theta: round(Math.atan2(z.im, z.re) / [1, PI / 180, PI / 200][deg || 0]) };
+    }
+
+    // the n n-th roots of z, from the angle nearest 0 round
+    function croots(z, n) {
+        var r, t, k, out = [];
+        if (!(n >= 1 && n <= 24 && n === Math.floor(n)) || !isFinite(z.re) || !isFinite(z.im)) return null;
+        r = Math.pow(Math.hypot(z.re, z.im), 1 / n);
+        t = Math.atan2(z.im, z.re);
+        for (k = 0; k < n; k++) out.push(tidyComplex([r * Math.cos((t + 2 * PI * k) / n), r * Math.sin((t + 2 * PI * k) / n)]));
+        return out;
+    }
+
+    // ---------- bases ---------- //
+
+    // A calculation of whole numbers in bits, signed as a computer keeps them: decimal, 0x1F,
+    // 0b1010 or 0o17; + – × ÷ (whole), mod or %, AND & OR | XOR NOT ~, NAND, NOR, XNOR, << >>,
+    // brackets. Each value kept to the bits, as the machine does. { value: a BigInt, wrapped:
+    // it did not fit } or { error: 'expression' | 'zero' | 'bits' }
+    function bitwise(text, bits) {
+        var s = String(text).trim(), toks = [], m, i = 0, wrapped = false, out;
+        if ([8, 16, 32, 64].indexOf(bits) < 0) return { error: 'bits' };
+        while (s) {
+            if ((m = /^\s+/.exec(s))) {
+                // skipped
+            } else if ((m = /^0x([0-9a-f]+)/i.exec(s))) {
+                toks.push({ n: BigInt('0x' + m[1]) });
+            } else if ((m = /^0b([01]+)/i.exec(s))) {
+                toks.push({ n: BigInt('0b' + m[1]) });
+            } else if ((m = /^0o([0-7]+)/i.exec(s))) {
+                toks.push({ n: BigInt('0o' + m[1]) });
+            } else if ((m = /^\d+/.exec(s))) {
+                toks.push({ n: BigInt(m[0]) });
+            } else if ((m = /^(nand|nor|xnor|and|xor|or|not|mod|shl|shr)(?![a-z])/i.exec(s))) {
+                toks.push({ op: m[0].toLowerCase() });
+            } else if ((m = /^(<<|>>|[-+−–*×/÷%&|~()])/.exec(s))) {
+                toks.push({ op: { '−': '-', '–': '-', '×': '*', '÷': '/', '&': 'and', '|': 'or', '~': 'not', '%': 'mod', '<<': 'shl', '>>': 'shr' }[m[0]] || m[0] });
+            } else {
+                return { error: 'expression' };
+            }
+            s = s.slice(m[0].length);
+        }
+        function fit(v) {
+            var w = BigInt.asIntN(bits, v);
+            if (w !== v) wrapped = true;
+            return w;
+        }
+        function is(op) {
+            return toks[i] && toks[i].op === op;
+        }
+        function unary() {
+            var t = toks[i++], v;
+            if (!t) throw 'expression';
+            if (t.op === '-') return fit(-unary());
+            if (t.op === '+') return unary();
+            if (t.op === 'not') return fit(~unary());
+            if (t.op === '(') {
+                v = or();
+                if (!is(')')) throw 'expression';
+                i++;
+                return v;
+            }
+            if (t.n === undefined) throw 'expression';
+            return fit(t.n);
+        }
+        function level(next, ops, f) {
+            return function () {
+                var v = next(), op;
+                while (toks[i] && ops.indexOf(toks[i].op) > -1) {
+                    op = toks[i++].op;
+                    v = fit(f(op, v, next()));
+                }
+                return v;
+            };
+        }
+        var product = level(unary, ['*', '/', 'mod'], function (op, a, b) {
+            if (op !== '*' && b === BigInt(0)) throw 'zero';
+            return op === '*' ? a * b : op === '/' ? a / b : ((a % b) + b) % b;
+        });
+        var sum = level(product, ['+', '-'], function (op, a, b) { return op === '+' ? a + b : a - b; });
+        var shift = level(sum, ['shl', 'shr'], function (op, a, b) {
+            if (b < BigInt(0) || b >= BigInt(bits)) return op === 'shl' || a >= BigInt(0) ? BigInt(0) : BigInt(-1);
+            return op === 'shl' ? a << b : a >> b;
+        });
+        var and = level(shift, ['and', 'nand'], function (op, a, b) { return op === 'and' ? a & b : ~(a & b); });
+        var xor = level(and, ['xor', 'xnor'], function (op, a, b) { return op === 'xor' ? a ^ b : ~(a ^ b); });
+        var or = level(xor, ['or', 'nor'], function (op, a, b) { return op === 'or' ? a | b : ~(a | b); });
+        if (!toks.length) return { error: 'expression' };
+        try {
+            out = or();
+        } catch (e) {
+            if (e === 'expression' || e === 'zero') return { error: e };
+            throw e;
+        }
+        if (i < toks.length) return { error: 'expression' };
+        return { value: out, wrapped: wrapped };
+    }
+
+    // a value of bits in a base, as the bits are: -1 in 8 bits is FF; binary all of them, in fours apart
+    function inBase(v, bits, base) {
+        var s = BigInt.asUintN(bits, v).toString(base).toUpperCase();
+        return base !== 2 ? s : s.padStart(bits, '0').replace(/(\d{4})(?=\d)/g, '$1 ');
+    }
+
+    // ---------- matrices: arrays of rows ---------- //
+
+    // the determinant of a square matrix, by elimination with the largest first
+    function det(a) {
+        var n = a.length, m = a.map(function (r) { return r.slice(); }), d = 1, i, j, k, p, f, big;
+        if (!n || m.some(function (r) { return r.length !== n; })) return NaN;
+        big = Math.max.apply(null, m.map(function (r) { return Math.max.apply(null, r.map(Math.abs)); })) || 1;
+        for (j = 0; j < n; j++) {
+            p = j;
+            for (i = j + 1; i < n; i++) if (Math.abs(m[i][j]) > Math.abs(m[p][j])) p = i;
+            if (Math.abs(m[p][j]) <= 1e-13 * big) return 0;
+            if (p !== j) {
+                f = m[j];
+                m[j] = m[p];
+                m[p] = f;
+                d = -d;
+            }
+            d *= m[j][j];
+            for (i = j + 1; i < n; i++) {
+                f = m[i][j] / m[j][j];
+                for (k = j; k < n; k++) m[i][k] -= f * m[j][k];
+            }
+        }
+        return round(d);
+    }
+
+    // the inverse of a square matrix, by Gauss and Jordan; null where it has none
+    function inverse(a) {
+        var n = a.length, rows, r;
+        if (!n || a.some(function (row) { return row.length !== n; })) return null;
+        rows = a.map(function (row, i) { return row.concat(a.map(function (x, j) { return i === j ? 1 : 0; })); });
+        r = reduce(rows, n);
+        if (r.rank < n) return null;
+        r = r.m.map(function (row) { return row.slice(n); });
+        return clean(r, [r]);
+    }
+
+    // a matrix's rows reduced, as far as its first cols columns go: { m, rank }
+    function reduce(a, cols) {
+        var m = a.map(function (r) { return r.slice(); }), rows = m.length, rank = 0, i, j, k, p, f, big;
+        big = Math.max.apply(null, m.map(function (r) { return Math.max.apply(null, r.slice(0, cols).map(Math.abs)); })) || 1;
+        for (j = 0; j < cols && rank < rows; j++) {
+            p = rank;
+            for (i = rank + 1; i < rows; i++) if (Math.abs(m[i][j]) > Math.abs(m[p][j])) p = i;
+            if (Math.abs(m[p][j]) <= 1e-12 * big) continue;
+            f = m[rank];
+            m[rank] = m[p];
+            m[p] = f;
+            f = m[rank][j];
+            for (k = 0; k < m[rank].length; k++) m[rank][k] /= f;
+            for (i = 0; i < rows; i++) {
+                if (i === rank) continue;
+                f = m[i][j];
+                for (k = 0; k < m[i].length; k++) m[i][k] -= f * m[rank][k];
+            }
+            rank++;
+        }
+        return { m: m, rank: rank };
+    }
+
+    function rank(a) {
+        return a.length ? reduce(a, a[0].length).rank : 0;
+    }
+
+    function transpose(a) {
+        return a[0].map(function (x, j) { return a.map(function (row) { return row[j]; }); });
+    }
+
+    // the sum or difference of two matrices of one size, or null
+    function plus(a, b, minus) {
+        if (a.length !== b.length || a[0].length !== b[0].length) return null;
+        return clean(a.map(function (row, i) { return row.map(function (x, j) { return minus ? x - b[i][j] : x + b[i][j]; }); }), [a, b]);
+    }
+
+    // the product of two matrices, the columns of a as many as the rows of b, or null
+    function times(a, b) {
+        if (a[0].length !== b.length) return null;
+        return clean(a.map(function (row) {
+            return b[0].map(function (x, j) { return row.reduce(function (s, v, k) { return s + v * b[k][j]; }, 0); });
+        }), [a, b]);
+    }
+
+    // a matrix found, to 12 digits, a number as small as the rounding of the ones it came from
+    // being 0: 2.8e-17 in an inverse is 0
+    function clean(m, from) {
+        var big = Math.max.apply(null, from.concat([m]).map(function (a) {
+            return Math.max.apply(null, a.map(function (r) { return Math.max.apply(null, r.map(Math.abs)); }));
+        }));
+        return m.map(function (r) { return r.map(function (x) { return Math.abs(x) <= 1e-12 * big ? 0 : round(x); }); });
+    }
+
     var CalcMaths = {
         number: number,
         fn: fn,
@@ -511,7 +887,18 @@
             return counts(function (j) { return poisson(lambda, j); }, k, Infinity);
         },
         randomWhole: randomWhole,
-        round: round
+        round: round,
+        complex: complex,
+        polar: polar,
+        croots: croots,
+        bitwise: bitwise,
+        inBase: inBase,
+        det: det,
+        inverse: inverse,
+        rank: rank,
+        transpose: transpose,
+        plus: plus,
+        times: times
     };
 
     root.CalcMaths = CalcMaths;

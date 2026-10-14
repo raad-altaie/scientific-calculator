@@ -175,6 +175,14 @@
                                 <path d="M9.5 6.5H14M9.5 9.5H14" />
                             </svg>
                         </div>
+                        <!-- complex numbers, bases and matrices -->
+                        <div class="calc-numbers-btn" hidden>
+                            <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
+                                stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M5 2.5H3v11h2M11 2.5h2v11h-2" />
+                                <path d="M8 7.2v4.3M8 4.6v.1" />
+                            </svg>
+                        </div>
                         <!-- statistics of a list of numbers -->
                         <div class="calc-stat-btn" hidden>
                             <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
@@ -481,6 +489,19 @@
             <div class="calc-sv-list"></div>
         </div>
 
+        <!-- complex numbers, bases and matrices, over the keys like the history: a card for each tool, as the solver has -->
+        <div class="calc-past calc-numbers">
+            <div class="calc-past-head">
+                <span class="calc-solve-tabs">
+                    <span class="calc-solve-tab" data-tab="complex">Complex</span>
+                    <span class="calc-solve-tab" data-tab="base">Base</span>
+                    <span class="calc-solve-tab" data-tab="matrix">Matrix</span>
+                </span>
+                <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
+            </div>
+            <div class="calc-sv-list"></div>
+        </div>
+
         <!-- formulas and constants, over the keys like the history -->
         <div class="calc-past calc-fx">
             <div class="calc-past-head">
@@ -631,6 +652,24 @@
             <div class="option">
                 <span class="option-icon screen-icon">
                     <svg viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M5 2.5H3v11h2M11 2.5h2v11h-2" stroke-width="1.6"></path>
+                        <path d="M8 7.2v4.3M8 4.6v.1" stroke-width="1.6"></path>
+                    </svg>
+                </span>
+                <div class="option-text">
+                    <h3>Numbers</h3>
+                    <p>A button at the top left of the display for complex numbers, such as (2 + 3i)(1 – i), whole
+                        numbers in bits with their hexadecimal, octal and binary, and matrices: their determinant,
+                        inverse, sums and products.</p>
+                </div>
+                <label class="switch" title="Numbers">
+                    <input type="checkbox" id="panel-numbers">
+                    <span></span>
+                </label>
+            </div>
+            <div class="option">
+                <span class="option-icon screen-icon">
+                    <svg viewBox="0 0 16 16" aria-hidden="true">
                         <path d="M3.5 13.5V9M8 13.5V3M12.5 13.5V6.5" stroke-width="1.8"></path>
                     </svg>
                 </span>
@@ -733,6 +772,13 @@
                     Probability has the normal distribution's chances, density and inverse, binomial and Poisson chances, and
                     random whole numbers. It is worked out as you type; click a result to put it into your calculation. A box
                     of a number takes a calculation too: pi/4, sqrt(2).</li>
+                <li>Numbers: click the brackets with an i at the top left of the display. Complex works out a complex
+                    number, (2 + 3i)(1 – i), sqrt(-4) or 2∠30 in polar form, for its real and imaginary parts, length,
+                    angle and conjugate, and the n-th roots of one. Base works out whole numbers as a computer keeps them, in
+                    8, 16, 32 or 64 bits: decimal, 0xFF, 0b1010 or 0o17, with + – × ÷, mod, AND, OR, XOR, NOT and shifts,
+                    shown in decimal, hexadecimal, octal and binary. Matrix has a matrix of up to 4 × 4, its determinant,
+                    rank, inverse, transpose and square, and the sum and products of two. Click a result, or a number of a
+                    matrix, to put it into your calculation.</li>
                 <li><kbd class="k">mod</kbd>, <kbd class="k">gcd</kbd> and <kbd class="k">lcm</kbd> on the <kbd class="k">2nd</kbd> layer of <kbd class="k">%</kbd>, <kbd class="k"><sup>n</sup>C<sub>r</sub></kbd> and <kbd class="k"><sup>n</sup>P<sub>r</sub></kbd>.</li>
                 <li><kbd class="k">10<sup>x</sup></kbd>, <kbd class="k">e</kbd> and <kbd class="k">log<sub>y</sub></kbd> (the logarithm to any base: 8 log<sub>y</sub> 2 = 3) on the <kbd class="k">2nd</kbd> layer of <kbd class="k">log</kbd>, <kbd class="k">&pi;</kbd> and <kbd class="k">y<sup>x</sup></kbd>.</li>
                 <li>Degrees, minutes and seconds: the <kbd class="k">°′″</kbd> key shows results as 36°52′11.63″, and DMS in the display shows it is on. Paste an angle written so, 12°30′15″, 12°30'15" or 51°30′26″N: alone it shows as written, and DMS turns on. In an equation it is a number of degrees, and sin, cos and tan of it are worked out in degrees whatever the unit in use: sin(30°) is 0.5 in Rad as well. The converter has degrees, minutes and seconds among its angles too.</li>

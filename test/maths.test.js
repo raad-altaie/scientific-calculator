@@ -109,5 +109,49 @@ check(JSON.stringify(M.poisson(3, 2)) === '{"eq":0.224041807655,"le":0.423190081
 check(M.randomWhole(1, 6, function () { return 0; }) === 1 && M.randomWhole(1, 6, function () { return 0.9999; }) === 6 && isNaN(M.randomWhole(1.5, 6)),
     'randomWhole: from 1 to 6, both in; whole ends only');
 
+// complex numbers
+function z(text, deg) {
+    var c = M.complex(text, false, deg || 0);
+    return c ? c.re + (c.im < 0 ? '-' : '+') + Math.abs(c.im) + 'i' : 'none';
+}
+[
+    ['(2+3i)(1-i)', '5+1i'], ['sqrt(-4)', '0+2i'], ['e^(i pi)', '-1+0i'], ['i^2', '-1+0i'], ['1/i', '0-1i'], ['(1+i)^8', '16+0i'],
+    ['ln(-1)', '0+3.14159265359i'], ['abs(3+4i)', '5+0i'], ['sqrt(i)', '0.707106781187+0.707106781187i'], ['i^i', '0.207879576351+0i'],
+    ['(-8)^(1/3)', '-2+0i'], ['acos(2)', '0+1.31695789692i'], ['5 nCr 2', '10+0i']
+].forEach(function (c) {
+    check(z(c[0]) === c[1], 'complex: ' + c[0] + ' is ' + c[1], z(c[0]));
+});
+check(z('2∠30', 1) === '1.73205080757+1i' && z('sin(30)', 1) === '0.5+0i' && z('acos(2)', 1) === '0+75.4561292902i',
+    'complex: polar 2∠30°, and angles in degrees');
+check(z('x + 1') === 'none' && z('a i') === 'none' && z('2 +') === 'none' && isNaN(M.complex('1/0').re), 'complex: none with x or a letter but i, or unfinished; 1/0 has no value');
+check(JSON.stringify(M.polar({ re: 0, im: 1 }, 1)) === '{"r":1,"theta":90}' && M.polar({ re: -1, im: 0 }, 0).theta === 3.14159265359, 'polar: length and angle');
+check(JSON.stringify(M.croots({ re: 1, im: 0 }, 3)) === '[{"re":1,"im":0},{"re":-0.5,"im":0.866025403784},{"re":-0.5,"im":-0.866025403784}]' &&
+    M.croots({ re: 1, im: 0 }, 0) === null, 'croots: the cube roots of 1');
+
+// whole numbers in bits
+function bits(text, n) {
+    var r = M.bitwise(text, n || 32);
+    return r.error || String(r.value) + (r.wrapped ? ' wrapped' : '');
+}
+[
+    ['0xFF AND 0b1010', '10'], ['-1', '-1'], ['~0', '-1'], ['1 << 4', '16'], ['0x7FFFFFFF + 1', '-2147483648 wrapped'], ['10 / 3', '3'],
+    ['-7 mod 3', '2'], ['5 XOR 3', '6'], ['5 nand 3', '-2'], ['(1 + 2) × 3', '9'], ['0o17 | 0b10000', '31'], ['10 / 0', 'zero'], ['2 3', 'expression'],
+    ['0xg', 'expression'], ['', 'expression']
+].forEach(function (c) {
+    check(bits(c[0]) === c[1], 'bitwise: ' + c[0] + ' is ' + c[1], bits(c[0]));
+});
+check(bits('200', 8) === '-56 wrapped' && bits('1', 12) === 'bits' && M.inBase(BigInt(-1), 8, 16) === 'FF' && M.inBase(BigInt(10), 8, 2) === '0000 1010' &&
+    M.inBase(BigInt(-1), 16, 8) === '177777', 'bitwise: 8 bits signed; the bases of the bits');
+
+// matrices
+check(M.det([[1, 2], [3, 4]]) === -2 && M.det([[1, 2], [2, 4]]) === 0 && M.det([[2, 0, 1], [1, 3, 2], [1, 1, 2]]) === 6 && isNaN(M.det([[1, 2]])),
+    'det: 2×2, one with no inverse, 3×3; none of a matrix not square');
+check(JSON.stringify(M.inverse([[1, 2], [3, 4]])) === '[[-2,1],[1.5,-0.5]]' && M.inverse([[1, 2], [2, 4]]) === null &&
+    M.rank([[1, 2], [2, 4]]) === 1 && M.rank([[1, 0], [0, 1]]) === 2, 'inverse and rank');
+check(JSON.stringify(M.transpose([[1, 2, 3], [4, 5, 6]])) === '[[1,4],[2,5],[3,6]]' && JSON.stringify(M.plus([[1, 2]], [[3, 4]])) === '[[4,6]]' &&
+    JSON.stringify(M.plus([[1, 2]], [[3, 4]], true)) === '[[-2,-2]]' && M.plus([[1]], [[1, 2]]) === null &&
+    JSON.stringify(M.times([[1, 2], [3, 4]], [[0, 1], [1, 0]])) === '[[2,1],[4,3]]' && JSON.stringify(M.times([[1, 2, 3]], [[1], [2], [3]])) === '[[14]]' &&
+    M.times([[1, 2]], [[1, 2]]) === null, 'transpose, sum, difference and product, of sizes that go together only');
+
 console.log(failures ? failures + ' of ' + checks + ' checks failed' : 'all ' + checks + ' checks passed');
 process.exitCode = failures ? 1 : 0;

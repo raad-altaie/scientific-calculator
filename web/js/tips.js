@@ -147,6 +147,19 @@
             k: 'Esc'
         },
 
+        // the numbers
+        'numbers': {
+            t: 'Complex numbers, bases and matrices',
+            d: 'Complex numbers, (2 + 3i)(1 – i), with their length and angle; whole numbers in bits, in decimal, ' +
+                'hexadecimal, octal and binary, with AND, OR and XOR; and matrices, their determinant, inverse and products. Click a result to put it in.',
+            k: ''
+        },
+        'numbers close': {
+            t: 'Close the numbers',
+            d: 'What you typed stays for the next time.',
+            k: 'Esc'
+        },
+
         // the graph
         'graph': {
             t: 'Graph',
