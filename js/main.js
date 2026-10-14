@@ -65,7 +65,7 @@
         graphButton = root.querySelector('.calc-graph-btn'),
         solvePanel = root.querySelector('.calc-solve'), // equations solved, calculus and probability, over the keys
         solveButton = root.querySelector('.calc-solve-btn'),
-        numbersPanel = root.querySelector('.calc-numbers'), // complex numbers, bases and matrices, over the keys
+        numbersPanel = root.querySelector('.calc-numbers'), // matrices, complex numbers and bases, over the keys
         numbersButton = root.querySelector('.calc-numbers-btn'),
         graphRows = (function (first) { // a box for each curve, seven: the + shows the next one, its × takes it away
             var rows = [first], row;
@@ -240,7 +240,7 @@
         var holdKey = hold.textContent,
             keyMatch = (',|.|-|–|/|÷|*|×|#|+/–|x|x!|E|EE|e|ex| |2nd|r|x√y|R|√|p|π|^|yx|\'|yx|"|yx|m|mr|v|mc|b|m+|n|m-|a|Ans|' +
                 's|sin|c|cos|t|tan|S|sin-1|C|cos-1|T|tan-1|d|Deg|°|Deg|l|ln|L|log|\\|1/x|X|2x|N|nCr|P|nPr|f|a/b|M|mod|G|gcd|K|lcm|' +
-                'o|MODE').split('|'),
+                'F|floor|U|ceil|O|round|o|MODE').split('|'),
             keyMatchHold = ('sin|sinh|cos|cosh|tan|tanh|m-|Rand|Deg|Rand|sin-1|sinh-1|cos-1|cosh-1|tan-1|tanh-1|' +
                 '1|1/x|2|x2|3|x3|x√y|√|ln|log2|ex|2x|log|10x|π|e|yx|logy|a/b|°′″').split('|');
 
@@ -261,8 +261,8 @@
         }
         if ((key === 'h' || key === 'H') && !holdKey) hold.textContent = 'hold';
         if (!keyBoard[key]) return;
-        if ((key.match(/-1$|log2$|2x$|^(mod|gcd|lcm|10x|e|logy)$/) && !secondActive) ||
-            (key.match(/h$|n$|cos$|ex$|^(%|nCr|nPr|log|π|yx)$/) && secondActive)) {
+        if ((key.match(/-1$|log2$|2x$|^(mod|gcd|lcm|10x|e|logy|floor|ceil|round)$/) && !secondActive) ||
+            (key.match(/h$|n$|cos$|ex$|^(%|nCr|nPr|log|π|yx|abs|x!|Rand)$/) && secondActive)) {
             keyDown(false, keyBoard['2nd']);
             doKey('2nd', true);
         }
@@ -3400,6 +3400,16 @@
         }
     }
 
+    // a box of a matrix's size keeps only what a size is made of: digits, and x, ×, *, a comma
+    // or a space between them
+    function onlySize(input) {
+        var v = input.value, at = input.selectionStart, not = /[^\dx×*, ]/gi, clean = v.replace(not, '');
+        if (clean === v) return;
+        at -= v.slice(0, at).length - v.slice(0, at).replace(not, '').length;
+        input.value = clean;
+        input.setSelectionRange(at, at);
+    }
+
     fxList.addEventListener('input', function (e) {
         onlyNumber(e.target);
         var note = e.target.closest('.calc-fx-form').querySelector('.calc-fx-note');
@@ -3866,24 +3876,10 @@
 
     // ---------------- numbers ---------------- //
 
-    // Complex numbers, whole numbers in bits and their bases, matrices, and whole numbers'
+    // Matrices, complex numbers, whole numbers in bits and their bases, and whole numbers'
     // factors and numbers rounded, a tab each, with cards as the solver has. A matrix has a box
     // for each number, as many as its size says
     var NUMBER_TOOLS = {
-        complex: [
-            { id: 'complex', t: 'Complex number', f: 'a + b<i>i</i>, r∠θ', d: 'Work out a complex number: (2 + 3i)(1 – i), sqrt(-4), e^(iπ), or 2∠30 in polar form. Its real and imaginary parts, its length, angle and conjugate.',
-                fields: [{ k: 'z', ph: '(2 + 3i)(1 - i)', fn: true }], run: runComplex },
-            { id: 'croots', t: 'Roots of a complex number', f: 'z<sup>1/n</sup>', d: 'The n n-th roots of a complex number: the cube roots of 1, the fourth roots of -16.',
-                fields: [{ k: 'z', ph: '-16', fn: true }, { k: 'n', l: 'n', ph: '4', def: 4 }], run: runRoots }
-        ],
-        base: [
-            { id: 'bits', t: 'Bases', f: '0xFF AND 0b1010', d: 'Whole numbers as a computer keeps them, in 8, 16, 32 or 64 bits: decimal, 0x hexadecimal, 0b binary or 0o octal, with + – × ÷ mod AND OR XOR NOT NAND NOR XNOR, &lt;&lt; &gt;&gt; and ROL ROR, which turn the bits round. Each result in every base.',
-                fields: [{ k: 'e', ph: '0xFF AND 0b1010', fn: true }, { k: 'bits', l: 'Bits', ph: '32', def: 32 }], run: runBits },
-            { id: 'bitview', t: 'Bits', f: 'b<sub>7</sub> … b<sub>1</sub> b<sub>0</sub>', d: 'The bits of a whole number, each turned over with a click; how many are 1, the 0s before and after them, and the highest and lowest bit that is 1. Empty, it is 0, to click a number together.',
-                fields: [{ k: 'e', ph: '0', fn: true }, { k: 'bits', l: 'Bits', ph: '32', def: 32 }], run: runBitView },
-            { id: 'float', t: 'IEEE 754', f: '0.1 = 0x3FB999999999999A', d: 'A number as a computer keeps it: a double of 64 bits and a float of 32, in hexadecimal; its sign, exponent and fraction; the number it is, to its last digit, and the gap to the next. Or the bits, 0x3FB999999999999A, for the number.',
-                fields: [{ k: 'x', ph: '0.1', fn: true }], run: runFloat }
-        ],
         matrix: [
             { id: 'matrix', t: 'A matrix', f: 'det A, A<sup>–1</sup>, A<sup>T</sup>', d: 'Its determinant, rank, inverse, transpose and square. Type its size, 3×3 or 2 3, and a number in each box; an empty one is 0.',
                 fields: function (raw) { return [{ k: 'size', l: 'Size', ph: '2×2', text: true, shape: true }].concat(cells('a', 'A', raw.size)); }, run: runMatrix },
@@ -3903,6 +3899,20 @@
                     }
                     return out;
                 }, run: runAxb }
+        ],
+        complex: [
+            { id: 'complex', t: 'Complex number', f: 'a + b<i>i</i>, r∠θ', d: 'Work out a complex number: (2 + 3i)(1 – i), sqrt(-4), e^(iπ), or 2∠30 in polar form. Its real and imaginary parts, its length, angle and conjugate.',
+                fields: [{ k: 'z', ph: '(2 + 3i)(1 - i)', fn: true }], run: runComplex },
+            { id: 'croots', t: 'Roots of a complex number', f: 'z<sup>1/n</sup>', d: 'The n n-th roots of a complex number: the cube roots of 1, the fourth roots of -16.',
+                fields: [{ k: 'z', ph: '-16', fn: true }, { k: 'n', l: 'n', ph: '4', def: 4 }], run: runRoots }
+        ],
+        base: [
+            { id: 'bits', t: 'Bases', f: '0xFF AND 0b1010', d: 'Whole numbers as a computer keeps them, in 8, 16, 32 or 64 bits: decimal, 0x hexadecimal, 0b binary or 0o octal, with + – × ÷ mod AND OR XOR NOT NAND NOR XNOR, &lt;&lt; &gt;&gt; and ROL ROR, which turn the bits round. Each result in every base.',
+                fields: [{ k: 'e', ph: '0xFF AND 0b1010', fn: true }, { k: 'bits', l: 'Bits', ph: '32', def: 32 }], run: runBits },
+            { id: 'bitview', t: 'Bits', f: 'b<sub>7</sub> … b<sub>1</sub> b<sub>0</sub>', d: 'The bits of a whole number, each turned over with a click; how many are 1, the 0s before and after them, and the highest and lowest bit that is 1. Empty, it is 0, to click a number together.',
+                fields: [{ k: 'e', ph: '0', fn: true }, { k: 'bits', l: 'Bits', ph: '32', def: 32 }], run: runBitView },
+            { id: 'float', t: 'IEEE 754', f: '0.1 = 0x3FB999999999999A', d: 'A number as a computer keeps it: a double of 64 bits and a float of 32, in hexadecimal; its sign, exponent and fraction; the number it is, to its last digit, and the gap to the next. Or the bits, 0x3FB999999999999A, for the number.',
+                fields: [{ k: 'x', ph: '0.1', fn: true }], run: runFloat }
         ],
         whole: [
             { id: 'factors', t: 'Prime factors', f: '360 = 2<sup>3</sup> × 3<sup>2</sup> × 5', d: 'A whole number of up to 20 digits in its prime factors, whether it is prime, and its divisors: how many, their sum, each of them, and how many numbers up to it have none of its factors.',
@@ -4139,8 +4149,10 @@
     // its boxes; what it gives worked out as they are typed, in tiles that put a value into the
     // calculation with a click, a number of a matrix as well. A tab of one tool has it open.
     // key: where its tab, its tool open and what is typed in each are kept for the next time;
-    // tip: the name of the tip of its button and its close. { show(open), load(saved), tip(el), open() }
-    function toolPanel(panel, button, tools, key, tip) {
+    // tip: the name of the tip of its button and its close; plain: its boxes of a number keep only
+    // a number, as the formulas' do, where the solver's take a calculation, pi/4.
+    // { show(open), load(saved), tip(el), open() }
+    function toolPanel(panel, button, tools, key, tip, plain) {
         var list = panel.querySelector('.calc-sv-list'), tab = Object.keys(tools)[0], openId = '', values = {}, now = [], self;
 
         // the boxes of a tool, as what is typed in it says: a matrix has as many as its size
@@ -4355,11 +4367,14 @@
         // a box typed in: the results again; a size typed, the boxes of its matrix first, the
         // box typed in keeping the focus
         list.addEventListener('input', function (e) {
-            var item = e.target.closest('.calc-sv-item'), tool = item && tools[tab][+item.dataset.i], k = e.target.dataset.k, at, input;
+            var item = e.target.closest('.calc-sv-item'), tool = item && tools[tab][+item.dataset.i], k = e.target.dataset.k, at, input, field;
             if (!tool || e.target.tagName !== 'INPUT') return;
+            field = fieldsOf(tool, rawOf(tool)).filter(function (f) { return f.k === k; })[0] || {};
+            if (plain && field.shape) onlySize(e.target);
+            else if (plain && !field.fn && !field.text) onlyNumber(e.target);
             values[tool.id] = values[tool.id] || {};
             values[tool.id][k] = e.target.value;
-            if (fieldsOf(tool, rawOf(tool)).some(function (f) { return f.k === k && f.shape; })) {
+            if (field.shape) {
                 at = e.target.selectionStart;
                 boxes(tool, item);
                 input = item.querySelector('.calc-sv-boxes input[data-k="' + k + '"]');
@@ -4397,7 +4412,7 @@
     }
 
     var solver = toolPanel(solvePanel, solveButton, SOLVE_TOOLS, 'solve', 'solve'),
-        numbers = toolPanel(numbersPanel, numbersButton, NUMBER_TOOLS, 'numbers', 'numbers'),
+        numbers = toolPanel(numbersPanel, numbersButton, NUMBER_TOOLS, 'numbers', 'numbers', true),
         toolPanels = [solver, numbers];
 
     function showSolve(open) {

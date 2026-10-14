@@ -175,19 +175,19 @@
                                 <path d="M9.5 6.5H14M9.5 9.5H14" />
                             </svg>
                         </div>
-                        <!-- complex numbers, bases and matrices -->
-                        <div class="calc-numbers-btn" hidden>
-                            <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
-                                stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M5 2.5H3v11h2M11 2.5h2v11h-2" />
-                                <path d="M8 7.2v4.3M8 4.6v.1" />
-                            </svg>
-                        </div>
                         <!-- statistics of a list of numbers -->
                         <div class="calc-stat-btn" hidden>
                             <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
                                 stroke-width="1.8" stroke-linecap="round">
                                 <path d="M3.5 13.5V9M8 13.5V3M12.5 13.5V6.5" />
+                            </svg>
+                        </div>
+                        <!-- matrices, complex numbers and bases -->
+                        <div class="calc-numbers-btn" hidden>
+                            <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
+                                stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M4.2 2.5H2.2v11h2M11.8 2.5h2v11h-2" stroke-width="1.4" />
+                                <path d="M6.19 7.42C6.34 6.82 7.2 6.07 8.28 5.83C8.85 5.7 9.18 6 9.11 6.54L7.96 11.06C7.81 11.53 8.1 11.69 8.5 11.38C8.85 11.1 9.18 10.75 9.34 10.52C9.43 10.38 9.61 10.46 9.54 10.66C9.18 11.45 8.35 12.35 7.49 12.35C6.85 12.35 6.56 11.84 6.74 11.14L7.71 7.32C7.81 6.85 7.56 6.54 7.2 6.66C6.85 6.78 6.52 7.17 6.42 7.52C6.36 7.7 6.14 7.63 6.19 7.42ZM9.62 3.87a0.82 0.82 0 1 0-1.64 0a0.82 0.82 0 1 0 1.64 0Z" fill="currentColor" stroke-width=".35" />
                             </svg>
                         </div>
                     </div>
@@ -491,13 +491,13 @@
             <div class="calc-sv-list"></div>
         </div>
 
-        <!-- complex numbers, bases, matrices and whole numbers, over the keys like the history: a card for each tool, as the solver has -->
+        <!-- matrices, complex numbers, bases and whole numbers, over the keys like the history: a card for each tool, as the solver has -->
         <div class="calc-past calc-numbers">
             <div class="calc-past-head">
                 <span class="calc-solve-tabs">
+                    <span class="calc-solve-tab" data-tab="matrix">Matrix</span>
                     <span class="calc-solve-tab" data-tab="complex">Complex</span>
                     <span class="calc-solve-tab" data-tab="base">Base</span>
-                    <span class="calc-solve-tab" data-tab="matrix">Matrix</span>
                     <span class="calc-solve-tab" data-tab="whole">Integer</span>
                 </span>
                 <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
@@ -637,8 +637,8 @@
             <div class="option">
                 <span class="option-icon screen-icon">
                     <svg viewBox="0 0 16 16" aria-hidden="true">
-                        <path d="M2 4.5l5 7M7 4.5l-5 7" stroke-width="1.6"></path>
-                        <path d="M9.5 6.5H14M9.5 9.5H14" stroke-width="1.6"></path>
+                        <path d="M4.2 2.5H2.2v11h2M11.8 2.5h2v11h-2" stroke-width="1.4"></path>
+                        <path d="M6.19 7.42C6.34 6.82 7.2 6.07 8.28 5.83C8.85 5.7 9.18 6 9.11 6.54L7.96 11.06C7.81 11.53 8.1 11.69 8.5 11.38C8.85 11.1 9.18 10.75 9.34 10.52C9.43 10.38 9.61 10.46 9.54 10.66C9.18 11.45 8.35 12.35 7.49 12.35C6.85 12.35 6.56 11.84 6.74 11.14L7.71 7.32C7.81 6.85 7.56 6.54 7.2 6.66C6.85 6.78 6.52 7.17 6.42 7.52C6.36 7.7 6.14 7.63 6.19 7.42ZM9.62 3.87a0.82 0.82 0 1 0-1.64 0a0.82 0.82 0 1 0 1.64 0Z" fill="currentColor" stroke-width=".35"></path>
                     </svg>
                 </span>
                 <div class="option-text">
@@ -649,25 +649,6 @@
                 </div>
                 <label class="switch" title="Solve">
                     <input type="checkbox" id="panel-solve">
-                    <span></span>
-                </label>
-            </div>
-            <div class="option">
-                <span class="option-icon screen-icon">
-                    <svg viewBox="0 0 16 16" aria-hidden="true">
-                        <path d="M5 2.5H3v11h2M11 2.5h2v11h-2" stroke-width="1.6"></path>
-                        <path d="M8 7.2v4.3M8 4.6v.1" stroke-width="1.6"></path>
-                    </svg>
-                </span>
-                <div class="option-text">
-                    <h3>Numbers</h3>
-                    <p>A button at the top left of the display for complex numbers, such as (2 + 3i)(1 – i), whole
-                        numbers in bits with their hexadecimal, octal and binary, and numbers as doubles and floats,
-                        matrices: their determinant, inverse, sums, products and eigenvalues, and A x = b, and whole
-                        numbers' prime factors, GCD and LCM, and rounding.</p>
-                </div>
-                <label class="switch" title="Numbers">
-                    <input type="checkbox" id="panel-numbers">
                     <span></span>
                 </label>
             </div>
@@ -687,6 +668,25 @@
                     <span></span>
                 </label>
             </div>
+                <div class="option-text">
+                    <h3>Numbers</h3>
+                    <p>A button at the top left of the display for matrices: their determinant, inverse, sums,
+                        products and eigenvalues, and A x = b, complex numbers, such as (2 + 3i)(1 – i), whole numbers
+                        in bits with their hexadecimal, octal and binary, and numbers as doubles and floats, and whole
+                        numbers' prime factors, GCD and LCM, and rounding.</p>
+                </div>
+                <label class="switch" title="Numbers">
+                    <input type="checkbox" id="panel-numbers">
+                    <span></span>
+                </label>
+            </div>
+            <div class="option">
+                <span class="option-icon screen-icon">
+                    <svg viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M2 4.5l5 7M7 4.5l-5 7" stroke-width="1.6"></path>
+                        <path d="M9.5 6.5H14M9.5 9.5H14" stroke-width="1.6"></path>
+                    </svg>
+                </span>
             <div class="option format-option">
                 <span class="option-icon format-icon" id="format-icon" aria-hidden="true">1500</span>
                 <div class="option-text">
@@ -738,8 +738,6 @@
                 <li><kbd class="k k-red">DEL</kbd> button (or Backspace) to take back the last key you pressed, one key at a time.</li>
                 <li>Cursor: click into the equation, or use the arrow keys, to fix a number or an
                     operator in the middle of it. Back at the end, the calculator goes on as before.</li>
-                <li>Statistics: count, sum, mean, standard deviation, min, median and max of a list of numbers. See the
-                    "Statistics" section below.</li>
                 <li>Formulas and constants: some hundred formulas to fill in and sixty constants of math and science.
                     See the "Formulas and Constants" section below.</li>
                 <li>Converter: units of length, area, volume, mass, temperature and more. See the "Converter" section
@@ -748,7 +746,9 @@
                     crossings. See the "Graph" section below.</li>
                 <li>Solve: every root of an equation, inequalities, polynomials, linear systems, integrals, slopes,
                     sums, limits, differential equations and probability. See the "Solve" section below.</li>
-                <li>Numbers: complex numbers, bases and bits, IEEE 754, matrices and their eigenvalues, prime factors
+                <li>Statistics: count, sum, mean, standard deviation, min, median and max of a list of numbers. See the
+                    "Statistics" section below.</li>
+                <li>Numbers: matrices and their eigenvalues, complex numbers, bases and bits, IEEE 754, prime factors
                     and rounding. See the "Numbers" section below.</li>
                 <li><kbd class="k">mod</kbd>, <kbd class="k">gcd</kbd> and <kbd class="k">lcm</kbd> on the <kbd class="k">2nd</kbd> layer of <kbd class="k">%</kbd>, <kbd class="k"><sup>n</sup>C<sub>r</sub></kbd> and <kbd class="k"><sup>n</sup>P<sub>r</sub></kbd>.</li>
                 <li><kbd class="k">floor</kbd> and <kbd class="k">ceil</kbd> on the <kbd class="k">2nd</kbd> layer of <kbd class="k">abs</kbd> and <kbd class="k">x!</kbd>, side by side, and <kbd class="k">round</kbd> on that of <kbd class="k">Rand</kbd>: a number to the whole number below or above it, and to the nearest, half away from 0. They can be pasted too, with trunc, which goes toward 0: floor(7.5) = 7.</li>
@@ -892,15 +892,6 @@
         </div>
 
         <div class="features" data-tab="guide">
-            <h2 class="logo title">Statistics</h2>
-            <p>Click the bars at the top left of the display and type or paste a list of numbers, a column from a
-                spreadsheet as well, for its count, sum, mean, standard deviation (σ and s), min, median and max.
-                Click a result to use it in your calculation. The list finds what is between its numbers by itself;
-                choose new lines, tabs, spaces, commas, semicolons, pipes or colons at the top of the panel
-                instead, and a number written 1,234.5, 1 234,5 or $1,200 is read whole.</p>
-        </div>
-
-        <div class="features" data-tab="guide">
             <h2 class="logo title">Solve</h2>
             <p>Click x= at the top left of the display. Each tool is a card: open it, type in its boxes, and it is
                 worked out as you type. Click a result to put it into your calculation.</p>
@@ -921,10 +912,22 @@
         </div>
 
         <div class="features" data-tab="guide">
+            <h2 class="logo title">Statistics</h2>
+            <p>Click the bars at the top left of the display and type or paste a list of numbers, a column from a
+                spreadsheet as well, for its count, sum, mean, standard deviation (σ and s), min, median and max.
+                Click a result to use it in your calculation. The list finds what is between its numbers by itself;
+                choose new lines, tabs, spaces, commas, semicolons, pipes or colons at the top of the panel
+                instead, and a number written 1,234.5, 1 234,5 or $1,200 is read whole.</p>
+        </div>
+
+        <div class="features" data-tab="guide">
             <h2 class="logo title">Numbers</h2>
             <p>Click the brackets with an i at the top left of the display. It has cards as the solver has, on four
                 tabs. Click a result, or a number of a matrix, to put it into your calculation.</p>
             <ul>
+                <li>Matrix has a matrix of up to 4 × 4, its determinant, rank, inverse, transpose and square, and
+                    the sum and products of two; its eigenvalues, real or complex, its characteristic polynomial and
+                    its eigenvectors; and A x = b, linear equations of up to four unknowns.</li>
                 <li>Complex works out a complex number, (2 + 3i)(1 – i), sqrt(-4) or 2∠30 in polar form, for its
                     real and imaginary parts, length, angle and conjugate, and the n-th roots of one.</li>
                 <li>Base works out whole numbers as a computer keeps them, in 8, 16, 32 or 64 bits: decimal, 0xFF,
@@ -932,9 +935,6 @@
                     hexadecimal, octal and binary. Bits shows each bit of a number, to turn over with a click, and
                     how many are 1; IEEE 754 shows a number as a double and a float, 0.1 = 0x3FB999999999999A, what
                     it is to its last digit, and the number of the bits of one.</li>
-                <li>Matrix has a matrix of up to 4 × 4, its determinant, rank, inverse, transpose and square, and
-                    the sum and products of two; its eigenvalues, real or complex, its characteristic polynomial and
-                    its eigenvectors; and A x = b, linear equations of up to four unknowns.</li>
                 <li>Integer has the prime factors of a whole number of up to 20 digits, 360 = 2³ × 3² × 5, whether
                     it is prime, and its divisors; the GCD and LCM of two numbers or more; and a number rounded to d
                     places, half away from 0, down, up and toward 0, and to d significant figures.</li>

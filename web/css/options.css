@@ -128,6 +128,7 @@ html, body {
     height: 20px;
     fill: none;
     stroke: #fff;
+    color: #fff; /* what is filled, as the lines: the i of the numbers */
     stroke-width: 2;
     stroke-linecap: round;
     stroke-linejoin: round;
@@ -684,6 +685,7 @@ html, body {
 
 .screen-icon svg {
     stroke: #1f333c;
+    color: #1f333c;
 }
 
 /* two tabs at the top: the options, and the guide to the calculator */
