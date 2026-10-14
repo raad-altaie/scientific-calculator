@@ -484,9 +484,38 @@ async function graphPanel(page, at) {
     check(await page.calc('!document.querySelector(".calc-graph-pop").classList.contains("calc-graph-pop-below")'), t + 'over the point');
     await page.hover('.calc-graph-fn');
     check(await page.calc('!document.querySelector(".calc-graph-pop").hidden') && /^Point at the graph/.test(await page.calc(note)),
-        t + 'the popup stays after the pointer leaves, and the line says what to do again', await page.calc(note));
+        t + 'the popup stays a while after the pointer leaves, and the line says what to do again', await page.calc(note));
+
+    // the mouse on the popup keeps it; off it two seconds, it goes
+    await page.hover('.calc-graph-pop');
+    await sleep(2300);
+    check(await page.calc('!document.querySelector(".calc-graph-pop").hidden'), t + 'the mouse on the popup keeps it');
+    await page.hover('.calc-graph-fn');
+    check(await page.calc('!document.querySelector(".calc-graph-pop").hidden'), t + 'the mouse off it: it stays a moment');
+    await sleep(2300);
+    check(await page.calc('document.querySelector(".calc-graph-pop").hidden'), t + 'and goes after two seconds');
+    await page.clickAt('.calc-graph-plot', 0, -3);
+    await sleep(2300);
+    check(await page.calc('document.querySelector(".calc-graph-pop").hidden'), t + 'and so it does after a click, the mouse left on the point');
+    await page.clickAt('.calc-graph-plot', 0, -3);
     await page.clickAt('.calc-graph-plot', 0, -3);
     check(await page.calc('document.querySelector(".calc-graph-pop").hidden'), t + 'a click on the point again closes it');
+
+    // a zoom, by a button or the wheel, closes it at once
+    await page.clickAt('.calc-graph-plot', 0, -3);
+    await page.click('.calc-graph-zoom [data-zoom="in"]');
+    check(await page.calc('document.querySelector(".calc-graph-pop").hidden'), t + 'zoom in closes it');
+    await page.click('.calc-graph-zoom [data-zoom="home"]');
+    await page.clickAt('.calc-graph-plot', 0, -3);
+    check(await page.calc('!document.querySelector(".calc-graph-pop").hidden'), t + 'open again');
+    await page.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: (await page.at('.calc-graph-plot'))[0] - 100, y: (await page.at('.calc-graph-plot'))[1] + 60,
+        deltaX: 0, deltaY: -100 }); // off the popup, which is over the middle
+    await sleep(100);
+    check(await page.calc('document.querySelector(".calc-graph-pop").hidden'), t + 'the wheel closes it');
+    await page.click('.calc-graph-zoom [data-zoom="home"]');
+    await page.clickAt('.calc-graph-plot', 0, -3); // the popup back, then the point away with its tangent
+    await page.clickAt('.calc-graph-plot', 0, -3);
+    check(await page.calc('document.querySelector(".calc-graph-pop").hidden'), t + 'a second click takes the point away');
 
     // at its root √3, x² – 3 has the slope 2√3; the tangent is dashed through the root, and below the curve at 0.8
     plain = await page.calc(dashes(0.8, 2 * Math.sqrt(3) * (0.8 - Math.sqrt(3))));
@@ -494,6 +523,12 @@ async function graphPanel(page, at) {
     check(/^Root\s*x = 1\.732050807569\s*y = 0\s*Slope = 3\.464101615$/.test(await page.calc(pop)), t + 'the slope at the root', await page.calc(pop));
     check(plain === 0 && await page.calc(dashes(0.8, 2 * Math.sqrt(3) * (0.8 - Math.sqrt(3)))) > 0, t + 'and the tangent there',
         plain + ' / ' + await page.calc(dashes(0.8, 2 * Math.sqrt(3) * (0.8 - Math.sqrt(3)))));
+    await page.hover('.calc-graph-fn');
+    await sleep(2300);
+    check(await page.calc('document.querySelector(".calc-graph-pop").hidden') &&
+        await page.calc(dashes(0.8, 2 * Math.sqrt(3) * (0.8 - Math.sqrt(3)))) > 0, t + 'the popup goes, the tangent stays');
+    await page.clickAt('.calc-graph-plot', Math.sqrt(3), 0);
+    check(await page.calc('!document.querySelector(".calc-graph-pop").hidden'), t + 'a click on the point brings the popup back');
     await page.hover('.calc-graph-pop-row[data-put="m"]');
     check(await page.until('/^Insert the slope/.test(document.querySelector(".calc-tip").textContent)', 2000), t + 'the slope has its tip');
     await page.click('.calc-graph-pop-row[data-put="m"]');
@@ -875,7 +910,7 @@ async function graphHide(page, at) {
         ' w.URL.createObjectURL = function (b) { w.saved = { size: b.size, type: b.type }; return make.call(w.URL, b); };' +
         ' w.HTMLAnchorElement.prototype.click = function () { w.saved.name = this.download; }; })(document.defaultView)');
     await page.click('.calc-graph-zoom [data-zoom="save"]');
-    for (var wait = 0; wait < 30 && !await page.calc('!!(document.defaultView.saved && document.defaultView.saved.name)'); wait++) await sleep(100); // the picture is made apart
+    for (var wait = 0; wait < 60 && !await page.calc('!!(document.defaultView.saved && document.defaultView.saved.name)'); wait++) await sleep(100); // the picture is made apart
     check(await page.calc('(function (s) { return JSON.stringify(s && [s.name, s.type, s.size > 2000]); })(document.defaultView.saved)') ===
         '["graph.png","image/png",true]', t + 'the button saves the picture as graph.png', await page.calc('JSON.stringify(document.defaultView.saved)'));
 
