@@ -865,10 +865,35 @@
     // A function of x to draw, written as it would be pasted: x^2 – 3, 2sin(x), y = 1/x, a x² + b.
     // Null if the text is not one. at(x, deg, exact) is its value; angles: it has a
     // function of an angle; letters: its letters of their own, in the order they come,
-    // which vars holds the values of, as their sliders set them. comma: the decimal mark in use is a comma
+    // which vars holds the values of, as their sliders set them. comma: the decimal mark in use is a comma.
+    // d/dx before a function is its slope: d/dx(x^2) is 2x; anywhere else it is not a function,
+    // where it would be d ÷ d × x
     function graph(text, comma, vars) {
-        var s = separators(String(text).trim(), comma).replace(/^(y|f\s*\(\s*x\s*\))\s*=\s*/i, ''),
-            toks = s.length <= MAX_PASTE && tokens(s, null, true), tree = toks && parse(toks), letters = [];
+        return curveOf(separators(String(text).trim(), comma).replace(/^(y|f\s*\(\s*x\s*\))\s*=\s*/i, ''), vars);
+    }
+
+    // true unless s starts with a bracket that a sum goes on from: (x^2) + 1, not (x + 1)(x – 1)
+    function allOf(s) {
+        var depth = 0, k;
+        if (s.charAt(0) !== '(') return true;
+        for (k = 0; k < s.length; k++) {
+            if (s.charAt(k) === '(') depth++;
+            if (s.charAt(k) === ')' && !--depth) return !/^\s*[+\-–−]/.test(s.slice(k + 1));
+        }
+        return true; // left open, as a paste can
+    }
+
+    function curveOf(s, vars) {
+        var d = /^d\s*\/\s*dx\s*/.exec(s), of = d && curveOf(s.slice(d[0].length), vars),
+            toks = !d && !/d\s*\/\s*dx/.test(s) && s.length <= MAX_PASTE && tokens(s, null, true), tree = toks && parse(toks), letters = [];
+        if (d) {
+            if (!allOf(s.slice(d[0].length))) return null; // d/dx(x^2) + 1 is not the slope of all of it
+            return of && {
+                at: function (x, deg) { return slope(of, x, deg); },
+                angles: of.angles,
+                letters: of.letters
+            };
+        }
         if (!tree || !complete(tree)) return null;
         toks.forEach(function (t) {
             if (t.p && letters.indexOf(t.v) < 0) letters.push(t.v);
