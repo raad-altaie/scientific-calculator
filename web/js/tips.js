@@ -195,15 +195,46 @@
             d: 'Takes this curve away. The ones below it move up, each with its color.',
             k: ''
         },
-        'graph fit on': {
+        'graph fit lin': {
             t: 'Draw the best fit',
-            d: 'Draws the straight line nearest these points, by least squares; point at it for its r².',
+            d: 'Draws the straight line nearest these points, by least squares; point at it for its r². ' +
+                'Click again for a quadratic, an exponential, a power and a logarithmic fit.',
+            k: ''
+        },
+        'graph fit quad': {
+            t: 'Fit a parabola',
+            d: 'Draws y = ax² + bx + c nearest these points instead. It needs three x or more.',
+            k: ''
+        },
+        'graph fit exp': {
+            t: 'Fit an exponential',
+            d: 'Draws y = a · bˣ nearest these points instead, from the line of ln y, as calculators fit it. Every y must be above 0.',
+            k: ''
+        },
+        'graph fit pow': {
+            t: 'Fit a power',
+            d: 'Draws y = a · xᵇ nearest these points instead, from the line of ln y and ln x. Every x and y must be above 0.',
+            k: ''
+        },
+        'graph fit log': {
+            t: 'Fit a logarithm',
+            d: 'Draws y = a + b ln x nearest these points instead. Every x must be above 0.',
             k: ''
         },
         'graph fit off': {
             t: 'Hide the best fit',
-            d: 'Takes the line of the best fit away.',
+            d: 'Takes the curve of the best fit away.',
             k: ''
+        },
+        'graph points': {
+            t: 'Points as a table',
+            d: 'Type the points in rows of x and y; the box is written as you type, (1, 2), (2, 4.1). Enter goes to the row below.',
+            k: ''
+        },
+        'graph points off': {
+            t: 'Put the table away',
+            d: 'The points stay in the box.',
+            k: 'Esc'
         },
         'graph slope on': {
             t: 'Draw the slope',

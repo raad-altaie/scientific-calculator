@@ -2280,7 +2280,7 @@ dels.forEach(function (c) {
     [
         [['x^2 - 3'], 'root -1.73205080757 0 | min,yint 0 -3 | root 1.73205080757 0', 'roots, the low and the y axis of x² – 3'],
         [['x^2'], 'root,yint 0 0', 'the low of x² at 0 is its root'],
-        [['x^3 - 2x'], 'root -1.41421356237 0 | max -0.8164966 1.0886621079 | root,yint 0 0 | min 0.8164966 -1.0886621079 | ' +
+        [['x^3 - 2x'], 'root -1.41421356237 0 | max -0.8164966 1.0886621079 | root,infl,yint 0 0 | min 0.8164966 -1.0886621079 | ' +
             'root 1.41421356237 0', 'a cubic: its high and low between the roots'],
         [['x^2 - 4'], 'root -2 0 | min,yint 0 -4 | root 2 0', 'whole roots are whole, not 1.9999999999999998'],
         [['1/x'], '', '1/x has no root where it jumps, nor a high or low'],
@@ -2295,7 +2295,7 @@ dels.forEach(function (c) {
     check(!/root (?!-?[369]\.42|-?6\.28|-?3\.14|0 )/.test(marks(['tan(x)'])) && !/max|min/.test(marks(['tan(x)'])),
         'graph marks: tan x has its roots, and nothing where it jumps', marks(['tan(x)']));
     check(marks(['sin(x)'], 1, { x0: -360, x1: 360, y0: -5, y1: 5 }) ===
-        'root -360 0 | max -270 1 | root -180 0 | min -90 -1 | root,yint 0 0 | max 90 1 | root 180 0 | min 270 -1 | root 360 0',
+        'root -360 0 | max -270 1 | root,infl -180 0 | min -90 -1 | root,infl,yint 0 0 | max 90 1 | root,infl 180 0 | min 270 -1 | root 360 0',
         'graph marks: sin x in degrees, its highs at 90, not 89.99999997', marks(['sin(x)'], 1, { x0: -360, x1: 360, y0: -5, y1: 5 }));
     check(marks(['x^2 - 3'], 0, { x0: 2, x1: 5, y0: -10, y1: 10 }) === '', 'graph marks: only those in the view');
 
@@ -2397,6 +2397,56 @@ dels.forEach(function (c) {
         marks = Engine.keyPoints([null, Engine.graph('x')], view, 0, [], [circle, null]).filter(function (p) { return p.u !== undefined; });
         check(marks.length === 6 && marks.every(function (p) { return Math.abs(p.x * p.x + p.y * p.y - 1) < 1e-9; }),
             'keyPoints: a curve of t meets the axes, and crosses y = x', marks.length);
+    })();
+
+    // functions of other boxes by name, kept to where inequalities hold, in pieces; fits of more kinds; inflections
+    (function () {
+        var f = Engine.graph('f(x) = x^3 - 3x'), defs = { f: f, g: null }, kept, pieces, fit, bends;
+        check(Engine.named('f(x) = x^3') === 'f' && Engine.named(' G ( x ) = 1') === 'g' && Engine.named('y = 2') === null &&
+            Engine.named('x(x) = 1') === null && Engine.named('e(x) = 1') === null, 'named: the name of f(x) = …');
+        check(Engine.graph('f(2x) + 1', false, {}, defs).at(1, 0) === 3 && Engine.graph("f'(x)", false, {}, defs).at(2, 0) === 9 &&
+            Engine.graph("f''(x)", false, {}, defs).at(1, 0) === 6 && Engine.graph('f″(x)', false, {}, defs).at(2, 0) === 12,
+            "graph: f(2x) + 1, f′(x) and f″(x) of f(x) = x³ – 3x");
+        check(Engine.graph('f(x) + g(x)', false, {}, defs) === null && Engine.graph('f x', false, {}, defs).letters.join() === 'f' &&
+            Engine.graph('f(x)', false, {}).letters.join() === 'f', 'graph: a name not made yet is none; f without a bracket, or not a name, is a slider');
+        check(Engine.graph('a f(x)', false, {}, { f: Engine.graph('f(x) = b x') }).letters.join() === 'a,b' &&
+            Engine.relation('y < f(x)', false, {}, defs).at(1, 0, 0) === 2 && Engine.plane('(f(t), t)', false, {}, defs).at(2, 0)[0] === 2,
+            'graph: the letters of a function named are of what uses it; equations and curves of t use them too');
+        kept = Engine.graph('x^2 {0 < x < 3}');
+        check(isNaN(kept.at(-1, 0)) && kept.at(1, 0) === 1 && kept.at(3, 0) === 9 && isNaN(kept.at(4, 0)) &&
+            isNaN(Engine.graph('sin(x) {y > 0}').at(-1, 0)) && Engine.graph('y = x {x > a}{x < 5}').letters.join() === 'a' &&
+            Engine.graph('x {x = 1}') === null && Engine.graph('x {2}') === null, 'graph: x² {0 < x < 3}, {y > 0} of its value; inequalities only');
+        pieces = Engine.graph('y = {x < 0: -x, 0 <= x < 2: x^2}');
+        check(Engine.graph('{x < 0: -x, x^2}').at(-2, 0) === 2 && Engine.graph('{x < 0: -x, x^2}').at(3, 0) === 9 &&
+            pieces.at(1, 0) === 1 && isNaN(pieces.at(5, 0)) && Engine.graph('{x > 1}').at(2, 0) === 1 &&
+            Engine.graph('{x < 0; -x; x^2}', true) === null && Engine.graph('{x < 0: -x; x^2}', true).at(3, 0) === 9 &&
+            Engine.graph('{x < 0: -x, x^2, 3}') === null && Engine.graph('{x = 0: 1, 2}') === null,
+            'graph: in pieces, the first that holds, the last alone, or none; ; with the comma');
+        pieces = Engine.graph('{x < -1: -x, 2}');
+        check(pieces.piece(-2, 0) === 0 && pieces.piece(0, 0) === 1 && Engine.keyPoints([pieces], { x0: -5, x1: 5, y0: -5, y1: 5 }, 0).every(function (p) {
+            return p.t[0] === 'yint';
+        }), 'graph: which piece; no low where the pieces meet');
+        kept = Engine.relation('x^2 + y^2 = 25 {y > 0}');
+        check(kept.at(3, 4, 0) === 0 && isNaN(kept.at(3, -4, 0)) && Engine.relation('1 < x < 3 {y > 0}').parts.length === 2 &&
+            isNaN(Engine.relation('1 < x < 3 {y > 0}').parts[0].at(2, -1, 0)), 'relation: kept to where its braces hold');
+        fit = Engine.points('(1, 1), (2, 4), (3, 9), (4, 16)');
+        check(Engine.fit(fit, 'quad').k.join() === '1,0,0' && Engine.fit(fit, 'quad').r2 === 1 &&
+            Engine.fit(Engine.points('(0, 1), (1, 2), (2, 4)'), 'exp').k.join() === '1,2' &&
+            Engine.fit(Engine.points('(1, 3), (2, 12), (3, 27)'), 'pow').k.join() === '3,2' &&
+            Engine.fit(Engine.points('(1, 2), (2.718281828459045, 5)'), 'log').k.join() === '2,3' &&
+            Engine.fit(Engine.points('(1,2),(2,4.1),(3,5.9)'), 'lin').k.join() === '1.95,0.1',
+            'fit: y = x², 2ˣ, 3x², 2 + 3 ln x and a line');
+        check(Engine.fit(Engine.points('(1, -1), (2, 4)'), 'exp') === null && Engine.fit(Engine.points('(0, 1), (2, 4)'), 'log') === null &&
+            Engine.fit(Engine.points('(1, 1), (2, 4)'), 'quad') === null && Engine.fit(fit, 'quad').at(5) === 25,
+            'fit: none for a y below 0 of exp, an x of 0 of log, two x of a quadratic');
+        bends = function (s) {
+            return Engine.keyPoints([Engine.graph(s)], { x0: -5, x1: 5, y0: -20, y1: 20 }, 0).filter(function (p) {
+                return p.t.indexOf('infl') > -1;
+            }).map(function (p) { return p.x + ' ' + p.y; }).join('; ');
+        };
+        check(bends('x^3 - 6x^2 + 4') === '2 -12' && bends('x^4 - 6x^2') === '-1 -5; 1 -5' && bends('x e^(-x)').indexOf('2 ') === 0 &&
+            bends('x^2') === '' && bends('2x + 1') === '' && bends('1/x') === '' && bends('abs(x)') === '' && bends('d/dx(x^3)') === '',
+            'keyPoints: where it bends the other way; none of a line, x², a jump, a corner or a slope found by steps');
     })();
 
     // the place on an equation nearest a point, as pixels of 0.05 see it, and its slope there

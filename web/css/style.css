@@ -589,10 +589,101 @@
     display: none;
 }
 
-/* an equation of x and y, x² + y² = 25, has no y = before it: it is written in the box; nor have points */
+/* a fit the points cannot have: struck through */
+#calculator .calc-graph-fn > .calc-graph-diff.calc-bad {
+    text-decoration: line-through;
+}
+
+/* an equation of x and y, x² + y² = 25, has no y = before it: it is written in the box; nor have
+   points, nor a function named, f(x) = x^2 */
 #calculator .calc-graph-fn.calc-graph-data > span:not([class]),
+#calculator .calc-graph-fn.calc-graph-named > span:not([class]),
 #calculator .calc-graph-fn.calc-graph-rel > span:not([class]) {
     display: none;
+}
+
+/* its table of points, as its y′: only for points, or an empty box to start them */
+#calculator .calc-graph-fn > .calc-graph-points {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    opacity: 0.55;
+    cursor: pointer;
+}
+
+#calculator .calc-graph-fn.calc-graph-data > .calc-graph-points,
+#calculator .calc-graph-fn.calc-graph-empty > .calc-graph-points {
+    display: flex;
+}
+
+#calculator .calc-graph-fn > .calc-graph-points:hover {
+    opacity: 1;
+    background: #97b3a4;
+}
+
+#calculator .calc-graph-fn > .calc-graph-points.calc-on {
+    opacity: 1;
+    background: #1f333c;
+    color: #d3d9e2;
+}
+
+/* the table: x and y in two columns under the boxes, its edge of the color of its box; many rows scroll */
+#calculator .calc-graph-cells {
+    display: grid;
+    flex: none;
+    grid-template-columns: 1fr 1fr;
+    gap: 3px 4px;
+    max-height: 102px;
+    margin: 5px 8px 0 22px;
+    padding: 4px 6px 4px 8px;
+    border-left: 3px solid var(--c);
+    border-radius: 0 5px 5px 0;
+    background: #a9c4b5;
+    overflow-y: auto;
+}
+
+#calculator .calc-graph-cells[hidden] {
+    display: none;
+}
+
+#calculator .calc-graph-cells::-webkit-scrollbar {
+    width: 6px;
+}
+
+#calculator .calc-graph-cells::-webkit-scrollbar-thumb {
+    background: #6b8196;
+    border-radius: 3px;
+}
+
+#calculator .calc-graph-cells-head,
+#calculator .calc-graph-pair {
+    display: contents;
+}
+
+#calculator .calc-graph-cells-head > i {
+    color: #33443b;
+    font: italic 13px/16px 'Play', 'Russo One', sans-serif;
+    text-align: center;
+}
+
+#calculator .calc-graph-pair > input {
+    min-width: 0;
+    padding: 2px 5px;
+    border: 0;
+    border-radius: 3px;
+    outline: none;
+    background: #b6d1c2;
+    color: #000;
+    font: 13px/16px 'Play', 'Russo One', sans-serif;
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+#calculator .calc-graph-pair > input:focus {
+    box-shadow: 0 0 0 2px #c9e0d3;
 }
 
 /* its × at the right, quiet until pointed at; none while it is the only box */
