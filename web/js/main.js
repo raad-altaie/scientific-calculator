@@ -25,7 +25,7 @@
         tipTimer,
         tipGone = 0, // when the last tip went, so the next one comes at once
         copying = null, // text a history button is copying, in place of the main line
-        past = root.querySelector('.calc-past:not(.calc-stats):not(.calc-fx):not(.calc-conv):not(.calc-graph)'), // the history, over the keys
+        past = root.querySelector('.calc-past:not(.calc-stats):not(.calc-fx):not(.calc-conv):not(.calc-graph):not(.calc-solve)'), // the history, over the keys
         pastList = past.querySelector('.calc-past-list'),
         pastButton = root.querySelector('.calc-hist'),
         pastShown = {}, // the history as the list shows it, so it is only built again after a change
@@ -63,6 +63,9 @@
         convNow = [], // the value in each unit of the group, as the list shows them
         graph = root.querySelector('.calc-graph'), // the graph of a function of x, over the keys
         graphButton = root.querySelector('.calc-graph-btn'),
+        solvePanel = root.querySelector('.calc-solve'), // equations solved, calculus and probability, over the keys
+        solveButton = root.querySelector('.calc-solve-btn'),
+        solveList = solvePanel.querySelector('.calc-sv-list'),
         graphRows = (function (first) { // a box for each curve, seven: the + shows the next one, its × takes it away
             var rows = [first], row;
             while (rows.length < 7) {
@@ -212,6 +215,7 @@
                 showStats(false);
                 showFx(false);
                 showConv(false);
+                showSolve(false);
                 closeGraph();
                 e.preventDefault();
             }
@@ -279,6 +283,10 @@
         }
         if (key === 27 && conv.classList.contains('calc-open')) { // and the converter
             showConv(false);
+            return true;
+        }
+        if (key === 27 && solvePanel.classList.contains('calc-open')) { // and the solver
+            showSolve(false);
             return true;
         }
         if (key === 27 && graph.classList.contains('calc-open')) { // and the graph, after the point clicked on it and its big view
@@ -495,7 +503,7 @@
     // the ? beside the name have tips as well
     tip.parentNode.addEventListener('mouseover', function (e) {
         var key = e.target.closest('.calc-left > *, .calc-right > .del-ac, .calc-rad, .calc-mem, .calc-frac, .calc-fmt, .calc-hold, ' +
-            '.calc-stat-btn, .calc-stats-tile, .calc-fx-btn, .calc-fx-row, .calc-gx-row, .calc-conv-btn, .calc-conv-row, ' +
+            '.calc-stat-btn, .calc-stats-tile, .calc-fx-btn, .calc-fx-row, .calc-gx-row, .calc-conv-btn, .calc-conv-row, .calc-solve-btn, .calc-sv-row, ' +
             '.calc-graph-btn, .calc-graph-size, .calc-graph-add, .calc-graph-del, .calc-graph-diff, .calc-graph-points, .calc-graph-zoom > span, .calc-graph-pop-end, .calc-graph-pop-row, .calc-graph-play, ' +
             '.calc-graph-fn > .calc-graph-swatch, ' +
             '.calc-hist, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit, .calc-help');
@@ -576,6 +584,8 @@
                 k: ''
             };
         }
+        if (el === solveButton) return CalcTips[solvePanel.classList.contains('calc-open') ? 'solve close' : 'solve'];
+        if (solvePanel.contains(el)) return solveTip(el);
         if (el === graphButton) return CalcTips[graph.classList.contains('calc-open') ? 'graph close' : 'graph'];
         if (graph.contains(el)) {
             if (el.classList.contains('calc-gx-row')) return exampleTip(el);
@@ -888,6 +898,9 @@
         if (graph.classList.contains('calc-open') && !graph.contains(e.target) && !graphButton.contains(e.target)) {
             showGraph(false);
         }
+        if (solvePanel.classList.contains('calc-open') && !solvePanel.contains(e.target) && !solveButton.contains(e.target)) {
+            showSolve(false);
+        }
     }, true);
 
     past.querySelector('.calc-past-close').addEventListener('click', function () {
@@ -934,6 +947,7 @@
             showFx(false);
             showConv(false);
             showGraph(false);
+            showSolve(false);
             placePanel(past);
             renderPast();
         }
@@ -1018,6 +1032,7 @@
             showFx(false);
             showConv(false);
             showGraph(false);
+            showSolve(false);
             placePanel(stats);
             renderStats();
         }
@@ -1350,6 +1365,7 @@
     function showGraph(open) {
         var box;
         if (!open && graphAlone) return; // its own window stays, even as a value is put in
+        if (open) showSolve(false);
         if (!open) graphBig(false); // a value put in from the big graph: the calculator again
         if (!open && stopSliders()) saveState(); // the sliders played stop where they are
         if (!open) areaOn(false);
@@ -3339,6 +3355,7 @@
             showStats(false);
             showConv(false);
             showGraph(false);
+            showSolve(false);
             placePanel(fx);
             renderFx();
         }
@@ -3487,6 +3504,379 @@
         };
     }
 
+    // ---------------- solve ---------------- //
+
+    // Equations solved for x, calculus and probability, a tab each: a card for each tool, as the
+    // formulas have, which opens its boxes. What it gives is worked out as they are typed, in
+    // tiles that put a value into the calculation with a click, as the statistics do. A box of
+    // a number takes what the calculator reads, pi/4 or sqrt(2), in the unit of angles in use,
+    // and an empty one its default, which it shows; a box of a function what the graph reads
+    var MEAN = { k: 'mu', l: 'μ', ph: '0', def: 0 }, // the boxes of a normal distribution
+        SPREAD = { k: 'sigma', l: 'σ', ph: '1', def: 1 },
+        SOLVE_TOOLS = {
+        solve: [
+            { id: 'equation', t: 'Equation', f: 'x<sup>3</sup> = 2x + 1', d: 'Every x where its two sides are equal, or where one side alone is 0; from and to where to look, if you like.',
+                fields: [{ k: 'eq', ph: 'x^3 = 2x + 1', fn: true }, { k: 'from', l: 'From', ph: 'optional' }, { k: 'to', l: 'To', ph: 'optional' }], cols: 2,
+                run: runEquation },
+            { id: 'quadratic', t: 'Quadratic', f: 'ax<sup>2</sup> + bx + c = 0', d: 'Its two roots, real or a ± bi, the discriminant b² – 4ac and the vertex of its parabola.',
+                fields: coefficients('abc'), cols: 3, run: function (n) { return runPoly([n.a, n.b, n.c]); } },
+            { id: 'cubic', t: 'Cubic', f: 'ax<sup>3</sup> + bx<sup>2</sup> + cx + d = 0', d: 'Its three roots, real or a ± bi.',
+                fields: coefficients('abcd'), cols: 4, run: function (n) { return runPoly([n.a, n.b, n.c, n.d]); } },
+            { id: 'quartic', t: 'Quartic', f: 'ax<sup>4</sup> + bx<sup>3</sup> + cx<sup>2</sup> + dx + e = 0', d: 'Its four roots, real or a ± bi.',
+                fields: coefficients('abcde'), cols: 5, run: function (n) { return runPoly([n.a, n.b, n.c, n.d, n.e]); } },
+            { id: 'system2', t: 'Two equations', f: 'a<sub>1</sub>x + b<sub>1</sub>y = c<sub>1</sub>', d: 'x and y of two linear equations: a₁x + b₁y = c₁ and a₂x + b₂y = c₂.',
+                fields: system(2), cols: 3, run: function (n) { return runSystem(n, 2); } },
+            { id: 'system3', t: 'Three equations', f: 'a<sub>1</sub>x + b<sub>1</sub>y + c<sub>1</sub>z = d<sub>1</sub>', d: 'x, y and z of three linear equations, each a row: a, b, c and what it equals, d.',
+                fields: system(3), cols: 4, run: function (n) { return runSystem(n, 3); } }
+        ],
+        calculus: [
+            { id: 'integral', t: 'Integral', f: '∫<sub>a</sub><sup>b</sup> f(x) dx', d: 'The integral of a function from a to b, the area under it; an end may be ∞, typed inf.',
+                fields: [{ k: 'f', ph: 'x^2', fn: true }, { k: 'a', l: 'From', ph: '0', def: 0, inf: true }, { k: 'b', l: 'To', ph: '1', def: 1, inf: true }], cols: 2,
+                run: runIntegral },
+            { id: 'derivative', t: 'Derivative', f: 'f′(x), f″(x)', d: 'The value of a function at x, its slope there and the slope of that.',
+                fields: [{ k: 'f', ph: 'x^3', fn: true }, { k: 'x', l: 'x', ph: '2' }], cols: 1, run: runDerivative },
+            { id: 'sum', t: 'Sum', f: 'Σ f(n)', d: 'The sum of a function of n, k, i or j, or of x, for each whole number from a to b.',
+                fields: [{ k: 'f', ph: 'n^2', fn: true }, { k: 'a', l: 'From', ph: '1', def: 1 }, { k: 'b', l: 'To', ph: '10', def: 10 }], cols: 2,
+                run: function (n, raw) { return runSeries(n, raw, false); } },
+            { id: 'product', t: 'Product', f: 'Π f(n)', d: 'The product of a function of n, k, i or j, or of x, for each whole number from a to b.',
+                fields: [{ k: 'f', ph: 'n', fn: true }, { k: 'a', l: 'From', ph: '1', def: 1 }, { k: 'b', l: 'To', ph: '5', def: 5 }], cols: 2,
+                run: function (n, raw) { return runSeries(n, raw, true); } }
+        ],
+        chance: [
+            { id: 'normal', t: 'Normal probability', f: 'P(a ≤ X ≤ b)', d: 'The chance that a normal value of mean μ and standard deviation σ is between a and b; an empty end goes on without end.',
+                fields: [{ k: 'a', l: 'From', ph: '−∞', def: -Infinity, inf: true }, { k: 'b', l: 'To', ph: '∞', def: Infinity, inf: true }, MEAN, SPREAD], cols: 2,
+                run: function (n) {
+                    var p = CalcMaths.normalBetween(n.a, n.b, n.mu, n.sigma);
+                    return { rows: [{ l: 'P(a ≤ X ≤ b)', v: p }, { l: 'Outside', v: CalcMaths.round(1 - p) }], note: sigmaNote(n) };
+                } },
+            { id: 'density', t: 'Normal density', f: 'f(x)', d: 'The height of the normal curve of mean μ and standard deviation σ at x.',
+                fields: [{ k: 'x', l: 'x', ph: '0' }, MEAN, SPREAD], cols: 1,
+                run: function (n) { return { rows: [{ l: 'f(x)', v: CalcMaths.normalDensity(n.x, n.mu, n.sigma) }], note: sigmaNote(n) }; } },
+            { id: 'inverse', t: 'Inverse normal', f: 'P(X ≤ x) = p', d: 'The x that a normal value is below with the chance p, above with it, and the middle part that holds p.',
+                fields: [{ k: 'p', l: 'p', ph: '0.95' }, MEAN, SPREAD], cols: 1,
+                run: function (n) {
+                    var mid = (1 - n.p) / 2;
+                    return {
+                        rows: [{ l: 'P(X ≤ x)', v: CalcMaths.normalInverse(n.p, n.mu, n.sigma) }, { l: 'P(X ≥ x)', v: CalcMaths.normalInverse(1 - n.p, n.mu, n.sigma) },
+                            { l: 'Middle from', v: CalcMaths.normalInverse(mid, n.mu, n.sigma) }, { l: 'Middle to', v: CalcMaths.normalInverse(1 - mid, n.mu, n.sigma) }],
+                        note: !isNaN(n.p) && !(n.p > 0 && n.p < 1) ? 'p is a chance between 0 and 1.' : sigmaNote(n), warn: !isNaN(n.p) && !(n.p > 0 && n.p < 1)
+                    };
+                } },
+            { id: 'binomial', t: 'Binomial', f: 'P(X = k), n tries', d: 'The chance of k of n tries, each with the chance p: exactly k, k or fewer and k or more.',
+                fields: [{ k: 'n', l: 'n', ph: '10' }, { k: 'p', l: 'p', ph: '0.5' }, { k: 'k', l: 'k', ph: '5' }], cols: 3,
+                run: function (n) {
+                    var c = CalcMaths.binomial(n.n, n.p, n.k), bad = !isNaN(n.n) && !isNaN(n.p) && isNaN(c.eq) && !isNaN(n.k);
+                    return { rows: chances(c, n.n * n.p, Math.sqrt(n.n * n.p * (1 - n.p)), !isNaN(c.eq)), note: bad ? 'n is a whole number, p a chance between 0 and 1.' : '', warn: bad };
+                } },
+            { id: 'poisson', t: 'Poisson', f: 'P(X = k), mean λ', d: 'The chance of a count of k, of events that come at random at a mean of λ: exactly k, k or fewer and k or more.',
+                fields: [{ k: 'lambda', l: 'λ', ph: '3' }, { k: 'k', l: 'k', ph: '2' }], cols: 2,
+                run: function (n) {
+                    var c = CalcMaths.poisson(n.lambda, n.k), bad = !isNaN(n.lambda) && !(n.lambda > 0);
+                    return { rows: chances(c, n.lambda, Math.sqrt(n.lambda), !isNaN(c.eq)), note: bad ? 'λ is above 0.' : '', warn: bad };
+                } },
+            { id: 'random', t: 'Random whole numbers', f: 'from a to b', d: 'Five whole numbers at random, each from a to b, both in, as dice give them. Again for five more.',
+                fields: [{ k: 'a', l: 'From', ph: '1', def: 1 }, { k: 'b', l: 'To', ph: '6', def: 6 }], cols: 2, again: true,
+                run: function (n) {
+                    var rows = [], k;
+                    for (k = 0; k < 5; k++) rows.push({ l: 'Number ' + (k + 1), v: CalcMaths.randomWhole(n.a, n.b, chance) });
+                    return { rows: rows, note: isNaN(rows[0].v) && isFinite(n.a) && isFinite(n.b) ? 'Whole numbers, From the smaller.' : '', warn: isNaN(rows[0].v) };
+                } }
+        ]
+    },
+        solveTab = 'solve', // the tab shown: solve, calculus or chance
+        solveOpen = '', // the tool open, by its id
+        solveValues = {}, // what is typed in the boxes of each tool, by its id, kept for the next time
+        solveNow = []; // the results of the tool open, as its tiles show them
+
+    // a box for each coefficient, a of 1 and the others of 0 while they are empty
+    function coefficients(letters) {
+        return letters.split('').map(function (k, i) { return { k: k, l: k, ph: i ? '0' : '1', def: i ? 0 : 1 }; });
+    }
+
+    // a row of boxes for each equation: its coefficients and what it equals, each to be typed
+    function system(n) {
+        var out = [], i, j;
+        for (i = 1; i <= n; i++) {
+            for (j = 0; j <= n; j++) out.push({ k: 'abcd'.charAt(j) + i, l: 'abcd'.charAt(j) + '<sub>' + i + '</sub>', ph: '' });
+        }
+        return out;
+    }
+
+    // a random number from 0 to 1, from the browser's strong ones where it has them
+    function chance() {
+        var a = new Uint32Array(2);
+        if (!window.crypto || !window.crypto.getRandomValues) return Math.random();
+        window.crypto.getRandomValues(a);
+        return (a[0] * 2097152 + (a[1] >>> 11)) / 9007199254740992; // 53 bits
+    }
+
+    function sigmaNote(n) {
+        return !isNaN(n.sigma) && !(n.sigma > 0) ? 'σ is above 0.' : '';
+    }
+
+    // the chances of a count, its mean and standard deviation
+    function chances(c, mean, sd, known) {
+        return [{ l: 'P(X = k)', v: c.eq }, { l: 'P(X ≤ k)', v: c.le }, { l: 'P(X ≥ k)', v: c.ge },
+            { l: 'Mean', v: known ? CalcMaths.round(mean) : NaN }, { l: 'σ', v: known ? CalcMaths.round(sd) : NaN }];
+    }
+
+    // x₁, x₂ …, or x alone
+    function rootName(i, n) {
+        return n > 1 ? 'x<sub>' + (i + 1) + '</sub>' : 'x';
+    }
+
+    // -1 + 2i, 2i, as a number is shown
+    function complexText(z) {
+        var im = Math.abs(z.im) === 1 ? '' : local(String(Math.abs(z.im)));
+        return (z.re ? local(String(z.re)) + (z.im < 0 ? ' – ' : ' + ') : z.im < 0 ? '–' : '') + im + '<i>i</i>';
+    }
+
+    function runEquation(n, raw) {
+        var ends = isFinite(n.from) && isFinite(n.to), r, none = [{ l: 'x', v: NaN }];
+        if (!raw.eq) return { rows: none };
+        if (ends && n.from >= n.to) return { rows: none, note: 'From is less than To.', warn: true };
+        r = CalcMaths.solve(raw.eq, engine.comma, deg, ends ? n.from : NaN, ends ? n.to : NaN);
+        if (r.error) {
+            return { rows: none, bad: ['eq'], warn: true, note: r.error === 'letters' ? 'Only x has a value here: write the other letters as numbers.' :
+                'Not an equation of x yet: x^2 = 2x + 3, or one side alone, which is 0.' };
+        }
+        if (!r.roots.length) return { rows: none, note: ends ? 'No root between ' + local(String(n.from)) + ' and ' + local(String(n.to)) + '.' : 'No root found.' };
+        return {
+            rows: r.roots.map(function (x, i) { return { l: rootName(i, r.roots.length), v: x }; }),
+            note: r.more ? 'Of its many roots, the ' + r.roots.length + ' nearest 0: give From and To for others.' : ''
+        };
+    }
+
+    function runPoly(c) {
+        var z = CalcMaths.poly(c), size = c.length - 1, rows, k;
+        if (!z) {
+            rows = [];
+            for (k = 0; k < size; k++) rows.push({ l: rootName(k, size), v: NaN });
+            return { rows: rows, note: c.every(isFinite) ? 'No x left: its coefficients of x are all 0.' : '', warn: c.every(isFinite) };
+        }
+        rows = z.map(function (r, i) { return r.im ? { l: rootName(i, z.length), text: complexText(r) } : { l: rootName(i, z.length), v: r.re }; });
+        if (size === 2 && c[0]) {
+            rows.push({ l: 'Discriminant', v: CalcMaths.round(c[1] * c[1] - 4 * c[0] * c[2]) },
+                { l: 'Vertex x', v: CalcMaths.round(-c[1] / (2 * c[0])) }, { l: 'Vertex y', v: CalcMaths.round(c[2] - c[1] * c[1] / (4 * c[0])) });
+        }
+        return { rows: rows, note: z.length < size ? 'With a of 0, it is of a lower power.' : '' };
+    }
+
+    function runSystem(n, size) {
+        var rows = [], r, k, names = ['x', 'y', 'z'], known = true, i, j;
+        for (i = 1; i <= size; i++) {
+            rows.push([]);
+            for (j = 0; j <= size; j++) {
+                rows[i - 1].push(n['abcd'.charAt(j) + i]);
+                known = known && isFinite(n['abcd'.charAt(j) + i]);
+            }
+        }
+        r = known ? CalcMaths.linear(rows) : null;
+        rows = [];
+        for (k = 0; k < size; k++) rows.push({ l: names[k], v: r && r.x ? r.x[k] : NaN });
+        return { rows: rows, note: !r ? '' : r.none ? 'No answer: the equations cannot all hold.' : r.many ? 'Many answers: the equations do not each say something new.' : '' };
+    }
+
+    // the function of a box, marked where it is not one
+    function toolFunction(raw) {
+        var c = raw.f ? CalcMaths.fn(raw.f, engine.comma) : null;
+        return { c: c, bad: raw.f && !c ? ['f'] : [], note: raw.f && !c ? 'Not a function of x yet: write x^2 for x², 2x for 2 × x; no letters but x.' : '' };
+    }
+
+    function runIntegral(n, raw) {
+        var f = toolFunction(raw), v = f.c ? CalcMaths.integral(f.c, n.a, n.b, deg) : NaN;
+        return { rows: [{ l: '∫', v: v }], bad: f.bad, warn: !!f.note || (f.c && isNaN(v) && !isNaN(n.a) && !isNaN(n.b)),
+            note: f.note || (f.c && isNaN(v) && !isNaN(n.a) && !isNaN(n.b) ? 'No value: the function has none on the way, or it does not settle.' : '') };
+    }
+
+    function runDerivative(n, raw) {
+        var f = toolFunction(raw), s = f.c && isFinite(n.x) ? CalcMaths.slopes(f.c, n.x, deg) : [NaN, NaN];
+        return { rows: [{ l: 'f(x)', v: f.c && isFinite(n.x) ? f.c.at(n.x, deg, true) : NaN }, { l: 'f′(x)', v: s[0] }, { l: 'f″(x)', v: s[1] }],
+            bad: f.bad, note: f.note, warn: !!f.note };
+    }
+
+    function runSeries(n, raw, product) {
+        var r = raw.f ? CalcMaths.series(raw.f, engine.comma, deg, n.a, n.b, product) : { value: NaN }, why = {
+            'function': 'Not a function yet: write n^2 for n², 1/k! for 1 ÷ k!.',
+            letters: 'Of one letter: n, k, i or j, or x.',
+            ends: 'From and To are whole numbers, From the smaller.',
+            many: 'Up to a million terms.'
+        }[r.error];
+        return { rows: [{ l: product ? 'Π' : 'Σ', v: r.error ? NaN : r.value }], bad: r.error === 'function' || r.error === 'letters' ? ['f'] : [], note: why || '', warn: !!why };
+    }
+
+    solveButton.addEventListener('click', function () {
+        showSolve(!solvePanel.classList.contains('calc-open'));
+    }, false);
+
+    solvePanel.querySelector('.calc-past-close').addEventListener('click', function () {
+        showSolve(false);
+    }, false);
+
+    solvePanel.querySelector('.calc-solve-tabs').addEventListener('click', function (e) {
+        var tab = e.target.closest('.calc-solve-tab');
+        if (!tab) return;
+        solveTab = tab.dataset.tab;
+        renderSolve();
+        keepSolve();
+    }, false);
+
+    function showSolve(open) {
+        var box;
+        if (open) {
+            showPast(false);
+            showStats(false);
+            showFx(false);
+            showConv(false);
+            showGraph(false);
+            placePanel(solvePanel);
+            renderSolve();
+        }
+        solvePanel.classList.toggle('calc-open', open);
+        solveButton.classList.toggle('calc-on', open);
+        if (open) {
+            box = solveList.querySelector('.calc-sv-item.calc-on input');
+            if (box && focusBox(box)) box.select();
+        } else if (solvePanel.contains(document.activeElement)) {
+            document.activeElement.blur(); // the keys are the calculator's again
+        }
+    }
+
+    // the cards of the tab, the one open with its boxes
+    function renderSolve() {
+        var open;
+        [].forEach.call(solvePanel.querySelectorAll('.calc-solve-tab'), function (tab) {
+            tab.classList.toggle('calc-on', tab.dataset.tab === solveTab);
+        });
+        solveList.innerHTML = SOLVE_TOOLS[solveTab].map(function (tool, i) {
+            if (tool.id === solveOpen) open = i;
+            return '<div class="calc-sv-item" data-i="' + i + '"><div class="calc-sv-row"><span class="calc-sv-col">' +
+                '<span class="calc-sv-name">' + tool.t + '</span><span class="calc-sv-f calc-sv-eq calc-sv-val"><span>' + tool.f + '</span></span></span></div></div>';
+        }).join('');
+        solveList.scrollTop = 0;
+        if (open !== undefined) openTool(solveList.children[open], true);
+        hideTip();
+    }
+
+    // A card opened: a box for each of its numbers and functions, as they were typed last, and
+    // its results; the one open before closes. null closes it
+    function openTool(item, quiet) {
+        var open = solveList.querySelector('.calc-sv-item.calc-on'), tool, form, kept, box;
+        if (open) {
+            open.classList.remove('calc-on');
+            open.removeChild(open.querySelector('.calc-sv-form'));
+        }
+        solveOpen = '';
+        if (!item) return keepSolve();
+        hideTip();
+        tool = SOLVE_TOOLS[solveTab][+item.dataset.i];
+        kept = solveValues[tool.id] || {};
+        solveOpen = tool.id;
+        form = item.appendChild(document.createElement('div'));
+        form.className = 'calc-sv-form';
+        form.innerHTML = '<div class="calc-sv-fields" style="--cols: ' + (tool.cols || 1) + '">' + tool.fields.map(function (f) {
+            return '<label class="calc-sv-var' + (f.fn ? ' calc-sv-wide' : '') + '">' + (f.l ? '<span class="calc-sv-sym">' + f.l + '</span>' : '') +
+                '<input type="text"' + (f.fn ? '' : ' inputmode="decimal"') + ' spellcheck="false" autocomplete="off" maxlength="' + (f.fn ? 200 : 40) +
+                '" data-k="' + f.k + '" placeholder="' + f.ph + '" aria-label="' + (f.fn ? tool.t : f.l.replace(/<[^>]*>/g, '')) + '"></label>';
+        }).join('') + '</div><div class="calc-sv-note"></div>' + (tool.again ? '<span class="calc-sv-again">Again</span>' : '') +
+            '<div class="calc-sv-grid"></div>';
+        [].forEach.call(form.querySelectorAll('input'), function (input) {
+            input.value = typeof kept[input.dataset.k] === 'string' ? kept[input.dataset.k] : '';
+        });
+        item.classList.add('calc-on');
+        runTool();
+        keepSolve();
+        box = form.querySelector('input');
+        if (!quiet && focusBox(box)) box.select();
+        item.scrollIntoView({ block: 'nearest' });
+    }
+
+    // What the open tool gives from its boxes now: each number read, or its default while
+    // empty, a box that is not one marked; then its tiles, and its note
+    function runTool() {
+        var item = solveList.querySelector('.calc-sv-item.calc-on'), tool, raw = {}, n = {}, out, inputs;
+        if (!item) return;
+        tool = SOLVE_TOOLS[solveTab][+item.dataset.i];
+        inputs = [].slice.call(item.querySelectorAll('input'));
+        inputs.forEach(function (box) {
+            var f = tool.fields.filter(function (f) { return f.k === box.dataset.k; })[0], text = box.value.trim(), v;
+            raw[f.k] = text;
+            if (f.fn) return;
+            v = text ? CalcMaths.number(text, engine.comma, deg, f.inf) : f.def !== undefined ? f.def : NaN;
+            box.classList.toggle('calc-bad', !!text && isNaN(v));
+            n[f.k] = v;
+        });
+        out = tool.run(n, raw);
+        inputs.forEach(function (box) {
+            if (tool.fields.some(function (f) { return f.k === box.dataset.k && f.fn; })) box.classList.toggle('calc-bad', (out.bad || []).indexOf(box.dataset.k) > -1);
+        });
+        solveNow = out.rows;
+        item.querySelector('.calc-sv-grid').innerHTML = out.rows.map(function (r, i) {
+            var known = r.text === undefined && isFinite(r.v);
+            return '<div class="calc-sv-tile' + (known ? '' : ' calc-none') + '" data-r="' + i + '"><span class="calc-sv-label">' + r.l + '</span>' +
+                '<span class="calc-sv-value">' + (r.text !== undefined ? r.text : known ? statsValue(r.v).html : '–') + '</span></div>';
+        }).join('');
+        [].forEach.call(item.querySelectorAll('.calc-sv-value'), function (shown) {
+            var size = 17;
+            while (size > 11 && shown.scrollWidth > shown.clientWidth) shown.style.fontSize = --size + 'px'; // a long one gets smaller, as on the display
+        });
+        item.querySelector('.calc-sv-note').textContent = out.note || '';
+        item.querySelector('.calc-sv-note').classList.toggle('calc-sv-warn', !!out.warn);
+    }
+
+    // the tab, the tool open and what is typed in each, for the next time
+    function keepSolve() {
+        store('solve', { tab: solveTab, open: solveOpen, v: solveValues });
+    }
+
+    function loadSolve(saved) {
+        if (!saved || typeof saved !== 'object') return;
+        if (SOLVE_TOOLS.hasOwnProperty(saved.tab)) solveTab = saved.tab;
+        if (typeof saved.open === 'string') solveOpen = saved.open;
+        if (saved.v && typeof saved.v === 'object') solveValues = saved.v;
+    }
+
+    // a card opens its boxes, or closes them; Again draws more random numbers; a tile is put in
+    solveList.addEventListener('click', function (e) {
+        var row = e.target.closest('.calc-sv-row'), tile = e.target.closest('.calc-sv-tile'), r;
+        if (row) return openTool(row.parentNode.classList.contains('calc-on') ? null : row.parentNode);
+        if (e.target.closest('.calc-sv-again')) return runTool();
+        r = tile && solveNow[+tile.dataset.r];
+        if (!r || r.text !== undefined || !isFinite(r.v) || !engine.put(r.v)) return;
+        keyBoard['AC'].children[0].firstChild.data = 'C';
+        showSolve(false);
+        refresh();
+        saveState();
+    }, false);
+
+    solveList.addEventListener('input', function (e) {
+        var item = e.target.closest('.calc-sv-item'), tool = item && SOLVE_TOOLS[solveTab][+item.dataset.i];
+        if (!tool || e.target.tagName !== 'INPUT') return;
+        solveValues[tool.id] = solveValues[tool.id] || {};
+        solveValues[tool.id][e.target.dataset.k] = e.target.value;
+        runTool();
+        keepSolve();
+    }, false);
+
+    // Enter goes on to the next box
+    solveList.addEventListener('keydown', function (e) {
+        var inputs, at;
+        if (e.which !== 13 || e.target.tagName !== 'INPUT') return;
+        e.preventDefault();
+        inputs = [].slice.call(e.target.closest('.calc-sv-form').querySelectorAll('input'));
+        at = inputs.indexOf(e.target);
+        if (at < inputs.length - 1) inputs[at + 1].focus();
+    }, false);
+
+    // the tip of a card: what it gives
+    function solveTip(el) {
+        var tool;
+        if (el.classList.contains('calc-past-close')) return CalcTips['solve close'];
+        if (!el.classList.contains('calc-sv-row') || el.parentNode.classList.contains('calc-on')) return null;
+        tool = SOLVE_TOOLS[solveTab][+el.parentNode.dataset.i];
+        return { t: tool.t, d: tool.d + ' Click to open it.', k: '' };
+    }
+
     // ---------------- examples of the graph ---------------- //
 
     // each example, with the words it is found by: its group, its name, what it types and what it is
@@ -3630,6 +4020,7 @@
             showStats(false);
             showFx(false);
             showGraph(false);
+            showSolve(false);
             placePanel(conv);
             if (!engine.edit && !engine.error && (engine.done || engine.plain()) && +engine.value) {
                 convInput.value = local(+(+engine.value).toPrecision(13));
@@ -3808,16 +4199,18 @@
         return { t: unit.t.charAt(0).toUpperCase() + unit.t.slice(1), d: 'Click to put it into the equation.', k: '' };
     }
 
-    // the statistics, the formulas, the converter and the graph have their button while they are turned on in the options
-    function setPanels(statsOn, fxOn, convOn, graphOn) {
+    // the statistics, the formulas, the converter, the graph and the solver have their button while they are turned on in the options
+    function setPanels(statsOn, fxOn, convOn, graphOn, solveOn) {
         statsButton.hidden = !statsOn;
         fxButton.hidden = !fxOn;
         convButton.hidden = !convOn;
         graphButton.hidden = !graphOn;
+        solveButton.hidden = !solveOn;
         if (!statsOn) showStats(false);
         if (!fxOn) showFx(false);
         if (!convOn) showConv(false);
         if (!graphOn) showGraph(false);
+        if (!solveOn) showSolve(false);
         showTools();
     }
 
@@ -4228,7 +4621,7 @@
         var s = {};
 
         // all read first: the keys pressed below must not save over what is still to be read
-        ['secondActive', 'deg', 'stat', 'statBy', 'statsOn', 'fxOn', 'fxTab', 'convOn', 'conv', 'graphOn', 'graph', 'fraction', 'dms', 'format', 'fnOrder', 'memory', 'calc'].forEach(function (key) {
+        ['secondActive', 'deg', 'stat', 'statBy', 'statsOn', 'fxOn', 'fxTab', 'convOn', 'conv', 'graphOn', 'graph', 'solveOn', 'solve', 'fraction', 'dms', 'format', 'fnOrder', 'memory', 'calc'].forEach(function (key) {
             s[key] = stored(key);
         });
         // functions go before their number, tan 45; who used the calculator before this
@@ -4242,9 +4635,10 @@
         setUnit(s.deg === true ? 1 : s.deg === 'grad' ? 2 : 0);
         if (typeof s.stat === 'string') statsInput.value = s.stat;
         setStatsBy(Math.max(0, BY.map(function (by) { return by[0]; }).indexOf(s.statBy)));
-        // all four on, until changed in the options
-        setPanels(s.statsOn !== false, s.fxOn !== false, s.convOn !== false, s.graphOn !== false);
+        // all on, until changed in the options
+        setPanels(s.statsOn !== false, s.fxOn !== false, s.convOn !== false, s.graphOn !== false, s.solveOn !== false);
         loadGraph(s.graph);
+        loadSolve(s.solve);
         if (s.fxTab === 'constants') fxTab = s.fxTab;
         loadConv(s.conv);
         fracMode = engine.fraction = !!s.fraction;
@@ -4282,8 +4676,9 @@
             ownSaves.deg = e.newValue;
             return setUnit(stored('deg') === true ? 1 : stored('deg') === 'grad' ? 2 : 0);
         }
-        if (e.key === 'statsOn' || e.key === 'fxOn' || e.key === 'convOn' || e.key === 'graphOn') {
-            return setPanels(stored('statsOn') !== false, stored('fxOn') !== false, stored('convOn') !== false, stored('graphOn') !== false);
+        if (e.key === 'statsOn' || e.key === 'fxOn' || e.key === 'convOn' || e.key === 'graphOn' || e.key === 'solveOn') {
+            return setPanels(stored('statsOn') !== false, stored('fxOn') !== false, stored('convOn') !== false, stored('graphOn') !== false,
+                stored('solveOn') !== false);
         }
         if (e.key === 'format') setFormat(stored('format'));
         else if (e.key === 'fnOrder') engine.fnFirst = stored('fnOrder') !== 'after';

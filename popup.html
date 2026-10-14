@@ -114,6 +114,14 @@
                                 <path d="M4.5 11c1.6-6 3.2-6 4.6-3s2.6 2.5 4.4-3.5" />
                             </svg>
                         </div>
+                        <!-- equations solved, calculus and probability -->
+                        <div class="calc-solve-btn" hidden>
+                            <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
+                                stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M2 4.5l5 7M7 4.5l-5 7" />
+                                <path d="M9.5 6.5H14M9.5 9.5H14" />
+                            </svg>
+                        </div>
                         <!-- statistics of a list of numbers -->
                         <div class="calc-stat-btn" hidden>
                             <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
@@ -407,6 +415,19 @@
             </div>
         </div>
 
+        <!-- equations solved, calculus and probability, over the keys like the history: a card for each tool -->
+        <div class="calc-past calc-solve">
+            <div class="calc-past-head">
+                <span class="calc-solve-tabs">
+                    <span class="calc-solve-tab" data-tab="solve">Solve</span>
+                    <span class="calc-solve-tab" data-tab="calculus">Calculus</span>
+                    <span class="calc-solve-tab" data-tab="chance">Probability</span>
+                </span>
+                <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
+            </div>
+            <div class="calc-sv-list"></div>
+        </div>
+
         <!-- formulas and constants, over the keys like the history -->
         <div class="calc-past calc-fx">
             <div class="calc-past-head">
@@ -464,6 +485,7 @@
     <script src="js/engine.js"></script>
     <script src="js/tips.js"></script>
     <script src="js/formulas.js"></script>
+    <script src="js/maths.js"></script>
     <script src="js/units.js"></script>
     <script src="js/main.js"></script>
     <script src="js/popup.js"></script>

@@ -207,14 +207,16 @@
 }
 
 /* the results: a click puts one into the calculation */
-#calculator .calc-stats-grid {
+#calculator .calc-stats-grid,
+#calculator .calc-sv-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 7px;
     margin: 4px 8px 0;
 }
 
-#calculator .calc-stats-tile {
+#calculator .calc-stats-tile,
+#calculator .calc-sv-tile {
     min-width: 0;
     padding: 4px 8px 3px;
     border-radius: 5px;
@@ -224,33 +226,39 @@
     cursor: pointer;
 }
 
-#calculator .calc-stats-tile:hover {
+#calculator .calc-stats-tile:hover,
+#calculator .calc-sv-tile:hover {
     background: #a3bdaf;
 }
 
-#calculator .calc-stats-tile:active {
+#calculator .calc-stats-tile:active,
+#calculator .calc-sv-tile:active {
     background: #98b3a5;
 }
 
 /* no value yet: nothing to put in */
-#calculator .calc-stats-tile.calc-none {
+#calculator .calc-stats-tile.calc-none,
+#calculator .calc-sv-tile.calc-none {
     cursor: default;
     background: #b6d1c2;
 }
 
-#calculator .calc-stats-label {
+#calculator .calc-stats-label,
+#calculator .calc-sv-label {
     display: block;
     color: #33443b;
     font-size: 12px;
     line-height: 15px;
 }
 
-#calculator .calc-stats-label sup {
+#calculator .calc-stats-label sup,
+#calculator .calc-sv-label sup {
     font-size: 9px;
     line-height: 0;
 }
 
-#calculator .calc-stats-value {
+#calculator .calc-stats-value,
+#calculator .calc-sv-value {
     display: block;
     overflow: hidden;
     font-size: 17px;
@@ -260,7 +268,8 @@
     text-overflow: ellipsis;
 }
 
-#calculator .calc-stats-value .calc-fr {
+#calculator .calc-stats-value .calc-fr,
+#calculator .calc-sv-value .calc-fr {
     font-size: 0.65em;
 }
 
@@ -1301,14 +1310,16 @@
 
 /* the two tabs in the head of the panel; the graph has its two the same */
 #calculator .calc-fx-tabs,
-#calculator .calc-graph-tabs {
+#calculator .calc-graph-tabs,
+#calculator .calc-solve-tabs {
     display: flex;
     gap: 2px;
     margin-left: -6px;
 }
 
 #calculator .calc-fx .calc-past-head .calc-fx-tab, /* not the first span of the head, which has the room left */
-#calculator .calc-graph .calc-past-head .calc-graph-tab {
+#calculator .calc-graph .calc-past-head .calc-graph-tab,
+#calculator .calc-solve .calc-past-head .calc-solve-tab {
     flex: none;
     padding: 0 8px;
     border-radius: 4px;
@@ -1319,13 +1330,15 @@
 }
 
 #calculator .calc-fx-tab:hover,
-#calculator .calc-graph-tab:hover {
+#calculator .calc-graph-tab:hover,
+#calculator .calc-solve-tab:hover {
     opacity: 1;
     background: #52687d;
 }
 
 #calculator .calc-fx .calc-past-head .calc-fx-tab.calc-on,
-#calculator .calc-graph .calc-past-head .calc-graph-tab.calc-on {
+#calculator .calc-graph .calc-past-head .calc-graph-tab.calc-on,
+#calculator .calc-solve .calc-past-head .calc-solve-tab.calc-on {
     opacity: 1;
     background: #5d748a;
     color: #fff;
@@ -1360,19 +1373,22 @@
 }
 
 #calculator .calc-fx-list,
-#calculator .calc-gx-list {
+#calculator .calc-gx-list,
+#calculator .calc-sv-list {
     flex: 1;
     overflow-y: auto;
     padding: 0 8px;
 }
 
 #calculator .calc-fx-list::-webkit-scrollbar,
-#calculator .calc-gx-list::-webkit-scrollbar {
+#calculator .calc-gx-list::-webkit-scrollbar,
+#calculator .calc-sv-list::-webkit-scrollbar {
     width: 6px;
 }
 
 #calculator .calc-fx-list::-webkit-scrollbar-thumb,
-#calculator .calc-gx-list::-webkit-scrollbar-thumb {
+#calculator .calc-gx-list::-webkit-scrollbar-thumb,
+#calculator .calc-sv-list::-webkit-scrollbar-thumb {
     background: #6b8196;
     border-radius: 3px;
 }
@@ -1403,7 +1419,8 @@
 
 /* a formula or a constant, on a piece of display */
 #calculator .calc-fx-item,
-#calculator .calc-gx-item {
+#calculator .calc-gx-item,
+#calculator .calc-sv-item {
     margin-bottom: 6px;
     border-radius: 5px;
     background: #b6d1c2;
@@ -1412,7 +1429,8 @@
 }
 
 #calculator .calc-fx-row,
-#calculator .calc-gx-row {
+#calculator .calc-gx-row,
+#calculator .calc-sv-row {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -1422,24 +1440,28 @@
 }
 
 #calculator .calc-fx-row:hover,
-#calculator .calc-gx-row:hover {
+#calculator .calc-gx-row:hover,
+#calculator .calc-sv-row:hover {
     background: #a3bdaf;
 }
 
 #calculator .calc-fx-row:active,
-#calculator .calc-gx-row:active {
+#calculator .calc-gx-row:active,
+#calculator .calc-sv-row:active {
     background: #98b3a5;
 }
 
 #calculator .calc-fx-item.calc-on .calc-fx-row,
-#calculator .calc-gx-item.calc-on .calc-gx-row {
+#calculator .calc-gx-item.calc-on .calc-gx-row,
+#calculator .calc-sv-item.calc-on .calc-sv-row {
     border-radius: 5px 5px 0 0;
     background: #a3bdaf;
 }
 
 /* its name, and the formula as it is written or the constant with its value */
 #calculator .calc-fx-col,
-#calculator .calc-gx-col {
+#calculator .calc-gx-col,
+#calculator .calc-sv-col {
     flex: 1;
     min-width: 0;
 }
@@ -1447,7 +1469,9 @@
 #calculator .calc-fx-name,
 #calculator .calc-fx-f,
 #calculator .calc-gx-name,
-#calculator .calc-gx-f {
+#calculator .calc-gx-f,
+#calculator .calc-sv-name,
+#calculator .calc-sv-f {
     display: block;
     overflow: hidden;
     white-space: nowrap;
@@ -1455,14 +1479,16 @@
 }
 
 #calculator .calc-fx-name,
-#calculator .calc-gx-name {
+#calculator .calc-gx-name,
+#calculator .calc-sv-name {
     color: #33443b;
     font-size: 12px;
     line-height: 15px;
 }
 
 #calculator .calc-fx-f,
-#calculator .calc-gx-f {
+#calculator .calc-gx-f,
+#calculator .calc-sv-f {
     font-size: 15px;
     line-height: 21px;
 }
@@ -1471,14 +1497,16 @@
    left of its card, and the formula sits at the middle of the room under it. Every
    card of formulas is as high as one with a fraction in it, two rows, so the list is even */
 #calculator .calc-fx-row:has(.calc-fx-eq),
-#calculator .calc-gx-row:has(.calc-gx-eq) {
+#calculator .calc-gx-row:has(.calc-gx-eq),
+#calculator .calc-sv-row:has(.calc-sv-eq) {
     position: relative;
     padding-top: 0;
     padding-bottom: 0;
 }
 
 #calculator .calc-fx-row:has(.calc-fx-eq) .calc-fx-name,
-#calculator .calc-gx-row:has(.calc-gx-eq) .calc-gx-name {
+#calculator .calc-gx-row:has(.calc-gx-eq) .calc-gx-name,
+#calculator .calc-sv-row:has(.calc-sv-eq) .calc-sv-name {
     position: absolute;
     left: 9px;
     top: 3px;
@@ -1486,7 +1514,8 @@
 }
 
 #calculator .calc-fx-eq,
-#calculator .calc-gx-eq {
+#calculator .calc-gx-eq,
+#calculator .calc-sv-eq {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1498,13 +1527,15 @@
 
 /* a constant is one row: its card is only as high as its name and that row */
 #calculator .calc-fx-val,
-#calculator .calc-gx-val {
+#calculator .calc-gx-val,
+#calculator .calc-sv-val {
     height: 23px;
     padding: 17px 0 4px;
 }
 
 #calculator .calc-fx-eq > span,
-#calculator .calc-gx-eq > span {
+#calculator .calc-gx-eq > span,
+#calculator .calc-sv-eq > span {
     min-width: 0;
     padding: 2px 0; /* the bar and the foot of a root are not cut */
     overflow: hidden;
@@ -1514,12 +1545,14 @@
 
 /* a root is drawn as on the display, its bar over all that is under it */
 #calculator .calc-fx-f .calc-root,
-#calculator .calc-gx-f .calc-root {
+#calculator .calc-gx-f .calc-root,
+#calculator .calc-sv-f .calc-root {
     margin-left: 0.72em; /* the foot of the sign keeps off the letter before it */
 }
 
 #calculator .calc-fx-f .calc-fr,
-#calculator .calc-gx-f .calc-fr {
+#calculator .calc-gx-f .calc-fr,
+#calculator .calc-sv-f .calc-fr {
     font-size: 0.85em;
 }
 
@@ -1532,13 +1565,20 @@
 #calculator .calc-gx-f sup,
 #calculator .calc-gx-f sub,
 #calculator .calc-gx-name sup,
-#calculator .calc-gx-name sub {
+#calculator .calc-gx-name sub,
+#calculator .calc-sv-f sup,
+#calculator .calc-sv-f sub,
+#calculator .calc-sv-sym sup,
+#calculator .calc-sv-sym sub,
+#calculator .calc-sv-name sup,
+#calculator .calc-sv-name sub {
     font-size: 9px;
     line-height: 0;
 }
 
 /* the symbol of a constant, and the letter of a formula by its box */
-#calculator .calc-fx-sym {
+#calculator .calc-fx-sym,
+#calculator .calc-sv-sym {
     flex: none;
     width: 30px;
     font-size: 15px;
@@ -1551,11 +1591,13 @@
 }
 
 /* the letters of an open formula: a box for each, then Insert */
-#calculator .calc-fx-form {
+#calculator .calc-fx-form,
+#calculator .calc-sv-form {
     padding: 11px 9px 8px;
 }
 
-#calculator .calc-fx-var {
+#calculator .calc-fx-var,
+#calculator .calc-sv-var {
     display: flex;
     align-items: center;
     gap: 4px;
@@ -1563,13 +1605,15 @@
     margin-right: 26px; /* the boxes keep off the right edge, a little less than the letters take at the left */
 }
 
-#calculator .calc-fx-var .calc-fx-sym {
+#calculator .calc-fx-var .calc-fx-sym,
+#calculator .calc-sv-var .calc-sv-sym {
     width: auto;
     min-width: 30px;
     text-align: right;
 }
 
-#calculator .calc-fx-var input {
+#calculator .calc-fx-var input,
+#calculator .calc-sv-var input {
     flex: 1;
     min-width: 0;
     padding: 3px 7px;
@@ -1583,17 +1627,20 @@
     user-select: text;
 }
 
-#calculator .calc-fx-var input::placeholder {
+#calculator .calc-fx-var input::placeholder,
+#calculator .calc-sv-var input::placeholder {
     color: #5b7768;
 }
 
-#calculator .calc-fx-var input:focus {
+#calculator .calc-fx-var input:focus,
+#calculator .calc-sv-var input:focus {
     border-color: #3a5872;
     background: #b3cdbf;
 }
 
 /* empty, or not a number the calculator can read */
-#calculator .calc-fx-var input.calc-bad {
+#calculator .calc-fx-var input.calc-bad,
+#calculator .calc-sv-var input.calc-bad {
     border-color: #d86672;
     box-shadow: 0 0 0 1px #d86672;
 }
@@ -1607,7 +1654,8 @@
     margin-top: 7px;
 }
 
-#calculator .calc-fx-note {
+#calculator .calc-fx-note,
+#calculator .calc-sv-note {
     align-self: stretch;
     text-align: center;
     color: #4f6659;
@@ -1615,12 +1663,14 @@
     line-height: 13px;
 }
 
-#calculator .calc-fx-note:empty {
+#calculator .calc-fx-note:empty,
+#calculator .calc-sv-note:empty {
     display: none;
 }
 
 /* why the values give no answer */
-#calculator .calc-fx-note.calc-fx-warn {
+#calculator .calc-fx-note.calc-fx-warn,
+#calculator .calc-sv-note.calc-sv-warn {
     color: #a8323e;
     font-size: 12px;
     line-height: 14px;
@@ -1683,6 +1733,79 @@
 #calculator .calc-fx-row:hover .calc-fx-put,
 #calculator .calc-gx-row:hover .calc-gx-put {
     display: flex;
+}
+
+/* ---------- solve ---------- */
+
+/* the boxes of a tool, in columns; a function as wide as all of them */
+#calculator .calc-sv-fields {
+    display: grid;
+    grid-template-columns: repeat(var(--cols, 1), minmax(0, 1fr));
+    column-gap: 8px;
+}
+
+#calculator .calc-sv-fields .calc-sv-var {
+    margin-right: 0;
+}
+
+#calculator .calc-sv-fields .calc-sv-wide {
+    grid-column: 1 / -1;
+}
+
+#calculator .calc-sv-var .calc-sv-sym {
+    min-width: 0;
+}
+
+/* the i of a complex root leans: room for it */
+#calculator .calc-sv-value i {
+    padding-right: 2px;
+}
+
+/* of one column, the boxes keep off the right edge, as a formula's */
+#calculator .calc-sv-fields[style="--cols: 1"] .calc-sv-var:not(.calc-sv-wide) {
+    margin-right: 26px;
+}
+
+#calculator .calc-sv-form .calc-sv-note {
+    margin: 2px 0 6px;
+}
+
+/* the results inside the card: a little darker than it, as its boxes are */
+#calculator .calc-sv-form .calc-sv-grid {
+    margin: 4px 0 0;
+}
+
+#calculator .calc-sv-form .calc-sv-tile {
+    border: 1px solid #8eab9b;
+    background: #a9c4b5;
+    box-shadow: none;
+}
+
+#calculator .calc-sv-form .calc-sv-tile:hover {
+    background: #98b3a5;
+}
+
+#calculator .calc-sv-form .calc-sv-tile.calc-none {
+    background: #a9c4b5;
+}
+
+/* Again: more random numbers */
+#calculator .calc-sv-again {
+    display: table;
+    margin: 0 auto 6px;
+    padding: 0 12px;
+    border-radius: 4px;
+    background: #3a5872;
+    color: #fff;
+    font-size: 13px;
+    line-height: 24px;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+#calculator .calc-sv-again:hover {
+    background: #46677f;
 }
 
 /* ---------- converter ---------- */

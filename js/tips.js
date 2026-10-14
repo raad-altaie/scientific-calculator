@@ -134,6 +134,19 @@
             k: 'Esc'
         },
 
+        // the solver
+        'solve': {
+            t: 'Solve',
+            d: 'Equations solved for x, polynomials and linear equations; integrals, slopes, sums and products; and ' +
+                'the normal, binomial and Poisson distributions. Click a result to put it in.',
+            k: ''
+        },
+        'solve close': {
+            t: 'Close the solver',
+            d: 'What you typed stays for the next time.',
+            k: 'Esc'
+        },
+
         // the graph
         'graph': {
             t: 'Graph',

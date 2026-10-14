@@ -259,16 +259,16 @@ async function calculator(page, at) {
 
     // the formulas, the converter, the statistics and the graph are on at first, in the order of their options
     await page.fresh(at, {});
-    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-stat-btn', t + 'all four at first', await buttons(page));
-    check(await page.calc('document.getElementById("display-box").style.getPropertyValue("--tools")') === '4',
+    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-solve-btn calc-stat-btn', t + 'all of them at first', await buttons(page));
+    check(await page.calc('document.getElementById("display-box").style.getPropertyValue("--tools")') === '5',
         t + 'the line above a result clears them');
-    await page.fresh(at, { fxOn: false, convOn: false, statsOn: false, graphOn: false });
-    check(await buttons(page) === '', t + 'no buttons with all four off', await buttons(page));
+    await page.fresh(at, { fxOn: false, convOn: false, statsOn: false, graphOn: false, solveOn: false });
+    check(await buttons(page) === '', t + 'no buttons with all of them off', await buttons(page));
     check(await page.calc('document.getElementById("display-box").style.getPropertyValue("--tools")') === '0',
         t + 'the line above a result starts at the left');
 
     await page.fresh(at, { convOn: false });
-    check(await buttons(page) === 'calc-fx-btn calc-graph-btn calc-stat-btn', t + 'three buttons with the converter off', await buttons(page));
+    check(await buttons(page) === 'calc-fx-btn calc-graph-btn calc-solve-btn calc-stat-btn', t + 'three buttons with the converter off', await buttons(page));
 
     // the ? beside the name has a tip of the calculator's own, below it, in place of a title
     await page.hover('.calc-help');
@@ -283,9 +283,9 @@ async function calculator(page, at) {
     // the keys still work, and the history adds its clock
     await page.type('2+3\r');
     check(await shown(page) === '5', t + '2 + 3 = 5', await shown(page));
-    check(await buttons(page) === 'calc-hist calc-fx-btn calc-graph-btn calc-stat-btn', t + 'the clock comes with a history', await buttons(page));
-    check(await page.calc('document.getElementById("display-box").style.getPropertyValue("--tools")') === '4',
-        t + 'the line above a result clears the four buttons');
+    check(await buttons(page) === 'calc-hist calc-fx-btn calc-graph-btn calc-solve-btn calc-stat-btn', t + 'the clock comes with a history', await buttons(page));
+    check(await page.calc('document.getElementById("display-box").style.getPropertyValue("--tools")') === '5',
+        t + 'the line above a result clears the buttons');
 
     // the panel: the search has the keys, the result in the display starts the first box
     await page.click('.calc-fx-btn');
@@ -1025,6 +1025,77 @@ async function graphPanel(page, at) {
 // The big graph: on the website the calculator fills the window with it, not the screen; Esc,
 // its button or a value put in make it small. In the extension it has a window of
 // its own, popup.html?graph, with only the graph, which keeps up with the calculator
+// The solver: a tab each of tools for equations, calculus and probability, a card for each; a
+// card opens its boxes, worked out as they are typed; a result goes in with a click. What was
+// typed is there the next time
+async function solver(page, at) {
+    var t = at + ': solve: ', on = '.calc-sv-item.calc-on',
+        tiles = '[].map.call(document.querySelectorAll(".calc-sv-item.calc-on .calc-sv-tile"), function (e) {' +
+            ' return e.querySelector(".calc-sv-label").textContent + "=" + e.querySelector(".calc-sv-value").textContent; }).join(" | ")',
+        note = 'document.querySelector(".calc-sv-item.calc-on .calc-sv-note").textContent', got;
+
+    // a box of the card open, typed in
+    function set(n, text) {
+        return page.calc('(function (b) { b.value = ' + JSON.stringify(text) + '; b.dispatchEvent(new Event("input", { bubbles: true })); })' +
+            '(document.querySelectorAll(".calc-sv-item.calc-on input")[' + n + '])');
+    }
+    async function card(name) {
+        await page.calc('[].filter.call(document.querySelectorAll(".calc-sv-name"), function (n) { return n.textContent === ' + JSON.stringify(name) +
+            '; })[0].parentNode.parentNode.click()');
+        await sleep(60);
+    }
+
+    await page.fresh(at, {});
+    await page.click('.calc-solve-btn');
+    check(await open(page, '.calc-solve') && await page.calc('document.querySelectorAll(".calc-solve-tab").length') === 3 &&
+        await page.calc('document.querySelectorAll(".calc-sv-item").length') === 6, t + 'its button opens it: three tabs, six cards on the first');
+    await page.click('.calc-sv-item:nth-child(1) .calc-sv-row');
+    check(await page.calc('document.activeElement === document.querySelector("' + on + ' input")'), t + 'a card opens its boxes, the first to type in');
+    await page.type('x^2=2x+3');
+    check(await page.calc(tiles) === 'x1=-1 | x2=3', t + 'x² = 2x + 3 is solved as it is typed', await page.calc(tiles));
+    await set(0, 'a x = 1');
+    check(/^Only x/.test(await page.calc(note)) && await page.calc('document.querySelector("' + on + ' input").classList.contains("calc-bad")'),
+        t + 'a letter of its own says so', await page.calc(note));
+    await card('Quadratic');
+    await set(1, '2');
+    await set(2, '5');
+    got = await page.calc(tiles);
+    check(got.indexOf('x1=-1 + 2i | x2=-1 – 2i') === 0 && got.indexOf('Discriminant=-16') > 0, t + 'x² + 2x + 5: its roots -1 ± 2i, a of 1 while empty', got);
+    await card('Two equations');
+    for (const [n, v] of [[0, '1'], [1, '1'], [2, '3'], [3, '1'], [4, '-1'], [5, '1']]) await set(n, v);
+    check(await page.calc(tiles) === 'x=2 | y=1', t + 'x + y = 3 and x – y = 1', await page.calc(tiles));
+    await set(3, '2');
+    await set(4, '2');
+    await set(5, '6');
+    check(/^Many answers/.test(await page.calc(note)) && await page.calc(tiles) === 'x=– | y=–', t + 'the same line twice has many answers', await page.calc(note));
+
+    await page.click('.calc-solve-tab[data-tab="calculus"]');
+    await card('Integral');
+    await set(0, 'x^2');
+    await set(2, '3');
+    check(await page.calc(tiles) === '∫=9', t + 'the integral of x² from 0 to 3', await page.calc(tiles));
+    await set(0, 'e^(-x)');
+    await set(2, 'inf');
+    check(await page.calc(tiles) === '∫=1', t + 'of e^-x to ∞', await page.calc(tiles));
+    await card('Sum');
+    await set(0, 'n^2');
+    check(await page.calc(tiles) === 'Σ=385', t + 'the sum of n² from 1 to 10, its ends while empty', await page.calc(tiles));
+
+    await page.click('.calc-solve-tab[data-tab="chance"]');
+    await card('Normal probability');
+    await set(0, '-1');
+    await set(1, '1');
+    check(await page.calc(tiles) === 'P(a ≤ X ≤ b)=0.682689492137 | Outside=0.317310507863', t + 'within one σ of the mean', await page.calc(tiles));
+    await page.click(on + ' .calc-sv-tile');
+    check(!await open(page, '.calc-solve') && near(await value(page), 0.682689492137), t + 'a click on a result puts it in', await value(page));
+    await page.click('.calc-solve-btn');
+    check(await page.calc('document.querySelector(".calc-solve-tab.calc-on").dataset.tab') === 'chance' &&
+        await page.calc('[].map.call(document.querySelectorAll("' + on + ' input"), function (b) { return b.value; }).join()') === '-1,1,,',
+        t + 'opened again, as it was left');
+    await page.key('Escape', 27);
+    check(!await open(page, '.calc-solve'), t + 'Esc closes it');
+}
+
 async function graphBig(page, at) {
     var t = at + ': big: ', big = 'document.getElementById("calculator").classList.contains("calc-big")',
         note = 'document.querySelector(".calc-graph-note").textContent',
@@ -1682,7 +1753,7 @@ async function converter(page, at) {
 
     // its button comes after f(x), as its option does
     await page.fresh(at, {});
-    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-stat-btn', t + 'the converter between f(x) and the graph',
+    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-solve-btn calc-stat-btn', t + 'the converter between f(x) and the graph',
         await buttons(page));
 
     // the result shown is the value to start from
@@ -1890,7 +1961,7 @@ async function menus(page, at) {
     await page.rightClick('.calc-past-res');
     await pick(page, 'Delete');
     check(await page.calc('document.querySelectorAll(".calc-past-row").length') === 1, t + 'Delete takes the line out');
-    await page.rightClick('.calc-past:not(.calc-stats):not(.calc-fx):not(.calc-conv):not(.calc-graph) .calc-past-head span');
+    await page.rightClick('.calc-past:not(.calc-stats):not(.calc-fx):not(.calc-conv):not(.calc-graph):not(.calc-solve) .calc-past-head span');
     check(await menu(page) === 'Clear history', t + 'above the lines, Clear history', await menu(page));
     await pick(page, 'Clear history');
     check(await page.calc('document.querySelector(".calc-hist").hidden'), t + 'which empties it');
@@ -2130,7 +2201,7 @@ async function options(page) {
 
     await page.fresh('/frame.html', {});
     t = 'in a frame: ';
-    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-stat-btn', t + 'all four buttons');
+    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-solve-btn calc-stat-btn', t + 'all four buttons');
     await page.click('.calc-fx-btn');
     await page.ev('localStorage.setItem("fxOn", "false")');
     check(await page.until('!(document.getElementById("calc-iframe").contentDocument.querySelector(".calc-fx-btn").offsetWidth)'),
@@ -2314,6 +2385,8 @@ async function website(page) {
         await modeKey(page, '/web/index.html');
         await converter(page, '/popup.html');
         await converter(page, '/web/index.html');
+        await solver(page, '/popup.html');
+        await solver(page, '/web/index.html');
         await graphPanel(page, '/popup.html');
         await graphPanel(page, '/web/index.html');
         await graphTable(page, '/popup.html');
