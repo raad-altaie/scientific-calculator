@@ -1009,8 +1009,10 @@
     // is 0 (root), its lowest and highest points (min, max), where it meets the y axis (yint),
     // and where two of them cross (cross). Each is { t: what it is, one or more of those,
     // x, y, i: the curve, j: the other curve of a crossing }. curves: what graph gives, or
-    // null; deg: the unit of angles. A kind with more than KEY_MAX points is left out
-    function keyPoints(curves, view, deg) {
+    // null; deg: the unit of angles. A kind with more than KEY_MAX points is left out.
+    // rels: the equations of x and y that relation gives, by their boxes, or null: where they
+    // meet the x axis (xint) and the y axis (yint), and where they cross a curve (cross)
+    function keyPoints(curves, view, deg, rels) {
         var n = 400, dx = (view.x1 - view.x0) / n, jump = (view.y1 - view.y0) / 2, xs = [], ys = [], found = [], k;
 
         for (k = 0; k <= n; k++) xs.push(view.x0 + k * dx);
@@ -1070,6 +1072,26 @@
             });
         });
 
+        (rels || []).forEach(function (r, i) {
+            var ys = [], dy = (view.y1 - view.y0) / n, flat, up;
+            if (!r) return;
+            flat = function (x) { return r.at(x, 0, deg); };
+            up = function (y) { return r.at(0, y, deg); };
+            add(zeros(flat, xs, xs.map(flat), dx * 1e-6), function (x) { return { t: ['xint'], x: x, y: 0, i: i }; });
+            if (view.x0 <= 0 && view.x1 >= 0) {
+                for (k = 0; k <= n; k++) ys.push(view.y0 + k * dy);
+                add(zeros(up, ys, ys.map(up), dy * 1e-6), function (y) { return { t: ['yint'], x: 0, y: y, i: i }; });
+            }
+            curves.forEach(function (c, j) {
+                var on;
+                if (!c || j === i) return;
+                on = function (x) { return r.at(x, c.at(x, deg), deg); };
+                add(zeros(on, xs, xs.map(on), dx * 1e-6), function (x) {
+                    return { t: ['cross'], x: x, y: c.at(x, deg, true), i: Math.min(i, j), j: Math.max(i, j) };
+                });
+            });
+        });
+
         // in the view, and one point for each place: the minimum of x² – 3 is where it meets the y axis
         found = found.filter(function (p) {
             return isFinite(p.y) && p.y >= view.y0 && p.y <= view.y1 && p.x >= view.x0 && p.x <= view.x1;
@@ -1081,6 +1103,72 @@
             if (same && same.t.indexOf(p.t[0]) < 0) same.t.push(p.t[0]);
             return !same;
         });
+    }
+
+    // The place on an equation of x and y nearest x, y, seen with pixels ux wide and uy high:
+    // Newton's steps down the slope of the difference of its sides, in pixels, then x rounded
+    // to what a pixel tells apart where the curve goes more across than up, else y, and the
+    // other found again by halving, as short as it is as good: (3, 4) on x² + y² = 25, not
+    // (2.9996, 4.0003). Null where it is not on the curve, as where its sides only jump past
+    // each other, x = 1/y across y = 0
+    function onRelation(rel, x, y, ux, uy, deg) {
+        var a = x / ux, b = y / uy, h = 1e-3, k, f, gx, gy, n2, step, lo, hi, q, r, fr;
+        function g(a, b) {
+            return rel.at(a * ux, b * uy, deg);
+        }
+        for (k = 0; k < 40; k++) {
+            f = g(a, b);
+            gx = (g(a + h, b) - g(a - h, b)) / (2 * h);
+            gy = (g(a, b + h) - g(a, b - h)) / (2 * h);
+            n2 = gx * gx + gy * gy;
+            if (!isFinite(f) || !isFinite(n2) || !n2) return null;
+            if (f === 0) break;
+            step = f / n2;
+            a -= step * gx;
+            b -= step * gy;
+            if (Math.abs(step) * Math.sqrt(n2) < 1e-9) break;
+        }
+        f = g(a, b);
+        lo = g(a - gx / Math.sqrt(n2), b - gy / Math.sqrt(n2));
+        hi = g(a + gx / Math.sqrt(n2), b + gy / Math.sqrt(n2));
+        if (!(lo * hi <= 0 && Math.abs(f) <= 1e-6 * (Math.abs(lo) + Math.abs(hi)))) return null;
+        if (Math.abs(gy) >= Math.abs(gx)) { // across: x rounded, y found
+            q = Math.pow(10, Math.floor(Math.log10(ux)));
+            x = +(Math.round(a * ux / q) * q).toPrecision(12);
+            r = settle(function (t) { return rel.at(x, t, deg); }, b * uy, 2 * uy);
+            return r === null ? { x: a * ux, y: b * uy } : { x: x, y: r };
+        }
+        q = Math.pow(10, Math.floor(Math.log10(uy)));
+        y = +(Math.round(b * uy / q) * q).toPrecision(12);
+        r = settle(function (t) { return rel.at(t, y, deg); }, a * ux, 2 * ux);
+        return r === null ? { x: a * ux, y: b * uy } : { x: r, y: y };
+
+        // where f is 0 within d of t, by halving, as short as it is as good; null if it is not
+        function settle(f, t, d) {
+            var fa = f(t - d), fb = f(t + d), z;
+            if (!(fa * fb <= 0)) return null;
+            if (fa === 0) return t - d;
+            z = bisect(f, t - d, t + d, fa);
+            if (z === null) return null;
+            fr = Math.abs(f(z));
+            return snap(z, d * 1e-6, function (s) { return Math.abs(f(s)) <= fr; });
+        }
+    }
+
+    // The slope of an equation of x and y at a place on it, dy/dx: its sides' difference changes
+    // by x as much as by y the other way. Infinity where it goes straight up, as x = 3 does;
+    // none where it has no slope to tell
+    function relationSlope(rel, x, y, deg) {
+        var hx = 1e-5 * Math.max(1, Math.abs(x)), hy = 1e-5 * Math.max(1, Math.abs(y)), fx, fy, m;
+        function f(a, b) {
+            return rel.at(a, b, deg);
+        }
+        fx = (f(x - 2 * hx, y) - 8 * f(x - hx, y) + 8 * f(x + hx, y) - f(x + 2 * hx, y)) / (12 * hx);
+        fy = (f(x, y - 2 * hy) - 8 * f(x, y - hy) + 8 * f(x, y + hy) - f(x, y + 2 * hy)) / (12 * hy);
+        if (!isFinite(fx) || !isFinite(fy) || (!fx && !fy)) return NaN;
+        if (Math.abs(fy) <= 1e-9 * Math.abs(fx)) return Infinity;
+        m = -fx / fy;
+        return Math.abs(m) <= 1e-9 ? 0 : +m.toPrecision(10);
     }
 
     // The slope of a curve at x, dy/dx in the unit of x: from four values about it, and again
@@ -2261,6 +2349,8 @@
     Engine.slope = slope;
     Engine.area = area;
     Engine.relation = relation;
+    Engine.onRelation = onRelation;
+    Engine.relationSlope = relationSlope;
 
     root.CalcEngine = Engine;
     if (typeof module !== 'undefined' && module.exports) {
