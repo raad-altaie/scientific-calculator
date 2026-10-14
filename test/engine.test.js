@@ -2324,6 +2324,21 @@ dels.forEach(function (c) {
         check(Object.is(got, c[3]) || got === c[3], 'graph slope: ' + c[4], got);
     });
 
+    // d/dx before a function: its slope, a curve of its own
+    (function () {
+        var vars = {}, g = Engine.graph('d/dx(x^2)'), h = Engine.graph('y = d/dx a sin(x)', false, vars);
+        check(g && g.at(3, 0) === 6 && g.at(-1.5, 0, true) === -3 && g.letters.length === 0, 'graph: d/dx(x^2) is 2x', g && g.at(3, 0));
+        check(Engine.graph('d/dx sin(x)').at(90, 1) === 0 && Engine.graph('d / dx sin(x)').angles, 'graph: d/dx sin x, in degrees, its slope 0 at 90°');
+        vars.a = 3;
+        check(h && h.letters.join() === 'a' && h.at(0, 0) === 3, 'graph: the letters of what d/dx is of have sliders', h && h.at(0, 0));
+        check(!isFinite(Engine.graph('d/dx abs(x)').at(0, 0)), 'graph: d/dx |x| has no value at the corner');
+        check(Engine.graph('d/dx (x+1)(x-1)').at(2, 0) === 4 && Engine.graph('d/dx(x^2').at(2, 0) === 4,
+            'graph: d/dx of a product of brackets, and of a bracket left open');
+        ['d/dx', 'd/dx()', '2 d/dx(x^2)', 'd/dx(x^2) + 1', 'd/dx(x^2) - x', 'x d/dx x'].forEach(function (s) {
+            check(Engine.graph(s) === null, 'graph ' + JSON.stringify(s) + ' is not a function: d/dx goes first, before all of it');
+        });
+    })();
+
     // the area under a curve, its integral from a to b
     [
         ['x^2', 0, 3, 0, 9, 'x² from 0 to 3'],

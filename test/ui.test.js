@@ -742,6 +742,14 @@ async function graphPanel(page, at) {
     await page.click('.calc-graph-diff');
     check(await page.calc(dashes(1, 2)) === 0, t + 'a click again takes it away');
 
+    // d/dx before a function draws its slope, 2x for x², without a slider for d
+    await page.click('.calc-graph .calc-past-clear');
+    await page.calc('(function (b) { b.value = "d/dx(x^2)"; b.dispatchEvent(new Event("input", { bubbles: true })); })' +
+        '(document.querySelector(".calc-graph-input"))'); // as pasted: ( typed here is the key code of ↓
+    await sleep(900);
+    check(await page.calc('document.querySelector(".calc-graph-sliders").hidden') && await page.calc(dashes(1, 2)) > 0 &&
+        await page.calc(dashes(1, -2)) === 0, t + 'd/dx(x^2) is drawn as 2x, with no slider', await page.calc(note));
+
     // what is not a function says so, and draws nothing
     await page.click('.calc-graph .calc-past-clear');
     await page.click('.calc-graph-zoom [data-zoom="in"]');
