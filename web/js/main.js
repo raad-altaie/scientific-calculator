@@ -1999,48 +1999,129 @@
     // the corners of square cells 3 pixels wide, and each cell where it changes sign is crossed
     // by a line between the places on its edges where it is 0, as near as the corners tell.
     // Not where it only jumps from one sign to the other, as x y = 1 does across x = 0: there
-    // the middle of the cell is farther from 0 than its corners
+    // the middle of the cell is farther from 0 than its corners. An inequality, y < x², is
+    // shaded where it is true, a cell at a time, or the part of a cell on its side of the line;
+    // its line is dashed where the line itself is not in it, for < and >
     function drawRelation(ctx, v, w, h, rel, color) {
-        var c = 3, nx = Math.ceil(w / c), ny = Math.ceil(h / c), grid = [], i, j;
+        var c = 3, nx = Math.ceil(w / c), ny = Math.ceil(h / c), grid = [], lines = [], op = rel.op || '=',
+            want = op === '<' || op === '≤' ? -1 : 1, strict = op === '<' || op === '>', i, j, run;
         function f(px, py) {
             return rel.at(graphX(v, px), graphY(v, py), deg);
+        }
+        function inside(k) {
+            return k * want > 0 || (k === 0 && !strict);
         }
         for (j = 0; j <= ny; j++) {
             grid.push([]);
             for (i = 0; i <= nx; i++) grid[j].push(f(i * c, j * c));
         }
-        ctx.beginPath();
+        if (op !== '=') {
+            ctx.beginPath();
+            for (j = 0; j < ny; j++) {
+                run = -1; // the first of the cells in a row wholly in it, drawn as one
+                for (i = 0; i <= nx; i++) {
+                    if (i < nx && [grid[j][i], grid[j][i + 1], grid[j + 1][i + 1], grid[j + 1][i]].every(inside)) {
+                        if (run < 0) run = i;
+                        continue;
+                    }
+                    if (run >= 0) ctx.rect(run * c, j * c, (i - run) * c, c);
+                    run = -1;
+                    if (i < nx) part(i * c, j * c, [grid[j][i], grid[j][i + 1], grid[j + 1][i + 1], grid[j + 1][i]]);
+                }
+            }
+            ctx.globalAlpha = 0.22;
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.globalAlpha = 1;
+        }
         for (j = 0; j < ny; j++) {
             for (i = 0; i < nx; i++) cell(i * c, j * c, [grid[j][i], grid[j][i + 1], grid[j + 1][i + 1], grid[j + 1][i]]);
         }
+        ctx.beginPath();
+        (strict ? chains(lines) : lines).forEach(function (line) {
+            ctx.moveTo(line[0][0], line[0][1]);
+            line.slice(1).forEach(function (p) { ctx.lineTo(p[0], p[1]); });
+        });
         ctx.lineWidth = 2;
-        ctx.lineCap = 'round';
+        ctx.lineCap = strict ? 'butt' : 'round';
+        ctx.lineJoin = 'round';
         ctx.strokeStyle = color;
+        ctx.setLineDash(strict ? [6, 4] : []);
         ctx.stroke();
+        ctx.setLineDash([]);
         ctx.lineCap = 'butt';
 
-        // a cell from px, py: its corners top left, top right, bottom right and bottom left
+        // where edge e of a cell from px, py crosses 0, its corners k: found from its left or top
+        // end, so the cell beside it finds the same place
+        function edge(px, py, k, e) {
+            var corner = [[0, 0], [c, 0], [c, c], [0, c]], p = corner[e], q = corner[(e + 1) % 4], a = k[e], b = k[(e + 1) % 4], t;
+            if (e > 1) {
+                p = q;
+                q = corner[e];
+                a = b;
+                b = k[e];
+            }
+            t = isFinite(a) && isFinite(b) ? a / (a - b) : 0.5; // half way to where it has no value
+            return [px + p[0] + (q[0] - p[0]) * t, py + p[1] + (q[1] - p[1]) * t];
+        }
+
+        // the part of a cell from px, py that is in it: its corners in it, and the places
+        // between where its edges cross 0
+        function part(px, py, k) {
+            var corner = [[0, 0], [c, 0], [c, c], [0, c]], poly = [], e;
+            for (e = 0; e < 4; e++) {
+                if (inside(k[e])) poly.push([px + corner[e][0], py + corner[e][1]]);
+                if (inside(k[e]) !== inside(k[(e + 1) % 4])) poly.push(edge(px, py, k, e));
+            }
+            if (poly.length < 3) return;
+            ctx.moveTo(poly[0][0], poly[0][1]);
+            poly.slice(1).forEach(function (p) { ctx.lineTo(p[0], p[1]); });
+            ctx.closePath();
+        }
+
+        // the line across a cell from px, py: its corners top left, top right, bottom right and bottom left
         function cell(px, py, k) {
-            var at = [], corner = [[0, 0], [c, 0], [c, c], [0, c]], e, a, b, t, mid;
+            var at = [], e, mid;
             if (!k.every(isFinite)) return;
             for (e = 0; e < 4; e++) {
-                a = k[e];
-                b = k[(e + 1) % 4];
-                if ((a > 0) === (b > 0)) continue;
-                t = a / (a - b);
-                at.push([px + corner[e][0] + (corner[(e + 1) % 4][0] - corner[e][0]) * t,
-                    py + corner[e][1] + (corner[(e + 1) % 4][1] - corner[e][1]) * t]);
+                if ((k[e] > 0) !== (k[(e + 1) % 4] > 0)) at.push(edge(px, py, k, e));
             }
             if (at.length < 2) return;
             mid = f(px + c / 2, py + c / 2);
             if (!(Math.abs(mid) <= 2 * Math.max.apply(null, k.map(Math.abs)))) return; // a jump, not a 0
-            ctx.moveTo(at[0][0], at[0][1]);
-            ctx.lineTo(at[1][0], at[1][1]);
-            if (at.length === 4) {
-                ctx.moveTo(at[2][0], at[2][1]);
-                ctx.lineTo(at[3][0], at[3][1]);
-            }
+            lines.push([at[0], at[1]]);
+            if (at.length === 4) lines.push([at[2], at[3]]);
         }
+    }
+
+    // the pieces of a line joined end to end where they meet, so its dashes run on along it
+    function chains(pieces) {
+        var ends = {}, used = [], out = [];
+        function key(p) {
+            return Math.round(p[0] * 64) + ',' + Math.round(p[1] * 64);
+        }
+        pieces.forEach(function (s, n) {
+            s.forEach(function (p) { (ends[key(p)] = ends[key(p)] || []).push(n); });
+        });
+        pieces.forEach(function (s, n) {
+            var line;
+            if (used[n]) return;
+            used[n] = true;
+            line = [s[0], s[1]];
+            [true, false].forEach(function (last) { // on from its end, then back from its start
+                var end, next, far;
+                for (;;) {
+                    end = last ? line[line.length - 1] : line[0];
+                    next = (ends[key(end)] || []).filter(function (m) { return !used[m]; })[0];
+                    if (next === undefined) break;
+                    used[next] = true;
+                    far = key(pieces[next][0]) === key(end) ? pieces[next][1] : pieces[next][0];
+                    if (last) line.push(far); else line.unshift(far);
+                }
+            });
+            out.push(line);
+        });
+        return out;
     }
 
     // the slope of a curve as a curve of its own, dy/dx at each x: none where it has none,

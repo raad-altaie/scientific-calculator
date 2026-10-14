@@ -839,6 +839,19 @@ async function graphPanel(page, at) {
     check(/x = 3\s*y = 2\.\d+$/.test(await page.calc(pop)), t + '→ goes up it', await page.calc(pop));
     await page.key('Escape', 27);
 
+    // an inequality is shaded where it is true: y < x² – 3 below the curve, not above it; x² + y² ≤ 9 inside
+    await page.calc('(function (b) { b.value = "y<x^2-3"; b.dispatchEvent(new Event("input", { bubbles: true })); })' +
+        '(document.querySelector(".calc-graph-input"))');
+    await sleep(300);
+    check(!await page.calc('document.querySelector(".calc-graph-fn").classList.contains("calc-bad")') &&
+        await page.calc(shade(0, -5)) > 10 && await page.calc(shade(6, 0)) > 10 && await page.calc(shade(0, 0)) === 0,
+        t + 'y < x² – 3 is shaded below its curve', await page.calc(shade(0, -5)) + ' / ' + await page.calc(shade(0, 0)));
+    await page.calc('(function (b) { b.value = "x^2+y^2<=9"; b.dispatchEvent(new Event("input", { bubbles: true })); })' +
+        '(document.querySelector(".calc-graph-input"))');
+    await sleep(300);
+    check(await page.calc(shade(0, 0)) > 10 && await page.calc(shade(1, -1.5)) > 10 && await page.calc(shade(4, 4)) === 0 &&
+        await page.calc(dashes(3, 0)) > 0, t + 'x² + y² ≤ 9 is shaded inside its circle, and the circle drawn');
+
     // what is not a function says so, and draws nothing
     await page.click('.calc-graph .calc-past-clear');
     await page.click('.calc-graph-zoom [data-zoom="in"]');
