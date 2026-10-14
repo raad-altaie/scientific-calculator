@@ -678,6 +678,17 @@
     cursor: grabbing;
 }
 
+/* the ∫ button pressed: a drag shades an area, it does not move the view */
+#calculator .calc-graph-shading canvas,
+#calculator .calc-graph-shading canvas:active {
+    cursor: col-resize;
+}
+
+#calculator .calc-graph-zoom > span.calc-on {
+    background: #1f333c;
+    color: #d3d9e2;
+}
+
 /* the point clicked, over it like a tip of the keys: what it is, then its x and y,
    each a row to click to insert; main.js places it and its point (--arrow) */
 #calculator .calc-graph-pop {
@@ -773,6 +784,12 @@
     border-radius: 4px;
     white-space: nowrap;
     cursor: pointer;
+}
+
+/* an area that is none, as of 1/x across 0: nothing to insert */
+#calculator .calc-graph-pop-none {
+    padding: 2px 6px;
+    white-space: nowrap;
 }
 
 #calculator .calc-graph-pop-row:hover {

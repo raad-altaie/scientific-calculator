@@ -2324,6 +2324,28 @@ dels.forEach(function (c) {
         check(Object.is(got, c[3]) || got === c[3], 'graph slope: ' + c[4], got);
     });
 
+    // the area under a curve, its integral from a to b
+    [
+        ['x^2', 0, 3, 0, 9, 'x² from 0 to 3'],
+        ['x^2', 3, 0, 0, -9, 'the other way, less'],
+        ['sin(x)', 0, Math.PI, 0, 2, 'sin x over half a turn'],
+        ['sin(x)', -Math.PI, Math.PI, 0, 0, 'a whole turn, 0, as much below as above'],
+        ['sin(x)', 0, 180, 1, 114.591559, 'in degrees, x in degrees'],
+        ['x^2-3', -Math.sqrt(3), Math.sqrt(3), 0, -6.92820323, 'below the axis it counts down'],
+        ['sqrt(x)', 0, 4, 0, 5.333333333, 'from the edge of where it has values'],
+        ['e^x', 0, 1, 0, 1.718281828, 'e^x, to 10 digits'],
+        ['abs(x)', -1, 1, 0, 1, 'a corner'],
+        ['abs(x-0.3)', -1, 1, 0, 1.09, 'a corner between the pieces'],
+        ['sin(50x)', 0, 10, 0, 0.03767698547, 'a quick wave'],
+        ['1/x', 1, Math.E, 0, 1, '1/x to e'],
+        ['x', 2, 2, 0, 0, 'none wide'],
+        ['1/x', -1, 1, 0, NaN, 'none across where there is no value'],
+        ['sin(1/x)', 0.0001, 1, 0, NaN, 'none where it does not settle']
+    ].forEach(function (c) {
+        var got = Engine.area(Engine.graph(c[0]), c[1], c[2], c[3]);
+        check(Object.is(got, c[4]) || got === c[4], 'graph area: ' + c[5], got);
+    });
+
     (function (e) {
         e.paste('2x3 =', 0);
         check(e.value === '6', 'x is still × in a pasted equation', e.value);

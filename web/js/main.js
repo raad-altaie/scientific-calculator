@@ -1058,6 +1058,8 @@
         graphFrame = 0, // the frame asked for while one plays
         graphLast = 0, // the time of the frame before
         GRAPH_NAMES = { root: 'Root', min: 'Min', max: 'Max', yint: 'y-intercept', cross: 'Crossing' },
+        // the rows of the popup: of a point, x, y and the slope; of an area, where it starts and ends, and how much
+        GRAPH_ROWS = { x: '<i>x</i>', y: '<i>y</i>', m: 'Slope', a: 'From <i>x</i>', b: 'To <i>x</i>', s: 'Area' },
         graphTouch = {}, // the pointers pressed on the plot, where each is now
         graphStart = null, // where they were when the last one went down or up, and the view then
         graphMoved = false, // the press became a drag or a pinch, so it is not a click
@@ -1068,6 +1070,8 @@
         GRAPH_POP_WAIT = 2000, // the popup opened with the mouse goes this many ms after the mouse is off it
         graphHiding, // that wait
         graphPopShut = false, // the popup put away, the point clicked and its tangent still drawn
+        graphShading = false, // the ∫ button pressed: a drag along a curve shades its area, and does not move the view
+        graphAreaButton = graphPlot.querySelector('[data-zoom="area"]'),
         graphSize = graph.querySelector('.calc-graph-size'), // the graph as big as the page, and back
         graphAlone = false; // the page is the graph's own window, in the extension: only the graph, always big
 
@@ -1214,6 +1218,7 @@
         if (!open && graphAlone) return; // its own window stays, even as a value is put in
         if (!open) graphBig(false); // a value put in from the big graph: the calculator again
         if (!open && stopSliders()) saveState(); // the sliders played stop where they are
+        if (!open) areaOn(false);
         if (open) {
             showPast(false);
             showStats(false);
@@ -1416,7 +1421,8 @@
             setSlider(row);
             saveState();
         }
-        graphAt = graphPinned = null; // its points have moved
+        graphAt = null; // its points have moved; an area stays, with its curve
+        if (graphPinned && !graphPinned.area) graphPinned = null;
         graphRender();
     }, false);
 
@@ -1573,6 +1579,7 @@
         ctx.setTransform(r, 0, 0, r, 0, 0);
         ctx.clearRect(0, 0, w, h);
         drawGrid(ctx, v, w, h);
+        if (graphPinned && graphPinned.area) graphShade(ctx, v, w, h, graphPinned);
         graphFns.forEach(function (fn, i) {
             if (fn) drawCurve(ctx, v, w, h, fn, curveColor(i));
         });
@@ -1582,7 +1589,7 @@
             graphDot(ctx, v, p, 3.5, GRAPH_INK.paper, curveColor(p.i));
         });
         [graphAt, graphPinned].forEach(function (p, at) {
-            if (!p || (at && p === graphAt)) return;
+            if (!p || p.area || (at && p === graphAt)) return;
             if (!p.t && !p.spot && graphFns[p.i]) p.y = graphFns[p.i].at(p.x, deg, true); // on the curve as the unit is now
             if (!isFinite(p.y) || Math.abs(plotY(v, p.y)) > 1e6) return;
             if (p.spot) {
@@ -1597,7 +1604,7 @@
     // the curve's color across the plot, as long as the plot is wide and high (far). None
     // for a place off the curves, where two cross, or where the curve has no slope
     function graphTangent(ctx, v, far, p) {
-        var fn = p && !p.spot && p.j === undefined && graphFns[p.i], x, y, k;
+        var fn = p && !p.spot && !p.area && p.j === undefined && graphFns[p.i], x, y, k;
         if (!p) return;
         p.m = NaN;
         if (!fn) return;
@@ -1616,6 +1623,91 @@
         ctx.strokeStyle = curveColor(p.i);
         ctx.stroke();
         ctx.setLineDash([]);
+    }
+
+    // The area of a curve from a to b, shaded in its color down to the x axis, and its value,
+    // as the letters are now; the popup is in the middle of what is in the view. Where the
+    // curve has no value it is not shaded, and the area is none
+    function graphShade(ctx, v, w, h, p) {
+        var fn = graphFns[p.i], x0 = Math.max(0, plotX(v, p.a)), x1 = Math.min(w, plotX(v, p.b)),
+            axis = Math.max(-h, Math.min(2 * h, plotY(v, 0))), at = [x0], last = null, k, x;
+        p.s = fn ? CalcEngine.area(fn, p.a, p.b, deg) : NaN;
+        x = graphX(v, (x0 + x1) / 2);
+        p.x = x;
+        p.y = fn && isFinite(fn.at(x, deg)) ? fn.at(x, deg) / 2 : 0;
+        if (!fn || x1 <= x0) return;
+        for (k = Math.ceil(x0 * 2); k <= x1 * 2; k++) at.push(k / 2);
+        at.push(x1);
+        ctx.beginPath();
+        at.forEach(function (px) {
+            var y = fn.at(graphX(v, px), deg);
+            if (!isFinite(y)) {
+                if (last !== null) ctx.lineTo(last, axis);
+                last = null;
+                return;
+            }
+            if (last === null) ctx.moveTo(px, axis);
+            ctx.lineTo(px, Math.max(-h, Math.min(2 * h, plotY(v, y))));
+            last = px;
+        });
+        if (last !== null) ctx.lineTo(last, axis);
+        ctx.globalAlpha = 0.3;
+        ctx.fillStyle = curveColor(p.i);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+
+    // the curve nearest above or below a place, with a value at its x; -1 for none
+    function nearestCurve(at) {
+        var v = viewNow(), x = graphX(v, at.x), best = -1, near = Infinity;
+        graphFns.forEach(function (fn, i) {
+            var y = fn ? fn.at(x, deg) : NaN, d = Math.abs(plotY(v, y) - at.y);
+            if (isFinite(y) && d < near) {
+                near = d;
+                best = i;
+            }
+        });
+        return best;
+    }
+
+    // an end of an area, at px of the plot: the x of a dot of the curve within reach, a root
+    // or a crossing, else the x there, rounded to what a pixel tells apart
+    function areaEnd(v, i, px) {
+        var best = null;
+        graphMarks.forEach(function (p) {
+            var d = Math.abs(plotX(v, p.x) - px);
+            if ((p.i === i || p.j === i) && d <= 8 && (!best || d < best.d)) best = { d: d, x: p.x };
+        });
+        return best ? best.x : graphRound(graphX(v, px), v.ux);
+    }
+
+    // the drag with ∫ pressed: the area of the curve where it began, from there to the pointer.
+    // Its popup waits for the drag to end. False where no curve has a value there
+    function graphAreaTo(s, at) {
+        var v = viewNow(), a, b;
+        if (s.i === undefined) s.i = nearestCurve(s.p[0]);
+        if (s.i < 0) return false;
+        a = areaEnd(v, s.i, s.p[0].x);
+        b = areaEnd(v, s.i, at.x);
+        graphPinned = { area: true, i: s.i, a: Math.min(a, b), b: Math.max(a, b) };
+        graphAt = null;
+        popShut();
+        drawGraph();
+        return true;
+    }
+
+    // a place on the area shaded, or by its edge
+    function onArea(v, p, at) {
+        var x = graphX(v, at.x), fn = graphFns[p.i], top = plotY(v, fn ? fn.at(x, deg) : NaN), axis = plotY(v, 0);
+        return x >= p.a && x <= p.b && at.y >= Math.min(top, axis) - 4 && at.y <= Math.max(top, axis) + 4;
+    }
+
+    // The ∫ button, pressed or let go: pressed, the next drag along a curve shades its area
+    function areaOn(on) {
+        graphShading = on;
+        graphAreaButton.classList.toggle('calc-on', on);
+        graphPlot.classList.toggle('calc-graph-shading', on);
+        if (graph.classList.contains('calc-open')) graphShown();
     }
 
     // a place away from the curves, clicked: a cross
@@ -1758,13 +1850,13 @@
 
     // what a point is, and its x and y, as the line above the plot and the popup show them
     function graphName(p) {
-        return p.spot ? 'Point' : p.t ? p.t.map(function (t) { return GRAPH_NAMES[t]; }).join(', ') : 'On the curve';
+        return p.spot ? 'Point' : p.area ? 'Area under the curve' : p.t ? p.t.map(function (t) { return GRAPH_NAMES[t]; }).join(', ') : 'On the curve';
     }
 
     // to 13 digits, as the display shows a result: 1.732050807569. What is inserted is the whole number
     function graphValue(p, k) {
         var n = String(+p[k].toPrecision(13));
-        return p.spot || k === 'x' ? shownResult({ value: n }, n).html : statsValue(p[k]).html;
+        return p.spot || k === 'x' || k === 'a' || k === 'b' ? shownResult({ value: n }, n).html : statsValue(p[k]).html;
     }
 
     // a dot of the curve's color, or of both curves that cross
@@ -1788,6 +1880,8 @@
             graphNote.textContent = !graphFns.some(Boolean) ? 'Type a function of x for its values.' :
                 graphTable.querySelector('.calc-bad') ? 'Start and step are numbers, the step above 0.' :
                     'Click a value to put it in the equation.' + (unit ? ' · ' + unit : '');
+        } else if (graphShading && graphFns.some(Boolean)) {
+            graphNote.textContent = 'Drag along a curve for the area under it; an end near a dot goes to it.';
         } else if (p) {
             graphNote.innerHTML = graphSwatches(p) + '<em>' + graphName(p) + '</em>' +
                 '<span><i>x</i> = ' + graphValue(p, 'x') + '</span>' +
@@ -1811,9 +1905,10 @@
             return;
         }
         html = '<div class="calc-graph-pop-head">' + graphSwatches(p) + '<b>' + graphName(p) + '</b></div>' +
-            ['x', 'y', 'm'].map(function (k) {
+            (p.area ? ['a', 'b', 's'] : ['x', 'y', 'm']).map(function (k) {
                 if (k === 'm' && !isFinite(p.m)) return '';
-                return '<div class="calc-graph-pop-row" data-put="' + k + '"><span>' + (k === 'm' ? 'Slope' : '<i>' + k + '</i>') + ' = ' +
+                if (k === 's' && !isFinite(p.s)) return '<div class="calc-graph-pop-none">Area = none</div>';
+                return '<div class="calc-graph-pop-row" data-put="' + k + '"><span>' + GRAPH_ROWS[k] + ' = ' +
                     graphValue(p, k) + '</span>' + insertIcon() + '</div>';
             }).join('');
         if (graphPop.innerHTML !== html) graphPop.innerHTML = html;
@@ -1928,7 +2023,7 @@
         if (p.length === 1) {
             if (!graphMoved && Math.abs(at.x - s.p[0].x) + Math.abs(at.y - s.p[0].y) < 4) return; // a click shakes a little
             graphMoved = true;
-            graphMove(s.view, s.p[0], at, 1);
+            if (!graphShading || s.p.length !== 1 || !graphAreaTo(s, at)) graphMove(s.view, s.p[0], at, 1);
         } else if (p.length === 2 && s.p.length === 2) {
             graphMoved = true;
             popShut();
@@ -1943,13 +2038,19 @@
 
     // A click opens the popup of the point there; a finger reaches a dot or a curve from
     // farther. A click on the point that has it open takes the point away; one on the point
-    // whose popup went brings it back
+    // whose popup went brings it back; an area shaded is the same. The drag that shades an
+    // area opens its popup as it ends, and the ∫ button is let go
     function graphUp(e) {
-        var at = graphTouch[e.pointerId], v = viewNow(), p = graphPinned, mouse = e.pointerType === 'mouse';
+        var at = graphTouch[e.pointerId], v = viewNow(), p = graphPinned, mouse = e.pointerType === 'mouse', s = graphStart;
         if (!at) return;
         delete graphTouch[e.pointerId];
-        if (e.type === 'pointerup' && !graphMoved && !graphPointers().length) {
-            if (p && Math.hypot(plotX(v, p.x) - at.x, plotY(v, p.y) - at.y) <= (mouse ? 8 : 16)) {
+        if (graphMoved && graphShading && s && s.i >= 0 && !graphPointers().length) {
+            areaOn(false);
+            graphPopShut = false;
+            popLater(mouse);
+            drawGraph();
+        } else if (e.type === 'pointerup' && !graphMoved && !graphPointers().length) {
+            if (p && (p.area ? onArea(v, p, at) : Math.hypot(plotX(v, p.x) - at.x, plotY(v, p.y) - at.y) <= (mouse ? 8 : 16))) {
                 if (graphPopShut) graphPopShut = false; else graphPinned = null;
             } else {
                 graphPinned = graphPoint(at, mouse ? 10 : 18);
@@ -1983,13 +2084,17 @@
         graphSaving = setTimeout(saveState, 300);
     }, { passive: false });
 
-    // the buttons: twice as close, twice as far, about the middle; the start again; and the
-    // picture, in the corner below
+    // the buttons: twice as close, twice as far, about the middle; the start again; ∫ for an
+    // area; and the picture, in the corner below
     graphPlot.addEventListener('click', function (e) {
         var b = e.target.closest('[data-zoom]'), mid = { x: graphPlot.clientWidth / 2, y: graphPlot.clientHeight / 2 };
         if (!b) return;
         if (b.dataset.zoom === 'save') {
             saveGraph();
+            return;
+        }
+        if (b.dataset.zoom === 'area') {
+            areaOn(!graphShading);
             return;
         }
         popShut();
@@ -2006,10 +2111,12 @@
     window.addEventListener('resize', drawGraph, false);
 
     // The graph as a picture, for notes or homework: the plot on its paper, twice as sharp at
-    // least, without the point pointed at, and in its top left the function of each curve shown
+    // least, without the point pointed at, and in its top left the function of each curve shown,
+    // and an area shaded, from where to where and how much
     function graphPicture() {
         var at = graphAt, pinned = graphPinned, pic = document.createElement('canvas'), ctx = pic.getContext('2d'), r, lines, wide;
-        graphAt = graphPinned = null;
+        graphAt = null;
+        graphPinned = pinned && pinned.area ? pinned : null;
         graphSharp = 2;
         drawGraph();
         r = graphCanvas.width / graphPlot.clientWidth;
@@ -2027,6 +2134,13 @@
             return fn && { i: i, text: 'y = ' + graphInputs[i].value.trim() };
         }).filter(Boolean);
         if (!lines.length) return pic;
+        if (pinned && pinned.area) {
+            lines.push({
+                i: pinned.i,
+                text: 'Area from ' + local(String(pinned.a)) + ' to ' + local(String(pinned.b)) + ' = ' +
+                    (isFinite(pinned.s) ? statsValue(pinned.s).text : 'none')
+            });
+        }
         if (graphLetters.length) { // and the values of its letters, without a color
             lines.push({
                 text: graphLetters.map(function (k) { return k + ' = ' + sliderText(graphVars[k], sliderStep(graphRange[k])); }).join(',  ')

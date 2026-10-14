@@ -1072,6 +1072,49 @@
         return digits < 3 ? undefined : +n.toPrecision(Math.min(10, digits));
     }
 
+    // The area under a curve from a to b, its integral: above the x axis it counts up, below
+    // it down. Gauss and Kronrod's 15 values on each of 16 pieces, a piece halved again until
+    // its two sums agree to 11 digits of the whole, or it is too small to halve; to 10 digits,
+    // and 0 where it is 0 as far as that tells. None (NaN) where the curve has no value on the
+    // way, as 1/x across 0, or where it does not settle in 20000 values, as sin(1/x) by 0
+    var KRONROD = [0.991455371120812639, 0.949107912342758525, 0.864864423359769073, 0.741531185599394440,
+            0.586087235467691130, 0.405845151377397167, 0.207784955007898468, 0],
+        KRONROD_WEIGHT = [0.022935322010529225, 0.063092092629978553, 0.104790010322250184, 0.140653259715525919,
+            0.169004726639267903, 0.190350578064785410, 0.204432940075298892, 0.209482141084727828],
+        GAUSS_WEIGHT = [0, 0.129484966168869693, 0, 0.279705391489276668, 0, 0.381830050505118945, 0, 0.417959183673469388];
+
+    function area(c, a, b, deg) {
+        var left = 20000, n = 16, d = (b - a) / n, size = 0, sum = 0, k;
+        function f(x) {
+            return c.at(x, deg);
+        }
+        // the sum of Kronrod and how far Gauss's is from it, from a to b; NaN where a value is none
+        function piece(a, b) {
+            var m = (a + b) / 2, h = (b - a) / 2, kr = 0, ga = 0, k, y;
+            left -= 15;
+            for (k = 0; k < 8; k++) {
+                y = k < 7 ? f(m - h * KRONROD[k]) + f(m + h * KRONROD[k]) : f(m);
+                kr += KRONROD_WEIGHT[k] * y;
+                ga += GAUSS_WEIGHT[k] * y;
+            }
+            return { s: kr * h, off: Math.abs(kr - ga) * h };
+        }
+        function more(a, b, tol, deep) {
+            var p = piece(a, b), m = (a + b) / 2;
+            if (!isFinite(p.s) || left < 0) return NaN;
+            if (p.off <= tol || !deep || m <= a || m >= b) return p.s;
+            return more(a, m, tol / 2, deep - 1) + more(m, b, tol / 2, deep - 1);
+        }
+        if (!(isFinite(a) && isFinite(b))) return NaN;
+        if (a === b) return 0;
+        for (k = 0; k <= 4 * n; k++) size += Math.abs(f(a + k * d / 4)) / (4 * n + 1); // how big the values are, for the digits
+        if (!isFinite(size)) return NaN;
+        size *= Math.abs(b - a);
+        for (k = 0; k < n; k++) sum += more(a + k * d, k === n - 1 ? b : a + (k + 1) * d, 1e-11 * size / n, 30);
+        if (!isFinite(sum)) return NaN;
+        return Math.abs(sum) <= 1e-10 * size ? 0 : +sum.toPrecision(10);
+    }
+
     // ---------- history ---------- //
 
     // the units the functions of an angle in the expression were worked out in
@@ -2166,6 +2209,7 @@
     Engine.graph = graph;
     Engine.keyPoints = keyPoints;
     Engine.slope = slope;
+    Engine.area = area;
 
     root.CalcEngine = Engine;
     if (typeof module !== 'undefined' && module.exports) {
