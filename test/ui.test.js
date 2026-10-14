@@ -979,6 +979,36 @@ async function graphPanel(page, at) {
     check(await page.calc('[].map.call(' + cells + ', function (c) { return c.value; }).join()') === '1,2,3,4,,', t + 'opened again, with its points');
     await page.key('Escape', 27);
 
+    // the examples: a tab of them by group, found by a search, each drawn after the boxes typed,
+    // with its sliders; in place of them all when there is not room
+    function boxes() {
+        return page.calc('[].map.call(document.querySelectorAll(".calc-graph-fn:not([hidden]) .calc-graph-input"), function (b) { return b.value; }).join(" | ")');
+    }
+    await page.click('.calc-graph-tab[data-tab="examples"]');
+    check(await page.calc('!document.querySelector(".calc-graph-examples").hidden && document.querySelector(".calc-graph-plot").hidden && ' +
+        'getComputedStyle(document.querySelector(".calc-graph-fns")).display === "none" && document.activeElement.classList.contains("calc-graph-search")') &&
+        await page.calc('document.querySelectorAll(".calc-graph-ex-list .calc-gx-cat").length') >= 9, t + 'examples: a tab of them, by group, with a search');
+    await page.type('cardioid');
+    check(await page.calc('document.querySelectorAll(".calc-graph-ex-list .calc-gx-item").length') === 1, t + 'examples: the search finds one');
+    await page.type('\r');
+    await sleep(300);
+    await page.hoverAt('.calc-graph-plot', 4.05, 0.05);
+    check(await boxes() === '(1, 2), (3, 4) | r = 2 + 2cos(θ)' && !await page.calc('document.querySelector(".calc-graph-plot").hidden') &&
+        /^x-intercept\s*x = 4\s*y = 0$/.test((await page.calc(note)).trim()), t + 'examples: Enter draws it after the box typed', await boxes());
+    await page.click('.calc-graph-tab[data-tab="examples"]');
+    await page.type('vertex\r');
+    await sleep(300);
+    check(await boxes() === '(1, 2), (3, 4) | r = 2 + 2cos(θ) | a(x - h)^2 + k' &&
+        await page.calc('document.querySelector(".calc-graph-slider[data-k=h] .calc-graph-val input").value') === '2',
+        t + 'examples: with its sliders set', await boxes());
+    await page.click('.calc-graph-tab[data-tab="examples"]');
+    await page.type('the next');
+    await page.click('.calc-graph-ex-list .calc-gx-row');
+    await page.click('.calc-graph-tab[data-tab="examples"]');
+    await page.type('stretched\r');
+    await sleep(300);
+    check(await boxes() === 'g(x) = sin(x) | g(2x) | 2g(x)', t + 'examples: in place of them all when there is no room', await boxes());
+
     // what is not a function says so, and draws nothing
     await page.click('.calc-graph .calc-past-clear');
     await page.click('.calc-graph-zoom [data-zoom="in"]');
