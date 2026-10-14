@@ -1077,7 +1077,7 @@
         graphSaving, // saves the view once the wheel stops
         graphOff = [false, false, false, false, false, false, false], // the curves hidden by a click on their dot: kept, not drawn
         graphDiff = [false, false, false, false, false, false, false], // the curves whose slope is drawn too, by their y′
-        graphRels = [], // the boxes with an equation of x and y in place of a function of x, x² + y² = 25: drawn, not marked
+        graphRels = [], // the boxes with an equation or an inequality of x and y in place of a function of x, x² + y² = 25
         graphSharp = 0, // pixels of the canvas to each of the plot at least: 2 while a picture is made
         graphPop = graphPlot.querySelector('.calc-graph-pop'), // the point clicked: its x and y, each to insert
         GRAPH_POP_WAIT = 2000, // the popup opened with the mouse goes this many ms after the mouse is off it
@@ -1864,6 +1864,7 @@
         if (!q) return null;
         if (!near) q = { i: i, x: q.x, y: q.y };
         d = Math.hypot(plotX(v, q.x) - a, plotY(v, q.y) - b);
+        if (d > 3 * s + 3) return null; // found on another part of it, not the next place along
         graphStep = { p: q, x: d ? (plotX(v, q.x) - a) / d : t.x, y: d ? (plotY(v, q.y) - b) / d : t.y, dir: dir };
         return q;
     }
@@ -2001,19 +2002,26 @@
     // Not where it only jumps from one sign to the other, as x y = 1 does across x = 0: there
     // the middle of the cell is farther from 0 than its corners. An inequality, y < x², is
     // shaded where it is true, a cell at a time, or the part of a cell on its side of the line;
-    // its line is dashed where the line itself is not in it, for < and >
+    // its line is dashed where the line itself is not in it, for < and >. Its values are kept
+    // while the view, the unit and its letters stay, as the pointer moving draws it again
     function drawRelation(ctx, v, w, h, rel, color) {
         var c = 3, nx = Math.ceil(w / c), ny = Math.ceil(h / c), grid = [], lines = [], op = rel.op || '=',
-            want = op === '<' || op === '≤' ? -1 : 1, strict = op === '<' || op === '>', i, j, run;
+            want = op === '<' || op === '≤' ? -1 : 1, strict = op === '<' || op === '>', i, j, run,
+            key = [v.x, v.y, v.ux, v.uy, w, h, deg].concat(rel.letters.map(function (k) { return graphVars[k]; })).join();
         function f(px, py) {
             return rel.at(graphX(v, px), graphY(v, py), deg);
         }
         function inside(k) {
             return k * want > 0 || (k === 0 && !strict);
         }
-        for (j = 0; j <= ny; j++) {
-            grid.push([]);
-            for (i = 0; i <= nx; i++) grid[j].push(f(i * c, j * c));
+        if (rel.kept && rel.kept.key === key) {
+            grid = rel.kept.grid;
+        } else {
+            for (j = 0; j <= ny; j++) {
+                grid.push([]);
+                for (i = 0; i <= nx; i++) grid[j].push(f(i * c, j * c));
+            }
+            rel.kept = { key: key, grid: grid };
         }
         if (op !== '=') {
             ctx.beginPath();
