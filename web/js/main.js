@@ -25,7 +25,7 @@
         tipTimer,
         tipGone = 0, // when the last tip went, so the next one comes at once
         copying = null, // text a history button is copying, in place of the main line
-        past = root.querySelector('.calc-past:not(.calc-stats):not(.calc-fx):not(.calc-conv)'), // the history, over the keys
+        past = root.querySelector('.calc-past:not(.calc-stats):not(.calc-fx):not(.calc-conv):not(.calc-graph)'), // the history, over the keys
         pastList = past.querySelector('.calc-past-list'),
         pastButton = root.querySelector('.calc-hist'),
         pastShown = {}, // the history as the list shows it, so it is only built again after a change
@@ -61,6 +61,39 @@
         convList = conv.querySelector('.calc-conv-list'),
         convAt = { g: 0, u: {} }, // the group shown, and the unit chosen in each group, by its name
         convNow = [], // the value in each unit of the group, as the list shows them
+        graph = root.querySelector('.calc-graph'), // the graph of a function of x, over the keys
+        graphButton = root.querySelector('.calc-graph-btn'),
+        graphRows = (function (first) { // a box for each curve, seven: the + shows the next one, its × takes it away
+            var rows = [first], row;
+            while (rows.length < 7) {
+                row = first.cloneNode(true);
+                row.querySelector('input').placeholder = 'another curve';
+                row.querySelector('input').setAttribute('aria-label', 'y = , curve ' + (rows.length + 1));
+                first.parentNode.appendChild(row);
+                rows.push(row);
+            }
+            return rows;
+        })(graph.querySelector('.calc-graph-fn')),
+        graphFnList = graph.querySelector('.calc-graph-fns'),
+        graphAdd = graph.querySelector('.calc-graph-add'),
+        graphSliders = graph.querySelector('.calc-graph-sliders'),
+        graphInputs = graphRows.map(function (row) { return row.querySelector('input'); }),
+        graphNote = graph.querySelector('.calc-graph-note'),
+        graphPlot = graph.querySelector('.calc-graph-plot'),
+        graphCanvas = graphPlot.querySelector('canvas'),
+        graphTable = graph.querySelector('.calc-graph-table'), // the table of the curves' values, in place of the plot
+        graphFrom = graphTable.querySelector('.calc-graph-from'), // its first x, and the step to the next: empty, from the view
+        graphBy = graphTable.querySelector('.calc-graph-by'),
+        graphList = graphTable.querySelector('.calc-graph-list'),
+        graphTab = 'graph', // the tab shown: the graph, or the table
+        graphWidth = 0, // the plot's width when it was last drawn, for the view while the table hides it
+        graphValues = [], // the rows of the table as shown: x, then y of each curve shown
+        graphLines = 0, // how many rows the table has: more come as it is scrolled to its end
+        graphFns = [], // the function each box holds, as the engine reads it; null if it holds none
+        graphView = null, // what the plot shows: x and y at its middle, and the units of x and y in a pixel; null for the start
+        graphMarks = [], // the points of the curves in the view worth marking: roots, highs and lows, crossings
+        graphAt = null, // the point under the pointer: { i: its curve, x, y, t: what it is if it is a mark, spot: true off the curves }
+        graphPinned = null, // the point clicked, which has the popup
         tools = Calc.querySelector('.calc-tools'), // the buttons at the top left of the display
         pressedKey,
         sliding, // long line being slid: its element and where the slide started
@@ -109,9 +142,10 @@
 
     // The page does what the calculator cannot: it opens the options, and reads the
     // clipboard for Paste. It is asked with an event on the calculator, which popup.js
-    // answers in the extension and app.js on the website
+    // answers in the extension and app.js on the website. False if the page does it in
+    // its own way, in place of the calculator
     function ask(what, detail) {
-        root.dispatchEvent(new CustomEvent('calc-' + what, { bubbles: true, detail: detail }));
+        return root.dispatchEvent(new CustomEvent('calc-' + what, { bubbles: true, cancelable: true, detail: detail }));
     }
 
     // A press in the calculator takes the keyboard back from the rest of the page: the keys
@@ -162,10 +196,15 @@
             if (e.which === 27 && !menu.hidden) { // Esc closes the menu first
                 showMenu(false);
                 e.preventDefault();
+            } else if (e.which === 27 && graphUnpin()) { // Esc closes the point clicked on the graph first
+                e.preventDefault();
+            } else if (e.which === 27 && graph.contains(e.target) && graphBig(false)) { // then makes the big graph small
+                e.preventDefault();
             } else if (e.which === 27) { // Esc closes the panel, as the history
                 showStats(false);
                 showFx(false);
                 showConv(false);
+                closeGraph();
                 e.preventDefault();
             }
             return;
@@ -232,6 +271,10 @@
         }
         if (key === 27 && conv.classList.contains('calc-open')) { // and the converter
             showConv(false);
+            return true;
+        }
+        if (key === 27 && graph.classList.contains('calc-open')) { // and the graph, after the point clicked on it and its big view
+            if (!graphUnpin() && !graphBig(false)) closeGraph();
             return true;
         }
         if (key === 27 && past.classList.contains('calc-open')) { // Esc closes the history
@@ -444,6 +487,8 @@
     tip.parentNode.addEventListener('mouseover', function (e) {
         var key = e.target.closest('.calc-left > *, .calc-right > .del-ac, .calc-rad, .calc-mem, .calc-frac, .calc-fmt, .calc-hold, ' +
             '.calc-stat-btn, .calc-stats-tile, .calc-fx-btn, .calc-fx-row, .calc-conv-btn, .calc-conv-row, ' +
+            '.calc-graph-btn, .calc-graph-size, .calc-graph-add, .calc-graph-del, .calc-graph-zoom > span, .calc-graph-pop-row, ' +
+            '.calc-graph-fn > .calc-graph-swatch, ' +
             '.calc-hist, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit, .calc-help');
         if (key === tipKey) return;
         hideTip();
@@ -521,6 +566,23 @@
                 d: info.d + (statsNow.n && isFinite(value) ? ' Now ' + statsValue(value).html + '; click to put it in.' : ''),
                 k: ''
             };
+        }
+        if (el === graphButton) return CalcTips[graph.classList.contains('calc-open') ? 'graph close' : 'graph'];
+        if (graph.contains(el)) {
+            if (el.classList.contains('calc-past-clear')) return CalcTips['graph clear'];
+            if (el.classList.contains('calc-past-close')) {
+                info = CalcTips['graph close'];
+                return root.classList.contains('calc-big') && !graphAlone ? { t: info.t, d: info.d, k: '' } : info; // Esc makes it small first
+            }
+            if (el === graphSize) return CalcTips[root.classList.contains('calc-big') ? 'graph small' : 'graph big'];
+            if (el === graphAdd) return CalcTips['graph add'];
+            if (el.classList.contains('calc-graph-del')) return CalcTips['graph remove'];
+            if (el.classList.contains('calc-graph-pop-row')) return CalcTips['graph put ' + el.dataset.put];
+            if (el.classList.contains('calc-graph-swatch')) {
+                value = graphRows.indexOf(el.parentNode);
+                return graphInputs[value].value.trim() ? CalcTips[graphOff[value] ? 'graph show' : 'graph hide'] : null;
+            }
+            return CalcTips['graph ' + el.dataset.zoom];
         }
         if (el === pastButton) return CalcTips[past.classList.contains('calc-open') ? 'history close' : 'history'];
         if (el.classList.contains('calc-past-clear')) return CalcTips['history clear'];
@@ -667,7 +729,27 @@
                 return [act === 'copy' ? 'Copy' : 'Insert', function () { part.querySelector('[data-act="' + act + '"]').click(); }];
             }).concat([['Delete', function () { row.querySelector('.calc-past-del').click(); }]]);
         }
-        return boxItems(panel === stats ? statsInput : panel === fx ? fxSearch : convInput);
+        if (panel === graph && (row = el.closest('.calc-graph-cell')) && isFinite(k = graphValues[row.dataset.r][row.dataset.c])) {
+            text = local(+row.dataset.c ? statsValue(k).text : String(k));
+            return [
+                ['Copy', function () { copy(text); }],
+                ['Insert', function () { row.click(); }]
+            ];
+        }
+        if (panel === graph && el.closest('.calc-graph-plot') && !el.closest('.calc-graph-pop')) {
+            return [
+                ['Copy picture', copyGraph],
+                ['Save picture', saveGraph]
+            ];
+        }
+        if (panel === graph && (row = el.closest('.calc-graph-pop-row')) && graphPinned) {
+            k = graphPinned[row.dataset.put];
+            return [
+                ['Copy', function () { copy(local(graphPinned.spot ? k : statsValue(k).text)); }],
+                ['Insert', function () { row.click(); }]
+            ];
+        }
+        return boxItems(panel === stats ? statsInput : panel === fx ? fxSearch : panel === graph ? graphInputs[0] : convInput);
     }
 
     // Cut and Copy take what is selected in the box, and Paste goes in its place
@@ -783,6 +865,9 @@
         if (conv.classList.contains('calc-open') && !conv.contains(e.target) && !convButton.contains(e.target)) {
             showConv(false);
         }
+        if (graph.classList.contains('calc-open') && !graph.contains(e.target) && !graphButton.contains(e.target)) {
+            showGraph(false);
+        }
     }, true);
 
     past.querySelector('.calc-past-close').addEventListener('click', function () {
@@ -828,6 +913,7 @@
             showStats(false); // one panel at a time
             showFx(false);
             showConv(false);
+            showGraph(false);
             placePanel(past);
             renderPast();
         }
@@ -911,6 +997,7 @@
             showPast(false);
             showFx(false);
             showConv(false);
+            showGraph(false);
             placePanel(stats);
             renderStats();
         }
@@ -945,6 +1032,1041 @@
     function statsValue(value) {
         return shownResult({ value: String(value), frac: fracMode, dms: dmsMode }, String(+(+value).toPrecision(13)));
     }
+
+    // ---------------- graph ---------------- //
+
+    // Up to seven functions of x, typed as they would be pasted: x^2 – 3, 2sin(x), 1/x.
+    // Their curves are drawn over a grid, in the unit of angles in use, each in its color;
+    // a drag moves the view, and the wheel, a pinch or the buttons zoom it. The roots,
+    // highs and lows of each, where it meets the y axis and where two cross are marked
+    // with dots. The point under the pointer shows its x and y, on the nearest curve or
+    // dot; a click keeps it there, and its y can be put into the calculation, as Ans is
+    var GRAPH_WIDTH = 20, // the x the plot starts with: -10 to 10, or a full turn either way in degrees
+        GRAPH_INK = { grid: 'rgba(51, 68, 59, 0.16)', axis: '#33443b', text: '#33443b', paper: '#b6d1c2' },
+        // the colors of the curves, all dark enough for the green: navy, red, green, purple, orange, teal and plum
+        GRAPH_CURVES = ['#22476a', '#b0414d', '#3d8b4f', '#6d3fa6', '#c2621a', '#127a85', '#8c2f6b'],
+        graphCount = 1, // the boxes shown
+        graphHue = [0, 1, 2, 3, 4, 5, 6], // the color of each box, which stays with its curve as one above is removed
+        graphVars = {}, // the value of each letter of the functions but x, as its slider sets it: a and b in a x² + b
+        graphRange = {}, // the ends of each slider, [from, to]
+        graphLetters = [], // the letters that have a slider now
+        graphSliding, // the sliders wait until the typing stops: sin is not s, i and n while it is typed
+        GRAPH_NAMES = { root: 'Root', min: 'Min', max: 'Max', yint: 'y-intercept', cross: 'Crossing' },
+        graphTouch = {}, // the pointers pressed on the plot, where each is now
+        graphStart = null, // where they were when the last one went down or up, and the view then
+        graphMoved = false, // the press became a drag or a pinch, so it is not a click
+        graphSaving, // saves the view once the wheel stops
+        graphOff = [false, false, false, false, false, false, false], // the curves hidden by a click on their dot: kept, not drawn
+        graphSharp = 0, // pixels of the canvas to each of the plot at least: 2 while a picture is made
+        graphPop = graphPlot.querySelector('.calc-graph-pop'), // the point clicked: its x and y, each to insert
+        graphSize = graph.querySelector('.calc-graph-size'), // the graph as big as the page, and back
+        graphAlone = false; // the page is the graph's own window, in the extension: only the graph, always big
+
+    // A click on the dot of a curve hides it, and shows it again: it stays typed, but is not
+    // drawn, marked or in the table. Its × removes it
+    graphRows.forEach(function (row, i) {
+        var dot = row.querySelector('.calc-graph-swatch');
+        row.querySelector('.calc-graph-del').addEventListener('click', function (e) {
+            e.preventDefault(); // not the label's focus of the box
+            removeCurve(i);
+        }, false);
+        dot.addEventListener('click', function (e) {
+            e.preventDefault(); // not the label's focus of the box
+            if (!graphInputs[i].value.trim()) return;
+            graphOff[i] = !graphOff[i];
+            hideTip();
+            readGraph();
+            saveState();
+        }, false);
+    });
+
+    graphButton.addEventListener('click', function () {
+        showGraph(!graph.classList.contains('calc-open'));
+    }, false);
+
+    // the color of the curve of box i
+    function curveColor(i) {
+        return GRAPH_CURVES[graphHue[i]];
+    }
+
+    // The boxes after the shown ones hold the colors not in use, first to last: the next box
+    // gets the first of them
+    function freeHues() {
+        graphHue = graphHue.slice(0, graphCount).concat(graphHue.slice(graphCount).sort(function (a, b) { return a - b; }));
+    }
+
+    // a box for another curve, at the end, to type in
+    graphAdd.addEventListener('click', function () {
+        addCurve();
+    }, false);
+
+    function addCurve() {
+        var box = graphInputs[graphCount];
+        if (graphCount >= graphRows.length) return;
+        box.value = '';
+        graphCount++;
+        freeHues();
+        readGraph();
+        saveState();
+        box.focus();
+        graphRows[graphCount - 1].scrollIntoView({ block: 'nearest' });
+    }
+
+    // a curve taken away: the ones below move up, with what is typed, hidden and their colors
+    function removeCurve(i) {
+        var j, hue = graphHue[i], focused = graphInputs.indexOf(document.activeElement);
+        if (graphCount < 2) return;
+        for (j = i; j < graphCount - 1; j++) graphInputs[j].value = graphInputs[j + 1].value;
+        graphInputs[graphCount - 1].value = '';
+        graphOff.splice(i, 1);
+        graphOff.push(false);
+        graphHue.splice(i, 1);
+        graphHue.splice(graphCount - 1, 0, hue);
+        graphCount--;
+        freeHues();
+        hideTip();
+        readGraph();
+        saveState();
+        if (focused > -1) graphInputs[Math.min(focused, graphCount - 1)].focus(); // the box in its place
+    }
+
+    graph.querySelector('.calc-past-close').addEventListener('click', closeGraph, false);
+
+    // closed by its button or Esc; the graph's own window is closed then
+    function closeGraph() {
+        if (graphAlone) ask('graph-close'); else showGraph(false);
+    }
+
+    // pop out and pop in
+    graphSize.addEventListener('click', function () {
+        graphBig(!root.classList.contains('calc-big'));
+    }, false);
+
+    // The graph as big as the page: the calculator fills it and shows only the graph, with
+    // more of the curves: on the website all of its window. The page may do it its own way:
+    // the extension, whose popup cannot grow, opens the graph in a window of its own. True if it changed
+    function graphBig(on) {
+        if (on === root.classList.contains('calc-big') || (graphAlone && !on)) return false;
+        hideTip();
+        showMenu(false);
+        if (on) {
+            saveState(); // all of it, for the window that opens with it
+            if (!ask('big', { big: true })) return false;
+            if (!graph.classList.contains('calc-open')) showGraph(true);
+        }
+        root.classList.toggle('calc-big', on);
+        if (!on) ask('big', { big: false });
+        graphRender();
+        return true;
+    }
+
+    // the page asks for it: big and alone in the graph's own window
+    root.addEventListener('calc-graph', function (e) {
+        var d = e.detail || {};
+        if (d.alone) {
+            graphAlone = true;
+            root.classList.add('calc-alone');
+        }
+        graphBig(!!d.big);
+    }, false);
+
+    // Clear starts again: no curves, and the view as at first
+    graph.querySelector('.calc-past-clear').addEventListener('click', function () {
+        graphInputs.forEach(function (box) { box.value = ''; });
+        graphFrom.value = graphBy.value = '';
+        graphCount = 1;
+        graphHue = [0, 1, 2, 3, 4, 5, 6];
+        graphOff = graphOff.map(function () { return false; });
+        forgetLetters();
+        graphView = null;
+        graphLines = 0;
+        readGraph();
+        saveState();
+        focusBox(graphInputs[0]);
+    }, false);
+
+    graphInputs.forEach(function (box, i) {
+        box.addEventListener('input', function () {
+            readGraph(true);
+            saveState();
+        }, false);
+        // Enter goes on to the box of the next curve; after the last one, to a new box
+        box.addEventListener('keydown', function (e) {
+            if (e.which !== 13) return;
+            e.preventDefault();
+            if (i + 1 < graphCount) graphInputs[i + 1].focus();
+            else if (box.value.trim()) addCurve();
+        }, false);
+        box.addEventListener('focus', drawGraph, false); // a busy graph shows the dots of this curve
+    });
+
+    function showGraph(open) {
+        var box;
+        if (!open && graphAlone) return; // its own window stays, even as a value is put in
+        if (!open) graphBig(false); // a value put in from the big graph: the calculator again
+        if (open) {
+            showPast(false);
+            showStats(false);
+            showFx(false);
+            showConv(false);
+            placePanel(graph);
+        }
+        graph.classList.toggle('calc-open', open);
+        graphButton.classList.toggle('calc-on', open);
+        if (open) {
+            readGraph();
+            box = graphInputs[0];
+            if (focusBox(box)) box.setSelectionRange(box.value.length, box.value.length);
+        } else if (graphInputs.indexOf(document.activeElement) > -1) {
+            document.activeElement.blur(); // the keys are the calculator's again
+        }
+    }
+
+    // The functions and the view saved last time; one function, as the graph first kept it. The
+    // boxes are as many as were saved with their colors; three without them, as the graph had,
+    // up to the last one filled
+    function loadGraph(saved) {
+        var v = saved && saved.view, f = saved && (typeof saved.f === 'string' ? [saved.f] : saved.f),
+            c = saved && saved.c, n = graphRows.length;
+        if (Array.isArray(f)) {
+            f = f.slice(0, n);
+            graphInputs.forEach(function (box, i) { box.value = typeof f[i] === 'string' ? f[i] : ''; });
+        }
+        graphCount = 1;
+        graphInputs.forEach(function (box, i) { if (box.value.trim()) graphCount = i + 1; });
+        graphHue = [0, 1, 2, 3, 4, 5, 6];
+        if (Array.isArray(c) && c.length >= graphCount && c.length <= n && c.every(function (h, i) {
+            return h === Math.floor(h) && h >= 0 && h < n && c.indexOf(h) === i;
+        })) {
+            graphCount = c.length;
+            graphHue = c.concat(graphHue.filter(function (h) { return c.indexOf(h) < 0; }));
+        }
+        graphView = v && [v.x, v.y, v.ux, v.uy].every(isFinite) && v.ux > 0 && v.uy > 0 ? { x: v.x, y: v.y, ux: v.ux, uy: v.uy } : null;
+        graphOff = graphOff.map(function (off, i) { return !!(saved && Array.isArray(saved.off) && saved.off[i] === true); });
+        graphFrom.value = saved && typeof saved.from === 'string' ? saved.from : '';
+        graphBy.value = saved && typeof saved.by === 'string' ? saved.by : '';
+        // the sliders: { a: [its value, from, to] }
+        forgetLetters();
+        if (saved && saved.p && typeof saved.p === 'object') {
+            Object.keys(saved.p).forEach(function (k) {
+                var q = saved.p[k];
+                if (/^[a-df-wz]$/.test(k) && Array.isArray(q) && q.length === 3 && q.every(function (n) {
+                    return typeof n === 'number' && isFinite(n);
+                }) && q[1] < q[2]) {
+                    graphVars[k] = q[0];
+                    graphRange[k] = [q[1], q[2]];
+                }
+            });
+        }
+        showGraphTab(saved && saved.tab);
+    }
+
+    // no values of letters: the functions read them from this same object, so it is emptied, not replaced
+    function forgetLetters() {
+        Object.keys(graphVars).forEach(function (k) { delete graphVars[k]; });
+        graphRange = {};
+    }
+
+    // The functions are read again: a box that is not one yet is marked. A hidden curve has
+    // none. The point kept on the old curves goes. Each letter but x has a slider, at 1 from
+    // -10 to 10 at first; while a function is typed, the sliders wait until the typing stops
+    function readGraph(typing) {
+        var letters = [];
+        graphFns = graphInputs.map(function (box, i) {
+            var text = i < graphCount ? box.value.trim() : '', fn = text ? CalcEngine.graph(text, engine.comma, graphVars) : null,
+                row = graphRows[i];
+            if (fn) {
+                fn.letters.forEach(function (k) {
+                    if (letters.indexOf(k) < 0) letters.push(k);
+                });
+            }
+            if (!text) graphOff[i] = false; // what is typed next is shown
+            row.hidden = i >= graphCount;
+            row.classList.toggle('calc-bad', !!text && !fn);
+            row.classList.toggle('calc-graph-off', graphOff[i]);
+            row.classList.toggle('calc-graph-empty', !text);
+            row.querySelector('.calc-graph-swatch').style.setProperty('--c', curveColor(i));
+            return graphOff[i] ? null : fn;
+        });
+        graphFnList.classList.toggle('calc-graph-single', graphCount < 2);
+        graphFnList.classList.toggle('calc-graph-many', graphCount > 3);
+        graphAdd.hidden = graphCount >= graphRows.length;
+        letters.forEach(function (k) {
+            if (typeof graphVars[k] !== 'number') graphVars[k] = 1;
+            if (!graphRange[k]) graphRange[k] = [-10, 10];
+        });
+        clearTimeout(graphSliding);
+        if (typing && letters.join() !== graphLetters.join()) {
+            graphSliding = setTimeout(function () {
+                showSliders(letters);
+                graphRender(); // the plot has less room, or more
+                saveState();
+            }, 700);
+        } else {
+            showSliders(letters);
+        }
+        graphAt = graphPinned = null;
+        graphRender();
+    }
+
+    // A slider for each letter: its value, to type as well, then where it goes from, the
+    // slider and where it goes to. A value typed beyond the ends takes the end there
+    function showSliders(letters) {
+        if (letters.join() !== graphLetters.join()) {
+            graphLetters = letters;
+            graphSliders.innerHTML = letters.map(function (k) {
+                var box = ' type="text" inputmode="decimal" spellcheck="false" autocomplete="off" maxlength="16"';
+                return '<div class="calc-graph-slider" data-k="' + k + '">' +
+                    '<label class="calc-graph-val"><i>' + k + '</i><span>=</span><input' + box + ' aria-label="' + k + ' ="></label>' +
+                    '<input class="calc-graph-end"' + box + ' data-end="0" aria-label="' + k + ' from">' +
+                    '<input class="calc-graph-range" type="range" aria-label="' + k + '">' +
+                    '<input class="calc-graph-end"' + box + ' data-end="1" aria-label="' + k + ' to">' +
+                    '</div>';
+            }).join('');
+            graphSliders.hidden = !letters.length;
+            graphSliders.classList.toggle('calc-graph-many', letters.length > 2);
+        }
+        [].forEach.call(graphSliders.children, setSlider);
+    }
+
+    // A slider as its letter is now: its value, its ends and a step that suits them, 0.1 from
+    // -10 to 10. Not a box being typed in, nor one marked as it cannot be
+    function setSlider(row) {
+        var k = row.dataset.k, r = graphRange[k], step = sliderStep(r), range = row.querySelector('.calc-graph-range'),
+            val = row.querySelector('.calc-graph-val input');
+        range.max = r[1];
+        range.min = r[0];
+        range.step = step;
+        range.value = graphVars[k];
+        if (document.activeElement !== val) {
+            val.value = sliderText(graphVars[k], step);
+            val.parentNode.classList.remove('calc-bad');
+        }
+        [].forEach.call(row.querySelectorAll('.calc-graph-end'), function (end) {
+            if (document.activeElement === end) return;
+            end.value = local(String(r[end.dataset.end]));
+            end.classList.remove('calc-bad');
+        });
+    }
+
+    // a hundredth of the slider, or less, as a power of ten
+    function sliderStep(r) {
+        return Math.pow(10, Math.floor(Math.log10((r[1] - r[0]) / 100)));
+    }
+
+    // a value of a slider, to its step: 1.5, not 1.5000000000000002
+    function sliderText(v, step) {
+        return local(String(+v.toFixed(Math.max(0, Math.min(12, -Math.round(Math.log10(step)))))));
+    }
+
+    // a slider dragged, a value or an end typed: the curves follow
+    graphSliders.addEventListener('input', function (e) {
+        var el = e.target, row = el.closest('.calc-graph-slider'), k = row && row.dataset.k, r = k && graphRange[k], n, ok;
+        if (!row) return;
+        if (el.classList.contains('calc-graph-range')) {
+            graphVars[k] = +(+el.value).toPrecision(12);
+            setSlider(row);
+        } else {
+            onlyNumber(el);
+            n = +boxValue(el);
+            if (/^-?[.,]?$/.test(el.value)) { // empty, or a number only begun: -, -. — waited for, not marked
+                (el.classList.contains('calc-graph-end') ? el : el.parentNode).classList.remove('calc-bad');
+                return;
+            }
+            ok = isFinite(n);
+            if (el.classList.contains('calc-graph-end')) {
+                ok = ok && (el.dataset.end === '0' ? n < r[1] : n > r[0]);
+                el.classList.toggle('calc-bad', !ok);
+                if (!ok) return;
+                r[el.dataset.end] = n;
+                graphVars[k] = Math.min(r[1], Math.max(r[0], graphVars[k])); // within the ends
+            } else {
+                el.parentNode.classList.toggle('calc-bad', !ok);
+                if (!ok) return;
+                graphVars[k] = n;
+                r[0] = Math.min(r[0], n);
+                r[1] = Math.max(r[1], n);
+            }
+            setSlider(row);
+            saveState();
+        }
+        graphAt = graphPinned = null; // its points have moved
+        graphRender();
+    }, false);
+
+    // let go of: kept
+    graphSliders.addEventListener('change', function (e) {
+        if (e.target.classList.contains('calc-graph-range')) saveState();
+    }, false);
+
+    // a box left as it cannot be shows what the slider has again
+    graphSliders.addEventListener('focusout', function (e) {
+        var row = e.target.closest('.calc-graph-slider');
+        if (row) setTimeout(function () { if (row.parentNode) setSlider(row); }, 0);
+    }, false);
+
+    // the tab shown, drawn as it is now
+    function graphRender() {
+        if (graphTab === 'table') renderTable(); else drawGraph();
+    }
+
+    // true if a curve has a function of an angle, so its x follows Deg or Rad
+    function graphAngles() {
+        return graphFns.some(function (fn) { return fn && fn.angles; });
+    }
+
+    // What the plot shows. Until it is moved or zoomed it is the start: x from -10 to 10 with
+    // y as much each pixel, or for a function of an angle in degrees, x a turn either way
+    function viewNow() {
+        var u = GRAPH_WIDTH / plotWidth();
+        if (graphView) return graphView;
+        return { x: 0, y: 0, ux: graphAngles() && deg ? u * (deg === 2 ? 40 : 36) : u, uy: u };
+    }
+
+    // the plot's width, as it was last drawn while the table hides it
+    function plotWidth() {
+        return graphPlot.clientWidth || graphWidth || 340;
+    }
+
+    // the x and y of a place on the plot, in its pixels, and back
+    function graphX(v, px) {
+        return v.x + (px - graphPlot.clientWidth / 2) * v.ux;
+    }
+
+    function graphY(v, py) {
+        return v.y - (py - graphPlot.clientHeight / 2) * v.uy;
+    }
+
+    function plotX(v, x) {
+        return graphPlot.clientWidth / 2 + (x - v.x) / v.ux;
+    }
+
+    function plotY(v, y) {
+        return graphPlot.clientHeight / 2 - (y - v.y) / v.uy;
+    }
+
+    // the space between lines of the grid: 1, 2 or 5 times a power of ten, some 50 pixels
+    // or more. Degrees go by 15, 30, 45, 90 and 180, as angles are drawn
+    function gridStep(u, degrees) {
+        var want = u * 50, p = Math.pow(10, Math.floor(Math.log10(want))), m = want / p;
+        if (degrees && want > 10 && want <= 180) return [15, 30, 45, 90, 180].filter(function (d) { return d >= want; })[0];
+        return p * (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10);
+    }
+
+    // a number of the grid, as short as its step lets it be: 0.5, 20, 1e+8, with the decimal mark in use
+    function gridLabel(n, step) {
+        var a = Math.abs(n);
+        if (a < step / 2) return '0';
+        if (a >= 1e6 || a < 1e-4) return local(n.toExponential(2).replace(/\.?0+e/, 'e'));
+        return local(String(+n.toFixed(Math.max(0, 1 - Math.floor(Math.log10(step))))));
+    }
+
+    // an x of the pointer, rounded to what a pixel tells apart: 1.53, not 1.5327869
+    function graphRound(x, u) {
+        var q = Math.pow(10, Math.floor(Math.log10(u)));
+        return +(Math.round(x / q) * q).toPrecision(12);
+    }
+
+    function drawGraph() {
+        var w = graphPlot.clientWidth, h = graphPlot.clientHeight, r = Math.max(graphSharp, (window.devicePixelRatio || 1) * scale()),
+            ctx = graphCanvas.getContext('2d'), v;
+        if (!graph.classList.contains('calc-open') || !w || !h) return;
+        graphWidth = w;
+        v = viewNow();
+        if (graphCanvas.width !== Math.round(w * r) || graphCanvas.height !== Math.round(h * r)) {
+            graphCanvas.width = Math.round(w * r); // as sharp as the screen, however the page scales the calculator
+            graphCanvas.height = Math.round(h * r);
+        }
+        ctx.setTransform(r, 0, 0, r, 0, 0);
+        ctx.clearRect(0, 0, w, h);
+        drawGrid(ctx, v, w, h);
+        graphFns.forEach(function (fn, i) {
+            if (fn) drawCurve(ctx, v, w, h, fn, curveColor(i));
+        });
+        graphMarks = graphBusy(CalcEngine.keyPoints(graphFns, { x0: graphX(v, 0), x1: graphX(v, w), y0: graphY(v, h), y1: graphY(v, 0) }, deg));
+        graphMarks.forEach(function (p) {
+            graphDot(ctx, v, p, 3.5, GRAPH_INK.paper, curveColor(p.i));
+        });
+        [graphAt, graphPinned].forEach(function (p, at) {
+            if (!p || (at && p === graphAt)) return;
+            if (!p.t && !p.spot && graphFns[p.i]) p.y = graphFns[p.i].at(p.x, deg, true); // on the curve as the unit is now
+            if (!isFinite(p.y) || Math.abs(plotY(v, p.y)) > 1e6) return;
+            if (p.spot) {
+                if (p === graphPinned) graphCross(ctx, v, p); // the pointer is cross enough until a click
+            } else graphDot(ctx, v, p, 4.5, curveColor(p.i), GRAPH_INK.paper);
+        });
+        graphShown();
+        placePop(v);
+    }
+
+    // a place away from the curves, clicked: a cross
+    function graphCross(ctx, v, p) {
+        var x = Math.round(plotX(v, p.x)) + 0.5, y = Math.round(plotY(v, p.y)) + 0.5;
+        ctx.beginPath();
+        ctx.moveTo(x - 5, y);
+        ctx.lineTo(x + 5, y);
+        ctx.moveTo(x, y - 5);
+        ctx.lineTo(x, y + 5);
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = GRAPH_INK.axis;
+        ctx.stroke();
+    }
+
+    // Too many dots cannot be read: then only those of one curve are shown, and its crossings.
+    // The curve is the one pointed at, else the one whose box is being typed in, else the first
+    function graphBusy(marks) {
+        var box = graphInputs.indexOf(document.activeElement),
+            one = graphAt && !graphAt.spot ? graphAt.i : graphPinned && !graphPinned.spot ? graphPinned.i : box > -1 ? box : 0;
+        if (marks.length <= 24) return marks;
+        return marks.filter(function (p) { return p.i === one || p.j === one; });
+    }
+
+    // a point of a curve: a hollow dot for a mark, a full one for the point shown
+    function graphDot(ctx, v, p, size, fill, ring) {
+        ctx.beginPath();
+        ctx.arc(plotX(v, p.x), plotY(v, p.y), size, 0, 2 * Math.PI);
+        ctx.fillStyle = fill;
+        ctx.strokeStyle = ring;
+        ctx.lineWidth = 2;
+        ctx.fill();
+        ctx.stroke();
+    }
+
+    // the lines of the grid, the axes, and the numbers along them; an axis out of
+    // the view leaves its numbers at the nearest edge
+    function drawGrid(ctx, v, w, h) {
+        var sx = gridStep(v.ux, graphAngles() && deg === 1), sy = gridStep(v.uy, false),
+            ax = Math.max(1, Math.min(w - 1, Math.round(plotX(v, 0)))) + 0.5, // where the axes are drawn, on whole pixels
+            ay = Math.max(1, Math.min(h - 1, Math.round(plotY(v, 0)))) + 0.5,
+            labelY = Math.min(h - 4, ay + 13), onLeft = ax > w - 40, k, p, text;
+
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = GRAPH_INK.grid;
+        ctx.beginPath();
+        for (k = Math.ceil(graphX(v, 0) / sx); k * sx <= graphX(v, w); k++) {
+            p = Math.round(plotX(v, k * sx)) + 0.5;
+            ctx.moveTo(p, 0);
+            ctx.lineTo(p, h);
+        }
+        for (k = Math.ceil(graphY(v, h) / sy); k * sy <= graphY(v, 0); k++) {
+            p = Math.round(plotY(v, k * sy)) + 0.5;
+            ctx.moveTo(0, p);
+            ctx.lineTo(w, p);
+        }
+        ctx.stroke();
+
+        ctx.strokeStyle = GRAPH_INK.axis;
+        ctx.beginPath();
+        if (plotY(v, 0) >= 0 && plotY(v, 0) <= h) {
+            ctx.moveTo(0, ay);
+            ctx.lineTo(w, ay);
+        }
+        if (plotX(v, 0) >= 0 && plotX(v, 0) <= w) {
+            ctx.moveTo(ax, 0);
+            ctx.lineTo(ax, h);
+        }
+        ctx.stroke();
+
+        ctx.font = '10px Play, sans-serif';
+        ctx.fillStyle = GRAPH_INK.text;
+        ctx.strokeStyle = GRAPH_INK.paper; // a rim of the paper, so a number reads over a line
+        ctx.lineWidth = 3;
+        ctx.lineJoin = 'round';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        for (k = Math.ceil(graphX(v, 0) / sx); k * sx <= graphX(v, w); k++) {
+            p = plotX(v, k * sx);
+            if (!k || p < 10 || p > w - 10) continue;
+            text = gridLabel(k * sx, sx);
+            ctx.strokeText(text, p, labelY);
+            ctx.fillText(text, p, labelY);
+        }
+        ctx.textAlign = onLeft ? 'right' : 'left';
+        ctx.textBaseline = 'middle';
+        for (k = Math.ceil(graphY(v, h) / sy); k * sy <= graphY(v, 0); k++) {
+            p = plotY(v, k * sy);
+            if (!k || p < 8 || p > h - 8) continue;
+            text = gridLabel(k * sy, sy);
+            ctx.strokeText(text, onLeft ? ax - 4 : ax + 4, p);
+            ctx.fillText(text, onLeft ? ax - 4 : ax + 4, p);
+        }
+    }
+
+    // A curve, from two values of each pixel across. It breaks where there is no
+    // value, and where it leaves by one edge and comes back by the other, as tan x
+    // does at 90°, unless the value between the two is between them too: a steep line
+    function drawCurve(ctx, v, w, h, fn, color) {
+        var n = Math.ceil(w * 2), i, x, y, py, last = null, mid;
+        ctx.beginPath();
+        for (i = 0; i <= n; i++) {
+            x = graphX(v, i / 2);
+            y = fn.at(x, deg);
+            if (!isFinite(y)) {
+                last = null;
+                continue;
+            }
+            py = plotY(v, y);
+            if (last && ((last.py < 0 && py > h) || (last.py > h && py < 0))) {
+                mid = fn.at((last.x + x) / 2, deg);
+                if (!(mid >= Math.min(last.y, y) && mid <= Math.max(last.y, y))) last = null;
+            }
+            if (last) ctx.lineTo(i / 2, Math.max(-h, Math.min(2 * h, py)));
+            else ctx.moveTo(i / 2, Math.max(-h, Math.min(2 * h, py)));
+            last = { x: x, y: y, py: py };
+        }
+        ctx.lineWidth = 2;
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = color;
+        ctx.stroke();
+    }
+
+    // The point at a place of the plot: a mark within reach of it, the nearest; else the
+    // curve within reach above or below it, the nearest, at its x; else the place itself,
+    // its x and y rounded to what a pixel tells apart (spot)
+    function graphPoint(at, reach) {
+        var v = viewNow(), x = graphRound(graphX(v, at.x), v.ux), best = null;
+        graphMarks.forEach(function (p) {
+            var d = Math.hypot(plotX(v, p.x) - at.x, plotY(v, p.y) - at.y);
+            if (d <= reach && (!best || d < best.d)) best = { d: d, p: p };
+        });
+        if (best) return best.p;
+        graphFns.forEach(function (fn, i) {
+            var y = fn ? fn.at(x, deg, true) : NaN, d = Math.abs(plotY(v, y) - at.y);
+            if (isFinite(y) && d <= reach * 1.2 && (!best || d < best.d)) best = { d: d, p: { i: i, x: x, y: y } };
+        });
+        return best ? best.p : { x: x, y: graphRound(graphY(v, at.y), v.uy), spot: true };
+    }
+
+    // what a point is, and its x and y, as the line above the plot and the popup show them
+    function graphName(p) {
+        return p.spot ? 'Point' : p.t ? p.t.map(function (t) { return GRAPH_NAMES[t]; }).join(', ') : 'On the curve';
+    }
+
+    // to 13 digits, as the display shows a result: 1.732050807569. What is inserted is the whole number
+    function graphValue(p, k) {
+        var n = String(+p[k].toPrecision(13));
+        return p.spot || k === 'x' ? shownResult({ value: n }, n).html : statsValue(p[k]).html;
+    }
+
+    // a dot of the curve's color, or of both curves that cross
+    function graphSwatch(i) {
+        return '<b class="calc-graph-swatch" style="background:' + curveColor(i) + '"></b>';
+    }
+
+    // the colors of a point's curves: one, two where they cross, none for a place off them
+    function graphSwatches(p) {
+        return p.spot ? '' : graphSwatch(p.i) + (p.j !== undefined ? graphSwatch(p.j) : '');
+    }
+
+    // the line above the plot: the point under the pointer, what it is and its x and y; else what to do
+    function graphShown() {
+        var unit = graphAngles() ? UNITS[deg] : '', p = graphAt;
+        if (graphRows.some(function (row) { return row.classList.contains('calc-bad'); })) {
+            graphNote.textContent = 'Not a function of x yet: write x^2 for x², 2x for 2 × x.';
+        } else if (!graphFns.some(Boolean) && graphOff.some(Boolean)) {
+            graphNote.textContent = 'Every curve is hidden: click its dot to show it.';
+        } else if (graphTab === 'table') {
+            graphNote.textContent = !graphFns.some(Boolean) ? 'Type a function of x for its values.' :
+                graphTable.querySelector('.calc-bad') ? 'Start and step are numbers, the step above 0.' :
+                    'Click a value to put it in the equation.' + (unit ? ' · ' + unit : '');
+        } else if (p) {
+            graphNote.innerHTML = graphSwatches(p) + '<em>' + graphName(p) + '</em>' +
+                '<span><i>x</i> = ' + graphValue(p, 'x') + '</span>' +
+                '<span><i>y</i> = ' + (isFinite(p.y) ? graphValue(p, 'y') : 'none') + '</span>';
+        } else if (!graphInputs.some(function (box) { return box.value.trim(); })) {
+            graphNote.textContent = 'Type a function of x. Drag to move, scroll or pinch to zoom.';
+        } else {
+            graphNote.textContent = 'Point at the graph for values; click to insert.' + (unit ? ' · ' + unit : '');
+        }
+    }
+
+    // The popup of the point clicked, over it, or under it where there is no room above;
+    // its x and y each go into the calculation with a click. It goes with the point as the
+    // view moves, and hides while the point is out of the view
+    function placePop(v) {
+        var p = graphPinned, w = graphPlot.clientWidth, h = graphPlot.clientHeight, px, py, html, left, top, below;
+        px = p && plotX(v, p.x);
+        py = p && plotY(v, p.y);
+        if (!p || !isFinite(p.y) || px < 0 || px > w || py < 0 || py > h) {
+            graphPop.hidden = true;
+            return;
+        }
+        html = '<div class="calc-graph-pop-head">' + graphSwatches(p) + '<b>' + graphName(p) + '</b></div>' +
+            ['x', 'y'].map(function (k) {
+                return '<div class="calc-graph-pop-row" data-put="' + k + '"><span><i>' + k + '</i> = ' + graphValue(p, k) +
+                    '</span>' + insertIcon() + '</div>';
+            }).join('');
+        if (graphPop.innerHTML !== html) graphPop.innerHTML = html;
+        graphPop.hidden = false;
+        left = Math.max(4, Math.min(w - graphPop.offsetWidth - 4, px - graphPop.offsetWidth / 2));
+        top = py - graphPop.offsetHeight - 10;
+        below = top < 4;
+        if (below) top = py + 10;
+        graphPop.style.left = left + 'px';
+        graphPop.style.top = top + 'px';
+        graphPop.style.setProperty('--arrow', px - left - graphPop.clientLeft + 'px');
+        graphPop.classList.toggle('calc-graph-pop-below', below);
+    }
+
+    // the point clicked goes, and its popup; false if there was none
+    function graphUnpin() {
+        if (!graphPinned || !graph.classList.contains('calc-open') || graphTab !== 'graph') return false;
+        graphPinned = null;
+        drawGraph();
+        return true;
+    }
+
+    // x or y of the point clicked goes into the calculation, as a result of the statistics does
+    graphPop.addEventListener('click', function (e) {
+        var row = e.target.closest('.calc-graph-pop-row'), n = row && graphPinned && graphPinned[row.dataset.put];
+        if (!row || !isFinite(n) || !engine.put(n)) return;
+        keyBoard['AC'].children[0].firstChild.data = 'C';
+        showGraph(false);
+        refresh();
+        saveState();
+        if (graphAlone) ask('graph-put'); // the calculator comes up with it
+    }, false);
+
+    // where a pointer is on the plot, in its pixels
+    function onPlot(e) {
+        var box = graphPlot.getBoundingClientRect(), k = scale();
+        return { x: (e.clientX - box.left) / k - graphPlot.clientLeft, y: (e.clientY - box.top) / k - graphPlot.clientTop };
+    }
+
+    // the view with the point at p0 of the plot moved to p1, and the scale times k
+    function graphMove(start, p0, p1, k) {
+        var x = graphX(start, p0.x), y = graphY(start, p0.y), ux = start.ux * k, uy = start.uy * k;
+        if (!(ux > 1e-12 && uy > 1e-12 && ux < 1e12 && uy < 1e12)) return; // no closer or farther than numbers stay sharp
+        graphView = {
+            x: x - (p1.x - graphPlot.clientWidth / 2) * ux,
+            y: y + (p1.y - graphPlot.clientHeight / 2) * uy,
+            ux: ux,
+            uy: uy
+        };
+        drawGraph();
+    }
+
+    // the pointers down now: one moves the view, two pinch it
+    function graphPointers() {
+        return Object.keys(graphTouch).map(function (id) { return graphTouch[id]; });
+    }
+
+    // a pointer went down or up: what follows moves from here
+    function graphBegin() {
+        var p = graphPointers();
+        graphStart = p.length ? { view: viewNow(), p: p.map(function (q) { return { x: q.x, y: q.y }; }) } : null;
+    }
+
+    graphCanvas.addEventListener('pointerdown', function (e) {
+        if (e.button) return;
+        graphCanvas.setPointerCapture(e.pointerId);
+        if (!graphPointers().length) graphMoved = false;
+        graphTouch[e.pointerId] = onPlot(e);
+        graphBegin();
+    }, false);
+
+    graphCanvas.addEventListener('pointermove', function (e) {
+        var at = onPlot(e), s = graphStart, p, d0, d1;
+        if (!graphTouch[e.pointerId]) { // the mouse over the plot: the point under it
+            if (e.pointerType === 'mouse') {
+                graphAt = graphPoint(at, 10);
+                drawGraph();
+            }
+            return;
+        }
+        graphTouch[e.pointerId] = at;
+        p = graphPointers();
+        if (!s) return;
+        if (p.length === 1) {
+            if (!graphMoved && Math.abs(at.x - s.p[0].x) + Math.abs(at.y - s.p[0].y) < 4) return; // a click shakes a little
+            graphMoved = true;
+            graphMove(s.view, s.p[0], at, 1);
+        } else if (p.length === 2 && s.p.length === 2) {
+            graphMoved = true;
+            d0 = Math.hypot(s.p[0].x - s.p[1].x, s.p[0].y - s.p[1].y);
+            d1 = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
+            if (d0 > 10 && d1 > 10) {
+                graphMove(s.view, { x: (s.p[0].x + s.p[1].x) / 2, y: (s.p[0].y + s.p[1].y) / 2 },
+                    { x: (p[0].x + p[1].x) / 2, y: (p[0].y + p[1].y) / 2 }, d0 / d1);
+            }
+        }
+    }, false);
+
+    // A click opens the popup of the point there; a finger reaches a dot or a curve from
+    // farther. A click on the point that has it open closes it
+    function graphUp(e) {
+        var at = graphTouch[e.pointerId], v = viewNow(), p = graphPinned, mouse = e.pointerType === 'mouse';
+        if (!at) return;
+        delete graphTouch[e.pointerId];
+        if (e.type === 'pointerup' && !graphMoved && !graphPointers().length) {
+            if (p && Math.hypot(plotX(v, p.x) - at.x, plotY(v, p.y) - at.y) <= (mouse ? 8 : 16)) {
+                graphPinned = null;
+            } else {
+                graphPinned = graphPoint(at, mouse ? 10 : 18);
+                if (mouse) graphAt = graphPinned;
+            }
+            drawGraph();
+        }
+        graphBegin();
+        if (graphMoved && !graphPointers().length) saveState();
+    }
+
+    graphCanvas.addEventListener('pointerup', graphUp, false);
+    graphCanvas.addEventListener('pointercancel', graphUp, false);
+
+    // the pointer leaves: the line above says what to do again; the popup stays
+    graphCanvas.addEventListener('pointerleave', function (e) {
+        if (e.pointerType !== 'mouse' || graphTouch[e.pointerId]) return;
+        graphAt = null;
+        drawGraph();
+    }, false);
+
+    // the wheel zooms about the pointer
+    graphCanvas.addEventListener('wheel', function (e) {
+        var at = onPlot(e), dy = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1);
+        e.preventDefault();
+        graphMove(viewNow(), at, at, Math.pow(1.002, Math.max(-300, Math.min(300, dy))));
+        clearTimeout(graphSaving);
+        graphSaving = setTimeout(saveState, 300);
+    }, { passive: false });
+
+    // the buttons: twice as close, twice as far, about the middle; the start again; and the
+    // picture, in the corner below
+    graphPlot.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-zoom]'), mid = { x: graphPlot.clientWidth / 2, y: graphPlot.clientHeight / 2 };
+        if (!b) return;
+        if (b.dataset.zoom === 'save') {
+            saveGraph();
+            return;
+        }
+        if (b.dataset.zoom === 'home') {
+            graphView = null;
+            drawGraph();
+        } else {
+            graphMove(viewNow(), mid, mid, b.dataset.zoom === 'in' ? 0.5 : 2);
+        }
+        saveState();
+    }, false);
+
+    // a window that changes its size can draw the calculator at another scale
+    window.addEventListener('resize', drawGraph, false);
+
+    // The graph as a picture, for notes or homework: the plot on its paper, twice as sharp at
+    // least, without the point pointed at, and in its top left the function of each curve shown
+    function graphPicture() {
+        var at = graphAt, pinned = graphPinned, pic = document.createElement('canvas'), ctx = pic.getContext('2d'), r, lines, wide;
+        graphAt = graphPinned = null;
+        graphSharp = 2;
+        drawGraph();
+        r = graphCanvas.width / graphPlot.clientWidth;
+        pic.width = graphCanvas.width;
+        pic.height = graphCanvas.height;
+        ctx.fillStyle = GRAPH_INK.paper;
+        ctx.fillRect(0, 0, pic.width, pic.height);
+        ctx.drawImage(graphCanvas, 0, 0);
+        graphAt = at;
+        graphPinned = pinned;
+        graphSharp = 0;
+        drawGraph();
+
+        lines = graphFns.map(function (fn, i) {
+            return fn && { i: i, text: 'y = ' + graphInputs[i].value.trim() };
+        }).filter(Boolean);
+        if (!lines.length) return pic;
+        if (graphLetters.length) { // and the values of its letters, without a color
+            lines.push({
+                text: graphLetters.map(function (k) { return k + ' = ' + sliderText(graphVars[k], sliderStep(graphRange[k])); }).join(',  ')
+            });
+        }
+        // a light box over the plot, lifted off it a little, so it reads apart from the curves
+        ctx.setTransform(r, 0, 0, r, 0, 0);
+        ctx.font = '13px Play, sans-serif';
+        wide = Math.max.apply(null, lines.map(function (l) { return ctx.measureText(l.text).width + (l.i === undefined ? 17 : 42); }));
+        ctx.beginPath();
+        ctx.roundRect(8, 8, wide + 2, lines.length * 20 + 12, 6);
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.18)';
+        ctx.shadowBlur = 6 * r;
+        ctx.shadowOffsetY = r;
+        ctx.fillStyle = 'rgba(236, 244, 239, 0.95)';
+        ctx.fill();
+        ctx.shadowColor = 'transparent';
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(51, 68, 59, 0.3)';
+        ctx.stroke();
+        ctx.textBaseline = 'middle';
+        lines.forEach(function (l, k) {
+            var y = 8 + 6 + 10 + k * 20;
+            ctx.fillStyle = GRAPH_INK.text;
+            if (l.i === undefined) {
+                ctx.fillText(l.text, 17, y);
+                return;
+            }
+            ctx.beginPath();
+            ctx.moveTo(17, y);
+            ctx.lineTo(35, y);
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = curveColor(l.i);
+            ctx.stroke();
+            ctx.fillText(l.text, 42, y);
+        });
+        return pic;
+    }
+
+    // saved as a file, graph.png
+    function saveGraph() {
+        graphPicture().toBlob(function (blob) {
+            var a = document.createElement('a'), url = URL.createObjectURL(blob);
+            a.href = url;
+            a.download = 'graph.png';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
+        }, 'image/png');
+    }
+
+    // copied, to paste into a document or a message
+    function copyGraph() {
+        var png = new Promise(function (done) { graphPicture().toBlob(done, 'image/png'); });
+        try {
+            navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]).catch(saveGraph);
+        } catch (e) {
+            saveGraph(); // no copying of pictures here: the file
+        }
+    }
+
+    // ---------- the table of the graph ---------- //
+
+    // The values of the curves in rows: x from a start, by a step, and y of each curve, in
+    // its color. An empty box goes by the view of the graph: from its left edge, by a step
+    // that gives some 20 rows across it, 15, 30 or 45 in degrees. A click on a value puts
+    // it into the calculation; scrolled to its end, the table goes on
+    graph.querySelector('.calc-graph-tabs').addEventListener('click', function (e) {
+        var tab = e.target.closest('.calc-graph-tab');
+        if (!tab) return;
+        showGraphTab(tab.dataset.tab);
+        saveState();
+    }, false);
+
+    function showGraphTab(tab) {
+        graphTab = tab === 'table' ? 'table' : 'graph';
+        [].forEach.call(graph.querySelectorAll('.calc-graph-tab'), function (t) {
+            t.classList.toggle('calc-on', t.dataset.tab === graphTab);
+        });
+        graphPlot.hidden = graphTab !== 'graph';
+        graphTable.hidden = graphTab !== 'table';
+        graphAt = null;
+        graphLines = 0; // the table from its start again
+        graphList.scrollTop = 0;
+        graphRender();
+    }
+
+    [graphFrom, graphBy].forEach(function (box) {
+        box.addEventListener('input', function () {
+            onlyNumber(box);
+            graphLines = 0;
+            graphList.scrollTop = 0;
+            renderTable();
+            saveState();
+        }, false);
+    });
+
+    // the first x and the step: as the boxes hold them, else from the view. A box that
+    // holds no number, or a step that is not above 0, is marked, and goes by the view
+    function tableSteps() {
+        var v = viewNow(), w = plotWidth(), want = w * v.ux / 20, p = Math.pow(10, Math.floor(Math.log10(want))), m = want / p,
+            by = graphAngles() && deg === 1 && want > 3 && want <= 180 ?
+                [5, 10, 15, 30, 45, 90, 180].filter(function (d) { return d >= want; })[0] :
+                p * (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10),
+            from, typed;
+        by = +by.toPrecision(12);
+        graphBy.placeholder = local(String(by));
+        typed = +boxValue(graphBy);
+        graphBy.parentNode.classList.toggle('calc-bad', !!graphBy.value && !(typed > 0 && isFinite(typed)));
+        if (graphBy.value && typed > 0 && isFinite(typed)) by = typed;
+        from = +(Math.ceil((v.x - w / 2 * v.ux) / by) * by).toPrecision(12);
+        graphFrom.placeholder = local(String(from));
+        typed = +boxValue(graphFrom);
+        graphFrom.parentNode.classList.toggle('calc-bad', !!graphFrom.value && !isFinite(typed));
+        if (graphFrom.value && isFinite(typed)) from = typed;
+        return { from: from, by: by };
+    }
+
+    // A value of the table, rounded to as many digits as its column has room for, up to 13:
+    // -0.7071068, not -0.70710678… cut off. A fraction, or degrees, minutes and seconds, in
+    // those modes. What is put in or copied is the whole number
+    function tableValue(n, room) {
+        var d = 13, r;
+        do {
+            r = String(+n.toPrecision(d));
+        } while (r.length > room && --d > 2);
+        return (fracMode && CalcEngine.fraction(n)) || (dmsMode && CalcEngine.dms(n)) ? statsValue(n).html : shownResult({ value: r }, r).html;
+    }
+
+    // how many characters a column of values has room for, measured in the font of the table
+    function tableRoom() {
+        var cell = graphList.querySelector('.calc-graph-names > span:nth-child(2)'), ctx = graphCanvas.getContext('2d'), wide;
+        if (!cell) return 13;
+        ctx.font = '13px Play, sans-serif';
+        wide = ctx.measureText('-0.123456789').width / 12;
+        return Math.max(4, Math.floor((cell.clientWidth - 16) / wide)); // its padding, and 2px to spare
+    }
+
+    // the rows from..to of the table, as HTML; their values go into graphValues
+    function tableRows(s, shown, from, to) {
+        var html = '', room = tableRoom(), k, x, row;
+        for (k = from; k < to; k++) {
+            x = +(s.from + k * s.by).toPrecision(12); // 0.3, not 0.30000000000000004
+            row = [x].concat(shown.map(function (i) { return graphFns[i].at(x, deg, true); }));
+            graphValues[k] = row;
+            html += '<div class="calc-graph-line">' + row.map(function (n, c) {
+                var text = !isFinite(n) ? '–' : c ? tableValue(n, room) : graphValue({ x: n }, 'x');
+                return '<span class="calc-graph-cell' + (isFinite(n) ? '' : ' calc-none') + '" data-r="' + k + '" data-c="' + c + '">' +
+                    text + '</span>';
+            }).join('') + '</div>';
+        }
+        return html;
+    }
+
+    // the curves shown in the table, by their number
+    function tableCurves() {
+        return graphFns.map(function (fn, i) { return fn ? i : -1; }).filter(function (i) { return i > -1; });
+    }
+
+    function renderTable() {
+        var shown = tableCurves(), s;
+        if (!graph.classList.contains('calc-open') || graphTab !== 'table') return;
+        s = tableSteps();
+        graphLines = Math.max(graphLines, 60);
+        graphValues = [];
+        graphList.style.setProperty('--cols', shown.length + 1);
+        graphList.innerHTML = '<div class="calc-graph-line calc-graph-names"><span><i>x</i></span>' + shown.map(function (i) {
+            return '<span>' + graphSwatch(i) + '<i>y</i></span>';
+        }).join('') + '</div>'; // first, so the room of a column can be measured
+        if (shown.length) graphList.insertAdjacentHTML('beforeend', tableRows(s, shown, 0, graphLines));
+        graphShown();
+    }
+
+    // near the end, 60 more rows, up to 2000
+    graphList.addEventListener('scroll', function () {
+        var shown = tableCurves();
+        hideTip();
+        if (!shown.length || graphLines >= 2000 || graphList.scrollTop + graphList.clientHeight < graphList.scrollHeight - 60) return;
+        graphList.insertAdjacentHTML('beforeend', tableRows(tableSteps(), shown, graphLines, graphLines + 60));
+        graphLines += 60;
+    }, false);
+
+    // a value goes into the calculation, as one of the statistics does
+    graphList.addEventListener('click', function (e) {
+        var cell = e.target.closest('.calc-graph-cell'), n = cell && graphValues[cell.dataset.r][cell.dataset.c];
+        if (!cell || !isFinite(n) || !engine.put(n)) return;
+        keyBoard['AC'].children[0].firstChild.data = 'C';
+        showGraph(false);
+        refresh();
+        saveState();
+        if (graphAlone) ask('graph-put');
+    }, false);
 
     // ---------------- formulas and constants ---------------- //
 
@@ -1046,6 +2168,7 @@
             showPast(false);
             showStats(false);
             showConv(false);
+            showGraph(false);
             placePanel(fx);
             renderFx();
         }
@@ -1248,6 +2371,7 @@
             showPast(false);
             showStats(false);
             showFx(false);
+            showGraph(false);
             placePanel(conv);
             if (!engine.edit && !engine.error && (engine.done || engine.plain()) && +engine.value) {
                 convInput.value = local(+(+engine.value).toPrecision(13));
@@ -1426,14 +2550,16 @@
         return { t: unit.t.charAt(0).toUpperCase() + unit.t.slice(1), d: 'Click to put it into the equation.', k: '' };
     }
 
-    // the statistics, the formulas and the converter have their button while they are turned on in the options
-    function setPanels(statsOn, fxOn, convOn) {
+    // the statistics, the formulas, the converter and the graph have their button while they are turned on in the options
+    function setPanels(statsOn, fxOn, convOn, graphOn) {
         statsButton.hidden = !statsOn;
         fxButton.hidden = !fxOn;
         convButton.hidden = !convOn;
+        graphButton.hidden = !graphOn;
         if (!statsOn) showStats(false);
         if (!fxOn) showFx(false);
         if (!convOn) showConv(false);
+        if (!graphOn) showGraph(false);
         showTools();
     }
 
@@ -1806,14 +2932,30 @@
         }
     }
 
+    // what this page saved last of each key: the website hears its own saves as changes too
+    var ownSaves = {};
+
     function store(key, value) {
         try {
-            localStorage.setItem(key, JSON.stringify(value));
+            ownSaves[key] = JSON.stringify(value);
+            localStorage.setItem(key, ownSaves[key]);
         } catch (e) { }
     }
 
-    // the format is not saved here: the options page keeps it, and saving it could undo a change made there
+    // The format is not saved here: the options page keeps it, and saving it could undo a change made there.
+    // The graph's own window saves only the graph and the calculation, the two it changes: the rest it
+    // has from when it opened, and the calculator may have changed it since
     function saveState() {
+        store('graph', {
+            f: graphInputs.slice(0, graphCount).map(function (box) { return box.value; }), c: graphHue.slice(0, graphCount),
+            view: graphView, tab: graphTab, from: graphFrom.value, by: graphBy.value, off: graphOff.slice(0, graphCount),
+            p: graphLetters.reduce(function (p, k) {
+                if (graphRange[k]) p[k] = [graphVars[k], graphRange[k][0], graphRange[k][1]];
+                return p;
+            }, {})
+        });
+        store('calc', engine.save());
+        if (graphAlone) return;
         store('secondActive', secondActive);
         store('deg', deg === 2 ? 'grad' : deg === 1); // true or false for Deg and Rad, as before Grad came
         store('stat', statsInput.value);
@@ -1821,7 +2963,6 @@
         store('fraction', fracMode);
         store('dms', dmsMode);
         store('memory', engine.memory);
-        store('calc', engine.save());
     }
 
     // back as it was left, after the popup is closed or the page reloaded
@@ -1829,7 +2970,7 @@
         var s = {};
 
         // all read first: the keys pressed below must not save over what is still to be read
-        ['secondActive', 'deg', 'stat', 'statBy', 'statsOn', 'fxOn', 'fxTab', 'convOn', 'conv', 'fraction', 'dms', 'format', 'fnOrder', 'memory', 'calc'].forEach(function (key) {
+        ['secondActive', 'deg', 'stat', 'statBy', 'statsOn', 'fxOn', 'fxTab', 'convOn', 'conv', 'graphOn', 'graph', 'fraction', 'dms', 'format', 'fnOrder', 'memory', 'calc'].forEach(function (key) {
             s[key] = stored(key);
         });
         // functions go before their number, tan 45; who used the calculator before this
@@ -1843,8 +2984,9 @@
         setUnit(s.deg === true ? 1 : s.deg === 'grad' ? 2 : 0);
         if (typeof s.stat === 'string') statsInput.value = s.stat;
         setStatsBy(Math.max(0, BY.map(function (by) { return by[0]; }).indexOf(s.statBy)));
-        // all three on, until changed in the options
-        setPanels(s.statsOn !== false, s.fxOn !== false, s.convOn !== false);
+        // all four on, until changed in the options
+        setPanels(s.statsOn !== false, s.fxOn !== false, s.convOn !== false, s.graphOn !== false);
+        loadGraph(s.graph);
         if (s.fxTab === 'constants') fxTab = s.fxTab;
         loadConv(s.conv);
         fracMode = engine.fraction = !!s.fraction;
@@ -1860,10 +3002,30 @@
         refresh();
     }
 
-    // the number format, the order of the function keys or the panels were changed on the options page
+    // The number format, the order of the function keys or the panels were changed on the options page.
+    // The graph, the calculation and the angle unit follow another page of the calculator: the graph's
+    // own window and the popup or the detached window show the same ones. Not what this page saved
     window.addEventListener('storage', function (e) {
-        if (e.key === 'statsOn' || e.key === 'fxOn' || e.key === 'convOn') {
-            return setPanels(stored('statsOn') !== false, stored('fxOn') !== false, stored('convOn') !== false);
+        if (e.newValue !== null && e.newValue === ownSaves[e.key]) return;
+        if (e.key === 'graph') {
+            ownSaves.graph = e.newValue;
+            loadGraph(stored('graph'));
+            return readGraph();
+        }
+        if (e.key === 'calc') {
+            ownSaves.calc = e.newValue;
+            try {
+                engine.load(stored('calc'));
+            } catch (err) { }
+            keyBoard['AC'].children[0].firstChild.data = empty() ? 'AC' : 'C';
+            return refresh();
+        }
+        if (e.key === 'deg') {
+            ownSaves.deg = e.newValue;
+            return setUnit(stored('deg') === true ? 1 : stored('deg') === 'grad' ? 2 : 0);
+        }
+        if (e.key === 'statsOn' || e.key === 'fxOn' || e.key === 'convOn' || e.key === 'graphOn') {
+            return setPanels(stored('statsOn') !== false, stored('fxOn') !== false, stored('convOn') !== false, stored('graphOn') !== false);
         }
         if (e.key === 'format') setFormat(stored('format'));
         else if (e.key === 'fnOrder') engine.fnFirst = stored('fnOrder') !== 'after';
@@ -2083,6 +3245,8 @@
     // then the result with the finished equation on the small line above
     function refresh() {
         var eq = engine.equation(fracMode), view;
+
+        graphRender(); // a curve of sin x follows the unit, and the plot's and the table's numbers the format
 
         if (fmt.group && !engine.edit) eq = CalcEngine.group(eq, fmt.group);
         if (engine.edit) { // the equation with the cursor in it

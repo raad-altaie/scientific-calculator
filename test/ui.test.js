@@ -177,6 +177,26 @@ Page.prototype.hover = async function (selector) {
     await this.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p[0], y: p[1] });
 };
 
+// the pointer over the plot of the graph at x and y, as the plot starts: x -10 to 10, 0 in the middle
+Page.prototype.hoverAt = async function (selector, x, y) {
+    var p = await this.at(selector), w = await this.calc('document.querySelector(' + JSON.stringify(selector) + ').clientWidth'),
+        k = await this.calc('(function (c) { return c.getBoundingClientRect().width / c.offsetWidth; })(document.getElementById("calculator"))'),
+        px = p[0] + x * w / 20 * k, py = p[1] - y * w / 20 * k;
+    await this.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: px - 2, y: py });
+    await this.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: px, y: py });
+};
+
+// a click on the plot of the graph at x and y, as the plot starts
+Page.prototype.clickAt = async function (selector, x, y) {
+    var p = await this.at(selector), w = await this.calc('document.querySelector(' + JSON.stringify(selector) + ').clientWidth'),
+        k = await this.calc('(function (c) { return c.getBoundingClientRect().width / c.offsetWidth; })(document.getElementById("calculator"))'),
+        px = p[0] + x * w / 20 * k, py = p[1] - y * w / 20 * k;
+    for (var type of ['mouseMoved', 'mousePressed', 'mouseReleased']) {
+        await this.send('Input.dispatchMouseEvent', { type: type, x: px, y: py, button: 'left', clickCount: 1 });
+    }
+    await sleep(60);
+};
+
 // typed text, as keys of the keyboard: Enter is \r
 Page.prototype.type = async function (text) {
     for (var ch of text) {
@@ -221,18 +241,18 @@ function near(a, b) {
 async function calculator(page, at) {
     var t = at + ': ', note, found;
 
-    // the formulas, the converter and the statistics are on at first, in the order of their options
+    // the formulas, the converter, the statistics and the graph are on at first, in the order of their options
     await page.fresh(at, {});
-    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-stat-btn', t + 'all three at first', await buttons(page));
-    check(await page.calc('document.getElementById("display-box").style.getPropertyValue("--tools")') === '3',
+    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-stat-btn', t + 'all four at first', await buttons(page));
+    check(await page.calc('document.getElementById("display-box").style.getPropertyValue("--tools")') === '4',
         t + 'the line above a result clears them');
-    await page.fresh(at, { fxOn: false, convOn: false, statsOn: false });
-    check(await buttons(page) === '', t + 'no buttons with all three off', await buttons(page));
+    await page.fresh(at, { fxOn: false, convOn: false, statsOn: false, graphOn: false });
+    check(await buttons(page) === '', t + 'no buttons with all four off', await buttons(page));
     check(await page.calc('document.getElementById("display-box").style.getPropertyValue("--tools")') === '0',
         t + 'the line above a result starts at the left');
 
     await page.fresh(at, { convOn: false });
-    check(await buttons(page) === 'calc-fx-btn calc-stat-btn', t + 'two buttons with the converter off', await buttons(page));
+    check(await buttons(page) === 'calc-fx-btn calc-graph-btn calc-stat-btn', t + 'three buttons with the converter off', await buttons(page));
 
     // the ? beside the name has a tip of the calculator's own, below it, in place of a title
     await page.hover('.calc-help');
@@ -247,9 +267,9 @@ async function calculator(page, at) {
     // the keys still work, and the history adds its clock
     await page.type('2+3\r');
     check(await shown(page) === '5', t + '2 + 3 = 5', await shown(page));
-    check(await buttons(page) === 'calc-hist calc-fx-btn calc-stat-btn', t + 'the clock comes with a history', await buttons(page));
-    check(await page.calc('document.getElementById("display-box").style.getPropertyValue("--tools")') === '3',
-        t + 'the line above a result clears the three buttons');
+    check(await buttons(page) === 'calc-hist calc-fx-btn calc-graph-btn calc-stat-btn', t + 'the clock comes with a history', await buttons(page));
+    check(await page.calc('document.getElementById("display-box").style.getPropertyValue("--tools")') === '4',
+        t + 'the line above a result clears the four buttons');
 
     // the panel: the search has the keys, the result in the display starts the first box
     await page.click('.calc-fx-btn');
@@ -408,6 +428,456 @@ async function calculator(page, at) {
     check(await page.calc('document.activeElement.tagName') === 'BODY', t + 'and after it is cleared');
     await page.click('#box');
     await page.send('Emulation.setTouchEmulationEnabled', { enabled: false });
+}
+
+// the graph: a function of x drawn on x and y axes, the point under the pointer,
+// its y put into the calculation, and the view zoomed and kept
+async function graphPanel(page, at) {
+    var t = at + ': ', note = 'document.querySelector(".calc-graph-note").textContent', ink, cross, plain,
+        pop = 'document.querySelector(".calc-graph-pop").textContent.replace(/\\s+/g, " ").trim()';
+
+    // the pixels of the curve's color in the plot
+    ink = '(function () { var c = document.querySelector(".calc-graph-plot canvas"), n = 0, i,' +
+        ' d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;' +
+        ' for (i = 0; i < d.length; i += 4) if (Math.abs(d[i] - 0x22) < 24 && Math.abs(d[i + 1] - 0x47) < 24 &&' +
+        ' Math.abs(d[i + 2] - 0x6a) < 24 && d[i + 3] > 200) n++; return n; })()';
+
+    // the pixels of the ink of the axes around x = -5, y = 5, as the plot starts: the cross drawn there
+    cross = '(function () { var c = document.querySelector(".calc-graph-plot canvas"), k = c.width / c.clientWidth, w = c.clientWidth,' +
+        ' x = Math.round((w / 2 - w / 4) * k), y = Math.round((c.clientHeight / 2 - w / 4) * k), n = 0, i,' +
+        ' d = c.getContext("2d").getImageData(x - 7 * k, y - 7 * k, 14 * k, 14 * k).data;' +
+        ' for (i = 0; i < d.length; i += 4) if (Math.abs(d[i] - 0x33) < 20 && Math.abs(d[i + 1] - 0x44) < 20 && Math.abs(d[i + 2] - 0x3b) < 20) n++;' +
+        ' return n; })()';
+
+    await page.fresh(at, {});
+    await page.click('.calc-graph-btn');
+    check(await open(page, '.calc-graph'), t + 'the curve opens the graph');
+    check(await page.calc('document.activeElement.className') === 'calc-graph-input', t + 'its box has the focus');
+    check(/^Type a function of x/.test(await page.calc(note)), t + 'an empty box says what to type', await page.calc(note));
+    check(await page.calc(ink) === 0, t + 'and there is no curve yet');
+    await page.type('x^2-3');
+    check(await page.calc(ink) > 200, t + 'x^2 – 3 is drawn', await page.calc(ink));
+    check(/^Point at the graph/.test(await page.calc(note)), t + 'the note says how to read it', await page.calc(note));
+    check(await page.calc('document.querySelectorAll(".calc-graph-fn:not([hidden])").length') === 1 &&
+        !await page.calc('document.querySelector(".calc-graph-del").offsetWidth'), t + 'one box, without a × while it is the only one');
+    await page.click('.calc-graph-add');
+    check(await page.calc('document.querySelectorAll(".calc-graph-fn:not([hidden])").length') === 2 &&
+        await page.calc('document.activeElement === document.querySelectorAll(".calc-graph-input")[1]'), t + 'the + adds a box for another curve, to type in');
+
+    // the pointer at the lowest point, x = 0 and y = -3, shows what it is; a click opens its popup
+    await page.hoverAt('.calc-graph-plot', 0, -3);
+    check(/^Min, y-intercept\s*x = 0\s*y = -3/.test(await page.calc(note)), t + 'the point under the pointer: the low at x = 0, y = -3',
+        await page.calc(note));
+    await page.clickAt('.calc-graph-plot', 0, -3);
+    check(await page.calc('!document.querySelector(".calc-graph-pop").hidden') && /^Min, y-intercept\s*x = 0\s*y = -3$/.test(await page.calc(pop)),
+        t + 'a click on it opens its popup', await page.calc(pop));
+    check(await page.calc('!document.querySelector(".calc-graph-pop").classList.contains("calc-graph-pop-below")'), t + 'over the point');
+    await page.hover('.calc-graph-fn');
+    check(await page.calc('!document.querySelector(".calc-graph-pop").hidden') && /^Point at the graph/.test(await page.calc(note)),
+        t + 'the popup stays after the pointer leaves, and the line says what to do again', await page.calc(note));
+    await page.clickAt('.calc-graph-plot', 0, -3);
+    check(await page.calc('document.querySelector(".calc-graph-pop").hidden'), t + 'a click on the point again closes it');
+
+    // a second curve, in its own color; where the two cross is marked: x² – 3 = x + 3 at 3, where y = 6
+    await page.click('.calc-graph-fn:nth-child(2) input');
+    await page.type('x+3');
+    check(await page.calc('(function (c) { var d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data, n = 0, i;' +
+        ' for (i = 0; i < d.length; i += 4) if (Math.abs(d[i] - 0xb0) < 24 && Math.abs(d[i + 1] - 0x41) < 24 && Math.abs(d[i + 2] - 0x4d) < 24) n++;' +
+        ' return n; })(document.querySelector(".calc-graph-plot canvas"))') > 200, t + 'the second curve is drawn in red');
+    await page.hoverAt('.calc-graph-plot', 3, 6);
+    check(/^Crossing\s*x = 3\s*y = 6/.test(await page.calc(note)), t + 'pointing near their crossing shows it', await page.calc(note));
+    await page.clickAt('.calc-graph-plot', 3, 6);
+    check(/^Crossing\s*x = 3\s*y = 6$/.test(await page.calc(pop)), t + 'and a click, its popup', await page.calc(pop));
+    await page.click('.calc-graph-pop-row[data-put="y"]');
+    check(!await open(page, '.calc-graph') && await value(page) === 6, t + 'a click on its y puts it into the display', await shown(page));
+
+    // away from the curves the pointer is the system's cross, and the plot draws none of its own;
+    // a click is on the place itself: its x and y, to a pixel, and the plot's cross there
+    await page.click('.calc-graph-btn');
+    plain = await page.calc(cross); // what is there before
+    await page.hoverAt('.calc-graph-plot', -5, 5);
+    check(await page.calc('getComputedStyle(document.querySelector(".calc-graph-plot canvas")).cursor') === 'crosshair' &&
+        await page.calc(cross) === plain, t + 'pointing off the curves: the crosshair pointer, no cross drawn', plain + ' / ' + await page.calc(cross));
+    await page.clickAt('.calc-graph-plot', -5, 5);
+    check(await page.calc(cross) > plain + 10, t + 'a click there draws the cross', plain + ' / ' + await page.calc(cross));
+    check(/^Point\s*x = -(5|4\.9\d|5\.0\d)\s*y = (5|4\.9\d|5\.0\d)$/.test(await page.calc(pop)), t + 'a click off the curves: the place', await page.calc(pop));
+    await page.key('Escape', 27);
+    check(await open(page, '.calc-graph') && await page.calc('document.querySelector(".calc-graph-pop").hidden'),
+        t + 'Esc closes the popup first, the graph stays open');
+    await page.clickAt('.calc-graph-plot', -5, 5);
+    await page.click('.calc-graph-pop-row[data-put="x"]');
+    check(Math.abs(await value(page) + 5) < 0.05, t + 'its x goes into the display', await shown(page));
+
+    // the function and the zoom are kept; home goes back to the start
+    await page.click('.calc-graph-btn');
+    await page.click('.calc-graph-zoom [data-zoom="in"]');
+    check(await page.calc('Math.round(JSON.parse(localStorage.getItem("graph")).view.ux * ' +
+        'document.querySelector(".calc-graph-plot").clientWidth)') === 10, t + 'zoomed in, x is 10 wide');
+    await page.go(page.base + at);
+    await page.click('.calc-graph-btn');
+    check(await page.calc('document.querySelector(".calc-graph-input").value') === 'x^2-3' &&
+        await page.calc('document.querySelectorAll(".calc-graph-input")[1].value') === 'x+3' &&
+        await page.calc('!!JSON.parse(localStorage.getItem("graph")).view'), t + 'the function and the view are kept');
+    await page.click('.calc-graph-zoom [data-zoom="home"]');
+    check(await page.calc('JSON.parse(localStorage.getItem("graph")).view') === null, t + 'home goes back to the start');
+
+    // what is not a function says so, and draws nothing
+    await page.click('.calc-graph .calc-past-clear');
+    await page.click('.calc-graph-zoom [data-zoom="in"]');
+    await page.click('.calc-graph .calc-past-clear');
+    check(await page.calc('document.querySelectorAll(".calc-graph-fn:not([hidden])").length') === 1 &&
+        await page.calc('JSON.parse(localStorage.getItem("graph")).view') === null, t + 'Clear leaves one box, and the view as at first');
+    await page.type('x+');
+    check(/^Not a function of x/.test(await page.calc(note)) && await page.calc(ink) === 0 &&
+        await page.calc('document.querySelector(".calc-graph-fn").classList.contains("calc-bad")'), t + 'x + is not a function yet',
+        await page.calc(note));
+    await page.key('Escape', 27);
+    check(!await open(page, '.calc-graph'), t + 'Esc closes the graph');
+}
+
+// The big graph: on the website the calculator fills the window with it, not the screen; Esc,
+// its button or a value put in make it small. In the extension it has a window of
+// its own, popup.html?graph, with only the graph, which keeps up with the calculator
+async function graphBig(page, at) {
+    var t = at + ': big: ', big = 'document.getElementById("calculator").classList.contains("calc-big")',
+        note = 'document.querySelector(".calc-graph-note").textContent',
+        plot = 'document.querySelector(".calc-graph-plot")',
+        sent = 'JSON.stringify(document.defaultView.sent)',
+        // what popup.js asks of the extension, kept to be read; window.chrome cannot be set over
+        unit, stub = 'window.sent = []; window.close = function () { window.sent.push("close"); };' +
+            ' Object.defineProperty(window, "chrome", { configurable: true, value:' +
+            ' { runtime: { sendMessage: function (m) { window.sent.push(m); return Promise.resolve(); } } } });',
+        script;
+
+    if (at.indexOf('/web/') < 0) {
+        // the popup asks for the graph's window, and stays as it is
+        await page.fresh(at, { graph: { f: ['x^2-3', '', ''], view: null } });
+        await page.calc('(function (w) { w.sent = []; Object.defineProperty(w, "chrome", { configurable: true, value:' +
+            ' { runtime: { sendMessage: function (m) { w.sent.push(m); return Promise.resolve(); } } } }); })(document.defaultView)');
+        await page.click('.calc-graph-btn');
+        await page.click('.calc-graph-size');
+        check(await page.calc(sent) === '[{"command":"open-graph"}]' && !await page.calc(big) && await open(page, '.calc-graph'),
+            t + 'the popup asks for the graph\'s own window', await page.calc(sent));
+
+        // the graph's window: only the graph, big, without pop in or a close button
+        await page.send('Page.enable'); // for the script before the page's own
+        script = (await page.send('Page.addScriptToEvaluateOnNewDocument', { source: stub })).result.identifier;
+        await page.go(page.base + '/popup.html?graph', [700, 500]);
+        check(await page.calc(big) && await open(page, '.calc-graph') && await page.calc(plot + '.clientWidth') > 650 &&
+            await page.ev('document.title') === 'Graph' && !await page.calc('document.querySelector(".calc-graph .calc-past-close").offsetWidth'),
+            !await page.calc('document.querySelector(".calc-graph-size").offsetWidth'),
+            t + 'its window has only the graph, big, without pop in or a close button', await page.calc(plot + '.clientWidth'));
+        check(await page.calc('document.querySelector(".calc-graph-input").value') === 'x^2-3', t + 'with the functions of the calculator');
+
+        // a value put in: the calculation has it, the calculator is asked to come up, the window stays
+        await page.ev('localStorage.setItem("stat", JSON.stringify("1 2 3"))'); // as the calculator changed it meanwhile
+        await page.clickAt('.calc-graph-plot', 0, -3);
+        await page.click('.calc-graph-pop-row[data-put="y"]');
+        check(await page.calc(big) && await open(page, '.calc-graph') && /"show-calculator"/.test(await page.calc(sent)) &&
+            /-3/.test(await page.ev('localStorage.getItem("calc")')), t + 'y put in: saved for the calculator, which is asked for; the graph stays',
+            await page.calc(sent));
+        check(await page.ev('localStorage.getItem("stat")') === '"1 2 3"', t + 'only the graph and the calculation are saved, not what it had of the rest');
+
+        // the calculator changes the graph: the window follows it
+        await page.ev('(function (v) { localStorage.setItem("graph", v); dispatchEvent(new StorageEvent("storage", { key: "graph", newValue: v })); })' +
+            '(JSON.stringify({ f: ["x+1", "", ""], view: null }))');
+        check(await page.calc('document.querySelector(".calc-graph-input").value') === 'x+1', t + 'a graph changed in the calculator shows here');
+        unit = await page.calc('document.querySelector(".calc-rad").textContent');
+        await page.ev('(function (v) { localStorage.setItem("deg", v); dispatchEvent(new StorageEvent("storage", { key: "deg", newValue: v })); })' +
+            '(localStorage.getItem("deg") === "true" ? "false" : "true")');
+        check(await page.calc('document.querySelector(".calc-rad").textContent') !== unit, t + 'and its angle unit',
+            unit + ' / ' + await page.calc('document.querySelector(".calc-rad").textContent'));
+
+        // Esc closes the window
+        await page.key('Escape', 27);
+        check(/"close"/.test(await page.calc(sent)) && await page.calc(big), t + 'Esc closes the window; never small in it', await page.calc(sent));
+        await page.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: script });
+        return;
+    }
+
+    await page.fresh(at, { graph: { f: ['x^2-3', '', ''], view: null } }, [900, 700]);
+    await page.click('.calc-graph-btn');
+    check(await page.calc(plot + '.clientWidth') < 400, t + 'the graph is small at first', await page.calc(plot + '.clientWidth'));
+    await page.hover('.calc-graph-size');
+    check(await page.until('/^Pop out/.test(document.querySelector(".calc-tip").textContent)', 2000), t + 'the button has its tip');
+    await page.click('.calc-graph-size');
+    check(await page.calc(big) && await page.calc(plot + '.clientWidth') > 850 && await page.calc(plot + '.clientHeight') > 500,
+        t + 'big, the plot has most of the page', await page.calc(plot + '.clientWidth + "x" + ' + plot + '.clientHeight'));
+    check(await page.calc('document.querySelector(".calc-graph-plot canvas").width') === await page.calc(plot + '.clientWidth'),
+        t + 'its canvas is drawn at that size');
+    check(await page.calc('(function (b) { return b.left === 0 && b.top === 0 && b.width === innerWidth; })' +
+        '(document.getElementById("calculator").getBoundingClientRect())'), t + 'the calculator fills the page, unscaled');
+    await page.hoverAt('.calc-graph-plot', 0, -3);
+    check(/^Min/.test(await page.calc(note)), t + 'the points are found on the big plot too', await page.calc(note));
+    await page.key('Escape', 27);
+    check(!await page.calc(big) && await open(page, '.calc-graph') && await page.calc(plot + '.clientWidth') < 400,
+        t + 'Esc makes it small, the graph stays open');
+    await page.click('.calc-graph-size');
+    await page.click('.calc-graph-input');
+    await page.key('Escape', 27);
+    check(!await page.calc(big) && await open(page, '.calc-graph'), t + 'Esc while typing in a box makes it small too, not closed');
+
+    // the window, not the screen; the button makes it small again
+    await page.click('.calc-graph-size');
+    check(await page.calc(big) && await page.ev('!document.fullscreenElement'), t + 'it is not full screen');
+    await page.click('.calc-graph-size');
+    check(!await page.calc(big) && await open(page, '.calc-graph'), t + 'the button makes it small again');
+
+    // a value put in from the big graph: the calculator again
+    await page.click('.calc-graph-size');
+    await page.clickAt('.calc-graph-plot', 0, -3);
+    await page.click('.calc-graph-pop-row[data-put="y"]');
+    check(!await page.calc(big) && !await open(page, '.calc-graph') && await value(page) === -3, t + 'y put in: the calculator, small',
+        await shown(page));
+    await page.click('.calc-graph-btn');
+    check(!await page.calc(big), t + 'the graph opens small the next time');
+    await page.click('.calc-graph-size');
+    check(!await page.calc('document.querySelector(".calc-graph .calc-past-close").offsetWidth'), t + 'big, it has no close button');
+    await page.click('.calc-graph-size');
+    check(await page.calc('document.querySelector(".calc-graph .calc-past-close").offsetWidth') > 0, t + 'small, it has it again');
+}
+
+// A slider for each letter of the functions but x: at 1 from -10 to 10, it moves the curves
+// as it is dragged; its value and its ends can be typed. They wait for the typing of a
+// function to stop, so sin is not s, i and n; they are kept with the graph
+async function graphSlide(page, at) {
+    var t = at + ': sliders: ', note = 'document.querySelector(".calc-graph-note").textContent',
+        letters = '[].map.call(document.querySelectorAll(".calc-graph-slider"), function (r) { return r.dataset.k; }).join()',
+        saved = 'JSON.stringify(JSON.parse(localStorage.getItem("graph")).p)',
+        set = function (selector, v) { // a value put in a box or the slider, as typing or dragging does
+            return page.calc('(function (i) { i.focus(); i.value = ' + JSON.stringify(v) + '; i.dispatchEvent(new Event("input", { bubbles: true }));' +
+                ' i.dispatchEvent(new Event("change", { bubbles: true })); })(document.querySelector(' + JSON.stringify(selector) + '))');
+        };
+
+    await page.fresh(at, {});
+    await page.click('.calc-graph-btn');
+    await page.type('sin(x)');
+    check(await page.calc(letters) === '', t + 'sin typed is not s, i and n');
+    await page.calc('(function (i) { i.value = ""; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-graph-input"))');
+    await page.type('a x^2 + b');
+    check(await page.calc(letters) === '', t + 'while a function is typed, no sliders yet');
+    check(await page.until('document.querySelectorAll(".calc-graph-slider").length === 2', 2000) && await page.calc(letters) === 'a,b',
+        t + 'once the typing stops, one for a and one for b', await page.calc(letters));
+    check(await page.calc('document.querySelector(".calc-graph-slider[data-k=b] .calc-graph-val input").value') === '1' &&
+        await page.calc('[].map.call(document.querySelectorAll(".calc-graph-slider[data-k=a] .calc-graph-end"), function (e) { return e.value; }).join()') ===
+        '-10,10', t + 'each at 1, from -10 to 10');
+    await page.hoverAt('.calc-graph-plot', 0, 1);
+    check(/^Min, y-intercept\s*x = 0\s*y = 1/.test(await page.calc(note)), t + 'a x² + b with both 1: its low at 0, 1', await page.calc(note));
+
+    // dragged, the curve follows; a value typed, too
+    await set('.calc-graph-slider[data-k=b] .calc-graph-range', '-3');
+    check(await page.calc('document.querySelector(".calc-graph-slider[data-k=b] .calc-graph-val input").value') === '-3', t + 'the slider shows its value');
+    await page.hoverAt('.calc-graph-plot', 0, -3);
+    check(/^Min, y-intercept\s*x = 0\s*y = -3/.test(await page.calc(note)), t + 'b dragged to -3: the low is at -3', await page.calc(note));
+    await set('.calc-graph-slider[data-k=a] .calc-graph-val input', '-');
+    check(!await page.calc('document.querySelector(".calc-graph-slider[data-k=a] .calc-graph-val").classList.contains("calc-bad")'),
+        t + 'a minus sign just typed is not marked');
+    await set('.calc-graph-slider[data-k=a] .calc-graph-val input', '25');
+    check(await page.calc('document.querySelectorAll(".calc-graph-slider[data-k=a] .calc-graph-end")[1].value') === '25' &&
+        await page.calc('document.querySelector(".calc-graph-slider[data-k=a] .calc-graph-range").max') === '25',
+        t + 'a value typed beyond the end takes the end there');
+    await set('.calc-graph-slider[data-k=a] .calc-graph-end', '30');
+    check(await page.calc('document.querySelector(".calc-graph-slider[data-k=a] .calc-graph-end").classList.contains("calc-bad")') &&
+        await page.calc('document.querySelector(".calc-graph-slider[data-k=a] .calc-graph-range").min') === '-10',
+        t + 'a start past the end is marked, and not taken');
+    await page.calc('document.activeElement.blur()');
+    check(await page.until('document.querySelector(".calc-graph-slider[data-k=a] .calc-graph-end").value === "-10"', 1000),
+        t + 'left, it shows the start again');
+    await set('.calc-graph-slider[data-k=b] .calc-graph-end', '-5');
+    check(await page.calc('document.querySelector(".calc-graph-slider[data-k=b] .calc-graph-range").step') === '0.1',
+        t + 'the step suits the ends');
+    check(await page.calc(saved) === '{"a":[25,-10,25],"b":[-3,-5,10]}', t + 'the values and the ends are saved with the graph', await page.calc(saved));
+
+    // the table follows the letters too
+    await page.click('.calc-graph-tab[data-tab="table"]');
+    await page.calc('(function (i) { i.value = "0"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-graph-from"))');
+    check(await page.calc('[].map.call(document.querySelectorAll(".calc-graph-line:nth-child(2) > span"), function (c) { return c.textContent; }).join(" | ")') ===
+        '0 | -3',
+        t + 'the table has their values');
+    await page.click('.calc-graph-tab[data-tab="graph"]');
+
+    // kept: the sliders are there as soon as the graph opens
+    await page.go(page.base + at);
+    await page.click('.calc-graph-btn');
+    check(await page.calc(letters) === 'a,b' && await page.calc('document.querySelector(".calc-graph-slider[data-k=a] .calc-graph-val input").value') === '25',
+        t + 'kept, and shown at once when the graph opens');
+
+    // a letter no longer in the functions: its slider goes; Clear: no sliders
+    await page.calc('(function (i) { i.value = "a x"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-graph-input"))');
+    check(await page.until('document.querySelectorAll(".calc-graph-slider").length === 1', 2000) && await page.calc(letters) === 'a',
+        t + 'b gone from the function: its slider goes');
+    await page.click('.calc-graph .calc-past-clear');
+    check(await page.calc('document.querySelector(".calc-graph-sliders").hidden') && await page.calc(saved) === '{}', t + 'Clear: no sliders');
+}
+
+// Up to seven curves: the + adds a box, its × removes one and the curves below move up with
+// their colors; more than three boxes scroll in the small panel, and the table across
+async function graphMany(page, at) {
+    var t = at + ': seven: ', shown = 'document.querySelectorAll(".calc-graph-fn:not([hidden])").length',
+        colors = '[].map.call(document.querySelectorAll(".calc-graph-fn:not([hidden]) .calc-graph-swatch"),' +
+            ' function (d) { return d.style.getPropertyValue("--c"); }).join(" ")',
+        values = '[].map.call(document.querySelectorAll(".calc-graph-input"), function (b) { return b.value; }).slice(0, 6).join()',
+        first, rest, n;
+
+    await page.fresh(at, {});
+    await page.click('.calc-graph-btn');
+    await page.type('x\r'); // Enter after the last box with a function: a new box
+    check(await page.calc(shown) === 2 && await page.calc('document.activeElement === document.querySelectorAll(".calc-graph-input")[1]'),
+        t + 'Enter after the last function adds a box');
+    await page.key('Enter', 13);
+    check(await page.calc(shown) === 2, t + 'not after an empty one');
+    await page.type('x+1');
+    for (n = 2; n < 7; n++) {
+        await page.click('.calc-graph-add');
+        await page.type('x+' + n);
+    }
+    check(await page.calc(shown) === 7 && await page.calc('document.querySelector(".calc-graph-add").hidden'), t + 'seven boxes, and then no +');
+    first = await page.calc(colors);
+    check(new Set(first.split(' ')).size === 7, t + 'each curve in its own color', first);
+    check(await page.calc('(function (l) { return l.classList.contains("calc-graph-many") && l.scrollHeight > l.clientHeight + 20 &&' +
+        ' l.clientHeight < 100; })(document.querySelector(".calc-graph-fns"))') &&
+        await page.calc('document.querySelector(".calc-graph-plot").clientHeight') > 150, t + 'the boxes scroll, the plot keeps its room',
+        await page.calc('document.querySelector(".calc-graph-plot").clientHeight'));
+
+    // the third removed: the ones below move up with their colors, the + is back
+    await page.click('.calc-graph-fn:nth-child(3) .calc-graph-del');
+    rest = first.split(' ').filter(function (c, i) { return i !== 2; }).join(' ');
+    check(await page.calc(values) === 'x,x+1,x+3,x+4,x+5,x+6' && await page.calc(shown) === 6 &&
+        !await page.calc('document.querySelector(".calc-graph-add").hidden'), t + 'the × removes its curve; the ones below move up',
+        await page.calc(values));
+    check(await page.calc(colors) === rest, t + 'each keeps its color', await page.calc(colors));
+    await page.click('.calc-graph-add');
+    check((await page.calc(colors)).split(' ')[6] === first.split(' ')[2], t + 'the new box gets the color that is free');
+    await page.click('.calc-graph-fn:nth-child(7) .calc-graph-del');
+
+    // the table: a column for each, scrolled across in the small panel
+    await page.click('.calc-graph-tab[data-tab="table"]');
+    check(await page.calc('(function (l) { return l.scrollWidth > l.clientWidth + 50; })(document.querySelector(".calc-graph-list"))'),
+        t + 'six columns are wider than the panel: the table scrolls across');
+    check(/^-?\d/.test(await page.calc('document.querySelector(".calc-graph-line:nth-child(2) > span:nth-child(7)").textContent')),
+        t + 'with room for each value', await page.calc('document.querySelector(".calc-graph-line:nth-child(2) > span:nth-child(7)").textContent'));
+    await page.click('.calc-graph-tab[data-tab="graph"]');
+
+    // kept: the boxes and their colors
+    await page.go(page.base + at);
+    await page.click('.calc-graph-btn');
+    check(await page.calc(shown) === 6 && await page.calc(colors) === rest, t + 'the boxes and their colors are kept', await page.calc(colors));
+
+    // a graph saved as the three boxes were: up to the last one filled
+    await page.fresh(at, { graph: { f: ['x', 'x^2', ''], view: null } });
+    await page.click('.calc-graph-btn');
+    check(await page.calc(shown) === 2 && /^#22476a #b0414d$/i.test(await page.calc(colors)), t + 'an old graph opens with its curves',
+        await page.calc(colors));
+}
+
+// a curve hidden and shown by a click on its dot; the graph saved or copied as a picture
+async function graphHide(page, at) {
+    var t = at + ': hide: ', note = 'document.querySelector(".calc-graph-note").textContent',
+        navy = '(function (c) { var d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data, n = 0, i;' +
+            ' for (i = 0; i < d.length; i += 4) if (Math.abs(d[i] - 0x22) < 24 && Math.abs(d[i + 1] - 0x47) < 24 &&' +
+            ' Math.abs(d[i + 2] - 0x6a) < 24 && d[i + 3] > 200) n++; return n; })(document.querySelector(".calc-graph-plot canvas"))',
+        saved = 'JSON.stringify(JSON.parse(localStorage.getItem("graph")).off)';
+
+    await page.fresh(at, { graph: { f: ['x^2-3', '1/x', ''], view: null } });
+    await page.click('.calc-graph-btn');
+    check(await page.calc(navy) > 200, t + 'the first curve is drawn');
+    await page.click('.calc-graph-fn:nth-child(1) .calc-graph-swatch');
+    check(await page.calc(navy) === 0 && await page.calc('document.querySelector(".calc-graph-fn").classList.contains("calc-graph-off")') &&
+        await page.calc('document.querySelector(".calc-graph-input").value') === 'x^2-3', t + 'a click on its dot hides it; what is typed stays');
+    check(await page.calc(saved) === '[true,false]', t + 'hidden, kept', await page.calc(saved));
+    await page.hoverAt('.calc-graph-plot', 0, -3);
+    check(!/^Min/.test(await page.calc(note)), t + 'its points are gone too', await page.calc(note));
+
+    await page.click('.calc-graph-fn:nth-child(2) .calc-graph-swatch');
+    check(/^Every curve is hidden/.test(await page.calc(note)), t + 'with both hidden the line says how to show one', await page.calc(note));
+    await page.click('.calc-graph-add');
+    await page.click('.calc-graph-fn:nth-child(3) .calc-graph-swatch');
+    check(!await page.calc('document.querySelectorAll(".calc-graph-fn")[2].classList.contains("calc-graph-off")'), t + 'the dot of an empty box does nothing');
+    await page.click('.calc-graph-fn:nth-child(3) .calc-graph-del');
+
+    // the table leaves a hidden curve out
+    await page.click('.calc-graph-fn:nth-child(2) .calc-graph-swatch');
+    await page.click('.calc-graph-tab[data-tab="table"]');
+    check(await page.calc('document.querySelectorAll(".calc-graph-names .calc-graph-swatch").length') === 1, t + 'the table has only the curve shown');
+    await page.click('.calc-graph-tab[data-tab="graph"]');
+
+    // kept after closing; the picture: the menu of the plot, and the button saves graph.png
+    await page.go(page.base + at);
+    await page.click('.calc-graph-btn');
+    check(await page.calc(navy) === 0 && await page.calc(saved) === '[true,false]', t + 'still hidden when opened again', await page.calc(saved));
+    await page.rightClick('.calc-graph-plot');
+    check(await menu(page) === 'Copy picture|Save picture', t + 'the plot has Copy picture and Save picture', await menu(page));
+    await page.click('.calc-graph-note'); // the menu goes; Esc would close the graph too
+    check(await open(page, '.calc-graph') && await page.calc('document.querySelector(".calc-menu-box").hidden'), t + 'a click away closes the menu');
+    await page.calc('(function (w) { w.saved = null; var make = w.URL.createObjectURL;' + // in the calculator's window, an iframe in the popup
+        ' w.URL.createObjectURL = function (b) { w.saved = { size: b.size, type: b.type }; return make.call(w.URL, b); };' +
+        ' w.HTMLAnchorElement.prototype.click = function () { w.saved.name = this.download; }; })(document.defaultView)');
+    await page.click('.calc-graph-zoom [data-zoom="save"]');
+    for (var wait = 0; wait < 30 && !await page.calc('!!(document.defaultView.saved && document.defaultView.saved.name)'); wait++) await sleep(100); // the picture is made apart
+    check(await page.calc('(function (s) { return JSON.stringify(s && [s.name, s.type, s.size > 2000]); })(document.defaultView.saved)') ===
+        '["graph.png","image/png",true]', t + 'the button saves the picture as graph.png', await page.calc('JSON.stringify(document.defaultView.saved)'));
+
+    // Clear shows every curve again
+    await page.click('.calc-graph .calc-past-clear');
+    check(await page.calc(saved) === '[false]', t + 'Clear shows them all again, in one box', await page.calc(saved));
+}
+
+// the table of the graph: x by a step and y of each curve, its values put in with a click
+async function graphTable(page, at) {
+    var t = at + ': table: ', note = 'document.querySelector(".calc-graph-note").textContent',
+        row = function (n) { // the texts of a row of values, the first row 1
+            return page.calc('[].map.call(document.querySelectorAll(".calc-graph-line:nth-child(' + (n + 1) + ') > span"),' +
+                ' function (c) { return c.textContent; }).join(" | ")');
+        },
+        rows = 'document.querySelectorAll(".calc-graph-line:not(.calc-graph-names)").length';
+
+    await page.fresh(at, { graph: { f: ['x^2-3', '1/x', ''], view: null } });
+    await page.click('.calc-graph-btn');
+    await page.click('.calc-graph-tab[data-tab="table"]');
+    check(await page.calc('document.querySelector(".calc-graph-plot").hidden && !document.querySelector(".calc-graph-table").hidden'),
+        t + 'the tab shows the table in place of the plot');
+    check(await row(1) === '-10 | 97 | -0.1', t + 'from the left of the view, x = -10: 97 and -0.1', await row(1));
+    check(await page.calc('document.querySelector(".calc-graph-from").placeholder + " " + document.querySelector(".calc-graph-by").placeholder') === '-10 1',
+        t + 'the empty boxes say what they go by');
+    check(await page.calc('document.querySelectorAll(".calc-graph-names .calc-graph-swatch").length') === 2, t + 'a column for each curve, in its color');
+    check(/^Click a value/.test(await page.calc(note)), t + 'the line says what a click does', await page.calc(note));
+
+    // a start and a step of one's own; where a curve has no value, a dash
+    await page.click('.calc-graph-from');
+    await page.type('0');
+    await page.calc('(function (i) { i.value = "0.5"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-graph-by"))');
+    check(await row(1) === '0 | -3 | –' && await row(2) === '0.5 | -2.75 | 2', t + 'from 0 by 0.5; 1/x has no value at 0', await row(1) + ' / ' + await row(2));
+    check(await page.calc(rows) === 60, t + '60 rows at first', await page.calc(rows));
+    await page.calc('(function (l) { l.scrollTop = l.scrollHeight; l.dispatchEvent(new Event("scroll")); })(document.querySelector(".calc-graph-list"))');
+    check(await page.calc(rows) === 120, t + 'scrolled to the end, 60 more', await page.calc(rows));
+    await page.calc('document.querySelector(".calc-graph-list").scrollTop = 0');
+
+    // a value: its menu, and a click puts it in
+    await page.rightClick('.calc-graph-line:nth-child(3) > .calc-graph-cell[data-c="1"]');
+    check(await menu(page) === 'Copy|Insert', t + 'a value has Copy and Insert', await menu(page));
+    await page.key('Escape', 27);
+    await page.click('.calc-graph-line:nth-child(3) > .calc-graph-cell[data-c="1"]');
+    check(!await open(page, '.calc-graph') && await value(page) === -2.75, t + 'a click puts the value into the display', await shown(page));
+
+    // kept: the tab, the start and the step
+    await page.go(page.base + at);
+    await page.click('.calc-graph-btn');
+    check(!await page.calc('document.querySelector(".calc-graph-table").hidden') &&
+        await page.calc('document.querySelector(".calc-graph-from").value + " " + document.querySelector(".calc-graph-by").value') === '0 0.5',
+        t + 'the tab, the start and the step are kept');
+
+    // a step that is not above 0 is marked, and the view goes on
+    await page.calc('(function (i) { i.value = "-1"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-graph-by"))');
+    check(await page.calc('document.querySelector(".calc-graph-by").parentNode.classList.contains("calc-bad")') &&
+        /^Start and step/.test(await page.calc(note)) && await row(2) === '1 | -2 | 1', t + 'a step of -1 is marked, the step of the view is used',
+        await page.calc(note) + ' / ' + await row(2));
+
+    // Clear empties the boxes too; the graph's tab shows the plot again
+    await page.click('.calc-graph .calc-past-clear');
+    check(await page.calc('document.querySelector(".calc-graph-from").value + document.querySelector(".calc-graph-by").value') === '' &&
+        await page.calc(rows) === 0 && /^Type a function/.test(await page.calc(note)), t + 'Clear empties the start, the step and the table');
+    await page.click('.calc-graph-tab[data-tab="graph"]');
+    check(!await page.calc('document.querySelector(".calc-graph-plot").hidden'), t + 'the graph tab shows the plot again');
 }
 
 // a choice in a list of the converter, by the start of its text: the list opened
@@ -687,7 +1157,7 @@ async function converter(page, at) {
 
     // its button comes after f(x), as its option does
     await page.fresh(at, {});
-    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-stat-btn', t + 'the converter between f(x) and the statistics',
+    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-stat-btn', t + 'the converter between f(x) and the graph',
         await buttons(page));
 
     // the result shown is the value to start from
@@ -895,7 +1365,7 @@ async function menus(page, at) {
     await page.rightClick('.calc-past-res');
     await pick(page, 'Delete');
     check(await page.calc('document.querySelectorAll(".calc-past-row").length') === 1, t + 'Delete takes the line out');
-    await page.rightClick('.calc-past:not(.calc-stats):not(.calc-fx):not(.calc-conv) .calc-past-head span');
+    await page.rightClick('.calc-past:not(.calc-stats):not(.calc-fx):not(.calc-conv):not(.calc-graph) .calc-past-head span');
     check(await menu(page) === 'Clear history', t + 'above the lines, Clear history', await menu(page));
     await pick(page, 'Clear history');
     check(await page.calc('document.querySelector(".calc-hist").hidden'), t + 'which empties it');
@@ -1135,7 +1605,7 @@ async function options(page) {
 
     await page.fresh('/frame.html', {});
     t = 'in a frame: ';
-    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-stat-btn', t + 'all three buttons');
+    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-stat-btn', t + 'all four buttons');
     await page.click('.calc-fx-btn');
     await page.ev('localStorage.setItem("fxOn", "false")');
     check(await page.until('!(document.getElementById("calc-iframe").contentDocument.querySelector(".calc-fx-btn").offsetWidth)'),
@@ -1155,7 +1625,7 @@ async function options(page) {
     t = 'web/index.html: ';
     await page.fresh('/web/index.html', {}, [1300, 900]);
     check(await page.ev('document.getElementById("panel-stats").checked && document.getElementById("panel-fx").checked && ' +
-        'document.getElementById("panel-conv").checked'), t + 'at first all three on');
+        'document.getElementById("panel-conv").checked && document.getElementById("panel-graph").checked'), t + 'at first all four on');
     check(await page.until('!document.querySelector(".calc-conv-btn").hidden'),
         t + 'and their buttons in the calculator');
     await page.ev('document.getElementById("panel-fx").scrollIntoView({ block: "center" })');
@@ -1319,6 +1789,18 @@ async function website(page) {
         await modeKey(page, '/web/index.html');
         await converter(page, '/popup.html');
         await converter(page, '/web/index.html');
+        await graphPanel(page, '/popup.html');
+        await graphPanel(page, '/web/index.html');
+        await graphTable(page, '/popup.html');
+        await graphTable(page, '/web/index.html');
+        await graphHide(page, '/popup.html');
+        await graphHide(page, '/web/index.html');
+        await graphMany(page, '/popup.html');
+        await graphMany(page, '/web/index.html');
+        await graphSlide(page, '/popup.html');
+        await graphSlide(page, '/web/index.html');
+        await graphBig(page, '/popup.html');
+        await graphBig(page, '/web/index.html');
         await menus(page, '/popup.html');
         await menus(page, '/web/index.html');
         await options(page);
