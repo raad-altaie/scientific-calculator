@@ -281,6 +281,7 @@
             showPast(false);
             return true;
         }
+        if (key >= 37 && key <= 40 && graphTrace(key, shiftKey)) return true; // or the point clicked on the graph
         if (key === 37 || key === 39) { // the arrow keys move the cursor
             if (engine.move(key === 37 ? 'left' : 'right', deg)) {
                 refresh();
@@ -1070,6 +1071,8 @@
         GRAPH_POP_WAIT = 2000, // the popup opened with the mouse goes this many ms after the mouse is off it
         graphHiding, // that wait
         graphPopShut = false, // the popup put away, the point clicked and its tangent still drawn
+        GRAPH_TRACE = 2, // ← and → move the point clicked this many pixels along its curve, ten times as far with Shift
+        graphTracing = -1, // the curve traced last: of the two at a crossing, the one to go on along
         graphShading = false, // the ∫ button pressed: a drag along a curve shades its area, and does not move the view
         graphAreaButton = graphPlot.querySelector('[data-zoom="area"]'),
         graphSize = graph.querySelector('.calc-graph-size'), // the graph as big as the page, and back
@@ -1692,6 +1695,47 @@
         graphPinned = { area: true, i: s.i, a: Math.min(a, b), b: Math.max(a, b) };
         graphAt = null;
         popShut();
+        drawGraph();
+        return true;
+    }
+
+    // The point clicked on a curve, traced by the arrow keys: ← and → move it along the curve,
+    // stopping at a dot on the way, a root or a crossing; ↑ and ↓ take it to the curve above or
+    // below at its x. The view moves to keep it in, and its popup shows. False where there is
+    // no such point, for the keys to do what they do in the calculator
+    function graphTrace(key, shift) {
+        var p = graphPinned, v = viewNow(), w = graphPlot.clientWidth, h = graphPlot.clientHeight,
+            dir = key === 39 || key === 38 ? 1 : -1, i, x, next = null, px, py, dx = 0, dy = 0;
+        if (!p || p.spot || p.area || !graph.classList.contains('calc-open') || graphTab !== 'graph') return false;
+        i = p.j !== undefined && p.j === graphTracing ? p.j : p.i;
+        if (!graphFns[i]) return false;
+        if (key === 38 || key === 40) {
+            graphFns.forEach(function (fn, k) {
+                var y = fn && k !== i ? fn.at(p.x, deg, true) : NaN;
+                if (isFinite(y) && (y - p.y) * dir > 0 && (!next || Math.abs(y - p.y) < Math.abs(next.y - p.y))) next = { i: k, x: p.x, y: y };
+            });
+            if (!next) return true;
+        } else {
+            x = graphRound(p.x + dir * GRAPH_TRACE * (shift ? 10 : 1) * v.ux, v.ux);
+            graphMarks.forEach(function (m) {
+                if ((m.i === i || m.j === i) && (m.x - p.x) * dir > 0 && (m.x - x) * dir <= 0 &&
+                    (!next || Math.abs(m.x - p.x) < Math.abs(next.x - p.x))) next = m;
+            });
+            if (!next) next = { i: i, x: x, y: graphFns[i].at(x, deg, true) };
+        }
+        graphTracing = next.i === i || next.j === i ? i : next.i;
+        graphPinned = graphAt = next;
+        graphPopShut = false;
+        popLater(false);
+        px = plotX(v, next.x);
+        py = plotY(v, next.y);
+        if (px < 20 || px > w - 20) dx = px < 20 ? px - 20 : px - (w - 20);
+        if (isFinite(py) && (py < 20 || py > h - 20)) dy = py < 20 ? py - 20 : py - (h - 20);
+        if (dx || dy) {
+            graphView = { x: v.x + dx * v.ux, y: v.y - dy * v.uy, ux: v.ux, uy: v.uy };
+            clearTimeout(graphSaving);
+            graphSaving = setTimeout(saveState, 300);
+        }
         drawGraph();
         return true;
     }
