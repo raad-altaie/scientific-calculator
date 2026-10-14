@@ -526,17 +526,24 @@ async function graphPanel(page, at) {
     check(await page.calc('!document.querySelector(".calc-graph-pop").hidden') && /^Point at the graph/.test(await page.calc(note)),
         t + 'the popup stays a while after the pointer leaves, and the line says what to do again', await page.calc(note));
 
-    // the mouse on the popup keeps it; off it two seconds, it goes
+    // the mouse on the popup keeps it; off it three and a half seconds, it goes
     await page.hover('.calc-graph-pop');
-    await sleep(2300);
+    await sleep(3800);
     check(await page.calc('!document.querySelector(".calc-graph-pop").hidden'), t + 'the mouse on the popup keeps it');
     await page.hover('.calc-graph-fn');
     check(await page.calc('!document.querySelector(".calc-graph-pop").hidden'), t + 'the mouse off it: it stays a moment');
-    await sleep(2300);
-    check(await page.calc('document.querySelector(".calc-graph-pop").hidden'), t + 'and goes after two seconds');
+    await sleep(3800);
+    check(await page.calc('document.querySelector(".calc-graph-pop").hidden'), t + 'and goes after three and a half seconds');
     await page.clickAt('.calc-graph-plot', 0, -3);
-    await sleep(2300);
-    check(await page.calc('document.querySelector(".calc-graph-pop").hidden'), t + 'and so it does after a click, the mouse left on the point');
+    await sleep(3800);
+    check(await page.calc('!document.querySelector(".calc-graph-pop").hidden'), t + 'after a click, the mouse left on the point, it stays');
+    await page.hoverAt('.calc-graph-plot', 0.3, -3); // a few pixels: still there
+    await sleep(3800);
+    check(await page.calc('!document.querySelector(".calc-graph-pop").hidden'), t + 'and when the mouse only trembles');
+    await page.hoverAt('.calc-graph-plot', 2, -3);
+    check(await page.calc('!document.querySelector(".calc-graph-pop").hidden'), t + 'the mouse moved off the point: it stays a moment');
+    await sleep(3800);
+    check(await page.calc('document.querySelector(".calc-graph-pop").hidden'), t + 'and goes after three and a half seconds, as off the popup');
     await page.clickAt('.calc-graph-plot', 0, -3);
     await page.clickAt('.calc-graph-plot', 0, -3);
     check(await page.calc('document.querySelector(".calc-graph-pop").hidden'), t + 'a click on the point again closes it');
@@ -564,7 +571,7 @@ async function graphPanel(page, at) {
     check(plain === 0 && await page.calc(dashes(0.8, 2 * Math.sqrt(3) * (0.8 - Math.sqrt(3)))) > 0, t + 'and the tangent there',
         plain + ' / ' + await page.calc(dashes(0.8, 2 * Math.sqrt(3) * (0.8 - Math.sqrt(3)))));
     await page.hover('.calc-graph-fn');
-    await sleep(2300);
+    await sleep(3800);
     check(await page.calc('document.querySelector(".calc-graph-pop").hidden') &&
         await page.calc(dashes(0.8, 2 * Math.sqrt(3) * (0.8 - Math.sqrt(3)))) > 0, t + 'the popup goes, the tangent stays');
     await page.clickAt('.calc-graph-plot', Math.sqrt(3), 0);
@@ -590,10 +597,10 @@ async function graphPanel(page, at) {
         t + 'a drag from root to root: the area under x² – 3, -4√3', await page.calc(pop));
     check(await page.calc(shade(0, -1.5)) > 10 && await page.calc(shade(-2.5, 1)) === 0, t + 'shaded between the roots, and not past them',
         await page.calc(shade(0, -1.5)) + ' / ' + await page.calc(shade(-2.5, 1)));
-    check(!await page.calc('document.querySelector("[data-zoom=area]").classList.contains("calc-on")') &&
-        await page.calc('JSON.parse(localStorage.getItem("graph")).view') === null, t + 'the ∫ button is let go, and the view did not move');
+    check(await page.calc('document.querySelector("[data-zoom=area]").classList.contains("calc-on")') &&
+        await page.calc('JSON.parse(localStorage.getItem("graph")).view') === null, t + 'the ∫ button stays pressed, for another, and the view did not move');
     await page.hover('.calc-graph-fn');
-    await sleep(2300);
+    await sleep(3800);
     check(await page.calc('document.querySelector(".calc-graph-pop").hidden') && await page.calc(shade(0, -1.5)) > 10,
         t + 'the popup goes, the area stays');
     await page.clickAt('.calc-graph-plot', 0, -1.5);
@@ -620,8 +627,14 @@ async function graphPanel(page, at) {
     check(await page.calc('!document.querySelector(".calc-graph-pop").hidden && document.activeElement.tagName !== "INPUT"') &&
         /To x = 1\s*Area/.test(await page.calc(pop)), t + 'Esc goes back to the plot, the ends as they are', await page.calc(pop));
 
-    // a drag from near 0.5 to near -1 ends at 0.5 and -1, round numbers, not where the pointer was to a pixel
+    // Esc lets ∫ go, and Esc again takes the area away
     await page.key('Escape', 27);
+    check(!await page.calc('document.querySelector("[data-zoom=area]").classList.contains("calc-on")') && await page.calc(shade(0.5, -1.5)) > 10,
+        t + 'Esc lets the ∫ button go, the area staying');
+    await page.key('Escape', 27);
+    check(await page.calc(shade(0.5, -1.5)) === 0, t + 'and Esc again takes the area away');
+
+    // a drag from near 0.5 to near -1 ends at 0.5 and -1, round numbers, not where the pointer was to a pixel
     await page.click('.calc-graph-zoom [data-zoom="area"]');
     await page.hoverAt('.calc-graph-plot', 0.53, -1);
     check(/^From x = 0\.5\s*Drag to where it ends$/.test((await page.calc(note)).trim()), t + 'pointed at with ∫ pressed: where the area would start, 0.5',
@@ -692,7 +705,8 @@ async function graphPanel(page, at) {
     red = [0xb0, 0x41, 0x4d]; // the color of the curve above where the drag began
     check(await page.calc(shade(0, 1, red)) > 10 && await page.calc(shade(0, -2.5, red)) > 10 && await page.calc(shade(0, 4, red)) === 0,
         t + 'shaded from one curve to the other, across the axis', await page.calc(shade(0, 1, red)) + ' / ' + await page.calc(shade(0, 4, red)));
-    await page.key('Escape', 27);
+    await page.key('Escape', 27); // ∫ let go
+    await page.key('Escape', 27); // the area away
     await page.clickAt('.calc-graph-plot', 3, 6);
     await page.click('.calc-graph-pop-row[data-put="y"]');
     check(!await open(page, '.calc-graph') && await value(page) === 6, t + 'a click on its y puts it into the display', await shown(page));
@@ -990,7 +1004,7 @@ async function graphPanel(page, at) {
         return page.calc('[].map.call(document.querySelectorAll(".calc-graph-fn:not([hidden]) .calc-graph-input"), function (b) { return b.value; }).join(" | ")');
     }
     await page.click('.calc-graph-tab[data-tab="examples"]');
-    check(await page.calc('!document.querySelector(".calc-graph-examples").hidden && document.querySelector(".calc-graph-plot").hidden && ' +
+    check(await page.calc('!document.querySelector(".calc-graph-examples").hidden && !document.querySelector(".calc-graph-plot").offsetWidth && ' +
         'getComputedStyle(document.querySelector(".calc-graph-fns")).display === "none" && document.activeElement.classList.contains("calc-graph-search")') &&
         await page.calc('document.querySelectorAll(".calc-graph-ex-list .calc-gx-cat").length') >= 9, t + 'examples: a tab of them, by group, with a search');
     await page.type('cardioid');
@@ -998,7 +1012,7 @@ async function graphPanel(page, at) {
     await page.type('\r');
     await sleep(300);
     await page.hoverAt('.calc-graph-plot', 4.05, 0.05);
-    check(await boxes() === 'r = 2 + 2cos(θ)' && !await page.calc('document.querySelector(".calc-graph-plot").hidden') &&
+    check(await boxes() === 'r = 2 + 2cos(θ)' && await page.calc('document.querySelector(".calc-graph-plot").offsetWidth') &&
         /^x-intercept\s*x = 4\s*y = 0$/.test((await page.calc(note)).trim()), t + 'examples: Enter draws it in place of the points', await boxes());
     await page.click('.calc-graph-tab[data-tab="examples"]');
     await page.type('vertex\r');
@@ -1269,7 +1283,9 @@ async function graphBig(page, at) {
         unit, stub = 'window.sent = []; window.close = function () { window.sent.push("close"); };' +
             ' Object.defineProperty(window, "chrome", { configurable: true, value:' +
             ' { runtime: { sendMessage: function (m) { window.sent.push(m); return Promise.resolve(); } } } });',
-        script;
+        script, width, ends, on,
+        // the line between the columns dragged by dx pixels: dragAt goes in twentieths of its 12px
+        split = function (dx) { return page.dragAt('.calc-graph-split', 0, 0, dx * 20 / 12, 0); };
 
     if (at.indexOf('/web/') < 0) {
         // the popup asks for the graph's window, and stays as it is
@@ -1285,7 +1301,7 @@ async function graphBig(page, at) {
         await page.send('Page.enable'); // for the script before the page's own
         script = (await page.send('Page.addScriptToEvaluateOnNewDocument', { source: stub })).result.identifier;
         await page.go(page.base + '/popup.html?graph', [700, 500]);
-        check(await page.calc(big) && await open(page, '.calc-graph') && await page.calc(plot + '.clientWidth') > 650 &&
+        check(await page.calc(big) && await open(page, '.calc-graph') && await page.calc(plot + '.clientWidth') > 350 &&
             await page.ev('document.title') === 'Graph' && !await page.calc('document.querySelector(".calc-graph .calc-past-close").offsetWidth'),
             !await page.calc('document.querySelector(".calc-graph-size").offsetWidth'),
             t + 'its window has only the graph, big, without pop in or a close button', await page.calc(plot + '.clientWidth'));
@@ -1317,20 +1333,49 @@ async function graphBig(page, at) {
         return;
     }
 
-    await page.fresh(at, { graph: { f: ['x^2-3', '', ''], view: null } }, [900, 700]);
+    await page.fresh(at, { graph: { f: ['a x^2-3', '', ''], view: null } }, [900, 700]); // a = 1, with its slider
     await page.click('.calc-graph-btn');
     check(await page.calc(plot + '.clientWidth') < 400, t + 'the graph is small at first', await page.calc(plot + '.clientWidth'));
     await page.hover('.calc-graph-size');
     check(await page.until('/^Pop out/.test(document.querySelector(".calc-tip").textContent)', 2000), t + 'the button has its tip');
     await page.click('.calc-graph-size');
-    check(await page.calc(big) && await page.calc(plot + '.clientWidth') > 850 && await page.calc(plot + '.clientHeight') > 500,
+    check(await page.calc(big) && await page.calc(plot + '.clientWidth') > 500 && await page.calc(plot + '.clientHeight') > 600,
         t + 'big, the plot has most of the page', await page.calc(plot + '.clientWidth + "x" + ' + plot + '.clientHeight'));
+    check(await page.calc('(function (q) { var p = q(".calc-graph-plot").getBoundingClientRect(); return p.top < 40 && ' +
+        '[".calc-graph-tabs", ".calc-past-clear", ".calc-graph-fns"].every(function (s) { return q(s).getBoundingClientRect().right < p.left; }) && ' +
+        'q(".calc-graph-size").getBoundingClientRect().left > p.right - 40 && q(".calc-graph-size").getBoundingClientRect().bottom <= p.top; })' +
+        '(function (s) { return document.querySelector(".calc-graph " + s); })'),
+        t + 'big: the tabs, Clear and the boxes at the left of the plot, pop in above its right corner');
+    width = await page.calc(plot + '.clientWidth');
+    await split(50);
+    check(await page.calc(plot + '.clientWidth') === width - 50 && await page.calc('document.querySelector(".calc-graph-plot canvas").width') === width - 50,
+        t + 'big: the line between the columns makes the left one wider, and the plot is drawn again', await page.calc(plot + '.clientWidth'));
+    await split(-800);
+    check((await page.calc('getComputedStyle(document.querySelector(".calc-graph")).gridTemplateColumns')).split(' ')[0] === '270px',
+        t + 'big: the left column is never narrower than 270px', await page.calc('getComputedStyle(document.querySelector(".calc-graph")).gridTemplateColumns'));
+    check(await page.calc('(function (q) { var h = q(".calc-past-head"), left = q(".calc-graph-plot").getBoundingClientRect().left; ' +
+        'return h.scrollWidth <= h.clientWidth && [].every.call(h.querySelectorAll(".calc-graph-tab"), function (b) { return b.scrollWidth <= b.clientWidth; }) && ' +
+        '[".calc-past-clear", ".calc-graph-sliders"].every(function (s) { return q(s).getBoundingClientRect().right < left && q(s).scrollWidth <= q(s).clientWidth; }); })' +
+        '(function (s) { return document.querySelector(".calc-graph " + s); })'),
+        t + 'big: that narrow, the tabs, Clear and a slider fit in it, whole, short of the plot');
+    await split(2000);
+    check(await page.calc('(function (g) { return parseFloat(getComputedStyle(g).gridTemplateColumns) <= (g.clientWidth - 320) * 0.7 + 1; })' +
+        '(document.querySelector(".calc-graph"))'), t + 'big: nor wider than 0.7 of the room that leaves the plot 320px',
+        await page.calc('getComputedStyle(document.querySelector(".calc-graph")).gridTemplateColumns'));
+    await page.calc('document.querySelector(".calc-graph-split").dispatchEvent(new MouseEvent("dblclick", { bubbles: true }))');
+    check(await page.calc(plot + '.clientWidth') === width && JSON.parse(await page.ev('localStorage.getItem("graph")')).side === 0,
+        t + 'big: a double click puts it back', await page.calc(plot + '.clientWidth'));
     check(await page.calc('document.querySelector(".calc-graph-plot canvas").width') === await page.calc(plot + '.clientWidth'),
         t + 'its canvas is drawn at that size');
     check(await page.calc('(function (b) { return b.left === 0 && b.top === 0 && b.width === innerWidth; })' +
         '(document.getElementById("calculator").getBoundingClientRect())'), t + 'the calculator fills the page, unscaled');
     await page.hoverAt('.calc-graph-plot', 0, -3);
     check(/^Min/.test(await page.calc(note)), t + 'the points are found on the big plot too', await page.calc(note));
+    await page.clickAt('.calc-graph-plot', 0, -3);
+    check(await page.calc('(function (p, c) { return Math.abs(p.left + p.width / 2 - (c.left + c.width / 2)) < 2; })' +
+        '(document.querySelector(".calc-graph-pop").getBoundingClientRect(), document.querySelector(".calc-graph-plot").getBoundingClientRect())'),
+        t + 'big: the popup of the point clicked is over the point', await page.calc('JSON.stringify(document.querySelector(".calc-graph-pop").getBoundingClientRect())'));
+    await page.key('Escape', 27); // the point goes
     await page.key('Escape', 27);
     check(!await page.calc(big) && await open(page, '.calc-graph') && await page.calc(plot + '.clientWidth') < 400,
         t + 'Esc makes it small, the graph stays open');
@@ -1357,6 +1402,24 @@ async function graphBig(page, at) {
     check(!await page.calc('document.querySelector(".calc-graph .calc-past-close").offsetWidth'), t + 'big, it has no close button');
     await page.click('.calc-graph-size');
     check(await page.calc('document.querySelector(".calc-graph .calc-past-close").offsetWidth') > 0, t + 'small, it has it again');
+
+    // With ∫ pressed a drag never moves the view: begun left of √x, where it has no value, the
+    // area starts where the drag first reaches it
+    await page.fresh(at, { graph: { f: ['sqrt(x)', '', ''], view: null } }, [900, 700]);
+    await page.click('.calc-graph-btn');
+    await page.click('.calc-graph-zoom [data-zoom="area"]');
+    await page.dragAt('.calc-graph-plot', -3, 1, 2, 1);
+    ends = 'document.querySelector(".calc-graph-pop-end[data-end=a]").value + " to " + document.querySelector(".calc-graph-pop-end[data-end=b]").value';
+    check(await page.calc('JSON.parse(localStorage.getItem("graph")).view') === null && /^0\.?\d* to 2$/.test(await page.calc(ends)),
+        t + 'a drag with ∫ begun where no curve is: an area from where it reaches √x, the view still', await page.calc(ends));
+
+    // a button of the view lets ∫ go: closer, farther, the start, the view typed; not save
+    on = 'document.querySelector("[data-zoom=area]").classList.contains("calc-on")';
+    for (var z of ['in', 'out', 'home', 'window']) {
+        if (!await page.calc(on)) await page.click('.calc-graph-zoom [data-zoom="area"]');
+        await page.click('.calc-graph-zoom [data-zoom="' + z + '"]');
+        check(!await page.calc(on), t + 'the button ' + z + ' lets ∫ go');
+    }
 }
 
 // A slider for each letter of the functions but x: at 1 from -10 to 10, it moves the curves

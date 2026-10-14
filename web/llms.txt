@@ -6,7 +6,7 @@ A static web app (no account, no server, no tracking): everything is calculated 
 
 ## Links
 - [Calculator](https://raad.dev/calculator/): the app, with options and a guide to every function
-- [For schools and companies](https://raad.dev/calculator/admin.html): turning features of the Chrome extension off for students, from the Google Admin Console
+- [For schools and organizations](https://raad.dev/calculator/admin): turning features of the Chrome extension off for students, from the Google Admin Console
 - [Source code and documentation](https://github.com/raad-altaie/scientific-calculator): README, tests, MIT license
 
 ## Facts

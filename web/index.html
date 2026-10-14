@@ -418,6 +418,8 @@
                 <span class="calc-graph-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-graph-grow" d="M10 2h4v4M7.5 8.5L14 2" /><path class="calc-graph-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
                 <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
             </div>
+            <!-- big on a wide page, the line between the two columns: dragged, the left one is wider or narrower -->
+            <div class="calc-graph-split"></div>
             <!-- a box for each curve, in its color, with its × to remove it; main.js makes the other six from this one -->
             <div class="calc-graph-fns">
                 <label class="calc-graph-fn">
@@ -455,7 +457,7 @@
                 </div>
                 <!-- the graph saved as a picture, in the corner below -->
                 <div class="calc-graph-zoom calc-graph-export">
-                    <span data-zoom="save"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5v7.5M4.8 7L8 10.2 11.2 7M3 13h10" /></svg></span>
+                    <span data-zoom="save"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 4.5v-3h3M11.5 1.5h3v3M14.5 11.5v3h-3M4.5 14.5h-3v-3" /><path d="M5 5.5h1.3l.7-1h2l.7 1H11a1 1 0 0 1 1 1V11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6.5a1 1 0 0 1 1-1zM8 6.8a1.9 1.9 0 1 0 0 3.8a1.9 1.9 0 1 0 0-3.8z" fill="currentColor" fill-rule="evenodd" stroke="none" /><circle cx="8" cy="8.7" r="0.9" fill="currentColor" stroke="none" /></svg></span>
                 </div>
             </div>
             <!-- the table: x from a start by a step, and y of each curve; empty boxes follow the view of the graph -->
@@ -843,7 +845,7 @@
                     the start.</li>
                 <li>Point at a curve or a dot for its x and y, a round number near it going to it, 2 and not 2.04;
                     click it for a popup where a click on its x or y puts it into your calculation (the popup goes
-                    two seconds after the mouse is off it, and at once as you zoom, the point and its tangent
+                    three and a half seconds after the mouse is off it, and at once as you zoom, the point and its tangent
                     staying; click the point to see it again), and on a curve the slope there as well, its tangent
                     dashed across the graph. The arrow keys then trace it: ← and → move it along its curve,
                     stopping at a root or a crossing, Shift ten times as far, and ↑ and ↓ take it to the curve
@@ -854,7 +856,8 @@
                     drag along the curve from one x to another: the area to the x axis is shaded, below the axis
                     counted down; started between two curves, it is the area between them; an end near a root or a
                     crossing goes to it, else to a round number, and its popup inserts the area; type in its From x
-                    and To x for ends of your own.</li>
+                    and To x for ends of your own. The button stays pressed for another area, and the graph does not
+                    move as you drag, until you press it again, Esc, or zoom, home or the view.</li>
                 <li>Click a curve's y′ to draw its slope, the derivative, dashed in its color, or type d/dx before
                     a function for its slope as a curve of its own: d/dx(x^2) is 2x.</li>
                 <li>An equation of x and y is drawn too, where its two sides are equal: x = 3, x^2 + y^2 = 25, x =
