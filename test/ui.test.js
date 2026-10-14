@@ -449,7 +449,7 @@ async function calculator(page, at) {
 // the graph: a function of x drawn on x and y axes, the point under the pointer,
 // its y put into the calculation, and the view zoomed and kept
 async function graphPanel(page, at) {
-    var t = at + ': ', note = 'document.querySelector(".calc-graph-note").textContent', ink, cross, plain, dashes, shade, traced,
+    var t = at + ': ', note = 'document.querySelector(".calc-graph-note").textContent', ink, cross, plain, dashes, shade, traced, red,
         pop = 'document.querySelector(".calc-graph-pop").textContent.replace(/\\s+/g, " ").trim()';
 
     // the pixels of the curve's color in the plot
@@ -474,13 +474,15 @@ async function graphPanel(page, at) {
             ' Math.abs(d[i + 2] - 0x6a) < 30 && d[i + 3] > 100) n++; return n; })()';
     };
 
-    // the pixels about x and y of the plot as it starts with the curve's color, faint: its area shaded there
-    shade = function (x, y) {
+    // the pixels about x and y of the plot as it starts with the curve's color, faint: its area shaded there;
+    // of the first curve, navy, unless another color is given
+    shade = function (x, y, c) {
+        c = c || [0x22, 0x47, 0x6a];
         return '(function () { var c = document.querySelector(".calc-graph-plot canvas"), k = c.width / c.clientWidth, w = c.clientWidth,' +
             ' x = Math.round((w / 2 + ' + x + ' * w / 20) * k), y = Math.round((c.clientHeight / 2 - ' + y + ' * w / 20) * k), n = 0, i,' +
             ' d = c.getContext("2d").getImageData(x - 3 * k, y - 3 * k, 6 * k, 6 * k).data;' +
-            ' for (i = 0; i < d.length; i += 4) if (Math.abs(d[i] - 0x22) < 30 && Math.abs(d[i + 1] - 0x47) < 30 &&' +
-            ' Math.abs(d[i + 2] - 0x6a) < 30 && d[i + 3] > 50 && d[i + 3] < 110) n++; return n; })()';
+            ' for (i = 0; i < d.length; i += 4) if (Math.abs(d[i] - ' + c[0] + ') < 30 && Math.abs(d[i + 1] - ' + c[1] + ') < 30 &&' +
+            ' Math.abs(d[i + 2] - ' + c[2] + ') < 30 && d[i + 3] > 50 && d[i + 3] < 110) n++; return n; })()';
     };
 
     await page.fresh(at, {});
@@ -616,6 +618,7 @@ async function graphPanel(page, at) {
     await page.click('.calc-graph-zoom [data-zoom="home"]');
 
     // a second curve, in its own color; where the two cross is marked: x² – 3 = x + 3 at 3, where y = 6
+    // (and at -2, where y = 1)
     await page.click('.calc-graph-fn:nth-child(2) input');
     await page.type('x+3');
     check(await page.calc('(function (c) { var d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data, n = 0, i;' +
@@ -634,6 +637,18 @@ async function graphPanel(page, at) {
     await page.key('ArrowDown', 40);
     check(await page.calc('(function (x) { return Math.abs(/y = ([\\d.]+)/.exec(' + pop + ')[1] - (x * x - 3)) < 1e-3; })(' + traced + ')'),
         t + 'and ↓ back to x² – 3', await page.calc(pop));
+
+    // ∫ and a drag between them, from near one crossing to the other: the area between, 125/6
+    await page.key('Escape', 27);
+    await page.click('.calc-graph-zoom [data-zoom="area"]');
+    await page.dragAt('.calc-graph-plot', -1.9, 0.85, 2.95, 5.5);
+    check(/^Area between the curves\s*From x = -2\s*To x = 3\s*Area = 20\.83333333$/.test(await page.calc(pop)) &&
+        await page.calc('document.querySelectorAll(".calc-graph-pop .calc-graph-swatch").length') === 2,
+        t + 'a drag between two curves: the area between them', await page.calc(pop));
+    red = [0xb0, 0x41, 0x4d]; // the color of the curve above where the drag began
+    check(await page.calc(shade(0, 1, red)) > 10 && await page.calc(shade(0, -2.5, red)) > 10 && await page.calc(shade(0, 4, red)) === 0,
+        t + 'shaded from one curve to the other, across the axis', await page.calc(shade(0, 1, red)) + ' / ' + await page.calc(shade(0, 4, red)));
+    await page.key('Escape', 27);
     await page.clickAt('.calc-graph-plot', 3, 6);
     await page.click('.calc-graph-pop-row[data-put="y"]');
     check(!await open(page, '.calc-graph') && await value(page) === 6, t + 'a click on its y puts it into the display', await shown(page));

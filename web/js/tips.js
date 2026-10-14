@@ -230,7 +230,8 @@
         'graph area': {
             t: 'Area under a curve',
             d: 'Press, then drag along a curve from one x to another: the area between it and the x axis is shaded, ' +
-                'above the axis counted up and below it down. An end near a root or a crossing goes to it.',
+                'above the axis counted up and below it down. Pressed between two curves, the area between them, ' +
+                'the upper one less the lower. An end near a root or a crossing goes to it.',
             k: ''
         },
         'graph put a': {

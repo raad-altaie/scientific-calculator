@@ -1636,71 +1636,93 @@
         ctx.setLineDash([]);
     }
 
-    // The area of a curve from a to b, shaded in its color down to the x axis, and its value,
-    // as the letters are now; the popup is in the middle of what is in the view. Where the
-    // curve has no value it is not shaded, and the area is none
+    // The area of a curve from a to b, shaded in its color down to the x axis, or to the curve
+    // below it (j), and its value, as the letters are now: the integral of the curve, or of the
+    // one less the other; the popup is in the middle of what is in the view. Where a curve has
+    // no value it is not shaded, and the area is none
     function graphShade(ctx, v, w, h, p) {
-        var fn = graphFns[p.i], x0 = Math.max(0, plotX(v, p.a)), x1 = Math.min(w, plotX(v, p.b)),
-            axis = Math.max(-h, Math.min(2 * h, plotY(v, 0))), at = [x0], last = null, k, x;
-        p.s = fn ? CalcEngine.area(fn, p.a, p.b, deg) : NaN;
+        var fn = graphFns[p.i], low = p.j !== undefined ? graphFns[p.j] : null, x0 = Math.max(0, plotX(v, p.a)),
+            x1 = Math.min(w, plotX(v, p.b)), at = [x0], run = [], k, x;
+        function edge(y) {
+            return Math.max(-h, Math.min(2 * h, plotY(v, y)));
+        }
+        function bottom(x) {
+            return p.j === undefined ? 0 : low ? low.at(x, deg) : NaN;
+        }
+        // the shading of the values in a row, along the curve and back along what is below it
+        function fill() {
+            if (run.length) {
+                ctx.moveTo(run[0].px, run[0].top);
+                run.forEach(function (q) { ctx.lineTo(q.px, q.top); });
+                run.reverse().forEach(function (q) { ctx.lineTo(q.px, q.low); });
+                ctx.closePath();
+            }
+            run = [];
+        }
+        p.s = fn && (p.j === undefined || low) ? CalcEngine.area(p.j === undefined ? fn : {
+            at: function (x, deg) { return fn.at(x, deg) - low.at(x, deg); }
+        }, p.a, p.b, deg) : NaN;
         x = graphX(v, (x0 + x1) / 2);
         p.x = x;
-        p.y = fn && isFinite(fn.at(x, deg)) ? fn.at(x, deg) / 2 : 0;
+        p.y = fn && isFinite(fn.at(x, deg) + bottom(x)) ? (fn.at(x, deg) + bottom(x)) / 2 : 0;
         if (!fn || x1 <= x0) return;
         for (k = Math.ceil(x0 * 2); k <= x1 * 2; k++) at.push(k / 2);
         at.push(x1);
         ctx.beginPath();
         at.forEach(function (px) {
-            var y = fn.at(graphX(v, px), deg);
-            if (!isFinite(y)) {
-                if (last !== null) ctx.lineTo(last, axis);
-                last = null;
-                return;
-            }
-            if (last === null) ctx.moveTo(px, axis);
-            ctx.lineTo(px, Math.max(-h, Math.min(2 * h, plotY(v, y))));
-            last = px;
+            var x = graphX(v, px), y = fn.at(x, deg), y0 = bottom(x);
+            if (isFinite(y) && isFinite(y0)) run.push({ px: px, top: edge(y), low: edge(y0) });
+            else fill();
         });
-        if (last !== null) ctx.lineTo(last, axis);
+        fill();
         ctx.globalAlpha = 0.3;
         ctx.fillStyle = curveColor(p.i);
         ctx.fill();
         ctx.globalAlpha = 1;
     }
 
-    // the curve nearest above or below a place, with a value at its x; -1 for none
-    function nearestCurve(at) {
-        var v = viewNow(), x = graphX(v, at.x), best = -1, near = Infinity;
+    // The region a place is in, for its area: between the curve just above it and the one just
+    // below at its x; else, over or under every curve, the nearest one down or up to the x axis.
+    // Null where no curve has a value there
+    function areaRegion(at) {
+        var v = viewNow(), x = graphX(v, at.x), y = graphY(v, at.y), above = null, below = null, near = null;
         graphFns.forEach(function (fn, i) {
-            var y = fn ? fn.at(x, deg) : NaN, d = Math.abs(plotY(v, y) - at.y);
-            if (isFinite(y) && d < near) {
-                near = d;
-                best = i;
-            }
+            var fy = fn ? fn.at(x, deg) : NaN, d = Math.abs(plotY(v, fy) - at.y);
+            if (!isFinite(fy)) return;
+            if (fy >= y && (!above || fy < above.y)) above = { i: i, y: fy };
+            if (fy < y && (!below || fy > below.y)) below = { i: i, y: fy };
+            if (!near || d < near.d) near = { i: i, d: d };
         });
-        return best;
+        if (above && below) return { i: above.i, j: below.i };
+        return near && { i: near.i };
     }
 
-    // an end of an area, at px of the plot: the x of a dot of the curve within reach, a root
-    // or a crossing, else the x there, rounded to what a pixel tells apart
-    function areaEnd(v, i, px) {
+    // an end of an area, at px of the plot: the x of a dot within reach of a curve of it, a
+    // root or a crossing, else the x there, rounded to what a pixel tells apart
+    function areaEnd(v, r, px) {
         var best = null;
+        function of(i) {
+            return i !== undefined && (i === r.i || i === r.j);
+        }
         graphMarks.forEach(function (p) {
             var d = Math.abs(plotX(v, p.x) - px);
-            if ((p.i === i || p.j === i) && d <= 8 && (!best || d < best.d)) best = { d: d, x: p.x };
+            if ((of(p.i) || of(p.j)) && d <= 8 && (!best || d < best.d)) best = { d: d, x: p.x };
         });
         return best ? best.x : graphRound(graphX(v, px), v.ux);
     }
 
-    // the drag with ∫ pressed: the area of the curve where it began, from there to the pointer.
+    // the drag with ∫ pressed: the area of the region where it began, from there to the pointer.
     // Its popup waits for the drag to end. False where no curve has a value there
     function graphAreaTo(s, at) {
         var v = viewNow(), a, b;
-        if (s.i === undefined) s.i = nearestCurve(s.p[0]);
+        if (s.i === undefined) {
+            s.r = areaRegion(s.p[0]);
+            s.i = s.r ? s.r.i : -1;
+        }
         if (s.i < 0) return false;
-        a = areaEnd(v, s.i, s.p[0].x);
-        b = areaEnd(v, s.i, at.x);
-        graphPinned = { area: true, i: s.i, a: Math.min(a, b), b: Math.max(a, b) };
+        a = areaEnd(v, s.r, s.p[0].x);
+        b = areaEnd(v, s.r, at.x);
+        graphPinned = { area: true, i: s.r.i, j: s.r.j, a: Math.min(a, b), b: Math.max(a, b) };
         graphAt = null;
         popShut();
         drawGraph();
@@ -1750,8 +1772,9 @@
 
     // a place on the area shaded, or by its edge
     function onArea(v, p, at) {
-        var x = graphX(v, at.x), fn = graphFns[p.i], top = plotY(v, fn ? fn.at(x, deg) : NaN), axis = plotY(v, 0);
-        return x >= p.a && x <= p.b && at.y >= Math.min(top, axis) - 4 && at.y <= Math.max(top, axis) + 4;
+        var x = graphX(v, at.x), fn = graphFns[p.i], low = p.j === undefined ? null : graphFns[p.j],
+            top = plotY(v, fn ? fn.at(x, deg) : NaN), bottom = plotY(v, p.j === undefined ? 0 : low ? low.at(x, deg) : NaN);
+        return x >= p.a && x <= p.b && at.y >= Math.min(top, bottom) - 4 && at.y <= Math.max(top, bottom) + 4;
     }
 
     // The ∫ button, pressed or let go: pressed, the next drag along a curve shades its area
@@ -1902,7 +1925,7 @@
 
     // what a point is, and its x and y, as the line above the plot and the popup show them
     function graphName(p) {
-        return p.spot ? 'Point' : p.area ? 'Area under the curve' : p.t ? p.t.map(function (t) { return GRAPH_NAMES[t]; }).join(', ') : 'On the curve';
+        return p.spot ? 'Point' : p.area ? (p.j === undefined ? 'Area under the curve' : 'Area between the curves') : p.t ? p.t.map(function (t) { return GRAPH_NAMES[t]; }).join(', ') : 'On the curve';
     }
 
     // to 13 digits, as the display shows a result: 1.732050807569. What is inserted is the whole number
@@ -1933,7 +1956,7 @@
                 graphTable.querySelector('.calc-bad') ? 'Start and step are numbers, the step above 0.' :
                     'Click a value to put it in the equation.' + (unit ? ' · ' + unit : '');
         } else if (graphShading && graphFns.some(Boolean)) {
-            graphNote.textContent = 'Drag along a curve for the area under it; an end near a dot goes to it.';
+            graphNote.textContent = 'Drag along a curve for the area under it, between two for the area between; an end near a dot goes to it.';
         } else if (p) {
             graphNote.innerHTML = graphSwatches(p) + '<em>' + graphName(p) + '</em>' +
                 '<span><i>x</i> = ' + graphValue(p, 'x') + '</span>' +
