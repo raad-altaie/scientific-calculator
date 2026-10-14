@@ -196,6 +196,9 @@
             if (e.which === 27 && !menu.hidden) { // Esc closes the menu first
                 showMenu(false);
                 e.preventDefault();
+            } else if (e.which === 27 && graphWindow.contains(e.target)) { // and the view's boxes, back to the plot
+                showWindow(false);
+                e.preventDefault();
             } else if (e.which === 27 && graphUnpin()) { // Esc closes the point clicked on the graph first
                 e.preventDefault();
             } else if (e.which === 27 && graph.contains(e.target) && graphBig(false)) { // then makes the big graph small
@@ -1073,6 +1076,9 @@
         graphPopShut = false, // the popup put away, the point clicked and its tangent still drawn
         GRAPH_TRACE = 2, // ← and → move the point clicked this many pixels along its curve, ten times as far with Shift
         graphTracing = -1, // the curve traced last: of the two at a crossing, the one to go on along
+        graphWindow = graphPlot.querySelector('.calc-graph-window'), // the view typed: x from and to, y from and to
+        graphEnds = [].slice.call(graphWindow.querySelectorAll('input')),
+        graphWindowButton = graphPlot.querySelector('[data-zoom="window"]'),
         graphShading = false, // the ∫ button pressed: a drag along a curve shades its area, and does not move the view
         graphAreaButton = graphPlot.querySelector('[data-zoom="area"]'),
         graphSize = graph.querySelector('.calc-graph-size'), // the graph as big as the page, and back
@@ -1222,6 +1228,7 @@
         if (!open) graphBig(false); // a value put in from the big graph: the calculator again
         if (!open && stopSliders()) saveState(); // the sliders played stop where they are
         if (!open) areaOn(false);
+        if (!open) showWindow(false);
         if (open) {
             showPast(false);
             showStats(false);
@@ -1601,6 +1608,7 @@
         });
         graphShown();
         placePop(v);
+        fillWindow(v, w, h);
     }
 
     // The slope of the point clicked on a curve, for its popup, and its tangent, dashed in
@@ -2128,8 +2136,8 @@
         graphSaving = setTimeout(saveState, 300);
     }, { passive: false });
 
-    // the buttons: twice as close, twice as far, about the middle; the start again; ∫ for an
-    // area; and the picture, in the corner below
+    // the buttons: twice as close, twice as far, about the middle; the start again; the view
+    // typed; ∫ for an area; and the picture, in the corner below
     graphPlot.addEventListener('click', function (e) {
         var b = e.target.closest('[data-zoom]'), mid = { x: graphPlot.clientWidth / 2, y: graphPlot.clientHeight / 2 };
         if (!b) return;
@@ -2141,6 +2149,10 @@
             areaOn(!graphShading);
             return;
         }
+        if (b.dataset.zoom === 'window') {
+            showWindow(graphWindow.hidden);
+            return;
+        }
         popShut();
         if (b.dataset.zoom === 'home') {
             graphView = null;
@@ -2149,6 +2161,64 @@
             graphMove(viewNow(), mid, mid, b.dataset.zoom === 'in' ? 0.5 : 2);
         }
         saveState();
+    }, false);
+
+    // The view typed: where x goes from and to across the plot, and y up it. Its boxes show the
+    // view as it is, each to what a pixel tells apart, and set it as they are typed in, once
+    // both ends of x or y are numbers, the first below the second; a pair that is not is
+    // marked. Enter or Esc goes back to the plot
+    function showWindow(open) {
+        graphWindow.hidden = !open;
+        graphWindowButton.classList.toggle('calc-on', open);
+        if (!open) {
+            if (graphWindow.contains(document.activeElement)) document.activeElement.blur();
+            return;
+        }
+        graphEnds.forEach(function (box) { box.parentNode.classList.remove('calc-bad'); });
+        drawGraph();
+        graphEnds[0].focus();
+        graphEnds[0].select();
+    }
+
+    // the boxes as the view is, unless one is being typed in
+    function fillWindow(v, w, h) {
+        if (graphWindow.hidden || graphWindow.contains(document.activeElement)) return;
+        [graphX(v, 0), graphX(v, w), graphY(v, h), graphY(v, 0)].forEach(function (n, k) {
+            graphEnds[k].value = local(String(graphRound(n, k < 2 ? v.ux : v.uy)));
+        });
+        graphEnds.forEach(function (box) { box.parentNode.classList.remove('calc-bad'); });
+    }
+
+    graphEnds.forEach(function (box) {
+        box.addEventListener('input', function () {
+            var w = graphPlot.clientWidth, h = graphPlot.clientHeight, v = viewNow(), n, x, y;
+            onlyNumber(box);
+            n = graphEnds.map(function (b) { return b.value.trim() === '' ? NaN : +boxValue(b); });
+            x = n[0] < n[1] && (n[1] - n[0]) / w > 1e-12 && (n[1] - n[0]) / w < 1e12;
+            y = n[2] < n[3] && (n[3] - n[2]) / h > 1e-12 && (n[3] - n[2]) / h < 1e12;
+            graphEnds[0].parentNode.classList.toggle('calc-bad', !x);
+            graphEnds[2].parentNode.classList.toggle('calc-bad', !y);
+            if (!x && !y) return;
+            graphView = {
+                x: x ? (n[0] + n[1]) / 2 : v.x,
+                y: y ? (n[2] + n[3]) / 2 : v.y,
+                ux: x ? (n[1] - n[0]) / w : v.ux,
+                uy: y ? (n[3] - n[2]) / h : v.uy
+            };
+            drawGraph();
+            clearTimeout(graphSaving);
+            graphSaving = setTimeout(saveState, 300);
+        }, false);
+        box.addEventListener('keydown', function (e) {
+            if (e.which !== 13) return;
+            e.preventDefault();
+            showWindow(false);
+        }, false);
+    });
+
+    // the boxes left: as the view is again, a pair that was not one too
+    graphWindow.addEventListener('focusout', function (e) {
+        if (!graphWindow.contains(e.relatedTarget)) setTimeout(drawGraph, 0);
     }, false);
 
     // a window that changes its size can draw the calculator at another scale
