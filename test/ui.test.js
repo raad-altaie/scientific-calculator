@@ -449,7 +449,7 @@ async function calculator(page, at) {
 // the graph: a function of x drawn on x and y axes, the point under the pointer,
 // its y put into the calculation, and the view zoomed and kept
 async function graphPanel(page, at) {
-    var t = at + ': ', note = 'document.querySelector(".calc-graph-note").textContent', ink, cross, plain, dashes, shade, traced, red,
+    var t = at + ': ', note = 'document.querySelector(".calc-graph-note").textContent', ink, cross, plain, dashes, shade, traced, red, i,
         pop = '(function (p) { var c = p.cloneNode(true), b = p.querySelectorAll("input");' +
             ' c.querySelectorAll("input").forEach(function (i, n) { i.replaceWith(b[n].value); });' +
             ' return c.textContent.replace(/\\s+/g, " ").trim(); })(document.querySelector(".calc-graph-pop"))';
@@ -501,6 +501,12 @@ async function graphPanel(page, at) {
     await page.click('.calc-graph-add');
     check(await page.calc('document.querySelectorAll(".calc-graph-fn:not([hidden])").length') === 2 &&
         await page.calc('document.activeElement === document.querySelectorAll(".calc-graph-input")[1]'), t + 'the + adds a box for another curve, to type in');
+
+    // the pointer a little off x = 2 is at 2, a round number, and y = 1; farther off, at what a pixel tells
+    await page.hoverAt('.calc-graph-plot', 2.06, 1.2);
+    check(/^On the curve\s*x = 2\s*y = 1$/.test((await page.calc(note)).trim()), t + 'near x = 2: at 2, not 2.06', await page.calc(note));
+    await page.hoverAt('.calc-graph-plot', 2.3, 2.3);
+    check(/^On the curve\s*x = 2\.\d+\s*y = /.test(await page.calc(note)), t + 'away from a round number: as near as a pixel', await page.calc(note));
 
     // the pointer at the lowest point, x = 0 and y = -3, shows what it is; a click opens its popup
     await page.hoverAt('.calc-graph-plot', 0, -3);
@@ -800,6 +806,38 @@ async function graphPanel(page, at) {
         '(document.querySelector(".calc-graph-input"))');
     await sleep(900);
     check(await page.calc('!!document.querySelector(".calc-graph-slider[data-k=r]")'), t + 'its letters have sliders');
+
+    // pointed at and clicked as a curve is: where it meets the axes marked, a place on it with its
+    // slope, -3/4 at (3, 4), traced by → round the circle, and x = 3 straight up, with no slope
+    await page.calc('(function (b) { b.value = "x^2+y^2=25"; b.dispatchEvent(new Event("input", { bubbles: true })); })' +
+        '(document.querySelector(".calc-graph-input"))');
+    await sleep(300);
+    await page.hoverAt('.calc-graph-plot', 5.05, 0.1);
+    check(/^x-intercept\s*x = 5\s*y = 0$/.test((await page.calc(note)).trim()), t + 'where the circle meets the x axis is marked', await page.calc(note));
+    await page.hoverAt('.calc-graph-plot', 0.1, -5.05);
+    check(/^y-intercept\s*x = 0\s*y = -5$/.test((await page.calc(note)).trim()), t + 'and the y axis', await page.calc(note));
+    await page.hoverAt('.calc-graph-plot', -2.9, 4.2);
+    check(await page.calc('(function (m) { return !!m && Math.abs(m[1] * m[1] + m[2] * m[2] - 25) < 1e-9; })(/On the curve\\s*x = (\\S+)\\s*y = (\\S+)/' +
+        '.exec(document.querySelector(".calc-graph-note").textContent.replace(/\u2013|\u2212/g, "-")))'), t + 'pointed at: a place on the circle', await page.calc(note));
+    await page.clickAt('.calc-graph-plot', 3, 4);
+    check(/^On the curve\s*x = 3\s*y = 4\s*Slope = -0\.75$/.test(await page.calc(pop)), t + 'clicked: (3, 4), its slope -3/4', await page.calc(pop));
+    await page.key('ArrowRight', 39);
+    check(await page.calc('(function (m) { return !!m && +m[1] > 3 && +m[2] < 4 && Math.abs(m[1] * m[1] + m[2] * m[2] - 25) < 1e-9; })(/x = ([-\\d.]+)\\s*y = ([-\\d.]+)/' +
+        '.exec(document.querySelector(".calc-graph-pop").textContent.replace(/\u2013|\u2212/g, "-")))'), t + '→ traces it round the circle', await page.calc(pop));
+    for (i = 0; i < 40 && !/x-intercept/.test(await page.calc(pop)); i++) await page.key('ArrowRight', 39);
+    check(/^x-intercept\s*x = 5\s*y = 0/.test(await page.calc(pop)), t + 'and stops where it meets the x axis', await page.calc(pop));
+    await page.key('ArrowRight', 39);
+    await page.key('ArrowRight', 39);
+    check(/x = 4\.\d+\s*y = [-–−]0\.\d+/.test(await page.calc(pop)), t + 'then goes on round below it, not back up', await page.calc(pop));
+    await page.key('Escape', 27);
+    await page.calc('(function (b) { b.value = "x=3"; b.dispatchEvent(new Event("input", { bubbles: true })); })' +
+        '(document.querySelector(".calc-graph-input"))');
+    await sleep(300);
+    await page.clickAt('.calc-graph-plot', 3.05, 2);
+    check(/^On the curve\s*x = 3\s*y = 2$/.test(await page.calc(pop)), t + 'x = 3 clicked: straight up, no slope', await page.calc(pop));
+    await page.key('ArrowRight', 39);
+    check(/x = 3\s*y = 2\.\d+$/.test(await page.calc(pop)), t + '→ goes up it', await page.calc(pop));
+    await page.key('Escape', 27);
 
     // what is not a function says so, and draws nothing
     await page.click('.calc-graph .calc-past-clear');

@@ -94,6 +94,7 @@
         graphMarks = [], // the points of the curves in the view worth marking: roots, highs and lows, crossings
         graphAt = null, // the point under the pointer: { i: its curve, x, y, t: what it is if it is a mark, spot: true off the curves }
         graphEdge = null, // with ∫ pressed, where an area would start from the pointer: { x, i, j: its curves }
+        graphStep = null, // the way the arrow keys last moved a point along an equation: { p: the point, x, y in pixels, dir }
         graphPinned = null, // the point clicked, which has the popup
         tools = Calc.querySelector('.calc-tools'), // the buttons at the top left of the display
         pressedKey,
@@ -1067,7 +1068,7 @@
         graphPlay = {}, // the sliders playing: the way each goes, 1 up or -1 down
         graphFrame = 0, // the frame asked for while one plays
         graphLast = 0, // the time of the frame before
-        GRAPH_NAMES = { root: 'Root', min: 'Min', max: 'Max', yint: 'y-intercept', cross: 'Crossing' },
+        GRAPH_NAMES = { root: 'Root', xint: 'x-intercept', min: 'Min', max: 'Max', yint: 'y-intercept', cross: 'Crossing' },
         // the rows of the popup: of a point, x, y and the slope; of an area, where it starts and ends, and how much
         GRAPH_ROWS = { x: '<i>x</i>', y: '<i>y</i>', m: 'Slope', a: 'From <i>x</i>', b: 'To <i>x</i>', s: 'Area' },
         graphTouch = {}, // the pointers pressed on the plot, where each is now
@@ -1599,6 +1600,20 @@
         return +(Math.round(x / q) * q).toPrecision(12);
     }
 
+    // x or y of a place pointed at or clicked, a pixel being u: a round number within 3 pixels,
+    // the roundest, of 1, 2 or 5 times a power of ten no closer than 10 pixels apart: 2 and not
+    // 2.04; else as graphRound has it
+    function graphNice(x, u) {
+        var s = gridStep(u, false), r, m;
+        while (s >= 10 * u * (1 - 1e-9)) {
+            r = Math.round(x / s) * s;
+            if (Math.abs(r - x) <= 3 * u) return +r.toPrecision(12);
+            m = Math.round(s / Math.pow(10, Math.floor(Math.log10(s)) ));
+            s = m === 5 ? s * 0.4 : s / 2;
+        }
+        return graphRound(x, u);
+    }
+
     function drawGraph() {
         var w = graphPlot.clientWidth, h = graphPlot.clientHeight, r = Math.max(graphSharp, (window.devicePixelRatio || 1) * scale()),
             ctx = graphCanvas.getContext('2d'), v;
@@ -1619,7 +1634,7 @@
             if (graphRels[i]) drawRelation(ctx, v, w, h, graphRels[i], curveColor(i));
         });
         graphTangent(ctx, v, w + h, graphPinned);
-        graphMarks = graphBusy(CalcEngine.keyPoints(graphFns, { x0: graphX(v, 0), x1: graphX(v, w), y0: graphY(v, h), y1: graphY(v, 0) }, deg));
+        graphMarks = graphBusy(CalcEngine.keyPoints(graphFns, { x0: graphX(v, 0), x1: graphX(v, w), y0: graphY(v, h), y1: graphY(v, 0) }, deg, graphRels));
         graphMarks.forEach(function (p) {
             graphDot(ctx, v, p, 3.5, GRAPH_INK.paper, curveColor(p.i));
         });
@@ -1627,6 +1642,7 @@
         [graphAt, graphPinned].forEach(function (p, at) {
             if (!p || p.area || (at && p === graphAt)) return;
             if (!p.t && !p.spot && graphFns[p.i]) p.y = graphFns[p.i].at(p.x, deg, true); // on the curve as the unit is now
+            else if (!p.t && !p.spot && graphRels[p.i]) onEquation(v, p);
             if (!isFinite(p.y) || Math.abs(plotY(v, p.y)) > 1e6) return;
             if (p.spot) {
                 if (p === graphPinned) graphCross(ctx, v, p); // the pointer is cross enough until a click
@@ -1637,20 +1653,42 @@
         fillWindow(v, w, h);
     }
 
+    // a point on an equation, on it again as the letters and the view are now: where it was if
+    // it is not
+    function onEquation(v, p) {
+        var q = CalcEngine.onRelation(graphRels[p.i], p.x, p.y, v.ux, v.uy, deg);
+        if (q) {
+            p.x = q.x;
+            p.y = q.y;
+        }
+    }
+
     // The slope of the point clicked on a curve, for its popup, and its tangent, dashed in
-    // the curve's color across the plot, as long as the plot is wide and high (far). None
-    // for a place off the curves, where two cross, or where the curve has no slope
+    // the curve's color across the plot, as long as the plot is wide and high (far); on an
+    // equation, upright where it goes straight up, with no slope in the popup. None for a
+    // place off the curves, where two cross, or where the curve has no slope
     function graphTangent(ctx, v, far, p) {
-        var fn = p && !p.spot && !p.area && p.j === undefined && graphFns[p.i], x, y, k;
+        var one = p && !p.spot && !p.area && p.j === undefined, fn = one && graphFns[p.i], rel = one && !fn && graphRels[p.i], x, y, k;
         if (!p) return;
         p.m = NaN;
-        if (!fn) return;
-        if (!p.t) p.y = fn.at(p.x, deg, true); // on the curve as the unit and the letters are now
-        p.m = CalcEngine.slope(fn, p.x, deg);
-        if (!isFinite(p.m) || !isFinite(p.y)) return;
+        if (!fn && !rel) return;
+        if (fn && !p.t) p.y = fn.at(p.x, deg, true); // on the curve as the unit and the letters are now
+        p.m = fn ? CalcEngine.slope(fn, p.x, deg) : CalcEngine.relationSlope(rel, p.x, p.y, deg);
+        if (isNaN(p.m) || !isFinite(p.y)) return;
         x = plotX(v, p.x);
         y = plotY(v, p.y);
-        k = -p.m * v.ux / v.uy; // its slope in pixels, down the plot
+        k = isFinite(p.m) ? -p.m * v.ux / v.uy : 0; // its slope in pixels, down the plot
+        if (!isFinite(p.m)) { // straight up
+            ctx.beginPath();
+            ctx.moveTo(x, y - far);
+            ctx.lineTo(x, y + far);
+            ctx.setLineDash([5, 4]);
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = curveColor(p.i);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            return;
+        }
         far /= Math.sqrt(1 + k * k);
         ctx.beginPath();
         ctx.moveTo(x - far, y - k * far);
@@ -1767,7 +1805,11 @@
             dir = key === 39 || key === 38 ? 1 : -1, i, x, next = null, px, py, dx = 0, dy = 0;
         if (!p || p.spot || p.area || !graph.classList.contains('calc-open') || graphTab !== 'graph') return false;
         i = p.j !== undefined && p.j === graphTracing ? p.j : p.i;
-        if (!graphFns[i]) return false;
+        if (!graphFns[i] && !graphRels[i]) return false;
+        if (graphRels[i] && (key === 37 || key === 39)) {
+            next = traceEquation(v, p, i, dir, GRAPH_TRACE * (shift ? 10 : 1));
+            if (!next) return true;
+        } else
         if (key === 38 || key === 40) {
             graphFns.forEach(function (fn, k) {
                 var y = fn && k !== i ? fn.at(p.x, deg, true) : NaN;
@@ -1782,6 +1824,7 @@
             });
             if (!next) next = { i: i, x: x, y: graphFns[i].at(x, deg, true) };
         }
+        if (graphStep && graphStep.p !== next) graphStep = null;
         graphTracing = next.i === i || next.j === i ? i : next.i;
         graphPinned = graphAt = next;
         graphPopShut = false;
@@ -1797,6 +1840,32 @@
         }
         drawGraph();
         return true;
+    }
+
+    // The point after p along equation i, s pixels on, or the dot before that: → the way that
+    // goes right, or up where it goes straight up, and on from there the way the last press
+    // went, round a circle and not back at its side; ← back. Null where it has no more
+    function traceEquation(v, p, i, dir, s) {
+        var rel = graphRels[i], a = plotX(v, p.x), b = plotY(v, p.y), last = graphStep && graphStep.p === p ? graphStep : null,
+            fx = rel.at(graphX(v, a + 0.5), p.y, deg) - rel.at(graphX(v, a - 0.5), p.y, deg),
+            fy = rel.at(p.x, graphY(v, b + 0.5), deg) - rel.at(p.x, graphY(v, b - 0.5), deg),
+            n = Math.hypot(fx, fy), t, near = null, q, d;
+        if (!isFinite(n) || !n) return null;
+        t = { x: fy / n, y: -fx / n }; // along it, in pixels down the plot
+        if (last ? (t.x * last.x + t.y * last.y) * last.dir * dir < 0 : Math.abs(t.x) > 1e-3 ? t.x * dir < 0 : t.y * dir > 0) {
+            t.x = -t.x;
+            t.y = -t.y;
+        }
+        graphMarks.forEach(function (m) {
+            var dx = plotX(v, m.x) - a, dy = plotY(v, m.y) - b, on = dx * t.x + dy * t.y;
+            if ((m.i === i || m.j === i) && on > 0.5 && on <= s + 0.5 && Math.abs(dx * t.y - dy * t.x) < 3 && (!near || on < near.on)) near = { on: on, m: m };
+        });
+        q = near ? near.m : CalcEngine.onRelation(rel, graphX(v, a + t.x * s), graphY(v, b + t.y * s), v.ux, v.uy, deg);
+        if (!q) return null;
+        if (!near) q = { i: i, x: q.x, y: q.y };
+        d = Math.hypot(plotX(v, q.x) - a, plotY(v, q.y) - b);
+        graphStep = { p: q, x: d ? (plotX(v, q.x) - a) / d : t.x, y: d ? (plotY(v, q.y) - b) / d : t.y, dir: dir };
+        return q;
     }
 
     // a place on the area shaded, or by its edge
@@ -2014,7 +2083,7 @@
     // curve within reach above or below it, the nearest, at its x; else the place itself,
     // its x and y rounded to what a pixel tells apart (spot)
     function graphPoint(at, reach) {
-        var v = viewNow(), x = graphRound(graphX(v, at.x), v.ux), best = null;
+        var v = viewNow(), x = graphNice(graphX(v, at.x), v.ux), best = null;
         graphMarks.forEach(function (p) {
             var d = Math.hypot(plotX(v, p.x) - at.x, plotY(v, p.y) - at.y);
             if (d <= reach && (!best || d < best.d)) best = { d: d, p: p };
@@ -2024,7 +2093,12 @@
             var y = fn ? fn.at(x, deg, true) : NaN, d = Math.abs(plotY(v, y) - at.y);
             if (isFinite(y) && d <= reach * 1.2 && (!best || d < best.d)) best = { d: d, p: { i: i, x: x, y: y } };
         });
-        return best ? best.p : { x: x, y: graphRound(graphY(v, at.y), v.uy), spot: true };
+        graphRels.forEach(function (rel, i) { // an equation: the place on it nearest
+            var q = rel && CalcEngine.onRelation(rel, graphX(v, at.x), graphY(v, at.y), v.ux, v.uy, deg, graphNice),
+                d = q ? Math.hypot(plotX(v, q.x) - at.x, plotY(v, q.y) - at.y) : Infinity;
+            if (d <= reach * 1.2 && (!best || d < best.d)) best = { d: d, p: { i: i, x: q.x, y: q.y } };
+        });
+        return best ? best.p : { x: x, y: graphNice(graphY(v, at.y), v.uy), spot: true };
     }
 
     // what a point is, and its x and y, as the line above the plot and the popup show them

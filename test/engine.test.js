@@ -2354,6 +2354,29 @@ dels.forEach(function (c) {
         check(Engine.graph('x^2 + y^2 = 25') === null && !!Engine.graph('y = 2x'), 'graph: an equation is not a function of x, y = 2x is');
     })();
 
+    // the place on an equation nearest a point, as pixels of 0.05 see it, and its slope there
+    (function () {
+        var circle = Engine.relation('x^2 + y^2 = 25'), line = Engine.relation('x = 3'), p;
+        p = Engine.onRelation(circle, 3.02, 4.03, 0.05, 0.05, 0);
+        check(p && p.x === 3 && p.y === 4, 'onRelation: near (3, 4) on the circle of 5', JSON.stringify(p));
+        p = Engine.onRelation(line, 3.1, 1.234, 0.05, 0.05, 0);
+        check(p && p.x === 3 && p.y === 1.23, 'onRelation: on x = 3, its y to what a pixel tells', JSON.stringify(p));
+        p = Engine.onRelation(circle, 0.002, -5.1, 0.05, 0.05, 0);
+        check(p && p.x === 0 && p.y === -5, 'onRelation: the bottom of the circle', JSON.stringify(p));
+        check(Engine.relationSlope(circle, 3, 4, 0) === -0.75 && Engine.relationSlope(line, 3, 2, 0) === Infinity &&
+            Engine.relationSlope(circle, 0, 5, 0) === 0, 'relationSlope: -3/4 at (3, 4), straight up on x = 3, flat at the top');
+    })();
+
+    // the marks of an equation: where it meets the axes, and where it crosses a curve
+    (function () {
+        var view = { x0: -10, x1: 10, y0: -10, y1: 10 }, marks = Engine.keyPoints([null, Engine.graph('x + 1')],
+            view, 0, [Engine.relation('x^2 + y^2 = 25'), null]), text = marks.map(function (p) {
+                return p.t.join() + ' ' + +p.x.toPrecision(10) + ' ' + +p.y.toPrecision(10);
+            }).sort().join('; ');
+        check(text === 'cross -4 -3; cross 3 4; root -1 0; xint -5 0; xint 5 0; yint 0 -5; yint 0 1; yint 0 5', 'keyPoints: a circle meets the axes, and crosses y = x + 1', text);
+        check(Engine.keyPoints([null], view, 0, [Engine.relation('x y = 4')]).length === 0, 'keyPoints: x y = 4 meets neither axis');
+    })();
+
     // the area under a curve, its integral from a to b
     [
         ['x^2', 0, 3, 0, 9, 'x² from 0 to 3'],
