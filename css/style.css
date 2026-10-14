@@ -875,6 +875,30 @@
     background: #3d5c6b;
 }
 
+/* an end of an area, to be typed over */
+#calculator .calc-graph-pop-end {
+    width: 108px;
+    padding: 0 4px;
+    border: 0;
+    border-radius: 3px;
+    outline: none;
+    background: #34505e;
+    color: inherit;
+    font: inherit;
+    -webkit-user-select: text;
+    user-select: text;
+    cursor: text;
+}
+
+#calculator .calc-graph-pop-end:focus {
+    background: #d3d9e2;
+    color: #000;
+}
+
+#calculator .calc-graph-pop-end.calc-bad {
+    box-shadow: 0 0 0 2px #d86672;
+}
+
 #calculator .calc-graph-pop-row .calc-fr {
     font-size: 0.75em;
 }

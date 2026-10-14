@@ -246,12 +246,12 @@
         },
         'graph put a': {
             t: 'Insert the start',
-            d: 'Puts the x the area starts from into the equation, as Ans does.',
+            d: 'Puts the x the area starts from into the equation, as Ans does. Type in its box for another start.',
             k: ''
         },
         'graph put b': {
             t: 'Insert the end',
-            d: 'Puts the x the area goes to into the equation, as Ans does.',
+            d: 'Puts the x the area goes to into the equation, as Ans does. Type in its box for another end.',
             k: ''
         },
         'graph put s': {

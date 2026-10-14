@@ -199,6 +199,9 @@
             } else if (e.which === 27 && graphWindow.contains(e.target)) { // and the view's boxes, back to the plot
                 showWindow(false);
                 e.preventDefault();
+            } else if (e.which === 27 && graphPop.contains(e.target)) { // and the ends of an area, its popup staying
+                e.target.blur();
+                e.preventDefault();
             } else if (e.which === 27 && graphUnpin()) { // Esc closes the point clicked on the graph first, and the like
                 e.preventDefault();
             } else if (e.which === 27 && graph.contains(e.target) && graphBig(false)) { // then makes the big graph small
@@ -1714,9 +1717,10 @@
     }
 
     // an end of an area, at px of the plot: the x of a dot within reach of a curve of it, a
-    // root or a crossing, else the x there, rounded to what a pixel tells apart
+    // root or a crossing, else of a line of the grid within reach, else the x there to a round
+    // step some 5 pixels wide, 1, 2 or 5 times a power of ten: 2 and not 2.04
     function areaEnd(v, r, px) {
-        var best = null;
+        var best = null, x = graphX(v, px), grid = gridStep(v.ux, graphAngles() && deg === 1), fine = gridStep(v.ux / 10, false);
         function of(i) {
             return i !== undefined && (i === r.i || i === r.j);
         }
@@ -1724,7 +1728,9 @@
             var d = Math.abs(plotX(v, p.x) - px);
             if ((of(p.i) || of(p.j)) && d <= 8 && (!best || d < best.d)) best = { d: d, x: p.x };
         });
-        return best ? best.x : graphRound(graphX(v, px), v.ux);
+        if (best) return best.x;
+        if (Math.abs(plotX(v, Math.round(x / grid) * grid) - px) <= 6) return +(Math.round(x / grid) * grid).toPrecision(12);
+        return +(Math.round(x / fine) * fine).toPrecision(12);
     }
 
     // the drag with ∫ pressed: the area of the region where it began, from there to the pointer.
@@ -1958,6 +1964,11 @@
         return p.spot || k === 'x' || k === 'a' || k === 'b' ? shownResult({ value: n }, n).html : statsValue(p[k]).html;
     }
 
+    // an end of an area as its box shows it, to 13 digits, which can be typed over
+    function endValue(p, k) {
+        return local(String(+p[k].toPrecision(13)));
+    }
+
     // a dot of the curve's color, or of both curves that cross
     function graphSwatch(i) {
         return '<b class="calc-graph-swatch" style="background:' + curveColor(i) + '"></b>';
@@ -1994,12 +2005,18 @@
 
     // The popup of the point clicked, over it, or under it where there is no room above;
     // its x and y, and the slope of its curve there, each go into the calculation with a
-    // click. It goes with the point as the view moves, and hides while the point is out of the view
+    // click. It goes with the point as the view moves, and hides while the point is out of the view,
+    // unless an end of its area is being typed: then it stays at the edge, and that box is kept
     function placePop(v) {
-        var p = graphPinned, w = graphPlot.clientWidth, h = graphPlot.clientHeight, px, py, html, left, top, below;
+        var p = graphPinned, w = graphPlot.clientWidth, h = graphPlot.clientHeight, typing = graphPop.contains(document.activeElement),
+            px, py, html, left, top, below, rows;
         px = p && plotX(v, p.x);
         py = p && plotY(v, p.y);
-        if (!p || graphPopShut || !isFinite(p.y) || px < 0 || px > w || py < 0 || py > h) {
+        if (p && p.area && typing) {
+            px = Math.max(0, Math.min(w, px));
+            py = isFinite(py) ? Math.max(0, Math.min(h, py)) : h / 2;
+        }
+        if (!p || graphPopShut || !isFinite(py) || px < 0 || px > w || py < 0 || py > h) {
             graphPop.hidden = true;
             return;
         }
@@ -2008,9 +2025,19 @@
                 if (k === 'm' && !isFinite(p.m)) return '';
                 if (k === 's' && !isFinite(p.s)) return '<div class="calc-graph-pop-none">Area = none</div>';
                 return '<div class="calc-graph-pop-row" data-put="' + k + '"><span>' + GRAPH_ROWS[k] + ' = ' +
-                    graphValue(p, k) + '</span>' + insertIcon() + '</div>';
+                    (k === 'a' || k === 'b' ? '<input class="calc-graph-pop-end" data-end="' + k + '" value="' + endValue(p, k) +
+                        '" aria-label="' + (k === 'a' ? 'From x' : 'To x') + '">' : graphValue(p, k)) + '</span>' + insertIcon() + '</div>';
             }).join('');
-        if (graphPop.innerHTML !== html) graphPop.innerHTML = html;
+        if (p.area && typing) { // all but the row of the box typed in
+            rows = document.createElement('div');
+            rows.innerHTML = html;
+            [].slice.call(rows.children).forEach(function (row, n) {
+                var now = graphPop.children[n];
+                if (!now.contains(document.activeElement) && now.outerHTML !== row.outerHTML) graphPop.replaceChild(row.cloneNode(true), now);
+            });
+        } else if (graphPop.innerHTML !== html) {
+            graphPop.innerHTML = html;
+        }
         graphPop.hidden = false;
         left = Math.max(4, Math.min(w - graphPop.offsetWidth - 4, px - graphPop.offsetWidth / 2));
         top = py - graphPop.offsetHeight - 10;
@@ -2048,7 +2075,7 @@
         clearTimeout(graphHiding);
         if (!on) return;
         graphHiding = setTimeout(function () {
-            if (!menu.hidden) popLater(true); else popShut();
+            if (!menu.hidden || graphPop.contains(document.activeElement)) popLater(true); else popShut();
         }, GRAPH_POP_WAIT);
     }
 
@@ -2068,9 +2095,37 @@
         popLater(e.pointerType === 'mouse' && !!graphPinned);
     }, false);
 
+    // An end of an area typed, as its x is hard to drag to: the area from there, as it is typed,
+    // where the other end is past it. One that is not is marked; Enter or Esc goes back to the
+    // plot, and the box shows the end as it is again
+    graphPop.addEventListener('input', function (e) {
+        var box = e.target, p = graphPinned, n, a, b;
+        if (!box.classList.contains('calc-graph-pop-end') || !p || !p.area) return;
+        onlyNumber(box);
+        n = box.value.trim() === '' ? NaN : +boxValue(box);
+        a = box.dataset.end === 'a' ? n : p.a;
+        b = box.dataset.end === 'b' ? n : p.b;
+        box.classList.toggle('calc-bad', !(isFinite(n) && a < b));
+        if (!(isFinite(n) && a < b)) return;
+        p.a = a;
+        p.b = b;
+        drawGraph();
+    }, false);
+
+    graphPop.addEventListener('keydown', function (e) {
+        if (e.which !== 13 || !e.target.classList.contains('calc-graph-pop-end')) return;
+        e.preventDefault();
+        e.target.blur();
+    }, false);
+
+    graphPop.addEventListener('focusout', function () {
+        setTimeout(drawGraph, 0);
+    }, false);
+
     // x or y of the point clicked goes into the calculation, as a result of the statistics does
     graphPop.addEventListener('click', function (e) {
         var row = e.target.closest('.calc-graph-pop-row'), n = row && graphPinned && graphPinned[row.dataset.put];
+        if (e.target.classList.contains('calc-graph-pop-end')) return; // typed in, not put in
         if (!row || !isFinite(n) || !engine.put(n)) return;
         keyBoard['AC'].children[0].firstChild.data = 'C';
         showGraph(false);

@@ -450,7 +450,9 @@ async function calculator(page, at) {
 // its y put into the calculation, and the view zoomed and kept
 async function graphPanel(page, at) {
     var t = at + ': ', note = 'document.querySelector(".calc-graph-note").textContent', ink, cross, plain, dashes, shade, traced, red,
-        pop = 'document.querySelector(".calc-graph-pop").textContent.replace(/\\s+/g, " ").trim()';
+        pop = '(function (p) { var c = p.cloneNode(true), b = p.querySelectorAll("input");' +
+            ' c.querySelectorAll("input").forEach(function (i, n) { i.replaceWith(b[n].value); });' +
+            ' return c.textContent.replace(/\\s+/g, " ").trim(); })(document.querySelector(".calc-graph-pop"))';
 
     // the pixels of the curve's color in the plot
     ink = '(function () { var c = document.querySelector(".calc-graph-plot canvas"), n = 0, i,' +
@@ -584,8 +586,31 @@ async function graphPanel(page, at) {
         t + 'the popup goes, the area stays');
     await page.clickAt('.calc-graph-plot', 0, -1.5);
     check(await page.calc('!document.querySelector(".calc-graph-pop").hidden'), t + 'a click on the area brings its popup back');
-    await page.click('.calc-graph-pop-row[data-put="s"]');
-    check(!await open(page, '.calc-graph') && Math.abs(await value(page) + 6.92820323) < 1e-8, t + 'the area goes into the display',
+
+    // its ends typed: from 0 to 1, -8/3; an end not past the other is marked and not taken; Esc
+    // goes back to the plot, the popup staying with the ends as they are
+    await page.click('.calc-graph-pop-end[data-end="a"]');
+    await page.calc('(function (b) { b.value = "0"; b.dispatchEvent(new Event("input", { bubbles: true })); })(document.querySelector(".calc-graph-pop-end[data-end=a]"))');
+    await page.calc('(function (b) { b.focus(); b.value = "1"; b.dispatchEvent(new Event("input", { bubbles: true })); })(document.querySelector(".calc-graph-pop-end[data-end=b]"))');
+    await sleep(100);
+    check(/^Area under the curve\s*From x = 0\s*To x = 1\s*Area = -2\.666666667$/.test(await page.calc(pop)) &&
+        await page.calc(shade(0.5, -1.5)) > 10 && await page.calc(shade(-0.5, -1.5)) === 0 && await open(page, '.calc-graph'),
+        t + 'the ends typed: the area from 0 to 1', await page.calc(pop) + ' / ' + await page.calc(shade(-0.5, -1.5)));
+    await page.calc('(function (b) { b.value = "-1"; b.dispatchEvent(new Event("input", { bubbles: true })); })(document.activeElement)');
+    check(await page.calc('document.activeElement.classList.contains("calc-bad")') && /Area = -2\.666666667$/.test(await page.calc(pop)),
+        t + 'an end not past the other is marked, and not taken');
+    await page.key('Escape', 27);
+    await sleep(100);
+    check(await page.calc('!document.querySelector(".calc-graph-pop").hidden && document.activeElement.tagName !== "INPUT"') &&
+        /To x = 1\s*Area/.test(await page.calc(pop)), t + 'Esc goes back to the plot, the ends as they are', await page.calc(pop));
+
+    // a drag from near 0.5 to near -1 ends at 0.5 and -1, round numbers, not where the pointer was to a pixel
+    await page.key('Escape', 27);
+    await page.click('.calc-graph-zoom [data-zoom="area"]');
+    await page.dragAt('.calc-graph-plot', 0.53, -1, -0.97, -0.5);
+    check(/From x = -1\s*To x = 0\.5\s*Area = -4\.125$/.test(await page.calc(pop)), t + 'the ends of a drag are round numbers', await page.calc(pop));
+    await page.click('.calc-graph-pop-row[data-put="s"] svg');
+    check(!await open(page, '.calc-graph') && Math.abs(await value(page) + 4.125) < 1e-8, t + 'the area goes into the display',
         await shown(page));
     await page.click('.calc-graph-btn');
     check(await page.calc(shade(0, -1.5)) === 0, t + 'no area once it is put in');
