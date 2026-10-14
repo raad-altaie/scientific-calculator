@@ -606,6 +606,8 @@
                 else if (word === 'ncr' || word === 'npr') out.push({ t: 'op', v: word === 'ncr' ? 'nCr' : 'nPr' });
                 else if (word === 'mod' || word === 'gcd' || word === 'lcm') out.push({ t: 'op', v: word, c: word });
                 else return null;
+            } else if (variable === 2 && (m = /^[yY]/.exec(s))) { // the other variable, of an equation
+                out.push({ t: 'const', v: 'y' });
             } else if (variable && (m = /^[a-df-wzA-DF-WZ]/.exec(s))) {
                 out.push({ t: 'const', v: m[0].toLowerCase(), p: true });
             } else if (c === 'π') {
@@ -829,26 +831,26 @@
     // their own in vars, 1 for one not set. A graph needs hundreds of them at a time, so
     // + – × ÷ are the machine's own, unless exact: worked out as the display does, for the
     // value a point of the graph shows
-    function valueAt(n, x, deg, exact, vars) {
+    function valueAt(n, x, deg, exact, vars, y) {
         var a, b;
         switch (n.t) {
             case 'num': return +n.v;
             case 'const':
                 if (n.p) return vars && typeof vars[n.v] === 'number' ? vars[n.v] : 1;
-                return n.v === 'x' ? x : n.v === 'π' ? PI : Math.E;
-            case 'group': return valueAt(n.arg, x, deg, exact, vars);
-            case 'neg': return -valueAt(n.arg, x, deg, exact, vars);
+                return n.v === 'x' ? x : n.v === 'y' ? y : n.v === 'π' ? PI : Math.E;
+            case 'group': return valueAt(n.arg, x, deg, exact, vars, y);
+            case 'neg': return -valueAt(n.arg, x, deg, exact, vars, y);
             case 'fn':
             case 'post':
-                a = valueAt(n.arg, x, deg, exact, vars);
+                a = valueAt(n.arg, x, deg, exact, vars, y);
                 if (!isFinite(a)) return NaN;
                 if (n.key === '%') return a / 100;
                 if (!exact && n.key === 'x2') return a * a;
                 if (!exact && n.key === 'x3') return a * a * a;
                 return UNARY[n.key].f(a, n.deg === undefined ? deg : n.deg);
             default:
-                a = valueAt(n.l, x, deg, exact, vars);
-                b = valueAt(n.r, x, deg, exact, vars);
+                a = valueAt(n.l, x, deg, exact, vars, y);
+                b = valueAt(n.r, x, deg, exact, vars, y);
                 if (!isFinite(a) || !isFinite(b)) return NaN;
                 if (exact) return binary(n.op, a, b);
                 switch (n.op) {
@@ -901,6 +903,29 @@
         return {
             at: function (x, deg, exact) { return valueAt(tree, x, deg, exact, vars); },
             angles: angular(tree),
+            letters: letters
+        };
+    }
+
+    // An equation of x and y to draw, as x^2 + y^2 = 25, x = 3 or x = y^2: where its two sides are
+    // equal. Null if the text is not one, as y = 2x is a function of x instead, which graph gives.
+    // at(x, y, deg) is the left side less the right; angles and letters as of graph
+    function relation(text, comma, vars) {
+        var s = separators(String(text).trim(), comma), sides = s.split('='), letters = [], trees, xy = false;
+        if (sides.length !== 2 || s.length > MAX_PASTE || /d\s*\/\s*dx/.test(s)) return null;
+        trees = sides.map(function (side) {
+            var toks = side.trim() && tokens(side, null, 2), tree = toks && parse(toks);
+            if (!tree || !complete(tree)) return null;
+            toks.forEach(function (t) {
+                if (t.p && letters.indexOf(t.v) < 0) letters.push(t.v);
+                if (t.t === 'const' && (t.v === 'x' || t.v === 'y')) xy = true;
+            });
+            return tree;
+        });
+        if (!trees[0] || !trees[1] || !xy) return null;
+        return {
+            at: function (x, y, deg) { return valueAt(trees[0], x, deg, false, vars, y) - valueAt(trees[1], x, deg, false, vars, y); },
+            angles: angular(trees[0]) || angular(trees[1]),
             letters: letters
         };
     }
@@ -2235,6 +2260,7 @@
     Engine.keyPoints = keyPoints;
     Engine.slope = slope;
     Engine.area = area;
+    Engine.relation = relation;
 
     root.CalcEngine = Engine;
     if (typeof module !== 'undefined' && module.exports) {

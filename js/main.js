@@ -1071,6 +1071,7 @@
         graphSaving, // saves the view once the wheel stops
         graphOff = [false, false, false, false, false, false, false], // the curves hidden by a click on their dot: kept, not drawn
         graphDiff = [false, false, false, false, false, false, false], // the curves whose slope is drawn too, by their y′
+        graphRels = [], // the boxes with an equation of x and y in place of a function of x, x² + y² = 25: drawn, not marked
         graphSharp = 0, // pixels of the canvas to each of the plot at least: 2 while a picture is made
         graphPop = graphPlot.querySelector('.calc-graph-pop'), // the point clicked: its x and y, each to insert
         GRAPH_POP_WAIT = 2000, // the popup opened with the mouse goes this many ms after the mouse is off it
@@ -1311,17 +1312,19 @@
     // -10 to 10 at first; while a function is typed, the sliders wait until the typing stops
     function readGraph(typing) {
         var letters = [];
+        graphRels = [];
         graphFns = graphInputs.map(function (box, i) {
             var text = i < graphCount ? box.value.trim() : '', fn = text ? CalcEngine.graph(text, engine.comma, graphVars) : null,
-                row = graphRows[i];
-            if (fn) {
-                fn.letters.forEach(function (k) {
-                    if (letters.indexOf(k) < 0) letters.push(k);
-                });
-            }
-            if (!text) graphOff[i] = graphDiff[i] = false; // what is typed next is shown, without its slope
+                rel = text && !fn ? CalcEngine.relation(text, engine.comma, graphVars) : null, row = graphRows[i];
+            (fn || rel || { letters: [] }).letters.forEach(function (k) {
+                if (letters.indexOf(k) < 0) letters.push(k);
+            });
+            graphRels[i] = graphOff[i] ? null : rel;
+            if (!text || rel) graphDiff[i] = false; // an equation has no slope of its own to draw
+            if (!text) graphOff[i] = false; // what is typed next is shown, without its slope
             row.hidden = i >= graphCount;
-            row.classList.toggle('calc-bad', !!text && !fn);
+            row.classList.toggle('calc-bad', !!text && !fn && !rel);
+            row.classList.toggle('calc-graph-rel', !!rel);
             row.classList.toggle('calc-graph-off', graphOff[i]);
             row.querySelector('.calc-graph-diff').classList.toggle('calc-on', graphDiff[i]);
             row.classList.toggle('calc-graph-empty', !text);
@@ -1536,7 +1539,7 @@
 
     // true if a curve has a function of an angle, so its x follows Deg or Rad
     function graphAngles() {
-        return graphFns.some(function (fn) { return fn && fn.angles; });
+        return graphFns.concat(graphRels).some(function (fn) { return fn && fn.angles; });
     }
 
     // What the plot shows. Until it is moved or zoomed it is the start: x from -10 to 10 with
@@ -1608,6 +1611,7 @@
         graphFns.forEach(function (fn, i) {
             if (fn) drawCurve(ctx, v, w, h, fn, curveColor(i));
             if (fn && graphDiff[i]) drawCurve(ctx, v, w, h, slopeCurve(fn), curveColor(i), true);
+            if (graphRels[i]) drawRelation(ctx, v, w, h, graphRels[i], curveColor(i));
         });
         graphTangent(ctx, v, w + h, graphPinned);
         graphMarks = graphBusy(CalcEngine.keyPoints(graphFns, { x0: graphX(v, 0), x1: graphX(v, w), y0: graphY(v, h), y1: graphY(v, 0) }, deg));
@@ -1894,6 +1898,54 @@
         }
     }
 
+    // An equation of x and y, drawn where its two sides are equal: their difference is found at
+    // the corners of square cells 3 pixels wide, and each cell where it changes sign is crossed
+    // by a line between the places on its edges where it is 0, as near as the corners tell.
+    // Not where it only jumps from one sign to the other, as x y = 1 does across x = 0: there
+    // the middle of the cell is farther from 0 than its corners
+    function drawRelation(ctx, v, w, h, rel, color) {
+        var c = 3, nx = Math.ceil(w / c), ny = Math.ceil(h / c), grid = [], i, j;
+        function f(px, py) {
+            return rel.at(graphX(v, px), graphY(v, py), deg);
+        }
+        for (j = 0; j <= ny; j++) {
+            grid.push([]);
+            for (i = 0; i <= nx; i++) grid[j].push(f(i * c, j * c));
+        }
+        ctx.beginPath();
+        for (j = 0; j < ny; j++) {
+            for (i = 0; i < nx; i++) cell(i * c, j * c, [grid[j][i], grid[j][i + 1], grid[j + 1][i + 1], grid[j + 1][i]]);
+        }
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = color;
+        ctx.stroke();
+        ctx.lineCap = 'butt';
+
+        // a cell from px, py: its corners top left, top right, bottom right and bottom left
+        function cell(px, py, k) {
+            var at = [], corner = [[0, 0], [c, 0], [c, c], [0, c]], e, a, b, t, mid;
+            if (!k.every(isFinite)) return;
+            for (e = 0; e < 4; e++) {
+                a = k[e];
+                b = k[(e + 1) % 4];
+                if ((a > 0) === (b > 0)) continue;
+                t = a / (a - b);
+                at.push([px + corner[e][0] + (corner[(e + 1) % 4][0] - corner[e][0]) * t,
+                    py + corner[e][1] + (corner[(e + 1) % 4][1] - corner[e][1]) * t]);
+            }
+            if (at.length < 2) return;
+            mid = f(px + c / 2, py + c / 2);
+            if (!(Math.abs(mid) <= 2 * Math.max.apply(null, k.map(Math.abs)))) return; // a jump, not a 0
+            ctx.moveTo(at[0][0], at[0][1]);
+            ctx.lineTo(at[1][0], at[1][1]);
+            if (at.length === 4) {
+                ctx.moveTo(at[2][0], at[2][1]);
+                ctx.lineTo(at[3][0], at[3][1]);
+            }
+        }
+    }
+
     // the slope of a curve as a curve of its own, dy/dx at each x: none where it has none,
     // at a corner or a break
     function slopeCurve(fn) {
@@ -1973,7 +2025,7 @@
         var unit = graphAngles() ? UNITS[deg] : '', p = graphAt;
         if (graphRows.some(function (row) { return row.classList.contains('calc-bad'); })) {
             graphNote.textContent = 'Not a function of x yet: write x^2 for x², 2x for 2 × x.';
-        } else if (!graphFns.some(Boolean) && graphOff.some(Boolean)) {
+        } else if (!graphFns.some(Boolean) && !graphRels.some(Boolean) && graphOff.some(Boolean)) {
             graphNote.textContent = 'Every curve is hidden: click its dot to show it.';
         } else if (graphTab === 'table') {
             graphNote.textContent = !graphFns.some(Boolean) ? 'Type a function of x for its values.' :
@@ -2303,7 +2355,8 @@
 
         lines = [];
         graphFns.forEach(function (fn, i) {
-            if (fn) lines.push({ i: i, text: 'y = ' + graphInputs[i].value.trim() });
+            if (fn) lines.push({ i: i, text: 'y = ' + graphInputs[i].value.trim().replace(/^(y|f\s*\(\s*x\s*\))\s*=\s*/i, '') });
+            if (graphRels[i]) lines.push({ i: i, text: graphInputs[i].value.trim() });
             if (fn && graphDiff[i]) lines.push({ i: i, text: 'y′ of ' + graphInputs[i].value.trim(), dashed: true });
         });
         if (!lines.length) return pic;

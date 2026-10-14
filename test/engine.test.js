@@ -2339,6 +2339,21 @@ dels.forEach(function (c) {
         });
     })();
 
+    // an equation of x and y: the left side less the right
+    (function () {
+        var vars = {}, c = Engine.relation('x^2 + y^2 = r^2', false, vars);
+        check(c && c.at(3, 4, 0) === 24 && c.letters.join() === 'r', 'relation: x² + y² = r², r at 1 until set', c && c.at(3, 4, 0));
+        vars.r = 5;
+        check(c.at(3, 4, 0) === 0 && c.at(0, 0, 0) === -25, 'relation: on the circle of r = 5, and inside it');
+        check(Engine.relation('x = 3').at(3, 7, 0) === 0 && Engine.relation('x = 3').at(1, 0, 0) === -2, 'relation: x = 3, an upright line');
+        check(Engine.relation('xy = 1').at(2, 0.5, 0) === 0 && Engine.relation('sin(x) = y').angles, 'relation: x y, and angles');
+        check(Engine.relation('2,5x = y', true).at(2, 5, 0) === 0, 'relation: a comma is the decimal mark when it is in use');
+        ['x^2 + y^2', '3 = 4', 'y = x = 2', '= x', 'x =', 'd/dx(x^2) = y', 'x^2 + = y'].forEach(function (s) {
+            check(Engine.relation(s) === null, 'relation ' + JSON.stringify(s) + ' is not an equation of x and y');
+        });
+        check(Engine.graph('x^2 + y^2 = 25') === null && !!Engine.graph('y = 2x'), 'graph: an equation is not a function of x, y = 2x is');
+    })();
+
     // the area under a curve, its integral from a to b
     [
         ['x^2', 0, 3, 0, 9, 'x² from 0 to 3'],
