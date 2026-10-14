@@ -103,8 +103,8 @@
                 <div class="option-text">
                     <h3>Numbers</h3>
                     <p>A button at the top left of the display for complex numbers, such as (2 + 3i)(1 – i), whole
-                        numbers in bits with their hexadecimal, octal and binary, and matrices: their determinant,
-                        inverse, sums and products.</p>
+                        numbers in bits with their hexadecimal, octal and binary, matrices: their determinant,
+                        inverse, sums and products, and whole numbers' prime factors, GCD and LCM, and rounding.</p>
                 </div>
                 <label class="switch" title="Numbers">
                     <input type="checkbox" id="panel-numbers">
@@ -252,9 +252,12 @@
                     angle and conjugate, and the n-th roots of one. Base works out whole numbers as a computer keeps them, in
                     8, 16, 32 or 64 bits: decimal, 0xFF, 0b1010 or 0o17, with + – × ÷, mod, AND, OR, XOR, NOT and shifts,
                     shown in decimal, hexadecimal, octal and binary. Matrix has a matrix of up to 4 × 4, its determinant,
-                    rank, inverse, transpose and square, and the sum and products of two. Click a result, or a number of a
-                    matrix, to put it into your calculation.</li>
+                    rank, inverse, transpose and square, and the sum and products of two. Integer has the prime factors of a
+                    whole number of up to 20 digits, 360 = 2³ × 3² × 5, whether it is prime, and its divisors; the GCD and
+                    LCM of two numbers or more; and a number rounded to d places, half away from 0, down, up and toward 0,
+                    and to d significant figures. Click a result, or a number of a matrix, to put it into your calculation.</li>
                 <li><kbd class="k">mod</kbd>, <kbd class="k">gcd</kbd> and <kbd class="k">lcm</kbd> on the <kbd class="k">2nd</kbd> layer of <kbd class="k">%</kbd>, <kbd class="k"><sup>n</sup>C<sub>r</sub></kbd> and <kbd class="k"><sup>n</sup>P<sub>r</sub></kbd>.</li>
+                <li><kbd class="k">floor</kbd> and <kbd class="k">ceil</kbd> on the <kbd class="k">2nd</kbd> layer of <kbd class="k">abs</kbd> and <kbd class="k">x!</kbd>, side by side, and <kbd class="k">round</kbd> on that of <kbd class="k">Rand</kbd>: a number to the whole number below or above it, and to the nearest, half away from 0. They can be pasted too, with trunc, which goes toward 0: floor(7.5) = 7.</li>
                 <li><kbd class="k">10<sup>x</sup></kbd>, <kbd class="k">e</kbd> and <kbd class="k">log<sub>y</sub></kbd> (the logarithm to any base: 8 log<sub>y</sub> 2 = 3) on the <kbd class="k">2nd</kbd> layer of <kbd class="k">log</kbd>, <kbd class="k">&pi;</kbd> and <kbd class="k">y<sup>x</sup></kbd>.</li>
                 <li>Degrees, minutes and seconds: the <kbd class="k">°′″</kbd> key shows results as 36°52′11.63″, and DMS in the display shows it is on. Paste an angle written so, 12°30′15″, 12°30'15" or 51°30′26″N: alone it shows as written, and DMS turns on. In an equation it is a number of degrees, and sin, cos and tan of it are worked out in degrees whatever the unit in use: sin(30°) is 0.5 in Rad as well. The converter has degrees, minutes and seconds among its angles too.</li>
                 <li>Fraction mode: the <kbd class="k">a/b</kbd> key draws each division as a fraction while you type, and shows results like
@@ -473,6 +476,24 @@
                 <div class="trigo-keys">
                     abs
                 </div><span class="des">[|] The absolute value: the number without its sign. abs(-3) is 3.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    round
+                </div><span class="des">On the <kbd class="k">2nd</kbd> layer of <kbd class="k">Rand</kbd>. The nearest whole number, half away from 0: round(2.5) is 3, round(-2.5) is -3.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    floor
+                </div><span class="des">On the <kbd class="k">2nd</kbd> layer of <kbd class="k">abs</kbd>. The whole number at or below: floor(2.7) is 2, floor(-2.7) is -3.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    ceil
+                </div><span class="des">On the <kbd class="k">2nd</kbd> layer of <kbd class="k">x!</kbd>. The whole number at or above: ceil(2.1) is 3, ceil(-2.1) is -2.</span>
             </div>
 
             <div class="info">

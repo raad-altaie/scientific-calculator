@@ -153,5 +153,40 @@ check(JSON.stringify(M.transpose([[1, 2, 3], [4, 5, 6]])) === '[[1,4],[2,5],[3,6
     JSON.stringify(M.times([[1, 2], [3, 4]], [[0, 1], [1, 0]])) === '[[2,1],[4,3]]' && JSON.stringify(M.times([[1, 2, 3]], [[1], [2], [3]])) === '[[14]]' &&
     M.times([[1, 2]], [[1, 2]]) === null, 'transpose, sum, difference and product, of sizes that go together only');
 
+// whole numbers: prime factors, divisors, gcd and lcm; numbers rounded
+function factors(text) {
+    var r = M.factorize(text, false, 0, 64);
+    return r.error || r.factors.map(function (pe) { return pe[0] + (pe[1] > 1 ? '^' + pe[1] : ''); }).join(' ') + (r.prime ? ' prime' : '');
+}
+[
+    ['360', '2^3 3^2 5'], ['-84', '2^2 3 7'], ['97', '97 prime'], ['2^10', '2^10'], ['10!', '2^8 3^4 5^2 7'], ['1', ''], ['0', ''],
+    ['600851475143', '71 839 1471 6857'], ['18446744073709551617', '274177 67280421310721'], ['99999999999999999989', '99999999999999999989 prime'],
+    ['1000000016000000063', '1000000007 1000000009'], ['9007199254740993', '3 107 28059810762433'], ['1.5', 'whole'], ['x', 'whole'],
+    ['999999999999999999999', 'whole']
+].forEach(function (c) {
+    check(factors(c[0]) === c[1], 'factorize: ' + c[0] + ' is ' + c[1], factors(c[0]));
+});
+(function () {
+    var r = M.factorize('360', false, 0, 64), z = M.factorize('0', false, 0, 64), many = M.factorize('10!', false, 0, 64);
+    check(r.count === 24 && String(r.sum) === '1170' && String(r.totient) === '96' && r.divisors.length === 24 && String(r.divisors[23]) === '360' &&
+        z.count === Infinity && z.divisors === null && many.count === 270 && many.divisors === null, 'factorize: divisors, their sum, the totient; none of 0; too many to list');
+    r = M.divisorsOf('12, 18, 30', false, 0);
+    check(String(r.gcd) === '6' && String(r.lcm) === '180' && r.n === 3, 'divisorsOf: 12, 18, 30');
+    r = M.divisorsOf('12;18 0', true, 0);
+    check(String(r.gcd) === '6' && String(r.lcm) === '0' && M.divisorsOf('12, 1.5', false, 0).at === '1.5', 'divisorsOf: with a decimal comma; of 0; one not whole');
+    check(M.isPrime(BigInt(2)) && !M.isPrime(BigInt(1)) && !M.isPrime(BigInt('3825123056546413051')) && M.isPrime(BigInt('2305843009213693951')),
+        'isPrime: 2, 1, a strong pseudoprime to the first nine primes, 2^61 – 1');
+})();
+[
+    [1.005, 2, 'round', 1.01], [2.5, 0, 'round', 3], [-2.5, 0, 'round', -3], [-0.4, 0, 'round', 0], [1234, -2, 'round', 1200], [1250, -2, 'round', 1300],
+    [-1.21, 1, 'floor', -1.3], [-1.21, 1, 'ceil', -1.2], [1.29, 1, 'trunc', 1.2], [1e-20, 3, 'ceil', 0.001], [0.1 + 0.2, 2, 'floor', 0.3], [123.456, 5, 'round', 123.456]
+].forEach(function (c) {
+    check(Object.is(M.roundTo(c[0], c[1], c[2]), c[3]), 'roundTo: ' + c[0] + ' to ' + c[1] + ' places, ' + c[2] + ', is ' + c[3], M.roundTo(c[0], c[1], c[2]));
+});
+check(M.significant(0.012345, 3) === 0.0123 && M.significant(98765, 2) === 99000 && M.significant(9.995, 3) === 10 && M.significant(-0.000123456, 2) === -0.00012 &&
+    M.significant(0, 3) === 0 && isNaN(M.significant(1, 0)), 'significant figures');
+check(JSON.stringify(M.complex('floor(2.7 - 1.2i)', false, 0)) === '{"re":2,"im":-2}' && JSON.stringify(M.complex('round(e^(i pi))', false, 0)) === '{"re":-1,"im":0}',
+    'complex: floor and round of each part');
+
 console.log(failures ? failures + ' of ' + checks + ' checks failed' : 'all ' + checks + ' checks passed');
 process.exitCode = failures ? 1 : 0;

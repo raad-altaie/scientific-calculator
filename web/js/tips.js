@@ -151,7 +151,8 @@
         'numbers': {
             t: 'Complex numbers, bases and matrices',
             d: 'Complex numbers, (2 + 3i)(1 – i), with their length and angle; whole numbers in bits, in decimal, ' +
-                'hexadecimal, octal and binary, with AND, OR and XOR; and matrices, their determinant, inverse and products. Click a result to put it in.',
+                'hexadecimal, octal and binary, with AND, OR and XOR; matrices, their determinant, inverse and products; ' +
+                'and the prime factors of a whole number, GCD and LCM, and rounding. Click a result to put it in.',
             k: ''
         },
         'numbers close': {
@@ -679,12 +680,32 @@
             t: 'Absolute value',
             d: 'The number without its sign: 3 +/– abs = 3.',
             first: 'The number without its sign: abs – 3 = 3.',
-            k: '|'
+            k: '|',
+            second: 'floor'
+        },
+        'round': {
+            t: 'Round',
+            d: 'The nearest whole number, half away from 0: 2.5 round = 3, 2.4 round = 2. For d places, the Integer tab of the numbers.',
+            first: 'The nearest whole number, half away from 0: round 2.5 = 3, round 2.4 = 2. For d places, the Integer tab of the numbers.',
+            k: ''
+        },
+        'floor': {
+            t: 'Floor',
+            d: 'The whole number at or below the number: 2.7 floor = 2, and of -2.7, -3.',
+            first: 'The whole number at or below the number: floor 2.7 = 2, and of -2.7, -3.',
+            k: ''
+        },
+        'ceil': {
+            t: 'Ceiling',
+            d: 'The whole number at or above the number: 2.1 ceil = 3, and of -2.1, -2.',
+            first: 'The whole number at or above the number: ceil 2.1 = 3, and of -2.1, -2.',
+            k: ''
         },
         'x!': {
             t: 'Factorial',
             d: '5 x! = 120, 1 × 2 × 3 × 4 × 5. Decimals work as well: 2.5 x! = 3.323350970448.',
-            k: 'x'
+            k: 'x',
+            second: 'ceil'
         },
         'nCr': {
             t: 'Combinations',
@@ -724,7 +745,8 @@
         'Rand': {
             t: 'Random number',
             d: 'A new random number between 0 and 1 each time.',
-            k: 'h, n'
+            k: 'h, n',
+            second: 'round'
         },
         'Ans': {
             t: 'Last answer',

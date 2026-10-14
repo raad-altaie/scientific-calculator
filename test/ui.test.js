@@ -1116,8 +1116,8 @@ async function numbersPanel(page, at) {
 
     await page.fresh(at, {});
     await page.click('.calc-numbers-btn');
-    check(await open(page, '.calc-numbers') && await page.calc('document.querySelectorAll(".calc-numbers .calc-solve-tab").length') === 3,
-        t + 'its button opens it, with three tabs');
+    check(await open(page, '.calc-numbers') && await page.calc('document.querySelectorAll(".calc-numbers .calc-solve-tab").length') === 4,
+        t + 'its button opens it, with four tabs');
     await page.click('.calc-numbers .calc-sv-item:nth-child(1) .calc-sv-row');
     check(await page.calc('document.activeElement === document.querySelector("' + on + ' input")'), t + 'a card opens with its box to type in');
     await set(0, '(2+3i)(1-i)'); // the harness types ( as the arrow down
@@ -1159,6 +1159,31 @@ async function numbersPanel(page, at) {
     await set(0, '1x2');
     check(/Size of A/.test(await page.calc('document.querySelector("' + on + '").textContent')) &&
         (await page.calc(tiles)).indexOf('A + B=– | A – B=– | A × B=00') === 0, t + 'two matrices: a sum of sizes that differ has none', await page.calc(tiles));
+
+    await page.click('.calc-numbers .calc-solve-tab[data-tab="whole"]');
+    await card('Prime factors');
+    await set(0, '360');
+    got = await page.calc(tiles);
+    check(got.indexOf('Prime factors=23 × 32 × 5 | Prime=No | Divisors=24 | ') === 0 && /Each divisor=1, 2, 3, 4, 5, 6, 8, 9, 10, 12, 15, 18, 20, 24, 30, 36, 40, 45, 60, 72, 90, 120, 180, 360$/.test(got),
+        t + '360 in its prime factors, with its divisors', got);
+    await set(0, '1000000016000000063');
+    check((await page.calc(tiles)).indexOf('Prime factors=1000000007 × 1000000009 | Prime=No') === 0, t + 'a number of 19 digits factored', await page.calc(tiles));
+    await set(0, '1.5');
+    check(/^A whole number/.test(await page.calc(note)), t + '1.5 is not whole', await page.calc(note));
+    await card('GCD and LCM');
+    await set(0, '12, 18, 30');
+    check(await page.calc(tiles) === 'GCD=6 | LCM=180 | Coprime=No', t + 'the GCD and LCM of 12, 18 and 30', await page.calc(tiles));
+    await card('Round');
+    await set(0, '-2.5');
+    check((await page.calc(tiles)).indexOf('Rounded=-3 | Down ⌊x⌋=-3 | Up ⌈x⌉=-2 | Toward 0=-2 | Fraction part=-0.5') === 0,
+        t + '-2.5 rounded half away from 0, down, up and toward 0', await page.calc(tiles));
+    await set(0, '1.005');
+    await set(1, '2');
+    check((await page.calc(tiles)).indexOf('Rounded=1.01 | Down ⌊x⌋=1 | Up ⌈x⌉=1.01 | Toward 0=1 | Fraction part=0.005 | To 2 figures=1') === 0,
+        t + '1.005 to 2 places is 1.01, as it reads', await page.calc(tiles));
+    await page.click(on + ' .calc-sv-tile:nth-child(1)');
+    check(!await open(page, '.calc-numbers') && await value(page) === 1.01, t + 'a number rounded goes in with a click', await value(page));
+    await page.click('.calc-numbers-btn');
     await page.key('Escape', 27);
     check(!await open(page, '.calc-numbers'), t + 'Esc closes it');
 }
@@ -1695,6 +1720,17 @@ async function secondKeys(page, at) {
     check(await shown(page) === '4', t + 'h, ^ is logᵧ', await shown(page));
     await page.type('hp');
     check(near(await value(page), Math.E), t + 'h, p is e', await shown(page));
+
+    // floor and ceil on the 2nd layer of abs and x!, side by side, and round on that of Rand
+    await page.fresh(at, {});
+    await page.click(KEYS + '1)');
+    check(await label(KEYS + '25)') === 'floor' && await label(KEYS + '26)') === 'ceil' && await label(KEYS + '30)') === 'round',
+        t + '2nd turns abs, x! and Rand into floor, ceil and round', await label(KEYS + '25)') + ' ' + await label(KEYS + '26)') + ' ' + await label(KEYS + '30)'));
+    for (const [key, want] of [['25', 3], ['26', 4], ['30', 4]]) {
+        await page.click(KEYS + key + ')');
+        await page.type('7/2\r');
+        check(await value(page) === want, t + '7/2 ' + await label(KEYS + key + ')') + ' = ' + want, await shown(page));
+    }
 }
 
 // the °′″ key: results in degrees, minutes and seconds, kept in the

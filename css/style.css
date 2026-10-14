@@ -1811,6 +1811,14 @@
     word-spacing: 0.15em;
 }
 
+/* a list of numbers among the results, as the divisors of one: on as many lines as it needs */
+#calculator .calc-sv-wrap .calc-sv-value {
+    font-size: 13px;
+    line-height: 19px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
 /* the head of the boxes of a matrix, and of its numbers among the results */
 #calculator .calc-sv-head {
     margin: 4px 0 3px;

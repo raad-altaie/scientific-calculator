@@ -115,12 +115,12 @@
         secondLayer = [
             [
                 'sin', 'cos', 'tan', 'ln', 'sinh', 'cosh', 'tanh', 'e<sup>x</sup>', '%', '<i>n</i>C<i>r</i>', '<i>n</i>P<i>r</i>',
-                'log', 'π', 'y<sup>x</sup>'
+                'log', 'π', 'y<sup>x</sup>', 'abs', 'x!', 'Rand'
             ],
             [
                 'sin<sup>-1</sup>', 'cos<sup>-1</sup>', 'tan<sup>-1</sup>', 'log<sub>2</sub>',
                 'sinh<sup>-1</sup>', 'cosh<sup>-1</sup>', 'tanh<sup>-1</sup>', '2<sup>x</sup>', 'mod', 'gcd', 'lcm',
-                '10<sup>x</sup>', 'e', 'log<sub>y</sub>'
+                '10<sup>x</sup>', 'e', 'log<sub>y</sub>', 'floor', 'ceil', 'round'
             ]
         ];
 
@@ -3726,8 +3726,9 @@
 
     // ---------------- numbers ---------------- //
 
-    // Complex numbers, whole numbers in bits and their bases, and matrices, a tab each, with
-    // cards as the solver has. A matrix has a box for each number, as many as its size says
+    // Complex numbers, whole numbers in bits and their bases, matrices, and whole numbers'
+    // factors and numbers rounded, a tab each, with cards as the solver has. A matrix has a box
+    // for each number, as many as its size says
     var NUMBER_TOOLS = {
         complex: [
             { id: 'complex', t: 'Complex number', f: 'a + b<i>i</i>, r∠θ', d: 'Work out a complex number: (2 + 3i)(1 – i), sqrt(-4), e^(iπ), or 2∠30 in polar form. Its real and imaginary parts, its length, angle and conjugate.',
@@ -3747,6 +3748,14 @@
                     return [{ k: 'sizeA', l: 'Size of A', ph: '2×2', text: true, shape: true }, { k: 'sizeB', l: 'Size of B', ph: '2×2', text: true, shape: true }]
                         .concat(cells('a', 'A', raw.sizeA), cells('b', 'B', raw.sizeB));
                 }, cols: 2, run: runMatrices }
+        ],
+        whole: [
+            { id: 'factors', t: 'Prime factors', f: '360 = 2<sup>3</sup> × 3<sup>2</sup> × 5', d: 'A whole number of up to 20 digits in its prime factors, whether it is prime, and its divisors: how many, their sum, each of them, and how many numbers up to it have none of its factors.',
+                fields: [{ k: 'n', ph: '360', fn: true }], run: runFactors },
+            { id: 'gcd', t: 'GCD and LCM', f: 'gcd(12, 18, 30)', d: 'The greatest common divisor and least common multiple of two whole numbers or more, typed with commas or spaces between them.',
+                fields: [{ k: 'list', ph: '12, 18, 30', fn: true }], run: runGcd },
+            { id: 'round', t: 'Round', f: '⌊x⌋, ⌈x⌉, x to d places', d: 'A number rounded to d decimal places, half away from 0, down, up and toward 0; its fraction part, and the number to d significant figures. Places below 0 round to tens, hundreds …',
+                fields: [{ k: 'x', l: 'x', ph: '3.14159' }, { k: 'd', l: 'Places', ph: '0', def: 0 }], cols: 2, run: runRound }
         ]
     };
 
@@ -3818,6 +3827,47 @@
                 { l: 'Binary', text: CalcMaths.inBase(r.value, bits, 2).replace(/^(.{39}) /, bits === 64 ? '$1<br>' : '$1 '), wide: true, bits: true }
             ],
             note: r.wrapped ? 'Out of ' + bits + ' bits: kept to them, as a computer does.' : ''
+        };
+    }
+
+    // a whole number found, which may be too large to be put in: then read, on a tile of the width
+    function wholeTile(l, b) {
+        return b === null ? { l: l, v: NaN } : b <= BigInt(Number.MAX_SAFE_INTEGER) && b >= BigInt(-Number.MAX_SAFE_INTEGER) ? { l: l, v: Number(b) } :
+            { l: l, text: String(b), wide: true };
+    }
+
+    function runFactors(n, raw) {
+        var r = raw.n ? CalcMaths.factorize(raw.n, engine.comma, deg, 64) : null, none = [{ l: 'Prime factors', v: NaN, wide: true }], f;
+        if (!r) return { rows: none };
+        if (r.error) return { rows: none, bad: ['n'], warn: true, note: 'A whole number of up to 20 digits: 360, 2^10, 10!.' };
+        f = r.factors.map(function (pe) { return pe[0] + (pe[1] > 1 ? '<sup>' + pe[1] + '</sup>' : ''); }).join(' × ');
+        return {
+            rows: [{ l: 'Prime factors', text: f ? (r.n < 0 ? '–1 × ' : '') + f : '–', wide: true }, { l: 'Prime', text: r.prime ? 'Yes' : 'No' },
+                { l: 'Divisors', v: r.count }, wholeTile('Sum of divisors', r.sum), wholeTile('Totient φ(n)', r.totient),
+                { l: 'Each divisor', text: r.divisors ? r.divisors.join(', ') : '–', wide: true, wrap: true }],
+            note: r.n === BigInt(0) ? 'Every whole number divides 0.' : r.n === BigInt(1) || r.n === BigInt(-1) ? 'No prime factors.' :
+                !r.divisors ? 'Too many divisors to list.' : r.n < 0 ? 'Of its size: the factors of a number below 0 are those of its size, times –1.' : ''
+        };
+    }
+
+    function runGcd(n, raw) {
+        var r = raw.list ? CalcMaths.divisorsOf(raw.list, engine.comma, deg) : null, none = [{ l: 'GCD', v: NaN }, { l: 'LCM', v: NaN }];
+        if (!r) return { rows: none };
+        if (r.error) return { rows: none, bad: ['list'], warn: true, note: (r.at ? r.at + ' is not' : 'Not') + ' a whole number: 12, 18, 30, ' + (engine.comma ? 'with ; or spaces' : 'with commas or spaces') + ' between them.' };
+        return {
+            rows: [wholeTile('GCD', r.gcd), wholeTile('LCM', r.lcm), { l: 'Coprime', text: r.n > 1 ? (r.gcd === BigInt(1) ? 'Yes' : 'No') : '–' }],
+            note: r.n < 2 ? 'Of two numbers or more.' : r.gcd === BigInt(1) ? 'They have no factor in common.' : ''
+        };
+    }
+
+    function runRound(n) {
+        var x = n.x, d = n.d, ok = isFinite(x) && isFinite(d), bad = ok && (d !== Math.floor(d) || Math.abs(d) > 15);
+        function to(how) { return ok && !bad ? CalcMaths.roundTo(x, d, how) : NaN; }
+        return {
+            rows: [{ l: 'Rounded', v: to('round') }, { l: 'Down ⌊x⌋', v: to('floor') }, { l: 'Up ⌈x⌉', v: to('ceil') }, { l: 'Toward 0', v: to('trunc') },
+                { l: 'Fraction part', v: ok ? CalcMaths.round(x - CalcMaths.roundTo(x, 0, 'trunc')) : NaN },
+                { l: 'To ' + (ok && d >= 1 && !bad ? d : 'd') + ' figures', v: ok && d >= 1 && !bad ? CalcMaths.significant(x, d) : NaN }],
+            note: bad ? 'Places are a whole number from –15 to 15.' : '', warn: bad
         };
     }
 
@@ -3996,7 +4046,7 @@
             } else {
                 shown = '<span class="calc-sv-value">' + (r.text !== undefined ? r.text : known ? statsValue(r.v).html : '–') + '</span>';
             }
-            return '<div class="calc-sv-tile' + (r.m !== undefined || r.wide ? ' calc-sv-wide' : '') + (r.m ? ' calc-sv-matrix' : '') + (r.bits ? ' calc-sv-bits' : '') +
+            return '<div class="calc-sv-tile' + (r.m !== undefined || r.wide ? ' calc-sv-wide' : '') + (r.m ? ' calc-sv-matrix' : '') + (r.bits ? ' calc-sv-bits' : '') + (r.wrap ? ' calc-sv-wrap' : '') +
                 (known && !r.m ? '' : ' calc-none') + '" data-r="' + i + '"><span class="calc-sv-label">' + r.l + '</span>' + shown + '</div>';
         }
 

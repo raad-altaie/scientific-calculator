@@ -1,7 +1,8 @@
 // The maths of the Solve panel: equations solved for x, the roots of a polynomial and of a
 // system of linear equations; integrals, slopes, sums and products; and the normal, binomial
 // and Poisson distributions. And of the Numbers panel: complex numbers, whole numbers in bits
-// and their bases, and matrices. Functions are read as the graph reads them, by the engine.
+// and their bases, and matrices; and whole numbers: their prime factors, divisors, greatest
+// common divisor and least common multiple, and numbers rounded. Functions are read as the graph reads them, by the engine.
 // It works on its own in Node as well, for the tests
 (function (root) {
     'use strict';
@@ -625,6 +626,9 @@
                     case 'cosh-1': return clog(add(a, cmul(csqrt(add(a, [1, 0])), csqrt(sub(a, [1, 0])))));
                     case 'tanh-1': b = clog(cdiv(add([1, 0], a), sub([1, 0], a))); return [b[0] / 2, b[1] / 2];
                     case 'abs': return [cabs(a), 0];
+                    case 'round': case 'floor': case 'ceil': case 'trunc': // each part, as of the number it reads
+                        b = tidyComplex(a);
+                        return [toWhole(b.re, n.key), toWhole(b.im, n.key)];
                 }
                 return [NaN, NaN];
             case 'bin':
@@ -868,6 +872,204 @@
         return m.map(function (r) { return r.map(function (x) { return Math.abs(x) <= 1e-12 * big ? 0 : round(x); }); });
     }
 
+    // ---------- whole numbers ---------- //
+
+    var DIGITS_MAX = 20, // a whole number of more digits is not factored
+        SMALL = BigInt(100000), // factors below this are found by trying each
+        BIG = { zero: BigInt(0), one: BigInt(1), two: BigInt(2) };
+
+    // x to a whole number as the engine's round, floor, ceil and trunc have it, of the number it reads
+    function toWhole(x, how) {
+        x = isFinite(x) ? +x.toPrecision(15) : x;
+        return (how === 'round' ? (x < 0 ? -Math.round(-x) : Math.round(x)) : Math[how](x)) + 0;
+    }
+
+    // A whole number typed, as a BigInt: 360, -84, 2^10, 10!; one of digits alone may have up to
+    // 20 of them, one worked out as many as a number keeps exactly. Null for one that is not whole
+    function whole(text, comma, deg) {
+        var s = String(text).trim().replace(/^[−–]/, '-').replace(/^\+/, ''), v;
+        if (/^-?\d+$/.test(s)) return s.replace(/^-?0*/, '').length <= DIGITS_MAX ? BigInt(s) : null;
+        v = number(s, comma, deg);
+        return Number.isSafeInteger(v) ? BigInt(v) : null;
+    }
+
+    function gcdBig(a, b) {
+        var t;
+        if (a < BIG.zero) a = -a;
+        if (b < BIG.zero) b = -b;
+        while (b) {
+            t = a % b;
+            a = b;
+            b = t;
+        }
+        return a;
+    }
+
+    // b to the e-th power, modulo m
+    function powMod(b, e, m) {
+        var r = BIG.one;
+        b %= m;
+        while (e > BIG.zero) {
+            if (e & BIG.one) r = r * b % m;
+            b = b * b % m;
+            e >>= BIG.one;
+        }
+        return r;
+    }
+
+    // Miller and Rabin's test, on the first twelve primes, which tells for certain below 3 × 10²⁴
+    function isPrime(n) {
+        var d = n - BIG.one, s = 0, bases = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37], i, j, a, x;
+        if (n < BIG.two) return false;
+        for (i = 0; i < bases.length; i++) {
+            if (n % BigInt(bases[i]) === BIG.zero) return n === BigInt(bases[i]);
+        }
+        while (!(d & BIG.one)) {
+            d >>= BIG.one;
+            s++;
+        }
+        for (i = 0; i < bases.length; i++) {
+            a = BigInt(bases[i]);
+            x = powMod(a, d, n);
+            if (x === BIG.one || x === n - BIG.one) continue;
+            for (j = 1; j < s && x !== n - BIG.one; j++) x = x * x % n;
+            if (x !== n - BIG.one) return false;
+        }
+        return true;
+    }
+
+    // A factor of n, which is not prime, by Pollard's rho in Brent's way: the differences of
+    // a walk that comes round again, multiplied a hundred at a time before their gcd with n
+    function rho(n) {
+        var c, x, y, ys, q, g, r, k, i, step = function (v) { return (v * v + c) % n; };
+        for (c = BIG.one; ; c++) {
+            y = BIG.two;
+            r = 1;
+            q = BIG.one;
+            g = BIG.one;
+            do {
+                x = y;
+                for (i = 0; i < r; i++) y = step(y);
+                for (k = 0; k < r && g === BIG.one; k += 100) {
+                    ys = y;
+                    for (i = 0; i < Math.min(100, r - k); i++) {
+                        y = step(y);
+                        q = q * (x > y ? x - y : y - x) % n;
+                    }
+                    g = gcdBig(q, n);
+                }
+                r *= 2;
+            } while (g === BIG.one);
+            if (g === n) { // a hundred at a time went past it: one at a time from the last start
+                do {
+                    ys = step(ys);
+                    g = gcdBig(x > ys ? x - ys : ys - x, n);
+                } while (g === BIG.one);
+            }
+            if (g !== n) return g;
+        }
+    }
+
+    function compare(a, b) {
+        return a < b ? -1 : a > b ? 1 : 0;
+    }
+
+    // The prime factors of a whole number above 1, with their powers, the smallest first:
+    // [[2n, 3], [3n, 2], [5n, 1]] for 360
+    function primeFactors(n) {
+        var found = [], left = [], out = [], p, m, d;
+        for (p = BIG.two; p < SMALL && p * p <= n; p += p === BIG.two ? BIG.one : BIG.two) {
+            while (n % p === BIG.zero) {
+                found.push(p);
+                n /= p;
+            }
+        }
+        if (n > BIG.one) left.push(n);
+        while (left.length) {
+            m = left.pop();
+            if (isPrime(m)) {
+                found.push(m);
+            } else {
+                d = rho(m);
+                left.push(d, m / d);
+            }
+        }
+        found.sort(compare).forEach(function (f) {
+            if (out.length && out[out.length - 1][0] === f) out[out.length - 1][1]++;
+            else out.push([f, 1]);
+        });
+        return out;
+    }
+
+    // A whole number typed, factored: { n, factors, prime, count, sum, totient, divisors }, its
+    // divisors listed while there are up to max of them; { error: 'whole' } for one that is not
+    // one, of up to 20 digits. Of 0 and 1 none, of a number below 0 those of its size
+    function factorize(text, comma, deg, max) {
+        var n = whole(text, comma, deg), size, f, count = 1, sum = BIG.one, totient = BIG.one, divisors = [BIG.one];
+        if (n === null) return { error: 'whole' };
+        size = n < BIG.zero ? -n : n;
+        f = size > BIG.one ? primeFactors(size) : [];
+        f.forEach(function (pe) {
+            var p = pe[0], power = p ** BigInt(pe[1]), more = [];
+            count *= pe[1] + 1;
+            sum *= (power * p - BIG.one) / (p - BIG.one);
+            totient *= power / p * (p - BIG.one);
+            if (count <= max) {
+                divisors.forEach(function (d) {
+                    for (var k = 0, q = BIG.one; k <= pe[1]; k++, q *= p) more.push(d * q);
+                });
+                divisors = more;
+            }
+        });
+        return {
+            n: n, factors: f, prime: f.length === 1 && f[0][1] === 1,
+            count: size ? count : Infinity, sum: size ? sum : null, totient: size ? totient : null,
+            divisors: size && count <= max ? divisors.sort(compare) : null
+        };
+    }
+
+    // The greatest common divisor and least common multiple of whole numbers typed apart: 12, 18,
+    // 30, or with spaces or ; between them, as with a decimal comma. { gcd, lcm, n } as BigInts and
+    // their count; { error: 'whole', at } with the one that is not one
+    function divisorsOf(text, comma, deg) {
+        var parts = String(text).split(comma ? /\s*;\s*|\s+/ : /\s*[,;]\s*|\s+/).filter(function (s) { return s; }),
+            g = BIG.zero, l = BIG.one, i, n;
+        if (!parts.length) return { error: 'whole', at: '' };
+        for (i = 0; i < parts.length; i++) {
+            n = whole(parts[i], comma, deg);
+            if (n === null) return { error: 'whole', at: parts[i] };
+            g = gcdBig(g, n);
+            l = l && n ? l * (n < BIG.zero ? -n : n) / gcdBig(l, n) : BIG.zero;
+        }
+        return { gcd: g, lcm: l, n: parts.length };
+    }
+
+    // x to d places as it reads, 1.005 to 1.01; d below 0 to tens, hundreds …: 1234 to -2 places
+    // is 1200. how: 'round', half away from 0, 'floor', 'ceil' or 'trunc'
+    function roundTo(x, d, how) {
+        var m = /^(-?)(\d+)(?:\.(\d+))?(?:e([-+]\d+))?$/.exec(String(x)), neg, all, exp, cut, keep, rest, up;
+        if (!m || !isWhole(d) || Math.abs(d) > 100) return NaN;
+        neg = m[1] === '-';
+        all = BigInt(m[2] + (m[3] || ''));
+        exp = (m[4] ? +m[4] : 0) - (m[3] || '').length; // x is ±all × 10^exp
+        if (exp >= -d) return x;
+        cut = BigInt(10) ** BigInt(-d - exp);
+        keep = all / cut;
+        rest = all % cut;
+        up = !rest ? false : how === 'round' ? rest * BIG.two >= cut : how === 'floor' ? neg : how === 'ceil' ? !neg : false;
+        return Number((neg ? '-' : '') + (up ? keep + BIG.one : keep) + 'e' + (-d)) + 0;
+    }
+
+    // x to s significant figures as it reads, half away from 0: 0.012345 to 3 is 0.0123
+    function significant(x, s) {
+        var m = /^-?(\d+)(?:\.(\d+))?(?:e([-+]\d+))?$/.exec(String(x)), digits;
+        if (!m || !isWhole(s) || s < 1 || s > 100) return NaN;
+        if (x === 0) return 0;
+        digits = (m[1] + (m[2] || '')).replace(/^0+/, '');
+        // the power of 10 of the first digit
+        return roundTo(x, s - 1 - (digits.length - 1 + (m[3] ? +m[3] : 0) - (m[2] || '').length), 'round');
+    }
+
     var CalcMaths = {
         number: number,
         fn: fn,
@@ -898,7 +1100,12 @@
         rank: rank,
         transpose: transpose,
         plus: plus,
-        times: times
+        times: times,
+        factorize: factorize,
+        divisorsOf: divisorsOf,
+        isPrime: isPrime,
+        roundTo: roundTo,
+        significant: significant
     };
 
     root.CalcMaths = CalcMaths;
