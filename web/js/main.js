@@ -487,7 +487,7 @@
     tip.parentNode.addEventListener('mouseover', function (e) {
         var key = e.target.closest('.calc-left > *, .calc-right > .del-ac, .calc-rad, .calc-mem, .calc-frac, .calc-fmt, .calc-hold, ' +
             '.calc-stat-btn, .calc-stats-tile, .calc-fx-btn, .calc-fx-row, .calc-conv-btn, .calc-conv-row, ' +
-            '.calc-graph-btn, .calc-graph-size, .calc-graph-add, .calc-graph-del, .calc-graph-zoom > span, .calc-graph-pop-row, ' +
+            '.calc-graph-btn, .calc-graph-size, .calc-graph-add, .calc-graph-del, .calc-graph-zoom > span, .calc-graph-pop-row, .calc-graph-play, ' +
             '.calc-graph-fn > .calc-graph-swatch, ' +
             '.calc-hist, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit, .calc-help');
         if (key === tipKey) return;
@@ -578,6 +578,7 @@
             if (el === graphAdd) return CalcTips['graph add'];
             if (el.classList.contains('calc-graph-del')) return CalcTips['graph remove'];
             if (el.classList.contains('calc-graph-pop-row')) return CalcTips['graph put ' + el.dataset.put];
+            if (el.classList.contains('calc-graph-play')) return CalcTips[graphPlay[el.parentNode.dataset.k] ? 'graph pause' : 'graph play'];
             if (el.classList.contains('calc-graph-swatch')) {
                 value = graphRows.indexOf(el.parentNode);
                 return graphInputs[value].value.trim() ? CalcTips[graphOff[value] ? 'graph show' : 'graph hide'] : null;
@@ -1040,7 +1041,8 @@
     // a drag moves the view, and the wheel, a pinch or the buttons zoom it. The roots,
     // highs and lows of each, where it meets the y axis and where two cross are marked
     // with dots. The point under the pointer shows its x and y, on the nearest curve or
-    // dot; a click keeps it there, and its y can be put into the calculation, as Ans is
+    // dot; a click keeps it there, with the tangent of the curve, and its x, y or slope can
+    // be put into the calculation, as Ans is
     var GRAPH_WIDTH = 20, // the x the plot starts with: -10 to 10, or a full turn either way in degrees
         GRAPH_INK = { grid: 'rgba(51, 68, 59, 0.16)', axis: '#33443b', text: '#33443b', paper: '#b6d1c2' },
         // the colors of the curves, all dark enough for the green: navy, red, green, purple, orange, teal and plum
@@ -1051,6 +1053,10 @@
         graphRange = {}, // the ends of each slider, [from, to]
         graphLetters = [], // the letters that have a slider now
         graphSliding, // the sliders wait until the typing stops: sin is not s, i and n while it is typed
+        GRAPH_PLAY = 4000, // a slider played goes from one end to the other in this many ms
+        graphPlay = {}, // the sliders playing: the way each goes, 1 up or -1 down
+        graphFrame = 0, // the frame asked for while one plays
+        graphLast = 0, // the time of the frame before
         GRAPH_NAMES = { root: 'Root', min: 'Min', max: 'Max', yint: 'y-intercept', cross: 'Crossing' },
         graphTouch = {}, // the pointers pressed on the plot, where each is now
         graphStart = null, // where they were when the last one went down or up, and the view then
@@ -1204,6 +1210,7 @@
         var box;
         if (!open && graphAlone) return; // its own window stays, even as a value is put in
         if (!open) graphBig(false); // a value put in from the big graph: the calculator again
+        if (!open && stopSliders()) saveState(); // the sliders played stop where they are
         if (open) {
             showPast(false);
             showStats(false);
@@ -1309,14 +1316,20 @@
         graphRender();
     }
 
-    // A slider for each letter: its value, to type as well, then where it goes from, the
-    // slider and where it goes to. A value typed beyond the ends takes the end there
+    // A slider for each letter: ▶ to play it, its value, to type as well, then where it goes
+    // from, the slider and where it goes to. A value typed beyond the ends takes the end there
     function showSliders(letters) {
         if (letters.join() !== graphLetters.join()) {
             graphLetters = letters;
+            Object.keys(graphPlay).forEach(function (k) {
+                if (letters.indexOf(k) < 0) delete graphPlay[k]; // its slider goes, as it played
+            });
             graphSliders.innerHTML = letters.map(function (k) {
                 var box = ' type="text" inputmode="decimal" spellcheck="false" autocomplete="off" maxlength="16"';
                 return '<div class="calc-graph-slider" data-k="' + k + '">' +
+                    '<span class="calc-graph-play" role="button" aria-label="Play ' + k + '"><svg viewBox="0 0 16 16" width="11" height="11">' +
+                    '<path class="calc-graph-go" d="M4.5 2.8v10.4L13 8z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" />' +
+                    '<path class="calc-graph-stop" d="M5 3v10M11 3v10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" /></svg></span>' +
                     '<label class="calc-graph-val"><i>' + k + '</i><span>=</span><input' + box + ' aria-label="' + k + ' ="></label>' +
                     '<input class="calc-graph-end"' + box + ' data-end="0" aria-label="' + k + ' from">' +
                     '<input class="calc-graph-range" type="range" aria-label="' + k + '">' +
@@ -1329,11 +1342,12 @@
         [].forEach.call(graphSliders.children, setSlider);
     }
 
-    // A slider as its letter is now: its value, its ends and a step that suits them, 0.1 from
-    // -10 to 10. Not a box being typed in, nor one marked as it cannot be
+    // A slider as its letter is now: playing or not, its value, its ends and a step that suits
+    // them, 0.1 from -10 to 10. Not a box being typed in, nor one marked as it cannot be
     function setSlider(row) {
         var k = row.dataset.k, r = graphRange[k], step = sliderStep(r), range = row.querySelector('.calc-graph-range'),
             val = row.querySelector('.calc-graph-val input');
+        playButton(row);
         range.max = r[1];
         range.min = r[0];
         range.step = step;
@@ -1349,6 +1363,13 @@
         });
     }
 
+    // its button: play, or pause while it plays
+    function playButton(row) {
+        var k = row.dataset.k, play = row.querySelector('.calc-graph-play');
+        play.classList.toggle('calc-on', !!graphPlay[k]);
+        play.setAttribute('aria-label', (graphPlay[k] ? 'Pause ' : 'Play ') + k);
+    }
+
     // a hundredth of the slider, or less, as a power of ten
     function sliderStep(r) {
         return Math.pow(10, Math.floor(Math.log10((r[1] - r[0]) / 100)));
@@ -1359,10 +1380,12 @@
         return local(String(+v.toFixed(Math.max(0, Math.min(12, -Math.round(Math.log10(step)))))));
     }
 
-    // a slider dragged, a value or an end typed: the curves follow
+    // a slider dragged, a value or an end typed: the curves follow. It stops playing, there
     graphSliders.addEventListener('input', function (e) {
         var el = e.target, row = el.closest('.calc-graph-slider'), k = row && row.dataset.k, r = k && graphRange[k], n, ok;
         if (!row) return;
+        delete graphPlay[k];
+        playButton(row);
         if (el.classList.contains('calc-graph-range')) {
             graphVars[k] = +(+el.value).toPrecision(12);
             setSlider(row);
@@ -1393,6 +1416,73 @@
         graphAt = graphPinned = null; // its points have moved
         graphRender();
     }, false);
+
+    // ▶ plays a slider, and pauses it
+    graphSliders.addEventListener('click', function (e) {
+        var play = e.target.closest('.calc-graph-play'), k = play && play.parentNode.dataset.k;
+        if (!play) return;
+        playSlider(k, !graphPlay[k]);
+        if (graphPlay[k]) return;
+        graphRender();
+        saveState();
+    }, false);
+
+    // Played, a slider's value goes to one end and back, over and over, and the curves with
+    // it, until it is paused, moved or typed in, or the graph closes; at the top end it starts
+    // down. Paused, it stops at a value of its step, as dragging would
+    function playSlider(k, on) {
+        var row = graphSliders.querySelector('[data-k="' + k + '"]'), step;
+        if (on === !!graphPlay[k]) return;
+        if (on) {
+            graphPlay[k] = graphVars[k] >= graphRange[k][1] ? -1 : 1;
+            if (!graphFrame) {
+                graphLast = 0;
+                graphFrame = requestAnimationFrame(playFrame);
+            }
+        } else {
+            delete graphPlay[k];
+            step = sliderStep(graphRange[k]);
+            graphVars[k] = +(Math.round(graphVars[k] / step) * step).toPrecision(12);
+        }
+        if (row) setSlider(row);
+    }
+
+    // Each slider played a step on, as far as the time since the frame before. A mark moves
+    // with its curve, so the one pointed at or clicked goes
+    function playFrame(time) {
+        var gone = graphLast ? Math.min(100, time - graphLast) : 0;
+        graphFrame = 0;
+        graphLast = time;
+        Object.keys(graphPlay).forEach(function (k) {
+            var r = graphRange[k], v;
+            v = graphVars[k] + graphPlay[k] * (r[1] - r[0]) * gone / GRAPH_PLAY;
+            if (v >= r[1]) graphPlay[k] = -1;
+            if (v <= r[0]) graphPlay[k] = 1;
+            graphVars[k] = Math.min(r[1], Math.max(r[0], v));
+        });
+        if (!Object.keys(graphPlay).length) return;
+        [].forEach.call(graphSliders.children, setSlider);
+        if (graphAt && graphAt.t) graphAt = null;
+        if (graphPinned && graphPinned.t) graphPinned = null;
+        graphRender();
+        graphFrame = requestAnimationFrame(playFrame);
+    }
+
+    // every slider stops; true if one played
+    function stopSliders() {
+        var some = Object.keys(graphPlay);
+        some.forEach(function (k) { playSlider(k, false); });
+        return some.length > 0;
+    }
+
+    // The sliders stop for a value to be taken: as the pointer comes onto the popup, which
+    // moves with its point while they play, and as a value of the table is pressed, so it is
+    // the one pressed that a click takes, and not drawn again under the pointer before the click
+    [[graphPop, 'pointerenter'], [graphList, 'pointerdown']].forEach(function (on) {
+        on[0].addEventListener(on[1], function () {
+            if (stopSliders()) saveState();
+        }, false);
+    });
 
     // let go of: kept
     graphSliders.addEventListener('change', function (e) {
@@ -1483,6 +1573,7 @@
         graphFns.forEach(function (fn, i) {
             if (fn) drawCurve(ctx, v, w, h, fn, curveColor(i));
         });
+        graphTangent(ctx, v, w + h, graphPinned);
         graphMarks = graphBusy(CalcEngine.keyPoints(graphFns, { x0: graphX(v, 0), x1: graphX(v, w), y0: graphY(v, h), y1: graphY(v, 0) }, deg));
         graphMarks.forEach(function (p) {
             graphDot(ctx, v, p, 3.5, GRAPH_INK.paper, curveColor(p.i));
@@ -1497,6 +1588,31 @@
         });
         graphShown();
         placePop(v);
+    }
+
+    // The slope of the point clicked on a curve, for its popup, and its tangent, dashed in
+    // the curve's color across the plot, as long as the plot is wide and high (far). None
+    // for a place off the curves, where two cross, or where the curve has no slope
+    function graphTangent(ctx, v, far, p) {
+        var fn = p && !p.spot && p.j === undefined && graphFns[p.i], x, y, k;
+        if (!p) return;
+        p.m = NaN;
+        if (!fn) return;
+        if (!p.t) p.y = fn.at(p.x, deg, true); // on the curve as the unit and the letters are now
+        p.m = CalcEngine.slope(fn, p.x, deg);
+        if (!isFinite(p.m) || !isFinite(p.y)) return;
+        x = plotX(v, p.x);
+        y = plotY(v, p.y);
+        k = -p.m * v.ux / v.uy; // its slope in pixels, down the plot
+        far /= Math.sqrt(1 + k * k);
+        ctx.beginPath();
+        ctx.moveTo(x - far, y - k * far);
+        ctx.lineTo(x + far, y + k * far);
+        ctx.setLineDash([5, 4]);
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = curveColor(p.i);
+        ctx.stroke();
+        ctx.setLineDash([]);
     }
 
     // a place away from the curves, clicked: a cross
@@ -1681,8 +1797,8 @@
     }
 
     // The popup of the point clicked, over it, or under it where there is no room above;
-    // its x and y each go into the calculation with a click. It goes with the point as the
-    // view moves, and hides while the point is out of the view
+    // its x and y, and the slope of its curve there, each go into the calculation with a
+    // click. It goes with the point as the view moves, and hides while the point is out of the view
     function placePop(v) {
         var p = graphPinned, w = graphPlot.clientWidth, h = graphPlot.clientHeight, px, py, html, left, top, below;
         px = p && plotX(v, p.x);
@@ -1692,9 +1808,10 @@
             return;
         }
         html = '<div class="calc-graph-pop-head">' + graphSwatches(p) + '<b>' + graphName(p) + '</b></div>' +
-            ['x', 'y'].map(function (k) {
-                return '<div class="calc-graph-pop-row" data-put="' + k + '"><span><i>' + k + '</i> = ' + graphValue(p, k) +
-                    '</span>' + insertIcon() + '</div>';
+            ['x', 'y', 'm'].map(function (k) {
+                if (k === 'm' && !isFinite(p.m)) return '';
+                return '<div class="calc-graph-pop-row" data-put="' + k + '"><span>' + (k === 'm' ? 'Slope' : '<i>' + k + '</i>') + ' = ' +
+                    graphValue(p, k) + '</span>' + insertIcon() + '</div>';
             }).join('');
         if (graphPop.innerHTML !== html) graphPop.innerHTML = html;
         graphPop.hidden = false;

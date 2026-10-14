@@ -404,6 +404,38 @@
     height: 24px;
 }
 
+/* ▶ at its left, quiet until pointed at: plays the slider, and pauses it while it plays */
+#calculator .calc-graph-play {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin-right: -2px;
+    border-radius: 50%;
+    color: #acb4c1;
+    cursor: pointer;
+}
+
+#calculator .calc-graph-play:hover {
+    background: #52687d;
+    color: #e2e7ee;
+}
+
+#calculator .calc-graph-play.calc-on {
+    color: #c9e0d3;
+}
+
+#calculator .calc-graph-play .calc-graph-stop,
+#calculator .calc-graph-play.calc-on .calc-graph-go {
+    display: none;
+}
+
+#calculator .calc-graph-play.calc-on .calc-graph-stop {
+    display: inline;
+}
+
 #calculator .calc-graph-val {
     display: flex;
     flex: none;

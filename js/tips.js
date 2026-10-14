@@ -139,7 +139,7 @@
             t: 'Graph',
             d: 'Draws up to seven functions of x, with a slider for any other letter, as a in a x^2 + b: x^2 – 3, 2sin(x), 1/x, and marks their roots, highs, lows and ' +
                 'crossings. Drag to move, scroll or pinch to zoom; point at a curve or a dot for its values. ' +
-                'The Table tab lists their values.',
+                'Click one for the slope there and its tangent. The Table tab lists their values.',
             k: ''
         },
         'graph close': {
@@ -213,6 +213,22 @@
         'graph put y': {
             t: 'Insert y',
             d: 'Puts the y of this point into the equation, as Ans does.',
+            k: ''
+        },
+        'graph put m': {
+            t: 'Insert the slope',
+            d: 'Puts the slope of the curve at this point, dy/dx, into the equation, as Ans does. ' +
+                'The dashed line is its tangent.',
+            k: ''
+        },
+        'graph play': {
+            t: 'Play',
+            d: 'Moves the value from one end of the slider to the other and back, over and over, and the curves with it.',
+            k: ''
+        },
+        'graph pause': {
+            t: 'Pause',
+            d: 'Stops the value where it is. Dragging the slider or typing a value stops it too.',
             k: ''
         },
 
