@@ -188,5 +188,119 @@ check(M.significant(0.012345, 3) === 0.0123 && M.significant(98765, 2) === 99000
 check(JSON.stringify(M.complex('floor(2.7 - 1.2i)', false, 0)) === '{"re":2,"im":-2}' && JSON.stringify(M.complex('round(e^(i pi))', false, 0)) === '{"re":-1,"im":0}',
     'complex: floor and round of each part');
 
+// inequalities: where they hold, as intervals, [ and ] where an end is in
+function holds(text, from, to) {
+    var r = M.inequality(text, false, 0, from, to);
+    return r.error || r.parts.map(function (p) { return (p.fromIn ? '[' : '(') + p.from + ' ' + p.to + (p.toIn ? ']' : ')'); }).join(' ') + (r.more ? ' …' : '');
+}
+[
+    ['x^2 - 4 > 0', '(-Infinity -2) (2 Infinity)', 'outside its roots'],
+    ['x^2 <= 4', '[-2 2]', 'between them, both in'],
+    ['2x + 1 > x - 3', '(-4 Infinity)', 'a line'],
+    ['1/x > 0', '(0 Infinity)', 'not at the jump'],
+    ['1/x <= 2', '(-Infinity 0) [0.5 Infinity)', 'either side of the jump'],
+    ['sqrt(x) < 3', '[0 9)', 'from where it has values'],
+    ['ln(x) < 1', '(0 2.718281828459)', 'ln to e'],
+    ['(x - 1)^2 > 0', '(-Infinity 1) (1 Infinity)', 'but where it touches 0'],
+    ['x^2 <= 0', '[0 0]', 'at one point'],
+    ['x^2 < 0', '', 'nowhere'],
+    ['x^2 + 1 > 0', '(-Infinity Infinity)', 'everywhere'],
+    ['1 < x^2 < 4', '(-2 -1) (1 2)', 'two the same way'],
+    ['x^3 - x >= 0', '[-1 0] [1 Infinity)', 'a cubic'],
+    ['abs(x - 3) < 1', '(2 4)', 'about 3'],
+    ['floor(x) >= 2', '[2 Infinity)', 'from a jump at a number, in'],
+    ['sqrt(2 - x^2) > 0', '(-1.414213562373 1.414213562373)', 'not at the edge where it is 0'],
+    ['tan(x) > 1', '(0.78539816339745 1.570796326795)', 'not at the jump at π/2', 0, 3],
+    ['sin(x) > 0', '(0 3.1415926535898) (6.28318530717958 9.42477796076938)', 'between its own ends', 0, 10]
+].forEach(function (c) {
+    check(holds(c[0], c[3], c[4]) === c[1], 'inequality: ' + c[0] + ': ' + c[2], holds(c[0], c[3], c[4]));
+});
+check(/ …$/.test(holds('sin(x) > 0')) && M.inequality('sin(x) > 0', false, 0).ends.length === 12, 'inequality: of very many ends, the twelve nearest 0');
+check(holds('x^2 = 4') === 'inequality' && holds('x <') === 'inequality' && holds('1 < x > 2') === 'inequality' && holds('a x > 1') === 'letters',
+    'inequality: an equation, half of one, two ways at once, a letter of its own');
+
+// limits
+function lim(text, a, deg) {
+    var r = M.limit(M.fn(text, false), a, deg || 0);
+    return [r.left, r.right, r.value].join(' ');
+}
+[
+    ['sin(x)/x', 0, '1 1 1'], ['(1 - cos(x))/x^2', 0, '0.5 0.5 0.5'], ['(x^2 - 1)/(x - 1)', 1, '2 2 2'], ['(e^x - 1)/x', 0, '1 1 1'],
+    ['(sqrt(x + 4) - 2)/x', 0, '0.25 0.25 0.25'], ['x sin(1/x)', 0, '0 0 0'], ['x^2', 3, '9 9 9'],
+    ['1/x', 0, '-Infinity Infinity NaN'], ['1/x^2', 0, 'Infinity Infinity Infinity'], ['floor(x)', 1, '0 1 NaN'], ['abs(x)/x', 0, '-1 1 NaN'],
+    ['sin(1/x)', 0, 'NaN NaN NaN'], ['sqrt(x)', 0, 'NaN 0 0'], ['ln(x)', 0, 'NaN -Infinity -Infinity'], ['x^x', 0, 'NaN 1 1'],
+    ['(1 + 1/x)^x', Infinity, '2.71828182846 NaN 2.71828182846'], ['(3x^2 + 1)/(x^2 - 2)', Infinity, '3 NaN 3'], ['x/e^x', Infinity, '0 NaN 0'],
+    ['sqrt(x^2 + x) - x', Infinity, '0.5 NaN 0.5'], ['e^x', -Infinity, 'NaN 0 0'], ['sin(x)', Infinity, 'NaN NaN NaN']
+].forEach(function (c) {
+    check(lim(c[0], c[1]) === c[2], 'limit: ' + c[0] + ' at ' + c[1] + ' is ' + c[2], lim(c[0], c[1]));
+});
+check(near(+lim('sin(x)/x', 0, 1).split(' ')[2], Math.PI / 180, 1e-10), 'limit: sin(x)/x at 0 in degrees is π/180', lim('sin(x)/x', 0, 1));
+
+// differential equations
+function ode(text, x0, y0, x) {
+    var r = M.ode(text, false, 0, x0, y0, x);
+    return r.error || r.y + ' ' + r.slope;
+}
+[
+    ['y', 0, 1, 1, '2.718281828 2.718281828', 'y′ = y is e^x'],
+    ["y' = x + y", 0, 1, 1, '3.436563657 4.436563657', 'y′ = x + y, typed with y′ ='],
+    ['dy/dx = -2x y', 0, 1, 2, '0.01831563889 -0.07326255555', 'y′ = –2xy is e^(-x²), typed with dy/dx ='],
+    ['cos(x)', 0, 0, Math.PI / 2, '1 0', 'of x alone, an integral'],
+    ['x', 0, 0, -2, '2 -2', 'back from x0'],
+    ['y^2', 0, 1, 0.5, '2 4', 'y′ = y² to x = 1/2'],
+    ['y^2', 0, 1, 2, 'NaN NaN', 'y′ = y² grows without end at x = 1'],
+    ['a y', 0, 1, 1, 'letters', 'a letter of its own'],
+    ['x +', 0, 1, 1, 'function', 'not a function']
+].forEach(function (c) {
+    check(ode(c[0], c[1], c[2], c[3]) === c[4], 'ode: ' + c[5], ode(c[0], c[1], c[2], c[3]));
+});
+
+// eigenvalues and vectors, and A x = b
+function eig(a) {
+    var e = M.eigen(a);
+    return e.values.map(function (z) { return z.im ? z.re + (z.im < 0 ? '-' : '+') + Math.abs(z.im) + 'i' : z.re; }).join(' ') + ' | ' +
+        e.vectors.map(function (v) { return v.value + ':' + v.v.join(','); }).join(' ');
+}
+[
+    [[[2, 1], [1, 2]], '1 3 | 1:-1,1 3:1,1', 'symmetric'],
+    [[[4, 1], [2, 3]], '2 5 | 2:-1,2 5:1,1', 'its vectors whole'],
+    [[[1, 0], [0, 1]], '1 1 | 1:1,0 1:0,1', 'I: one value twice, two vectors'],
+    [[[1, 1], [0, 1]], '1 1 | 1:1,0', 'a shear: one value twice, one vector'],
+    [[[0, -1], [1, 0]], '0+1i 0-1i | ', 'a turn: ±i'],
+    [[[2, 0, 0], [0, 3, 4], [0, 4, 9]], '1 2 11 | 1:0,-2,1 2:1,0,0 11:0,1,2', 'three by three'],
+    [[[1, 2, 3, 4], [0, 2, 5, 6], [0, 0, 3, 7], [0, 0, 0, 4]], '1 2 3 4 | 1:1,0,0,0 2:2,1,0,0 3:13,10,2,0 4:44,41,14,2', 'four by four, upper triangular'],
+    [[[5]], '5 | 5:1', 'one by one']
+].forEach(function (c) {
+    check(eig(c[0]) === c[1], 'eigen: ' + c[2], eig(c[0]));
+});
+check(M.eigen([[1, 2, 3], [4, 5, 6], [7, 8, 9]]).poly.join(' ') === '1 -15 -18 0' && M.eigen([[1, 2, 3]]) === null, 'eigen: the characteristic polynomial; none of a matrix not square');
+check(JSON.stringify(M.system([[2, 1, -1], [-3, -1, 2], [-2, 1, 2]], [8, -11, -3])) === '{"x":[2,3,-1]}' &&
+    JSON.stringify(M.system([[1, 0], [0, 1], [1, 1]], [1, 2, 3])) === '{"x":[1,2]}' && M.system([[1, 0], [0, 1], [1, 1]], [1, 2, 4]).none &&
+    M.system([[1, 1], [2, 2]], [3, 6]).many && M.system([[1, 1, 1]], [3]).many, 'system: three of three; three of two that hold, or not; many answers');
+
+// bits: turned round, counted and turned over
+check(String(M.bitwise('1 rol 1', 32).value) === '2' && String(M.bitwise('0x80000000 rol 1', 32).value) === '1' &&
+    String(M.bitwise('1 ror 1', 32).value) === '-2147483648' && String(M.bitwise('0xF0 ror 4', 8).value) === '15' && String(M.bitwise('0x0F rol 12', 8).value) === '-16',
+    'bitwise: ROL and ROR, by more than the bits as well');
+check(JSON.stringify(M.bitCount(BigInt(0xB0), 8)) === '{"ones":3,"leading":0,"trailing":4,"high":7,"low":4}' &&
+    JSON.stringify(M.bitCount(BigInt(0), 16)) === '{"ones":0,"leading":16,"trailing":16,"high":-1,"low":-1}' &&
+    String(M.flipBit(BigInt(0), 8, 7)) === '-128' && String(M.flipBit(BigInt(-1), 8, 0)) === '-2', 'bitCount and flipBit');
+
+// floating point
+(function () {
+    var r = M.float('0.1', false, 0), f = M.float('0x3DCCCCCD', false, 0);
+    check(r.hex64 === '3FB999999999999A' && r.hex32 === '3DCCCCCD' && r.exponent === -4 && r.kind === 'Normal' && r.sign === 1 &&
+        r.exact === '0.1000000000000000055511151231257827021181583404541015625' && r.exact32 === '0.100000001490116119384765625' &&
+        r.ulp === Math.pow(2, -56) && r.bits === '0 01111111011 1001100110011001100110011001100110011001100110011010', 'float: 0.1 as a double and a float');
+    check(f.of === 32 && f.x === Math.fround(0.1) && M.float('0x3FB999999999999A', false, 0).x === 0.1, 'float: from the bits of a float and of a double');
+    check(M.float('-2.5', false, 0).hex64 === 'C004000000000000' && M.float('-2.5', false, 0).exact === '–2.5' && M.float('2^53', false, 0).ulp === 2 &&
+        M.float('2^53', false, 0).exact === '9007199254740992', 'float: below 0, and a whole number');
+    check(M.float('5e-324', false, 0).kind === 'Subnormal' && M.float('5e-324', false, 0).exact === '4.94065645841246544176568792868221372365059802614324764425585…e-324' &&
+        /^1\.00000000000000005250476025520442024870446858110815915491585…e\+300$/.test(M.float('1e300', false, 0).exact) && M.float('1e300', false, 0).exact32 === '∞',
+        'float: the smallest, and a large one, as e-324 and e+300', M.float('5e-324', false, 0).exact);
+    check(M.float('inf', false, 0).kind === 'Infinity' && M.float('nan', false, 0).kind === 'NaN' && M.float('0', false, 0).kind === 'Zero' &&
+        M.float('-0', false, 0).exact === '–0' && M.float('abc', false, 0).error === 'number', 'float: ∞, NaN, 0 and -0; what is not a number');
+})();
+
 console.log(failures ? failures + ' of ' + checks + ' checks failed' : 'all ' + checks + ' checks passed');
 process.exitCode = failures ? 1 : 0;

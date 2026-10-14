@@ -1053,7 +1053,7 @@ async function solver(page, at) {
     await page.fresh(at, {});
     await page.click('.calc-solve-btn');
     check(await open(page, '.calc-solve') && await page.calc('document.querySelectorAll(".calc-solve .calc-solve-tab").length') === 3 &&
-        await page.calc('document.querySelectorAll(".calc-solve .calc-sv-item").length') === 6, t + 'its button opens it: three tabs, six cards on the first');
+        await page.calc('document.querySelectorAll(".calc-solve .calc-sv-item").length') === 7, t + 'its button opens it: three tabs, seven cards on the first');
     await page.click('.calc-sv-item:nth-child(1) .calc-sv-row');
     check(await page.calc('document.activeElement === document.querySelector("' + on + ' input")'), t + 'a card opens its boxes, the first to type in');
     await page.type('x^2=2x+3');
@@ -1061,6 +1061,13 @@ async function solver(page, at) {
     await set(0, 'a x = 1');
     check(/^Only x/.test(await page.calc(note)) && await page.calc('document.querySelector("' + on + ' input").classList.contains("calc-bad")'),
         t + 'a letter of its own says so', await page.calc(note));
+    await card('Inequality');
+    await set(0, 'x^2-4>0');
+    check(await page.calc(tiles) === 'x=x < -2 or x > 2 | Intervals=(–∞, -2) ∪ (2, ∞) | End 1=-2 | End 2=2', t + 'x² – 4 > 0 where it holds', await page.calc(tiles));
+    await set(0, 'sqrt(x)<=3');
+    check((await page.calc(tiles)).indexOf('x=0 ≤ x ≤ 9 | Intervals=[0, 9]') === 0, t + 'sqrt(x) ≤ 3 from where it has values', await page.calc(tiles));
+    await set(0, 'x^2+1<0');
+    check(/^It holds for no x/.test(await page.calc(note)) && (await page.calc(tiles)).indexOf('x=none') === 0, t + 'x² + 1 < 0 holds for none', await page.calc(note));
     await card('Quadratic');
     await set(1, '2');
     await set(2, '5');
@@ -1085,6 +1092,19 @@ async function solver(page, at) {
     await card('Sum');
     await set(0, 'n^2');
     check(await page.calc(tiles) === 'Σ=385', t + 'the sum of n² from 1 to 10, its ends while empty', await page.calc(tiles));
+    await card('Limit');
+    await set(0, 'sin(x)/x');
+    check(await page.calc(tiles) === 'Limit=1 | From below=1 | From above=1', t + 'sin(x)/x comes to 1 at 0, in Rad', await page.calc(tiles));
+    await set(0, '1/x');
+    check(await page.calc(tiles) === 'Limit=– | From below=–∞ | From above=∞' && /^No limit/.test(await page.calc(note)), t + '1/x goes to –∞ and ∞', await page.calc(tiles));
+    await set(0, '(1+1/x)^x');
+    await set(1, 'inf');
+    check(await page.calc(tiles) === 'Limit=2.71828182846', t + '(1 + 1/x)^x comes to e at ∞, one side only', await page.calc(tiles));
+    await card('Differential equation');
+    await set(0, 'y');
+    check(await page.calc(tiles) === 'y(x)=2.718281828 | y′(x)=2.718281828', t + 'y′ = y from y(0) = 1 is e at 1', await page.calc(tiles));
+    await set(0, 'a y');
+    check(/^Only x and y/.test(await page.calc(note)), t + 'a letter of its own says so', await page.calc(note));
 
     await page.click('.calc-solve-tab[data-tab="chance"]');
     await card('Normal probability');
@@ -1139,13 +1159,36 @@ async function numbersPanel(page, at) {
         'z4=1.41421356237 – 1.41421356237i', t + 'the four fourth roots of -16', await page.calc(tiles));
 
     await page.click('.calc-numbers .calc-solve-tab[data-tab="base"]');
-    check(await page.calc('document.querySelectorAll("' + on + '").length') === 1, t + 'a tab of one tool has it open');
+    check(await page.calc('document.querySelectorAll(".calc-numbers .calc-sv-item").length') === 3, t + 'three cards of bases');
+    await card('Bases');
     await set(0, '0xFF AND 0b1010');
     check(await page.calc(tiles) === 'Decimal=10 | Unsigned=10 | Hexadecimal=A | Octal=12 | Binary=0000 0000 0000 0000 0000 0000 0000 1010',
         t + '0xFF AND 0b1010 in every base', await page.calc(tiles));
     await set(0, '-1');
     await set(1, '8');
     check(await page.calc(tiles) === 'Decimal=-1 | Unsigned=255 | Hexadecimal=FF | Octal=377 | Binary=1111 1111', t + '-1 in 8 bits', await page.calc(tiles));
+    await set(0, '0x81 rol 1');
+    check((await page.calc(tiles)).indexOf('Decimal=3 | ') === 0, t + 'ROL turns the bits round', await page.calc(tiles));
+    await card('Bits');
+    await set(1, '8');
+    check(await page.calc('document.querySelectorAll("' + on + ' .calc-sv-bit").length') === 8 && await page.calc('document.querySelectorAll("' + on + ' .calc-sv-bit.calc-on").length') === 0,
+        t + 'bits: empty is 0, eight bits to click');
+    await page.click(on + ' .calc-sv-bit[data-b="7"]');
+    await page.click(on + ' .calc-sv-bit[data-b="0"]');
+    got = await page.calc(tiles);
+    check(await page.calc('document.querySelector("' + on + ' input").value') === '0b10000001' && got.indexOf('Decimal=-127 | Hexadecimal=81 | Ones=2 | Leading zeros=0 | Trailing zeros=0 | Highest 1=7 | Lowest 1=0') > 0,
+        t + 'bits: two clicked, written in binary in its box', got);
+    await set(0, '0xF0');
+    await page.click(on + ' .calc-sv-bit[data-b="0"]');
+    check(await page.calc('document.querySelector("' + on + ' input").value') === '0xF1' && await open(page, '.calc-numbers'), t + 'bits: a click writes 0x as it was typed, and puts nothing in');
+    await card('IEEE 754');
+    await set(0, '0.1');
+    got = await page.calc(tiles);
+    check(got.indexOf('Number=0.1 | Double, 64 bits=0x3FB999999999999A | Kept as a double=0.1000000000000000055511151231257827021181583404541015625 | Sign=+ | Exponent=-4 | Kind=Normal') === 0 &&
+        got.indexOf('Float, 32 bits=0x3DCCCCCD | Kept as a float=0.100000001490116119384765625') > 0,
+        t + '0.1 as a double and a float, to its last digit', got);
+    await set(0, '0x3DCCCCCD');
+    check(/^The bits of a float/.test(await page.calc(note)) && (await page.calc(tiles)).indexOf('Double, 64 bits=0x3FB99999A0000000') > 0, t + 'the bits of a float for the number', await page.calc(tiles));
 
     await page.click('.calc-numbers .calc-solve-tab[data-tab="matrix"]');
     await card('A matrix');
@@ -1164,6 +1207,19 @@ async function numbersPanel(page, at) {
     await set(0, '1x2');
     check(/Size of A/.test(await page.calc('document.querySelector("' + on + '").textContent')) &&
         (await page.calc(tiles)).indexOf('A + B=– | A – B=– | A × B=00') === 0, t + 'two matrices: a sum of sizes that differ has none', await page.calc(tiles));
+    await card('Eigenvalues');
+    for (const [n, v] of [[1, '2'], [2, '1'], [3, '1'], [4, '2']]) await set(n, v);
+    check(await page.calc(tiles) === 'λ1=1 | λ2=3 | Trace=4 | det(λI – A)=λ2 – 4λ + 3 | v1 of λ = 1=-11 | v2 of λ = 3=11', t + 'the eigenvalues and vectors of [2 1; 1 2]', await page.calc(tiles));
+    for (const [n, v] of [[1, '0'], [2, '-1'], [3, '1'], [4, '0']]) await set(n, v);
+    check(await page.calc(tiles) === 'λ1=i | λ2=–i | Trace=0 | det(λI – A)=λ2 + 1' && /^Its complex eigenvalues/.test(await page.calc(note)), t + 'a turn has eigenvalues ±i', await page.calc(tiles));
+    await card('A x = b');
+    check(await page.calc('document.querySelectorAll("' + on + ' input").length') === 7 && await page.calc('document.querySelectorAll("' + on + ' .calc-sv-rhs").length') === 2,
+        t + 'A x = b: a size, and a row of A and of b for each equation');
+    for (const [n, v] of [[1, '1'], [2, '1'], [3, '3'], [4, '1'], [5, '-1'], [6, '1']]) await set(n, v);
+    check(await page.calc(tiles) === 'x1=2 | x2=1', t + 'x + y = 3 and x – y = 1', await page.calc(tiles));
+    await set(0, '3 2');
+    for (const [n, v] of [[1, '1'], [2, '0'], [3, '1'], [4, '0'], [5, '1'], [6, '2'], [7, '1'], [8, '1'], [9, '4']]) await set(n, v);
+    check(/^No answer/.test(await page.calc(note)), t + 'three equations of two unknowns that cannot all hold', await page.calc(note));
 
     await page.click('.calc-numbers .calc-solve-tab[data-tab="whole"]');
     await card('Prime factors');

@@ -3540,6 +3540,9 @@
             { id: 'equation', t: 'Equation', f: 'x<sup>3</sup> = 2x + 1', d: 'Every x where its two sides are equal, or where one side alone is 0; from and to where to look, if you like.',
                 fields: [{ k: 'eq', ph: 'x^3 = 2x + 1', fn: true }, { k: 'from', l: 'From', ph: 'optional' }, { k: 'to', l: 'To', ph: 'optional' }], cols: 2,
                 run: runEquation },
+            { id: 'inequality', t: 'Inequality', f: 'x<sup>2</sup> – 4 &gt; 0', d: 'Every x where it holds, as x &lt; –2 or x &gt; 2 and in intervals: with &lt;, &gt;, &lt;= or &gt;=, or two the same way, 1 &lt; x^2 &lt; 4. From and to where to look, if you like.',
+                fields: [{ k: 'eq', ph: 'x^2 - 4 > 0', fn: true }, { k: 'from', l: 'From', ph: 'optional' }, { k: 'to', l: 'To', ph: 'optional' }], cols: 2,
+                run: runInequality },
             { id: 'quadratic', t: 'Quadratic', f: 'ax<sup>2</sup> + bx + c = 0', d: 'Its two roots, real or a ± bi, the discriminant b² – 4ac and the vertex of its parabola.',
                 fields: coefficients('abc'), cols: 3, run: function (n) { return runPoly([n.a, n.b, n.c]); } },
             { id: 'cubic', t: 'Cubic', f: 'ax<sup>3</sup> + bx<sup>2</sup> + cx + d = 0', d: 'Its three roots, real or a ± bi.',
@@ -3562,7 +3565,12 @@
                 run: function (n, raw) { return runSeries(n, raw, false); } },
             { id: 'product', t: 'Product', f: 'Π f(n)', d: 'The product of a function of n, k, i or j, or of x, for each whole number from a to b.',
                 fields: [{ k: 'f', ph: 'n', fn: true }, { k: 'a', l: 'From', ph: '1', def: 1 }, { k: 'b', l: 'To', ph: '5', def: 5 }], cols: 2,
-                run: function (n, raw) { return runSeries(n, raw, true); } }
+                run: function (n, raw) { return runSeries(n, raw, true); } },
+            { id: 'limit', t: 'Limit', f: 'lim<sub>x→a</sub> f(x)', d: 'What a function comes to as x comes to a, from below, from above and both, or ∞ where it grows without end: sin(x)/x as x comes to 0. a may be ∞, typed inf.',
+                fields: [{ k: 'f', ph: 'sin(x)/x', fn: true }, { k: 'a', l: 'x →', ph: '0', def: 0, inf: true }], cols: 1, run: runLimit },
+            { id: 'ode', t: 'Differential equation', f: 'y′ = f(x, y)', d: 'y at x, where its slope y′ is a function of x and y and it starts at y₀ at x₀: y′ = x + y with y(0) = 1, by the steps of Runge and Kutta.',
+                fields: [{ k: 'f', l: 'y′ =', ph: 'x + y', fn: true }, { k: 'x0', l: 'x<sub>0</sub>', ph: '0', def: 0 }, { k: 'y0', l: 'y<sub>0</sub>', ph: '1', def: 1 }, { k: 'x', l: 'x', ph: '1', def: 1 }],
+                cols: 3, run: runOde }
         ],
         chance: [
             { id: 'normal', t: 'Normal probability', f: 'P(a ≤ X ≤ b)', d: 'The chance that a normal value of mean μ and standard deviation σ is between a and b; an empty end goes on without end.',
@@ -3666,6 +3674,65 @@
         };
     }
 
+    // a number of an answer, as it is shown, ∞ as well
+    function shown(x) {
+        return x === Infinity ? '∞' : x === -Infinity ? '–∞' : local(String(x));
+    }
+
+    // Where an inequality holds: x < –2 or x > 2, and as intervals, (–∞, –2) ∪ (2, ∞); its ends to put in
+    function runInequality(n, raw) {
+        var ends = isFinite(n.from) && isFinite(n.to), r, none = [{ l: 'x', v: NaN, wide: true }], words, sets, gap = engine.comma ? '; ' : ', ';
+        if (!raw.eq) return { rows: none };
+        if (ends && n.from >= n.to) return { rows: none, note: 'From is less than To.', warn: true };
+        r = CalcMaths.inequality(raw.eq, engine.comma, deg, ends ? n.from : NaN, ends ? n.to : NaN);
+        if (r.error) {
+            return { rows: none, bad: ['eq'], warn: true, note: r.error === 'letters' ? 'Only x has a value here: write the other letters as numbers.' :
+                'Not an inequality of x yet: x^2 - 4 > 0, with <, >, <= or >=.' };
+        }
+        words = r.parts.map(function (p) {
+            if (p.from === p.to) return 'x = ' + shown(p.from);
+            if (p.from === -Infinity && p.to === Infinity) return 'every x';
+            if (p.from === -Infinity) return 'x ' + (p.toIn ? '≤' : '&lt;') + ' ' + shown(p.to);
+            if (p.to === Infinity) return 'x ' + (p.fromIn ? '≥' : '&gt;') + ' ' + shown(p.from);
+            return shown(p.from) + ' ' + (p.fromIn ? '≤' : '&lt;') + ' x ' + (p.toIn ? '≤' : '&lt;') + ' ' + shown(p.to);
+        });
+        sets = r.parts.map(function (p) {
+            return p.from === p.to ? '{' + shown(p.from) + '}' : (p.fromIn ? '[' : '(') + shown(p.from) + gap + shown(p.to) + (p.toIn ? ']' : ')');
+        });
+        return {
+            rows: [{ l: 'x', text: words.length ? words.join(' or ') : 'none', wide: true, wrap: true },
+                { l: 'Intervals', text: sets.length ? sets.join(' ∪ ') : '∅', wide: true, wrap: true }]
+                .concat(r.ends.map(function (x, i) { return { l: 'End ' + (i + 1), v: x }; })),
+            note: !r.parts.length ? 'It holds for no x' + (ends ? ' between ' + shown(n.from) + ' and ' + shown(n.to) : '') + '.' :
+                r.more ? 'Of its many ends, the ' + r.ends.length + ' nearest 0: give From and To for others.' : ''
+        };
+    }
+
+    // a value of a limit, ∞ as well
+    function limitTile(l, v) {
+        return isFinite(v) || isNaN(v) ? { l: l, v: v } : { l: l, text: shown(v) };
+    }
+
+    function runLimit(n, raw) {
+        var f = toolFunction(raw), r = f.c && !isNaN(n.a) ? CalcMaths.limit(f.c, n.a, deg) : { left: NaN, right: NaN, value: NaN }, endless = !isFinite(n.a) && !isNaN(n.a);
+        return {
+            rows: [limitTile('Limit', r.value)].concat(endless ? [] : [limitTile('From below', r.left), limitTile('From above', r.right)]),
+            bad: f.bad, warn: !!f.note,
+            note: f.note || (!f.c || !isNaN(r.value) ? '' : !isNaN(r.left) && !isNaN(r.right) ? 'No limit: it comes to one value from below and another from above.' :
+                'No limit: it does not settle' + (endless ? '.' : ', or has no values, by a.'))
+        };
+    }
+
+    function runOde(n, raw) {
+        var r = raw.f ? CalcMaths.ode(raw.f, engine.comma, deg, n.x0, n.y0, n.x) : { y: NaN, slope: NaN },
+            why = { 'function': 'Not a function of x and y yet: x + y, x y, y^2.', letters: 'Only x and y have values here: write the other letters as numbers.' }[r.error];
+        return {
+            rows: [{ l: 'y(x)', v: r.error ? NaN : r.y }, { l: 'y′(x)', v: r.error ? NaN : r.slope }],
+            bad: why ? ['f'] : [], warn: !!why || (raw.f && !r.error && isNaN(r.y) && [n.x0, n.y0, n.x].every(isFinite)),
+            note: why || (raw.f && !r.error && isNaN(r.y) && [n.x0, n.y0, n.x].every(isFinite) ? 'No value: y grows without end, or has none, on the way.' : '')
+        };
+    }
+
     function runPoly(c) {
         var z = CalcMaths.poly(c), size = c.length - 1, rows, k;
         if (!z) {
@@ -3737,8 +3804,12 @@
                 fields: [{ k: 'z', ph: '-16', fn: true }, { k: 'n', l: 'n', ph: '4', def: 4 }], run: runRoots }
         ],
         base: [
-            { id: 'bits', t: 'Bases', f: '0xFF AND 0b1010', d: 'Whole numbers as a computer keeps them, in 8, 16, 32 or 64 bits: decimal, 0x hexadecimal, 0b binary or 0o octal, with + – × ÷ mod AND OR XOR NOT NAND NOR XNOR << >>. Each result in every base.',
-                fields: [{ k: 'e', ph: '0xFF AND 0b1010', fn: true }, { k: 'bits', l: 'Bits', ph: '32', def: 32 }], run: runBits }
+            { id: 'bits', t: 'Bases', f: '0xFF AND 0b1010', d: 'Whole numbers as a computer keeps them, in 8, 16, 32 or 64 bits: decimal, 0x hexadecimal, 0b binary or 0o octal, with + – × ÷ mod AND OR XOR NOT NAND NOR XNOR, &lt;&lt; &gt;&gt; and ROL ROR, which turn the bits round. Each result in every base.',
+                fields: [{ k: 'e', ph: '0xFF AND 0b1010', fn: true }, { k: 'bits', l: 'Bits', ph: '32', def: 32 }], run: runBits },
+            { id: 'bitview', t: 'Bits', f: 'b<sub>7</sub> … b<sub>1</sub> b<sub>0</sub>', d: 'The bits of a whole number, each turned over with a click; how many are 1, the 0s before and after them, and the highest and lowest bit that is 1. Empty, it is 0, to click a number together.',
+                fields: [{ k: 'e', ph: '0', fn: true }, { k: 'bits', l: 'Bits', ph: '32', def: 32 }], run: runBitView },
+            { id: 'float', t: 'IEEE 754', f: '0.1 = 0x3FB999999999999A', d: 'A number as a computer keeps it: a double of 64 bits and a float of 32, in hexadecimal; its sign, exponent and fraction; the number it is, to its last digit, and the gap to the next. Or the bits, 0x3FB999999999999A, for the number.',
+                fields: [{ k: 'x', ph: '0.1', fn: true }], run: runFloat }
         ],
         matrix: [
             { id: 'matrix', t: 'A matrix', f: 'det A, A<sup>–1</sup>, A<sup>T</sup>', d: 'Its determinant, rank, inverse, transpose and square. Type its size, 3×3 or 2 3, and a number in each box; an empty one is 0.',
@@ -3747,7 +3818,18 @@
                 fields: function (raw) {
                     return [{ k: 'sizeA', l: 'Size of A', ph: '2×2', text: true, shape: true }, { k: 'sizeB', l: 'Size of B', ph: '2×2', text: true, shape: true }]
                         .concat(cells('a', 'A', raw.sizeA), cells('b', 'B', raw.sizeB));
-                }, cols: 2, run: runMatrices }
+                }, cols: 2, run: runMatrices },
+            { id: 'eigen', t: 'Eigenvalues', f: 'A<b>v</b> = λ<b>v</b>', d: 'The eigenvalues of a square matrix, real or a ± bi, its characteristic polynomial and trace, and the eigenvectors of each real eigenvalue: the v that A only stretches, by λ. Type its size, 3×3 or 3, and a number in each box; an empty one is 0.',
+                fields: function (raw) { return [{ k: 'size', l: 'Size', ph: '2×2', text: true, shape: true }].concat(cells('a', 'A', raw.size)); }, run: runEigen },
+            { id: 'axb', t: 'A x = b', f: 'A<b>x</b> = <b>b</b>', d: 'The unknowns of linear equations, up to four of them: a row of A for each equation and what it equals in b. As many equations as rows, as many unknowns as columns. Type the size of A, 3×3 or 3 2, and a number in each box; an empty one is 0.',
+                fields: function (raw) {
+                    var size = sizeOf(raw.size) || [2, 2], out = [{ k: 'size', l: 'Size of A', ph: '2×2', text: true, shape: true }, { head: 'A | b', cols: size[1] + 1 }], i, j;
+                    for (i = 1; i <= size[0]; i++) {
+                        for (j = 1; j <= size[1]; j++) out.push({ k: 'a' + i + j, ph: '0', def: 0, aria: 'A row ' + i + ' column ' + j });
+                        out.push({ k: 'b' + i + '1', ph: '0', def: 0, aria: 'b row ' + i, cls: 'calc-sv-rhs' });
+                    }
+                    return out;
+                }, run: runAxb }
         ],
         whole: [
             { id: 'factors', t: 'Prime factors', f: '360 = 2<sup>3</sup> × 3<sup>2</sup> × 5', d: 'A whole number of up to 20 digits in its prime factors, whether it is prime, and its divisors: how many, their sum, each of them, and how many numbers up to it have none of its factors.',
@@ -3830,6 +3912,51 @@
         };
     }
 
+    // The bits of a whole number to turn over with a click, a row of up to 16 for each, and how
+    // many are 1 and where. A bit turned over writes the number again as it was typed, 0x for 0x,
+    // or in hexadecimal for a calculation; empty, in binary up to 16 bits
+    function runBitView(n, raw) {
+        var bits = n.bits, r = raw.e ? CalcMaths.bitwise(raw.e, bits) : bits === 8 || bits === 16 || bits === 32 || bits === 64 ? { value: BigInt(0) } : { error: 'bits' },
+            c, none = [{ l: 'Bits', v: NaN, wide: true }];
+        if (r.error) {
+            return { rows: none, bad: r.error === 'expression' ? ['e'] : [], warn: true, note: {
+                expression: 'A whole number, 255, 0xFF, 0b1010 or 0o17, or a calculation of them.',
+                zero: 'Division by 0.',
+                bits: 'Bits are 8, 16, 32 or 64.'
+            }[r.error] };
+        }
+        c = CalcMaths.bitCount(r.value, bits);
+        return {
+            rows: [{ l: 'Bits', flip: { v: r.value, n: bits, k: 'e', set: function (b) {
+                var v = CalcMaths.flipBit(r.value, bits, b), u = BigInt.asUintN(bits, v), m = /^\s*-?(0x|0b|0o)?[0-9a-f]+\s*$/i.exec(raw.e || ''),
+                    how = m ? (m[1] || '').toLowerCase() : raw.e ? '0x' : bits <= 16 ? '0b' : '0x';
+                return how === '0x' ? '0x' + u.toString(16).toUpperCase() : how === '0b' ? '0b' + u.toString(2) : how === '0o' ? '0o' + u.toString(8) : String(v);
+            } }, wide: true },
+                Math.abs(Number(r.value)) <= Number.MAX_SAFE_INTEGER ? { l: 'Decimal', v: Number(r.value) } : { l: 'Decimal', text: String(r.value) },
+                { l: 'Hexadecimal', text: CalcMaths.inBase(r.value, bits, 16) },
+                { l: 'Ones', v: c.ones }, { l: 'Leading zeros', v: c.leading }, { l: 'Trailing zeros', v: c.trailing },
+                { l: 'Highest 1', v: c.high < 0 ? NaN : c.high }, { l: 'Lowest 1', v: c.low < 0 ? NaN : c.low }],
+            note: r.wrapped ? 'Out of ' + bits + ' bits: kept to them, as a computer does.' : 'Click a bit to turn it over.'
+        };
+    }
+
+    // a number as a double and a float, their bits, and what each is to its last digit
+    function runFloat(n, raw) {
+        var r = raw.x ? CalcMaths.float(raw.x, engine.comma, deg) : null, none = [{ l: 'Double, 64 bits', v: NaN }, { l: 'Float, 32 bits', v: NaN }];
+        if (!r) return { rows: none };
+        if (r.error) return { rows: none, bad: ['x'], warn: true, note: 'A number, 0.1, pi or 1e-7, inf or nan; or its bits, 0x3FB999999999999A for a double, 0x3DCCCCCD for a float.' };
+        return {
+            rows: [{ l: 'Number', v: r.x, wide: true }, { l: 'Double, 64 bits', text: '0x' + r.hex64, wide: true },
+                { l: 'Kept as a double', text: local(r.exact), wide: true, wrap: true },
+                { l: 'Sign', text: r.sign < 0 ? '–' : '+' }, { l: 'Exponent', v: r.exponent }, { l: 'Kind', text: r.kind },
+                { l: 'Sign · exponent · fraction', text: r.bits, wide: true, wrap: true, bits: true },
+                { l: 'Gap to the next', v: r.ulp, wide: true },
+                { l: 'As a float', v: r.float, wide: true }, { l: 'Float, 32 bits', text: '0x' + r.hex32, wide: true },
+                { l: 'Kept as a float', text: local(r.exact32), wide: true, wrap: true }],
+            note: r.of === 32 ? 'The bits of a float, 32 of them: 16 hexadecimal digits are a double.' : r.kind === 'Subnormal' ? 'Subnormal: smaller than a double keeps to all its digits.' : ''
+        };
+    }
+
     // a whole number found, which may be too large to be put in: then read, on a tile of the width
     function wholeTile(l, b) {
         return b === null ? { l: l, v: NaN } : b <= BigInt(Number.MAX_SAFE_INTEGER) && b >= BigInt(-Number.MAX_SAFE_INTEGER) ? { l: l, v: Number(b) } :
@@ -3880,6 +4007,43 @@
             bad: bad, warn: !!bad.length || (square && !inv),
             note: bad.length ? 'A size of rows and columns, each 1 to 4: 3×3, or 2 3.' : !square ? 'Not square: no determinant, inverse or square.' :
                 !inv ? 'No inverse: its determinant is 0.' : ''
+        };
+    }
+
+    // a polynomial of λ, its coefficients the highest power first: λ² – 5λ + 6
+    function polyText(c) {
+        var n = c.length - 1;
+        return c.map(function (a, k) {
+            var p = n - k, size = Math.abs(a);
+            if (!a) return '';
+            return (k ? (a < 0 ? ' – ' : ' + ') : a < 0 ? '–' : '') + (size === 1 && p ? '' : local(String(size))) + (p ? 'λ' + (p > 1 ? '<sup>' + p + '</sup>' : '') : '');
+        }).join('');
+    }
+
+    function runEigen(n, raw) {
+        var a = matrixOf(n, 'a', raw.size), square = a.length === a[0].length, e = square ? CalcMaths.eigen(a) : null, bad = sizeOf(raw.size) ? [] : ['size'], rows;
+        if (!e) {
+            return { rows: [{ l: 'λ', v: NaN }], bad: bad, warn: true, note: bad.length ? 'A size of rows and columns, each 1 to 4: 3×3, or 3.' : 'Not square: an eigenvalue is of a square matrix.' };
+        }
+        rows = e.values.map(function (z, i) {
+            var l = 'λ<sub>' + (i + 1) + '</sub>';
+            return z.im ? { l: l, text: complexText(z) } : { l: l, v: z.re };
+        });
+        rows.push({ l: 'Trace', v: CalcMaths.round(a.reduce(function (s, r, i) { return s + r[i]; }, 0)) }, { l: 'det(λI – A)', text: polyText(e.poly), wide: true });
+        e.vectors.forEach(function (v, i) {
+            rows.push({ l: 'v<sub>' + (i + 1) + '</sub> of λ = ' + local(String(v.value)), m: [v.v] });
+        });
+        return { rows: rows, note: e.values.some(function (z) { return z.im; }) ? 'Its complex eigenvalues have eigenvectors of complex numbers, not shown here.' : '' };
+    }
+
+    function runAxb(n, raw) {
+        var size = sizeOf(raw.size), a = matrixOf(n, 'a', raw.size), b = matrixOf(n, 'b', (size || [2, 2])[0] + '×1').map(function (r) { return r[0]; }),
+            r = size ? CalcMaths.system(a, b) : null, rows = [], k;
+        for (k = 0; k < a[0].length; k++) rows.push({ l: 'x<sub>' + (k + 1) + '</sub>', v: r && r.x ? r.x[k] : NaN });
+        return {
+            rows: rows, bad: size ? [] : ['size'], warn: !size,
+            note: !size ? 'A size of rows and columns, each 1 to 4: 3×3, or 3 2.' : !r ? '' : r.none ? 'No answer: the equations cannot all hold.' :
+                r.many ? 'Many answers: the equations do not each say something new, or there are fewer of them than unknowns.' : ''
         };
     }
 
@@ -3991,7 +4155,7 @@
                     html += '</div><div class="calc-sv-head">' + f.head + '</div><div class="calc-sv-fields calc-sv-cells-in" style="--cols: ' + f.cols + '">';
                     return;
                 }
-                html += '<label class="calc-sv-var' + (f.fn ? ' calc-sv-wide' : '') + '">' + (f.l ? '<span class="calc-sv-sym">' + f.l + '</span>' : '') +
+                html += '<label class="calc-sv-var' + (f.fn ? ' calc-sv-wide' : '') + (f.cls ? ' ' + f.cls : '') + '">' + (f.l ? '<span class="calc-sv-sym">' + f.l + '</span>' : '') +
                     '<input type="text"' + (f.fn || f.text ? '' : ' inputmode="decimal"') + ' spellcheck="false" autocomplete="off" maxlength="' + (f.fn ? 200 : 40) +
                     '" data-k="' + f.k + '" placeholder="' + f.ph + '" aria-label="' + (f.aria || (f.fn ? tool.t : f.l.replace(/<[^>]*>/g, ''))) + '"></label>';
             });
@@ -4036,7 +4200,18 @@
         // A result: a number to put in, a text to read, as a complex number, or a matrix, each of
         // its numbers to put in; – while it has none
         function tile(r, i) {
-            var known = r.text === undefined && (r.m ? !!r.m : isFinite(r.v)), shown;
+            var known = r.text === undefined && (r.m ? !!r.m : isFinite(r.v)), shown, bits, b;
+            if (r.flip) { // a row of up to 16 bits for each, the highest first, each to turn over
+                bits = BigInt.asUintN(r.flip.n, r.flip.v).toString(2).padStart(r.flip.n, '0');
+                shown = '<span class="calc-sv-bitgrid">';
+                for (b = r.flip.n - 1; b >= 0; b--) {
+                    if (b % 16 === 15 || b === r.flip.n - 1) shown += (b < r.flip.n - 1 ? '</span>' : '') + '<span class="calc-sv-bitrow"><span class="calc-sv-bitat">' + b + '</span>';
+                    shown += '<span class="calc-sv-bit' + (bits.charAt(r.flip.n - 1 - b) === '1' ? ' calc-on' : '') + (b % 4 === 3 && b % 16 !== 15 && b !== r.flip.n - 1 ? ' calc-sv-nib' : '') +
+                        '" data-b="' + b + '" title="Bit ' + b + '">' + bits.charAt(r.flip.n - 1 - b) + '</span>';
+                }
+                shown += '</span></span>';
+                return '<div class="calc-sv-tile calc-sv-wide calc-sv-flip" data-r="' + i + '"><span class="calc-sv-label">' + r.l + '</span>' + shown + '</div>';
+            }
             if (r.m !== undefined) {
                 shown = r.m ? '<span class="calc-sv-cells" style="--cols: ' + r.m[0].length + '">' + r.m.map(function (row, a) {
                     return row.map(function (x, b) { // to 10 digits, so a row of them fits; a click puts it in whole
@@ -4081,10 +4256,11 @@
         // a card opens its boxes, or closes them; Again draws more random numbers; a tile, or a
         // number of a matrix, is put in
         list.addEventListener('click', function (e) {
-            var row = e.target.closest('.calc-sv-row'), t = e.target.closest('.calc-sv-tile'), cell = e.target.closest('.calc-sv-cell'), r, v;
+            var row = e.target.closest('.calc-sv-row'), t = e.target.closest('.calc-sv-tile'), cell = e.target.closest('.calc-sv-cell'), bit = e.target.closest('.calc-sv-bit'), r, v;
             if (row) return openTool(row.parentNode.classList.contains('calc-on') ? null : row.parentNode);
             if (e.target.closest('.calc-sv-again')) return run();
             r = t && now[+t.dataset.r];
+            if (bit && r && r.flip) return flip(t, r.flip, +bit.dataset.b);
             v = !r ? NaN : r.m ? (cell ? r.m[+cell.dataset.a][+cell.dataset.b] : NaN) : r.text === undefined ? r.v : NaN;
             if (!isFinite(v) || !engine.put(v)) return;
             keyBoard['AC'].children[0].firstChild.data = 'C';
@@ -4092,6 +4268,16 @@
             refresh();
             saveState();
         }, false);
+
+        // a bit turned over: its number written in its box again, and the results
+        function flip(t, f, b) {
+            var item = t.closest('.calc-sv-item'), tool = tools[tab][+item.dataset.i], text = f.set(b), box = item.querySelector('.calc-sv-boxes input[data-k="' + f.k + '"]');
+            values[tool.id] = values[tool.id] || {};
+            values[tool.id][f.k] = text;
+            if (box) box.value = text;
+            run();
+            keep();
+        }
 
         // a box typed in: the results again; a size typed, the boxes of its matrix first, the
         // box typed in keeping the focus

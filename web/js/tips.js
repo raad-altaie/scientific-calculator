@@ -137,8 +137,8 @@
         // the solver
         'solve': {
             t: 'Solve',
-            d: 'Equations solved for x, polynomials and linear equations; integrals, slopes, sums and products; and ' +
-                'the normal, binomial and Poisson distributions. Click a result to put it in.',
+            d: 'Equations and inequalities solved for x, polynomials and linear equations; integrals, slopes, sums, products, ' +
+                'limits and differential equations; and the normal, binomial and Poisson distributions. Click a result to put it in.',
             k: ''
         },
         'solve close': {
@@ -151,7 +151,8 @@
         'numbers': {
             t: 'Complex numbers, bases and matrices',
             d: 'Complex numbers, (2 + 3i)(1 – i), with their length and angle; whole numbers in bits, in decimal, ' +
-                'hexadecimal, octal and binary, with AND, OR and XOR; matrices, their determinant, inverse and products; ' +
+                'hexadecimal, octal and binary, with AND, OR and XOR, their bits to click, and numbers as doubles and floats; ' +
+                'matrices, their determinant, inverse, products and eigenvalues, and A x = b; ' +
                 'and the prime factors of a whole number, GCD and LCM, and rounding. Click a result to put it in.',
             k: ''
         },

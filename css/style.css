@@ -1868,6 +1868,70 @@
     background: #98b3a5;
 }
 
+/* the column of what linear equations equal, b of A | b: a line before it */
+#calculator .calc-sv-rhs input {
+    border-left: 3px solid #5d7a6b;
+}
+
+/* the bits of a number, to turn over with a click: a row of 16 at most, its highest bit's
+   number before it, a gap between each 4, a 1 dark */
+#calculator .calc-sv-flip {
+    cursor: default;
+}
+
+#calculator .calc-sv-form .calc-sv-flip:hover {
+    background: #a9c4b5;
+}
+
+#calculator .calc-sv-bitgrid {
+    display: block;
+    margin: 2px 0 3px;
+}
+
+#calculator .calc-sv-bitrow {
+    display: flex;
+    align-items: center;
+    margin: 2px 0;
+}
+
+#calculator .calc-sv-bitat {
+    flex: 0 0 18px;
+    margin-right: 5px;
+    color: #33443b;
+    font-size: 11px;
+    text-align: right;
+}
+
+#calculator .calc-sv-bit {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 18px;
+    border-radius: 3px;
+    font-size: 14px;
+    line-height: 21px;
+    text-align: center;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+#calculator .calc-sv-bit.calc-sv-nib {
+    margin-left: 5px;
+}
+
+#calculator .calc-sv-bit:hover {
+    background: #98b3a5;
+}
+
+#calculator .calc-sv-bit.calc-on {
+    background: #3a5872;
+    color: #fff;
+}
+
+#calculator .calc-sv-bit.calc-on:hover {
+    background: #46677f;
+}
+
 /* Again: more random numbers */
 #calculator .calc-sv-again {
     display: table;

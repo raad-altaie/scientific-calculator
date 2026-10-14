@@ -1,8 +1,10 @@
-// The maths of the Solve panel: equations solved for x, the roots of a polynomial and of a
-// system of linear equations; integrals, slopes, sums and products; and the normal, binomial
-// and Poisson distributions. And of the Numbers panel: complex numbers, whole numbers in bits
-// and their bases, and matrices; and whole numbers: their prime factors, divisors, greatest
-// common divisor and least common multiple, and numbers rounded. Functions are read as the graph reads them, by the engine.
+// The maths of the Solve panel: equations and inequalities solved for x, the roots of a
+// polynomial and of a system of linear equations; integrals, slopes, sums, products, limits and
+// differential equations; and the normal, binomial and Poisson distributions. And of the Numbers
+// panel: complex numbers, whole numbers in bits and their bases, numbers as a computer keeps
+// them, by IEEE 754, and matrices, their eigenvalues and linear equations of them; and whole
+// numbers: their prime factors, divisors, greatest common divisor and least common multiple,
+// and numbers rounded. Functions are read as the graph reads them, by the engine.
 // It works on its own in Node as well, for the tests
 (function (root) {
     'use strict';

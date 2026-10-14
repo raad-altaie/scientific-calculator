@@ -1,8 +1,10 @@
-// The maths of the Solve panel: equations solved for x, the roots of a polynomial and of a
-// system of linear equations; integrals, slopes, sums and products; and the normal, binomial
-// and Poisson distributions. And of the Numbers panel: complex numbers, whole numbers in bits
-// and their bases, and matrices; and whole numbers: their prime factors, divisors, greatest
-// common divisor and least common multiple, and numbers rounded. Functions are read as the graph reads them, by the engine.
+// The maths of the Solve panel: equations and inequalities solved for x, the roots of a
+// polynomial and of a system of linear equations; integrals, slopes, sums, products, limits and
+// differential equations; and the normal, binomial and Poisson distributions. And of the Numbers
+// panel: complex numbers, whole numbers in bits and their bases, numbers as a computer keeps
+// them, by IEEE 754, and matrices, their eigenvalues and linear equations of them; and whole
+// numbers: their prime factors, divisors, greatest common divisor and least common multiple,
+// and numbers rounded. Functions are read as the graph reads them, by the engine.
 // It works on its own in Node as well, for the tests
 (function (root) {
     'use strict';
@@ -207,9 +209,15 @@
             });
         });
         // … and where it changes between samples without one, as near as a number goes. An end
-        // that is a number is in where it holds; one between two numbers, made shorter, is in
-        // where it holds by the one side and the other has no value or holds as well, loosely:
-        // sqrt(2 – x²) ≥ 0 at √2, not tan(x) > 1 at π/2
+        // that is a number is in where it holds; one between two numbers, made shorter, where it
+        // holds with the sides of a part equal to 6 digits there, as they are loosely: floor(x) ≥ 2
+        // at 2 and sqrt(2 – x²) ≥ 0 at √2, not sqrt(2 – x²) > 0 there, nor tan(x) > 1 at π/2
+        function equal(x) {
+            return parts.some(function (part) {
+                var a = part.l.at(x, deg), b = part.r.at(x, deg);
+                return Math.abs(a - b) <= 1e-6 * Math.max(1, Math.abs(a) + Math.abs(b));
+            });
+        }
         for (k = 0; k <= n; k++) {
             u = Math.asinh(SEARCH) * (2 * k / n - 1);
             xs.push(bounded ? from + (to - from) * k / n : k === n / 2 ? 0 : Math.sinh(u));
@@ -225,11 +233,9 @@
                 }
                 p = snap(hi);
                 if (ends.some(function (e) { return Math.abs(p - e.x) <= 1e-9 * Math.max(1, Math.abs(p)); })) continue; // a root of solve's, as it has it
-                ends.push({ x: p, in: p === lo || p === hi ? holds(p) === true :
-                    holds(lo, -1, true) !== false && holds(hi, -1, true) !== false && (holds(lo, -1, true) || holds(hi, -1, true)) === true });
+                ends.push({ x: p, in: holds(p) === true && (p === lo || p === hi || holds(p, -1, true) === true && equal(p)) });
             }
         }
-        if (typeof DEBUG !== "undefined") console.log(JSON.stringify(ends));
         ends.sort(function (a, b) { return a.x - b.x; });
         ends = ends.filter(function (e, i) { return !i || e.x !== ends[i - 1].x; });
         more = ends.length > ROOTS_MAX;
@@ -470,6 +476,142 @@
             }
         }
         return { value: round(total) };
+    }
+
+    // The limit of c as x comes to a: { left, right, value }, the value where the two agree, or
+    // of the one side that has values, as ln x at 0. Of a of ±∞ only the side it comes from,
+    // value as well. Each a number, ±Infinity where it grows without end, or NaN where it has
+    // none, as sin(1/x) at 0
+    function limit(c, a, deg) {
+        var left, right, same, side = Math.max(1, Math.abs(a));
+        if (isNaN(a)) return { left: NaN, right: NaN, value: NaN };
+        if (!isFinite(a)) {
+            left = approach(function (t) { return c.at((a > 0 ? 1 : -1) / t, deg); }, NaN);
+            if (left === undefined) left = NaN;
+            return a > 0 ? { left: left, right: NaN, value: left } : { left: NaN, right: left, value: left };
+        }
+        left = approach(function (t) { return c.at(a - t * side, deg); }, c.at(a, deg));
+        right = approach(function (t) { return c.at(a + t * side, deg); }, c.at(a, deg));
+        if (left === undefined || right === undefined) {
+            return { left: left === undefined ? NaN : left, right: right === undefined ? NaN : right, value: left === undefined ? (right === undefined ? NaN : right) : left };
+        }
+        same = left === right || isFinite(left) && Math.abs(left - right) <= 1e-9 * Math.max(1, Math.abs(left));
+        return { left: left, right: right, value: same ? left : NaN };
+    }
+
+    // What g(t) comes to as t comes down to 0, at comes being g(0) where it has one: its values
+    // at t of 1/8 halved again and again, 36 times. The limit where they grow without end, each
+    // step as much as the last or more, as 1/x or ln x at 0; else where Richardson's
+    // extrapolation of them, or Aitken's, settles, two steps alike to 8 digits; else where they
+    // come to one value, or to g(0) without a jump, as sqrt(x) does to 0. To as many digits as
+    // it settles to, 12 at most; NaN where it does none of these, undefined where it has no
+    // values at all. Values that stop where a number grows too large, as x/e^x by x of 1000,
+    // are taken as far as they go
+    function approach(g, at) {
+        var v = [], t = 0.125, k, j, R = [], est = [], err, best, d, K = 36, tail, grow, scale = 0, stop;
+        for (k = 0; k <= K; k++, t /= 2) {
+            v.push(g(t));
+            if (isFinite(v[k])) scale = Math.max(scale, Math.abs(v[k]));
+        }
+        if (v.every(isNaN)) return undefined;
+        stop = v.findIndex(isNaN);
+        if (stop >= 6 && v.slice(stop).every(function (y) { return !isFinite(y); })) {
+            v = v.slice(0, stop);
+            K = stop - 1;
+        }
+        tail = v.slice(Math.max(0, K - 12));
+        if (!tail.every(function (y) { return !isNaN(y); })) return NaN;
+        if (tail.every(function (y) { return y === Infinity; }) || tail.every(function (y) { return y === -Infinity; })) return tail[0];
+        if (!tail.every(isFinite)) return NaN;
+        // growing without end: the same sign, and each step away from 0 as long as the last, or longer
+        grow = true;
+        for (k = Math.max(2, K - 9); k <= K; k++) {
+            if ((v[k] > 0) !== (v[K] > 0) || Math.abs(v[k]) <= Math.abs(v[k - 1]) ||
+                Math.abs(v[k] - v[k - 1]) < 0.9 * Math.abs(v[k - 1] - v[k - 2])) grow = false;
+        }
+        if (grow) return v[K] > 0 ? Infinity : -Infinity;
+        function settled(list) { // where two steps of a list are alike, the one whose step is least
+            var at = -1, e = Infinity, k, d;
+            for (k = 2; k < list.length; k++) {
+                if (!isFinite(list[k]) || !isFinite(list[k - 1]) || !isFinite(list[k - 2])) continue;
+                d = Math.max(Math.abs(list[k] - list[k - 1]), Math.abs(list[k - 1] - list[k - 2]));
+                if (d < e) {
+                    e = d;
+                    at = k;
+                }
+            }
+            return at > -1 && e <= 1e-8 * Math.max(1, Math.abs(list[at])) ? { v: list[at], e: e } : null;
+        }
+        // Richardson's: the error as a sum of powers of t, taken away a power at a time
+        for (k = 0; k <= K; k++) {
+            R[k] = [v[k]];
+            for (j = 1; j <= Math.min(k, 6); j++) R[k][j] = R[k][j - 1] + (R[k][j - 1] - R[k - 1][j - 1]) / (Math.pow(2, j) - 1);
+            est.push(R[k][Math.min(k, 6)]);
+        }
+        best = settled(est.slice(7));
+        // Aitken's: steps that shrink by the same part each time, as t^½ does
+        if (!best) {
+            est = [];
+            for (k = 2; k <= K; k++) {
+                d = v[k] - 2 * v[k - 1] + v[k - 2];
+                est.push(Math.abs(v[k] - v[k - 1]) < Math.abs(v[k - 1] - v[k - 2]) && d ? v[k] - (v[k] - v[k - 1]) * (v[k] - v[k - 1]) / d : NaN);
+            }
+            best = settled(est);
+        }
+        if (!best && Math.max.apply(null, tail.slice(-4)) - Math.min.apply(null, tail.slice(-4)) <= 1e-8 * Math.max(1, Math.abs(v[K]))) {
+            best = { v: v[K], e: Math.max.apply(null, tail.slice(-4)) - Math.min.apply(null, tail.slice(-4)) };
+        }
+        if (!best && isFinite(at) && Math.abs(v[K] - at) < 1e-4 * Math.max(1, Math.abs(v[0] - at))) {
+            for (k = Math.max(1, K - 9), j = true; k <= K; k++) if (!(Math.abs(v[k] - at) < Math.abs(v[k - 1] - at))) j = false;
+            if (j) best = { v: at, e: 0 };
+        }
+        if (!best) return NaN;
+        err = Math.max(best.e, 1e-13 * Math.abs(best.v));
+        if (Math.abs(best.v) <= Math.max(err, 1e-12 * scale)) return 0;
+        return +best.v.toPrecision(Math.max(1, Math.min(12, Math.floor(Math.log10(Math.abs(best.v) / err))))) + 0;
+    }
+
+    // y′ = f(x, y), a function of x and y typed, as x + y, or y' = x y, from y(x0) = y0 to x:
+    // Runge and Kutta's way of the fourth order in 16 steps, then twice as many, until two
+    // agree to 11 digits, up to a quarter of a million steps. { y, slope: y′ there } or
+    // { error: 'function' | 'letters' }; y NaN where it has no value on the way or does not settle
+    function ode(text, comma, deg, x0, y0, x1) {
+        var s = String(text).trim().replace(/^(y\s*['′’]|dy\s*\/\s*dx)\s*=\s*/i, ''), c, n, y, last = NaN, f;
+        // of x and y as an equation of them is read, its left side less 0; of x alone, or neither, as a function
+        c = s && !/[=<>≤≥]/.test(s) && Engine.relation('(' + s + ') = 0', comma, {});
+        if (c) {
+            f = function (x, y) { return c.at(x, y, deg); };
+        } else {
+            c = s && !/[=<>≤≥]/.test(s) && Engine.graph(s, comma, {});
+            f = c && function (x) { return c.at(x, deg); };
+        }
+        if (!c) return { error: 'function' };
+        if (c.letters.length) return { error: 'letters' };
+        if (![x0, y0, x1].every(isFinite)) return { y: NaN, slope: NaN };
+        if (x0 === x1) return { y: y0, slope: round(f(x0, y0)) };
+        function walk(n) {
+            var h = (x1 - x0) / n, x = x0, y = y0, k, k1, k2, k3, k4;
+            for (k = 0; k < n; k++) {
+                k1 = f(x, y);
+                k2 = f(x + h / 2, y + h * k1 / 2);
+                k3 = f(x + h / 2, y + h * k2 / 2);
+                k4 = f(x + h, y + h * k3);
+                y += h * (k1 + 2 * k2 + 2 * k3 + k4) / 6;
+                x = x0 + (k + 1) * h;
+                if (!isFinite(y)) return NaN;
+            }
+            return y;
+        }
+        for (n = 16; n <= 262144; n *= 2) {
+            y = walk(n);
+            if (isNaN(y)) break;
+            if (Math.abs(y - last) <= 1e-11 * Math.max(1, Math.abs(y))) {
+                y += (y - last) / 15; // the error of the fourth order, a sixteenth for twice the steps
+                return { y: +y.toPrecision(10) + 0, slope: +f(x1, y).toPrecision(10) + 0 };
+            }
+            last = y;
+        }
+        return { y: NaN, slope: NaN };
     }
 
     // ---------- probability ---------- //
@@ -808,7 +950,7 @@
 
     // A calculation of whole numbers in bits, signed as a computer keeps them: decimal, 0x1F,
     // 0b1010 or 0o17; + – × ÷ (whole), mod or %, AND & OR | XOR NOT ~, NAND, NOR, XNOR, << >>,
-    // brackets. Each value kept to the bits, as the machine does. { value: a BigInt, wrapped:
+    // ROL and ROR, which turn the bits round, brackets. Each value kept to the bits, as the machine does. { value: a BigInt, wrapped:
     // it did not fit } or { error: 'expression' | 'zero' | 'bits' }
     function bitwise(text, bits) {
         var s = String(text).trim(), toks = [], m, i = 0, wrapped = false, out;
@@ -824,7 +966,7 @@
                 toks.push({ n: BigInt('0o' + m[1]) });
             } else if ((m = /^\d+/.exec(s))) {
                 toks.push({ n: BigInt(m[0]) });
-            } else if ((m = /^(nand|nor|xnor|and|xor|or|not|mod|shl|shr)(?![a-z])/i.exec(s))) {
+            } else if ((m = /^(nand|nor|xnor|and|xor|or|not|mod|shl|shr|rol|ror)(?![a-z])/i.exec(s))) {
                 toks.push({ op: m[0].toLowerCase() });
             } else if ((m = /^(<<|>>|[-+−–*×/÷%&|~()])/.exec(s))) {
                 toks.push({ op: { '−': '-', '–': '-', '×': '*', '÷': '/', '&': 'and', '|': 'or', '~': 'not', '%': 'mod', '<<': 'shl', '>>': 'shr' }[m[0]] || m[0] });
@@ -871,8 +1013,13 @@
             return op === '*' ? a * b : op === '/' ? a / b : ((a % b) + b) % b;
         });
         var sum = level(product, ['+', '-'], function (op, a, b) { return op === '+' ? a + b : a - b; });
-        var shift = level(sum, ['shl', 'shr'], function (op, a, b) {
-            if (b < BigInt(0) || b >= BigInt(bits)) return op === 'shl' || a >= BigInt(0) ? BigInt(0) : BigInt(-1);
+        var shift = level(sum, ['shl', 'shr', 'rol', 'ror'], function (op, a, b) {
+            var n = BigInt(bits), u = BigInt.asUintN(bits, a), k;
+            if (op === 'rol' || op === 'ror') { // turned round: what goes out at one end comes in at the other
+                k = ((op === 'rol' ? b : -b) % n + n) % n;
+                return BigInt.asIntN(bits, (u << k) | (u >> (n - k)));
+            }
+            if (b < BigInt(0) || b >= n) return op === 'shl' || a >= BigInt(0) ? BigInt(0) : BigInt(-1);
             return op === 'shl' ? a << b : a >> b;
         });
         var and = level(shift, ['and', 'nand'], function (op, a, b) { return op === 'and' ? a & b : ~(a & b); });
@@ -893,6 +1040,96 @@
     function inBase(v, bits, base) {
         var s = BigInt.asUintN(bits, v).toString(base).toUpperCase();
         return base !== 2 ? s : s.padStart(bits, '0').replace(/(\d{4})(?=\d)/g, '$1 ');
+    }
+
+    // The bits of a value, as inBase keeps them: { ones, leading, trailing zeros, highest and
+    // lowest bit set, -1 for none }
+    function bitCount(v, bits) {
+        var s = BigInt.asUintN(bits, v).toString(2).padStart(bits, '0'), ones = s.replace(/0/g, '').length;
+        return {
+            ones: ones, leading: ones ? s.indexOf('1') : bits, trailing: ones ? bits - 1 - s.lastIndexOf('1') : bits,
+            high: ones ? bits - 1 - s.indexOf('1') : -1, low: ones ? bits - 1 - s.lastIndexOf('1') : -1
+        };
+    }
+
+    // a value of the bits, b-th of them, 0 the lowest, turned over
+    function flipBit(v, bits, b) {
+        return BigInt.asIntN(bits, v ^ (BigInt(1) << BigInt(b)));
+    }
+
+    // ---------- floating point ---------- //
+
+    // A number as the machine keeps it, by IEEE 754: in 64 bits, a double, as here, and in 32, a
+    // float. A number typed, 0.1, pi, inf or nan, or the bits of one, 0x3FB999999999999A in 16
+    // hexadecimal digits for a double, 0x3DCCCCCD in up to 8 for a float. { x: the double, of: 32
+    // where the bits were a float's, hex64, hex32, bits: sign, exponent and fraction apart, sign,
+    // exponent, kind, exact: the double to its last digit, exact32: the float's, float: it as a
+    // number, ulp: the gap to the next double } or { error: 'number' }
+    function float(text, comma, deg) {
+        var s = String(text).trim(), hex = /^0x([0-9a-f]{1,16})$/i.exec(s.replace(/[\s_]/g, '')), dv = new DataView(new ArrayBuffer(8)), x, of = 64,
+            all, e, f, kind, next;
+        if (hex) {
+            if (hex[1].length <= 8) {
+                dv.setUint32(0, parseInt(hex[1], 16));
+                x = dv.getFloat32(0);
+                of = 32;
+            } else {
+                dv.setBigUint64(0, BigInt('0x' + hex[1]));
+                x = dv.getFloat64(0);
+            }
+        } else if (/^[-+−–]?nan$/i.test(s)) {
+            x = NaN;
+        } else {
+            x = number(s, comma, deg, true);
+            if (isNaN(x)) return { error: 'number' };
+        }
+        dv.setFloat64(0, x);
+        all = dv.getBigUint64(0);
+        e = Number((all >> BigInt(52)) & BigInt(0x7FF));
+        f = all & ((BigInt(1) << BigInt(52)) - BigInt(1));
+        kind = e === 0x7FF ? (f ? 'NaN' : 'Infinity') : e ? 'Normal' : f ? 'Subnormal' : 'Zero';
+        dv.setBigUint64(0, (all & ((BigInt(1) << BigInt(63)) - BigInt(1))) + BigInt(1)); // the next double away from 0
+        next = dv.getFloat64(0);
+        dv.setFloat32(0, x);
+        return {
+            x: x, of: of,
+            hex64: all.toString(16).toUpperCase().padStart(16, '0'),
+            hex32: dv.getUint32(0).toString(16).toUpperCase().padStart(8, '0'),
+            bits: String(all >> BigInt(63)) + ' ' + e.toString(2).padStart(11, '0') + ' ' + f.toString(2).padStart(52, '0'),
+            sign: all >> BigInt(63) ? -1 : 1,
+            exponent: kind === 'Normal' ? e - 1023 : kind === 'Subnormal' || kind === 'Zero' ? -1022 : NaN,
+            kind: kind,
+            exact: exactly(x),
+            exact32: exactly(Math.fround(x)),
+            float: Math.fround(x),
+            ulp: isFinite(x) ? next - Math.abs(x) : NaN
+        };
+    }
+
+    // A double as it is, to its last digit, which it has: 0.1 is
+    // 0.1000000000000000055511151231257827021181583404541015625. Up to 60 digits, then …; one
+    // of more than 21 whole digits, or 0. and more than 20 0s, as 1.0000000000000000525…e+300
+    function exactly(x) {
+        var dv = new DataView(new ArrayBuffer(8)), all, e, m, digits, point, s, sig, power;
+        if (!isFinite(x)) return isNaN(x) ? 'NaN' : x > 0 ? '∞' : '–∞';
+        if (x === 0) return Object.is(x, -0) ? '–0' : '0';
+        dv.setFloat64(0, x);
+        all = dv.getBigUint64(0);
+        e = Number((all >> BigInt(52)) & BigInt(0x7FF));
+        m = all & ((BigInt(1) << BigInt(52)) - BigInt(1));
+        if (e) m |= BigInt(1) << BigInt(52);
+        e = (e || 1) - 1075; // x is m × 2^e, so m × 5^-e ÷ 10^-e where e is below 0
+        digits = e >= 0 ? (m << BigInt(e)).toString() : (m * BigInt(5) ** BigInt(-e)).toString();
+        point = e >= 0 ? digits.length : digits.length + e; // the digits before the point
+        sig = digits.replace(/0+$/, '');
+        power = point - 1;
+        if (power > 20 || power < -21) {
+            s = sig.charAt(0) + (sig.length > 1 ? '.' + sig.slice(1, 60) : '') + (sig.length > 60 ? '…' : '') + 'e' + (power > 0 ? '+' : '') + power;
+        } else {
+            s = point >= digits.length ? digits : (point > 0 ? digits.slice(0, point) + '.' + digits.slice(point) : '0.' + '0'.repeat(-point) + digits).replace(/\.?0+$/, '');
+            if (sig.length > 60) s = s.slice(0, s.length - (sig.length - 60)) + '…';
+        }
+        return (x < 0 ? '–' : '') + s;
     }
 
     // ---------- matrices: arrays of rows ---------- //
@@ -932,14 +1169,15 @@
         return clean(r, [r]);
     }
 
-    // a matrix's rows reduced, as far as its first cols columns go: { m, rank }
-    function reduce(a, cols) {
-        var m = a.map(function (r) { return r.slice(); }), rows = m.length, rank = 0, i, j, k, p, f, big;
+    // A matrix's rows reduced, as far as its first cols columns go, a number as small as tol of
+    // the largest being 0, 1e-12 of it unless given: { m, rank, where: the column of each row's first 1 }
+    function reduce(a, cols, tol) {
+        var m = a.map(function (r) { return r.slice(); }), rows = m.length, rank = 0, where = [], i, j, k, p, f, big;
         big = Math.max.apply(null, m.map(function (r) { return Math.max.apply(null, r.slice(0, cols).map(Math.abs)); })) || 1;
         for (j = 0; j < cols && rank < rows; j++) {
             p = rank;
             for (i = rank + 1; i < rows; i++) if (Math.abs(m[i][j]) > Math.abs(m[p][j])) p = i;
-            if (Math.abs(m[p][j]) <= 1e-12 * big) continue;
+            if (Math.abs(m[p][j]) <= (tol || 1e-12) * big) continue;
             f = m[rank];
             m[rank] = m[p];
             m[p] = f;
@@ -950,9 +1188,10 @@
                 f = m[i][j];
                 for (k = 0; k < m[i].length; k++) m[i][k] -= f * m[rank][k];
             }
+            where.push(j);
             rank++;
         }
-        return { m: m, rank: rank };
+        return { m: m, rank: rank, where: where };
     }
 
     function rank(a) {
@@ -969,12 +1208,14 @@
         return clean(a.map(function (row, i) { return row.map(function (x, j) { return minus ? x - b[i][j] : x + b[i][j]; }); }), [a, b]);
     }
 
-    // the product of two matrices, the columns of a as many as the rows of b, or null
-    function times(a, b) {
+    // the product of two matrices, the columns of a as many as the rows of b, or null; raw: not cleaned
+    function times(a, b, raw) {
+        var m;
         if (a[0].length !== b.length) return null;
-        return clean(a.map(function (row) {
+        m = a.map(function (row) {
             return b[0].map(function (x, j) { return row.reduce(function (s, v, k) { return s + v * b[k][j]; }, 0); });
-        }), [a, b]);
+        });
+        return raw ? m : clean(m, [a, b]);
     }
 
     // a matrix found, to 12 digits, a number as small as the rounding of the ones it came from
@@ -984,6 +1225,67 @@
             return Math.max.apply(null, a.map(function (r) { return Math.max.apply(null, r.map(Math.abs)); }));
         }));
         return m.map(function (r) { return r.map(function (x) { return Math.abs(x) <= 1e-12 * big ? 0 : round(x); }); });
+    }
+
+    // The characteristic polynomial of a square matrix, det(λI – A), by Faddeev and LeVerrier:
+    // its coefficients, the highest power first, which is 1
+    function characteristic(a) {
+        var n = a.length, m = a.map(function (r) { return r.map(function () { return 0; }); }), c = [1], k, am, i;
+        for (k = 1; k <= n; k++) {
+            m = m.map(function (r, i) { return r.map(function (x, j) { return x + (i === j ? c[k - 1] : 0); }); });
+            am = times(a, m, true);
+            for (i = 0, c[k] = 0; i < n; i++) c[k] -= am[i][i] / k;
+            m = am;
+        }
+        return c;
+    }
+
+    // The eigenvalues of a square matrix, the roots of its characteristic polynomial, as poly
+    // gives them, real or a ± bi; and for each real one its eigenvectors, as the matrix less it
+    // times I takes to 0: each with a 1 where it is free, made whole where a small whole number
+    // times it is, [-1, 2] not [-0.5, 1]. { poly, values: [{ re, im }], vectors: [{ value, v }] }; null if not square
+    function eigen(a) {
+        var n = a.length, c, values, vectors = [];
+        if (!n || a.some(function (r) { return r.length !== n; }) || !a.every(function (r) { return r.every(isFinite); })) return null;
+        c = characteristic(a);
+        values = poly(c) || [];
+        values.forEach(function (z, i) {
+            var m, r, tol, free, big;
+            if (z.im || (i && !values[i - 1].im && values[i - 1].re === z.re)) return; // each real one once
+            m = a.map(function (row, i) { return row.map(function (x, j) { return x - (i === j ? z.re : 0); }); });
+            for (tol = 1e-10; tol <= 1e-5; tol *= 100) { // λ is only so near: a little more of 0 till it has a way to 0
+                r = reduce(m, n, tol);
+                if (r.rank < n) break;
+            }
+            for (free = 0; free < n; free++) {
+                if (r.where.indexOf(free) > -1) continue;
+                var v = [], k, j;
+                for (j = 0; j < n; j++) v[j] = j === free ? 1 : 0;
+                r.where.forEach(function (col, row) { v[col] = -r.m[row][free]; });
+                big = Math.max.apply(null, v.map(Math.abs));
+                v = v.map(function (x) { return Math.abs(x) <= 1e-9 * big ? 0 : x; });
+                for (k = 1; k <= 12; k++) {
+                    if (v.every(function (x) { return Math.abs(k * x - Math.round(k * x)) <= 1e-8 * Math.max(1, Math.abs(k * x)); })) {
+                        v = v.map(function (x) { return Math.round(k * x) + 0; });
+                        break;
+                    }
+                }
+                vectors.push({ value: z.re, v: v.map(function (x) { return round(x) + 0; }) });
+            }
+        });
+        return { poly: c.map(function (x) { return round(x) + 0; }), values: values, vectors: vectors };
+    }
+
+    // Linear equations A x = b of any size, a matrix and a column: { x } where they have one
+    // answer, { none: true } where they have none, { many: true } where they have more
+    function system(a, b) {
+        var rows = a.length, cols = a[0].length, r, i, big;
+        if (!a.every(function (row) { return row.every(isFinite); }) || !b.every(isFinite)) return null;
+        r = reduce(a.map(function (row, i) { return row.concat([b[i]]); }), cols);
+        big = Math.max(1, Math.max.apply(null, b.map(Math.abs)));
+        for (i = r.rank; i < rows; i++) if (Math.abs(r.m[i][cols]) > 1e-9 * big) return { none: true };
+        if (r.rank < cols) return { many: true };
+        return { x: clean(r.m.slice(0, cols).map(function (row) { return [row[cols]]; }), [a, [b]]).map(function (row) { return row[0]; }) };
     }
 
     // ---------- whole numbers ---------- //
@@ -1194,6 +1496,8 @@
         integral: integral,
         slopes: slopes,
         series: series,
+        limit: limit,
+        ode: ode,
         normalBetween: normalBetween,
         normalDensity: normalDensity,
         normalInverse: normalInverse,
@@ -1210,12 +1514,17 @@
         croots: croots,
         bitwise: bitwise,
         inBase: inBase,
+        bitCount: bitCount,
+        flipBit: flipBit,
+        float: float,
         det: det,
         inverse: inverse,
         rank: rank,
         transpose: transpose,
         plus: plus,
         times: times,
+        eigen: eigen,
+        system: system,
         factorize: factorize,
         divisorsOf: divisorsOf,
         isPrime: isPrime,

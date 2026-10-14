@@ -84,9 +84,9 @@
                 </span>
                 <div class="option-text">
                     <h3>Solve</h3>
-                    <p>A button at the top left of the display that solves an equation for x, a polynomial or two or
-                        three linear equations, finds integrals, slopes, sums and products, and the chances of the
-                        normal, binomial and Poisson distributions.</p>
+                    <p>A button at the top left of the display that solves an equation or an inequality for x, a
+                        polynomial or two or three linear equations, finds integrals, slopes, sums, products, limits
+                        and differential equations, and the chances of the normal, binomial and Poisson distributions.</p>
                 </div>
                 <label class="switch" title="Solve">
                     <input type="checkbox" id="panel-solve">
@@ -103,8 +103,9 @@
                 <div class="option-text">
                     <h3>Numbers</h3>
                     <p>A button at the top left of the display for complex numbers, such as (2 + 3i)(1 – i), whole
-                        numbers in bits with their hexadecimal, octal and binary, matrices: their determinant,
-                        inverse, sums and products, and whole numbers' prime factors, GCD and LCM, and rounding.</p>
+                        numbers in bits with their hexadecimal, octal and binary, and numbers as doubles and floats,
+                        matrices: their determinant, inverse, sums, products and eigenvalues, and A x = b, and whole
+                        numbers' prime factors, GCD and LCM, and rounding.</p>
                 </div>
                 <label class="switch" title="Numbers">
                     <input type="checkbox" id="panel-numbers">
@@ -217,10 +218,10 @@
                     below.</li>
                 <li>Graph: functions, equations, inequalities and points drawn, with their roots, highs, lows and
                     crossings. See the "Graph" section below.</li>
-                <li>Solve: every root of an equation, polynomials, linear systems, integrals, slopes, sums and
-                    probability. See the "Solve" section below.</li>
-                <li>Numbers: complex numbers, bases and bits, matrices, prime factors and rounding. See the "Numbers"
-                    section below.</li>
+                <li>Solve: every root of an equation, inequalities, polynomials, linear systems, integrals, slopes,
+                    sums, limits, differential equations and probability. See the "Solve" section below.</li>
+                <li>Numbers: complex numbers, bases and bits, IEEE 754, matrices and their eigenvalues, prime factors
+                    and rounding. See the "Numbers" section below.</li>
                 <li><kbd class="k">mod</kbd>, <kbd class="k">gcd</kbd> and <kbd class="k">lcm</kbd> on the <kbd class="k">2nd</kbd> layer of <kbd class="k">%</kbd>, <kbd class="k"><sup>n</sup>C<sub>r</sub></kbd> and <kbd class="k"><sup>n</sup>P<sub>r</sub></kbd>.</li>
                 <li><kbd class="k">floor</kbd> and <kbd class="k">ceil</kbd> on the <kbd class="k">2nd</kbd> layer of <kbd class="k">abs</kbd> and <kbd class="k">x!</kbd>, side by side, and <kbd class="k">round</kbd> on that of <kbd class="k">Rand</kbd>: a number to the whole number below or above it, and to the nearest, half away from 0. They can be pasted too, with trunc, which goes toward 0: floor(7.5) = 7.</li>
                 <li><kbd class="k">10<sup>x</sup></kbd>, <kbd class="k">e</kbd> and <kbd class="k">log<sub>y</sub></kbd> (the logarithm to any base: 8 log<sub>y</sub> 2 = 3) on the <kbd class="k">2nd</kbd> layer of <kbd class="k">log</kbd>, <kbd class="k">&pi;</kbd> and <kbd class="k">y<sup>x</sup></kbd>.</li>
@@ -380,10 +381,13 @@
                 worked out as you type. Click a result to put it into your calculation.</p>
             <ul>
                 <li>Solve finds every root of an equation of x, x^3 = 2x + 1 or sin(x) = 0.5 (From and To say where
-                    to look), the real and complex roots of a quadratic, a cubic or a quartic, and x, y and z of two
-                    or three linear equations.</li>
+                    to look), where an inequality holds, x^2 – 4 &gt; 0 as x &lt; –2 or x &gt; 2 and in intervals, the
+                    real and complex roots of a quadratic, a cubic or a quartic, and x, y and z of two or three linear
+                    equations.</li>
                 <li>Calculus has the integral of a function from a to b, an end of inf going on without end, its
-                    value and slopes at x, and sums and products for n from a to b.</li>
+                    value and slopes at x, sums and products for n from a to b, the limit of a function as x comes to
+                    a, from below and above, sin(x)/x at 0 or (1 + 1/x)^x at inf, and y at x of a differential
+                    equation, y′ = x + y with y(0) = 1.</li>
                 <li>Probability has the normal distribution's chances, density and inverse, binomial and Poisson
                     chances, and random whole numbers.</li>
                 <li>A box of a number takes a calculation too: pi/4, sqrt(2). What you typed stays for the next
@@ -399,10 +403,13 @@
                 <li>Complex works out a complex number, (2 + 3i)(1 – i), sqrt(-4) or 2∠30 in polar form, for its
                     real and imaginary parts, length, angle and conjugate, and the n-th roots of one.</li>
                 <li>Base works out whole numbers as a computer keeps them, in 8, 16, 32 or 64 bits: decimal, 0xFF,
-                    0b1010 or 0o17, with + – × ÷, mod, AND, OR, XOR, NOT and shifts, shown in decimal, hexadecimal,
-                    octal and binary.</li>
+                    0b1010 or 0o17, with + – × ÷, mod, AND, OR, XOR, NOT, shifts and ROL and ROR, shown in decimal,
+                    hexadecimal, octal and binary. Bits shows each bit of a number, to turn over with a click, and
+                    how many are 1; IEEE 754 shows a number as a double and a float, 0.1 = 0x3FB999999999999A, what
+                    it is to its last digit, and the number of the bits of one.</li>
                 <li>Matrix has a matrix of up to 4 × 4, its determinant, rank, inverse, transpose and square, and
-                    the sum and products of two.</li>
+                    the sum and products of two; its eigenvalues, real or complex, its characteristic polynomial and
+                    its eigenvectors; and A x = b, linear equations of up to four unknowns.</li>
                 <li>Integer has the prime factors of a whole number of up to 20 digits, 360 = 2³ × 3² × 5, whether
                     it is prime, and its divisors; the GCD and LCM of two numbers or more; and a number rounded to d
                     places, half away from 0, down, up and toward 0, and to d significant figures.</li>
