@@ -365,11 +365,12 @@
                 <canvas></canvas>
                 <!-- the point clicked: what it is, and its x and y, each to insert -->
                 <div class="calc-graph-pop" hidden></div>
-                <!-- the view: closer, farther, and back to the start -->
+                <!-- the view: closer, farther, and back to the start; and the area under a curve -->
                 <div class="calc-graph-zoom">
                     <span data-zoom="in"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 3v10M3 8h10" /></svg></span>
                     <span data-zoom="out"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 8h10" /></svg></span>
                     <span data-zoom="home"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="4.2" /><path d="M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3" /></svg></span>
+                    <span data-zoom="area"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 14V9.5C4 5 6 3.5 8 5.5s4 3.5 6 2.5V14z" fill="currentColor" fill-opacity="0.35" stroke="none" /><path d="M2 9.5C4 5 6 3.5 8 5.5s4 3.5 6 2.5M1.5 14h13" /></svg></span>
                 </div>
                 <!-- the graph saved as a picture, in the corner below -->
                 <div class="calc-graph-zoom calc-graph-export">

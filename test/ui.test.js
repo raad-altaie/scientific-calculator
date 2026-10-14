@@ -198,6 +198,21 @@ Page.prototype.clickAt = async function (selector, x, y) {
     await sleep(60);
 };
 
+// a drag on the plot of the graph from x0 and y0 to x1 and y1, as the plot starts, in ten steps
+Page.prototype.dragAt = async function (selector, x0, y0, x1, y1) {
+    var p = await this.at(selector), w = await this.calc('document.querySelector(' + JSON.stringify(selector) + ').clientWidth'),
+        k = await this.calc('(function (c) { return c.getBoundingClientRect().width / c.offsetWidth; })(document.getElementById("calculator"))'),
+        u = w / 20 * k, i;
+    await this.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p[0] + x0 * u, y: p[1] - y0 * u });
+    await this.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: p[0] + x0 * u, y: p[1] - y0 * u, button: 'left', clickCount: 1 });
+    for (i = 1; i <= 10; i++) {
+        await this.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p[0] + (x0 + (x1 - x0) * i / 10) * u,
+            y: p[1] - (y0 + (y1 - y0) * i / 10) * u, button: 'left', buttons: 1 });
+    }
+    await this.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: p[0] + x1 * u, y: p[1] - y1 * u, button: 'left', clickCount: 1 });
+    await sleep(60);
+};
+
 // typed text, as keys of the keyboard: Enter is \r
 Page.prototype.type = async function (text) {
     for (var ch of text) {
@@ -434,7 +449,7 @@ async function calculator(page, at) {
 // the graph: a function of x drawn on x and y axes, the point under the pointer,
 // its y put into the calculation, and the view zoomed and kept
 async function graphPanel(page, at) {
-    var t = at + ': ', note = 'document.querySelector(".calc-graph-note").textContent', ink, cross, plain, dashes,
+    var t = at + ': ', note = 'document.querySelector(".calc-graph-note").textContent', ink, cross, plain, dashes, shade,
         pop = 'document.querySelector(".calc-graph-pop").textContent.replace(/\\s+/g, " ").trim()';
 
     // the pixels of the curve's color in the plot
@@ -457,6 +472,15 @@ async function graphPanel(page, at) {
             ' d = c.getContext("2d").getImageData(x - 4 * k, y - 4 * k, 8 * k, 8 * k).data;' +
             ' for (i = 0; i < d.length; i += 4) if (Math.abs(d[i] - 0x22) < 30 && Math.abs(d[i + 1] - 0x47) < 30 &&' +
             ' Math.abs(d[i + 2] - 0x6a) < 30 && d[i + 3] > 100) n++; return n; })()';
+    };
+
+    // the pixels about x and y of the plot as it starts with the curve's color, faint: its area shaded there
+    shade = function (x, y) {
+        return '(function () { var c = document.querySelector(".calc-graph-plot canvas"), k = c.width / c.clientWidth, w = c.clientWidth,' +
+            ' x = Math.round((w / 2 + ' + x + ' * w / 20) * k), y = Math.round((c.clientHeight / 2 - ' + y + ' * w / 20) * k), n = 0, i,' +
+            ' d = c.getContext("2d").getImageData(x - 3 * k, y - 3 * k, 6 * k, 6 * k).data;' +
+            ' for (i = 0; i < d.length; i += 4) if (Math.abs(d[i] - 0x22) < 30 && Math.abs(d[i + 1] - 0x47) < 30 &&' +
+            ' Math.abs(d[i + 2] - 0x6a) < 30 && d[i + 3] > 50 && d[i + 3] < 110) n++; return n; })()';
     };
 
     await page.fresh(at, {});
@@ -536,6 +560,38 @@ async function graphPanel(page, at) {
         await shown(page));
     await page.click('.calc-graph-btn');
     check(await page.calc(dashes(0.8, 2 * Math.sqrt(3) * (0.8 - Math.sqrt(3)))) === 0, t + 'no tangent once the point goes');
+
+    // ∫, then a drag along x² – 3 from near its root -√3 to near √3: the ends go to the roots, the area
+    // between, -4√3, is shaded, and its popup opens as the drag ends; the view has not moved
+    await page.hover('.calc-graph-zoom [data-zoom="area"]');
+    check(await page.until('/^Area under a curve/.test(document.querySelector(".calc-tip").textContent)', 2000), t + 'the ∫ button has its tip');
+    await page.click('.calc-graph-zoom [data-zoom="area"]');
+    check(await page.calc('document.querySelector("[data-zoom=area]").classList.contains("calc-on")') &&
+        /^Drag along a curve/.test(await page.calc(note)), t + '∫ pressed, the line says to drag', await page.calc(note));
+    check(await page.calc(shade(0, -1.5)) === 0, t + 'no area yet');
+    await page.dragAt('.calc-graph-plot', -1.75, -0.5, 1.7, 0.5);
+    check(/^Area under the curve\s*From x = -1\.732050807569\s*To x = 1\.732050807569\s*Area = -6\.92820323$/.test(await page.calc(pop)),
+        t + 'a drag from root to root: the area under x² – 3, -4√3', await page.calc(pop));
+    check(await page.calc(shade(0, -1.5)) > 10 && await page.calc(shade(-2.5, 1)) === 0, t + 'shaded between the roots, and not past them',
+        await page.calc(shade(0, -1.5)) + ' / ' + await page.calc(shade(-2.5, 1)));
+    check(!await page.calc('document.querySelector("[data-zoom=area]").classList.contains("calc-on")') &&
+        await page.calc('JSON.parse(localStorage.getItem("graph")).view') === null, t + 'the ∫ button is let go, and the view did not move');
+    await page.hover('.calc-graph-fn');
+    await sleep(2300);
+    check(await page.calc('document.querySelector(".calc-graph-pop").hidden') && await page.calc(shade(0, -1.5)) > 10,
+        t + 'the popup goes, the area stays');
+    await page.clickAt('.calc-graph-plot', 0, -1.5);
+    check(await page.calc('!document.querySelector(".calc-graph-pop").hidden'), t + 'a click on the area brings its popup back');
+    await page.click('.calc-graph-pop-row[data-put="s"]');
+    check(!await open(page, '.calc-graph') && Math.abs(await value(page) + 6.92820323) < 1e-8, t + 'the area goes into the display',
+        await shown(page));
+    await page.click('.calc-graph-btn');
+    check(await page.calc(shade(0, -1.5)) === 0, t + 'no area once it is put in');
+
+    // without ∫ a drag moves the view, as before
+    await page.dragAt('.calc-graph-plot', 0, -1.5, 2, -1.5);
+    check(await page.calc(shade(2, -1.5)) === 0 && await page.calc('!!JSON.parse(localStorage.getItem("graph")).view'), t + 'a drag without ∫ moves the view');
+    await page.click('.calc-graph-zoom [data-zoom="home"]');
 
     // a second curve, in its own color; where the two cross is marked: x² – 3 = x + 3 at 3, where y = 6
     await page.click('.calc-graph-fn:nth-child(2) input');

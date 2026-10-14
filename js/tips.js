@@ -221,6 +221,27 @@
                 'The dashed line is its tangent.',
             k: ''
         },
+        'graph area': {
+            t: 'Area under a curve',
+            d: 'Press, then drag along a curve from one x to another: the area between it and the x axis is shaded, ' +
+                'above the axis counted up and below it down. An end near a root or a crossing goes to it.',
+            k: ''
+        },
+        'graph put a': {
+            t: 'Insert the start',
+            d: 'Puts the x the area starts from into the equation, as Ans does.',
+            k: ''
+        },
+        'graph put b': {
+            t: 'Insert the end',
+            d: 'Puts the x the area goes to into the equation, as Ans does.',
+            k: ''
+        },
+        'graph put s': {
+            t: 'Insert the area',
+            d: 'Puts the area into the equation, as Ans does: the integral of the curve from the start to the end.',
+            k: ''
+        },
         'graph play': {
             t: 'Play',
             d: 'Moves the value from one end of the slider to the other and back, over and over, and the curves with it.',
