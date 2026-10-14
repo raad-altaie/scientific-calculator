@@ -2299,6 +2299,31 @@ dels.forEach(function (c) {
         'graph marks: sin x in degrees, its highs at 90, not 89.99999997', marks(['sin(x)'], 1, { x0: -360, x1: 360, y0: -5, y1: 5 }));
     check(marks(['x^2 - 3'], 0, { x0: 2, x1: 5, y0: -10, y1: 10 }) === '', 'graph marks: only those in the view');
 
+    // the slope of a curve at x: as short as it is good, 0 at a high or low, none at a corner or a break
+    [
+        ['x^2', 1, 0, 2, 'x² at 1'],
+        ['x^2 - 3', 0, 0, 0, 'x² – 3 at its low'],
+        ['x^3 - 2x', 2, 0, 10, 'a cubic'],
+        ['1/x', 2, 0, -0.25, '1/x at 2'],
+        ['sin(x)', 0, 0, 1, 'sin x at 0 in radians'],
+        ['sin(x)', 0, 1, 0.01745329252, 'and in degrees: the slope is for each degree'],
+        ['sin(x)', 90, 1, 0, 'its high at 90°'],
+        ['e^x', 20, 0, 485165195.4, 'e^x, large'],
+        ['x^2', 1e-9, 0, 2e-9, 'small, but not 0'],
+        ['sin(100x)', 0.01, 0, 54.0302306, 'a steep wave, to the digits it is good to'],
+        ['ln(x)', 0.0001, 0, 10000, 'by the edge of where ln x has values'],
+        ['abs(x)', 0.00005, 0, 1, 'by the corner of |x|'],
+        ['sin(x)', 1e6, 0, 0.936752128, 'a wave far out'],
+        ['abs(x)', 0, 0, NaN, 'none at the corner of |x|'],
+        ['0.000000001abs(x)', 0, 0, NaN, 'nor at a corner of small values'],
+        ['1/x', 0, 0, NaN, 'none where there is no value'],
+        ['tan(x)', 90, 1, NaN, 'none where tan jumps'],
+        ['x^(1/3)', 0, 0, NaN, 'none where the tangent is upright']
+    ].forEach(function (c) {
+        var got = Engine.slope(Engine.graph(c[0]), c[1], c[2]);
+        check(Object.is(got, c[3]) || got === c[3], 'graph slope: ' + c[4], got);
+    });
+
     (function (e) {
         e.paste('2x3 =', 0);
         check(e.value === '6', 'x is still × in a pasted equation', e.value);

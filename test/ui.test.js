@@ -150,11 +150,12 @@ Page.prototype.at = function (selector) {
         'return [o.left + b.left + b.width / 2, o.top + b.top + b.height / 2]; })()');
 };
 
-Page.prototype.click = async function (selector) {
+Page.prototype.click = async function (selector, hold) {
     var p = await this.at(selector), self = this;
     check(!!p, 'there is ' + selector + ' to click');
     if (!p) return;
     for (var type of ['mouseMoved', 'mousePressed', 'mouseReleased']) {
+        if (type === 'mouseReleased' && hold) await sleep(hold); // pressed a while, as a hand does
         await self.send('Input.dispatchMouseEvent', { type: type, x: p[0], y: p[1], button: 'left', clickCount: 1 });
     }
     await sleep(60);
@@ -433,7 +434,7 @@ async function calculator(page, at) {
 // the graph: a function of x drawn on x and y axes, the point under the pointer,
 // its y put into the calculation, and the view zoomed and kept
 async function graphPanel(page, at) {
-    var t = at + ': ', note = 'document.querySelector(".calc-graph-note").textContent', ink, cross, plain,
+    var t = at + ': ', note = 'document.querySelector(".calc-graph-note").textContent', ink, cross, plain, dashes,
         pop = 'document.querySelector(".calc-graph-pop").textContent.replace(/\\s+/g, " ").trim()';
 
     // the pixels of the curve's color in the plot
@@ -448,6 +449,15 @@ async function graphPanel(page, at) {
         ' d = c.getContext("2d").getImageData(x - 7 * k, y - 7 * k, 14 * k, 14 * k).data;' +
         ' for (i = 0; i < d.length; i += 4) if (Math.abs(d[i] - 0x33) < 20 && Math.abs(d[i + 1] - 0x44) < 20 && Math.abs(d[i + 2] - 0x3b) < 20) n++;' +
         ' return n; })()';
+
+    // the pixels of the curve's color near x and y of the plot as it starts: its tangent drawn there
+    dashes = function (x, y) {
+        return '(function () { var c = document.querySelector(".calc-graph-plot canvas"), k = c.width / c.clientWidth, w = c.clientWidth,' +
+            ' x = Math.round((w / 2 + ' + x + ' * w / 20) * k), y = Math.round((c.clientHeight / 2 - ' + y + ' * w / 20) * k), n = 0, i,' +
+            ' d = c.getContext("2d").getImageData(x - 4 * k, y - 4 * k, 8 * k, 8 * k).data;' +
+            ' for (i = 0; i < d.length; i += 4) if (Math.abs(d[i] - 0x22) < 30 && Math.abs(d[i + 1] - 0x47) < 30 &&' +
+            ' Math.abs(d[i + 2] - 0x6a) < 30 && d[i + 3] > 100) n++; return n; })()';
+    };
 
     await page.fresh(at, {});
     await page.click('.calc-graph-btn');
@@ -469,14 +479,28 @@ async function graphPanel(page, at) {
     check(/^Min, y-intercept\s*x = 0\s*y = -3/.test(await page.calc(note)), t + 'the point under the pointer: the low at x = 0, y = -3',
         await page.calc(note));
     await page.clickAt('.calc-graph-plot', 0, -3);
-    check(await page.calc('!document.querySelector(".calc-graph-pop").hidden') && /^Min, y-intercept\s*x = 0\s*y = -3$/.test(await page.calc(pop)),
-        t + 'a click on it opens its popup', await page.calc(pop));
+    check(await page.calc('!document.querySelector(".calc-graph-pop").hidden') && /^Min, y-intercept\s*x = 0\s*y = -3\s*Slope = 0$/.test(await page.calc(pop)),
+        t + 'a click on it opens its popup, with the slope there', await page.calc(pop));
     check(await page.calc('!document.querySelector(".calc-graph-pop").classList.contains("calc-graph-pop-below")'), t + 'over the point');
     await page.hover('.calc-graph-fn');
     check(await page.calc('!document.querySelector(".calc-graph-pop").hidden') && /^Point at the graph/.test(await page.calc(note)),
         t + 'the popup stays after the pointer leaves, and the line says what to do again', await page.calc(note));
     await page.clickAt('.calc-graph-plot', 0, -3);
     check(await page.calc('document.querySelector(".calc-graph-pop").hidden'), t + 'a click on the point again closes it');
+
+    // at its root √3, x² – 3 has the slope 2√3; the tangent is dashed through the root, and below the curve at 0.8
+    plain = await page.calc(dashes(0.8, 2 * Math.sqrt(3) * (0.8 - Math.sqrt(3))));
+    await page.clickAt('.calc-graph-plot', Math.sqrt(3), 0);
+    check(/^Root\s*x = 1\.732050807569\s*y = 0\s*Slope = 3\.464101615$/.test(await page.calc(pop)), t + 'the slope at the root', await page.calc(pop));
+    check(plain === 0 && await page.calc(dashes(0.8, 2 * Math.sqrt(3) * (0.8 - Math.sqrt(3)))) > 0, t + 'and the tangent there',
+        plain + ' / ' + await page.calc(dashes(0.8, 2 * Math.sqrt(3) * (0.8 - Math.sqrt(3)))));
+    await page.hover('.calc-graph-pop-row[data-put="m"]');
+    check(await page.until('/^Insert the slope/.test(document.querySelector(".calc-tip").textContent)', 2000), t + 'the slope has its tip');
+    await page.click('.calc-graph-pop-row[data-put="m"]');
+    check(!await open(page, '.calc-graph') && Math.abs(await value(page) - 3.464101615) < 1e-9, t + 'a click on it puts it into the display',
+        await shown(page));
+    await page.click('.calc-graph-btn');
+    check(await page.calc(dashes(0.8, 2 * Math.sqrt(3) * (0.8 - Math.sqrt(3)))) === 0, t + 'no tangent once the point goes');
 
     // a second curve, in its own color; where the two cross is marked: x² – 3 = x + 3 at 3, where y = 6
     await page.click('.calc-graph-fn:nth-child(2) input');
@@ -644,6 +668,8 @@ async function graphSlide(page, at) {
     var t = at + ': sliders: ', note = 'document.querySelector(".calc-graph-note").textContent',
         letters = '[].map.call(document.querySelectorAll(".calc-graph-slider"), function (r) { return r.dataset.k; }).join()',
         saved = 'JSON.stringify(JSON.parse(localStorage.getItem("graph")).p)',
+        b = 'document.querySelector(".calc-graph-slider[data-k=b] .calc-graph-val input").value',
+        playing = 'document.querySelector(".calc-graph-slider[data-k=b] .calc-graph-play").classList.contains("calc-on")', n,
         set = function (selector, v) { // a value put in a box or the slider, as typing or dragging does
             return page.calc('(function (i) { i.focus(); i.value = ' + JSON.stringify(v) + '; i.dispatchEvent(new Event("input", { bubbles: true }));' +
                 ' i.dispatchEvent(new Event("change", { bubbles: true })); })(document.querySelector(' + JSON.stringify(selector) + '))');
@@ -687,6 +713,40 @@ async function graphSlide(page, at) {
     check(await page.calc('document.querySelector(".calc-graph-slider[data-k=b] .calc-graph-range").step') === '0.1',
         t + 'the step suits the ends');
     check(await page.calc(saved) === '{"a":[25,-10,25],"b":[-3,-5,10]}', t + 'the values and the ends are saved with the graph', await page.calc(saved));
+
+    // ▶ plays b: up from -3, the curve with it; paused, it stops at a value of its step and is kept
+    await page.calc('document.activeElement.blur()');
+    await page.hover('.calc-graph-slider[data-k=b] .calc-graph-play');
+    check(await page.until('/^Play/.test(document.querySelector(".calc-tip").textContent)', 2000), t + 'play has its tip');
+    await page.click('.calc-graph-slider[data-k=b] .calc-graph-play');
+    check(await page.calc(playing) && await page.until('+' + b + ' > -2.5', 2000) && await page.calc(b) !== '-3', t + 'play: b goes up', await page.calc(b));
+    await page.click('.calc-graph-slider[data-k=b] .calc-graph-play');
+    n = await page.calc(b);
+    await sleep(200);
+    check(!await page.calc(playing) && /^-?\d+(\.\d)?$/.test(n) && await page.calc(b) === n &&
+        await page.calc('JSON.parse(localStorage.getItem("graph")).p.b[0]') === +n, t + 'paused: it stays, at a tenth, and is kept', n);
+    await set('.calc-graph-slider[data-k=b] .calc-graph-val input', '10');
+    await page.calc('document.activeElement.blur()');
+    await page.click('.calc-graph-slider[data-k=b] .calc-graph-play');
+    check(await page.until('+' + b + ' < 9.5', 2000), t + 'from the top end it goes down', await page.calc(b));
+    await set('.calc-graph-slider[data-k=b] .calc-graph-range', '-3');
+    await sleep(200);
+    check(!await page.calc(playing) && await page.calc(b) === '-3', t + 'dragged, it stops', await page.calc(b));
+
+    // the y of a point clicked, pressed while b plays: it stops, and the y goes in
+    await page.clickAt('.calc-graph-plot', 0.3, -0.75);
+    check(/^On the curve/.test(await page.calc('document.querySelector(".calc-graph-pop").textContent.trim()')), t + 'a point on the curve');
+    await page.click('.calc-graph-slider[data-k=b] .calc-graph-play');
+    check(await page.until('+' + b + ' > -2', 2000), t + 'played, b goes up', await page.calc(b));
+    await page.click('.calc-graph-pop-row[data-put="y"]', 150);
+    check(!await page.calc(playing) && !await open(page, '.calc-graph') && await value(page) > -0.2, t + 'its y pressed: b stops and the y goes in',
+        await shown(page));
+    await page.click('.calc-graph-btn');
+    await page.click('.calc-graph-slider[data-k=b] .calc-graph-play');
+    await page.key('Escape', 27);
+    check(!await open(page, '.calc-graph') && !await page.calc(playing), t + 'closed, it stops');
+    await page.click('.calc-graph-btn');
+    await set('.calc-graph-slider[data-k=b] .calc-graph-range', '-3');
 
     // the table follows the letters too
     await page.click('.calc-graph-tab[data-tab="table"]');

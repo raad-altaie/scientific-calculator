@@ -1033,6 +1033,45 @@
         });
     }
 
+    // The slope of a curve at x, dy/dx in the unit of x: from four values about it, and again
+    // from four as close, which is as good as the two agree, to 10 digits at most; 0 where it
+    // is 0 as far as they tell. Where the values are too far apart for that, as by the edge of
+    // where the curve has values, ln x at 0.0001, or on a quick wave far out, sin x at 10^6,
+    // it looks again a hundred and ten thousand times as close. None (NaN) where the curve has
+    // no value at x; at a corner, as |x| at 0, where the slopes either side of x differ as much
+    // however close they are, when on a smooth curve they come together; and where the two do
+    // not agree to 3 digits, as at the upright tangent of x^(1/3) at 0
+    function slope(c, x, deg) {
+        var y = c.at(x, deg), h, m;
+        if (!isFinite(y)) return NaN;
+        for (h = 1e-4 * Math.max(1, Math.abs(x)); h >= 1e-8 * Math.max(1, Math.abs(x)); h /= 100) {
+            m = slopeBy(c, x, deg, y, h);
+            if (m !== undefined) return m;
+        }
+        return NaN;
+    }
+
+    // the slope as the values within 2h of x tell it; undefined where they cannot
+    function slopeBy(c, x, deg, y, h) {
+        var size, gap, near, m, n, digits;
+        function f(d) {
+            return c.at(x + d, deg);
+        }
+        function at(h) {
+            return (f(-2 * h) - 8 * f(-h) + 8 * f(h) - f(2 * h)) / (12 * h);
+        }
+        size = Math.max(Math.abs(y), Math.abs(f(h)), Math.abs(f(-h)));
+        gap = Math.abs(f(h) - 2 * y + f(-h)) / h;
+        near = Math.abs(f(h / 10) - 2 * y + f(-h / 10)) / (h / 10);
+        m = at(h);
+        n = at(h / 2);
+        if (!isFinite(gap) || !isFinite(near) || !isFinite(m) || !isFinite(n)) return undefined;
+        if (gap > 1e-6 * size && near > gap / 2) return undefined; // a corner, or too far to tell
+        if (Math.abs(n) <= 1e-10 * Math.abs(y) / h) return 0;
+        digits = Math.floor(-Math.log10(Math.abs(m - n) / Math.abs(n)));
+        return digits < 3 ? undefined : +n.toPrecision(Math.min(10, digits));
+    }
+
     // ---------- history ---------- //
 
     // the units the functions of an angle in the expression were worked out in
@@ -2126,6 +2165,7 @@
     Engine.angleAlone = angleAlone;
     Engine.graph = graph;
     Engine.keyPoints = keyPoints;
+    Engine.slope = slope;
 
     root.CalcEngine = Engine;
     if (typeof module !== 'undefined' && module.exports) {
