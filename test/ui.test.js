@@ -993,21 +993,20 @@ async function graphPanel(page, at) {
     await page.type('\r');
     await sleep(300);
     await page.hoverAt('.calc-graph-plot', 4.05, 0.05);
-    check(await boxes() === '(1, 2), (3, 4) | r = 2 + 2cos(θ)' && !await page.calc('document.querySelector(".calc-graph-plot").hidden') &&
-        /^x-intercept\s*x = 4\s*y = 0$/.test((await page.calc(note)).trim()), t + 'examples: Enter draws it after the box typed', await boxes());
+    check(await boxes() === 'r = 2 + 2cos(θ)' && !await page.calc('document.querySelector(".calc-graph-plot").hidden') &&
+        /^x-intercept\s*x = 4\s*y = 0$/.test((await page.calc(note)).trim()), t + 'examples: Enter draws it in place of the points', await boxes());
     await page.click('.calc-graph-tab[data-tab="examples"]');
     await page.type('vertex\r');
     await sleep(300);
-    check(await boxes() === '(1, 2), (3, 4) | r = 2 + 2cos(θ) | a(x - h)^2 + k' &&
+    check(await boxes() === 'a(x - h)^2 + k' &&
         await page.calc('document.querySelector(".calc-graph-slider[data-k=h] .calc-graph-val input").value') === '2',
         t + 'examples: with its sliders set', await boxes());
     await page.click('.calc-graph-tab[data-tab="examples"]');
-    await page.type('the next');
+    await page.type('stretched');
     await page.click('.calc-graph-ex-list .calc-gx-row');
-    await page.click('.calc-graph-tab[data-tab="examples"]');
-    await page.type('stretched\r');
     await sleep(300);
-    check(await boxes() === 'g(x) = sin(x) | g(2x) | 2g(x)', t + 'examples: in place of them all when there is no room', await boxes());
+    check(await boxes() === 'g(x) = sin(x) | g(2x) | 2g(x)' && !await page.calc('document.querySelector(".calc-graph-slider")'),
+        t + 'examples: a click draws one, its boxes only, the sliders before gone', await boxes());
 
     // what is not a function says so, and draws nothing
     await page.click('.calc-graph .calc-past-clear');
