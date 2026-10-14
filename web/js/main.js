@@ -1104,8 +1104,10 @@
         graphMarksKept = null, // the marks found, while the view, the unit, the letters and the boxes stay
         graphSharp = 0, // pixels of the canvas to each of the plot at least: 2 while a picture is made
         graphPop = graphPlot.querySelector('.calc-graph-pop'), // the point clicked: its x and y, each to insert
-        GRAPH_POP_WAIT = 2000, // the popup opened with the mouse goes this many ms after the mouse is off it
+        GRAPH_POP_WAIT = 3500, // the popup opened with the mouse goes this many ms after the mouse is off it
         graphHiding, // that wait
+        graphPopFrom = null, // where the mouse was as it opened the popup: the wait starts once it is moved off there
+        GRAPH_POP_STILL = 8, // this many pixels of the plot
         graphPopShut = false, // the popup put away, the point clicked and its tangent still drawn
         GRAPH_TRACE = 2, // ← and → move the point clicked this many pixels along its curve, ten times as far with Shift
         graphTracing = -1, // the curve traced last: of the two at a crossing, the one to go on along
@@ -1115,6 +1117,12 @@
         graphShading = false, // the ∫ button pressed: a drag along a curve shades its area, and does not move the view
         graphAreaButton = graphPlot.querySelector('[data-zoom="area"]'),
         graphSize = graph.querySelector('.calc-graph-size'), // the graph as big as the page, and back
+        graphSplit = graph.querySelector('.calc-graph-split'), // big, the line between its two columns, to drag
+        graphSide = 0, // the width that line gives the left column; 0: as style.css has it
+        graphSplitFrom = null, // where it was taken: the pointer's x, and the column's width then
+        GRAPH_SIDE_MIN = 270, // the left column is never narrower: its tabs, + and Clear fit
+        GRAPH_PLOT_MIN = 320, // nor so wide that the plot is narrower than this
+        GRAPH_SIDE_MAX = 0.7, // nor wider than this much of the room the plot leaves
         graphAlone = false; // the page is the graph's own window, in the extension: only the graph, always big
 
     // A click on the dot of a curve hides it, and shows it again: it stays typed, but is not
@@ -1304,6 +1312,42 @@
         return true;
     }
 
+    // Big on a wide page, the line between the two columns: dragged, the left one is wider or
+    // narrower, from GRAPH_SIDE_MIN to GRAPH_SIDE_MAX of what leaves the plot GRAPH_PLOT_MIN; a double click
+    // puts it back as it was at first
+    function setSide(w) {
+        graphSide = w;
+        if (w) graph.style.setProperty('--calc-graph-side', w + 'px'); else graph.style.removeProperty('--calc-graph-side');
+    }
+
+    graphSplit.addEventListener('pointerdown', function (e) {
+        if (e.button) return;
+        e.preventDefault();
+        graphSplit.setPointerCapture(e.pointerId);
+        graphSplit.classList.add('calc-on');
+        graphSplitFrom = { x: e.clientX, w: parseFloat(getComputedStyle(graph).gridTemplateColumns) };
+    }, false);
+
+    graphSplit.addEventListener('pointermove', function (e) {
+        var cs = getComputedStyle(graph),
+            room = (graph.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - GRAPH_PLOT_MIN) * GRAPH_SIDE_MAX;
+        if (!graphSplitFrom || !graphSplit.hasPointerCapture(e.pointerId)) return;
+        setSide(Math.round(Math.max(GRAPH_SIDE_MIN, Math.min(room, graphSplitFrom.w + e.clientX - graphSplitFrom.x))));
+        drawGraph();
+    }, false);
+
+    graphSplit.addEventListener('lostpointercapture', function () {
+        graphSplitFrom = null;
+        graphSplit.classList.remove('calc-on');
+        saveState();
+    }, false);
+
+    graphSplit.addEventListener('dblclick', function () {
+        setSide(0);
+        drawGraph();
+        saveState();
+    }, false);
+
     // the page asks for it: big and alone in the graph's own window
     root.addEventListener('calc-graph', function (e) {
         var d = e.detail || {};
@@ -1392,6 +1436,7 @@
             graphHue = c.concat(graphHue.filter(function (h) { return c.indexOf(h) < 0; }));
         }
         graphView = v && [v.x, v.y, v.ux, v.uy].every(isFinite) && v.ux > 0 && v.uy > 0 ? { x: v.x, y: v.y, ux: v.ux, uy: v.uy } : null;
+        setSide(saved && typeof saved.side === 'number' && saved.side >= GRAPH_SIDE_MIN && saved.side < 10000 ? Math.round(saved.side) : 0);
         graphOff = graphOff.map(function (off, i) { return !!(saved && Array.isArray(saved.off) && saved.off[i] === true); });
         graphDiff = graphDiff.map(function (on, i) {
             var d = saved && Array.isArray(saved.d) ? saved.d[i] : false;
@@ -1686,9 +1731,10 @@
         if (row) setTimeout(function () { if (row.parentNode) setSlider(row); }, 0);
     }, false);
 
-    // the tab shown, drawn as it is now; the examples stay as they are
+    // the tab shown, drawn as it is now; the examples stay as they are, and the plot beside
+    // them, big, is drawn too: hidden, it is not
     function graphRender() {
-        if (graphTab === 'table') renderTable(); else if (graphTab === 'graph') drawGraph();
+        if (graphTab === 'table') renderTable(); else drawGraph();
     }
 
     // What a box is: a function of x, an equation or an inequality, a curve of a parameter or
@@ -2090,16 +2136,22 @@
         return +(Math.round(x / fine) * fine).toPrecision(12);
     }
 
-    // the drag with ∫ pressed: the area of the region where it began, from there to the pointer.
-    // Its popup waits for the drag to end. False where no curve has a value there
+    // the drag with ∫ pressed: the area of the region where it began, from there to the pointer;
+    // begun where no curve has a value, from the first place on the way that has one. Its popup
+    // waits for the drag to end. False until there is such a place
     function graphAreaTo(s, at) {
         var v = viewNow(), a, b;
-        if (s.i === undefined) {
-            s.r = areaRegion(s.p[0]);
+        if (!s.r) {
+            s.from = s.p[0];
+            s.r = areaRegion(s.from);
+            if (!s.r) {
+                s.from = at;
+                s.r = areaRegion(at);
+            }
             s.i = s.r ? s.r.i : -1;
         }
         if (s.i < 0) return false;
-        a = areaEnd(v, s.r, s.p[0].x);
+        a = areaEnd(v, s.r, s.from.x);
         b = areaEnd(v, s.r, at.x);
         graphPinned = { area: true, i: s.r.i, j: s.r.j, a: Math.min(a, b), b: Math.max(a, b) };
         if (s.r.rel) {
@@ -2121,7 +2173,7 @@
     function graphTrace(key, shift) {
         var p = graphPinned, v = viewNow(), w = graphPlot.clientWidth, h = graphPlot.clientHeight,
             dir = key === 39 || key === 38 ? 1 : -1, i, x, next = null, px, py, dx = 0, dy = 0;
-        if (!p || p.spot || p.area || !graph.classList.contains('calc-open') || graphTab !== 'graph') return false;
+        if (!p || p.spot || p.area || !graph.classList.contains('calc-open') || !graphPlot.offsetWidth) return false;
         i = p.j !== undefined && p.j === graphTracing ? p.j : p.i;
         if (!graphFns[i] && !graphRels[i] && !graphPlanes[i] && !graphData[i]) return false;
         if (p.data && (key === 37 || key === 39)) {
@@ -2708,7 +2760,7 @@
     // let go, else the point clicked goes, and its popup; false if there was none of them
     function graphUnpin() {
         popLater(false);
-        if (!graph.classList.contains('calc-open') || graphTab !== 'graph') return false;
+        if (!graph.classList.contains('calc-open') || !graphPlot.offsetWidth) return false;
         if (!graphWindow.hidden) {
             showWindow(false);
             return true;
@@ -2727,6 +2779,7 @@
     // seen again; back on it in time, it stays. Not while the menu of a right click on it is open.
     // One opened by a touch stays, as no pointer rests on it
     function popLater(on) {
+        if (on) graphPopFrom = null;
         clearTimeout(graphHiding);
         if (!on) return;
         graphHiding = setTimeout(function () {
@@ -2742,8 +2795,16 @@
         graphPop.hidden = true;
     }
 
+    // A click, or the drag of an area, opens the popup with the mouse at at: it stays while the
+    // mouse stays there, and its wait starts once the mouse is moved off, or off the plot
+    function popWhenMoved(at) {
+        popLater(false);
+        graphPopFrom = at || null;
+    }
+
     graphPop.addEventListener('pointerenter', function () {
         popLater(false);
+        graphPopFrom = null;
     }, false);
 
     graphPop.addEventListener('pointerleave', function (e) {
@@ -2830,6 +2891,7 @@
     graphCanvas.addEventListener('pointermove', function (e) {
         var at = onPlot(e), s = graphStart, p, d0, d1;
         if (!graphTouch[e.pointerId]) { // the mouse over the plot: the point under it
+            if (graphPopFrom && Math.hypot(at.x - graphPopFrom.x, at.y - graphPopFrom.y) > GRAPH_POP_STILL) popLater(!graphPop.hidden);
             if (e.pointerType === 'mouse' && graphShading) { // where an area would start, as a drag from here takes it
                 p = areaRegion(at);
                 graphAt = null;
@@ -2847,7 +2909,7 @@
         if (p.length === 1) {
             if (!graphMoved && Math.abs(at.x - s.p[0].x) + Math.abs(at.y - s.p[0].y) < 4) return; // a click shakes a little
             graphMoved = true;
-            if (!graphShading || s.p.length !== 1 || !graphAreaTo(s, at)) graphMove(s.view, s.p[0], at, 1);
+            if (graphShading && s.p.length === 1) graphAreaTo(s, at); else graphMove(s.view, s.p[0], at, 1); // with ∫ pressed, never the view
         } else if (p.length === 2 && s.p.length === 2) {
             graphMoved = true;
             popShut();
@@ -2863,15 +2925,16 @@
     // A click opens the popup of the point there; a finger reaches a dot or a curve from
     // farther. A click on the point that has it open takes the point away; one on the point
     // whose popup went brings it back; an area shaded is the same. The drag that shades an
-    // area opens its popup as it ends, and the ∫ button is let go
+    // area opens its popup as it ends; the ∫ button stays pressed, for another, until it is
+    // pressed again or Esc lets it go
     function graphUp(e) {
         var at = graphTouch[e.pointerId], v = viewNow(), p = graphPinned, mouse = e.pointerType === 'mouse', s = graphStart;
         if (!at) return;
         delete graphTouch[e.pointerId];
         if (graphMoved && graphShading && s && s.i >= 0 && !graphPointers().length) {
-            areaOn(false);
+            graphEdge = null;
             graphPopShut = false;
-            popLater(mouse);
+            popWhenMoved(mouse && at);
             drawGraph();
         } else if (e.type === 'pointerup' && !graphMoved && !graphPointers().length) {
             if (p && (p.area ? onArea(v, p, at) : Math.hypot(plotX(v, p.x) - at.x, plotY(v, p.y) - at.y) <= (mouse ? 8 : 16))) {
@@ -2881,7 +2944,7 @@
                 graphPopShut = false;
                 if (mouse) graphAt = graphPinned;
             }
-            popLater(mouse && !!graphPinned); // the mouse is on the point, off the popup
+            popWhenMoved(mouse && !!graphPinned && at); // the mouse is on the point, off the popup
             drawGraph();
         }
         graphBegin();
@@ -2894,6 +2957,7 @@
     // the pointer leaves: the line above says what to do again; the popup stays
     graphCanvas.addEventListener('pointerleave', function (e) {
         if (e.pointerType !== 'mouse' || graphTouch[e.pointerId]) return;
+        if (graphPopFrom) popLater(!graphPop.hidden);
         graphAt = graphEdge = null;
         drawGraph();
     }, false);
@@ -2909,7 +2973,7 @@
     }, { passive: false });
 
     // the buttons: twice as close, twice as far, about the middle; the start again; the view
-    // typed; ∫ for an area; and the picture, in the corner below
+    // typed; ∫ for an area; and the picture, in the corner below. A button of the view lets ∫ go
     graphPlot.addEventListener('click', function (e) {
         var b = e.target.closest('[data-zoom]'), mid = { x: graphPlot.clientWidth / 2, y: graphPlot.clientHeight / 2 };
         if (!b) return;
@@ -2921,6 +2985,7 @@
             areaOn(!graphShading);
             return;
         }
+        if (graphShading) areaOn(false);
         if (b.dataset.zoom === 'window') {
             showWindow(graphWindow.hidden);
             return;
@@ -3115,7 +3180,8 @@
         saveState();
     }, false);
 
-    // the plot, the table, or the examples in place of the boxes, the sliders and the plot
+    // the plot, the table, or the examples in place of the boxes, the sliders and the plot;
+    // big on a wide page, the plot stays beside the examples (style.css)
     function showGraphTab(tab) {
         graphTab = tab === 'table' || tab === 'examples' ? tab : 'graph';
         [].forEach.call(graph.querySelectorAll('.calc-graph-tab'), function (t) {
@@ -3124,7 +3190,7 @@
         graph.classList.toggle('calc-graph-browse', graphTab === 'examples');
         graphExamples.hidden = graphTab !== 'examples';
         if (graphTab === 'examples') renderExamples();
-        graphPlot.hidden = graphTab !== 'graph';
+        graphPlot.hidden = graphTab === 'table';
         graphTable.hidden = graphTab !== 'table';
         graphAt = null;
         graphLines = 0; // the table from its start again
@@ -4226,7 +4292,7 @@
     function saveState() {
         store('graph', {
             f: graphInputs.slice(0, graphCount).map(function (box) { return box.value; }), c: graphHue.slice(0, graphCount),
-            view: graphView, tab: graphTab, from: graphFrom.value, by: graphBy.value, off: graphOff.slice(0, graphCount), d: graphDiff.slice(0, graphCount),
+            view: graphView, tab: graphTab, side: graphSide, from: graphFrom.value, by: graphBy.value, off: graphOff.slice(0, graphCount), d: graphDiff.slice(0, graphCount),
             p: graphLetters.reduce(function (p, k) {
                 if (graphRange[k]) p[k] = [graphVars[k], graphRange[k][0], graphRange[k][1]];
                 return p;

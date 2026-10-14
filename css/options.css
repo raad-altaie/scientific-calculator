@@ -82,7 +82,7 @@ html, body {
 }
 
 
-/* a line in the guide before For Schools and Companies, a part of its own */
+/* a line in the guide before For Schools and Organizations, a part of its own */
 .guide-rule {
     margin: 4em 0;
     border: none;
@@ -730,7 +730,7 @@ html, body {
     display: none;
 }
 
-/* the last section of the guide, For Schools and Companies, has room under it before the footer */
+/* the last section of the guide, For Schools and Organizations, has room under it before the footer */
 .wrapper > .features:last-child {
     margin-bottom: 3em;
 }

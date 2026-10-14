@@ -1033,7 +1033,8 @@
 #calculator .calc-graph.calc-graph-browse .calc-graph-fns,
 #calculator .calc-graph.calc-graph-browse .calc-graph-cells,
 #calculator .calc-graph.calc-graph-browse .calc-graph-sliders,
-#calculator .calc-graph.calc-graph-browse .calc-graph-note {
+#calculator .calc-graph.calc-graph-browse .calc-graph-note,
+#calculator .calc-graph.calc-graph-browse .calc-graph-plot {
     display: none;
 }
 
@@ -1236,6 +1237,177 @@
 
 /* the graph's own window is always big, and closes as any window does: no pop in */
 #calculator.calc-alone .calc-graph-size {
+    display: none;
+}
+
+/* Big on a wide page, or in the graph's own window, the graph has two columns: at the left
+   its head, the boxes, their points, the sliders and the examples; at the right the line
+   about the point and the plot, or the table. The plot stays beside the examples */
+@media (min-width: 640px) {
+    #calculator.calc-big .calc-graph.calc-open {
+        display: grid;
+        /* the width dragged, or as at first: as narrow as keeps the head's words at their full size,
+           some 320px, wider on a wide screen; never under 270px, as GRAPH_SIDE_MIN, nor over 0.7 of
+           what leaves the plot 320px, as GRAPH_SIDE_MAX and GRAPH_PLOT_MIN */
+        grid-template-columns: clamp(270px, var(--calc-graph-side, clamp(320px, 26vw, 380px)), max(270px, (100% - 320px) * 0.7)) minmax(0, 1fr);
+        grid-template-rows: auto auto auto auto minmax(0, 1fr);
+    }
+
+    /* The head shrinks with the column: its words get smaller, down to 10.5px at the narrowest,
+       and past that the tabs are cut short, never over the line between the columns. Measured:
+       its words fit at 14px from 278px of it, at 10.75px in 235px, about in a line between */
+    #calculator.calc-big .calc-graph > .calc-past-head {
+        grid-area: 1 / 1;
+        min-width: 0;
+        overflow: hidden;
+        container-type: inline-size;
+    }
+
+    #calculator.calc-big .calc-graph > .calc-past-head > * {
+        font-size: clamp(10.5px, 7.5cqi - 7px, 14px);
+    }
+
+    #calculator.calc-big .calc-graph-tabs {
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    #calculator.calc-big .calc-graph .calc-past-head .calc-graph-tab {
+        flex: 0 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    #calculator.calc-big .calc-graph-add,
+    #calculator.calc-big .calc-past-clear {
+        flex: none;
+    }
+
+    #calculator.calc-big .calc-graph-fns {
+        grid-area: 2 / 1;
+    }
+
+    #calculator.calc-big .calc-graph-cells {
+        grid-area: 3 / 1;
+        max-height: 30vh;
+    }
+
+    #calculator.calc-big .calc-graph-sliders {
+        grid-area: 4 / 1;
+    }
+
+    /* a slider fits the narrowest column: its box a little narrower, the slider as short as it must be */
+    #calculator.calc-big .calc-graph-val {
+        width: 80px;
+    }
+
+    #calculator.calc-big .calc-graph-range {
+        min-width: 16px;
+    }
+
+    #calculator.calc-big .calc-graph-examples {
+        grid-column: 1;
+        grid-row: 2 / -1;
+    }
+
+    #calculator.calc-big .calc-graph-note {
+        grid-area: 1 / 2;
+        margin-right: 38px; /* clear of pop in */
+    }
+
+    /* pop in: at the top right, above the plot, a little bigger than the head's buttons */
+    #calculator.calc-big .calc-graph-size {
+        position: absolute;
+        top: env(safe-area-inset-top);
+        right: calc(8px + env(safe-area-inset-right));
+        width: 26px;
+        height: 26px;
+    }
+
+    #calculator.calc-big .calc-graph-size svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    #calculator.calc-big .calc-graph-plot,
+    #calculator.calc-big .calc-graph-table {
+        grid-column: 2;
+        grid-row: 2 / -1;
+        margin-left: 4px;
+    }
+
+    /* the line between the columns: over the room between them, shown as it is pointed at or dragged */
+    #calculator.calc-big .calc-graph-split {
+        display: block;
+        z-index: 1;
+        grid-column: 2;
+        grid-row: 1 / -1;
+        width: 12px;
+        margin-left: -8px;
+        cursor: col-resize;
+        touch-action: none;
+    }
+
+    #calculator.calc-big .calc-graph-split::after {
+        content: '';
+        display: block;
+        width: 2px;
+        height: 100%;
+        margin: 0 auto;
+        border-radius: 1px;
+        background: #8aa0b5;
+        opacity: 0;
+        transition: opacity 0.15s;
+    }
+
+    #calculator.calc-big .calc-graph-split:hover::after,
+    #calculator.calc-big .calc-graph-split.calc-on::after {
+        opacity: 1;
+    }
+
+    /* the plot's buttons, and save, bigger too */
+    #calculator.calc-big .calc-graph-zoom > span {
+        width: 30px;
+        height: 30px;
+    }
+
+    #calculator.calc-big .calc-graph-zoom svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    #calculator.calc-big .calc-graph.calc-graph-browse .calc-graph-note {
+        display: flex;
+    }
+
+    #calculator.calc-big .calc-graph.calc-graph-browse .calc-graph-plot {
+        display: block;
+    }
+}
+
+/* Big, its words and buttons are a little bigger, as there is room; not the plot, whose
+   pointer is read in its own pixels: only what is on it. Not the point's popup either, which
+   is put at the point in the plot's pixels: zoomed, it would be put that much further */
+#calculator.calc-big .calc-graph > .calc-past-head,
+#calculator.calc-big .calc-graph-fns,
+#calculator.calc-big .calc-graph-cells,
+#calculator.calc-big .calc-graph-sliders,
+#calculator.calc-big .calc-graph-note,
+#calculator.calc-big .calc-graph-table,
+#calculator.calc-big .calc-graph-examples,
+#calculator.calc-big .calc-graph-zoom,
+#calculator.calc-big .calc-graph-window {
+    zoom: 1.15;
+}
+
+#calculator.calc-big .calc-graph-pop {
+    font-size: 15px;
+}
+
+/* the line between the columns is only for the big graph on a wide page */
+#calculator .calc-graph-split {
     display: none;
 }
 
