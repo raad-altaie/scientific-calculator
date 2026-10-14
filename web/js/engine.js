@@ -13,6 +13,7 @@
         MAX_PAST = 50, // finished calculations kept in the history
         MAX_PAST_CHARS = 100000, // total size of the history
         MAX_EDIT = 300, // pieces of an equation being edited
+        KEY_MAX = 25, // roots, highs and lows of a curve, or crossings of two, marked on a graph; more cannot be told apart
         ANGLE = /^(sin|cos|tan)(-1)?$/, // functions whose result depends on Deg or Rad
         RANK = {
             '=': 0, '+': 1, '–': 1, '×': 2, '÷': 2, 'mod': 2,
@@ -43,6 +44,10 @@
             0.21743961811521264320e-3, -0.16431810653676389022e-3, 0.84418223983852743293e-4,
             -0.26190838401581408670e-4, 0.36899182659531622704e-5
         ],
+        // the names a graph's text is read with, the longest first, so sinhx is sinh x and exp is not e × …
+        NAMES = new RegExp('^(' + Object.keys(WORDS).concat(['pi', 'e', 'x', 'ncr', 'npr', 'mod', 'gcd', 'lcm']).sort(function (a, b) {
+            return b.length - a.length;
+        }).join('|') + ')', 'i'),
         ZERO = BigInt(0), ONE = BigInt(1), TEN = BigInt(10), // whole numbers of any size, for exact arithmetic
         BAD = {}, // thrown when pasted text is not an expression
         plainText = false, // printing for the clipboard: no tags
@@ -557,8 +562,10 @@
     }
 
     // the pieces of an expression in text. table: the numbers that marks
-    // stand for, when the text was printed for editing
-    function tokens(s, table) {
+    // stand for, when the text was printed for editing. variable: x is the
+    // variable of a graph, not ×, and letters may run together: 2xsinx; any
+    // other letter but e and y is a number of its own, set by a slider: a in ax² + b
+    function tokens(s, table, variable) {
         var out = [], m, c, prev, word;
         while (s) {
             c = s.charAt(0);
@@ -590,15 +597,17 @@
                 else out.push({ t: 'fn', v: 'logy', b: null }); // logᵧ(8), its base still awaited
             } else if ((m = /^log(₂|2(?=\s*\()|10(?=\s*\())/i.exec(s))) {
                 out.push({ t: 'fn', v: m[1] === '10' ? 'log' : 'log2' });
-            } else if ((m = /^[a-zA-Z]+/.exec(s))) {
+            } else if ((m = (variable ? NAMES : /^[a-zA-Z]+/).exec(s))) {
                 word = m[0].toLowerCase();
                 if (WORDS.hasOwnProperty(word)) out.push({ t: 'fn', v: WORDS[word] });
                 else if (word === 'pi') out.push({ t: 'const', v: 'π' });
                 else if (word === 'e') out.push({ t: 'const', v: 'e' });
-                else if (word === 'x') out.push({ t: 'op', v: '×', c: '×' });
+                else if (word === 'x') out.push(variable ? { t: 'const', v: 'x' } : { t: 'op', v: '×', c: '×' });
                 else if (word === 'ncr' || word === 'npr') out.push({ t: 'op', v: word === 'ncr' ? 'nCr' : 'nPr' });
                 else if (word === 'mod' || word === 'gcd' || word === 'lcm') out.push({ t: 'op', v: word, c: word });
                 else return null;
+            } else if (variable && (m = /^[a-df-wzA-DF-WZ]/.exec(s))) {
+                out.push({ t: 'const', v: m[0].toLowerCase(), p: true });
             } else if (c === 'π') {
                 out.push({ t: 'const', v: 'π' });
                 m = [c];
@@ -800,6 +809,228 @@
             return null;
         }
         return end() ? tree : null;
+    }
+
+    // ---------- graphs ---------- //
+
+    // false if anything of the expression is missing: "x +", "2 × ()"
+    function complete(n) {
+        if (!n) return false;
+        if (n.t === 'bin') return complete(n.l) && complete(n.r);
+        return n.t === 'group' || n.arg !== undefined ? complete(n.arg) : true;
+    }
+
+    // true if the expression has a function of an angle, whose graph depends on Deg or Rad
+    function angular(n) {
+        return !!n && ((n.t === 'fn' && ANGLE.test(n.key)) || angular(n.arg) || angular(n.l) || angular(n.r));
+    }
+
+    // The value of an expression read by parse, at x, angles in unit deg, its letters of
+    // their own in vars, 1 for one not set. A graph needs hundreds of them at a time, so
+    // + – × ÷ are the machine's own, unless exact: worked out as the display does, for the
+    // value a point of the graph shows
+    function valueAt(n, x, deg, exact, vars) {
+        var a, b;
+        switch (n.t) {
+            case 'num': return +n.v;
+            case 'const':
+                if (n.p) return vars && typeof vars[n.v] === 'number' ? vars[n.v] : 1;
+                return n.v === 'x' ? x : n.v === 'π' ? PI : Math.E;
+            case 'group': return valueAt(n.arg, x, deg, exact, vars);
+            case 'neg': return -valueAt(n.arg, x, deg, exact, vars);
+            case 'fn':
+            case 'post':
+                a = valueAt(n.arg, x, deg, exact, vars);
+                if (!isFinite(a)) return NaN;
+                if (n.key === '%') return a / 100;
+                if (!exact && n.key === 'x2') return a * a;
+                if (!exact && n.key === 'x3') return a * a * a;
+                return UNARY[n.key].f(a, n.deg === undefined ? deg : n.deg);
+            default:
+                a = valueAt(n.l, x, deg, exact, vars);
+                b = valueAt(n.r, x, deg, exact, vars);
+                if (!isFinite(a) || !isFinite(b)) return NaN;
+                if (exact) return binary(n.op, a, b);
+                switch (n.op) {
+                    case '+': return a + b;
+                    case '–': return a - b;
+                    case '×': return a * b;
+                    case '÷': return a / b;
+                    case 'yx': return Math.pow(a, b);
+                }
+                return binary(n.op, a, b);
+        }
+    }
+
+    // A function of x to draw, written as it would be pasted: x^2 – 3, 2sin(x), y = 1/x, a x² + b.
+    // Null if the text is not one. at(x, deg, exact) is its value; angles: it has a
+    // function of an angle; letters: its letters of their own, in the order they come,
+    // which vars holds the values of, as their sliders set them. comma: the decimal mark in use is a comma
+    function graph(text, comma, vars) {
+        var s = separators(String(text).trim(), comma).replace(/^(y|f\s*\(\s*x\s*\))\s*=\s*/i, ''),
+            toks = s.length <= MAX_PASTE && tokens(s, null, true), tree = toks && parse(toks), letters = [];
+        if (!tree || !complete(tree)) return null;
+        toks.forEach(function (t) {
+            if (t.p && letters.indexOf(t.v) < 0) letters.push(t.v);
+        });
+        return {
+            at: function (x, deg, exact) { return valueAt(tree, x, deg, exact, vars); },
+            angles: angular(tree),
+            letters: letters
+        };
+    }
+
+    // ---------- the points of a graph worth marking ---------- //
+
+    // where f crosses 0 between a and b, f(a) being fa: halved until a and b are
+    // neighbouring numbers. Null where f has no value on the way, as 1/x at 0
+    function bisect(f, a, b, fa) {
+        var m, fm, i;
+        for (i = 0; i < 200; i++) {
+            m = (a + b) / 2;
+            if (m <= a || m >= b) break;
+            fm = f(m);
+            if (!isFinite(fm)) return null;
+            if (fm === 0) return m;
+            if ((fm < 0) === (fa < 0)) {
+                a = m;
+                fa = fm;
+            } else {
+                b = m;
+            }
+        }
+        return Math.abs(f(a)) <= Math.abs(f(b)) ? a : b;
+    }
+
+    // where g is highest between a and b, by the golden section
+    function peak(g, a, b) {
+        var r = (Math.sqrt(5) - 1) / 2, c = b - r * (b - a), d = a + r * (b - a), gc = g(c), gd = g(d), i;
+        for (i = 0; i < 120 && c < d; i++) {
+            if (gc >= gd) {
+                b = d;
+                d = c;
+                gd = gc;
+                c = b - r * (b - a);
+                gc = g(c);
+            } else {
+                a = c;
+                c = d;
+                gc = gd;
+                d = a + r * (b - a);
+                gd = g(d);
+            }
+        }
+        return (a + b) / 2;
+    }
+
+    // x found to within tol, written as short as it can be while it is as good:
+    // 2, not 1.9999999999999998; 90, not 89.99999997
+    function snap(x, tol, good) {
+        var q, r;
+        for (q = Math.pow(10, Math.ceil(Math.log10(tol)) + 1); q >= tol * 1e-7; q /= 10) {
+            r = +(Math.round(x / q) * q).toPrecision(15);
+            if (Math.abs(r - x) <= tol && good(r)) return r;
+        }
+        return x;
+    }
+
+    // where h is 0, from its samples s at xs: a sample of 0 between others, or a change
+    // of sign that halving finds a 0 in. Where h only jumps from one sign to the other,
+    // as tan x does at 90°, the halving ends where it is larger, not smaller: no 0 there.
+    // None when there are more than KEY_MAX places to look
+    function zeros(h, xs, s, tol) {
+        var out = [], last = s.length - 1, at = [], k, r, hr;
+        for (k = 0; k <= last && at.length <= KEY_MAX; k++) {
+            if (s[k] === 0 ? (!k || s[k - 1] !== 0) && (k === last || s[k + 1] !== 0) : k && s[k - 1] * s[k] < 0) at.push(k);
+        }
+        if (at.length > KEY_MAX) return out;
+        at.forEach(function (k) {
+            if (s[k] === 0) return out.push(xs[k]); // not on a line of 0s, as y = 0 is
+            r = bisect(h, xs[k - 1], xs[k], s[k - 1]);
+            hr = r === null ? NaN : Math.abs(h(r));
+            if (hr <= Math.min(Math.abs(s[k - 1]), Math.abs(s[k]))) {
+                out.push(snap(r, tol, function (q) { return Math.abs(h(q)) <= hr; }));
+            }
+        });
+        return out;
+    }
+
+    // The points of the curves worth marking within the view x0 to x1, y0 to y1: where each
+    // is 0 (root), its lowest and highest points (min, max), where it meets the y axis (yint),
+    // and where two of them cross (cross). Each is { t: what it is, one or more of those,
+    // x, y, i: the curve, j: the other curve of a crossing }. curves: what graph gives, or
+    // null; deg: the unit of angles. A kind with more than KEY_MAX points is left out
+    function keyPoints(curves, view, deg) {
+        var n = 400, dx = (view.x1 - view.x0) / n, jump = (view.y1 - view.y0) / 2, xs = [], ys = [], found = [], k;
+
+        for (k = 0; k <= n; k++) xs.push(view.x0 + k * dx);
+        curves.forEach(function (c, i) {
+            ys[i] = c && xs.map(function (x) { return c.at(x, deg); });
+        });
+
+        function add(list, make) {
+            list.forEach(function (x) { found.push(make(x)); });
+        }
+
+        curves.forEach(function (c, i) {
+            var y = ys[i], highs = [], lows = [], a, b, d;
+            if (!c) return;
+
+            function f(x) {
+                return c.at(x, deg);
+            }
+
+            add(zeros(f, xs, y, dx * 1e-6), function (x) { return { t: ['root'], x: x, y: 0, i: i }; });
+
+            // three samples, the middle one higher or lower than both its neighbours, with no jump
+            // between them: the golden section finds the top, or the bottom, between the outer two
+            for (k = 1; k < n; k++) {
+                a = y[k - 1];
+                b = y[k];
+                d = y[k + 1];
+                if (!isFinite(a) || !isFinite(b) || !isFinite(d) || Math.abs(b - a) > jump || Math.abs(d - b) > jump) continue;
+                if (b > a && b >= d) highs.push(xs[k]);
+                else if (b < a && b <= d) lows.push(xs[k]);
+            }
+            [[highs, 1, 'max'], [lows, -1, 'min']].forEach(function (kind) {
+                var sign = kind[1];
+                if (kind[0].length > KEY_MAX) return;
+                function g(x) {
+                    var v = f(x);
+                    return isFinite(v) ? sign * v : -Infinity;
+                }
+                add(kind[0].map(function (x) {
+                    var top = peak(g, x - dx, x + dx), best = g(top);
+                    return snap(top, dx * 1e-4, function (q) { return g(q) >= best - 1e-15 * Math.max(1, Math.abs(best)); });
+                }), function (x) {
+                    var v = c.at(x, deg, true);
+                    return { t: [v === 0 ? 'root' : kind[2]], x: x, y: v, i: i }; // a lowest point at 0, as x² has, is a root
+                });
+            });
+
+            if (view.x0 <= 0 && view.x1 >= 0) found.push({ t: ['yint'], x: 0, y: c.at(0, deg, true), i: i });
+        });
+
+        curves.forEach(function (c, i) {
+            curves.forEach(function (e, j) {
+                if (!c || !e || j <= i) return;
+                add(zeros(function (x) { return c.at(x, deg) - e.at(x, deg); }, xs, xs.map(function (x, k) {
+                    return ys[i][k] - ys[j][k];
+                }), dx * 1e-6), function (x) { return { t: ['cross'], x: x, y: c.at(x, deg, true), i: i, j: j }; });
+            });
+        });
+
+        // in the view, and one point for each place: the minimum of x² – 3 is where it meets the y axis
+        found = found.filter(function (p) {
+            return isFinite(p.y) && p.y >= view.y0 && p.y <= view.y1 && p.x >= view.x0 && p.x <= view.x1;
+        }).sort(function (p, q) { return p.x - q.x; });
+        return found.filter(function (p, at) {
+            var same = found.slice(0, at).filter(function (q) {
+                return q.i === p.i && Math.abs(q.x - p.x) < dx / 2 && Math.abs(q.y - p.y) <= 1e-9 * Math.max(1, Math.abs(p.y));
+            })[0];
+            if (same && same.t.indexOf(p.t[0]) < 0) same.t.push(p.t[0]);
+            return !same;
+        });
     }
 
     // ---------- history ---------- //
@@ -1893,6 +2124,8 @@
     Engine.fraction = shownFraction;
     Engine.dms = dms;
     Engine.angleAlone = angleAlone;
+    Engine.graph = graph;
+    Engine.keyPoints = keyPoints;
 
     root.CalcEngine = Engine;
     if (typeof module !== 'undefined' && module.exports) {

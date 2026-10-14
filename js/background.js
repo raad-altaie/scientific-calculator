@@ -22,6 +22,12 @@ chrome.runtime.getPlatformInfo(function (info) {
 // to follow the window size and the window can be found again
 const detachedUrl = chrome.runtime.getURL("popup.html?detached");
 
+// the graph's own window, opened by the big graph button: the same page, with only the graph
+const graphUrl = chrome.runtime.getURL("popup.html?graph");
+
+// the popup page in any window, to find them by
+const popupPages = chrome.runtime.getURL("popup.html*");
+
 // The place and the size of the detached window are kept here, for the next
 // time it opens. A service worker has no localStorage, and chrome.storage is
 // only held while the page icon is on
@@ -33,9 +39,10 @@ function detachedBoundsStore(mode, run, failed) {
     open.onerror = () => failed && failed();
 }
 
-function readDetachedBounds(done) {
+// the calculator's under "bounds", the graph's window's under "graphBounds"
+function readDetachedBounds(key, done) {
     detachedBoundsStore("readonly", (store) => {
-        const read = store.get("bounds");
+        const read = store.get(key);
 
         read.onsuccess = () => done(read.result);
         read.onerror = () => done();
@@ -47,21 +54,25 @@ chrome.windows.onBoundsChanged.addListener((win) => {
     if (win.type !== "popup" || win.state !== "normal") return; // not maximised or full screen
 
     chrome.tabs.query({ windowId: win.id }, (tabs) => {
-        if (!tabs.some((t) => t.url && t.url.startsWith(detachedUrl))) return;
+        const tab = tabs.find((t) => t.url && (t.url.startsWith(detachedUrl) || t.url.startsWith(graphUrl)));
+        if (!tab) return;
 
         detachedBoundsStore("readwrite", (store) => {
-            store.put({ left: win.left, top: win.top, width: win.width, height: win.height }, "bounds");
+            store.put({ left: win.left, top: win.top, width: win.width, height: win.height },
+                tab.url.startsWith(graphUrl) ? "graphBounds" : "bounds");
         });
     });
 });
 
-function createPopupWindow() {
+// The detached window, or with graph the graph's own window, which at first is most of
+// the screen
+function createPopupWindow(graph) {
     chrome.system.display.getInfo((displayInfo) => {
-        readDetachedBounds((saved) => {
+        readDetachedBounds(graph ? "graphBounds" : "bounds", (saved) => {
             const displayWidth = displayInfo[0].workArea.width;
             const displayHeight = displayInfo[0].workArea.height;
-            const width = popupWidth + 2 * detachedMargin.x;
-            const height = popupHeight + 2 * detachedMargin.y;
+            const width = graph ? Math.round(Math.min(1200, displayWidth * 0.8)) : popupWidth + 2 * detachedMargin.x;
+            const height = graph ? Math.round(Math.min(900, displayHeight * 0.85)) : popupHeight + 2 * detachedMargin.y;
 
             // Calculate the centered position
             let bounds = {
@@ -81,7 +92,7 @@ function createPopupWindow() {
 
             chrome.windows.create({
                 type: "popup",
-                url: detachedUrl,
+                url: graph ? graphUrl : detachedUrl,
                 width: bounds.width,
                 height: bounds.height,
                 left: bounds.left,
@@ -90,7 +101,7 @@ function createPopupWindow() {
             }, (win) => {
                 // kept to close it on an update, when its page no longer tells
                 // what it is
-                detachedBoundsStore("readwrite", (store) => store.put(win.id, "id"));
+                detachedBoundsStore("readwrite", (store) => store.put(win.id, graph ? "graphId" : "id"));
             });
         });
     });
@@ -98,22 +109,58 @@ function createPopupWindow() {
 
 // An update takes the page out of the detached window and leaves it blank,
 // and its tab no longer gives its address: it is found by the kept id, and
-// closed if it is still a popup with nothing else in it
+// closed if it is still a popup with nothing else in it. The graph's window too
 function closeDetachedWindow() {
-    detachedBoundsStore("readonly", (store) => {
-        const read = store.get("id");
+    [["id", detachedUrl], ["graphId", graphUrl]].forEach(([key, url]) => {
+        detachedBoundsStore("readonly", (store) => {
+            const read = store.get(key);
 
-        read.onsuccess = () => {
-            if (read.result === undefined) return;
+            read.onsuccess = () => {
+                if (read.result === undefined) return;
 
-            chrome.windows.get(read.result, { populate: true })
-                .then((win) => {
-                    if (win.type === "popup" && win.tabs.every((t) => !t.url || t.url.startsWith(detachedUrl))) {
-                        return chrome.windows.remove(win.id);
-                    }
-                })
-                .catch(() => { }); // it was already closed
-        };
+                chrome.windows.get(read.result, { populate: true })
+                    .then((win) => {
+                        if (win.type === "popup" && win.tabs.every((t) => !t.url || t.url.startsWith(url))) {
+                            return chrome.windows.remove(win.id);
+                        }
+                    })
+                    .catch(() => { }); // it was already closed
+            };
+        });
+    });
+}
+
+// a window to the front, out of the dock or taskbar if it was minimised
+function bringToFront(windowId) {
+    chrome.windows.get(windowId, (win) => {
+        chrome.windows.update(win.id, win.state === "minimized" ? { state: "normal", focused: true } : { focused: true });
+    });
+}
+
+// The graph's own window: opened, or to the front if it is open. It reads the
+// graph from the storage, as the calculator left it
+function openGraphWindow() {
+    chrome.tabs.query({ url: popupPages }, (tabs) => {
+        const tab = tabs.find((t) => t.url.startsWith(graphUrl));
+
+        if (tab) bringToFront(tab.windowId);
+        else createPopupWindow(true);
+    });
+}
+
+// A value put in from the graph's window: the calculator comes up with it, the
+// detached window if it is open, else the popup over the browser's window
+function showCalculator() {
+    chrome.tabs.query({ url: popupPages }, (tabs) => {
+        const tab = tabs.find((t) => t.url.startsWith(detachedUrl));
+
+        if (tab) {
+            bringToFront(tab.windowId);
+            return;
+        }
+        chrome.windows.getLastFocused({ windowTypes: ["normal"] })
+            .then((win) => chrome.action.openPopup({ windowId: win.id }))
+            .catch(() => openCalculatorInDetachedMode()); // no browser window, or no popup allowed now
     });
 }
 
@@ -241,6 +288,10 @@ chrome.contextMenus.onClicked.addListener((info) => {
 chrome.runtime.onMessage.addListener((message) => {
     if (message?.command === "open-detached") {
         openCalculatorInDetachedMode();
+    } else if (message?.command === "open-graph") {
+        openGraphWindow();
+    } else if (message?.command === "show-calculator") {
+        showCalculator();
     } else if (message?.command === "open-calculator") {
         // the button on a page opens the detached window
         openCalculatorInDetachedMode();

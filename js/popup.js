@@ -82,6 +82,25 @@ if (new URLSearchParams(location.search).has('detached')) {
     keepShape();
 }
 
+// The graph's own window, popup.html?graph: only the graph, as big as the window. Its close
+// button and Esc close the window; a value put in brings the calculator up, which has it
+// through the storage
+if (new URLSearchParams(location.search).has('graph')) {
+    document.title = 'Graph';
+    calculator.dispatchEvent(new CustomEvent('calc-graph', { detail: { big: true, alone: true } }));
+    document.addEventListener('calc-graph-close', () => window.close());
+    document.addEventListener('calc-graph-put', () => {
+        chrome.runtime.sendMessage({ command: 'show-calculator' }).catch(() => { });
+    });
+} else {
+    // the popup and the detached window keep the calculator's size: the big graph opens in that window
+    document.addEventListener('calc-big', (event) => {
+        if (!event.detail.big) return;
+        event.preventDefault();
+        chrome.runtime.sendMessage({ command: 'open-graph' }).catch(() => { });
+    });
+}
+
 // the name, the ? and the FIX mark of the calculator open the options page
 document.addEventListener('calc-options', () => {
     chrome.runtime.openOptionsPage();

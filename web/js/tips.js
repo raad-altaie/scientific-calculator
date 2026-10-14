@@ -134,6 +134,88 @@
             k: 'Esc'
         },
 
+        // the graph
+        'graph': {
+            t: 'Graph',
+            d: 'Draws up to seven functions of x, with a slider for any other letter, as a in a x^2 + b: x^2 – 3, 2sin(x), 1/x, and marks their roots, highs, lows and ' +
+                'crossings. Drag to move, scroll or pinch to zoom; point at a curve or a dot for its values. ' +
+                'The Table tab lists their values.',
+            k: ''
+        },
+        'graph close': {
+            t: 'Close the graph',
+            d: 'The functions and the view stay for the next time.',
+            k: 'Esc'
+        },
+        'graph clear': {
+            t: 'Clear the functions',
+            d: 'Removes every curve, the start and step of the table, and puts the view back to the start.',
+            k: ''
+        },
+        'graph in': {
+            t: 'Zoom in',
+            d: 'Twice as close, about the middle. The wheel or a pinch zooms about where it is.',
+            k: ''
+        },
+        'graph out': {
+            t: 'Zoom out',
+            d: 'Twice as far, about the middle.',
+            k: ''
+        },
+        'graph home': {
+            t: 'Back to the start',
+            d: 'x from -10 to 10 with 0 in the middle; for a function of an angle in Deg, a full turn either way.',
+            k: ''
+        },
+        'graph big': {
+            t: 'Pop out',
+            d: 'The graph fills the page, to see more of the curves: all of the window on the website, ' +
+                'and in a window of its own beside the calculator in the extension.',
+            k: ''
+        },
+        'graph small': {
+            t: 'Pop in',
+            d: 'The graph is small again, over the keys.',
+            k: 'Esc'
+        },
+
+        'graph save': {
+            t: 'Save the graph',
+            d: 'Saves the graph as a picture, graph.png, with the function of each curve. ' +
+                'Right-click the graph to copy it instead.',
+            k: ''
+        },
+        'graph add': {
+            t: 'Add a curve',
+            d: 'A box for another function, in its own color: up to seven curves.',
+            k: ''
+        },
+        'graph remove': {
+            t: 'Remove the curve',
+            d: 'Takes this curve away. The ones below it move up, each with its color.',
+            k: ''
+        },
+        'graph hide': {
+            t: 'Hide the curve',
+            d: 'Hides this curve and its points, and leaves it out of the table. What is typed stays.',
+            k: ''
+        },
+        'graph show': {
+            t: 'Show the curve',
+            d: 'Draws this curve again.',
+            k: ''
+        },
+        'graph put x': {
+            t: 'Insert x',
+            d: 'Puts the x of this point into the equation, as Ans does.',
+            k: ''
+        },
+        'graph put y': {
+            t: 'Insert y',
+            d: 'Puts the y of this point into the equation, as Ans does.',
+            k: ''
+        },
+
         // the statistics
         'stats': {
             t: 'Statistics',

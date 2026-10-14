@@ -106,6 +106,14 @@
                                 <path d="M12.5 11H3M5.5 8.5L3 11l2.5 2.5" />
                             </svg>
                         </div>
+                        <!-- the graph of a function of x -->
+                        <div class="calc-graph-btn" hidden>
+                            <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
+                                stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M2.5 2v11.5H14" />
+                                <path d="M4.5 11c1.6-6 3.2-6 4.6-3s2.6 2.5 4.4-3.5" />
+                            </svg>
+                        </div>
                         <!-- statistics of a list of numbers -->
                         <div class="calc-stat-btn" hidden>
                             <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
@@ -323,6 +331,61 @@
                 placeholder="Type or paste numbers: 4 8 15 16 23 42"></textarea>
             <div class="calc-stats-note"></div>
             <div class="calc-stats-grid"></div>
+        </div>
+
+        <!-- the graph of y = a function of x, over the keys like the history -->
+        <div class="calc-past calc-graph">
+            <div class="calc-past-head">
+                <!-- the curves drawn, or their values in a table -->
+                <span class="calc-graph-tabs">
+                    <span class="calc-graph-tab" data-tab="graph">Graph</span>
+                    <span class="calc-graph-tab" data-tab="table">Table</span>
+                </span>
+                <!-- a box for another curve, up to seven -->
+                <span class="calc-graph-add"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 3v10M3 8h10" /></svg></span>
+                <span class="calc-past-clear">Clear</span>
+                <!-- pop out: the graph as big as the page, or in a window of its own; pop in: back in the calculator -->
+                <span class="calc-graph-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-graph-grow" d="M10 2h4v4M7.5 8.5L14 2" /><path class="calc-graph-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
+                <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
+            </div>
+            <!-- a box for each curve, in its color, with its × to remove it; main.js makes the other six from this one -->
+            <div class="calc-graph-fns">
+                <label class="calc-graph-fn">
+                    <b class="calc-graph-swatch"></b>
+                    <span>y =</span>
+                    <input class="calc-graph-input" type="text" spellcheck="false" autocomplete="off" maxlength="200"
+                        placeholder="x^2 – 3, 2sin(x), 1/x" aria-label="y = , curve 1">
+                    <span class="calc-graph-del"><svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8" /></svg></span>
+                </label>
+            </div>
+            <!-- a slider for each letter of the functions but x: a and b of a x² + b; main.js makes them -->
+            <div class="calc-graph-sliders" hidden></div>
+            <div class="calc-graph-note"></div>
+            <div class="calc-graph-plot">
+                <canvas></canvas>
+                <!-- the point clicked: what it is, and its x and y, each to insert -->
+                <div class="calc-graph-pop" hidden></div>
+                <!-- the view: closer, farther, and back to the start -->
+                <div class="calc-graph-zoom">
+                    <span data-zoom="in"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 3v10M3 8h10" /></svg></span>
+                    <span data-zoom="out"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 8h10" /></svg></span>
+                    <span data-zoom="home"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="4.2" /><path d="M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3" /></svg></span>
+                </div>
+                <!-- the graph saved as a picture, in the corner below -->
+                <div class="calc-graph-zoom calc-graph-export">
+                    <span data-zoom="save"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.5v7.5M4.8 7L8 10.2 11.2 7M3 13h10" /></svg></span>
+                </div>
+            </div>
+            <!-- the table: x from a start by a step, and y of each curve; empty boxes follow the view of the graph -->
+            <div class="calc-graph-table" hidden>
+                <div class="calc-graph-step">
+                    <label><span>Start</span><input class="calc-graph-from" type="text" inputmode="decimal" spellcheck="false"
+                        autocomplete="off" maxlength="20" aria-label="The first x"></label>
+                    <label><span>Step</span><input class="calc-graph-by" type="text" inputmode="decimal" spellcheck="false"
+                        autocomplete="off" maxlength="20" aria-label="From one x to the next"></label>
+                </div>
+                <div class="calc-graph-list"></div>
+            </div>
         </div>
 
         <!-- formulas and constants, over the keys like the history -->

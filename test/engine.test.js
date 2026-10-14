@@ -2225,5 +2225,85 @@ dels.forEach(function (c) {
     })();
 })();
 
+// ---------- graphs: a function of x, as it would be pasted ---------- //
+
+(function () {
+    function at(text, x, deg, comma) {
+        var g = Engine.graph(text, comma);
+        return g ? g.at(x, deg || 0, true) : null;
+    }
+
+    [
+        ['x^2 - 3', 2, 1], ['x²', -3, 9], ['2x + 1', 3, 7], ['(x + 1)(x - 1)', 3, 8], ['x(x + 1)', 2, 6],
+        ['xsinx', Math.PI / 2, Math.PI / 2], ['sin x', 0, 0], ['2sin(x)', Math.PI / 6, 1], ['1/x', 4, 0.25],
+        ['sqrt(x)', 9, 3], ['√x', 16, 4], ['exp(x)', 0, 1], ['e^x', 1, Math.E], ['ex', 2, 2 * Math.E], ['pi x', 1, Math.PI],
+        ['X^3', 2, 8], ['abs(x)', -4, 4], ['x!', 4, 24], ['log₂(x)', 8, 3], ['x mod 3', 7, 1], ['ln(x)', 1, 0],
+        ['y = 3x', 2, 6], ['Y=x', 5, 5], ['f(x) = x + 1', 1, 2], ['5', 100, 5], ['0.1x + 0.2', 1, 0.3]
+    ].forEach(function (c) {
+        var y = at(c[0], c[1]);
+        check(y !== null && Math.abs(y - c[2]) <= 1e-12 * Math.max(1, Math.abs(c[2])), 'graph ' + c[0] + ' at ' + c[1] + ' is ' + c[2], y);
+    });
+
+    check(at('2,5x', 2, 0, true) === 5, 'graph: a comma is the decimal mark when it is in use', at('2,5x', 2, 0, true));
+    check(at('sin(x)', 30, 1) === 0.5 && at('sin(x)', 100, 2) === 1, 'graph: sin x follows Deg and Grad');
+    check(at('sin(30°) + x', 0, 0) === 0.5, 'graph: an angle in degrees stays in degrees');
+    check(!isFinite(at('1/x', 0)) && !isFinite(at('sqrt(x)', -1)), 'graph: no value where there is none');
+    check(Engine.graph('sin(x)').angles && !Engine.graph('sinh(x)').angles && !Engine.graph('x^2').angles,
+        'graph: a function of an angle is known, sinh is not one');
+    check(Engine.graph('x^2').at(0.5, 0, false) === 0.25, 'graph: the quick values of the curve');
+    ['', 'x +', 'x2', '2 × ()', 'y =', 'sin', '(x', 'x + y', 'a +'].forEach(function (s) {
+        check(s === '(x' ? !!Engine.graph(s) : Engine.graph(s) === null,
+            'graph ' + JSON.stringify(s) + (s === '(x' ? ' leaves its bracket open, as a paste can' : ' is not a function'));
+    });
+    // letters of their own: numbers that sliders set, 1 until they are set; e is e, x is x, y is not one
+    (function () {
+        var vars = {}, g = Engine.graph('a x^2 + b', false, vars), h = Engine.graph('2πr + Ak sin(x)', false, vars);
+        check(g && g.letters.join() === 'a,b' && g.at(3, 0, true) === 10, 'graph: a and b are 1 until set', g && g.at(3, 0, true));
+        vars.a = 2;
+        vars.b = -1;
+        check(g.at(3, 0, true) === 17 && g.at(3, 0, false) === 17, 'graph: a x² + b with a = 2, b = -1 at 3 is 17');
+        check(h && h.letters.join() === 'r,a,k', 'graph: letters run together, A is a; π and sin are not letters of their own',
+            h && h.letters.join());
+        check(Engine.graph('e^x + x').letters.length === 0 && Engine.graph('abs(x)').letters.length === 0 &&
+            Engine.graph('sin(x)').letters.length === 0, 'graph: e, x and the names of functions are not letters of their own');
+        check(Engine.graph('hello').letters.join() === 'h,l,o', 'graph: hello is h × e × l × l × o');
+    })();
+
+    // the points marked on the curves: the kinds of each, its x and y, as text to compare
+    function marks(fns, deg, view) {
+        return Engine.keyPoints(fns.map(function (f) { return Engine.graph(f); }), view || { x0: -10, x1: 10, y0: -10, y1: 10 }, deg || 0)
+            .map(function (p) {
+                return p.t.join(',') + ' ' + +p.x.toPrecision(12) + ' ' + +p.y.toPrecision(12) + (p.j !== undefined ? ' ' + p.i + '×' + p.j : '');
+            }).join(' | ');
+    }
+
+    [
+        [['x^2 - 3'], 'root -1.73205080757 0 | min,yint 0 -3 | root 1.73205080757 0', 'roots, the low and the y axis of x² – 3'],
+        [['x^2'], 'root,yint 0 0', 'the low of x² at 0 is its root'],
+        [['x^3 - 2x'], 'root -1.41421356237 0 | max -0.8164966 1.0886621079 | root,yint 0 0 | min 0.8164966 -1.0886621079 | ' +
+            'root 1.41421356237 0', 'a cubic: its high and low between the roots'],
+        [['x^2 - 4'], 'root -2 0 | min,yint 0 -4 | root 2 0', 'whole roots are whole, not 1.9999999999999998'],
+        [['1/x'], '', '1/x has no root where it jumps, nor a high or low'],
+        [['5'], 'yint 0 5', 'a level line meets the y axis only'],
+        [['0'], 'yint 0 0', 'nor is y = 0 a root everywhere'],
+        [['x^2', 'x + 2'], 'root -2 0 | cross -1 1 0×1 | root,yint 0 0 | yint 0 2 | cross 2 4 0×1', 'x² and x + 2 cross at -1 and 2'],
+        [['sin(50x)'], 'yint 0 0', 'too many roots and highs to tell apart: none marked']
+    ].forEach(function (c) {
+        var got = marks(c[0]);
+        check(got === c[1], 'graph marks: ' + c[2], got);
+    });
+    check(!/root (?!-?[369]\.42|-?6\.28|-?3\.14|0 )/.test(marks(['tan(x)'])) && !/max|min/.test(marks(['tan(x)'])),
+        'graph marks: tan x has its roots, and nothing where it jumps', marks(['tan(x)']));
+    check(marks(['sin(x)'], 1, { x0: -360, x1: 360, y0: -5, y1: 5 }) ===
+        'root -360 0 | max -270 1 | root -180 0 | min -90 -1 | root,yint 0 0 | max 90 1 | root 180 0 | min 270 -1 | root 360 0',
+        'graph marks: sin x in degrees, its highs at 90, not 89.99999997', marks(['sin(x)'], 1, { x0: -360, x1: 360, y0: -5, y1: 5 }));
+    check(marks(['x^2 - 3'], 0, { x0: 2, x1: 5, y0: -10, y1: 10 }) === '', 'graph marks: only those in the view');
+
+    (function (e) {
+        e.paste('2x3 =', 0);
+        check(e.value === '6', 'x is still × in a pasted equation', e.value);
+    })(new Engine());
+})();
+
 console.log(failures ? failures + ' of ' + checks + ' checks failed' : 'all ' + checks + ' checks passed');
 process.exit(failures ? 1 : 0);

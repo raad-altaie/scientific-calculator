@@ -70,7 +70,8 @@
 }
 
 /* the buttons at the top left of the display, in a row: the clock opens the
-   history, f(x) the formulas, the arrows the converter, the bars the statistics.
+   history, f(x) the formulas, the arrows the converter, the bars the statistics,
+   the curve the graph.
    A hidden one leaves no gap */
 #calculator .calc-tools {
     position: absolute;
@@ -84,7 +85,8 @@
 #calculator .calc-hist,
 #calculator .calc-stat-btn,
 #calculator .calc-fx-btn,
-#calculator .calc-conv-btn {
+#calculator .calc-conv-btn,
+#calculator .calc-graph-btn {
     padding: 2px;
     border-radius: 4px;
     color: #1f333c;
@@ -109,7 +111,9 @@
 #calculator .calc-fx-btn:hover,
 #calculator .calc-fx-btn.calc-on,
 #calculator .calc-conv-btn:hover,
-#calculator .calc-conv-btn.calc-on {
+#calculator .calc-conv-btn.calc-on,
+#calculator .calc-graph-btn:hover,
+#calculator .calc-graph-btn.calc-on {
     opacity: 0.9;
     background: #a3bdaf;
 }
@@ -117,7 +121,8 @@
 #calculator .calc-hist:active,
 #calculator .calc-stat-btn:active,
 #calculator .calc-fx-btn:active,
-#calculator .calc-conv-btn:active {
+#calculator .calc-conv-btn:active,
+#calculator .calc-graph-btn:active {
     opacity: 0.75;
 }
 
@@ -264,16 +269,772 @@
     text-decoration: overline;
 }
 
+/* ---------- graph ---------- */
+
+/* the functions: boxes like the search, each with the color of its curve and y = before what is typed */
+#calculator .calc-graph-fns {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin: 8px 8px 0; /* the ring of the focus takes 2px of it, as the search's */
+}
+
+/* More than three boxes scroll, so the plot keeps its room: three show, and the ring of
+   the focus has its 2px inside. Big, they have up to near half of the page */
+#calculator .calc-graph-fns.calc-graph-many {
+    flex: none;
+    max-height: 86px;
+    margin: 6px 6px 0;
+    padding: 2px;
+    overflow-y: auto;
+}
+
+#calculator.calc-big .calc-graph-fns.calc-graph-many {
+    max-height: 45vh;
+}
+
+#calculator .calc-graph-fns::-webkit-scrollbar {
+    width: 6px;
+}
+
+#calculator .calc-graph-fns::-webkit-scrollbar-thumb {
+    background: #6b8196;
+    border-radius: 3px;
+}
+
+#calculator .calc-graph-fn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 9px;
+    border-radius: 5px;
+    background: #a9c4b5;
+    box-shadow: 0 0 12px #36475a;
+    cursor: text;
+}
+
+#calculator .calc-graph-fn[hidden] {
+    display: none;
+}
+
+#calculator .calc-graph-fn:focus-within {
+    background: #b3cdbf;
+    box-shadow: 0 0 0 2px #c9e0d3, 0 0 12px #36475a;
+}
+
+/* not a function the calculator can read, as in the converter */
+#calculator .calc-graph-fn.calc-bad {
+    box-shadow: 0 0 0 2px #d86672, 0 0 12px #36475a;
+}
+
+/* the color of a curve: in its box, and beside the point shown */
+#calculator .calc-graph-swatch {
+    flex: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+/* in its box, a click hides the curve: then only a ring of its color */
+#calculator .calc-graph-fn .calc-graph-swatch {
+    position: relative;
+    background: var(--c);
+    box-shadow: 0 0 0 2px #b6d1c2;
+    cursor: pointer;
+}
+
+#calculator .calc-graph-fn .calc-graph-swatch::after { /* easier to hit than the dot */
+    content: '';
+    position: absolute;
+    inset: -6px;
+}
+
+#calculator .calc-graph-fn.calc-graph-empty .calc-graph-swatch {
+    cursor: text;
+}
+
+#calculator .calc-graph-fn.calc-graph-off .calc-graph-swatch {
+    background: none;
+    box-shadow: inset 0 0 0 2px var(--c);
+}
+
+#calculator .calc-graph-fn.calc-graph-off .calc-graph-input {
+    color: #5b7768;
+}
+
+/* The sliders: a box with the letter and its value, as the functions' boxes, then where it
+   goes from, the slider, and where it goes to. More than two scroll in the small panel */
+#calculator .calc-graph-sliders {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    gap: 5px;
+    margin: 7px 8px 0;
+}
+
+#calculator .calc-graph-sliders[hidden] {
+    display: none;
+}
+
+#calculator .calc-graph-sliders.calc-graph-many {
+    max-height: 57px;
+    margin: 5px 6px 0;
+    padding: 2px;
+    overflow-y: auto;
+}
+
+#calculator.calc-big .calc-graph-sliders.calc-graph-many {
+    max-height: 30vh;
+}
+
+#calculator .calc-graph-sliders::-webkit-scrollbar {
+    width: 6px;
+}
+
+#calculator .calc-graph-sliders::-webkit-scrollbar-thumb {
+    background: #6b8196;
+    border-radius: 3px;
+}
+
+#calculator .calc-graph-slider {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 6px;
+    height: 24px;
+}
+
+#calculator .calc-graph-val {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 4px;
+    width: 92px;
+    box-sizing: border-box;
+    padding: 0 8px;
+    border-radius: 5px;
+    background: #a9c4b5;
+    box-shadow: 0 0 12px #36475a;
+    cursor: text;
+}
+
+#calculator .calc-graph-val:focus-within {
+    background: #b3cdbf;
+    box-shadow: 0 0 0 2px #c9e0d3, 0 0 12px #36475a;
+}
+
+#calculator .calc-graph-val.calc-bad {
+    box-shadow: 0 0 0 2px #d86672, 0 0 12px #36475a;
+}
+
+#calculator .calc-graph-val i,
+#calculator .calc-graph-val span {
+    flex: none;
+    color: #33443b;
+    font: italic 14px/18px 'Play', 'Russo One', sans-serif;
+}
+
+#calculator .calc-graph-val span {
+    font-style: normal;
+}
+
+#calculator .calc-graph-val input,
+#calculator .calc-graph-end {
+    min-width: 0;
+    padding: 3px 0;
+    border: 0;
+    outline: none;
+    background: none;
+    color: #000;
+    font: 14px/18px 'Play', 'Russo One', sans-serif;
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+#calculator .calc-graph-val input {
+    flex: 1;
+    text-align: right;
+}
+
+/* the ends: quiet numbers on the panel, a box while one is typed in */
+#calculator .calc-graph-end {
+    flex: none;
+    width: 34px;
+    border-radius: 4px;
+    color: #acb4c1;
+    font-size: 12px;
+    text-align: center;
+}
+
+#calculator .calc-graph-end:hover {
+    background: #52687d;
+}
+
+#calculator .calc-graph-end:focus {
+    background: #b3cdbf;
+    color: #000;
+}
+
+#calculator .calc-graph-end.calc-bad {
+    box-shadow: 0 0 0 2px #d86672;
+}
+
+/* the slider: a line of the panel's light, its knob the paper with a navy ring */
+#calculator .calc-graph-range {
+    flex: 1;
+    min-width: 40px;
+    height: 18px;
+    margin: 0;
+    background: none;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+#calculator .calc-graph-range::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 2px;
+    background: #6c8297;
+}
+
+#calculator .calc-graph-range::-moz-range-track {
+    height: 4px;
+    border-radius: 2px;
+    background: #6c8297;
+}
+
+#calculator .calc-graph-range::-webkit-slider-thumb {
+    width: 14px;
+    height: 14px;
+    margin-top: -5px;
+    border: 2px solid #22476a;
+    border-radius: 50%;
+    background: #b6d1c2;
+    box-sizing: border-box;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+#calculator .calc-graph-range::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border: 2px solid #22476a;
+    border-radius: 50%;
+    background: #b6d1c2;
+    box-sizing: border-box;
+}
+
+#calculator .calc-graph-range:focus-visible {
+    outline: none;
+}
+
+#calculator .calc-graph-range:focus-visible::-webkit-slider-thumb {
+    box-shadow: 0 0 0 3px #c9e0d3;
+}
+
+/* its × at the right, quiet until pointed at; none while it is the only box */
+#calculator .calc-graph-fn > .calc-graph-del {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin-right: -5px;
+    border-radius: 4px;
+    opacity: 0.55;
+    cursor: pointer;
+}
+
+#calculator .calc-graph-fn > .calc-graph-del:hover {
+    opacity: 1;
+    background: #97b3a4;
+}
+
+#calculator .calc-graph-fns.calc-graph-single .calc-graph-del {
+    display: none;
+}
+
+#calculator .calc-graph-fn > span {
+    flex: none;
+    color: #33443b;
+    font: italic 14px/18px 'Play', 'Russo One', sans-serif;
+}
+
+#calculator .calc-graph-input {
+    flex: 1;
+    min-width: 0;
+    padding: 3px 0; /* 24px high: the plot keeps the room */
+    border: 0;
+    outline: none;
+    background: none;
+    color: #000;
+    font: 14px/18px 'Play', 'Russo One', sans-serif;
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+#calculator .calc-graph-input::placeholder {
+    color: #5b7768;
+}
+
+/* what to do, or the x and y of the point shown, with its y to insert */
+#calculator .calc-graph-note {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 20px;
+    margin: 4px 12px 3px;
+    overflow: hidden;
+    color: #acb4c1;
+    font-size: 12px;
+    line-height: 20px;
+    white-space: nowrap;
+}
+
+#calculator .calc-graph-note > span {
+    color: #d3d9e2;
+    font-size: 13px;
+}
+
+/* the dots of two curves that cross, one over the other */
+#calculator .calc-graph-note .calc-graph-swatch {
+    box-shadow: 0 0 0 1.5px #4a5f73;
+}
+
+#calculator .calc-graph-note .calc-graph-swatch + .calc-graph-swatch {
+    margin-left: -16px;
+}
+
+/* what the point is: a root, a high or low, a crossing */
+#calculator .calc-graph-note em {
+    color: #acb4c1;
+    font-style: normal;
+}
+
+#calculator .calc-graph-note .calc-graph-swatch + em {
+    margin-left: -6px; /* close to the dot of its curve */
+}
+
+#calculator .calc-graph-note .calc-fr {
+    font-size: 0.75em;
+}
+
+/* the unit of its angles, quiet at the right */
+/* the plot: a piece of the display, the rest of the panel */
+#calculator .calc-graph-plot {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    margin: 0 8px;
+    overflow: hidden;
+    border-radius: 5px;
+    background: #b6d1c2;
+    box-shadow: 0 0 12px #36475a;
+}
+
+#calculator .calc-graph-plot canvas {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    touch-action: none; /* a drag moves the curve and a pinch zooms it, not the page */
+    cursor: crosshair; /* the system's cross while pointing; the plot draws its own only where it is clicked */
+}
+
+#calculator .calc-graph-plot canvas:active {
+    cursor: grabbing;
+}
+
+/* the point clicked, over it like a tip of the keys: what it is, then its x and y,
+   each a row to click to insert; main.js places it and its point (--arrow) */
+#calculator .calc-graph-pop {
+    position: absolute;
+    z-index: 2;
+    box-sizing: border-box;
+    width: max-content; /* as wide as its longest line, no wider */
+    max-width: calc(100% - 8px);
+    padding: 5px 4px 4px;
+    background: #1f333c;
+    border: 1px solid #4d6b80;
+    border-radius: 7px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+    color: #d3d9e2;
+    font: 13px/1.3 'Play', 'Russo One', sans-serif;
+    text-align: left;
+    animation: calc-tip-in 0.12s ease-out;
+}
+
+#calculator .calc-graph-pop[hidden] {
+    display: none;
+}
+
+/* its point: as the tip's, a triangle of the border with one of the fill inset 1px */
+#calculator .calc-graph-pop::before,
+#calculator .calc-graph-pop::after {
+    content: '';
+    position: absolute;
+    left: var(--arrow, 50%);
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+#calculator .calc-graph-pop::before {
+    top: 100%;
+    width: 14px;
+    height: 7px;
+    margin-left: -7px;
+    background: #4d6b80;
+}
+
+#calculator .calc-graph-pop::after {
+    top: calc(100% - 1px);
+    width: 13.172px;
+    height: 6.586px;
+    margin-left: -6.586px;
+    background: #1f333c;
+}
+
+#calculator .calc-graph-pop.calc-graph-pop-below::before,
+#calculator .calc-graph-pop.calc-graph-pop-below::after {
+    top: auto;
+    clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+#calculator .calc-graph-pop.calc-graph-pop-below::before {
+    bottom: 100%;
+}
+
+#calculator .calc-graph-pop.calc-graph-pop-below::after {
+    bottom: calc(100% - 1px);
+}
+
+#calculator .calc-graph-pop-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 6px 3px;
+    color: #acb4c1;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+#calculator .calc-graph-pop-head .calc-graph-swatch {
+    width: 9px;
+    height: 9px;
+    box-shadow: 0 0 0 1.5px #1f333c;
+}
+
+#calculator .calc-graph-pop-head .calc-graph-swatch + .calc-graph-swatch {
+    margin-left: -10px;
+}
+
+#calculator .calc-graph-pop-head b {
+    font-weight: 400;
+}
+
+#calculator .calc-graph-pop-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+#calculator .calc-graph-pop-row:hover {
+    background: #34505e;
+}
+
+#calculator .calc-graph-pop-row:active {
+    background: #3d5c6b;
+}
+
+#calculator .calc-graph-pop-row .calc-fr {
+    font-size: 0.75em;
+}
+
+/* the arrow of insert: from the value on its left, up into the display */
+#calculator .calc-graph-pop-row svg {
+    flex: none;
+    opacity: 0.6;
+    transform: scaleX(-1);
+}
+
+#calculator .calc-graph-pop-row:hover svg {
+    opacity: 1;
+}
+
+/* the table: in place of the plot, the same size */
+#calculator .calc-graph-table {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    margin: 0 8px;
+}
+
+#calculator .calc-graph-table[hidden] {
+    display: none;
+}
+
+/* the first x and the step: boxes as the functions are, side by side */
+#calculator .calc-graph-step {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+#calculator .calc-graph-step label {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    padding: 0 9px;
+    border-radius: 5px;
+    background: #a9c4b5;
+    box-shadow: 0 0 12px #36475a;
+    cursor: text;
+}
+
+#calculator .calc-graph-step label:focus-within {
+    background: #b3cdbf;
+    box-shadow: 0 0 0 2px #c9e0d3, 0 0 12px #36475a;
+}
+
+#calculator .calc-graph-step label.calc-bad {
+    box-shadow: 0 0 0 2px #d86672, 0 0 12px #36475a;
+}
+
+#calculator .calc-graph-step span {
+    flex: none;
+    color: #33443b;
+    font-size: 12px;
+}
+
+#calculator .calc-graph-step input {
+    flex: 1;
+    min-width: 0;
+    padding: 3px 0;
+    border: 0;
+    outline: none;
+    background: none;
+    color: #000;
+    font: 14px/18px 'Play', 'Russo One', sans-serif;
+    text-align: right;
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+/* what an empty box goes by: the view of the graph */
+#calculator .calc-graph-step input::placeholder {
+    color: #5b7768;
+}
+
+/* the rows: x, then y of each curve; a click on a value puts it in */
+#calculator .calc-graph-list {
+    flex: 1;
+    min-height: 0;
+    overflow: auto; /* down, and across where the columns of many curves are wider than the panel */
+    border-radius: 5px;
+    background: #b6d1c2;
+    box-shadow: 0 0 12px #36475a;
+}
+
+#calculator .calc-graph-list::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+#calculator .calc-graph-list::-webkit-scrollbar-thumb {
+    background: #8eab9b;
+    border-radius: 3px;
+}
+
+#calculator .calc-graph-line {
+    display: grid;
+    grid-template-columns: minmax(0, 0.7fr) repeat(calc(var(--cols, 2) - 1), minmax(0, 1fr)); /* x is short: less room */
+    min-width: calc(52px + (var(--cols, 2) - 1) * 72px); /* a column has room for a value at least */
+    border-bottom: 1px solid rgba(51, 68, 59, 0.12);
+}
+
+#calculator .calc-graph-line > span {
+    overflow: hidden;
+    padding: 3px 7px;
+    color: #000;
+    font-size: 13px;
+    line-height: 18px;
+    text-align: right;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* x, a little apart from the values */
+#calculator .calc-graph-line > span:first-child {
+    background: rgba(51, 68, 59, 0.07);
+    color: #33443b;
+}
+
+/* the names, staying at the top as the rows scroll */
+#calculator .calc-graph-names {
+    position: sticky;
+    z-index: 1;
+    top: 0;
+    background: #a9c4b5;
+}
+
+#calculator .calc-graph-names > span {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 5px;
+    color: #33443b;
+    font-size: 12px;
+}
+
+#calculator .calc-graph-names .calc-graph-swatch {
+    width: 9px;
+    height: 9px;
+}
+
+#calculator .calc-graph-cell {
+    cursor: pointer;
+}
+
+#calculator .calc-graph-line > .calc-graph-cell:hover {
+    background: #a3bdaf;
+}
+
+#calculator .calc-graph-line > .calc-graph-cell:active {
+    background: #98b3a5;
+}
+
+/* no value there, as 1/x at 0: nothing to put in */
+#calculator .calc-graph-line > .calc-graph-cell.calc-none {
+    color: #5b7768;
+    cursor: default;
+}
+
+#calculator .calc-graph-line > .calc-graph-cell.calc-none:hover {
+    background: none;
+}
+
+#calculator .calc-graph-cell .calc-fr {
+    font-size: 0.75em;
+}
+
+/* The big graph: the calculator fills the page, or its window, and shows only the graph,
+   which then has the room of it all */
+#calculator.calc-big {
+    position: fixed !important;
+    inset: 0;
+    z-index: 10;
+    width: auto;
+    height: auto;
+    margin: 0 !important;
+    border: 0;
+    border-radius: 0;
+    background: #4a5f73;
+    transform: none !important;
+}
+
+#calculator.calc-big > :not(.calc-graph, .calc-tip, .calc-menu-box) {
+    display: none !important;
+}
+
+#calculator.calc-big .calc-graph {
+    top: 0 !important;
+    left: 0 !important;
+    right: 0;
+    bottom: 0;
+    width: auto !important;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) calc(10px + env(safe-area-inset-bottom)) env(safe-area-inset-left);
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+/* its button: pop out, an arrow out of the box, and pop in once it is big, an arrow into it */
+#calculator .calc-graph-shrink,
+#calculator.calc-big .calc-graph-grow {
+    display: none;
+}
+
+#calculator.calc-big .calc-graph-shrink {
+    display: inline;
+}
+
+/* the graph's own window is always big, and closes as any window does: no pop in */
+#calculator.calc-alone .calc-graph-size {
+    display: none;
+}
+
+/* seven curves: no more boxes */
+#calculator .calc-graph-add[hidden] {
+    display: none;
+}
+
+/* Big, the graph has no close button: on the website its button and Esc make it small,
+   and the graph's own window closes as any window does */
+#calculator.calc-big .calc-graph .calc-past-close {
+    display: none;
+}
+
+/* closer, farther, the start and save, at the top right of the plot */
+#calculator .calc-graph-zoom {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+#calculator .calc-graph-zoom > span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    background: rgba(169, 196, 181, 0.85);
+    box-shadow: 0 1px 4px rgba(31, 51, 60, 0.35);
+    color: #1f333c;
+    cursor: pointer;
+}
+
+#calculator .calc-graph-zoom > span:hover {
+    background: #98b3a5;
+}
+
+#calculator .calc-graph-zoom > span:active {
+    background: #8eab9b;
+}
+
+/* save is not about the view: apart from it, in the corner below */
+#calculator .calc-graph-export {
+    top: auto;
+    bottom: 6px;
+}
+
+#calculator .calc-graph-zoom svg {
+    display: block;
+}
+
 /* ---------- formulas and constants ---------- */
 
-/* the two tabs in the head of the panel */
-#calculator .calc-fx-tabs {
+/* the two tabs in the head of the panel; the graph has its two the same */
+#calculator .calc-fx-tabs,
+#calculator .calc-graph-tabs {
     display: flex;
     gap: 2px;
     margin-left: -6px;
 }
 
-#calculator .calc-fx .calc-past-head .calc-fx-tab { /* not the first span of the head, which has the room left */
+#calculator .calc-fx .calc-past-head .calc-fx-tab, /* not the first span of the head, which has the room left */
+#calculator .calc-graph .calc-past-head .calc-graph-tab {
     flex: none;
     padding: 0 8px;
     border-radius: 4px;
@@ -283,12 +1044,14 @@
     cursor: pointer;
 }
 
-#calculator .calc-fx-tab:hover {
+#calculator .calc-fx-tab:hover,
+#calculator .calc-graph-tab:hover {
     opacity: 1;
     background: #52687d;
 }
 
-#calculator .calc-fx .calc-past-head .calc-fx-tab.calc-on {
+#calculator .calc-fx .calc-past-head .calc-fx-tab.calc-on,
+#calculator .calc-graph .calc-past-head .calc-graph-tab.calc-on {
     opacity: 1;
     background: #5d748a;
     color: #fff;
@@ -917,7 +1680,9 @@
 }
 
 #calculator .calc-past-clear,
-#calculator .calc-past-close {
+#calculator .calc-past-close,
+#calculator .calc-graph-size,
+#calculator .calc-graph-add {
     height: 22px;
     border-radius: 4px;
     text-align: center;
@@ -930,7 +1695,9 @@
     line-height: 22px;
 }
 
-#calculator .calc-past-close {
+#calculator .calc-past-close,
+#calculator .calc-graph-size,
+#calculator .calc-graph-add {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -938,7 +1705,9 @@
 }
 
 #calculator .calc-past-clear:hover,
-#calculator .calc-past-close:hover {
+#calculator .calc-past-close:hover,
+#calculator .calc-graph-size:hover,
+#calculator .calc-graph-add:hover {
     opacity: 1;
     background: #52687d;
 }
