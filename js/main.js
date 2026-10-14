@@ -199,7 +199,7 @@
             } else if (e.which === 27 && graphWindow.contains(e.target)) { // and the view's boxes, back to the plot
                 showWindow(false);
                 e.preventDefault();
-            } else if (e.which === 27 && graphUnpin()) { // Esc closes the point clicked on the graph first
+            } else if (e.which === 27 && graphUnpin()) { // Esc closes the point clicked on the graph first, and the like
                 e.preventDefault();
             } else if (e.which === 27 && graph.contains(e.target) && graphBig(false)) { // then makes the big graph small
                 e.preventDefault();
@@ -491,7 +491,7 @@
     tip.parentNode.addEventListener('mouseover', function (e) {
         var key = e.target.closest('.calc-left > *, .calc-right > .del-ac, .calc-rad, .calc-mem, .calc-frac, .calc-fmt, .calc-hold, ' +
             '.calc-stat-btn, .calc-stats-tile, .calc-fx-btn, .calc-fx-row, .calc-conv-btn, .calc-conv-row, ' +
-            '.calc-graph-btn, .calc-graph-size, .calc-graph-add, .calc-graph-del, .calc-graph-zoom > span, .calc-graph-pop-row, .calc-graph-play, ' +
+            '.calc-graph-btn, .calc-graph-size, .calc-graph-add, .calc-graph-del, .calc-graph-diff, .calc-graph-zoom > span, .calc-graph-pop-row, .calc-graph-play, ' +
             '.calc-graph-fn > .calc-graph-swatch, ' +
             '.calc-hist, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit, .calc-help');
         if (key === tipKey) return;
@@ -581,6 +581,7 @@
             if (el === graphSize) return CalcTips[root.classList.contains('calc-big') ? 'graph small' : 'graph big'];
             if (el === graphAdd) return CalcTips['graph add'];
             if (el.classList.contains('calc-graph-del')) return CalcTips['graph remove'];
+            if (el.classList.contains('calc-graph-diff')) return CalcTips[graphDiff[graphRows.indexOf(el.parentNode)] ? 'graph slope off' : 'graph slope on'];
             if (el.classList.contains('calc-graph-pop-row')) return CalcTips['graph put ' + el.dataset.put];
             if (el.classList.contains('calc-graph-play')) return CalcTips[graphPlay[el.parentNode.dataset.k] ? 'graph pause' : 'graph play'];
             if (el.classList.contains('calc-graph-swatch')) {
@@ -1069,6 +1070,7 @@
         graphMoved = false, // the press became a drag or a pinch, so it is not a click
         graphSaving, // saves the view once the wheel stops
         graphOff = [false, false, false, false, false, false, false], // the curves hidden by a click on their dot: kept, not drawn
+        graphDiff = [false, false, false, false, false, false, false], // the curves whose slope is drawn too, by their y′
         graphSharp = 0, // pixels of the canvas to each of the plot at least: 2 while a picture is made
         graphPop = graphPlot.querySelector('.calc-graph-pop'), // the point clicked: its x and y, each to insert
         GRAPH_POP_WAIT = 2000, // the popup opened with the mouse goes this many ms after the mouse is off it
@@ -1085,9 +1087,17 @@
         graphAlone = false; // the page is the graph's own window, in the extension: only the graph, always big
 
     // A click on the dot of a curve hides it, and shows it again: it stays typed, but is not
-    // drawn, marked or in the table. Its × removes it
+    // drawn, marked or in the table. Its y′ draws its slope as well, and its × removes it
     graphRows.forEach(function (row, i) {
         var dot = row.querySelector('.calc-graph-swatch');
+        row.querySelector('.calc-graph-diff').addEventListener('click', function (e) {
+            e.preventDefault(); // not the label's focus of the box
+            if (!graphInputs[i].value.trim()) return;
+            graphDiff[i] = !graphDiff[i];
+            hideTip();
+            readGraph();
+            saveState();
+        }, false);
         row.querySelector('.calc-graph-del').addEventListener('click', function (e) {
             e.preventDefault(); // not the label's focus of the box
             removeCurve(i);
@@ -1142,6 +1152,8 @@
         graphInputs[graphCount - 1].value = '';
         graphOff.splice(i, 1);
         graphOff.push(false);
+        graphDiff.splice(i, 1);
+        graphDiff.push(false);
         graphHue.splice(i, 1);
         graphHue.splice(graphCount - 1, 0, hue);
         graphCount--;
@@ -1199,6 +1211,7 @@
         graphCount = 1;
         graphHue = [0, 1, 2, 3, 4, 5, 6];
         graphOff = graphOff.map(function () { return false; });
+        graphDiff = graphDiff.map(function () { return false; });
         forgetLetters();
         graphView = null;
         graphLines = 0;
@@ -1268,6 +1281,7 @@
         }
         graphView = v && [v.x, v.y, v.ux, v.uy].every(isFinite) && v.ux > 0 && v.uy > 0 ? { x: v.x, y: v.y, ux: v.ux, uy: v.uy } : null;
         graphOff = graphOff.map(function (off, i) { return !!(saved && Array.isArray(saved.off) && saved.off[i] === true); });
+        graphDiff = graphDiff.map(function (on, i) { return !!(saved && Array.isArray(saved.d) && saved.d[i] === true); });
         graphFrom.value = saved && typeof saved.from === 'string' ? saved.from : '';
         graphBy.value = saved && typeof saved.by === 'string' ? saved.by : '';
         // the sliders: { a: [its value, from, to] }
@@ -1305,10 +1319,11 @@
                     if (letters.indexOf(k) < 0) letters.push(k);
                 });
             }
-            if (!text) graphOff[i] = false; // what is typed next is shown
+            if (!text) graphOff[i] = graphDiff[i] = false; // what is typed next is shown, without its slope
             row.hidden = i >= graphCount;
             row.classList.toggle('calc-bad', !!text && !fn);
             row.classList.toggle('calc-graph-off', graphOff[i]);
+            row.querySelector('.calc-graph-diff').classList.toggle('calc-on', graphDiff[i]);
             row.classList.toggle('calc-graph-empty', !text);
             row.querySelector('.calc-graph-swatch').style.setProperty('--c', curveColor(i));
             return graphOff[i] ? null : fn;
@@ -1592,6 +1607,7 @@
         if (graphPinned && graphPinned.area) graphShade(ctx, v, w, h, graphPinned);
         graphFns.forEach(function (fn, i) {
             if (fn) drawCurve(ctx, v, w, h, fn, curveColor(i));
+            if (fn && graphDiff[i]) drawCurve(ctx, v, w, h, slopeCurve(fn), curveColor(i), true);
         });
         graphTangent(ctx, v, w + h, graphPinned);
         graphMarks = graphBusy(CalcEngine.keyPoints(graphFns, { x0: graphX(v, 0), x1: graphX(v, w), y0: graphY(v, h), y1: graphY(v, 0) }, deg));
@@ -1636,71 +1652,93 @@
         ctx.setLineDash([]);
     }
 
-    // The area of a curve from a to b, shaded in its color down to the x axis, and its value,
-    // as the letters are now; the popup is in the middle of what is in the view. Where the
-    // curve has no value it is not shaded, and the area is none
+    // The area of a curve from a to b, shaded in its color down to the x axis, or to the curve
+    // below it (j), and its value, as the letters are now: the integral of the curve, or of the
+    // one less the other; the popup is in the middle of what is in the view. Where a curve has
+    // no value it is not shaded, and the area is none
     function graphShade(ctx, v, w, h, p) {
-        var fn = graphFns[p.i], x0 = Math.max(0, plotX(v, p.a)), x1 = Math.min(w, plotX(v, p.b)),
-            axis = Math.max(-h, Math.min(2 * h, plotY(v, 0))), at = [x0], last = null, k, x;
-        p.s = fn ? CalcEngine.area(fn, p.a, p.b, deg) : NaN;
+        var fn = graphFns[p.i], low = p.j !== undefined ? graphFns[p.j] : null, x0 = Math.max(0, plotX(v, p.a)),
+            x1 = Math.min(w, plotX(v, p.b)), at = [x0], run = [], k, x;
+        function edge(y) {
+            return Math.max(-h, Math.min(2 * h, plotY(v, y)));
+        }
+        function bottom(x) {
+            return p.j === undefined ? 0 : low ? low.at(x, deg) : NaN;
+        }
+        // the shading of the values in a row, along the curve and back along what is below it
+        function fill() {
+            if (run.length) {
+                ctx.moveTo(run[0].px, run[0].top);
+                run.forEach(function (q) { ctx.lineTo(q.px, q.top); });
+                run.reverse().forEach(function (q) { ctx.lineTo(q.px, q.low); });
+                ctx.closePath();
+            }
+            run = [];
+        }
+        p.s = fn && (p.j === undefined || low) ? CalcEngine.area(p.j === undefined ? fn : {
+            at: function (x, deg) { return fn.at(x, deg) - low.at(x, deg); }
+        }, p.a, p.b, deg) : NaN;
         x = graphX(v, (x0 + x1) / 2);
         p.x = x;
-        p.y = fn && isFinite(fn.at(x, deg)) ? fn.at(x, deg) / 2 : 0;
+        p.y = fn && isFinite(fn.at(x, deg) + bottom(x)) ? (fn.at(x, deg) + bottom(x)) / 2 : 0;
         if (!fn || x1 <= x0) return;
         for (k = Math.ceil(x0 * 2); k <= x1 * 2; k++) at.push(k / 2);
         at.push(x1);
         ctx.beginPath();
         at.forEach(function (px) {
-            var y = fn.at(graphX(v, px), deg);
-            if (!isFinite(y)) {
-                if (last !== null) ctx.lineTo(last, axis);
-                last = null;
-                return;
-            }
-            if (last === null) ctx.moveTo(px, axis);
-            ctx.lineTo(px, Math.max(-h, Math.min(2 * h, plotY(v, y))));
-            last = px;
+            var x = graphX(v, px), y = fn.at(x, deg), y0 = bottom(x);
+            if (isFinite(y) && isFinite(y0)) run.push({ px: px, top: edge(y), low: edge(y0) });
+            else fill();
         });
-        if (last !== null) ctx.lineTo(last, axis);
+        fill();
         ctx.globalAlpha = 0.3;
         ctx.fillStyle = curveColor(p.i);
         ctx.fill();
         ctx.globalAlpha = 1;
     }
 
-    // the curve nearest above or below a place, with a value at its x; -1 for none
-    function nearestCurve(at) {
-        var v = viewNow(), x = graphX(v, at.x), best = -1, near = Infinity;
+    // The region a place is in, for its area: between the curve just above it and the one just
+    // below at its x; else, over or under every curve, the nearest one down or up to the x axis.
+    // Null where no curve has a value there
+    function areaRegion(at) {
+        var v = viewNow(), x = graphX(v, at.x), y = graphY(v, at.y), above = null, below = null, near = null;
         graphFns.forEach(function (fn, i) {
-            var y = fn ? fn.at(x, deg) : NaN, d = Math.abs(plotY(v, y) - at.y);
-            if (isFinite(y) && d < near) {
-                near = d;
-                best = i;
-            }
+            var fy = fn ? fn.at(x, deg) : NaN, d = Math.abs(plotY(v, fy) - at.y);
+            if (!isFinite(fy)) return;
+            if (fy >= y && (!above || fy < above.y)) above = { i: i, y: fy };
+            if (fy < y && (!below || fy > below.y)) below = { i: i, y: fy };
+            if (!near || d < near.d) near = { i: i, d: d };
         });
-        return best;
+        if (above && below) return { i: above.i, j: below.i };
+        return near && { i: near.i };
     }
 
-    // an end of an area, at px of the plot: the x of a dot of the curve within reach, a root
-    // or a crossing, else the x there, rounded to what a pixel tells apart
-    function areaEnd(v, i, px) {
+    // an end of an area, at px of the plot: the x of a dot within reach of a curve of it, a
+    // root or a crossing, else the x there, rounded to what a pixel tells apart
+    function areaEnd(v, r, px) {
         var best = null;
+        function of(i) {
+            return i !== undefined && (i === r.i || i === r.j);
+        }
         graphMarks.forEach(function (p) {
             var d = Math.abs(plotX(v, p.x) - px);
-            if ((p.i === i || p.j === i) && d <= 8 && (!best || d < best.d)) best = { d: d, x: p.x };
+            if ((of(p.i) || of(p.j)) && d <= 8 && (!best || d < best.d)) best = { d: d, x: p.x };
         });
         return best ? best.x : graphRound(graphX(v, px), v.ux);
     }
 
-    // the drag with ∫ pressed: the area of the curve where it began, from there to the pointer.
+    // the drag with ∫ pressed: the area of the region where it began, from there to the pointer.
     // Its popup waits for the drag to end. False where no curve has a value there
     function graphAreaTo(s, at) {
         var v = viewNow(), a, b;
-        if (s.i === undefined) s.i = nearestCurve(s.p[0]);
+        if (s.i === undefined) {
+            s.r = areaRegion(s.p[0]);
+            s.i = s.r ? s.r.i : -1;
+        }
         if (s.i < 0) return false;
-        a = areaEnd(v, s.i, s.p[0].x);
-        b = areaEnd(v, s.i, at.x);
-        graphPinned = { area: true, i: s.i, a: Math.min(a, b), b: Math.max(a, b) };
+        a = areaEnd(v, s.r, s.p[0].x);
+        b = areaEnd(v, s.r, at.x);
+        graphPinned = { area: true, i: s.r.i, j: s.r.j, a: Math.min(a, b), b: Math.max(a, b) };
         graphAt = null;
         popShut();
         drawGraph();
@@ -1726,7 +1764,7 @@
         } else {
             x = graphRound(p.x + dir * GRAPH_TRACE * (shift ? 10 : 1) * v.ux, v.ux);
             graphMarks.forEach(function (m) {
-                if ((m.i === i || m.j === i) && (m.x - p.x) * dir > 0 && (m.x - x) * dir <= 0 &&
+                if ((m.i === i || m.j === i) && (m.x - p.x) * dir > v.ux / 2 && (m.x - x) * dir <= 0 && // not the one it is on, found again
                     (!next || Math.abs(m.x - p.x) < Math.abs(next.x - p.x))) next = m;
             });
             if (!next) next = { i: i, x: x, y: graphFns[i].at(x, deg, true) };
@@ -1750,8 +1788,9 @@
 
     // a place on the area shaded, or by its edge
     function onArea(v, p, at) {
-        var x = graphX(v, at.x), fn = graphFns[p.i], top = plotY(v, fn ? fn.at(x, deg) : NaN), axis = plotY(v, 0);
-        return x >= p.a && x <= p.b && at.y >= Math.min(top, axis) - 4 && at.y <= Math.max(top, axis) + 4;
+        var x = graphX(v, at.x), fn = graphFns[p.i], low = p.j === undefined ? null : graphFns[p.j],
+            top = plotY(v, fn ? fn.at(x, deg) : NaN), bottom = plotY(v, p.j === undefined ? 0 : low ? low.at(x, deg) : NaN);
+        return x >= p.a && x <= p.b && at.y >= Math.min(top, bottom) - 4 && at.y <= Math.max(top, bottom) + 4;
     }
 
     // The ∫ button, pressed or let go: pressed, the next drag along a curve shades its area
@@ -1855,10 +1894,16 @@
         }
     }
 
-    // A curve, from two values of each pixel across. It breaks where there is no
-    // value, and where it leaves by one edge and comes back by the other, as tan x
-    // does at 90°, unless the value between the two is between them too: a steep line
-    function drawCurve(ctx, v, w, h, fn, color) {
+    // the slope of a curve as a curve of its own, dy/dx at each x: none where it has none,
+    // at a corner or a break
+    function slopeCurve(fn) {
+        return { at: function (x, deg) { return CalcEngine.slope(fn, x, deg); } };
+    }
+
+    // A curve, from two values of each pixel across, dashed for the slope of one. It breaks
+    // where there is no value, and where it leaves by one edge and comes back by the other,
+    // as tan x does at 90°, unless the value between the two is between them too: a steep line
+    function drawCurve(ctx, v, w, h, fn, color, dashed) {
         var n = Math.ceil(w * 2), i, x, y, py, last = null, mid;
         ctx.beginPath();
         for (i = 0; i <= n; i++) {
@@ -1880,7 +1925,9 @@
         ctx.lineWidth = 2;
         ctx.lineJoin = 'round';
         ctx.strokeStyle = color;
+        ctx.setLineDash(dashed ? [7, 4] : []);
         ctx.stroke();
+        ctx.setLineDash([]);
     }
 
     // The point at a place of the plot: a mark within reach of it, the nearest; else the
@@ -1902,7 +1949,7 @@
 
     // what a point is, and its x and y, as the line above the plot and the popup show them
     function graphName(p) {
-        return p.spot ? 'Point' : p.area ? 'Area under the curve' : p.t ? p.t.map(function (t) { return GRAPH_NAMES[t]; }).join(', ') : 'On the curve';
+        return p.spot ? 'Point' : p.area ? (p.j === undefined ? 'Area under the curve' : 'Area between the curves') : p.t ? p.t.map(function (t) { return GRAPH_NAMES[t]; }).join(', ') : 'On the curve';
     }
 
     // to 13 digits, as the display shows a result: 1.732050807569. What is inserted is the whole number
@@ -1933,7 +1980,7 @@
                 graphTable.querySelector('.calc-bad') ? 'Start and step are numbers, the step above 0.' :
                     'Click a value to put it in the equation.' + (unit ? ' · ' + unit : '');
         } else if (graphShading && graphFns.some(Boolean)) {
-            graphNote.textContent = 'Drag along a curve for the area under it; an end near a dot goes to it.';
+            graphNote.textContent = 'Drag along a curve for the area under it, between two for the area between; an end near a dot goes to it.';
         } else if (p) {
             graphNote.innerHTML = graphSwatches(p) + '<em>' + graphName(p) + '</em>' +
                 '<span><i>x</i> = ' + graphValue(p, 'x') + '</span>' +
@@ -1975,10 +2022,20 @@
         graphPop.classList.toggle('calc-graph-pop-below', below);
     }
 
-    // the point clicked goes, and its popup; false if there was none
+    // What Esc does on the graph before it closes: the view's boxes close, the area button is
+    // let go, else the point clicked goes, and its popup; false if there was none of them
     function graphUnpin() {
         popLater(false);
-        if (!graphPinned || !graph.classList.contains('calc-open') || graphTab !== 'graph') return false;
+        if (!graph.classList.contains('calc-open') || graphTab !== 'graph') return false;
+        if (!graphWindow.hidden) {
+            showWindow(false);
+            return true;
+        }
+        if (graphShading) {
+            areaOn(false);
+            return true;
+        }
+        if (!graphPinned) return false;
         graphPinned = null;
         drawGraph();
         return true;
@@ -2244,9 +2301,11 @@
         graphSharp = 0;
         drawGraph();
 
-        lines = graphFns.map(function (fn, i) {
-            return fn && { i: i, text: 'y = ' + graphInputs[i].value.trim() };
-        }).filter(Boolean);
+        lines = [];
+        graphFns.forEach(function (fn, i) {
+            if (fn) lines.push({ i: i, text: 'y = ' + graphInputs[i].value.trim() });
+            if (fn && graphDiff[i]) lines.push({ i: i, text: 'y′ of ' + graphInputs[i].value.trim(), dashed: true });
+        });
         if (!lines.length) return pic;
         if (pinned && pinned.area) {
             lines.push({
@@ -2287,9 +2346,11 @@
             ctx.moveTo(17, y);
             ctx.lineTo(35, y);
             ctx.lineWidth = 3;
-            ctx.lineCap = 'round';
+            ctx.lineCap = l.dashed ? 'butt' : 'round';
             ctx.strokeStyle = curveColor(l.i);
+            ctx.setLineDash(l.dashed ? [5, 3] : []);
             ctx.stroke();
+            ctx.setLineDash([]);
             ctx.fillText(l.text, 42, y);
         });
         return pic;
@@ -3330,7 +3391,7 @@
     function saveState() {
         store('graph', {
             f: graphInputs.slice(0, graphCount).map(function (box) { return box.value; }), c: graphHue.slice(0, graphCount),
-            view: graphView, tab: graphTab, from: graphFrom.value, by: graphBy.value, off: graphOff.slice(0, graphCount),
+            view: graphView, tab: graphTab, from: graphFrom.value, by: graphBy.value, off: graphOff.slice(0, graphCount), d: graphDiff.slice(0, graphCount),
             p: graphLetters.reduce(function (p, k) {
                 if (graphRange[k]) p[k] = [graphVars[k], graphRange[k][0], graphRange[k][1]];
                 return p;
