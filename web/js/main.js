@@ -1600,6 +1600,20 @@
         return +(Math.round(x / q) * q).toPrecision(12);
     }
 
+    // x or y of a place pointed at or clicked, a pixel being u: a round number within 3 pixels,
+    // the roundest, of 1, 2 or 5 times a power of ten no closer than 10 pixels apart: 2 and not
+    // 2.04; else as graphRound has it
+    function graphNice(x, u) {
+        var s = gridStep(u, false), r, m;
+        while (s >= 10 * u * (1 - 1e-9)) {
+            r = Math.round(x / s) * s;
+            if (Math.abs(r - x) <= 3 * u) return +r.toPrecision(12);
+            m = Math.round(s / Math.pow(10, Math.floor(Math.log10(s)) ));
+            s = m === 5 ? s * 0.4 : s / 2;
+        }
+        return graphRound(x, u);
+    }
+
     function drawGraph() {
         var w = graphPlot.clientWidth, h = graphPlot.clientHeight, r = Math.max(graphSharp, (window.devicePixelRatio || 1) * scale()),
             ctx = graphCanvas.getContext('2d'), v;
@@ -2069,7 +2083,7 @@
     // curve within reach above or below it, the nearest, at its x; else the place itself,
     // its x and y rounded to what a pixel tells apart (spot)
     function graphPoint(at, reach) {
-        var v = viewNow(), x = graphRound(graphX(v, at.x), v.ux), best = null;
+        var v = viewNow(), x = graphNice(graphX(v, at.x), v.ux), best = null;
         graphMarks.forEach(function (p) {
             var d = Math.hypot(plotX(v, p.x) - at.x, plotY(v, p.y) - at.y);
             if (d <= reach && (!best || d < best.d)) best = { d: d, p: p };
@@ -2080,11 +2094,11 @@
             if (isFinite(y) && d <= reach * 1.2 && (!best || d < best.d)) best = { d: d, p: { i: i, x: x, y: y } };
         });
         graphRels.forEach(function (rel, i) { // an equation: the place on it nearest
-            var q = rel && CalcEngine.onRelation(rel, graphX(v, at.x), graphY(v, at.y), v.ux, v.uy, deg),
+            var q = rel && CalcEngine.onRelation(rel, graphX(v, at.x), graphY(v, at.y), v.ux, v.uy, deg, graphNice),
                 d = q ? Math.hypot(plotX(v, q.x) - at.x, plotY(v, q.y) - at.y) : Infinity;
             if (d <= reach * 1.2 && (!best || d < best.d)) best = { d: d, p: { i: i, x: q.x, y: q.y } };
         });
-        return best ? best.p : { x: x, y: graphRound(graphY(v, at.y), v.uy), spot: true };
+        return best ? best.p : { x: x, y: graphNice(graphY(v, at.y), v.uy), spot: true };
     }
 
     // what a point is, and its x and y, as the line above the plot and the popup show them

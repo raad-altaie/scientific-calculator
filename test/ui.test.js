@@ -502,6 +502,12 @@ async function graphPanel(page, at) {
     check(await page.calc('document.querySelectorAll(".calc-graph-fn:not([hidden])").length') === 2 &&
         await page.calc('document.activeElement === document.querySelectorAll(".calc-graph-input")[1]'), t + 'the + adds a box for another curve, to type in');
 
+    // the pointer a little off x = 2 is at 2, a round number, and y = 1; farther off, at what a pixel tells
+    await page.hoverAt('.calc-graph-plot', 2.06, 1.2);
+    check(/^On the curve\s*x = 2\s*y = 1$/.test((await page.calc(note)).trim()), t + 'near x = 2: at 2, not 2.06', await page.calc(note));
+    await page.hoverAt('.calc-graph-plot', 2.3, 2.3);
+    check(/^On the curve\s*x = 2\.\d+\s*y = /.test(await page.calc(note)), t + 'away from a round number: as near as a pixel', await page.calc(note));
+
     // the pointer at the lowest point, x = 0 and y = -3, shows what it is; a click opens its popup
     await page.hoverAt('.calc-graph-plot', 0, -3);
     check(/^Min, y-intercept\s*x = 0\s*y = -3/.test(await page.calc(note)), t + 'the point under the pointer: the low at x = 0, y = -3',

@@ -1107,11 +1107,11 @@
 
     // The place on an equation of x and y nearest x, y, seen with pixels ux wide and uy high:
     // Newton's steps down the slope of the difference of its sides, in pixels, then x rounded
-    // to what a pixel tells apart where the curve goes more across than up, else y, and the
-    // other found again by halving, as short as it is as good: (3, 4) on x² + y² = 25, not
-    // (2.9996, 4.0003). Null where it is not on the curve, as where its sides only jump past
-    // each other, x = 1/y across y = 0
-    function onRelation(rel, x, y, ux, uy, deg) {
+    // to what a pixel tells apart where the curve goes more across than up, else y, or by
+    // round(value, pixel) if given, and the other found again by halving, as short as it is as
+    // good: (3, 4) on x² + y² = 25, not (2.9996, 4.0003). Null where it is not on the curve, as
+    // where its sides only jump past each other, x = 1/y across y = 0
+    function onRelation(rel, x, y, ux, uy, deg, round) {
         var a = x / ux, b = y / uy, h = 1e-3, k, f, gx, gy, n2, step, lo, hi, q, r, fr;
         function g(a, b) {
             return rel.at(a * ux, b * uy, deg);
@@ -1132,15 +1132,17 @@
         lo = g(a - gx / Math.sqrt(n2), b - gy / Math.sqrt(n2));
         hi = g(a + gx / Math.sqrt(n2), b + gy / Math.sqrt(n2));
         if (!(lo * hi <= 0 && Math.abs(f) <= 1e-6 * (Math.abs(lo) + Math.abs(hi)))) return null;
+        round = round || function (n, u) {
+            q = Math.pow(10, Math.floor(Math.log10(u)));
+            return +(Math.round(n / q) * q).toPrecision(12);
+        };
         if (Math.abs(gy) >= Math.abs(gx)) { // across: x rounded, y found
-            q = Math.pow(10, Math.floor(Math.log10(ux)));
-            x = +(Math.round(a * ux / q) * q).toPrecision(12);
-            r = settle(function (t) { return rel.at(x, t, deg); }, b * uy, 2 * uy);
+            x = round(a * ux, ux);
+            r = settle(function (t) { return rel.at(x, t, deg); }, b * uy, 4 * uy);
             return r === null ? { x: a * ux, y: b * uy } : { x: x, y: r };
         }
-        q = Math.pow(10, Math.floor(Math.log10(uy)));
-        y = +(Math.round(b * uy / q) * q).toPrecision(12);
-        r = settle(function (t) { return rel.at(t, y, deg); }, a * ux, 2 * ux);
+        y = round(b * uy, uy);
+        r = settle(function (t) { return rel.at(t, y, deg); }, a * ux, 4 * ux);
         return r === null ? { x: a * ux, y: b * uy } : { x: r, y: y };
 
         // where f is 0 within d of t, by halving, as short as it is as good; null if it is not
