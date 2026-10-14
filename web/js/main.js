@@ -495,8 +495,8 @@
     // the ? beside the name have tips as well
     tip.parentNode.addEventListener('mouseover', function (e) {
         var key = e.target.closest('.calc-left > *, .calc-right > .del-ac, .calc-rad, .calc-mem, .calc-frac, .calc-fmt, .calc-hold, ' +
-            '.calc-stat-btn, .calc-stats-tile, .calc-fx-btn, .calc-fx-row, .calc-conv-btn, .calc-conv-row, ' +
-            '.calc-graph-btn, .calc-graph-size, .calc-graph-add, .calc-graph-del, .calc-graph-diff, .calc-graph-zoom > span, .calc-graph-pop-end, .calc-graph-pop-row, .calc-graph-play, ' +
+            '.calc-stat-btn, .calc-stats-tile, .calc-fx-btn, .calc-fx-row, .calc-gx-row, .calc-conv-btn, .calc-conv-row, ' +
+            '.calc-graph-btn, .calc-graph-size, .calc-graph-add, .calc-graph-del, .calc-graph-diff, .calc-graph-points, .calc-graph-zoom > span, .calc-graph-pop-end, .calc-graph-pop-row, .calc-graph-play, ' +
             '.calc-graph-fn > .calc-graph-swatch, ' +
             '.calc-hist, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit, .calc-help');
         if (key === tipKey) return;
@@ -578,6 +578,7 @@
         }
         if (el === graphButton) return CalcTips[graph.classList.contains('calc-open') ? 'graph close' : 'graph'];
         if (graph.contains(el)) {
+            if (el.classList.contains('calc-gx-row')) return exampleTip(el);
             if (el.classList.contains('calc-past-clear')) return CalcTips['graph clear'];
             if (el.classList.contains('calc-past-close')) {
                 info = CalcTips['graph close'];
@@ -1092,6 +1093,10 @@
         graphTwice = '', // a name two boxes give their functions, f of f(x) = …: the second is none
         graphCells = graph.querySelector('.calc-graph-cells'), // the points of a box as a table of x and y, to type in
         graphCellsRow = -1, // the box that table is of
+        graphExamples = graph.querySelector('.calc-graph-examples'), // the Examples tab: a search, and examples to draw by group
+        graphSearch = graphExamples.querySelector('.calc-graph-search'),
+        graphExList = graphExamples.querySelector('.calc-graph-ex-list'),
+        graphExItems = [], // each example with its group, and the words it is found by
         graphRels = [], // the boxes with an equation or an inequality of x and y in place of a function of x, x² + y² = 25
         graphPlanes = [], // the boxes with a curve of a parameter, polar, r = 2sin(3θ), or parametric, (cos t, sin t)
         graphData = [], // the boxes with points, (1, 2), (2, 4.1): their { x, y }; the function of such a box is its best fit, if on
@@ -1238,6 +1243,7 @@
     function addCurve() {
         var box = graphInputs[graphCount];
         if (graphCount >= graphRows.length) return;
+        if (graphTab === 'examples') showGraphTab('graph');
         box.value = '';
         graphCount++;
         freeHues();
@@ -1680,9 +1686,9 @@
         if (row) setTimeout(function () { if (row.parentNode) setSlider(row); }, 0);
     }, false);
 
-    // the tab shown, drawn as it is now
+    // the tab shown, drawn as it is now; the examples stay as they are
     function graphRender() {
-        if (graphTab === 'table') renderTable(); else drawGraph();
+        if (graphTab === 'table') renderTable(); else if (graphTab === 'graph') drawGraph();
     }
 
     // What a box is: a function of x, an equation or an inequality, a curve of a parameter or
@@ -3105,14 +3111,19 @@
         var tab = e.target.closest('.calc-graph-tab');
         if (!tab) return;
         showGraphTab(tab.dataset.tab);
+        if (graphTab === 'examples' && focusBox(graphSearch)) graphSearch.select(); // typing replaces the last search
         saveState();
     }, false);
 
+    // the plot, the table, or the examples in place of the boxes, the sliders and the plot
     function showGraphTab(tab) {
-        graphTab = tab === 'table' ? 'table' : 'graph';
+        graphTab = tab === 'table' || tab === 'examples' ? tab : 'graph';
         [].forEach.call(graph.querySelectorAll('.calc-graph-tab'), function (t) {
             t.classList.toggle('calc-on', t.dataset.tab === graphTab);
         });
+        graph.classList.toggle('calc-graph-browse', graphTab === 'examples');
+        graphExamples.hidden = graphTab !== 'examples';
+        if (graphTab === 'examples') renderExamples();
         graphPlot.hidden = graphTab !== 'graph';
         graphTable.hidden = graphTab !== 'table';
         graphAt = null;
@@ -3474,6 +3485,103 @@
             }).join(', ') + ' gives ' + +it.ex[1].toPrecision(10) + '.</div>',
             k: ''
         };
+    }
+
+    // ---------------- examples of the graph ---------------- //
+
+    // each example, with the words it is found by: its group, its name, what it types and what it is
+    CalcFormulas.graphs.forEach(function (group) {
+        group.list.forEach(function (ex) {
+            graphExItems.push({ c: group.c, ex: ex, words: [group.c, ex.t, ex.f.join(' '), ex.d].join(' ').toLowerCase() });
+        });
+    });
+
+    graphSearch.addEventListener('input', renderExamples, false);
+
+    // Enter in the search draws the first one found
+    graphSearch.addEventListener('keydown', function (e) {
+        var item = graphExList.querySelector('.calc-gx-item');
+        if (e.which !== 13) return;
+        e.preventDefault();
+        if (item) putExample(graphExItems[+item.dataset.i].ex);
+    }, false);
+
+    graphExList.addEventListener('click', function (e) {
+        var row = e.target.closest('.calc-gx-row');
+        if (row) putExample(graphExItems[+row.parentNode.dataset.i].ex);
+    }, false);
+
+    // what an example types, with the decimal mark in use: 4,1 and ; between with the comma
+    function exampleText(text) {
+        return engine.comma ? text.replace(/,/g, ';').replace(/\./g, ',') : text;
+    }
+
+    // the examples the search finds, under the name of their group, as the constants are:
+    // its name, and what it types, a box after another
+    function renderExamples() {
+        var words = graphSearch.value.trim().toLowerCase().split(/\s+/).filter(Boolean), group = null, html = '';
+        graphExItems.forEach(function (entry, i) {
+            if (!words.every(function (w) { return entry.words.indexOf(w) > -1; })) return;
+            if (entry.c !== group) html += '<div class="calc-gx-cat">' + entry.c + '</div>';
+            group = entry.c;
+            html += '<div class="calc-gx-item" data-i="' + i + '"><div class="calc-gx-row">' +
+                '<span class="calc-gx-col"><span class="calc-gx-name">' + entry.ex.t + '</span>' +
+                '<span class="calc-gx-f calc-gx-eq calc-gx-val"><span>' + entry.ex.f.map(function (text) {
+                    return exampleText(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                }).join('<span class="calc-graph-ex-gap"></span>') + '</span>' +
+                '<span class="calc-gx-put">' + insertIcon() + '</span></span></span></div></div>';
+        });
+        graphExList.innerHTML = html || '<div class="calc-gx-none">Nothing found</div>';
+        graphExList.scrollTop = 0;
+        hideTip();
+    }
+
+    // An example drawn: its boxes after the last one typed in, or in place of them all when
+    // there is not room, its sliders at their values, its points with their fit, in Rad if it
+    // needs it, and the view as it starts, or its own. Then the plot shows it
+    function putExample(ex) {
+        var last = -1, at, w, h, u, v = ex.v;
+        graphInputs.forEach(function (box, i) { if (i < graphCount && box.value.trim()) last = i; });
+        at = last + 1;
+        if (at + ex.f.length > graphRows.length) {
+            graphInputs.forEach(function (box) { box.value = ''; });
+            graphHue = [0, 1, 2, 3, 4, 5, 6];
+            graphOff = graphOff.map(function () { return false; });
+            graphDiff = graphDiff.map(function () { return false; });
+            forgetLetters();
+            at = 0;
+        }
+        ex.f.forEach(function (text, n) {
+            graphInputs[at + n].value = exampleText(text);
+            graphOff[at + n] = false;
+            graphDiff[at + n] = !n && ex.fit ? ex.fit : false;
+        });
+        graphCount = Math.max(at ? graphCount : 1, at + ex.f.length);
+        freeHues();
+        Object.keys(ex.p || {}).forEach(function (k) {
+            graphVars[k] = ex.p[k][0];
+            graphRange[k] = [ex.p[k][1], ex.p[k][2]];
+        });
+        if (ex.rad && deg) setUnit(0);
+        showCells(-1);
+        stopSliders();
+        graphView = null;
+        showGraphTab('graph');
+        readGraph();
+        if (v) { // all of its view shown, as much each way
+            w = graphPlot.clientWidth;
+            h = graphPlot.clientHeight;
+            u = Math.max((v[1] - v[0]) / w, (v[3] - v[2]) / h);
+            graphView = { x: (v[0] + v[1]) / 2, y: (v[2] + v[3]) / 2, ux: u, uy: u };
+            graphRender();
+        }
+        saveState();
+    }
+
+    // the tip of an example: what it is, and that a click draws it
+    function exampleTip(el) {
+        var ex = graphExItems[+el.parentNode.dataset.i].ex;
+        return { t: ex.t, d: ex.d + (ex.rad && deg ? ' It is drawn in Rad.' : '') + ' Click to draw it.', k: '' };
     }
 
     // ---------------- converter ---------------- //

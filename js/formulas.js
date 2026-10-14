@@ -1,4 +1,4 @@
-// The formulas and constants of the f(x) panel.
+// The formulas and constants of the f(x) panel, and the examples of the graph.
 // A formula: t its name, f how it is written (HTML), d what it gives, v its letters
 // ([key, as written, what it stands for]), x the equation it puts into the calculator,
 // a {key} for each letter, and ex an example: the letters' values and what they give.
@@ -868,7 +868,102 @@
         group.list.forEach(function (item) { item.f = draw(item.f); });
     });
 
-    root.CalcFormulas = { formulas: formulas, constants: constants, fill: fill, why: why };
+    // Examples of the graph, by group: t its name, f what it types, a box for each; d what it
+    // is. p: the values of its sliders, [value, from, to]; fit: the best fit of its points;
+    // v: the view, [x from, to, y from, to], all of it shown; rad: drawn in Rad, its t or x
+    // being a number and not an angle
+    var graphs = [
+        {
+            c: 'Functions', list: [
+                { t: 'Line', f: ['y = 2x + 1'], d: 'A slope of 2, meeting the y axis at 1.' },
+                { t: 'Parabola', f: ['x^2 - 4'], d: 'Its low at (0, –4) and its roots at ±2.' },
+                { t: 'Cubic', f: ['x^3 - 3x'], d: 'A high, a low, and where it bends the other way between them.' },
+                { t: 'Sine and cosine', f: ['sin(x)', 'cos(x)'], d: 'The two waves, a quarter of a turn apart. They follow Deg, Rad or Grad.' },
+                { t: 'Tangent', f: ['tan(x)'], d: 'Going off at each quarter turn, and again from below.' },
+                { t: 'Growth and decay', f: ['2^x', '(1/2)^x'], d: 'Doubling and halving at each step of x, both through (0, 1).' },
+                { t: 'Logarithms', f: ['ln(x)', 'log(x)'], d: 'The natural logarithm and the one to the base 10, both through (1, 0).' },
+                { t: 'Square root', f: ['sqrt(x)'], d: 'Only where x is 0 or more.' },
+                { t: 'Absolute value', f: ['abs(x)'], d: 'A V, with its corner at 0.' },
+                { t: 'Reciprocal', f: ['1/x'], d: 'Two branches, nearing the axes without meeting them.' },
+                { t: 'Bell curve', f: ['e^(-x^2/2)'], d: 'The normal curve, highest at 0 and bending at ±1.' },
+                { t: 'Sinc', f: ['sin(x)/x'], d: 'A wave that dies away, 1 at 0.', rad: true }
+            ]
+        },
+        {
+            c: 'Sliders', list: [
+                { t: 'Wave', f: ['a sin(bx + c)'], d: 'a stretches it up, b squeezes it across, c moves it along. Drag them or press ▶.',
+                    p: { a: [2, -5, 5], b: [1, 0, 5], c: [0, -5, 5] }, rad: true },
+                { t: 'Vertex form', f: ['a(x - h)^2 + k'], d: 'A parabola with its turn at (h, k).', p: { a: [1, -3, 3], h: [2, -8, 8], k: [-3, -8, 8] } },
+                { t: 'Slope and intercept', f: ['m x + b'], d: 'A line of slope m meeting the y axis at b.', p: { m: [2, -5, 5], b: [1, -8, 8] } },
+                { t: 'Exponential', f: ['a e^(k x)'], d: 'Growing for k above 0, dying away below it.', p: { a: [1, -5, 5], k: [0.5, -2, 2] } }
+            ]
+        },
+        {
+            c: 'Equations', list: [
+                { t: 'Circle', f: ['x^2 + y^2 = 25'], d: 'All the places 5 from the middle.' },
+                { t: 'Ellipse', f: ['x^2/16 + y^2/9 = 1'], d: '4 across each way, 3 up and down.' },
+                { t: 'Hyperbola', f: ['x^2 - y^2 = 4'], d: 'Two branches, opening left and right.' },
+                { t: 'Parabola on its side', f: ['x = y^2 - 4'], d: 'x as a function of y.' },
+                { t: 'Heart', f: ['(x^2 + y^2 - 1)^3 = x^2 y^3'], d: 'A heart, as an equation of x and y.', v: [-2, 2, -1.6, 1.8] },
+                { t: 'Folium of Descartes', f: ['x^3 + y^3 = 6x y'], d: 'A loop and two arms going off along y = –x – 2.' }
+            ]
+        },
+        {
+            c: 'Inequalities', list: [
+                { t: 'Under a curve', f: ['y < x^2 - 4'], d: 'Shaded where it holds; its edge is dashed, not in it.' },
+                { t: 'Disc', f: ['x^2 + y^2 <= 9'], d: 'Inside the circle, the circle too.' },
+                { t: 'Band', f: ['-2 < y < 2'], d: 'Two inequalities at once, between the lines.' },
+                { t: 'Between two curves', f: ['x^2 < y < 4'], d: 'Above the parabola and under y = 4. The area button finds 32/3.' },
+                { t: 'Overlap', f: ['y >= x', 'y <= 6 - x'], d: 'Each shaded in its color, darker where both hold.' }
+            ]
+        },
+        {
+            c: 'Polar', list: [
+                { t: 'Rose', f: ['r = 4cos(2θ)'], d: 'Four petals; with 3θ, three.' },
+                { t: 'Cardioid', f: ['r = 2 + 2cos(θ)'], d: 'The heart drawn by a point of a circle rolling round another.' },
+                { t: 'Limaçon', f: ['r = 1 + 2cos(θ)'], d: 'A loop within a loop.' },
+                { t: 'Spiral', f: ['r = θ/2 {0, 6π}'], d: 'Going out as it goes round, three times.', rad: true },
+                { t: 'Lemniscate', f: ['r = sqrt(16cos(2θ))'], d: 'A figure of eight, where cos 2θ is 0 or more.' },
+                { t: 'Butterfly', f: ['r = e^(sin θ) - 2cos(4θ)'], d: 'Wings drawn by one curve of θ.' }
+            ]
+        },
+        {
+            c: 'Parametric', list: [
+                { t: 'Circle of t', f: ['(3cos t, 3sin t)'], d: 'x and y each a function of t, going once round.' },
+                { t: 'Lissajous', f: ['(4sin(3t), 4sin(2t))'], d: 'Two waves across each other, 3 to 2.' },
+                { t: 'Astroid', f: ['(4cos(t)^3, 4sin(t)^3)'], d: 'A star of four points.' },
+                { t: 'Epicycloid', f: ['(5cos t - cos(5t), 5sin t - sin(5t))'], d: 'A point of a circle rolling round another, four times its size.' },
+                { t: 'Cycloid', f: ['(t - sin t, 1 - cos t) {0, 6π}'], d: 'A point of a wheel rolling along the x axis.', rad: true }
+            ]
+        },
+        {
+            c: 'Pieces and parts', list: [
+                { t: 'In two pieces', f: ['{x < 0: -x, x^2}'], d: '–x left of 0, x² from there: the first piece that holds.' },
+                { t: 'Sign', f: ['{x < 0: -1, x > 0: 1}'], d: '–1 or 1, with nothing at 0.' },
+                { t: 'Steps', f: ['{x < 1: 0, x < 2: 1, x < 3: 2, 3}'], d: 'A staircase: the last piece is where none before holds.' },
+                { t: 'Part of a curve', f: ['x^2 {0 < x < 3}'], d: 'x² only between 0 and 3.' },
+                { t: 'Top of a circle', f: ['x^2 + y^2 = 16 {y > 0}'], d: 'An equation kept to where y is above 0.' },
+                { t: 'Humps', f: ['sin(x) {y > 0}'], d: 'A wave kept to where its value is above 0.' }
+            ]
+        },
+        {
+            c: 'Functions named', list: [
+                { t: 'A function and its slope', f: ['f(x) = x^3 - 3x', "f'(x)"], d: 'f′ is 0 where f is highest and lowest.' },
+                { t: 'Sine, its slope and the next', f: ['f(x) = sin(x)', "f'(x)", "f''(x)"], d: 'Each slope is the one before a quarter of a turn on.', rad: true },
+                { t: 'Moved', f: ['f(x) = x^2', 'f(x - 3) + 1'], d: 'f moved 3 right and 1 up.' },
+                { t: 'Stretched', f: ['g(x) = sin(x)', 'g(2x)', '2g(x)'], d: 'Squeezed across, and stretched up.', rad: true }
+            ]
+        },
+        {
+            c: 'Points', list: [
+                { t: 'Along a line', f: ['(1, 2), (2, 4.1), (3, 5.9), (4, 8.2), (5, 9.8)'], d: 'With the line nearest them; point at it for r².', fit: 'lin' },
+                { t: 'Thrown up', f: ['(0, 0), (1, 4.2), (2, 6.1), (3, 6.3), (4, 3.9), (5, 0.2)'], d: 'Heights of a ball, with the parabola nearest them.', fit: 'quad' },
+                { t: 'Doubling', f: ['(0, 1), (1, 1.9), (2, 4.2), (3, 7.8), (4, 16.5)'], d: 'Growth, with the exponential nearest it.', fit: 'exp', v: [-1, 6, -2, 18] }
+            ]
+        }
+    ];
+
+    root.CalcFormulas = { formulas: formulas, constants: constants, graphs: graphs, fill: fill, why: why };
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = root.CalcFormulas;
     }

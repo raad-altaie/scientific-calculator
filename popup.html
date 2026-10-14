@@ -340,6 +340,7 @@
                 <span class="calc-graph-tabs">
                     <span class="calc-graph-tab" data-tab="graph">Graph</span>
                     <span class="calc-graph-tab" data-tab="table">Table</span>
+                    <span class="calc-graph-tab" data-tab="examples">Examples</span>
                 </span>
                 <!-- a box for another curve, up to seven -->
                 <span class="calc-graph-add"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 3v10M3 8h10" /></svg></span>
@@ -397,6 +398,12 @@
                         autocomplete="off" maxlength="20" aria-label="From one x to the next"></label>
                 </div>
                 <div class="calc-graph-list"></div>
+            </div>
+            <!-- examples to draw, by group, as the constants are, with a search of them -->
+            <div class="calc-graph-examples" hidden>
+                <input class="calc-gx-search calc-graph-search" type="text" spellcheck="false" autocomplete="off" maxlength="60"
+                    placeholder="Search examples" aria-label="Search examples">
+                <div class="calc-gx-list calc-graph-ex-list"></div>
             </div>
         </div>
 
