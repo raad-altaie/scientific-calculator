@@ -719,6 +719,17 @@ async function graphPanel(page, at) {
     await page.click('.calc-graph-zoom [data-zoom="window"]');
     await page.click('.calc-graph-zoom [data-zoom="home"]');
 
+    // Esc, with the focus off the boxes, closes the view's boxes and lets go of the area button before the graph
+    await page.click('.calc-graph-zoom [data-zoom="window"]');
+    await page.click('.calc-graph-zoom [data-zoom="area"]');
+    await page.click('.calc-graph-note');
+    await page.key('Escape', 27);
+    check(await open(page, '.calc-graph') && await page.calc('document.querySelector(".calc-graph-window").hidden') &&
+        await page.calc('document.querySelector("[data-zoom=area]").classList.contains("calc-on")'), t + 'Esc closes the boxes of the view first');
+    await page.key('Escape', 27);
+    check(await open(page, '.calc-graph') && !await page.calc('document.querySelector("[data-zoom=area]").classList.contains("calc-on")'),
+        t + 'then lets go of the area button');
+
     // y′ draws the slope of a curve, dashed: 2x for x² – 3, through x = 1, y = 2; kept, and taken away again
     check(await page.calc(dashes(1, 2)) === 0 && await page.calc('getComputedStyle(document.querySelector(".calc-graph-fn:nth-child(3) .calc-graph-diff")).display') === 'none',
         t + 'no slope drawn, and no y′ for an empty box');

@@ -199,7 +199,7 @@
             } else if (e.which === 27 && graphWindow.contains(e.target)) { // and the view's boxes, back to the plot
                 showWindow(false);
                 e.preventDefault();
-            } else if (e.which === 27 && graphUnpin()) { // Esc closes the point clicked on the graph first
+            } else if (e.which === 27 && graphUnpin()) { // Esc closes the point clicked on the graph first, and the like
                 e.preventDefault();
             } else if (e.which === 27 && graph.contains(e.target) && graphBig(false)) { // then makes the big graph small
                 e.preventDefault();
@@ -1764,7 +1764,7 @@
         } else {
             x = graphRound(p.x + dir * GRAPH_TRACE * (shift ? 10 : 1) * v.ux, v.ux);
             graphMarks.forEach(function (m) {
-                if ((m.i === i || m.j === i) && (m.x - p.x) * dir > 0 && (m.x - x) * dir <= 0 &&
+                if ((m.i === i || m.j === i) && (m.x - p.x) * dir > v.ux / 2 && (m.x - x) * dir <= 0 && // not the one it is on, found again
                     (!next || Math.abs(m.x - p.x) < Math.abs(next.x - p.x))) next = m;
             });
             if (!next) next = { i: i, x: x, y: graphFns[i].at(x, deg, true) };
@@ -2022,10 +2022,20 @@
         graphPop.classList.toggle('calc-graph-pop-below', below);
     }
 
-    // the point clicked goes, and its popup; false if there was none
+    // What Esc does on the graph before it closes: the view's boxes close, the area button is
+    // let go, else the point clicked goes, and its popup; false if there was none of them
     function graphUnpin() {
         popLater(false);
-        if (!graphPinned || !graph.classList.contains('calc-open') || graphTab !== 'graph') return false;
+        if (!graph.classList.contains('calc-open') || graphTab !== 'graph') return false;
+        if (!graphWindow.hidden) {
+            showWindow(false);
+            return true;
+        }
+        if (graphShading) {
+            areaOn(false);
+            return true;
+        }
+        if (!graphPinned) return false;
         graphPinned = null;
         drawGraph();
         return true;
