@@ -93,6 +93,7 @@
         graphView = null, // what the plot shows: x and y at its middle, and the units of x and y in a pixel; null for the start
         graphMarks = [], // the points of the curves in the view worth marking: roots, highs and lows, crossings
         graphAt = null, // the point under the pointer: { i: its curve, x, y, t: what it is if it is a mark, spot: true off the curves }
+        graphEdge = null, // with ∫ pressed, where an area would start from the pointer: { x, i, j: its curves }
         graphPinned = null, // the point clicked, which has the popup
         tools = Calc.querySelector('.calc-tools'), // the buttons at the top left of the display
         pressedKey,
@@ -198,6 +199,9 @@
                 e.preventDefault();
             } else if (e.which === 27 && graphWindow.contains(e.target)) { // and the view's boxes, back to the plot
                 showWindow(false);
+                e.preventDefault();
+            } else if (e.which === 27 && graphPop.contains(e.target)) { // and the ends of an area, its popup staying
+                e.target.blur();
                 e.preventDefault();
             } else if (e.which === 27 && graphUnpin()) { // Esc closes the point clicked on the graph first, and the like
                 e.preventDefault();
@@ -491,7 +495,7 @@
     tip.parentNode.addEventListener('mouseover', function (e) {
         var key = e.target.closest('.calc-left > *, .calc-right > .del-ac, .calc-rad, .calc-mem, .calc-frac, .calc-fmt, .calc-hold, ' +
             '.calc-stat-btn, .calc-stats-tile, .calc-fx-btn, .calc-fx-row, .calc-conv-btn, .calc-conv-row, ' +
-            '.calc-graph-btn, .calc-graph-size, .calc-graph-add, .calc-graph-del, .calc-graph-diff, .calc-graph-zoom > span, .calc-graph-pop-row, .calc-graph-play, ' +
+            '.calc-graph-btn, .calc-graph-size, .calc-graph-add, .calc-graph-del, .calc-graph-diff, .calc-graph-zoom > span, .calc-graph-pop-end, .calc-graph-pop-row, .calc-graph-play, ' +
             '.calc-graph-fn > .calc-graph-swatch, ' +
             '.calc-hist, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit, .calc-help');
         if (key === tipKey) return;
@@ -582,6 +586,7 @@
             if (el === graphAdd) return CalcTips['graph add'];
             if (el.classList.contains('calc-graph-del')) return CalcTips['graph remove'];
             if (el.classList.contains('calc-graph-diff')) return CalcTips[graphDiff[graphRows.indexOf(el.parentNode)] ? 'graph slope off' : 'graph slope on'];
+            if (el.classList.contains('calc-graph-pop-end')) return CalcTips['graph end ' + el.dataset.end];
             if (el.classList.contains('calc-graph-pop-row')) return CalcTips['graph put ' + el.dataset.put];
             if (el.classList.contains('calc-graph-play')) return CalcTips[graphPlay[el.parentNode.dataset.k] ? 'graph pause' : 'graph play'];
             if (el.classList.contains('calc-graph-swatch')) {
@@ -1618,6 +1623,7 @@
         graphMarks.forEach(function (p) {
             graphDot(ctx, v, p, 3.5, GRAPH_INK.paper, curveColor(p.i));
         });
+        if (graphShading && graphEdge) graphEdgeLine(ctx, v, h, graphEdge);
         [graphAt, graphPinned].forEach(function (p, at) {
             if (!p || p.area || (at && p === graphAt)) return;
             if (!p.t && !p.spot && graphFns[p.i]) p.y = graphFns[p.i].at(p.x, deg, true); // on the curve as the unit is now
@@ -1718,9 +1724,10 @@
     }
 
     // an end of an area, at px of the plot: the x of a dot within reach of a curve of it, a
-    // root or a crossing, else the x there, rounded to what a pixel tells apart
+    // root or a crossing, else of a line of the grid within reach, else the x there to a round
+    // step some 5 pixels wide, 1, 2 or 5 times a power of ten: 2 and not 2.04
     function areaEnd(v, r, px) {
-        var best = null;
+        var best = null, x = graphX(v, px), grid = gridStep(v.ux, graphAngles() && deg === 1), fine = gridStep(v.ux / 10, false);
         function of(i) {
             return i !== undefined && (i === r.i || i === r.j);
         }
@@ -1728,7 +1735,9 @@
             var d = Math.abs(plotX(v, p.x) - px);
             if ((of(p.i) || of(p.j)) && d <= 8 && (!best || d < best.d)) best = { d: d, x: p.x };
         });
-        return best ? best.x : graphRound(graphX(v, px), v.ux);
+        if (best) return best.x;
+        if (Math.abs(plotX(v, Math.round(x / grid) * grid) - px) <= 6) return +(Math.round(x / grid) * grid).toPrecision(12);
+        return +(Math.round(x / fine) * fine).toPrecision(12);
     }
 
     // the drag with ∫ pressed: the area of the region where it began, from there to the pointer.
@@ -1743,7 +1752,7 @@
         a = areaEnd(v, s.r, s.p[0].x);
         b = areaEnd(v, s.r, at.x);
         graphPinned = { area: true, i: s.r.i, j: s.r.j, a: Math.min(a, b), b: Math.max(a, b) };
-        graphAt = null;
+        graphAt = graphEdge = null;
         popShut();
         drawGraph();
         return true;
@@ -1800,9 +1809,28 @@
     // The ∫ button, pressed or let go: pressed, the next drag along a curve shades its area
     function areaOn(on) {
         graphShading = on;
+        graphEdge = null;
         graphAreaButton.classList.toggle('calc-on', on);
         graphPlot.classList.toggle('calc-graph-shading', on);
         if (graph.classList.contains('calc-open')) graphShown();
+    }
+
+    // where an area would start from the pointer, with ∫ pressed: an upright line at its x, and
+    // a dot on its curve there, or on both it would be between
+    function graphEdgeLine(ctx, v, h, e) {
+        var x = Math.round(plotX(v, e.x)) + 0.5;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = curveColor(e.i);
+        ctx.setLineDash([4, 3]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        [e.i, e.j].forEach(function (i) {
+            var y = i !== undefined && graphFns[i] ? graphFns[i].at(e.x, deg) : NaN;
+            if (isFinite(y) && Math.abs(plotY(v, y)) < 1e6) graphDot(ctx, v, { x: e.x, y: y }, 4.5, curveColor(i), GRAPH_INK.paper);
+        });
     }
 
     // a place away from the curves, clicked: a cross
@@ -2010,6 +2038,11 @@
         return p.spot || k === 'x' || k === 'a' || k === 'b' ? shownResult({ value: n }, n).html : statsValue(p[k]).html;
     }
 
+    // an end of an area as its box shows it, to 13 digits, which can be typed over
+    function endValue(p, k) {
+        return local(String(+p[k].toPrecision(13)));
+    }
+
     // a dot of the curve's color, or of both curves that cross
     function graphSwatch(i) {
         return '<b class="calc-graph-swatch" style="background:' + curveColor(i) + '"></b>';
@@ -2031,6 +2064,12 @@
             graphNote.textContent = !graphFns.some(Boolean) ? 'Type a function of x for its values.' :
                 graphTable.querySelector('.calc-bad') ? 'Start and step are numbers, the step above 0.' :
                     'Click a value to put it in the equation.' + (unit ? ' · ' + unit : '');
+        } else if (graphShading && graphFns.some(Boolean) && graphStart && graphPinned && graphPinned.area) {
+            graphNote.innerHTML = graphSwatches(graphPinned) + '<span>From <i>x</i> = ' + graphValue(graphPinned, 'a') + '</span>' +
+                '<span>to <i>x</i> = ' + graphValue(graphPinned, 'b') + '</span>';
+        } else if (graphShading && graphEdge) {
+            graphNote.innerHTML = graphSwatches(graphEdge) + '<span>From <i>x</i> = ' + graphValue(graphEdge, 'x') + '</span>' +
+                '<span>Drag to where it ends</span>';
         } else if (graphShading && graphFns.some(Boolean)) {
             graphNote.textContent = 'Drag along a curve for the area under it, between two for the area between; an end near a dot goes to it.';
         } else if (p) {
@@ -2046,12 +2085,18 @@
 
     // The popup of the point clicked, over it, or under it where there is no room above;
     // its x and y, and the slope of its curve there, each go into the calculation with a
-    // click. It goes with the point as the view moves, and hides while the point is out of the view
+    // click. It goes with the point as the view moves, and hides while the point is out of the view,
+    // unless an end of its area is being typed: then it stays at the edge, and that box is kept
     function placePop(v) {
-        var p = graphPinned, w = graphPlot.clientWidth, h = graphPlot.clientHeight, px, py, html, left, top, below;
+        var p = graphPinned, w = graphPlot.clientWidth, h = graphPlot.clientHeight, typing = graphPop.contains(document.activeElement),
+            px, py, html, left, top, below, rows;
         px = p && plotX(v, p.x);
         py = p && plotY(v, p.y);
-        if (!p || graphPopShut || !isFinite(p.y) || px < 0 || px > w || py < 0 || py > h) {
+        if (p && p.area && typing) {
+            px = Math.max(0, Math.min(w, px));
+            py = isFinite(py) ? Math.max(0, Math.min(h, py)) : h / 2;
+        }
+        if (!p || graphPopShut || !isFinite(py) || px < 0 || px > w || py < 0 || py > h) {
             graphPop.hidden = true;
             return;
         }
@@ -2060,9 +2105,19 @@
                 if (k === 'm' && !isFinite(p.m)) return '';
                 if (k === 's' && !isFinite(p.s)) return '<div class="calc-graph-pop-none">Area = none</div>';
                 return '<div class="calc-graph-pop-row" data-put="' + k + '"><span>' + GRAPH_ROWS[k] + ' = ' +
-                    graphValue(p, k) + '</span>' + insertIcon() + '</div>';
+                    (k === 'a' || k === 'b' ? '<input class="calc-graph-pop-end" data-end="' + k + '" value="' + endValue(p, k) +
+                        '" aria-label="' + (k === 'a' ? 'From x' : 'To x') + '">' : graphValue(p, k)) + '</span>' + insertIcon() + '</div>';
             }).join('');
-        if (graphPop.innerHTML !== html) graphPop.innerHTML = html;
+        if (p.area && typing) { // all but the row of the box typed in
+            rows = document.createElement('div');
+            rows.innerHTML = html;
+            [].slice.call(rows.children).forEach(function (row, n) {
+                var now = graphPop.children[n];
+                if (!now.contains(document.activeElement) && now.outerHTML !== row.outerHTML) graphPop.replaceChild(row.cloneNode(true), now);
+            });
+        } else if (graphPop.innerHTML !== html) {
+            graphPop.innerHTML = html;
+        }
         graphPop.hidden = false;
         left = Math.max(4, Math.min(w - graphPop.offsetWidth - 4, px - graphPop.offsetWidth / 2));
         top = py - graphPop.offsetHeight - 10;
@@ -2100,7 +2155,7 @@
         clearTimeout(graphHiding);
         if (!on) return;
         graphHiding = setTimeout(function () {
-            if (!menu.hidden) popLater(true); else popShut();
+            if (!menu.hidden || graphPop.contains(document.activeElement)) popLater(true); else popShut();
         }, GRAPH_POP_WAIT);
     }
 
@@ -2120,9 +2175,37 @@
         popLater(e.pointerType === 'mouse' && !!graphPinned);
     }, false);
 
+    // An end of an area typed, as its x is hard to drag to: the area from there, as it is typed,
+    // where the other end is past it. One that is not is marked; Enter or Esc goes back to the
+    // plot, and the box shows the end as it is again
+    graphPop.addEventListener('input', function (e) {
+        var box = e.target, p = graphPinned, n, a, b;
+        if (!box.classList.contains('calc-graph-pop-end') || !p || !p.area) return;
+        onlyNumber(box);
+        n = box.value.trim() === '' ? NaN : +boxValue(box);
+        a = box.dataset.end === 'a' ? n : p.a;
+        b = box.dataset.end === 'b' ? n : p.b;
+        box.classList.toggle('calc-bad', !(isFinite(n) && a < b));
+        if (!(isFinite(n) && a < b)) return;
+        p.a = a;
+        p.b = b;
+        drawGraph();
+    }, false);
+
+    graphPop.addEventListener('keydown', function (e) {
+        if (e.which !== 13 || !e.target.classList.contains('calc-graph-pop-end')) return;
+        e.preventDefault();
+        e.target.blur();
+    }, false);
+
+    graphPop.addEventListener('focusout', function () {
+        setTimeout(drawGraph, 0);
+    }, false);
+
     // x or y of the point clicked goes into the calculation, as a result of the statistics does
     graphPop.addEventListener('click', function (e) {
         var row = e.target.closest('.calc-graph-pop-row'), n = row && graphPinned && graphPinned[row.dataset.put];
+        if (e.target.classList.contains('calc-graph-pop-end')) return; // typed in, not put in
         if (!row || !isFinite(n) || !engine.put(n)) return;
         keyBoard['AC'].children[0].firstChild.data = 'C';
         showGraph(false);
@@ -2172,7 +2255,12 @@
     graphCanvas.addEventListener('pointermove', function (e) {
         var at = onPlot(e), s = graphStart, p, d0, d1;
         if (!graphTouch[e.pointerId]) { // the mouse over the plot: the point under it
-            if (e.pointerType === 'mouse') {
+            if (e.pointerType === 'mouse' && graphShading) { // where an area would start, as a drag from here takes it
+                p = areaRegion(at);
+                graphAt = null;
+                graphEdge = p && { x: areaEnd(viewNow(), p, at.x), i: p.i, j: p.j };
+                drawGraph();
+            } else if (e.pointerType === 'mouse') {
                 graphAt = graphPoint(at, 10);
                 drawGraph();
             }
@@ -2231,7 +2319,7 @@
     // the pointer leaves: the line above says what to do again; the popup stays
     graphCanvas.addEventListener('pointerleave', function (e) {
         if (e.pointerType !== 'mouse' || graphTouch[e.pointerId]) return;
-        graphAt = null;
+        graphAt = graphEdge = null;
         drawGraph();
     }, false);
 

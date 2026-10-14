@@ -244,6 +244,16 @@
                 'the upper one less the lower. An end near a root or a crossing goes to it.',
             k: ''
         },
+        'graph end a': {
+            t: 'Type the start',
+            d: 'Type the x the area starts from, any number below where it ends: the area follows as you type. Enter or Esc goes back to the graph.',
+            k: ''
+        },
+        'graph end b': {
+            t: 'Type the end',
+            d: 'Type the x the area goes to, any number past where it starts: the area follows as you type. Enter or Esc goes back to the graph.',
+            k: ''
+        },
         'graph put a': {
             t: 'Insert the start',
             d: 'Puts the x the area starts from into the equation, as Ans does.',
