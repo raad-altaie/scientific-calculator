@@ -3536,35 +3536,26 @@
         hideTip();
     }
 
-    // An example drawn: its boxes after the last one typed in, or in place of them all when
-    // there is not room, its sliders at their values, its points with their fit, in Rad if it
-    // needs it, and the view as it starts, or its own. Then the plot shows it
+    // An example drawn in place of the curves there were, as Clear leaves them: its boxes,
+    // its sliders at their values, its points with their fit, in Rad if it needs it, and the
+    // view as it starts, or its own. Then the plot shows it
     function putExample(ex) {
-        var last = -1, at, w, h, u, v = ex.v;
-        graphInputs.forEach(function (box, i) { if (i < graphCount && box.value.trim()) last = i; });
-        at = last + 1;
-        if (at + ex.f.length > graphRows.length) {
-            graphInputs.forEach(function (box) { box.value = ''; });
-            graphHue = [0, 1, 2, 3, 4, 5, 6];
-            graphOff = graphOff.map(function () { return false; });
-            graphDiff = graphDiff.map(function () { return false; });
-            forgetLetters();
-            at = 0;
-        }
-        ex.f.forEach(function (text, n) {
-            graphInputs[at + n].value = exampleText(text);
-            graphOff[at + n] = false;
-            graphDiff[at + n] = !n && ex.fit ? ex.fit : false;
-        });
-        graphCount = Math.max(at ? graphCount : 1, at + ex.f.length);
-        freeHues();
+        var w, h, u, v = ex.v;
+        stopSliders();
+        graphInputs.forEach(function (box, i) { box.value = i < ex.f.length ? exampleText(ex.f[i]) : ''; });
+        graphCount = ex.f.length;
+        graphHue = [0, 1, 2, 3, 4, 5, 6];
+        graphOff = graphOff.map(function () { return false; });
+        graphDiff = graphDiff.map(function (d, i) { return !i && ex.fit ? ex.fit : false; });
+        graphFrom.value = graphBy.value = '';
+        graphLines = 0;
+        forgetLetters();
         Object.keys(ex.p || {}).forEach(function (k) {
             graphVars[k] = ex.p[k][0];
             graphRange[k] = [ex.p[k][1], ex.p[k][2]];
         });
         if (ex.rad && deg) setUnit(0);
         showCells(-1);
-        stopSliders();
         graphView = null;
         showGraphTab('graph');
         readGraph();
@@ -3581,7 +3572,7 @@
     // the tip of an example: what it is, and that a click draws it
     function exampleTip(el) {
         var ex = graphExItems[+el.parentNode.dataset.i].ex;
-        return { t: ex.t, d: ex.d + (ex.rad && deg ? ' It is drawn in Rad.' : '') + ' Click to draw it.', k: '' };
+        return { t: ex.t, d: ex.d + (ex.rad && deg ? ' It is drawn in Rad.' : '') + ' Click to draw it in place of the curves there are.', k: '' };
     }
 
     // ---------------- converter ---------------- //
