@@ -2354,6 +2354,17 @@ dels.forEach(function (c) {
         check(Engine.graph('x^2 + y^2 = 25') === null && !!Engine.graph('y = 2x'), 'graph: an equation is not a function of x, y = 2x is');
     })();
 
+    // an inequality: the left side less the right, and which way it is true
+    (function () {
+        var r = Engine.relation('y < x^2');
+        check(r && r.op === '<' && r.at(1, 0, 0) === -1 && r.at(0, 1, 0) === 1, 'relation: y < x², below the curve less than 0');
+        check(Engine.relation('x^2 + y^2 <= 9').op === '≤' && Engine.relation('x>=2').op === '≥' && Engine.relation('x ≤ y').op === '≤' &&
+            Engine.relation('y > 2x - 1').op === '>' && Engine.relation('y => x').op === '≥', 'relation: <=, >=, ≤, ≥, > and =>');
+        check(Engine.relation('1 < x < 3') === null && Engine.relation('x < y = 2') === null && Engine.relation('y <') === null &&
+            Engine.relation('3 < 4') === null, 'relation: one comparison, of x or y, with two sides');
+        check(Engine.relation('x = 3').op === '=' && Engine.graph('y < x^2') === null, 'relation: = for an equation; an inequality is not a function');
+    })();
+
     // the place on an equation nearest a point, as pixels of 0.05 see it, and its slope there
     (function () {
         var circle = Engine.relation('x^2 + y^2 = 25'), line = Engine.relation('x = 3'), p;

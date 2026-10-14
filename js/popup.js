@@ -53,21 +53,30 @@ if (new URLSearchParams(location.search).has('detached')) {
             let scale = byWidth ? window.innerWidth / baseWidth : window.innerHeight / baseHeight;
 
             scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, room, scale));
-            lastSize = { width: Math.round(baseWidth * scale), height: Math.round(baseHeight * scale) };
-            if (lastSize.width !== window.innerWidth || lastSize.height !== window.innerHeight) {
-                const width = lastSize.width + frameWidth;
-                const height = lastSize.height + frameHeight;
-                // a window that grows past the bottom or the right of the screen moves up or left, to stay in view
-                const left = screen.availLeft || 0;
-                const top = screen.availTop || 0;
+            const target = { width: Math.round(baseWidth * scale), height: Math.round(baseHeight * scale) };
 
-                chrome.windows.update(win.id, {
-                    width: width,
-                    height: height,
-                    left: Math.max(left, Math.min(win.left, left + screen.availWidth - width)),
-                    top: Math.max(top, Math.min(win.top, top + screen.availHeight - height))
-                });
+            // Windows scaled above 100% rounds the window to the pixels of the screen, so it
+            // can come out a pixel off what was asked; that is left as it is, the calculator
+            // centred in it, or each try would resize the window again, for seconds
+            if (Math.abs(target.width - window.innerWidth) <= 3 && Math.abs(target.height - window.innerHeight) <= 3) {
+                lastSize = { width: window.innerWidth, height: window.innerHeight };
+                return;
             }
+            lastSize = target;
+
+            const width = target.width + frameWidth;
+            const height = target.height + frameHeight;
+            // a window that grows past the bottom or the right of the screen moves up or left, to stay in view
+            const screenLeft = screen.availLeft || 0;
+            const screenTop = screen.availTop || 0;
+            const left = Math.max(screenLeft, Math.min(win.left, screenLeft + screen.availWidth - width));
+            const top = Math.max(screenTop, Math.min(win.top, screenTop + screen.availHeight - height));
+            const bounds = { width: width, height: height };
+
+            // the place is given only when it changes: given again, Windows may move the window a pixel
+            if (left !== win.left) bounds.left = left;
+            if (top !== win.top) bounds.top = top;
+            chrome.windows.update(win.id, bounds);
         });
     };
 

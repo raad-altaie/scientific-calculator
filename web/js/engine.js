@@ -908,11 +908,15 @@
     }
 
     // An equation of x and y to draw, as x^2 + y^2 = 25, x = 3 or x = y^2: where its two sides are
-    // equal. Null if the text is not one, as y = 2x is a function of x instead, which graph gives.
-    // at(x, y, deg) is the left side less the right; angles and letters as of graph
+    // equal; or an inequality, y < x^2, x^2 + y^2 <= 9, where it is true. Null if the text is not
+    // one, as y = 2x is a function of x instead, which graph gives. at(x, y, deg) is the left side
+    // less the right; op is =, <, >, ≤ or ≥ (<= and >= as typed); angles and letters as of graph
     function relation(text, comma, vars) {
-        var s = separators(String(text).trim(), comma), sides = s.split('='), letters = [], trees, xy = false;
-        if (sides.length !== 2 || s.length > MAX_PASTE || /d\s*\/\s*dx/.test(s)) return null;
+        var s = separators(String(text).trim(), comma), ops = s.match(/<=|>=|=<|=>|[<>≤≥=]/g), op = ops && ops[0], sides,
+            letters = [], trees, xy = false;
+        if (!ops || ops.length !== 1 || s.length > MAX_PASTE || /d\s*\/\s*dx/.test(s)) return null;
+        sides = s.split(op);
+        if (sides.length !== 2) return null;
         trees = sides.map(function (side) {
             var toks = side.trim() && tokens(side, null, 2), tree = toks && parse(toks);
             if (!tree || !complete(tree)) return null;
@@ -925,6 +929,7 @@
         if (!trees[0] || !trees[1] || !xy) return null;
         return {
             at: function (x, y, deg) { return valueAt(trees[0], x, deg, false, vars, y) - valueAt(trees[1], x, deg, false, vars, y); },
+            op: { '<=': '≤', '=<': '≤', '>=': '≥', '=>': '≥' }[op] || op,
             angles: angular(trees[0]) || angular(trees[1]),
             letters: letters
         };
