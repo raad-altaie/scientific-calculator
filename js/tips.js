@@ -207,7 +207,8 @@
         },
         'graph put x': {
             t: 'Insert x',
-            d: 'Puts the x of this point into the equation, as Ans does.',
+            d: 'Puts the x of this point into the equation, as Ans does. ← and → move the point along its curve, ' +
+                'Shift farther, ↑ and ↓ to the curve above or below.',
             k: ''
         },
         'graph put y': {

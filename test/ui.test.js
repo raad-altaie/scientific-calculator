@@ -449,7 +449,7 @@ async function calculator(page, at) {
 // the graph: a function of x drawn on x and y axes, the point under the pointer,
 // its y put into the calculation, and the view zoomed and kept
 async function graphPanel(page, at) {
-    var t = at + ': ', note = 'document.querySelector(".calc-graph-note").textContent', ink, cross, plain, dashes, shade,
+    var t = at + ': ', note = 'document.querySelector(".calc-graph-note").textContent', ink, cross, plain, dashes, shade, traced,
         pop = 'document.querySelector(".calc-graph-pop").textContent.replace(/\\s+/g, " ").trim()';
 
     // the pixels of the curve's color in the plot
@@ -593,6 +593,28 @@ async function graphPanel(page, at) {
     check(await page.calc(shade(2, -1.5)) === 0 && await page.calc('!!JSON.parse(localStorage.getItem("graph")).view'), t + 'a drag without ∫ moves the view');
     await page.click('.calc-graph-zoom [data-zoom="home"]');
 
+    // the arrow keys trace the point clicked: → along the curve, ← back stops at the low on the way
+    await page.clickAt('.calc-graph-plot', 0, -3);
+    plain = await page.calc('document.querySelector(".calc-display").textContent');
+    await page.key('ArrowRight', 39);
+    await page.key('ArrowRight', 39);
+    check(/^On the curve\s*x = 0\.\d+\s*y = -2\.9\d*\s*Slope = 0\.\d+$/.test(await page.calc(pop)), t + '→ moves the point along the curve',
+        await page.calc(pop));
+    check(await page.calc('document.querySelector(".calc-display").textContent') === plain, t + 'and not the cursor of the display');
+    for (var press = 0; press < 2; press++) await page.key('ArrowLeft', 37);
+    check(/^Min, y-intercept\s*x = 0\s*y = -3/.test(await page.calc(pop)), t + '← back stops at the low', await page.calc(pop));
+    await page.key('ArrowUp', 38);
+    check(/^Min, y-intercept/.test(await page.calc(pop)), t + '↑ with no curve above stays');
+    for (press = 0; press < 12; press++) {
+        await page.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'ArrowRight', code: 'ArrowRight', windowsVirtualKeyCode: 39, modifiers: 8 });
+        await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'ArrowRight', code: 'ArrowRight', windowsVirtualKeyCode: 39, modifiers: 8 });
+    }
+    await sleep(500);
+    check(/^(On the curve|Root)\s*x = (\d+\.\d+)/.test(await page.calc(pop)) && await page.calc('!document.querySelector(".calc-graph-pop").hidden') &&
+        await page.calc('!!JSON.parse(localStorage.getItem("graph")).view'), t + 'Shift goes farther, the view moving to keep the point in', await page.calc(pop));
+    await page.key('Escape', 27); // the popup off the buttons first
+    await page.click('.calc-graph-zoom [data-zoom="home"]');
+
     // a second curve, in its own color; where the two cross is marked: x² – 3 = x + 3 at 3, where y = 6
     await page.click('.calc-graph-fn:nth-child(2) input');
     await page.type('x+3');
@@ -603,6 +625,16 @@ async function graphPanel(page, at) {
     check(/^Crossing\s*x = 3\s*y = 6/.test(await page.calc(note)), t + 'pointing near their crossing shows it', await page.calc(note));
     await page.clickAt('.calc-graph-plot', 3, 6);
     check(/^Crossing\s*x = 3\s*y = 6$/.test(await page.calc(pop)), t + 'and a click, its popup', await page.calc(pop));
+    await page.key('ArrowLeft', 37);
+    check(/^On the curve\s*x = 2\.\d+\s*y = 5\.\d+/.test(await page.calc(pop)), t + 'from a crossing ← goes on along one of its curves', await page.calc(pop));
+    traced = 'parseFloat(/x = ([\\d.]+)/.exec(' + pop + ')[1])';
+    await page.key('ArrowUp', 38);
+    check(/^On the curve/.test(await page.calc(pop)) && await page.calc('(function (x) { return Math.abs(/y = ([\\d.]+)/.exec(' + pop + ')[1] - (x + 3)) < 1e-9; })(' + traced + ')'),
+        t + '↑ goes to the curve above at the same x, x + 3', await page.calc(pop));
+    await page.key('ArrowDown', 40);
+    check(await page.calc('(function (x) { return Math.abs(/y = ([\\d.]+)/.exec(' + pop + ')[1] - (x * x - 3)) < 1e-3; })(' + traced + ')'),
+        t + 'and ↓ back to x² – 3', await page.calc(pop));
+    await page.clickAt('.calc-graph-plot', 3, 6);
     await page.click('.calc-graph-pop-row[data-put="y"]');
     check(!await open(page, '.calc-graph') && await value(page) === 6, t + 'a click on its y puts it into the display', await shown(page));
 
