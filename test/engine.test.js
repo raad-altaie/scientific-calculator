@@ -2360,9 +2360,43 @@ dels.forEach(function (c) {
         check(r && r.op === '<' && r.at(1, 0, 0) === -1 && r.at(0, 1, 0) === 1, 'relation: y < x², below the curve less than 0');
         check(Engine.relation('x^2 + y^2 <= 9').op === '≤' && Engine.relation('x>=2').op === '≥' && Engine.relation('x ≤ y').op === '≤' &&
             Engine.relation('y > 2x - 1').op === '>' && Engine.relation('y => x').op === '≥', 'relation: <=, >=, ≤, ≥, > and =>');
-        check(Engine.relation('1 < x < 3') === null && Engine.relation('x < y = 2') === null && Engine.relation('y <') === null &&
+        check(Engine.relation('1 < x > 3') === null && Engine.relation('x < y = 2') === null && Engine.relation('y <') === null &&
             Engine.relation('3 < 4') === null, 'relation: one comparison, of x or y, with two sides');
         check(Engine.relation('x = 3').op === '=' && Engine.graph('y < x^2') === null, 'relation: = for an equation; an inequality is not a function');
+    })();
+
+    // two inequalities the same way, both holding; a curve of a parameter, polar or parametric;
+    // points and the line nearest them; the area of a region; where two equations cross
+    (function () {
+        var two = Engine.relation('1 < x <= 3'), polar = Engine.plane('r = 2sin(3θ)'), circle = Engine.plane('(cos t, sin t)'),
+            view = { x0: -10, x1: 10, y0: -10, y1: 10 }, marks;
+        function inside(r, side) {
+            return function (x, y) { return Engine.within(r, x, y, 0, side); };
+        }
+        check(two.op === 'and' && two.parts[1].op === '≤' && Engine.holds(two, 2, 0, 0) && Engine.holds(two, 3, 5, 0) &&
+            !Engine.holds(two, 0.5, 0, 0) && !Engine.holds(two, 4, 0, 0), 'relation: 1 < x ≤ 3, both of them');
+        check(Engine.relation('1 < x > 0') === null && Engine.relation('1 < x = 2') === null && Engine.relation('1 < x < y < 3') === null,
+            'relation: two the same way only, and no more');
+        check(polar.kind === 'polar' && Math.abs(polar.at(Math.PI / 6, 0)[0] - Math.sqrt(3)) < 1e-12 && polar.range(1)[1] === 360 &&
+            Engine.plane('r = theta {0, 6π}').range(0)[1] === 6 * Math.PI, 'plane: r = 2sin(3θ), once round in the unit, or as typed');
+        check(circle.kind === 'param' && circle.at(Math.PI / 2, 0)[1] === 1 && Engine.plane('(t; t^2)', true).at(2, 0)[1] === 4 &&
+            Engine.plane('(3, 4)') === null && Engine.plane('(x, t)') === null && Engine.plane('(a t, t)').letters.join() === 'a',
+            'plane: (cos t, sin t), a ; with the comma, not a point, not of x, and its letters');
+        check(JSON.stringify(Engine.points('(1, 2), (2, 4.1) (3,5.9)')) === '[{"x":1,"y":2},{"x":2,"y":4.1},{"x":3,"y":5.9}]' &&
+            Engine.points('(1,5; -2)', true)[0].y === -2 && Engine.points('(1, 2) + x') === null && Engine.points('x^2') === null,
+            'points: a list of (x, y)');
+        check(JSON.stringify(Engine.fitLine(Engine.points('(1,2),(2,4.1),(3,5.9)'))) === '{"m":1.95,"b":0.1,"r2":0.9980314961}' &&
+            Engine.fitLine(Engine.points('(1, 2), (1, 3)')) === null, 'fitLine: y = 1.95x + 0.1, r² 0.998; none for one x');
+        check(Engine.regionArea(inside(Engine.relation('x^2 + y^2 = 25'), -1), -5, 5, -30, 30, 0) === 78.53981634 &&
+            Engine.regionArea(inside(Engine.relation('x^2 < y < 4')), -2, 2, -30, 30, 0) === 10.66666667 &&
+            isNaN(Engine.regionArea(inside(Engine.relation('y < x^2')), -1, 1, -30, 30, 0)), 'regionArea: inside a circle, 25π; x² < y < 4, 32/3; y < x² has none');
+        marks = Engine.keyPoints([null, null], view, 0, [Engine.relation('x^2 + y^2 = 25'), Engine.relation('y = x + 1')]).filter(function (p) {
+            return p.t[0] === 'cross';
+        }).map(function (p) { return p.x + ' ' + p.y; });
+        check(marks.join('; ') === '-4 -3; 3 4', 'keyPoints: two equations cross', marks.join('; '));
+        marks = Engine.keyPoints([null, Engine.graph('x')], view, 0, [], [circle, null]).filter(function (p) { return p.u !== undefined; });
+        check(marks.length === 6 && marks.every(function (p) { return Math.abs(p.x * p.x + p.y * p.y - 1) < 1e-9; }),
+            'keyPoints: a curve of t meets the axes, and crosses y = x', marks.length);
     })();
 
     // the place on an equation nearest a point, as pixels of 0.05 see it, and its slope there

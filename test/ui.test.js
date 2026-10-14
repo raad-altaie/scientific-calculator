@@ -852,6 +852,63 @@ async function graphPanel(page, at) {
     check(await page.calc(shade(0, 0)) > 10 && await page.calc(shade(1, -1.5)) > 10 && await page.calc(shade(4, 4)) === 0 &&
         await page.calc(dashes(3, 0)) > 0, t + 'x² + y² ≤ 9 is shaded inside its circle, and the circle drawn');
 
+    // a polar curve, drawn and pointed at, its θ in the popup; a parametric one, where it meets an
+    // axis marked and → tracing it on; points, with their best fit; two inequalities at once; two
+    // equations crossing; and the area of a region inside an equation
+    function typeIn(text) {
+        return page.calc('(function (b) { b.value = ' + JSON.stringify(text) + '; b.dispatchEvent(new Event("input", { bubbles: true })); })' +
+            '(document.querySelector(".calc-graph-input"))');
+    }
+    await typeIn('r=2sin(3θ)');
+    await sleep(300);
+    check(!await page.calc('document.querySelector(".calc-graph-fn").classList.contains("calc-bad")') && await page.calc(dashes(Math.sqrt(3), 1)) > 0,
+        t + 'r = 2sin(3θ) is drawn, through (√3, 1)');
+    await page.clickAt('.calc-graph-plot', Math.sqrt(3), 1);
+    check(/^On the curve\s*θ = 0\.52\d*\s*x = 1\.73\d*\s*y = (1|0\.99\d*|1\.00\d*)\s*Slope = /.test(await page.calc(pop)), t + 'clicked: its θ, x, y and slope', await page.calc(pop));
+    await page.key('Escape', 27);
+    await typeIn('(6cos(t),3sin(t))');
+    await sleep(300);
+    check(await page.calc(dashes(6, 0)) > 0 && await page.calc(dashes(0, 3)) > 0 && await page.calc(dashes(0, 0)) === 0, t + '(6cos t, 3sin t) is an ellipse');
+    await page.hoverAt('.calc-graph-plot', 6.05, 0.1);
+    check(/^x-intercept\s*x = 6\s*y = 0$/.test((await page.calc(note)).trim()), t + 'where it meets the x axis is marked', await page.calc(note));
+    await page.clickAt('.calc-graph-plot', 0, 3);
+    await page.key('ArrowRight', 39);
+    check(/t = 1\.\d+\s*x = -0\.\d+\s*y = 2\.99\d*/.test(await page.calc(pop)), t + '→ traces it on, t growing', await page.calc(pop));
+    await page.key('Escape', 27);
+    await typeIn('(1,2),(2,4.1),(3,5.9)');
+    await sleep(300);
+    check(await page.calc('document.querySelector(".calc-graph-fn").classList.contains("calc-graph-data") && ' +
+        'document.querySelector(".calc-graph-diff").textContent === "fit"'), t + 'points: fit in place of y′');
+    await page.hoverAt('.calc-graph-plot', 2.05, 4.05);
+    check(/^Data point\s*x = 2\s*y = 4\.1$/.test((await page.calc(note)).trim()), t + 'a point pointed at', await page.calc(note));
+    check(await page.calc(dashes(0, 0.1)) === 0, t + 'no line until fit');
+    await page.click('.calc-graph-diff');
+    check(await page.calc(dashes(-3, -5.75)) > 0 && await page.calc('JSON.parse(localStorage.getItem("graph")).d[0]') === true,
+        t + 'fit draws the line nearest them, y = 1.95x + 0.1, and is kept');
+    await page.hoverAt('.calc-graph-plot', -3, -5.75);
+    check(/^Best fit, r² = 0\.998\s*x = /.test((await page.calc(note)).trim()), t + 'the line pointed at: its r²', await page.calc(note));
+    await page.clickAt('.calc-graph-plot', 1, 2);
+    await page.key('ArrowRight', 39);
+    check(/^Data point\s*x = 2\s*y = 4\.1/.test(await page.calc(pop)), t + '→ goes to the next point', await page.calc(pop));
+    await page.key('Escape', 27);
+    await page.click('.calc-graph-diff');
+    await typeIn('1<x<=3');
+    await sleep(300);
+    check(await page.calc(shade(2, 0)) > 10 && await page.calc(shade(4, 0)) === 0 && await page.calc(shade(0, 0)) === 0, t + '1 < x ≤ 3 is shaded between');
+    await typeIn('x^2+y^2=25');
+    await page.click('.calc-graph-add');
+    await page.calc('(function (b) { b.value = "x^2-y^2=7"; b.dispatchEvent(new Event("input", { bubbles: true })); })' +
+        '(document.querySelectorAll(".calc-graph-input")[1])');
+    await sleep(300);
+    await page.hoverAt('.calc-graph-plot', 4.05, 3.05);
+    check(/^Crossing\s*x = 4\s*y = 3$/.test((await page.calc(note)).trim()), t + 'two equations cross: marked', await page.calc(note));
+    await page.click('.calc-graph-zoom [data-zoom="area"]');
+    await page.dragAt('.calc-graph-plot', -4.97, 0.5, 4.97, 0.5);
+    check(/^Area of the region\s*From x = -5\s*To x = 5\s*Area = 78\.53981634$/.test(await page.calc(pop)) && await page.calc(shade(0, -4)) > 10,
+        t + 'the area inside the circle, 25π', await page.calc(pop));
+    await page.key('Escape', 27);
+    await page.click('.calc-graph-fn:nth-child(2) .calc-graph-del');
+
     // what is not a function says so, and draws nothing
     await page.click('.calc-graph .calc-past-clear');
     await page.click('.calc-graph-zoom [data-zoom="in"]');

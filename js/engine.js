@@ -910,13 +910,16 @@
     // An equation of x and y to draw, as x^2 + y^2 = 25, x = 3 or x = y^2: where its two sides are
     // equal; or an inequality, y < x^2, x^2 + y^2 <= 9, where it is true. Null if the text is not
     // one, as y = 2x is a function of x instead, which graph gives. at(x, y, deg) is the left side
-    // less the right; op is =, <, >, ≤ or ≥ (<= and >= as typed); angles and letters as of graph
+    // less the right; op is =, <, >, ≤ or ≥ (<= and >= as typed); angles and letters as of graph.
+    // Two inequalities the same way, 1 < x < 3 or 0 < x^2 + y^2 <= 9, are both: parts holds each,
+    // the first less the middle and the middle less the last, and op is 'and'
     function relation(text, comma, vars) {
-        var s = separators(String(text).trim(), comma), ops = s.match(/<=|>=|=<|=>|[<>≤≥=]/g), op = ops && ops[0], sides,
-            letters = [], trees, xy = false;
-        if (!ops || ops.length !== 1 || s.length > MAX_PASTE || /d\s*\/\s*dx/.test(s)) return null;
-        sides = s.split(op);
-        if (sides.length !== 2) return null;
+        var s = separators(String(text).trim(), comma), ops = s.match(/<=|>=|=<|=>|[<>≤≥=]/g), sides,
+            letters = [], trees, xy = false, names;
+        if (!ops || ops.length > 2 || s.length > MAX_PASTE || /d\s*\/\s*dx/.test(s)) return null;
+        names = ops.map(function (op) { return { '<=': '≤', '=<': '≤', '>=': '≥', '=>': '≥' }[op] || op; });
+        if (ops.length === 2 && !(/[<≤]/.test(names[0]) && /[<≤]/.test(names[1]) || /[>≥]/.test(names[0]) && /[>≥]/.test(names[1]))) return null;
+        sides = s.split(/<=|>=|=<|=>|[<>≤≥=]/);
         trees = sides.map(function (side) {
             var toks = side.trim() && tokens(side, null, 2), tree = toks && parse(toks);
             if (!tree || !complete(tree)) return null;
@@ -926,16 +929,220 @@
             });
             return tree;
         });
-        if (!trees[0] || !trees[1] || !xy) return null;
+        if (!trees.every(Boolean) || !xy) return null;
+        function less(a, b) {
+            return function (x, y, deg) { return valueAt(trees[a], x, deg, false, vars, y) - valueAt(trees[b], x, deg, false, vars, y); };
+        }
+        if (ops.length === 2) {
+            return {
+                parts: [{ at: less(0, 1), op: names[0] }, { at: less(1, 2), op: names[1] }],
+                op: 'and',
+                angles: trees.some(angular),
+                letters: letters
+            };
+        }
         return {
-            at: function (x, y, deg) { return valueAt(trees[0], x, deg, false, vars, y) - valueAt(trees[1], x, deg, false, vars, y); },
-            op: { '<=': '≤', '=<': '≤', '>=': '≥', '=>': '≥' }[op] || op,
+            at: less(0, 1),
+            op: names[0],
             angles: angular(trees[0]) || angular(trees[1]),
             letters: letters
         };
     }
 
+    // How far into an inequality x, y is, more than 0 inside it and less outside: the difference
+    // of its sides, the way that it holds; the least of its parts', for both of two. Of an
+    // equation, how far it is on the side where its difference is of the sign side. NaN where
+    // it has no value
+    function within(rel, x, y, deg, side) {
+        var parts = rel.parts || [rel], least = Infinity, k, v;
+        for (k = 0; k < parts.length; k++) {
+            v = parts[k].at(x, y, deg) * (parts[k].op === '=' ? side || 1 : /[<≤]/.test(parts[k].op) ? -1 : 1);
+            if (isNaN(v)) return NaN;
+            if (v < least) least = v;
+        }
+        return least;
+    }
+
+    // true where x, y is in an inequality, on its line too for ≤ and ≥, or a hair off it
+    function holds(rel, x, y, deg) {
+        var parts = rel.parts || [rel];
+        return parts.every(function (p) {
+            var v = p.at(x, y, deg) * (/[<≤]/.test(p.op) ? -1 : 1);
+            return v > 0 || (v >= -1e-9 && p.op !== '<' && p.op !== '>') || Math.abs(v) <= 1e-12;
+        });
+    }
+
+    // A curve of its own parameter: polar, r = 2sin(3θ), its r at each angle θ (typed θ, theta or
+    // t), or parametric, (cos t, sin t), x and y at each t; t and θ go once round, 0 to 2π in the
+    // unit of angles, unless {from, to} follows: r = θ {0, 6π}. Null if the text is not one, as
+    // (3, 4) is a point instead. at(t, deg) is [x, y]; range(deg) is [from, to]; kind is polar
+    // or param; letters and angles as of graph. In the comma's place a ; with the comma in use
+    function plane(text, comma, vars) {
+        var s = String(text).trim().replace(/θ|theta/gi, 't'), mark = comma ? ';' : /[,;]/, ends = /\{([^{}]*)\}\s*$/.exec(s),
+            letters = [], polar = /^r\s*(\(\s*t\s*\))?\s*=/i.exec(s), parts, trees, found = false, range, full = [2 * PI, 360, 400];
+        if (s.length > MAX_PASTE) return null;
+        if (ends) {
+            range = split(ends[1]).map(function (part) {
+                var toks = tokens(separators(part, comma), null, false), tree = toks && parse(toks);
+                return tree && complete(tree) ? valueAt(tree, 0, 0) : NaN;
+            });
+            if (range.length !== 2 || !range.every(isFinite) || range[0] >= range[1]) return null;
+            s = s.slice(0, ends.index).trim();
+        }
+        if (polar) parts = [s.slice(polar[0].length)];
+        else if (/^\(.*\)$/.test(s) && whole(s)) parts = split(s.slice(1, -1));
+        if (!parts || parts.length !== (polar ? 1 : 2)) return null;
+        trees = parts.map(function (part) {
+            var toks = part.trim() && tokens(separators(part, comma), null, true), tree;
+            if (!toks || toks.some(function (t) { return t.t === 'const' && t.v === 'x' && !t.p; })) return null;
+            toks = toks.map(function (t) {
+                if (t.t !== 'const' || t.v !== 't' || !t.p) return t;
+                found = true;
+                return { t: 'const', v: 'x' }; // the parameter, as x is of a function
+            });
+            tree = parse(toks);
+            if (!tree || !complete(tree)) return null;
+            toks.forEach(function (t) {
+                if (t.p && letters.indexOf(t.v) < 0) letters.push(t.v);
+            });
+            return tree;
+        });
+        if (!trees.every(Boolean) || !found) return null;
+        return {
+            kind: polar ? 'polar' : 'param',
+            at: function (t, deg) {
+                var r;
+                if (!polar) return [valueAt(trees[0], t, deg, false, vars), valueAt(trees[1], t, deg, false, vars)];
+                r = valueAt(trees[0], t, deg, false, vars);
+                t *= 2 * PI / full[deg || 0];
+                return [r * Math.cos(t), r * Math.sin(t)];
+            },
+            range: function (deg) { return range || [0, full[deg || 0]]; },
+            angles: trees.some(angular),
+            letters: letters
+        };
+
+        // the parts of s between its marks that are not in brackets
+        function split(s) {
+            var out = [], depth = 0, from = 0, k, c;
+            for (k = 0; k < s.length; k++) {
+                c = s.charAt(k);
+                if (c === '(') depth++;
+                if (c === ')') depth--;
+                if (!depth && (typeof mark === 'string' ? c === mark : mark.test(c))) {
+                    out.push(s.slice(from, k));
+                    from = k + 1;
+                }
+            }
+            out.push(s.slice(from));
+            return out;
+        }
+        // true if the bracket that s starts with closes at its end
+        function whole(s) {
+            var depth = 0, k;
+            for (k = 0; k < s.length; k++) {
+                if (s.charAt(k) === '(') depth++;
+                if (s.charAt(k) === ')' && !--depth) return k === s.length - 1;
+            }
+            return false;
+        }
+    }
+
+    // Points to plot, as a list: (1, 2), (2, 4.1), (3, 5.9), or with the comma in use (1,5; 2).
+    // [{ x, y }], or null if the text is not one
+    function points(text, comma) {
+        var s = String(text).trim().replace(/[−–]/g, '-'), out = [], rest,
+            num = '\\s*([-+]?(?:\\d+' + (comma ? ',' : '\\.') + '?\\d*|' + (comma ? ',' : '\\.') + '\\d+)(?:[eE][-+]?\\d+)?)\\s*',
+            pair = new RegExp('\\(' + num + (comma ? ';' : '[,;]') + num + '\\)', 'g');
+        if (s.length > MAX_PASTE * 20) return null;
+        rest = s.replace(pair, function (all, x, y) {
+            out.push({ x: +x.replace(',', '.'), y: +y.replace(',', '.') });
+            return ' ';
+        });
+        return out.length && /^[\s,;]*$/.test(rest) ? out : null;
+    }
+
+    // The straight line nearest points, by least squares: y = m x + b, and r², how much of how
+    // the y differ it tells, 1 for points on it. Null for fewer than two x
+    function fitLine(points) {
+        var n = points.length, sx = 0, sy = 0, sxx = 0, sxy = 0, syy = 0, m, b, top, all;
+        points.forEach(function (p) {
+            sx += p.x;
+            sy += p.y;
+        });
+        sx /= n;
+        sy /= n;
+        points.forEach(function (p) {
+            sxx += (p.x - sx) * (p.x - sx);
+            sxy += (p.x - sx) * (p.y - sy);
+            syy += (p.y - sy) * (p.y - sy);
+        });
+        if (n < 2 || !(sxx > 0)) return null;
+        m = sxy / sxx;
+        b = sy - m * sx;
+        top = syy - m * sxy; // what is left off the line
+        all = syy;
+        return {
+            m: +m.toPrecision(10),
+            b: Math.abs(b) <= 1e-12 * Math.max(Math.abs(sy), 1) ? 0 : +b.toPrecision(10),
+            r2: all > 0 ? +Math.max(0, Math.min(1, 1 - top / all)).toPrecision(10) : 1
+        };
+    }
+
     // ---------- the points of a graph worth marking ---------- //
+
+    // Where the lines of two equations cross within the view, a and b their differences: in each
+    // square of a grid where both change sign, Newton's steps for both at once from its middle,
+    // kept if they end close by. Each is { x, y }, once
+    function crossings(a, b, view, deg) {
+        var n = 80, dx = (view.x1 - view.x0) / n, dy = (view.y1 - view.y0) / n, fa = [], fb = [], out = [], i, j;
+        function f(x, y) {
+            return [a.at(x, y, deg), b.at(x, y, deg)];
+        }
+        function changes(g, i, j) {
+            var k = [g[j][i], g[j][i + 1], g[j + 1][i], g[j + 1][i + 1]];
+            return k.every(isFinite) && Math.min.apply(null, k) <= 0 && Math.max.apply(null, k) >= 0;
+        }
+        for (j = 0; j <= n; j++) {
+            fa.push([]);
+            fb.push([]);
+            for (i = 0; i <= n; i++) {
+                fa[j].push(a.at(view.x0 + i * dx, view.y0 + j * dy, deg));
+                fb[j].push(b.at(view.x0 + i * dx, view.y0 + j * dy, deg));
+            }
+        }
+        for (j = 0; j < n; j++) {
+            for (i = 0; i < n; i++) {
+                if (changes(fa, i, j) && changes(fb, i, j)) newton(view.x0 + (i + 0.5) * dx, view.y0 + (j + 0.5) * dy);
+            }
+        }
+        return out;
+
+        function newton(x, y) {
+            var x0 = x, y0 = y, hx = dx * 1e-5, hy = dy * 1e-5, k, v, ax, ay, bx, by, d, sx, sy;
+            for (k = 0; k < 40; k++) {
+                v = f(x, y);
+                ax = (a.at(x + hx, y, deg) - a.at(x - hx, y, deg)) / (2 * hx);
+                ay = (a.at(x, y + hy, deg) - a.at(x, y - hy, deg)) / (2 * hy);
+                bx = (b.at(x + hx, y, deg) - b.at(x - hx, y, deg)) / (2 * hx);
+                by = (b.at(x, y + hy, deg) - b.at(x, y - hy, deg)) / (2 * hy);
+                d = ax * by - ay * bx;
+                if (!isFinite(d) || !d || !isFinite(v[0]) || !isFinite(v[1])) return;
+                sx = (v[0] * by - v[1] * ay) / d;
+                sy = (v[1] * ax - v[0] * bx) / d;
+                x -= sx;
+                y -= sy;
+                if (Math.abs(sx) <= dx * 1e-13 && Math.abs(sy) <= dy * 1e-13) break;
+            }
+            if (Math.abs(x - x0) > 1.5 * dx || Math.abs(y - y0) > 1.5 * dy) return; // gone to another
+            v = f(x, y);
+            if (!(Math.abs(v[0]) <= 1e-7 * (1 + Math.abs(a.at(x + dx, y, deg))) && Math.abs(v[1]) <= 1e-7 * (1 + Math.abs(b.at(x + dx, y, deg))))) return;
+            x = +x.toPrecision(12);
+            y = +y.toPrecision(12);
+            if (out.some(function (p) { return Math.abs(p.x - x) < dx / 2 && Math.abs(p.y - y) < dy / 2; })) return;
+            out.push({ x: x, y: y });
+        }
+    }
 
     // where f crosses 0 between a and b, f(a) being fa: halved until a and b are
     // neighbouring numbers. Null where f has no value on the way, as 1/x at 0
@@ -1016,8 +1223,11 @@
     // x, y, i: the curve, j: the other curve of a crossing }. curves: what graph gives, or
     // null; deg: the unit of angles. A kind with more than KEY_MAX points is left out.
     // rels: the equations of x and y that relation gives, by their boxes, or null: where they
-    // meet the x axis (xint) and the y axis (yint), and where they cross a curve (cross)
-    function keyPoints(curves, view, deg, rels) {
+    // meet the x axis (xint) and the y axis (yint), where they cross a curve or each other
+    // (cross), each of two inequalities where the other holds, with k the one. planes: the
+    // curves of a parameter that plane gives: where they meet the axes and cross a curve or an
+    // equation, u being the parameter there
+    function keyPoints(curves, view, deg, rels, planes) {
         var n = 400, dx = (view.x1 - view.x0) / n, jump = (view.y1 - view.y0) / 2, xs = [], ys = [], found = [], k;
 
         for (k = 0; k <= n; k++) xs.push(view.x0 + k * dx);
@@ -1077,22 +1287,96 @@
             });
         });
 
+        // each line of an equation, or of an inequality of two, and where the others of it hold
+        function lines(r) {
+            return r ? (r.parts || [r]).map(function (part, k) {
+                return { at: part.at, k: k, ok: !r.parts ? function () { return true; } : function (x, y) {
+                    return r.parts.every(function (q, l) { return l === k || holds(q, x, y, deg); });
+                } };
+            }) : [];
+        }
+        function mark(t, x, y, i, k, j) {
+            var p = { t: [t], x: x, y: y, i: i };
+            if (k) p.k = k;
+            if (j !== undefined) p.j = j;
+            return p;
+        }
+
         (rels || []).forEach(function (r, i) {
-            var ys = [], dy = (view.y1 - view.y0) / n, flat, up;
-            if (!r) return;
-            flat = function (x) { return r.at(x, 0, deg); };
-            up = function (y) { return r.at(0, y, deg); };
-            add(zeros(flat, xs, xs.map(flat), dx * 1e-6), function (x) { return { t: ['xint'], x: x, y: 0, i: i }; });
-            if (view.x0 <= 0 && view.x1 >= 0) {
-                for (k = 0; k <= n; k++) ys.push(view.y0 + k * dy);
-                add(zeros(up, ys, ys.map(up), dy * 1e-6), function (y) { return { t: ['yint'], x: 0, y: y, i: i }; });
+            var ys = [], dy = (view.y1 - view.y0) / n;
+            for (k = 0; k <= n; k++) ys.push(view.y0 + k * dy);
+            lines(r).forEach(function (line) {
+                var flat = function (x) { return line.at(x, 0, deg); }, up = function (y) { return line.at(0, y, deg); };
+                zeros(flat, xs, xs.map(flat), dx * 1e-6).forEach(function (x) {
+                    if (line.ok(x, 0)) found.push(mark('xint', x, 0, i, line.k));
+                });
+                if (view.x0 <= 0 && view.x1 >= 0) {
+                    zeros(up, ys, ys.map(up), dy * 1e-6).forEach(function (y) {
+                        if (line.ok(0, y)) found.push(mark('yint', 0, y, i, line.k));
+                    });
+                }
+                curves.forEach(function (c, j) {
+                    var on;
+                    if (!c || j === i) return;
+                    on = function (x) { return line.at(x, c.at(x, deg), deg); };
+                    zeros(on, xs, xs.map(on), dx * 1e-6).forEach(function (x) {
+                        var y = c.at(x, deg, true);
+                        if (line.ok(x, y)) found.push(mark('cross', x, y, Math.min(i, j), 0, Math.max(i, j)));
+                    });
+                });
+            });
+        });
+
+        // where two equations cross, or the two lines of an inequality of two: in each square of a
+        // grid of 80 across where both change sign, Newton's steps for both at once
+        (rels || []).forEach(function (r, i) {
+            (rels || []).forEach(function (e, j) {
+                if (!r || !e || j < i) return;
+                lines(r).forEach(function (a) {
+                    lines(e).forEach(function (b) {
+                        if (j === i && b.k <= a.k) return;
+                        crossings(a, b, view, deg).forEach(function (p) {
+                            if (a.ok(p.x, p.y) && b.ok(p.x, p.y)) found.push(mark('cross', p.x, p.y, i, 0, j));
+                        });
+                    });
+                });
+            });
+        });
+
+        (planes || []).forEach(function (c, i) {
+            var ends = c && c.range(deg), m = 800, us = [], at = [], du, k2;
+            if (!c) return;
+            du = (ends[1] - ends[0]) / m;
+            for (k2 = 0; k2 <= m; k2++) {
+                us.push(ends[0] + k2 * du);
+                at.push(c.at(us[k2], deg));
             }
-            curves.forEach(function (c, j) {
-                var on;
-                if (!c || j === i) return;
-                on = function (x) { return r.at(x, c.at(x, deg), deg); };
-                add(zeros(on, xs, xs.map(on), dx * 1e-6), function (x) {
-                    return { t: ['cross'], x: x, y: c.at(x, deg, true), i: Math.min(i, j), j: Math.max(i, j) };
+            function along(h, s, t) {
+                zeros(h, us, s, du * 1e-6).forEach(function (u) {
+                    var p = c.at(u, deg), q = { t: [t], x: +p[0].toPrecision(12), y: +p[1].toPrecision(12), i: i, u: u };
+                    if (t === 'xint') q.y = 0;
+                    if (t === 'yint') q.x = 0;
+                    found.push(q);
+                });
+            }
+            along(function (u) { return c.at(u, deg)[1]; }, at.map(function (p) { return p[1]; }), 'xint');
+            along(function (u) { return c.at(u, deg)[0]; }, at.map(function (p) { return p[0]; }), 'yint');
+            curves.forEach(function (f, j) {
+                var h = function (u) { var p = c.at(u, deg); return p[1] - f.at(p[0], deg); };
+                if (!f || j === i) return;
+                zeros(h, us, us.map(h), du * 1e-6).forEach(function (u) {
+                    var p = c.at(u, deg);
+                    found.push({ t: ['cross'], x: p[0], y: f.at(p[0], deg, true), i: i, j: j, u: u });
+                });
+            });
+            (rels || []).forEach(function (r, j) {
+                lines(r).forEach(function (line) {
+                    var h = function (u) { var p = c.at(u, deg); return line.at(p[0], p[1], deg); };
+                    if (j === i) return;
+                    zeros(h, us, us.map(h), du * 1e-6).forEach(function (u) {
+                        var p = c.at(u, deg);
+                        if (line.ok(p[0], p[1])) found.push({ t: ['cross'], x: p[0], y: p[1], i: i, j: j, u: u });
+                    });
                 });
             });
         });
@@ -1258,6 +1542,78 @@
         for (k = 0; k < n; k++) sum += more(a + k * d, k === n - 1 ? b : a + (k + 1) * d, 1e-11 * size / n, 30);
         if (!isFinite(sum)) return NaN;
         return Math.abs(sum) <= 1e-10 * size ? 0 : +sum.toPrecision(10);
+    }
+
+    // Where a region is in y at x, between lo and hi, in is how far into it a place is (within):
+    // [from, to] for each run of it, from samples, and from the top of in between two of them
+    // where it comes near, so a thin end of it is not missed; its ends found by halving. A run
+    // that goes past lo or hi is to -Infinity or Infinity
+    function spans(into, x, lo, hi) {
+        var n = 100, dy = (hi - lo) / n, at = [], out = [], k, y, top, start = null;
+        function g(y) {
+            var v = into(x, y);
+            return isNaN(v) ? -Infinity : v;
+        }
+        for (k = 0; k <= n; k++) {
+            y = lo + k * dy;
+            at.push({ y: y, v: g(y) });
+        }
+        // a high of in that is still out, between two lower: the top of in there, which may be in
+        at = at.reduce(function (list, p, k) {
+            var a = at[k - 1], b = at[k + 1], m;
+            if (a && b && p.v <= 0 && p.v >= a.v && p.v >= b.v && isFinite(p.v)) {
+                top = peak(g, a.y, b.y);
+                m = g(top);
+                if (m > 0) {
+                    list.push(top < p.y ? { y: top, v: m } : p);
+                    list.push(top < p.y ? p : { y: top, v: m });
+                    return list;
+                }
+            }
+            list.push(p);
+            return list;
+        }, []);
+        at.forEach(function (p, k) {
+            var q = at[k - 1], e;
+            if (!k) {
+                if (p.v > 0) start = -Infinity;
+                return;
+            }
+            if ((p.v > 0) === (q.v > 0)) return;
+            e = edge(q, p);
+            if (p.v > 0) start = e;
+            else {
+                out.push([start, e]);
+                start = null;
+            }
+        });
+        if (start !== null) out.push([start, Infinity]);
+        return out;
+
+        // where in turns between two places, one in and one out
+        function edge(p, q) {
+            var a = p.y, b = q.y, inA = p.v > 0, m, i;
+            if (isFinite(p.v) && isFinite(q.v)) {
+                m = bisect(g, a, b, p.v);
+                if (m !== null) return m;
+            }
+            for (i = 0; i < 80; i++) {
+                m = (a + b) / 2;
+                if (m <= a || m >= b) break;
+                if ((g(m) > 0) === inA) a = m; else b = m;
+            }
+            return (a + b) / 2;
+        }
+    }
+
+    // The area of a region from x = a to b: the lengths of its runs in y at each x, between lo and
+    // hi, as spans finds them, added up by area. None (NaN) where it goes on past lo or hi
+    function regionArea(into, a, b, lo, hi, deg) {
+        return area({
+            at: function (x) {
+                return spans(into, x, lo, hi).reduce(function (sum, s) { return sum + (s[1] - s[0]); }, 0);
+            }
+        }, a, b, deg);
     }
 
     // ---------- history ---------- //
@@ -2356,6 +2712,13 @@
     Engine.slope = slope;
     Engine.area = area;
     Engine.relation = relation;
+    Engine.within = within;
+    Engine.holds = holds;
+    Engine.plane = plane;
+    Engine.points = points;
+    Engine.fitLine = fitLine;
+    Engine.spans = spans;
+    Engine.regionArea = regionArea;
     Engine.onRelation = onRelation;
     Engine.relationSlope = relationSlope;
 
