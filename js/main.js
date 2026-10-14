@@ -3989,7 +3989,9 @@
             var known = r.text === undefined && (r.m ? !!r.m : isFinite(r.v)), shown;
             if (r.m !== undefined) {
                 shown = r.m ? '<span class="calc-sv-cells" style="--cols: ' + r.m[0].length + '">' + r.m.map(function (row, a) {
-                    return row.map(function (x, b) { return '<span class="calc-sv-cell" data-a="' + a + '" data-b="' + b + '">' + statsValue(x).html + '</span>'; }).join('');
+                    return row.map(function (x, b) { // to 10 digits, so a row of them fits; a click puts it in whole
+                        return '<span class="calc-sv-cell" data-a="' + a + '" data-b="' + b + '">' + statsValue(+x.toPrecision(10)).html + '</span>';
+                    }).join('');
                 }).join('') + '</span>' : '<span class="calc-sv-value">–</span>';
             } else {
                 shown = '<span class="calc-sv-value">' + (r.text !== undefined ? r.text : known ? statsValue(r.v).html : '–') + '</span>';
