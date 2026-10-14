@@ -668,6 +668,42 @@ async function graphPanel(page, at) {
     await page.click('.calc-graph-zoom [data-zoom="home"]');
     check(await page.calc('JSON.parse(localStorage.getItem("graph")).view') === null, t + 'home goes back to the start');
 
+    // the view typed: its boxes show the view, and set it as they are typed in; a pair the wrong way is marked
+    var ends = 'Array.prototype.map.call(document.querySelectorAll(".calc-graph-window input"), function (b) { return b.value; }).join(" ")';
+    await page.click('.calc-graph-zoom [data-zoom="window"]');
+    check(await page.calc('!document.querySelector(".calc-graph-window").hidden') && /^-10 10 -\d+(\.\d+)? \d+(\.\d+)?$/.test(await page.calc(ends)) &&
+        await page.calc('document.activeElement.className') === 'calc-graph-x0', t + 'the frame opens the view typed, as it is, x from -10 to 10', await page.calc(ends));
+    await page.type('0');
+    await page.click('.calc-graph-x1');
+    await page.calc('document.querySelector(".calc-graph-x1").select()');
+    await page.type('5');
+    await page.click('.calc-graph-y0');
+    await page.calc('document.querySelector(".calc-graph-y0").select()');
+    await page.type('-1');
+    await page.click('.calc-graph-y1');
+    await page.calc('document.querySelector(".calc-graph-y1").select()');
+    await page.type('2');
+    await sleep(400);
+    check(await page.calc('(function (v, p) { return Math.abs(v.x - 2.5) < 1e-9 && Math.abs(v.ux * p.clientWidth - 5) < 1e-9 &&' +
+        ' Math.abs(v.y - 0.5) < 1e-9 && Math.abs(v.uy * p.clientHeight - 3) < 1e-9; })(JSON.parse(localStorage.getItem("graph")).view,' +
+        ' document.querySelector(".calc-graph-plot"))'), t + 'x from 0 to 5 and y from -1 to 2 set the view, and it is kept');
+    await page.click('.calc-graph-x1');
+    await page.calc('document.querySelector(".calc-graph-x1").select()');
+    await page.type('-3');
+    check(await page.calc('document.querySelector(".calc-graph-x0").parentNode.classList.contains("calc-bad")') &&
+        await page.calc('Math.abs(JSON.parse(localStorage.getItem("graph")).view.x - 2.5) < 1e-9'), t + 'x to below x from is marked, the view stays');
+    await page.key('Escape', 27);
+    check(await open(page, '.calc-graph') && await page.calc('document.querySelector(".calc-graph-window").hidden'), t + 'Esc closes the boxes, not the graph');
+    await page.click('.calc-graph-zoom [data-zoom="window"]');
+    check(await page.calc(ends) === '0 5 -1 2', t + 'open again, they show the view, the wrong pair as it was', await page.calc(ends));
+    await page.key('Enter', 13);
+    check(await page.calc('document.querySelector(".calc-graph-window").hidden'), t + 'Enter closes them');
+    await page.click('.calc-graph-zoom [data-zoom="window"]');
+    await page.click('.calc-graph-zoom [data-zoom="in"]');
+    check(await page.calc(ends) === '1.25 3.75 -0.25 1.25', t + 'they follow a zoom', await page.calc(ends));
+    await page.click('.calc-graph-zoom [data-zoom="window"]');
+    await page.click('.calc-graph-zoom [data-zoom="home"]');
+
     // what is not a function says so, and draws nothing
     await page.click('.calc-graph .calc-past-clear');
     await page.click('.calc-graph-zoom [data-zoom="in"]');

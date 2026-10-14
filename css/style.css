@@ -678,15 +678,66 @@
     cursor: grabbing;
 }
 
+/* the view typed, at the top left of the plot: a row for x and one for y, from and to */
+#calculator .calc-graph-window {
+    position: absolute;
+    z-index: 3;
+    top: 6px;
+    left: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 5px;
+    border: 1px solid #4d6b80;
+    border-radius: 7px;
+    background: #1f333c;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+    color: #d3d9e2;
+    font: 13px/1.3 'Play', 'Russo One', sans-serif;
+}
+
+#calculator .calc-graph-window[hidden] {
+    display: none;
+}
+
+#calculator .calc-graph-window label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 1px 3px;
+    border-radius: 4px;
+}
+
+#calculator .calc-graph-window label.calc-bad {
+    box-shadow: 0 0 0 2px #d86672;
+}
+
+#calculator .calc-graph-window i {
+    width: 10px;
+}
+
+#calculator .calc-graph-window input {
+    width: 62px;
+    padding: 2px 5px;
+    border: 0;
+    border-radius: 4px;
+    outline: none;
+    background: #a9c4b5;
+    color: #000;
+    font: 13px/17px 'Play', 'Russo One', sans-serif;
+    text-align: right;
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+#calculator .calc-graph-window input:focus {
+    background: #c9e0d3;
+}
+
 /* the ∫ button pressed: a drag shades an area, it does not move the view */
 #calculator .calc-graph-shading canvas,
 #calculator .calc-graph-shading canvas:active {
     cursor: col-resize;
-}
-
-#calculator .calc-graph-zoom > span.calc-on {
-    background: #1f333c;
-    color: #d3d9e2;
 }
 
 /* the point clicked, over it like a tip of the keys: what it is, then its x and y,
@@ -1060,6 +1111,12 @@
 
 #calculator .calc-graph-zoom > span:active {
     background: #8eab9b;
+}
+
+/* a button pressed, the area or the view typed: dark until it is let go */
+#calculator .calc-graph-zoom > span.calc-on {
+    background: #1f333c;
+    color: #d3d9e2;
 }
 
 /* save is not about the view: apart from it, in the corner below */

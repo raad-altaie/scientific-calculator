@@ -222,6 +222,11 @@
                 'The dashed line is its tangent.',
             k: ''
         },
+        'graph window': {
+            t: 'Set the view',
+            d: 'Type where x goes from and to across the graph, and y up it. Enter or Esc goes back to the graph.',
+            k: ''
+        },
         'graph area': {
             t: 'Area under a curve',
             d: 'Press, then drag along a curve from one x to another: the area between it and the x axis is shaded, ' +

@@ -418,11 +418,17 @@
                 <canvas></canvas>
                 <!-- the point clicked: what it is, and its x and y, each to insert -->
                 <div class="calc-graph-pop" hidden></div>
-                <!-- the view: closer, farther, and back to the start; and the area under a curve -->
+                <!-- the view typed: x from and to, y from and to -->
+                <div class="calc-graph-window" hidden>
+                    <label><i>x</i><input class="calc-graph-x0" type="text" inputmode="decimal" spellcheck="false" autocomplete="off" maxlength="20" aria-label="x from"><span>to</span><input class="calc-graph-x1" type="text" inputmode="decimal" spellcheck="false" autocomplete="off" maxlength="20" aria-label="x to"></label>
+                    <label><i>y</i><input class="calc-graph-y0" type="text" inputmode="decimal" spellcheck="false" autocomplete="off" maxlength="20" aria-label="y from"><span>to</span><input class="calc-graph-y1" type="text" inputmode="decimal" spellcheck="false" autocomplete="off" maxlength="20" aria-label="y to"></label>
+                </div>
+                <!-- the view: closer, farther, back to the start and typed; and the area under a curve -->
                 <div class="calc-graph-zoom">
                     <span data-zoom="in"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 3v10M3 8h10" /></svg></span>
                     <span data-zoom="out"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 8h10" /></svg></span>
                     <span data-zoom="home"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="4.2" /><path d="M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3" /></svg></span>
+                    <span data-zoom="window"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5V2h3M11 2h3v3M14 11v3h-3M5 14H2v-3M6 8h4" /></svg></span>
                     <span data-zoom="area"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 14V9.5C4 5 6 3.5 8 5.5s4 3.5 6 2.5V14z" fill="currentColor" fill-opacity="0.35" stroke="none" /><path d="M2 9.5C4 5 6 3.5 8 5.5s4 3.5 6 2.5M1.5 14h13" /></svg></span>
                 </div>
                 <!-- the graph saved as a picture, in the corner below -->
@@ -660,7 +666,7 @@
                     its value going from one end to the other and back with the curve, until you pause it. Dots mark where a curve is 0 (its roots), its highs and lows, where it meets the y axis,
                     and where two curves cross. Drag to move the graph, scroll, pinch or use + and – to zoom, and the crosshair to
                     go back to the start. Point at a curve or a dot for its x and y; click it for a popup where a click on its
-                    x or y puts it into your calculation (the popup goes two seconds after the mouse is off it, and at once as you zoom, the point and its tangent staying; click the point to see it again), and on a curve the slope there as well, its tangent dashed across the graph. The arrow keys then trace it: ← and → move it along its curve, stopping at a root or a crossing, Shift ten times as far, and ↑ and ↓ take it to the curve above or below. Off the curves, a click gives the x and y of that place. For the area under a curve, press the button with a shaded curve, under the zoom buttons, and drag along the curve from one x to another: the area to the x axis is shaded, below the axis counted down, an end near a root or a crossing goes to it, and its popup inserts the area. Click a curve's
+                    x or y puts it into your calculation (the popup goes two seconds after the mouse is off it, and at once as you zoom, the point and its tangent staying; click the point to see it again), and on a curve the slope there as well, its tangent dashed across the graph. The arrow keys then trace it: ← and → move it along its curve, stopping at a root or a crossing, Shift ten times as far, and ↑ and ↓ take it to the curve above or below. The button with a frame, under home, sets the view by typing where x and y go from and to. Off the curves, a click gives the x and y of that place. For the area under a curve, press the button with a shaded curve, under the zoom buttons, and drag along the curve from one x to another: the area to the x axis is shaded, below the axis counted down, an end near a root or a crossing goes to it, and its popup inserts the area. Click a curve's
                     colored dot to hide it and again to show it. The arrow down at the lower right saves the graph as a picture with its functions;
                     right-click the graph to copy the picture instead. Pop out, the arrow out of a box beside Clear, makes the graph big:
                     all of the window on the website, where pop in or Esc makes it small again, and in a window of its own beside the
