@@ -182,7 +182,7 @@
         },
         'graph in': {
             t: 'Zoom in',
-            d: 'Twice as close, about the middle. The wheel or a pinch zooms about where it is.',
+            d: 'Twice as close, about the middle. The wheel zooms about where it points, bringing that toward the middle; a pinch zooms about where it is.',
             k: ''
         },
         'graph out': {
@@ -315,8 +315,8 @@
             t: 'Area under a curve',
             d: 'Press, then drag along a curve from one x to another: the area between it and the x axis is shaded, ' +
                 'above the axis counted up and below it down. Pressed between two curves, the area between them, ' +
-                'the upper one less the lower. An end near a root or a crossing goes to it. It stays pressed for another, ' +
-                'until it is pressed again, Esc, or a button of the view.',
+                'the upper one less the lower. An end near a root or a crossing goes to it; held at a side, the view slides on for more. It stays pressed for another, ' +
+                'until it is pressed again, a double click on the plot, Esc, or a button of the view.',
             k: ''
         },
         'graph end a': {

@@ -535,7 +535,8 @@
 
     function showTip() {
         var name = tipKey.textContent.replace(/\s*/g, ''), info = tipOf(tipKey, name), calc = tip.parentNode,
-            at = inside(tipKey.getBoundingClientRect()), left, top, below;
+            cam = tipKey.closest('.calc-graph-export') && tipKey.querySelector('svg'), // the camera has no box: from the camera itself
+            at = inside((cam || tipKey).getBoundingClientRect()), left, top, below, gap = cam ? 6 : 10;
 
         if (!info) return;
         tip.innerHTML = '<div class="calc-tip-head"><b>' + info.t + '</b>' +
@@ -546,9 +547,9 @@
         // above the key, in the middle of it; below it where there is no room above
         left = at.left + at.width / 2 - tip.offsetWidth / 2;
         left = Math.max(6, Math.min(calc.clientWidth - tip.offsetWidth - 6, left));
-        top = at.top - tip.offsetHeight - 10;
+        top = at.top - tip.offsetHeight - gap;
         below = top < 4;
-        if (below) top = at.bottom + 10;
+        if (below) top = at.bottom + gap;
         tip.style.left = left + 'px';
         tip.style.top = top + 'px';
         tip.style.setProperty('--arrow', at.left + at.width / 2 - left - tip.clientLeft + 'px'); // from inside its border
@@ -836,9 +837,21 @@
         if (fracMode) toggleFraction();
         if (dmsMode) toggleDms();
         engine.memory = 0;
-        engine.reset(); // the equation too; the history and the statistics stay
+        engine.reset(); // the equation too; the history stays
         hold.textContent = '';
         keyBoard['AC'].children[0].firstChild.data = 'AC';
+        // what is typed in the panels: the list of the statistics, the search and a formula open,
+        // the value to convert, the graph, and the boxes of the solver and the numbers
+        statsInput.value = '';
+        setStatsBy(0);
+        renderStats();
+        fxSearch.value = '';
+        renderFx();
+        convInput.value = '1';
+        renderConv();
+        saveConv();
+        clearGraph();
+        toolPanels.forEach(function (p) { p.clear(); });
         refresh();
         saveState();
     }
@@ -1116,6 +1129,11 @@
         graphStart = null, // where they were when the last one went down or up, and the view then
         graphMoved = false, // the press became a drag or a pinch, so it is not a click
         graphSaving, // saves the view once the wheel stops
+        graphSliding = 0, // the next frame of the view sliding under an area dragged to the side, or 0
+        graphClickAt = -1e9, // when the plot was last clicked
+        graphClickWas = null, // the point or area clicked, and its popup put away, before the first click of two
+        GRAPH_SLIDE_EDGE = 28, // an area dragged this many pixels from the left or right slides the view that way
+        GRAPH_SLIDE_SPEED = 300, // at the side or past it, this many pixels a second; slower farther in
         graphOff = [false, false, false, false, false, false, false], // the curves hidden by a click on their dot: kept, not drawn
         graphDiff = [false, false, false, false, false, false, false], // the curves whose slope is drawn too, by their y′; of points, the kind of their fit
         graphTwice = '', // a name two boxes give their functions, f of f(x) = …: the second is none
@@ -1388,6 +1406,12 @@
 
     // Clear starts again: no curves, and the view as at first
     graph.querySelector('.calc-past-clear').addEventListener('click', function () {
+        clearGraph();
+        saveState();
+        focusBox(graphInputs[0]);
+    }, false);
+
+    function clearGraph() {
         graphInputs.forEach(function (box) { box.value = ''; });
         graphFrom.value = graphBy.value = '';
         graphCount = 1;
@@ -1399,9 +1423,7 @@
         graphView = null;
         graphLines = 0;
         readGraph();
-        saveState();
-        focusBox(graphInputs[0]);
-    }, false);
+    }
 
     graphInputs.forEach(function (box, i) {
         box.addEventListener('input', function () {
@@ -2173,6 +2195,7 @@
     // waits for the drag to end. False until there is such a place
     function graphAreaTo(s, at) {
         var v = viewNow(), a, b;
+        at = { x: Math.max(0, Math.min(graphPlot.clientWidth, at.x)), y: at.y }; // past the side, the area ends at it
         if (!s.r) {
             s.from = s.p[0];
             s.r = areaRegion(s.from);
@@ -2181,9 +2204,10 @@
                 s.r = areaRegion(at);
             }
             s.i = s.r ? s.r.i : -1;
+            if (s.r) s.a = areaEnd(v, s.r, s.from.x); // its x, kept, as the wheel may zoom on the way
         }
         if (s.i < 0) return false;
-        a = areaEnd(v, s.r, s.from.x);
+        a = s.a;
         b = areaEnd(v, s.r, at.x);
         graphPinned = { area: true, i: s.r.i, j: s.r.j, a: Math.min(a, b), b: Math.max(a, b) };
         if (s.r.rel) {
@@ -2901,6 +2925,29 @@
         drawGraph();
     }
 
+    // An area dragged near the left or right of the plot, or past it, slides the view that way
+    // for as long as it is held there, faster nearer the side, and the area grows with it: its
+    // start stays at its x, its end at the side. It stops as the pointer comes away or lets go
+    function areaSlide() {
+        var last = 0;
+        function step(t) {
+            var s = graphStart, p = graphPointers(), w = graphPlot.clientWidth, v, d;
+            graphSliding = 0;
+            if (!graphShading || !graphMoved || !s || !(s.i >= 0) || p.length !== 1) return;
+            d = p[0].x < GRAPH_SLIDE_EDGE ? p[0].x - GRAPH_SLIDE_EDGE : p[0].x > w - GRAPH_SLIDE_EDGE ? p[0].x - w + GRAPH_SLIDE_EDGE : 0;
+            if (!d) return;
+            if (last) {
+                v = viewNow();
+                d = Math.max(-1, Math.min(1, d / GRAPH_SLIDE_EDGE)) * GRAPH_SLIDE_SPEED * Math.min(t - last, 50) / 1000; // after a slow frame, no leap
+                graphView = { x: v.x + d * v.ux, y: v.y, ux: v.ux, uy: v.uy };
+                graphAreaTo(s, p[0]);
+            }
+            last = t;
+            graphSliding = requestAnimationFrame(step);
+        }
+        if (!graphSliding) graphSliding = requestAnimationFrame(step);
+    }
+
     // the pointers down now: one moves the view, two pinch it
     function graphPointers() {
         return Object.keys(graphTouch).map(function (id) { return graphTouch[id]; });
@@ -2941,7 +2988,12 @@
         if (p.length === 1) {
             if (!graphMoved && Math.abs(at.x - s.p[0].x) + Math.abs(at.y - s.p[0].y) < 4) return; // a click shakes a little
             graphMoved = true;
-            if (graphShading && s.p.length === 1) graphAreaTo(s, at); else graphMove(s.view, s.p[0], at, 1); // with ∫ pressed, never the view
+            if (graphShading && s.p.length === 1) { // with ∫ pressed, the view only as the area reaches a side
+                graphAreaTo(s, at);
+                areaSlide();
+            } else {
+                graphMove(s.view, s.p[0], at, 1);
+            }
         } else if (p.length === 2 && s.p.length === 2) {
             graphMoved = true;
             popShut();
@@ -2969,6 +3021,8 @@
             popWhenMoved(mouse && at);
             drawGraph();
         } else if (e.type === 'pointerup' && !graphMoved && !graphPointers().length) {
+            if (e.timeStamp - graphClickAt > 500) graphClickWas = { pinned: p, shut: graphPopShut }; // a double click puts it back
+            graphClickAt = e.timeStamp;
             if (p && (p.area ? onArea(v, p, at) : Math.hypot(plotX(v, p.x) - at.x, plotY(v, p.y) - at.y) <= (mouse ? 8 : 16))) {
                 if (graphPopShut) graphPopShut = false; else graphPinned = null;
             } else {
@@ -2986,6 +3040,18 @@
     graphCanvas.addEventListener('pointerup', graphUp, false);
     graphCanvas.addEventListener('pointercancel', graphUp, false);
 
+    // a double click lets ∫ go, the area or point as it was before its first click
+    graphCanvas.addEventListener('dblclick', function () {
+        if (!graphShading) return;
+        areaOn(false);
+        if (graphClickWas) {
+            graphPinned = graphClickWas.pinned;
+            graphPopShut = graphClickWas.shut;
+        }
+        drawGraph();
+        saveState();
+    }, false);
+
     // the pointer leaves: the line above says what to do again; the popup stays
     graphCanvas.addEventListener('pointerleave', function (e) {
         if (e.pointerType !== 'mouse' || graphTouch[e.pointerId]) return;
@@ -2994,12 +3060,17 @@
         drawGraph();
     }, false);
 
-    // the wheel zooms about the pointer
+    // the wheel zooms about the pointer, and what is there drifts toward the middle as it
+    // does, so what is around it comes into view: a little each turn, and the same however
+    // the turns are cut up, as each leaves k^-0.5 of its way there to go, k^0.5 zooming out
     graphCanvas.addEventListener('wheel', function (e) {
-        var at = onPlot(e), dy = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1);
+        var at = onPlot(e), dy = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1),
+            k = Math.pow(1.002, Math.max(-300, Math.min(300, dy))), f = Math.pow(k, k > 1 ? -0.5 : 0.5),
+            w = graphPlot.clientWidth / 2, h = graphPlot.clientHeight / 2;
         e.preventDefault();
         popShut();
-        graphMove(viewNow(), at, at, Math.pow(1.002, Math.max(-300, Math.min(300, dy))));
+        graphMove(viewNow(), at, { x: w + (at.x - w) * f, y: h + (at.y - h) * f }, k);
+        if (graphStart && !graphShading) graphBegin(); // a drag goes on from the view zoomed, not back to the one it began with
         clearTimeout(graphSaving);
         graphSaving = setTimeout(saveState, 300);
     }, { passive: false });
@@ -4315,6 +4386,13 @@
             store(key, { tab: tab, open: openId, v: values });
         }
 
+        // nothing typed in any tool; the tab and the card open stay
+        function clear() {
+            values = {};
+            if (panel.classList.contains('calc-open')) render();
+            keep();
+        }
+
         function load(saved) {
             if (!saved || typeof saved !== 'object') return;
             if (tools.hasOwnProperty(saved.tab)) tab = saved.tab;
@@ -4398,6 +4476,7 @@
         self = {
             show: show,
             load: load,
+            clear: clear,
             open: function () { return panel.classList.contains('calc-open'); },
             // the tip of a card: what it gives
             tip: function (el) {

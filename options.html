@@ -257,7 +257,7 @@
         </div>
 
         <div class="features" data-tab="guide">
-            <h2 class="logo title">Formulas and Constants</h2>
+            <h2 class="logo title sub">Formulas and Constants</h2>
             <p>Click <i>f</i>x at the top left of the display. It has two tabs, Formulas and Constants, each with a
                 search: type a few words, area circle or interest, and only what has them all is listed. Enter in
                 the search opens the first one found.</p>
@@ -287,7 +287,7 @@
         </div>
 
         <div class="features" data-tab="guide">
-            <h2 class="logo title">Converter</h2>
+            <h2 class="logo title sub">Converter</h2>
             <p>Click the arrows at the top left of the display. Pick what to convert and the unit your value is in,
                 and the list shows it in all the other units of its kind at once, worked out as you type.</p>
             <ul>
@@ -307,7 +307,7 @@
         </div>
 
         <div class="features" data-tab="guide">
-            <h2 class="logo title">Graph</h2>
+            <h2 class="logo title sub">Graph</h2>
             <ul>
                 <li>Click the curve at the top left of the display and type a function of x, as you would paste it:
                     x^2 – 3, 2sin(x), 1/x or sqrt(x). The + at the top adds a box for another curve, up to seven,
@@ -332,8 +332,9 @@
                     drag along the curve from one x to another: the area to the x axis is shaded, below the axis
                     counted down; started between two curves, it is the area between them; an end near a root or a
                     crossing goes to it, else to a round number, and its popup inserts the area; type in its From x
-                    and To x for ends of your own. The button stays pressed for another area, and the graph does not
-                    move as you drag, until you press it again, Esc, or zoom, home or the view.</li>
+                    and To x for ends of your own. The graph does not move as you drag, but held at its left or right
+                    side it slides on that way, the area growing with it. The button stays pressed for another
+                    area, until you press it again, double-click the graph, Esc, or zoom, home or the view.</li>
                 <li>Click a curve's y′ to draw its slope, the derivative, dashed in its color, or type d/dx before
                     a function for its slope as a curve of its own: d/dx(x^2) is 2x.</li>
                 <li>An equation of x and y is drawn too, where its two sides are equal: x = 3, x^2 + y^2 = 25, x =
@@ -368,7 +369,7 @@
         </div>
 
         <div class="features" data-tab="guide">
-            <h2 class="logo title">Solve</h2>
+            <h2 class="logo title sub">Solve</h2>
             <p>Click x= at the top left of the display. Each tool is a card: open it, type in its boxes, and it is
                 worked out as you type. Click a result to put it into your calculation.</p>
             <ul>
@@ -388,7 +389,7 @@
         </div>
 
         <div class="features" data-tab="guide">
-            <h2 class="logo title">Statistics</h2>
+            <h2 class="logo title sub">Statistics</h2>
             <p>Click the bars at the top left of the display and type or paste a list of numbers, a column from a
                 spreadsheet as well, for its count, sum, mean, standard deviation (σ and s), min, median and max.
                 Click a result to use it in your calculation. The list finds what is between its numbers by itself;
@@ -397,7 +398,7 @@
         </div>
 
         <div class="features" data-tab="guide">
-            <h2 class="logo title">Numbers</h2>
+            <h2 class="logo title sub">Numbers</h2>
             <p>Click the brackets with an i at the top left of the display. It has cards as the solver has, on four
                 tabs. Click a result, or a number of a matrix, to put it into your calculation.</p>
             <ul>
@@ -417,6 +418,7 @@
             </ul>
         </div>
 
+        <hr class="guide-rule" data-tab="guide">
         <div class="features" data-tab="guide">
             <h2 class="logo title">Using the Calculator</h2>
             <div>
@@ -438,7 +440,7 @@
 
 
 
-                <h2 class="logo title">Keyboard Support</h2>
+                <h2 class="logo title sub">Keyboard Support</h2>
                 <p>There is full keyboard support for each button on the calculator.</p>
                 <ul>
                     <li>The numbers and + – × ÷ , . = keys can also be input on number block.</li>
@@ -457,7 +459,10 @@
                         is calculated right away.<br>
                         Double-click a number in the equation to select it whole, or drag over a part of it: what you
                         type or paste then goes in its place, and DEL takes it out.<br>
-                        Right-click the display for a menu with Cut, Copy and Paste as well. Copy takes
+                        Right-click the display for a menu with Cut, Copy and Paste as well, and Reset all, which
+                        starts the calculator afresh: the equation and the memory cleared, 2nd, fractions and °′″
+                        off, Rad, and what is typed in the statistics, the search of the formulas, the converter,
+                        the graph, the solver and the numbers cleared; the history stays. Copy takes
                         the part of the display you selected, or else the result. The first time you use Paste
                         there, the browser asks you to allow the calculator to read what you copied; Ctrl+V works
                         without that. The history, the formulas, the converter and the statistics have the menu
@@ -479,7 +484,7 @@
             </div>
         </div>
         <div class="calc-main" data-tab="guide">
-            <h2 class="logo title">Standard Functions </h2>
+            <h2 class="logo title sub">Standard Functions </h2>
             <div class="info">
                 <div class="calc-brown keys del-ac">
                     DEL
@@ -550,7 +555,7 @@
         </div>
 
         <div class="calc-sci" data-tab="guide">
-            <h2 class="logo title">Scientific Functions </h2>
+            <h2 class="logo title sub">Scientific Functions </h2>
             <div class="info">
                 <div class="trigo-keys">
                     [← →]
@@ -564,63 +569,23 @@
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
-                    <span><sup>n</sup>C<sub>r</sub></span>
-                </div><span class="des">[Shift+N] Combinations: the ways to choose r of n things. For example
-                    10 nCr 3 = returns 120. It works out before × and ÷, and after powers.</span>
+                <div id="rad" class="trigo-keys">
+                    Deg
+                </div><span class="des">[d or °] Changes the mode to express trigonometric functions in
+                    degrees.</span>
             </div>
-
             <div class="info">
-                <div class="trigo-keys">
-                    <span><sup>n</sup>P<sub>r</sub></span>
-                </div><span class="des">[Shift+P] Permutations: the ways to arrange r of n things in order. For
-                    example 5 nPr 2 = returns 20.</span>
+                <div id="rad" class="trigo-keys">
+                    Rad
+                </div><span class="des">[d or °] Changes the mode to express trigonometric functions in
+                    radians.</span>
             </div>
-
             <div class="info">
-                <div class="trigo-keys">
-                    mod
-                </div><span class="des">[Shift+M] On the <kbd class="k">2nd</kbd> layer of <kbd class="k">%</kbd>. The remainder after dividing: 17 mod 5 = 2.
-                    It takes the sign of the second number (-7 mod 3 = 2), and works with decimals (7.5 mod 2 =
-                    1.5).</span>
-            </div>
-
-            <div class="info">
-                <div class="trigo-keys">
-                    gcd
-                </div><span class="des">[Shift+G] On the <kbd class="k">2nd</kbd> layer of <kbd class="k"><sup>n</sup>C<sub>r</sub></kbd>. The greatest common divisor of two whole
-                    numbers: 12 gcd 18 = 6.</span>
-            </div>
-
-            <div class="info">
-                <div class="trigo-keys">
-                    lcm
-                </div><span class="des">[Shift+K] On the <kbd class="k">2nd</kbd> layer of <kbd class="k"><sup>n</sup>P<sub>r</sub></kbd>. The least common multiple of two whole
-                    numbers: 4 lcm 6 = 12.</span>
-            </div>
-
-            <div class="info">
-                <div class="trigo-keys">
-                    abs
-                </div><span class="des">[|] The absolute value: the number without its sign. abs(-3) is 3.</span>
-            </div>
-
-            <div class="info">
-                <div class="trigo-keys">
-                    round
-                </div><span class="des">On the <kbd class="k">2nd</kbd> layer of <kbd class="k">Rand</kbd>. The nearest whole number, half away from 0: round(2.5) is 3, round(-2.5) is -3.</span>
-            </div>
-
-            <div class="info">
-                <div class="trigo-keys">
-                    floor
-                </div><span class="des">On the <kbd class="k">2nd</kbd> layer of <kbd class="k">abs</kbd>. The whole number at or below: floor(2.7) is 2, floor(-2.7) is -3.</span>
-            </div>
-
-            <div class="info">
-                <div class="trigo-keys">
-                    ceil
-                </div><span class="des">On the <kbd class="k">2nd</kbd> layer of <kbd class="k">x!</kbd>. The whole number at or above: ceil(2.1) is 3, ceil(-2.1) is -2.</span>
+                <div id="rad" class="trigo-keys">
+                    Grad
+                </div><span class="des">[d or °] Changes the mode to express trigonometric functions in
+                    gradians, 400 to a full turn and 100 to a right angle: sin 100 is 1. The key goes from Rad to
+                    Deg to Grad and back to Rad, and names the unit it goes to next.</span>
             </div>
 
             <div class="info">
@@ -947,26 +912,67 @@
             </div>
 
             <div class="info">
-                <div id="rad" class="trigo-keys">
-                    Deg
-                </div><span class="des">[d or °] Changes the mode to express trigonometric functions in
-                    degrees.</span>
+                <div class="trigo-keys">
+                    <span><sup>n</sup>C<sub>r</sub></span>
+                </div><span class="des">[Shift+N] Combinations: the ways to choose r of n things. For example
+                    10 nCr 3 = returns 120. It works out before × and ÷, and after powers.</span>
             </div>
+
             <div class="info">
-                <div id="rad" class="trigo-keys">
-                    Rad
-                </div><span class="des">[d or °] Changes the mode to express trigonometric functions in
-                    radians.</span>
+                <div class="trigo-keys">
+                    <span><sup>n</sup>P<sub>r</sub></span>
+                </div><span class="des">[Shift+P] Permutations: the ways to arrange r of n things in order. For
+                    example 5 nPr 2 = returns 20.</span>
             </div>
+
             <div class="info">
-                <div id="rad" class="trigo-keys">
-                    Grad
-                </div><span class="des">[d or °] Changes the mode to express trigonometric functions in
-                    gradians, 400 to a full turn and 100 to a right angle: sin 100 is 1. The key goes from Rad to
-                    Deg to Grad and back to Rad, and names the unit it goes to next.</span>
+                <div class="trigo-keys">
+                    mod
+                </div><span class="des">[Shift+M] On the <kbd class="k">2nd</kbd> layer of <kbd class="k">%</kbd>. The remainder after dividing: 17 mod 5 = 2.
+                    It takes the sign of the second number (-7 mod 3 = 2), and works with decimals (7.5 mod 2 =
+                    1.5).</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    gcd
+                </div><span class="des">[Shift+G] On the <kbd class="k">2nd</kbd> layer of <kbd class="k"><sup>n</sup>C<sub>r</sub></kbd>. The greatest common divisor of two whole
+                    numbers: 12 gcd 18 = 6.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    lcm
+                </div><span class="des">[Shift+K] On the <kbd class="k">2nd</kbd> layer of <kbd class="k"><sup>n</sup>P<sub>r</sub></kbd>. The least common multiple of two whole
+                    numbers: 4 lcm 6 = 12.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    abs
+                </div><span class="des">[|] The absolute value: the number without its sign. abs(-3) is 3.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    round
+                </div><span class="des">[Shift+O] On the <kbd class="k">2nd</kbd> layer of <kbd class="k">Rand</kbd>. The nearest whole number, half away from 0: round(2.5) is 3, round(-2.5) is -3.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    floor
+                </div><span class="des">[Shift+F] On the <kbd class="k">2nd</kbd> layer of <kbd class="k">abs</kbd>. The whole number at or below: floor(2.7) is 2, floor(-2.7) is -3.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    ceil
+                </div><span class="des">[Shift+U] On the <kbd class="k">2nd</kbd> layer of <kbd class="k">x!</kbd>. The whole number at or above: ceil(2.1) is 3, ceil(-2.1) is -2.</span>
             </div>
 
         </div>
+        <hr class="guide-rule" data-tab="guide">
         <div class="features" data-tab="guide">
             <h2 class="logo title">About Precision</h2>
             <p>This calculator operates with a precision of about 15 significant digits (only). This is due to how

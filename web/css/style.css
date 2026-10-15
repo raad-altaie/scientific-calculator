@@ -1395,6 +1395,11 @@
         height: 18px;
     }
 
+    #calculator.calc-big .calc-graph-export svg {
+        width: 20px;
+        height: 20px;
+    }
+
     #calculator.calc-big .calc-graph.calc-graph-browse .calc-graph-note {
         display: flex;
     }
@@ -1476,10 +1481,32 @@
     color: #d3d9e2;
 }
 
-/* save is not about the view: apart from it, in the corner below */
+/* save is not about the view: apart from it, in the corner below, a camera alone, with no
+   box: a light edge keeps it seen on a curve. A mouse on it grows it a little */
 #calculator .calc-graph-export {
     top: auto;
-    bottom: 6px;
+    right: 1px;
+    bottom: 1px;
+}
+
+#calculator .calc-graph-export > span,
+#calculator .calc-graph-export > span:hover,
+#calculator .calc-graph-export > span:active {
+    width: 28px;
+    height: 28px;
+    background: none;
+    box-shadow: none;
+    opacity: 0.85;
+    filter: drop-shadow(0 0 1.5px rgba(255, 255, 255, 0.9));
+}
+
+#calculator .calc-graph-export svg {
+    width: 16px;
+    height: 16px;
+}
+
+#calculator .calc-graph-export > span:hover svg {
+    transform: scale(1.05);
 }
 
 #calculator .calc-graph-zoom svg {
