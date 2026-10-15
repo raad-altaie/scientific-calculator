@@ -1428,6 +1428,96 @@ async function matrixTen(page, at) {
         await page.calc('document.querySelectorAll("' + on + ' .calc-sv-matrix")[0].querySelectorAll(".calc-sv-cell").length') === 100, t + 'LU and QR of a 10×10');
 }
 
+// A matrix pasted into a box of one: a block of a spreadsheet, [1 2; 3 4] or [[1, 2], [3, 4]],
+// the matrix made bigger where it needs to be, up to 10×10; into B of two matrices, and into
+// A | b; one number pasted as ever. A result's Copy, pasted back. With the decimal comma
+async function matrixPaste(page, at) {
+    var t = at + ': matrix paste: ', on = '.calc-numbers .calc-sv-item.calc-on',
+        note = 'document.querySelector(".calc-numbers .calc-sv-item.calc-on .calc-sv-note")', got;
+    function set(n, text) {
+        return page.calc('(function (b) { b.value = ' + JSON.stringify(text) + '; b.dispatchEvent(new Event("input", { bubbles: true })); })' +
+            '(document.querySelectorAll("' + on + ' input")[' + n + '])');
+    }
+    // the paste, and whether it was taken from the box, not pasted in it as text
+    function paste(n, text) {
+        return page.calc('(function (b) { var e = Object.assign(new Event("paste", { bubbles: true, cancelable: true }), ' +
+            '{ clipboardData: { getData: function () { return ' + JSON.stringify(text) + '; } } }); b.focus(); b.dispatchEvent(e); return e.defaultPrevented; })' +
+            '(document.querySelectorAll("' + on + ' input")[' + n + '])');
+    }
+    function boxes() {
+        return page.calc('[].map.call(document.querySelectorAll("' + on + ' input"), function (b) { return b.value; }).join("|")');
+    }
+    function tiles() {
+        return page.calc('[].map.call(document.querySelectorAll("' + on + ' .calc-sv-tile"), function (e) { return e.querySelector(".calc-sv-label").textContent + "=" + e.lastChild.textContent; }).join(" | ")');
+    }
+    async function card(name) {
+        await page.calc('[].filter.call(document.querySelectorAll(".calc-numbers .calc-sv-name"), function (n) { return n.textContent === ' + JSON.stringify(name) +
+            '; })[0].parentNode.parentNode.click()');
+        await sleep(60);
+    }
+
+    await page.fresh(at, {});
+    await page.click('.calc-numbers-btn');
+    await card('A matrix');
+    check(await paste(2, '4\t1\t2\r\n1\t5\t3\r\n2\t3\t6\r\n') && await boxes() === '3×3||4|1|2|1|5|3|2|3|6' && /^det A=70 \| Rank=3/.test(await tiles()),
+        t + 'a block of a spreadsheet pasted in a11 of 2×2 makes it 3×3, a number in each box', await boxes());
+    check(await page.calc('document.activeElement.dataset.k') === 'a11', t + 'the box pasted in keeps the focus');
+    check(await paste(2, '[1 2; 3 4]') && await boxes() === '3×3||1|2|2|3|4|3|2|3|6', t + '[1 2; 3 4] fills the 2×2 at its top left, the rest as it was', await boxes());
+    check(!(await paste(2, '5')) && !(await paste(2, '2 + 3')), t + 'one number, or what is not a matrix, pastes in the box as ever');
+    check(await paste(10, '1 2\n3 4') && await boxes() === '4×4||1|2|2||3|4|3||2|3|1|2|||3|4',
+        t + 'pasted in a33, the matrix grows to 4×4', await boxes());
+    check(await paste(2, '1 2 3 4 5 6 7 8 9 10 11 12') && /^A matrix of up to 10×10: this one is 1×12\.$/.test(await page.calc(note + '.textContent')) &&
+        await page.calc(note + '.classList.contains("calc-sv-warn")') && /^4×4\|/.test(await boxes()), t + 'one of 12 columns does not go in, and its note says why', await page.calc(note + '.textContent'));
+    await set(0, '10');
+    check(await paste(101, '1 2\n3 4') && /^Up to 10×10: from row 10, column 10/.test(await page.calc(note + '.textContent')) && /^10\|/.test(await boxes()),
+        t + 'one that would go past 10×10 from where it is pasted does not either', await page.calc(note + '.textContent'));
+    await set(0, '11');
+    check(/up to 10×10\.$/.test(await page.calc(note + '.textContent')), t + 'a size of more than 10 says up to 10×10', await page.calc(note + '.textContent'));
+
+    // the result's Copy: its numbers apart by tabs, which paste back in
+    await set(0, '2');
+    await set(2, '4'); await set(3, '7'); await set(4, '2'); await set(5, '6');
+    await page.calc('document.addEventListener("copy", function (e) { window.copied = e.clipboardData.getData("text/plain"); })');
+    await page.calc('document.querySelectorAll("' + on + ' .calc-sv-matrix")[0].querySelector(".calc-sv-copy-m").click()');
+    got = await page.calc('window.copied');
+    check(got === '0.6\t-0.7\n-0.2\t0.4\n' && await page.calc('document.querySelectorAll("' + on + ' .calc-sv-copy-m").length') >= 2,
+        t + 'Copy of A⁻¹ copies it apart by tabs, a line of each row', JSON.stringify(got));
+    check(await paste(2, got) && await boxes() === '2||0.6|-0.7|-0.2|0.4' &&
+        await page.calc('[].map.call(document.querySelectorAll("' + on + ' .calc-sv-matrix")[0].querySelectorAll(".calc-sv-cell"), function (c) { return c.textContent; }).join()') === '4,7,2,6',
+        t + 'and pastes back in: the inverse of the inverse', await boxes());
+
+    // into B of two matrices, A as it was
+    await card('Two matrices');
+    check(await paste(6, '[[1,2,3],[4,5,6]]') && await boxes() === '|2×3|||||1|2|3|4|5|6', t + '[[1, 2, 3], [4, 5, 6]] in B makes B 2×3, A as it was', await boxes());
+
+    // A | b: its last column is b
+    await card('A x = b');
+    check(await paste(1, '2 0 4\n0 2 6') && await boxes() === '|2|0|4|0|2|6' && /^x1=2 \| x2=3/.test(await tiles()), t + 'A | b pasted whole: its last column in b', await tiles());
+    check(await paste(3, '1 2') && /^b is one column/.test(await page.calc(note + '.textContent')), t + 'a row pasted in b does not go in', await page.calc(note + '.textContent'));
+    check(await paste(3, '7\n8\n9') && await boxes() === '3×2|2|0|7|0|2|8|||9', t + 'a column in b goes down it, one more equation', await boxes());
+
+    // the decimal comma: a comma of a number, a ; or a space between them
+    await page.fresh(at, { format: { notation: 'norm', places: 'auto', group: 'dot' } });
+    await page.click('.calc-numbers-btn');
+    await card('Eigenvalues');
+    check(await paste(1, '1,5\t0\n0\t2,5') && await boxes() === '|1,5|0|0|2,5' && /^λ1=1,5 \| λ2=2,5/.test(await tiles()), t + 'decimal comma: a block of a spreadsheet', await tiles());
+    check(await paste(1, '[[2,5; 0]; [0; 4]]') && await boxes() === '|2,5|0|0|4', t + 'decimal comma: [[2,5; 0]; [0; 4]]', await boxes());
+    check(await paste(1, '[1/3 0; 0 1]') && await boxes() === '|0,3333333333333333|0|0|1', t + 'one worked out goes in as its value', await boxes());
+
+    // each card's Example: its boxes typed, and what they give
+    await page.click(on + ' .calc-sv-example');
+    check(await boxes() === '3×3|2|-1|0|-1|2|-1|0|-1|2' && /^λ1=0,58578643762\d* \| λ2=2 \| λ3=3,41421356237/.test(await tiles()), t + 'Example of eigenvalues', await tiles());
+    await card('A x = b');
+    await page.click(on + ' .calc-sv-example');
+    check(/^x1=5 \| x2=3 \| x3=-2/.test(await tiles()), t + 'Example of A x = b: three equations, their answers', await tiles());
+    await card('Two matrices');
+    await page.click(on + ' .calc-sv-example');
+    check(/A × B=5864139154/.test(await tiles()), t + 'Example of two matrices: A × B of a 2×3 and a 3×2', await tiles());
+    await page.hover(on + ' .calc-sv-example');
+    check(await page.until('!document.querySelector(".calc-tip").hidden', 2500) && /^Example/.test(await page.calc('document.querySelector(".calc-tip").textContent')),
+        t + 'Example has a tip', await page.calc('document.querySelector(".calc-tip").textContent'));
+}
+
 // The Finance tab of the solver: money over time as a BA II Plus works it out, NPV and IRR, a
 // payment schedule as a table to copy, and APR and APY. With the decimal comma and fraction mode
 async function finance(page, at) {
@@ -1452,7 +1542,8 @@ async function finance(page, at) {
     await page.click('.calc-solve-btn');
     await page.click('.calc-solve .calc-solve-tab[data-tab="finance"]');
     check(await page.calc('[].map.call(document.querySelectorAll(".calc-solve .calc-sv-name"), function (n) { return n.textContent; }).join()') ===
-        'Payment schedule,Interest rates,Time value of money,NPV and IRR', t + 'four cards, the payment schedule and the rates first');
+        'Loan calculator,Savings growth,Interest rates,Time value of money,NPV and IRR,Bond price and yield,Depreciation,Break-even,Inflation,Percentage change',
+        t + 'ten cards, the loan calculator and savings first');
 
     // time value of money: the one left empty is found; received above 0, paid below
     await card('Time value of money');
@@ -1506,7 +1597,7 @@ async function finance(page, at) {
         t + 'npv: what is not a number is marked', await page.calc(note));
 
     // a payment schedule: a table by year, or by payment, to copy for a spreadsheet
-    await card('Payment schedule');
+    await card('Loan calculator');
     for (const [n, v] of [[0, '100000'], [1, '6'], [2, '30']]) await set(n, v);
     check(await page.calc(tiles) === 'Payment=599.55 | Total interest=115838.19 | Total paid=215838.19' && await page.calc(rows) === 30 &&
         await page.calc('[].map.call(document.querySelectorAll(".calc-solve .calc-sv-th"), function (h) { return h.textContent; }).join()') === 'Year,Interest,Principal,Balance',
@@ -1543,6 +1634,52 @@ async function finance(page, at) {
     await set(1, '');
     await set(2, 'inf');
     check((await page.calc(tiles)).indexOf('APR %=10 | APY %=10.5170918076 | ') === 0 && /all the time/.test(await page.calc(note)), t + 'rates: of interest all the time', await page.calc(tiles));
+
+    // savings: what money grows to, with a table of each year
+    await card('Savings growth');
+    for (const [n, v] of [[0, '1000'], [1, '5'], [2, '10'], [4, '100']]) await set(n, v);
+    check(await page.calc(tiles) === 'Balance=17175.24 | Put in=13000.00 | Interest=4175.24 | APY %=5.11618978817' && await page.calc(rows) === 10,
+        t + 'savings: 100 added each month, and a row of each year', await page.calc(tiles));
+    await page.click(on + ' .calc-sv-opt[data-c="1"]');
+    check((await page.calc(tiles)).indexOf('Balance=17239.94 | ') === 0 && /added at the start/.test(await page.calc(note)), t + 'savings: added at the start of each month', await page.calc(tiles));
+    await set(3, 'inf');
+    check(/^Nothing is added with interest all the time/.test(await page.calc(note)) && await page.calc(rows) === 0, t + 'savings: nothing added all the time', await page.calc(note));
+
+    // a bond: its price of a yield, and its yield of a price
+    await card('Bond price and yield');
+    for (const [n, v] of [[0, '1000'], [1, '5'], [2, '10'], [5, '6']]) await set(n, v);
+    check((await page.calc(tiles)).indexOf('Price=925.61 | Yield %=6 | ') === 0, t + 'bond: the price of a yield', await page.calc(tiles));
+    await set(4, '925.61');
+    check(/^Leave one of Price and Yield empty/.test(await page.calc(note)), t + 'bond: both typed, said', await page.calc(note));
+    await set(5, '');
+    check((await page.calc(tiles)).indexOf('Yield %=6.0000370085 | Price=925.61 | ') === 0, t + 'bond: the yield of a price, worked out first', await page.calc(tiles));
+    await set(2, '9.75');
+    check(/Accrued=12.50 \| Dirty price=/.test(await page.calc(tiles)) && /nearer than a whole period/.test(await page.calc(note)), t + 'bond: part of a period, its accrued interest', await page.calc(tiles));
+
+    // depreciation, by the straight line and the declining balance
+    await card('Depreciation');
+    for (const [n, v] of [[0, '10000'], [1, '1000'], [2, '5']]) await set(n, v);
+    check(await page.calc(tiles) === 'First year=1800.00 | A year %=20 | In all=9000.00' && await page.calc(rows) === 5, t + 'depreciation: the straight line', await page.calc(tiles));
+    await page.click(on + ' .calc-sv-opt[data-c="1"]');
+    check((await page.calc(tiles)).indexOf('First year=4000.00 | A year %=40 | ') === 0 &&
+        await page.calc('[].slice.call(document.querySelectorAll(".calc-solve .calc-sv-table .calc-sv-cell"), 16).map(function (c) { return c.textContent; }).join()') === '5,296.00,9000.00,1000.00',
+        t + 'depreciation: the declining balance, down to the salvage value', await page.calc(tiles));
+    await set(1, '20000');
+    check(/^The salvage value is 0 or more/.test(await page.calc(note)), t + 'depreciation: a salvage above the cost', await page.calc(note));
+
+    // break-even, inflation and percentage change
+    await card('Break-even');
+    for (const [n, v] of [[0, '10000'], [1, '30'], [2, '17']]) await set(n, v);
+    check(await page.calc(tiles) === 'Units=769.230769231 | Sales=23076.92 | Margin each=13.00 | Margin %=43.3333333333' && /^770 whole units/.test(await page.calc(note)),
+        t + 'break-even: the units, and the whole ones', await page.calc(tiles));
+    await set(2, '40');
+    check(/^The price is above the cost/.test(await page.calc(note)), t + 'break-even: a price below the cost', await page.calc(note));
+    await card('Inflation');
+    for (const [n, v] of [[0, '100'], [1, '3'], [2, '10']]) await set(n, v);
+    check(await page.calc(tiles) === 'Costs then=134.39 | Worth now=74.41 | Prices ×=1.34391637934 | Value lost %=25.5906085103', t + 'inflation: on and back', await page.calc(tiles));
+    await card('Percentage change');
+    for (const [n, v] of [[0, '80'], [1, '100']]) await set(n, v);
+    check(await page.calc(tiles) === 'Change=20 | Change %=25 | Margin %=20 | To ÷ From=1.25', t + 'percentage change: markup and margin', await page.calc(tiles));
 
     // the decimal comma, as in the other results; fraction mode, in its results as well
     await page.fresh(at, { format: { notation: 'norm', places: 'auto', group: 'dot' } });
@@ -1624,6 +1761,82 @@ async function graphSequence(page, at) {
     check(await page.calc('document.querySelector(".calc-graph-input").value') === 'a(n) = a(n - 1) + a(n - 2) {a(1) = 1, a(2) = 1} {1, 15}' &&
         !await page.calc('document.querySelector(".calc-graph-fn").classList.contains("calc-bad")'), t + 'an example of them, drawn',
         await page.calc('document.querySelector(".calc-graph-input").value'));
+}
+
+// Slope fields: dy/dx = x – y, a short line at each place at its slope, and the solution through
+// each start; pointed at, clicked and traced as a curve; a click off the curves adding one to the
+// braces; what stops one, said; with the decimal comma; an example
+async function graphSlopeField(page, at) {
+    var t = at + ': slope fields: ', note = 'document.querySelector(".calc-graph-note").textContent',
+        pop = 'document.querySelector(".calc-graph-pop").textContent.replace(/\\s+/g, " ").trim()', box = 'document.querySelector(".calc-graph-input").value',
+        // the pixels of the first curve's color about x, y, within 2 pixels of it
+        inked = function (x, y) {
+            return '(function () { var c = document.querySelector(".calc-graph-plot canvas"), k = c.width / c.clientWidth, w = c.clientWidth, n = 0, i,' +
+                ' d = c.getContext("2d").getImageData(Math.round((w / 2 + ' + x + ' * w / 20) * k) - 2, Math.round((c.clientHeight / 2 - ' + y + ' * w / 20) * k) - 2, 5, 5).data;' +
+                ' for (i = 0; i < d.length; i += 4) if (Math.abs(d[i] - 0x22) < 30 && Math.abs(d[i + 1] - 0x47) < 30 && Math.abs(d[i + 2] - 0x6a) < 30) n++; return n; })()';
+        },
+        // the pixels darker than the paper in a square of 22 pixels about x, y: the lines of the field there
+        lines = function (x, y) {
+            return '(function () { var c = document.querySelector(".calc-graph-plot canvas"), k = c.width / c.clientWidth, w = c.clientWidth, n = 0, i,' +
+                ' d = c.getContext("2d").getImageData(Math.round((w / 2 + ' + x + ' * w / 20 - 11) * k), Math.round((c.clientHeight / 2 - ' + y + ' * w / 20 - 11) * k), Math.round(22 * k), Math.round(22 * k)).data;' +
+                ' for (i = 0; i < d.length; i += 4) if (d[i] < 150 && d[i + 2] > d[i]) n++; return n; })()';
+        };
+    function type(text) {
+        return page.calc('(function (b) { b.value = ' + JSON.stringify(text) + '; b.dispatchEvent(new Event("input", { bubbles: true })); })(document.querySelector(".calc-graph-input"))');
+    }
+
+    await page.fresh(at, { graph: { f: ['dy/dx = x - y {y(0) = 1}', ''], view: null } });
+    await page.click('.calc-graph-btn');
+    await sleep(100);
+    check(!await page.calc('document.querySelector(".calc-graph-fn").classList.contains("calc-bad")') &&
+        await page.calc('document.querySelector(".calc-graph-fn").classList.contains("calc-graph-rel")'), t + 'dy/dx = x – y is read, not as an equation of d, with no y′ of its own');
+    check(await page.calc(inked(2, 1 + 2 * Math.exp(-2))) > 0 && await page.calc(inked(0, 1)) > 0 && await page.calc(inked(-4, 4)) === 0,
+        t + 'its solution through (0, 1) is drawn, x – 1 + 2e^(–x), and nothing of its color off it');
+    check(await page.calc(lines(-6, -6)) > 4 && await page.calc(lines(6, 6)) > 4, t + 'and a line of the field at each place', await page.calc(lines(-6, -6)));
+    check(await page.calc(note) === 'Point for values; click off the curves for a solution there.', t + 'the note says what a click does', await page.calc(note));
+    await page.hoverAt('.calc-graph-plot', 2, 1.3);
+    check(/^Solution through \(0, 1\)\s*x = 2\s*y = 1\.27067/.test((await page.calc(note)).trim()), t + 'pointed at, a solution: where it starts, x and y', await page.calc(note));
+    await page.clickAt('.calc-graph-plot', 2, 1.27);
+    check(/^Solution through \(0, 1\)\s*x = 2\s*y = 1\.27067\d*\s*Slope = 0\.72932/.test(await page.calc(pop)), t + 'clicked, its popup: x, y and the slope of the field there', await page.calc(pop));
+    await page.key('ArrowRight', 39);
+    check(/^Solution through \(0, 1\)\s*x = 2\.\d+\s*y = 1\.\d+\s*Slope = /.test(await page.calc(pop)), t + '→ goes along it', await page.calc(pop));
+    await page.click('.calc-graph-pop-row[data-put="m"]');
+    check(!await open(page, '.calc-graph') && await value(page) > 0.7 && await value(page) < 0.8, t + 'its slope goes in with a click', await value(page));
+    await page.click('.calc-graph-btn');
+
+    // a click off the curves: the solution through there, its start in the braces
+    await page.clickAt('.calc-graph-plot', -6, 6);
+    check(await page.calc(box) === 'dy/dx = x - y {y(0) = 1, y(-6) = 6}' && /^Solution through \(-6, 6\)\s*x = -6\s*y = 6\s*Slope = -12/.test(await page.calc(pop)) &&
+        await page.calc(inked(-6, 6)) > 0, t + 'a click off the curves adds the solution through there, its popup open', await page.calc(box) + ' / ' + await page.calc(pop));
+    await type('dy/dx = x - y');
+    await sleep(100);
+    check(await page.calc(inked(0, 1)) === 0, t + 'taken out of the braces, it is gone');
+
+    // what stops one, said
+    await type('dy/dx = -x/y {y(0) = 3}');
+    await sleep(100);
+    check(await page.calc(note) === 'The solution through (0, 3) stops at x = -3: it goes straight up or down there.', t + 'one that goes straight down stops, said', await page.calc(note));
+    await type('dy/dx = sqrt(x) {y(1) = 0}');
+    await sleep(100);
+    check(await page.calc(note) === 'The solution through (1, 0) stops at x = 0: its slope has no value there.', t + 'one of no slope past 0 stops, said', await page.calc(note));
+    await type('dy/dx = sqrt(-1 - x^2)');
+    await sleep(100);
+    check(await page.calc(note) === 'The slope has no value anywhere in the view.' && await page.calc(lines(-6, -6)) === 0, t + 'a field of no value anywhere, said', await page.calc(note));
+
+    // with the decimal comma: ; between the starts
+    await page.fresh(at, { format: { notation: 'norm', places: 'auto', group: 'dot' }, graph: { f: ['dy/dx = x - y {y(0) = 0,5}', ''], view: null } });
+    await page.click('.calc-graph-btn');
+    await sleep(100);
+    check(await page.calc(inked(0, 0.5)) > 0, t + 'decimal comma: its start 0,5');
+    await page.clickAt('.calc-graph-plot', -6, 6);
+    check(await page.calc(box) === 'dy/dx = x - y {y(0) = 0,5; y(-6) = 6}', t + 'decimal comma: a start added after a ;', await page.calc(box));
+
+    // an example
+    await page.click('.calc-graph-tab[data-tab="examples"]');
+    await page.type('circles\r');
+    await sleep(200);
+    check(await page.calc(box) === 'dy/dx = -x/y {y(0) = 3}' && !await page.calc('document.querySelector(".calc-graph-fn").classList.contains("calc-bad")'),
+        t + 'an example of them, drawn', await page.calc(box));
 }
 
 // The history exported: a menu below its button, as the right click's, to copy it as text or save
@@ -2532,8 +2745,8 @@ async function convDates(page, at) {
     check(await seen('.calc-conv-list') && !await seen('.calc-conv .calc-sv-list'), t + 'the units shown, the dates not');
     await page.click('.calc-conv .calc-solve-tab[data-tab="dates"]');
     check(!await seen('.calc-conv-list') && !await seen('.calc-conv-group') && await seen('.calc-conv .calc-sv-list'), t + 'Dates shows its cards in place of the units');
-    check(await page.calc('document.querySelector("' + on + ' .calc-sv-name").textContent') === 'Between two dates' &&
-        await page.calc('document.querySelectorAll("' + on + ' .calc-sv-date input").length') === 2, t + 'Between two dates open at first, with two dates');
+    check(await page.calc('document.querySelector("' + on + ' .calc-sv-name").textContent') === 'Time between dates' &&
+        await page.calc('document.querySelectorAll("' + on + ' .calc-sv-date input").length') === 2, t + 'Time between dates open at first, with two dates');
     check(await page.calc('(function (i) { return i.value === "" && i.placeholder === "Today"; })(document.querySelector("' + on + ' input"))') &&
         /^Years, months and days=0 days \| Years=0 \| Months=0 \| Weeks=0 \| Days=0 \| Weekdays=[01] \| Hours=0$/.test(await page.calc(tiles)), t + 'both are today at first', await page.calc(tiles));
     check(await page.calc('document.activeElement === document.querySelector("' + on + ' input")'), t + 'the first date has the focus');
@@ -2609,7 +2822,7 @@ async function convDates(page, at) {
 
     // a date moved on: a month from 31 January 2024 is 29 February
     await page.click('.calc-conv .calc-sv-item:nth-child(2) .calc-sv-row');
-    check(await page.calc('document.querySelectorAll("' + on + ' input").length') === 4, t + 'Add or subtract: a date and years, months and days');
+    check(await page.calc('document.querySelectorAll("' + on + ' input").length') === 4, t + 'Add or subtract time: a date and years, months and days');
     await set(0, '2024-01-31');
     await set(2, '1');
     check(/^Date=(02\/29\/2024|29\/02\/2024) \| Weekday=Thursday \| Days on=29 \| Day of the year=60 \| Week=9$/.test(await page.calc(tiles)),
@@ -3338,10 +3551,14 @@ async function website(page) {
         await numbersPanel(page, '/web/index.html');
         await matrixTen(page, '/popup.html');
         await matrixTen(page, '/web/index.html');
+        await matrixPaste(page, '/popup.html');
+        await matrixPaste(page, '/web/index.html');
         await finance(page, '/popup.html');
         await finance(page, '/web/index.html');
         await graphSequence(page, '/popup.html');
         await graphSequence(page, '/web/index.html');
+        await graphSlopeField(page, '/popup.html');
+        await graphSlopeField(page, '/web/index.html');
         await historyExport(page, '/popup.html');
         await historyExport(page, '/web/index.html');
         await graphPanel(page, '/popup.html');

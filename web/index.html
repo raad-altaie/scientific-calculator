@@ -662,7 +662,7 @@
                         polynomial, two or three linear equations or two curves, finds turning points, integrals,
                         slopes, sums and products to ∞, limits, Taylor series, areas between curves, arc lengths and
                         differential equations, the chances of the normal, t, χ², F, binomial, Poisson and other
-                        distributions, confidence intervals, and money over time, NPV and IRR, payment schedules and APR and APY.</p>
+                        distributions, confidence intervals, and money over time, NPV and IRR, loans and savings, APR and APY, bonds, depreciation, break-even, inflation and percentage change.</p>
                 </div>
                 <label class="switch" title="Solve">
                     <input type="checkbox" id="panel-solve">
@@ -762,11 +762,11 @@
                     See the "Formulas and Constants" section below.</li>
                 <li>Converter: units of length, area, volume, mass, temperature and more, and dates. See the
                     "Converter" section below.</li>
-                <li>Graph: functions, equations, inequalities, sequences and points drawn, with their roots, highs, lows and
+                <li>Graph: functions, equations, inequalities, sequences, slope fields and points drawn, with their roots, highs, lows and
                     crossings. See the "Graph" section below.</li>
                 <li>Solve: every root of an equation, in exact form as well, inequalities, turning points,
                     polynomials, linear systems, two curves, integrals, slopes, sums, limits, Taylor series,
-                    differential equations, probability, confidence intervals, money over time, NPV and IRR, and payment schedules. See the "Solve" section below.</li>
+                    differential equations, probability, confidence intervals, money over time, NPV and IRR, loans and savings, bonds and depreciation. See the "Solve" section below.</li>
                 <li>Statistics: count, sum, mean, standard deviation, quartiles, median and more of a list of numbers,
                     and the line of best fit of pairs of them. See the "Statistics" section below.</li>
                 <li>Numbers: matrices up to 10 × 10 and their eigenvalues, vectors, complex numbers, bases and bits, text and its
@@ -856,11 +856,11 @@
                 down opens its calendar, its weeks starting on your region's first day; an empty box is today. In
                 the calendar the arrows go a day or a week, Page Up and Page Down a month, and Enter chooses.</p>
             <ul>
-                <li>Between two dates: first the years, months and days, 29 February 2000 to 14 October 2026 being
+                <li>Time between dates: first the years, months and days, 29 February 2000 to 14 October 2026 being
                     26 years, 7 months, 15 days; then the whole of it in each unit, 26 years, 319 months, 1,389 weeks,
                     9,724 days, the weekdays, Monday to Friday, both dates in, and the hours, each below 0 where the
                     second date is before the first.</li>
-                <li>Add or subtract: a date some years, months and days on, below 0 to go back, with its weekday,
+                <li>Add or subtract time: a date some years, months and days on, below 0 to go back, with its weekday,
                     its day of the year and its week by ISO 8601. The years and months go first, and a month from
                     31 January is the last day of February.</li>
                 <li>Click a number among the results to put it into the equation. The tab and the dates stay for
@@ -908,6 +908,7 @@
                 <li>A polar curve, r = 2sin(3θ), and a parametric one, (cos t, sin t), go once round, or as far as
                     {from, to} after them says, r = θ {0, 6π}; click one for its θ or t, and trace it.</li>
                 <li>A sequence is drawn as a dot at each whole n: a(n) = a(n – 1) × 1.05 {a(1) = 100}, each term of the ones before it, its first terms in braces after it as a polar curve has its range; a(n) = a(n – 1) + a(n – 2) {a(1) = 1, a(2) = 1}; or a(n) = 2n + 1, of n alone. n goes from the first term given, or 1, for 50 terms, or as two numbers in the braces say, {1, 100}, up to 10000 terms. Any lowercase letter but x, e and i names one, and the same letter alone is still a slider. Point at a dot or click it for n and a(n), and ← and → go from term to term; a term too large to draw stops it, and one of a term before the first given is said in the note.</li>
+                <li>A slope field is drawn from dy/dx = x – y, or y′ = x – y, its slope a function of x and y: a short line at each place of a grid, at the slope there. The places its solutions start go in braces after it, dy/dx = x – y {y(0) = 1, y(0) = -2}, and each solution is drawn through its start, by the steps of Runge and Kutta; a click off the curves adds the one through there to the braces, and taking it out of them takes it away. Point at a solution or click it for x, y and its slope, and ← and → go along it; where one stops, as -x/y does where it goes straight down, the note says why.</li>
                 <li>Type points, (1, 2), (2, 4.1), (3, 5.9), and their fit draws the line nearest them, with its
                     r²; click fit again for a parabola, an exponential (a · bˣ), a power and a logarithm, or the
                     table button beside it to type them in rows of x and y.</li>
@@ -925,7 +926,7 @@
                 <li>The Table tab lists x and the y of each curve, and of a sequence its terms, n by 1 where there are only sequences, from a start by a step; left empty, they follow
                     the view of the graph. Click a value to put it into your calculation.</li>
                 <li>The Examples tab has graphs to try, by group as the constants are: fun pictures that move,
-                    functions, sliders, equations, inequalities, polar and parametric curves, sequences, pieces, functions named and points. Click
+                    functions, sliders, equations, inequalities, polar and parametric curves, sequences, slope fields, pieces, functions named and points. Click
                     one, or search and press Enter, and it is drawn in place of your curves.</li>
                 <li>Functions of an angle follow Deg, Rad or Grad.</li>
             </ul>
@@ -955,7 +956,7 @@
                     their chances, p-values and the value for a chance; binomial, Poisson, geometric and
                     hypergeometric chances; exponential and uniform ones; confidence intervals of a mean and of a
                     proportion; and random whole numbers.</li>
-                <li>Finance works money out as a BA II Plus or an HP 12C does. Time value of money takes N, I/Y (a percentage a year), PV, PMT and FV, with the payments a year and each at the end of its period or at its start: leave one of the five empty and it is worked out, with all the money paid and the interest. Money received is above 0 and money paid below 0, so a loan of 200000 is PV = 200000 with PMT below 0; where the signs cannot balance, the note says so. NPV and IRR takes a rate and cash flows, one to a line or apart as the statistics list is, the first at the start: their net present value, internal rate of return, the one nearest 10% where the flows change sign more than once, and payback period. Payment schedule gives a loan's payment, its interest and a table of each year or, up to 600 rows, each payment, of the interest, the principal and what is left; Copy table copies it for a spreadsheet. Interest rates turns an APR into its APY for m periods a year, ∞ as well, and back. Money is shown to the cent; a click or Insert puts it in with every digit.</li>
+                <li>Finance works money out as a BA II Plus or an HP 12C does. Time value of money takes N, I/Y (a percentage a year), PV, PMT and FV, with the payments a year and each at the end of its period or at its start: leave one of the five empty and it is worked out, with all the money paid and the interest. Money received is above 0 and money paid below 0, so a loan of 200000 is PV = 200000 with PMT below 0; where the signs cannot balance, the note says so. NPV and IRR takes a rate and cash flows, one to a line or apart as the statistics list is, the first at the start: their net present value, internal rate of return, the one nearest 10% where the flows change sign more than once, and payback period. Loan calculator gives a loan's payment, its interest and a table of each year or, up to 600 rows, each payment, of the interest, the principal and what is left; Copy table copies it for a spreadsheet. Savings growth gives what money saved grows to, with interest m times a year and an amount added each period at its end or start if you like, all put in, the interest and a table of each year. Interest rates turns an APR into its APY for m periods a year, ∞ as well, and back. Bond price and yield takes the face value, the coupon a year, the years left and the coupons a year: leave one of Price and Yield empty and it is worked out, with the current yield and Macaulay and modified duration; years that are not whole coupons give the accrued interest and the dirty price as well. Depreciation gives what an asset loses each year down to its salvage value, by the straight line or the double declining balance, with a table of each year. Break-even gives the units to sell to cover the fixed costs and a profit if you like, what they sell for and the margin of each. Inflation brings an amount on by a rate a year, and back to money of today. Percentage change gives the change from one number to another, as a percentage of each: of a cost and its price, the markup and the margin. Money is shown to the cent; a click or Insert puts it in with every digit.</li>
                 <li>A box of a number takes a calculation too: pi/4, sqrt(2). What you typed stays for the next
                     time.</li>
             </ul>
@@ -992,7 +993,7 @@
                     the sum and products of two; its eigenvalues, real or complex, its characteristic polynomial and
                     its eigenvectors; A x = b, linear equations of up to ten unknowns, all of their answers where
                     there are many, x = p + t v, and the nearest by least squares where there are none; its rows
-                    reduced, its rank and null space; P A = L U and A = Q R. From 6 columns on its boxes and its results are smaller, to fit the card, each number of a result to as many digits as fit, the whole of it shown as you point at it; the eigenvalues of a matrix larger than 4 × 4 are found by the QR algorithm, and where a matrix is badly conditioned, as the 10 × 10 Hilbert matrix is, the note says how few digits of its inverse, determinant or answers can be trusted. And of two vectors, 1, 2, 3, their dot
+                    reduced, its rank and null space; P A = L U and A = Q R. From 6 columns on its boxes and its results are smaller, to fit the card, each number of a result to as many digits as fit, the whole of it shown as you point at it; the eigenvalues of a matrix larger than 4 × 4 are found by the QR algorithm, and where a matrix is badly conditioned, as the 10 × 10 Hilbert matrix is, the note says how few digits of its inverse, determinant or answers can be trusted. A whole matrix pastes into a box of one, from there right and down: a block of cells copied from a spreadsheet, lines of numbers, or [1 2; 3 4] and [[1, 2], [3, 4]], the matrix made as big as it needs to be; and Copy on a matrix of results copies it, to paste into a spreadsheet or back into a box for the next step; each card's Example types in one to start from. And of two vectors, 1, 2, 3, their dot
                     and cross products, lengths, the angle between them and the projection of one on the
                     other.</li>
                 <li>Complex works out a complex number, (2 + 3i)(1 – i), sqrt(-4) or 2∠30 in polar form, for its

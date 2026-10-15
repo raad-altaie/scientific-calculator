@@ -2480,6 +2480,56 @@ dels.forEach(function (c) {
             'sequence: of a function named; neither a function of x nor a curve of t; no marks of its own');
     })();
 
+    // slope fields: dy/dx = f(x, y) or y′ =, the starts of their solutions in braces; their solutions by Runge and Kutta
+    (function () {
+        function field(text, comma, vars) {
+            return Engine.slopeField(text, comma || false, vars || {}, {});
+        }
+        function near(a, b, tol) {
+            return Math.abs(a - b) <= (tol || 1e-12) * Math.max(1, Math.abs(b));
+        }
+        function solved(text, x0, y0, from, to, h, dy, big) {
+            return Engine.solveField(field(text), x0, y0, from, to, 0, h, dy, big);
+        }
+        var f = field('dy/dx = x - y {y(0) = 1, y(1) = -2}'), r, err;
+        check(f && f.kind === 'field' && f.at(1, 3, 0) === -2 && JSON.stringify(f.starts(0)) === '[[0,1],[1,-2]]' && f.text === 'dy/dx = x - y' &&
+            f.given.join('|') === 'y(0) = 1|y(1) = -2', 'slope field: dy/dx = x – y, its slope at each place and its starts', f && JSON.stringify(f.starts(0)));
+        f = field('dy/dx = x - y {0 < x < 3} {y(0) = 1}');
+        check(f && f.at(1, 2, 0) === -1 && isNaN(f.at(4, 2, 0)) && !f.letters.length && f.text === 'dy/dx = x - y {0 < x < 3}' && f.given.join('|') === 'y(0) = 1',
+            'slope field: inequalities in braces kept apart from its starts, none where they do not hold', f && f.letters.join());
+        f = field('dy/dx = 2 {y > 0}');
+        check(f && f.at(0, 1, 0) === 2 && isNaN(f.at(0, -1, 0)) && !f.letters.length, 'slope field: an inequality of y, y no slider', f && f.letters.join());
+        check(!!field('dy/dx = x - y {' + Array(30).fill('y(1.25) = -0.375').join(', ') + '}'), 'slope field: thirty starts, longer than an equation may be');
+        check(field("y' = x*y").at(2, 3, 0) === 6 && field('y′ = x*y').at(2, 3, 0) === 6 && field('dy / dx = 2').at(5, 5, 0) === 2 && field('dy/dx = x^2').at(3, 9, 0) === 9 &&
+            field('dy/dx = y').at(3, 4, 0) === 4, "slope field: y' and y′ as well; of x alone, y alone or neither");
+        check(field('dy/dx = a y {y(0) = b}', false, { a: 2, b: 5 }).at(1, 3, 0) === 6 && field('dy/dx = a y {y(0) = b}').letters.sort().join() === 'a,b' &&
+            field('dy/dx = a y {y(0) = b}', false, { a: 2, b: 5 }).starts(0)[0][1] === 5, 'slope field: of sliders, its starts as well');
+        check(JSON.stringify(field('dy/dx = x - y {y(0) = 1; y(0) = 2,5}', true).starts(0)) === '[[0,1],[0,2.5]]' && near(field('dy/dx = sin(x) {y(pi) = 1/2}').starts(0)[0][0], Math.PI) &&
+            field('dy/dx = sin(x)').angles, 'slope field: with the decimal comma, ; between its starts; each worked out; of angles');
+        check(field('dy/dx = {x < 0: -1, x >= 0: 1} {y(0) = 1}').at(-1, 0, 0) === -1 && field('dy/dx = {x < 0: -1, x >= 0: 1}').at(1, 0, 0) === 1, 'slope field: of a function in pieces');
+        check(['dy/dx', 'dy/dx =', 'dy/dx = x = y', 'dy/dx = x < y', 'dy/dx = x {y(x) = 1}', 'dy/dx = x {y(0) = y}', 'dy/dx = x {y(0) = }', 'y = x - y', 'dy/dt = x'].every(function (t) {
+            return field(t) === null;
+        }), 'slope field: none of dy/dx alone, of an equation after it, or of starts not numbers');
+        check(Engine.relation('dy/dx = x - y', false, {}, {}) !== null && !!field('dy/dx = x - y'), 'slope field: read where an equation of d, x and y would be, so it is read first');
+        check(Engine.keyPoints([], { x0: -5, x1: 5, y0: -5, y1: 5 }, 0, [], [f]).length === 0, 'slope field: no marks of its own');
+
+        r = solved('dy/dx = y', 0, 1, -1, 1, 0.001);
+        check(near(r.pts[r.pts.length - 1][1], Math.E, 1e-12) && near(r.pts[0][1], 1 / Math.E, 1e-12) && r.pts[0][0] === -1 && !r.back && !r.ahead,
+            'slope field: y′ = y from y(0) = 1 is e at 1 and 1/e at -1', r.pts[r.pts.length - 1][1]);
+        r = solved('dy/dx = x - y', 0, 1, -3, 3, 0.01);
+        err = Math.max.apply(null, r.pts.map(function (q) { return Math.abs(q[1] - (q[0] - 1 + 2 * Math.exp(-q[0]))); }));
+        check(err < 1e-7 && r.pts.some(function (q) { return q[0] === 0 && q[1] === 1; }), 'slope field: y′ = x – y is x – 1 + 2e^(–x), its start on it', err);
+        r = solved('dy/dx = -x/y', 0, 3, -5, 5, 0.05, 0.2);
+        check(r.back.why === 'steep' && r.ahead.why === 'steep' && Math.abs(r.ahead.x - 3) < 0.05 && Math.abs(r.back.x + 3) < 0.05,
+            'slope field: -x/y, a circle, stops each way where it goes straight down', JSON.stringify([r.back, r.ahead]));
+        r = solved('dy/dx = y^2', 0, 1, -1, 2, 0.01, 0.04, 1e6);
+        check(r.ahead && Math.abs(r.ahead.x - 1) < 0.02 && r.ahead.y > 50 && !r.back, 'slope field: y′ = y² from 1 goes up to no end at x = 1', JSON.stringify(r.ahead));
+        r = solved('dy/dx = sqrt(x)', 1, 0, -1, 2, 0.01);
+        check(r.back && r.back.why === 'none' && Math.abs(r.back.x) < 0.011 && !r.ahead, 'slope field: √x stops at 0, of no slope below it', JSON.stringify(r.back));
+        r = solved('dy/dx = sqrt(x)', -1, 0, -2, 2, 0.01);
+        check(!r.pts.length && r.back.why === 'none' && r.ahead.why === 'none', 'slope field: one that starts where it has no slope is none');
+    })();
+
     // functions of other boxes by name, kept to where inequalities hold, in pieces; fits of more kinds; inflections
     (function () {
         var f = Engine.graph('f(x) = x^3 - 3x'), defs = { f: f, g: null }, kept, pieces, fit, bends;

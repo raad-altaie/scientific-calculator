@@ -445,6 +445,23 @@ check(JSON.stringify(M.vectors([1, 2, 3], [4, 5, 6], 0)).indexOf('{"dot":32,"cro
 check(JSON.stringify(M.vectorOf('1, 2, 3', false, 0)) === '[1,2,3]' && M.vectorOf('1', false, 0) === null && JSON.stringify(M.vectorOf('1;2,5', true, 0)) === '[1,2.5]',
     'vectorOf: 2 to 4 numbers, with the comma as well');
 
+// a matrix pasted: a block of a spreadsheet, lines, [1 2; 3 4] and [[1, 2], [3, 4]]; with the decimal comma
+function pastedAs(text, comma) {
+    var r = M.matrixText(text, comma, 0);
+    return r ? JSON.stringify(r.values) : 'null';
+}
+check(pastedAs('1\t2\r\n3\t4\r\n') === '[[1,2],[3,4]]' && pastedAs('1 2 3\n4 5 6') === '[[1,2,3],[4,5,6]]' && pastedAs('1, 2\n3, 4') === '[[1,2],[3,4]]',
+    'matrixText: a spreadsheet, numbers apart by spaces or commas');
+check(pastedAs('[1 2; 3 4]') === '[[1,2],[3,4]]' && pastedAs('[1, 2; 3, 4]') === '[[1,2],[3,4]]' && pastedAs('[[1,2],[3,4]]') === '[[1,2],[3,4]]' &&
+    pastedAs('{{1, 2}, {3, 4}}') === '[[1,2],[3,4]]' && pastedAs('[1 2\n3 4]') === '[[1,2],[3,4]]', 'matrixText: in brackets');
+check(pastedAs('1,5\t2\n3\t4', true) === '[[1.5,2],[3,4]]' && pastedAs('1,5 2\n3;4', true) === '[[1.5,2],[3,4]]' && pastedAs('[[1,5; 2]; [3; 4]]', true) === '[[1.5,2],[3,4]]' &&
+    pastedAs('[1,5 2; 3 4]', true) === '[[1.5,2],[3,4]]', 'matrixText: with the decimal comma, a ; or a space between numbers');
+check(pastedAs('1\t\t3\n4\t5\t6\t\n') === '[[1,0,3],[4,5,6]]' && pastedAs('1\t2\n3') === '[[1,2],[3,0]]' && JSON.stringify(M.matrixText('1\t\n3\t4', false, 0).cells) === '[["1",""],["3","4"]]',
+    'matrixText: an empty cell, and a short row, are 0, their text empty');
+check(pastedAs('sqrt(4) 1/2') === '[[2,0.5]]' && pastedAs('1,234.5\t2') === '[[1234.5,2]]', 'matrixText: each worked out, its thousands apart as well');
+check(pastedAs('5') === 'null' && pastedAs('') === 'null' && pastedAs('2 + 3') === 'null' && pastedAs('a b') === 'null' && pastedAs('[1 2] [3 4]') === 'null' && pastedAs('[[1, 2], [3') === 'null',
+    'matrixText: one number, or what is not a matrix, is not one');
+
 // polynomials of complex coefficients
 function croots(text) {
     var r = M.cpolynomial(text, false, 0);
@@ -682,6 +699,38 @@ check(M.eigen([[1, 2, 3], [4, 5, 6], [7, 8, 9]]).poly.join(' ') === '1 -15 -18 0
         M.nominalRate(10.5170918076, Infinity) === 10 && M.effectiveRate(0, 12) === 0, 'APR to APY and back, of 12 periods and all the time');
     check(isNaN(M.effectiveRate(-1200, 12)) && isNaN(M.nominalRate(-100, 12)) && isNaN(M.effectiveRate(5, 0)) && M.effectiveRate(-50, 1) === -50,
         'APR and APY: not below –100%, of periods above 0');
+})();
+
+// money: savings, a bond, depreciation, break-even, inflation and percentage change
+(function () {
+    var r = M.savings(1000, 5, 10, 12, 100, false, 600), b;
+    check(r.balance === 17175.2374423 && r.added === 13000 && r.interest === 4175.23744226 && r.byYear.length === 10 && r.byYear[9][3] === r.balance && r.byYear[0][1] === 1200 && !r.more,
+        'savings: 1000 at 5% a month for 10 years, 100 added each month', JSON.stringify([r.balance, r.added, r.interest]));
+    check(M.savings(0, 6, 1, 12, 100, true, 600).balance > M.savings(0, 6, 1, 12, 100, false, 600).balance && M.savings(1000, 0, 2, 1, 0, false, 600).balance === 1000 &&
+        M.savings(1000, 10, 2.5, Infinity, 0, false, 600).balance === 1284.02541669 && M.savings(1000, 10, 2.5, Infinity, 0, false, 600).byYear.length === 3,
+        'savings: added at the start grows more; at 0%; interest all the time, half a year at the end a year of its own');
+    check(M.savings(-1, 5, 1, 12, 0).error === 'money' && M.savings(1, 5, 1, Infinity, 5).error === 'add' && M.savings(1, 5, 1.01, 12, 0).error === 'whole' &&
+        M.savings(1, -1300, 1, 12, 0).error === 'rate' && M.savings(1, 5, 0, 12, 0).error === 'years' && M.savings(1, 5, 1000, 365, 0).error === 'long',
+        'savings: money not below 0, nothing added all the time, whole periods, a rate above –100%, up to 100000 periods');
+    r = M.savings(1, 5, 1000, 1, 0, false, 600);
+    check(r.byYear.length === 600 && r.more, 'savings: a table of the first 600 years');
+    b = M.bond(1000, 5, 10, 2, NaN, 6);
+    check(near(b.price, 925.612625698, 1e-9) && b.accrued === 0 && near(b.duration, 7.89499734018, 1e-9) && M.bond(1000, 5, 10, 2, b.price, NaN).yld === 6,
+        'bond: the price of a yield, and the yield of that price back', JSON.stringify(b));
+    check(M.bond(100, 5, 10, 2, 100, NaN).yld === 5 && M.bond(100, 0, 5, 1, NaN, 5).duration === 5 && M.bond(100, 6, 2.25, 2, NaN, 6).accrued === 1.5,
+        'bond: at par its yield is its coupon; of no coupon its duration its years; part of a period, its accrued interest');
+    check(M.bond(100, 5, 10, 2, NaN, NaN).error === 'one' && M.bond(0, 5, 10, 2, NaN, 5).error === 'face' && M.bond(100, 5, 10, 13, NaN, 5).error === 'freq' &&
+        M.bond(100, 5, 1, 1, 0, NaN).error === 'price' && M.bond(100, 5, 1, 1, 1e9, NaN).error === 'price' && M.bond(100, 5, 1, 1, NaN, -300).error === 'yield', 'bond: one empty, a face above 0, coupons a year to 12, a price it can pay, a yield above –100%');
+    check(M.depreciation(10000, 1000, 5, false).byYear.map(function (y) { return y[1]; }).join() === '1800,1800,1800,1800,1800' &&
+        M.depreciation(10000, 1000, 5, true).byYear.map(function (y) { return y[1]; }).join() === '4000,2400,1440,864,296' && M.depreciation(10000, 1000, 5, true).byYear[4][3] === 1000 &&
+        M.depreciation(10000, 1000, 5, true).rate === 40, 'depreciation: the straight line, and the double declining balance down to the salvage value');
+    check(M.depreciation(0, 0, 5).error === 'cost' && M.depreciation(100, 200, 5).error === 'salvage' && M.depreciation(100, 0, 2.5).error === 'life', 'depreciation: a cost above 0, a salvage up to it, whole years');
+    check(JSON.stringify(M.breakEven(10000, 50, 30, 0)) === '{"units":500,"sales":25000,"margin":20,"percent":40}' && M.breakEven(10000, 50, 30, 2000).units === 600 &&
+        M.breakEven(100, 5, 5, 0).error === 'margin', 'break-even: units, with a profit, and none where each leaves nothing');
+    check(JSON.stringify(M.inflation(100, 3, 10)) === '{"then":134.391637934,"now":74.4093914897,"factor":1.34391637934,"lost":25.5906085103}' && M.inflation(1, -100, 1).error === 'rate',
+        'inflation: on and back, of a rate above –100%');
+    check(JSON.stringify(M.percentChange(80, 100)) === '{"change":20,"percent":25,"margin":20,"ratio":1.25}' && isNaN(M.percentChange(0, 5).percent) && M.percentChange(-50, -25).percent === 50,
+        'percentage change: markup and margin; none of 0; of a number below 0');
 })();
 check(JSON.stringify(M.system([[2, 1, -1], [-3, -1, 2], [-2, 1, 2]], [8, -11, -3]).x) === '[2,3,-1]' &&
     JSON.stringify(M.system([[1, 0], [0, 1], [1, 1]], [1, 2, 3]).x) === '[1,2]' && M.system([[1, 0], [0, 1], [1, 1]], [1, 2, 4]).none &&

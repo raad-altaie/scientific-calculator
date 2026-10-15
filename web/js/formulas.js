@@ -975,6 +975,18 @@
             ]
         },
         {
+            c: 'Slope fields', list: [
+                { t: 'Toward a line', f: ['dy/dx = x - y {y(0) = 1, y(0) = -2}'], d: 'The slope at each place, and two solutions: every one comes to the line y = x – 1. Click for more.',
+                    v: [-5, 5, -5, 5] },
+                { t: 'k times itself', f: ['dy/dx = k y {y(0) = 1}'], d: 'y growing as fast as k times itself: drag k, above 0 it grows, below 0 it dies away.',
+                    p: { k: [0.5, -1, 1] }, v: [-4, 5, -1, 10], stretch: true },
+                { t: 'Cooling', f: ['dy/dx = -0.2(y - 20) {y(0) = 90, y(0) = 5}'], d: 'Newton\'s cooling: tea at 90° and a drink at 5°, both settling at a room\'s 20°.',
+                    v: [-2, 25, -5, 100], stretch: true },
+                { t: 'Logistic', f: ['dy/dx = 0.8y(1 - y/10) {y(0) = 0.5}'], d: 'Growth that slows as it nears 10, all there is room for.', v: [-3, 12, -2, 12], stretch: true },
+                { t: 'Circles', f: ['dy/dx = -x/y {y(0) = 3}'], d: 'Each solution part of a circle about 0: it stops where it goes straight down.', v: [-5, 5, -5, 5] }
+            ]
+        },
+        {
             c: 'Pieces and parts', list: [
                 { t: 'In two pieces', f: ['{x < 0: -x, x^2}'], d: '–x left of 0, x² from there: the first piece that holds.' },
                 { t: 'Sign', f: ['{x < 0: -1, x > 0: 1}'], d: '–1 or 1, with nothing at 0.' },

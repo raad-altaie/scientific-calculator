@@ -1339,6 +1339,113 @@
         }
     }
 
+    // A slope field: dy/dx = x – y, or y′ = x – y, its slope at each place a function of x and y,
+    // with the places its solutions start in braces after it, {y(0) = 1, y(0) = -2}, as a
+    // sequence has its first terms; each of them may be worked out, and be of sliders. Null if
+    // the text is not one: dy/dx alone, or an equation after it. kind: 'field'; at(x, y, deg) is
+    // the slope there; starts(deg) is [[x0, y0], …] as the sliders are now; text, what is
+    // before the braces, and given, the text of each start; letters and angles as of graph
+    function slopeField(text, comma, vars, defs) {
+        var s = String(text).trim(), head = /^(?:d\s*y\s*\/\s*d\s*x|y\s*['′’])\s*=\s*/.exec(s), m, parts = [], starts = [], letters = [], body, cut, c, f, ok = true;
+        if (!head || s.length > MAX_PASTE * 4) return null; // room for its starts; what is before them is held to MAX_PASTE as any equation is
+        body = s.slice(head[0].length);
+        m = /\{([^{}]*)\}\s*$/.exec(body);
+        if (m && apart(m[1], comma).every(function (part) { return /^\s*y\s*\(/.test(part); })) { // the starts; braces of another kind are of the function, its pieces
+            parts = apart(m[1], comma);
+            body = body.slice(0, m.index).trim();
+        }
+        if (!body || /[=<>≤≥]/.test(body.replace(/\{[^{}]*\}/g, ''))) return null; // of the pieces of a function in braces, their conditions
+        // the inequalities in braces at its end, x - y {0 < x < 3}, of x and y both, kept apart: the
+        // slope has no value where one does not hold
+        cut = conditions(body, comma, vars, defs);
+        if (!cut || !cut.s) return null;
+        // of x and y as an equation of them is read, its side less 0; of x alone, or neither, as a function
+        c = relation('(' + cut.s + ') = 0', comma, vars, defs);
+        if (c && !c.parts) {
+            f = c.at;
+        } else {
+            c = graph(cut.s, comma, vars, defs);
+            f = c && function (x, y, deg) { return c.at(x, deg); };
+        }
+        if (!c) return null;
+        if (cut.when.length) {
+            f = (function (at) {
+                return function (x, y, deg) {
+                    return cut.when.every(function (w) { return holds(w, x, y, deg); }) ? at(x, y, deg) : NaN;
+                };
+            })(f);
+        }
+        joined([c].concat(cut.when)).forEach(function (k) { if (letters.indexOf(k) < 0) letters.push(k); });
+        parts.forEach(function (part) {
+            var t = /^\s*y\s*\(([^=]*)\)\s*=(.*)$/.exec(part), a = t && fixed(t[1]), b = t && fixed(t[2]);
+            if (!a || !b) ok = false;
+            else starts.push([a, b]);
+        });
+        if (!ok) return null;
+        return {
+            kind: 'field',
+            at: f,
+            starts: function (deg) {
+                return starts.map(function (q) { return [q[0].at(0, deg), q[1].at(0, deg)]; });
+            },
+            text: s.slice(0, head[0].length) + body,
+            given: parts.map(function (part) { return part.trim(); }),
+            angles: c.angles || cut.when.some(function (w) { return w.angles; }) || starts.some(function (q) { return q[0].angles || q[1].angles; }),
+            letters: letters
+        };
+
+        // a number of a start, which may be worked out and be of sliders, but not of x or y
+        function fixed(part) {
+            var g = part.trim() && !/\by\b/.test(part) && graph(part, comma, vars, defs);
+            if (!g || isNaN(g.at(0, 0)) !== isNaN(g.at(NaN, 0))) return null;
+            g.letters.forEach(function (k) { if (letters.indexOf(k) < 0) letters.push(k); });
+            return g;
+        }
+    }
+
+    // A solution of a slope field through (x0, y0), from x0 on to the right as far as to and to
+    // the left as far as from: by Runge and Kutta's way of the fourth order, in steps of h, each
+    // halved, down to a 1024th of h, until neither its slope, nor how its slope changes across
+    // it, moves y more than dy in it, so that it follows a curve that turns up steeply and stops
+    // where it goes straight up, not jumping across. { pts: [[x, y], …] by x, back and ahead: where
+    // it stops each way and why, { x, y, why: 'none' of a slope of no value, 'large' of y past big,
+    // 'steep' of one steeper than its smallest step can follow, 'many' of more than 100000 steps },
+    // or null where it goes as far as it was to go }
+    function solveField(field, x0, y0, from, to, deg, h, dy, big) {
+        var back = walk(-1, from), ahead = walk(1, to);
+        return { pts: back.pts.reverse().concat(isFinite(field.at(x0, y0, deg)) ? [[x0, y0]] : [], ahead.pts), back: back.stop, ahead: ahead.stop };
+
+        function walk(dir, end) {
+            var x = x0, y = y0, pts = [], stop = null, n = 0, step, k1, k2, k3, k4, next, ok;
+            if (!isFinite(x0) || !isFinite(y0)) return { pts: pts, stop: { x: x0, y: y0, why: 'none' } };
+            while ((end - x) * dir > 1e-9 * h && !stop) {
+                k1 = field.at(x, y, deg);
+                if (!isFinite(k1)) {
+                    stop = { x: x, y: y, why: isNaN(k1) ? 'none' : 'steep' };
+                    break;
+                }
+                for (step = dir * Math.min(h, Math.abs(end - x)); ; step /= 2) {
+                    k2 = field.at(x + step / 2, y + step * k1 / 2, deg);
+                    k3 = field.at(x + step / 2, y + step * k2 / 2, deg);
+                    k4 = field.at(x + step, y + step * k3, deg);
+                    next = y + step * (k1 + 2 * k2 + 2 * k3 + k4) / 6;
+                    ok = isFinite(next) && (!dy || (Math.abs(step) * Math.max(Math.abs(k1), Math.abs(k4), Math.abs(k2 - k1), Math.abs(k3 - k1), Math.abs(k4 - k1)) <= dy &&
+                        Math.abs(next - y) <= dy));
+                    if (ok || Math.abs(step) <= h / 1024) break;
+                }
+                if (!ok) stop = { x: x, y: y, why: isNaN(next) ? 'none' : !isFinite(next) ? 'large' : 'steep' };
+                else if (Math.abs(next) > (big || 1e12)) stop = { x: x, y: y, why: 'large' };
+                else if (++n > 100000) stop = { x: x, y: y, why: 'many' };
+                else {
+                    x += step;
+                    y = next;
+                    pts.push([x, y]);
+                }
+            }
+            return { pts: pts, stop: stop };
+        }
+    }
+
     // Points to plot, as a list: (1, 2), (2, 4.1), (3, 5.9), or with the comma in use (1,5; 2).
     // [{ x, y }], or null if the text is not one
     function points(text, comma) {
@@ -1762,8 +1869,9 @@
         });
 
         (planes || []).forEach(function (c, i) {
-            var ends = c && c.range(deg), m = 800, us = [], at = [], du, k2;
-            if (!c || c.kind === 'seq') return; // a sequence is its dots, marks enough of themselves
+            var ends, m = 800, us = [], at = [], du, k2;
+            if (!c || c.kind === 'seq' || c.kind === 'field') return; // a sequence is its dots, marks enough of themselves; a slope field has no marks
+            ends = c.range(deg);
             du = (ends[1] - ends[0]) / m;
             for (k2 = 0; k2 <= m; k2++) {
                 us.push(ends[0] + k2 * du);
@@ -3226,6 +3334,8 @@
     Engine.holds = holds;
     Engine.plane = plane;
     Engine.sequence = sequence;
+    Engine.slopeField = slopeField;
+    Engine.solveField = solveField;
     Engine.numbers = numbers;
     Engine.points = points;
     Engine.fitLine = fitLine;

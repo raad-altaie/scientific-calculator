@@ -2777,6 +2777,44 @@
         return v.every(isFinite) ? v : null;
     }
 
+    // A matrix pasted: a block of a spreadsheet, its rows on lines and a tab between its numbers;
+    // lines of numbers with spaces, or commas, between them; or a matrix in brackets, [1 2; 3 4]
+    // with a ; between its rows, or [[1, 2], [3, 4]] with each row in brackets of its own. With
+    // a decimal comma a comma is of a number, so a ; or a space goes between numbers, in the
+    // brackets of each row as well: [[1,5; 2]; [3; 4]]. Each may be worked out, sqrt(2); an empty
+    // cell of a spreadsheet is '', and a row shorter than the others is filled out with ''.
+    // { cells: the text of each, values: their numbers, 0 for '' }, or null for one number alone
+    // or anything that is not a matrix
+    function matrixText(text, comma, deg) {
+        var s = String(text).replace(/^﻿/, '').replace(/\r\n?/g, '\n').trim(), between = comma ? /\s*;\s*|\s+/ : /\s*[,;]\s*|\s+/,
+            inner, cells, width, values;
+        if (!s || s.length > 20000) return null;
+        if (/^[\[{]/.test(s) && /[\]}]$/.test(s)) {
+            inner = s.slice(1, -1).trim();
+            cells = /^[\[{]/.test(inner) && /[\]}]$/.test(inner) ? inner.slice(1, -1).split(/[\]}]\s*[,;]?\s*[\[{]/).map(function (r) { // [[1, 2], [3, 4]]
+                return r.trim().split(between);
+            }) : inner.split(/\s*[;\n]\s*/).map(function (r) { // [1 2; 3 4]: a ; or a new line between its rows
+                return r.trim().split(comma ? /\s+/ : /\s*,\s*|\s+/);
+            });
+        } else {
+            cells = s.split('\n').filter(function (r) { return r.trim(); }).map(function (r) {
+                var c;
+                if (!/\t/.test(s)) return r.trim().split(between);
+                c = r.split('\t').map(function (x) { return x.trim(); }); // a spreadsheet's: what is between tabs, an empty cell as well, but none after the last number
+                while (c.length > 1 && !c[c.length - 1]) c.pop();
+                return c;
+            });
+        }
+        if (cells.length > 1000 || cells.some(function (r) { return r.some(function (c) { return /[\[\]{}]/.test(c); }); })) return null;
+        width = Math.max.apply(null, cells.map(function (r) { return r.length; }));
+        if (cells.length * width < 2) return null;
+        cells.forEach(function (r) {
+            while (r.length < width) r.push('');
+        });
+        values = cells.map(function (r) { return r.map(function (c) { return c ? number(c, comma, deg) : 0; }); });
+        return values.every(function (r) { return r.every(isFinite); }) ? { cells: cells, values: values } : null;
+    }
+
     // Of two vectors of one size: { dot, cross: of two of 3 a vector, of 2 its one number, of 4
     // none, lengths: [|u|, |v|], angle between them in the unit deg, projection of u on v, unit:
     // u of length 1 }
@@ -3639,6 +3677,163 @@
         return round((m === Infinity ? Math.log1p(r) : m * Math.expm1(Math.log1p(r) / m)) * 100);
     }
 
+    // The change from a to b: { change: b – a, percent: of a, which of a cost and a price is the
+    // markup, margin: the change as a percentage of b, ratio: b ÷ a }, NaN where it divides by 0
+    function percentChange(a, b) {
+        if (!isFinite(a) || !isFinite(b)) return { change: NaN, percent: NaN, margin: NaN, ratio: NaN };
+        return { change: round(b - a), percent: a ? round((b - a) / Math.abs(a) * 100) : NaN, margin: b ? round((b - a) / Math.abs(b) * 100) : NaN, ratio: a ? round(b / a) : NaN };
+    }
+
+    // An amount of money at inflation of rate, a percentage a year, for years: { then: what it
+    // costs after them, now: what it was worth before them, factor: how many times prices grow,
+    // lost: the percentage of what money buys lost } or { error: 'rate' for one not above –100% }
+    function inflation(amount, rate, years) {
+        var r = rate / 100, f;
+        if (!(r > -1) || !isFinite(r)) return { error: 'rate' };
+        f = Math.exp(years * Math.log1p(r));
+        return { then: round(amount * f), now: round(amount / f), factor: round(f), lost: round(-Math.expm1(-years * Math.log1p(r)) * 100) };
+    }
+
+    // Where sales cover the fixed costs and the profit wanted, of a price and a cost of each one:
+    // { units, sales: what they come to, margin: what each one leaves, percent: of the price } or
+    // { error: 'margin' where each one leaves nothing, so none are enough }
+    function breakEven(fixed, price, cost, profit) {
+        var m = price - cost, units;
+        if (!(m > 0)) return { error: 'margin' };
+        units = (fixed + profit) / m;
+        return { units: round(units), sales: round(units * price), margin: round(m), percent: price ? round(m / price * 100) : NaN };
+    }
+
+    // Money saved at the rate, a percentage a year, of interest m times a year, ∞ for all the time,
+    // for years, with add put in each period, at its end or with start at its start: { balance,
+    // added: all of it put in, start as well, interest, apy, byYear: [year, put in, interest,
+    // balance at its end] for each of the first max years, more } or { error: 'money' for an amount
+    // below 0, 'years', 'm', 'rate' for a rate a period not above –100%, 'whole' where years times
+    // m is not a whole number of periods, 'add' for adding with interest all the time, 'long' for
+    // more than 100000 periods }
+    function savings(start, rate, years, m, add, begin, max) {
+        var r = rate / 100, byYear = [], balance = start, added = start, interest = 0, year = null, n, i, k, owed, y, b;
+        if (!(start >= 0) || !(add >= 0) || !isFinite(start) || !isFinite(add)) return { error: 'money' };
+        if (!(years > 0) || !isFinite(years)) return { error: 'years' };
+        if (!(m > 0)) return { error: 'm' };
+        if (m === Infinity) {
+            if (add) return { error: 'add' };
+            if (!(r > -1) || !isFinite(r)) return { error: 'rate' };
+            for (k = 1; k < years + 1 - 1e-9 && byYear.length < max; k++) {
+                y = Math.min(k, years);
+                b = start * Math.exp(r * y);
+                byYear.push([k, 0, round(b - balance), round(b)]);
+                balance = b;
+            }
+            balance = start * Math.exp(r * years);
+            return { balance: round(balance), added: round(start), interest: round(balance - start), apy: round(Math.expm1(r) * 100), byYear: byYear,
+                more: byYear.length < Math.ceil(years - 1e-9) };
+        }
+        i = r / m;
+        n = years * m;
+        if (!(i > -1) || !isFinite(i)) return { error: 'rate' };
+        if (Math.abs(n - Math.round(n)) > 1e-9 * n || Math.round(n) < 1) return { error: 'whole' };
+        n = Math.round(n);
+        if (n > 100000) return { error: 'long' };
+        for (k = 1; k <= n; k++) {
+            if (!year || year[0] !== Math.ceil(k / m - 1e-9)) {
+                year = byYear.length < max ? [Math.ceil(k / m - 1e-9), 0, 0, 0] : [Math.ceil(k / m - 1e-9), 0, 0, 0, true];
+                if (!year[4]) byYear.push(year);
+            }
+            if (begin) balance += add;
+            owed = balance * i;
+            balance += owed;
+            if (!begin) balance += add;
+            added += add;
+            interest += owed;
+            year[1] += add;
+            year[2] += owed;
+            year[3] = balance;
+        }
+        return { balance: round(balance), added: round(added), interest: round(interest), apy: round(Math.expm1(m * Math.log1p(i)) * 100),
+            byYear: byYear.map(function (y) { return y.map(round); }), more: byYear.length < Math.ceil(n / m - 1e-9) };
+    }
+
+    // What an asset of a cost loses each year of its life, a whole number of years, down to what it
+    // is worth at the end, salvage: by the straight line, the same each year, or with declining by
+    // the double declining balance, twice the straight line's rate of what is left each year, never
+    // below salvage, and the straight line over the years left once that loses more, as Excel's
+    // VDB does. { first: of the first year, rate: a percentage a year, byYear: [year,
+    // depreciation, all of it so far, book value] } or { error: 'cost' for one not above 0,
+    // 'salvage' for one below 0 or above the cost, 'life' for one not a whole number from 1 to 1000 }
+    function depreciation(cost, salvage, life, declining) {
+        var book = cost, total = 0, byYear = [], k, d, straight;
+        if (!(cost > 0) || !isFinite(cost)) return { error: 'cost' };
+        if (!(salvage >= 0) || !(salvage <= cost)) return { error: 'salvage' };
+        if (!isWhole(life) || life < 1 || life > 1000) return { error: 'life' };
+        for (k = 1; k <= life; k++) {
+            straight = (book - salvage) / (life - k + 1);
+            d = declining ? Math.max(Math.min(book * 2 / life, book - salvage), straight) : straight;
+            book = k === life ? salvage : book - d;
+            total += d;
+            byYear.push([k, round(d), round(total), round(book)]);
+        }
+        return { first: byYear[0][1], rate: round((declining ? 200 : 100) / life), byYear: byYear };
+    }
+
+    // A bond of a face value, paying coupon, a percentage of it a year, freq times a year, years
+    // from its end; years need not be whole periods, as the first coupon is then nearer than a
+    // period, by the part of one left: priced as on that part, the coupon earned so far its
+    // accrued interest. Of price, its clean price, without the accrued interest, and yld, a
+    // percentage a year of freq periods, as a BA II Plus gives them, the one that is NaN is worked
+    // out. { price, yld, accrued, dirty: the price with it, current: the coupon a year as a
+    // percentage of the price, duration: Macaulay's, in years, modified: of the yield a year }
+    // or { error: 'one', 'face' for one not above 0, 'coupon' for one below 0, 'years' for none,
+    // 'freq' for one not from 1 to 12, 'yield' for a yield a period not above –100%, 'price' for
+    // one not above 0, 'long' for more than 100000 coupons }
+    function bond(face, coupon, years, freq, price, yld) {
+        var c, n, w, cnt, accrued, y, lo, hi, k, find = isNaN(price) ? 'price' : isNaN(yld) ? 'yld' : '', dirty, dur;
+        if (!find || (find === 'price' && isNaN(yld)) || !isFinite(find === 'price' ? yld : price)) return { error: 'one' };
+        if (!(face > 0) || !isFinite(face)) return { error: 'face' };
+        if (!(coupon >= 0) || !isFinite(coupon)) return { error: 'coupon' };
+        if (!(years > 0) || !isFinite(years)) return { error: 'years' };
+        if (!isWhole(freq) || freq < 1 || freq > 12) return { error: 'freq' };
+        c = face * coupon / 100 / freq;
+        n = years * freq;
+        cnt = Math.abs(n - Math.round(n)) <= 1e-9 * n ? Math.round(n) : Math.ceil(n);
+        if (cnt > 100000) return { error: 'long' };
+        w = n - (cnt - 1); // of a period, to the first coupon
+        if (Math.abs(w - 1) < 1e-9) w = 1;
+        accrued = c * (1 - w);
+        // the price with the accrued interest, and its weighted times of payment, at y a period
+        function value(y, timed) {
+            var u = Math.log1p(y), sum = 0, t = 0, k, at, v;
+            for (k = 0; k < cnt; k++) {
+                at = k + w;
+                v = (c + (k === cnt - 1 ? face : 0)) * Math.exp(-at * u);
+                sum += v;
+                t += v * at;
+            }
+            return timed ? t : sum;
+        }
+        if (find === 'price') {
+            y = yld / 100 / freq;
+            if (!(y > -1)) return { error: 'yield' };
+        } else {
+            if (!(price > 0)) return { error: 'price' };
+            dirty = price + accrued;
+            if (value(-0.9999) < dirty) return { error: 'price' }; // more than every payment comes to: a yield below –100%
+            lo = -0.9999;
+            hi = 1;
+            while (value(hi) > dirty && hi < 1e6) hi *= 2;
+            for (k = 0; k < 200 && hi - lo > 1e-15 * Math.max(1, Math.abs(hi)); k++) { // the price falls as the yield grows: halving finds it
+                y = (lo + hi) / 2;
+                if (value(y) > dirty) lo = y;
+                else hi = y;
+            }
+            y = (lo + hi) / 2;
+        }
+        dirty = value(y);
+        dur = value(y, true) / dirty / freq;
+        return { price: round(dirty - accrued), yld: round(y * freq * 100), accrued: round(accrued), dirty: round(dirty),
+            current: round(coupon * face / (dirty - accrued)), duration: round(dur), modified: round(dur / (1 + y)) };
+    }
+
     // ---------- dates ---------- //
 
     // A date is its day: the days from 1 January 1970, as the calendar of today goes back
@@ -3809,6 +4004,7 @@
         lu: lu,
         qr: qr,
         vectorOf: vectorOf,
+        matrixText: matrixText,
         vectors: vectors,
         cpoly: cpoly,
         cpolynomial: cpolynomial,
@@ -3832,6 +4028,12 @@
         amortize: amortize,
         effectiveRate: effectiveRate,
         nominalRate: nominalRate,
+        percentChange: percentChange,
+        inflation: inflation,
+        breakEven: breakEven,
+        savings: savings,
+        depreciation: depreciation,
+        bond: bond,
         dayFrom: dayFrom,
         dateOf: dateOf,
         readDate: readDate,

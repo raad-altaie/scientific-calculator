@@ -2295,7 +2295,7 @@
 
 #calculator .calc-sv-table .calc-sv-cell,
 #calculator .calc-sv-th {
-    padding: 0 5px;
+    padding: 0 3px;
     border-left: 1px solid #8eab9b;
     border-bottom: 1px solid #a3bdaf;
     border-radius: 0;
@@ -2348,6 +2348,24 @@
 
 #calculator .calc-sv-copy:hover {
     background: #46677f;
+}
+
+/* Copy of a matrix of results, at the top right of its tile, smaller, over the line of its name */
+#calculator .calc-sv-matrix {
+    position: relative;
+}
+
+#calculator .calc-sv-matrix:not(.calc-sv-table) .calc-sv-label {
+    padding-right: 46px;
+}
+
+#calculator .calc-sv-copy-m {
+    position: absolute;
+    top: 4px;
+    right: 6px;
+    padding: 0 6px;
+    font-size: 11px;
+    line-height: 16px;
 }
 
 /* the column of what linear equations equal, b of A | b: a line before it */

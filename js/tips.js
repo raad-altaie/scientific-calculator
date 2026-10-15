@@ -141,7 +141,8 @@
             d: 'Equations and inequalities solved for x, in exact form as well; turning points; polynomials, linear equations and ' +
                 'two curves; integrals, slopes, sums, products, ' +
                 'limits, Taylor series, areas between curves, arc lengths and differential equations; the normal, t, χ², F, binomial, ' +
-                'Poisson and other distributions, and confidence intervals; and money over time, NPV and IRR, payment schedules and APR and APY. Click a result to put it in.',
+                'Poisson and other distributions, and confidence intervals; and money over time, NPV and IRR, loans and savings, APR and APY, bonds, depreciation, ' +
+                'break-even, inflation and percentage change. Click a result to put it in.',
             k: ''
         },
         'solve close': {
@@ -162,7 +163,8 @@
         'solve tab finance': {
             t: 'Finance',
             d: 'Money over time, as a BA II Plus works it out: N, I/Y, PV, PMT and FV, the one left empty found; NPV, IRR and payback of ' +
-                'cash flows; a loan\'s payment schedule, by year or by payment; and APR and APY, each of the other.',
+                'cash flows; a loan\'s payment schedule, by year or by payment; savings growth; APR and APY, each of the other; a bond\'s price or ' +
+                'yield; depreciation; break-even; inflation; and percentage change and markup.',
             k: ''
         },
         'solve tab chance': {
@@ -172,12 +174,22 @@
         },
         'choice due 0': {
             t: 'At the end',
-            d: 'Each payment at the end of its period, as a loan is paid: END on a BA II Plus.',
+            d: 'Each payment at the end of its period, as a loan is paid, or a saving added: END on a BA II Plus.',
             k: ''
         },
         'choice due 1': {
             t: 'At the start',
             d: 'Each payment at the start of its period, as rent is paid or a saving put in: BGN on a BA II Plus.',
+            k: ''
+        },
+        'choice way 0': {
+            t: 'Straight line',
+            d: 'The same each year: the cost less the salvage value, over the years.',
+            k: ''
+        },
+        'choice way 1': {
+            t: 'Declining balance',
+            d: 'Double declining: twice the straight line\'s rate of what is left each year, more at first, then the straight line once that loses more, down to the salvage value.',
             k: ''
         },
         'choice by 0': {
@@ -195,14 +207,22 @@
             d: 'Copies the table with its heads, a tab between the numbers, all their digits: it pastes into a spreadsheet, a number in each cell.',
             k: ''
         },
+        'card example': {
+            t: 'Example',
+            d: 'Types an example in the boxes, in place of what is there, to see what the card does: then change any number of it.',
+            k: ''
+        },
+        'matrix copy': {
+            t: 'Copy',
+            d: 'Copies the matrix, a tab between its numbers and a line for each row, all their digits: it pastes into a spreadsheet, or into the first box of a matrix here, for the next step.',
+            k: ''
+        },
 
         // the numbers
         'numbers': {
             t: 'Matrices, complex numbers and bases',
-            d: 'Matrices up to 10 × 10, their determinant, inverse, powers, products and eigenvalues, rows reduced, LU and QR, and A x = b; vectors; ' +
-                'complex numbers, (2 + 3i)(1 – i), with their length and angle, and roots of polynomials of them; whole numbers in bits, in decimal, ' +
-                'hexadecimal, octal and binary, with AND, OR and XOR, their bits to click, any base, text as its codes, and numbers as doubles and floats; ' +
-                'and the prime factors of a whole number, GCD and LCM, modular arithmetic, primes, numbers to every digit, fractions, and rounding. ' +
+            d: 'Matrices up to 10 × 10, their determinant, inverse, eigenvalues and A x = b, pasted from a spreadsheet or typed as [1 2; 3 4]; ' +
+                'vectors; complex numbers, (2 + 3i)(1 – i); whole numbers in any base, with their bits; and prime factors, GCD and LCM, primes and fractions. ' +
                 'Click a result to put it in.',
             k: ''
         },
@@ -216,7 +236,8 @@
         'graph': {
             t: 'Graph',
             d: 'Draws up to seven functions of x, with a slider for any other letter, as a in a x^2 + b: x^2 – 3, 2sin(x), 1/x, sequences, a(n) = a(n – 1) + 2 {a(1) = 1}, and marks their roots, highs, lows and ' +
-                'crossings. Drag to move, scroll or pinch to zoom; point at a curve or a dot for its values. ' +
+                'crossings; and slope fields, dy/dx = x – y {y(0) = 1}, with the solution through each start, a click off the curves adding one. ' +
+                'Drag to move, scroll or pinch to zoom; point at a curve or a dot for its values. ' +
                 'Click one for the slope there and its tangent. The Table tab lists their values.',
             k: ''
         },

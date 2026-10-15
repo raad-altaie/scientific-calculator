@@ -190,6 +190,15 @@
         return root.getBoundingClientRect().width / root.offsetWidth || 1;
     }
 
+    // its text wider than its room: scrollWidth, a whole number, misses an overflow of less than a pixel, which still shows …
+    // Not of one not laid out, in a panel still hidden: it has no room to measure
+    function tooWide(el) {
+        var range = document.createRange(), style = getComputedStyle(el);
+        if (!el.clientWidth) return false;
+        range.selectNodeContents(el);
+        return range.getBoundingClientRect().width / scale() > el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    }
+
     // a place on the screen, a box or a point of the pointer, as the calculator counts it:
     // in its own pixels, from inside its border, where left and top count from
     function inside(box) {
@@ -520,7 +529,7 @@
             '.calc-graph-btn, .calc-graph-size, .calc-graph-add, .calc-graph-del, .calc-graph-diff, .calc-graph-points, .calc-graph-zoom > span, .calc-graph-pop-end, .calc-graph-pop-row, .calc-graph-play, ' +
             '.calc-graph-fn > .calc-graph-swatch, ' +
             '.calc-stats-chart, .calc-hist, .calc-past-export, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit, .calc-help, ' +
-            '.calc-solve .calc-solve-tab, .calc-sv-opt, .calc-sv-copy');
+            '.calc-solve .calc-solve-tab, .calc-sv-opt, .calc-sv-copy, .calc-sv-example');
         if (key === tipKey) return;
         hideTip();
         tipKey = key;
@@ -1315,7 +1324,7 @@
             tile.classList.toggle('calc-none', !known);
             shown.innerHTML = known ? statsValue(value).html : '–';
             shown.style.fontSize = '';
-            while (size > 11 && shown.scrollWidth > shown.clientWidth) { // a long one gets smaller, as on the display
+            while (size > 11 && tooWide(shown)) { // a long one gets smaller, as on the display
                 shown.style.fontSize = --size + 'px';
             }
         });
@@ -1489,6 +1498,7 @@
         GRAPH_POP_STILL = 8, // this many pixels of the plot
         graphPopShut = false, // the popup put away, the point clicked and its tangent still drawn
         GRAPH_TRACE = 2, // ← and → move the point clicked this many pixels along its curve, ten times as far with Shift
+        FIELD_STARTS = 20, // solutions of a slope field a click adds, the first going past them
         graphTracing = -1, // the curve traced last: of the two at a crossing, the one to go on along
         graphWindow = graphPlot.querySelector('.calc-graph-window'), // the view typed: x from and to, y from and to
         graphEnds = [].slice.call(graphWindow.querySelectorAll('input')),
@@ -2121,10 +2131,11 @@
 
     // What a box is: a function of x, an equation or an inequality, a curve of a parameter or
     // points, as { fn }, { rel }, { plane } or { data }; null if none. A sequence, a(n) = 2n + 1,
-    // is a plane too, of its kind seq: it has its range and its extra boxes as a polar curve has.
-    // defs: the functions named
+    // is a plane too, of its kind seq: it has its range and its extra boxes as a polar curve has;
+    // and a slope field, dy/dx = x – y, of its kind field, read before an equation would take it
+    // as one of d, y and x. defs: the functions named
     function readBox(text, defs) {
-        var r = CalcEngine.sequence(text, engine.comma, graphVars, defs);
+        var r = CalcEngine.slopeField(text, engine.comma, graphVars, defs) || CalcEngine.sequence(text, engine.comma, graphVars, defs);
         if (r) return { plane: r };
         r = CalcEngine.graph(text, engine.comma, graphVars, defs);
         if (r) return { fn: r };
@@ -2253,7 +2264,7 @@
             if (fn) drawCurve(ctx, v, w, h, fn, curveColor(i));
             if (fn && graphDiff[i] && !graphData[i]) drawCurve(ctx, v, w, h, slopeCurve(fn), curveColor(i), true);
             if (graphRels[i]) drawRelation(ctx, v, w, h, graphRels[i], curveColor(i));
-            if (graphPlanes[i]) (graphPlanes[i].kind === 'seq' ? drawSequence : drawPlane)(ctx, v, w, h, graphPlanes[i], curveColor(i));
+            if (graphPlanes[i]) ({ seq: drawSequence, field: drawField }[graphPlanes[i].kind] || drawPlane)(ctx, v, w, h, graphPlanes[i], curveColor(i));
         });
         graphTangent(ctx, v, w + h, graphPinned);
         key = [graphVersion, v.x, v.y, v.ux, v.uy, w, h, deg, JSON.stringify(graphVars)].join();
@@ -2273,7 +2284,8 @@
         if (graphShading && graphEdge) graphEdgeLine(ctx, v, h, graphEdge);
         [graphAt, graphPinned].forEach(function (p, at) {
             if (!p || p.area || (at && p === graphAt)) return;
-            if (!p.t && !p.spot && p.u !== undefined && graphPlanes[p.i]) onPlane(p);
+            if (!p.t && !p.spot && p.sol !== undefined && graphPlanes[p.i]) p.y = solutionAt(graphPlanes[p.i], p.sol, p.x); // on its solution as the letters are now
+            else if (!p.t && !p.spot && p.u !== undefined && graphPlanes[p.i]) onPlane(p);
             else if (!p.t && !p.spot && graphFns[p.i]) p.y = graphFns[p.i].at(p.x, deg, true); // on the curve as the unit is now
             else if (!p.t && !p.spot && graphRels[p.i]) onEquation(v, p);
             if (!isFinite(p.y) || Math.abs(plotY(v, p.y)) > 1e6) return;
@@ -2318,12 +2330,12 @@
     // place off the curves, where two cross, or where the curve has no slope
     function graphTangent(ctx, v, far, p) {
         var one = p && !p.spot && !p.area && !p.data && p.j === undefined, plane = one && p.u !== undefined && graphPlanes[p.i],
-            fn = one && !plane && graphFns[p.i], rel = one && !fn && !plane && relPart(p), x, y, k;
+            field = one && p.sol !== undefined && graphPlanes[p.i], fn = one && !plane && !field && graphFns[p.i], rel = one && !fn && !plane && !field && relPart(p), x, y, k;
         if (!p) return;
         p.m = NaN;
-        if ((!fn && !rel && !plane) || (plane && plane.kind === 'seq')) return; // a sequence is of dots, with no slope
+        if ((!fn && !rel && !plane && !field) || (plane && plane.kind === 'seq')) return; // a sequence is of dots, with no slope
         if (fn && !p.t) p.y = fn.at(p.x, deg, true); // on the curve as the unit and the letters are now
-        p.m = fn ? CalcEngine.slope(fn, p.x, deg) : rel ? CalcEngine.relationSlope(rel, p.x, p.y, deg) : planeSlope(plane, p.u);
+        p.m = field ? field.at(p.x, p.y, deg) : fn ? CalcEngine.slope(fn, p.x, deg) : rel ? CalcEngine.relationSlope(rel, p.x, p.y, deg) : planeSlope(plane, p.u); // of a solution, its field's slope there
         if (isNaN(p.m) || !isFinite(p.y)) return;
         x = plotX(v, p.x);
         y = plotY(v, p.y);
@@ -2464,6 +2476,145 @@
             return true;
         });
         return out;
+    }
+
+    // A slope field: a short line across each place of a grid, 22 pixels apart, at the slope
+    // there, fainter in its color, none where it has no slope and upright where it goes straight
+    // up; the places at the middles of the grid's squares, so that none is on an axis, and fixed
+    // to the plane as it moves. Then the solution through each start given, in its color, a dot
+    // where it starts
+    function drawField(ctx, v, w, h, c, color) {
+        var gap = 22, half = gap * 0.31, sx = gap * v.ux, sy = gap * v.uy, i, j, x, y, px, py, m, k, dx, dy, shown = 0;
+        ctx.beginPath();
+        for (i = Math.floor(graphX(v, 0) / sx); (i + 0.5) * sx <= graphX(v, w); i++) {
+            for (j = Math.floor(graphY(v, h) / sy); (j + 0.5) * sy <= graphY(v, 0); j++) {
+                x = (i + 0.5) * sx;
+                y = (j + 0.5) * sy;
+                m = c.at(x, y, deg);
+                if (isNaN(m)) continue;
+                shown++;
+                px = plotX(v, x);
+                py = plotY(v, y);
+                k = -m * v.ux / v.uy; // its slope in pixels, down the plot
+                dx = isFinite(k) ? half / Math.sqrt(1 + k * k) : 0;
+                dy = isFinite(k) ? k * dx : half;
+                ctx.moveTo(px - dx, py - dy);
+                ctx.lineTo(px + dx, py + dy);
+            }
+        }
+        c.none = !shown; // of no slope anywhere in the view, for the note
+        ctx.lineWidth = 1.2;
+        ctx.lineCap = 'round';
+        ctx.globalAlpha = 0.55;
+        ctx.strokeStyle = color;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.lineCap = 'butt';
+        fieldSolutions(c, v, w, h).forEach(function (s) {
+            var on = false;
+            ctx.beginPath();
+            s.pts.forEach(function (q) {
+                var a = plotX(v, q[0]), b = plotY(v, q[1]), ok = Math.abs(b) < 1e5;
+                if (ok && on) ctx.lineTo(a, b); else if (ok) ctx.moveTo(a, b);
+                on = ok;
+            });
+            ctx.lineWidth = 2;
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = color;
+            ctx.stroke();
+            if (isFinite(s.y0) && Math.abs(plotY(v, s.y0)) < 1e5) {
+                ctx.beginPath();
+                ctx.arc(plotX(v, s.x0), plotY(v, s.y0), 3, 0, 2 * Math.PI);
+                ctx.fillStyle = color;
+                ctx.fill();
+            }
+        });
+    }
+
+    // The solutions of a slope field through its starts, across the view and 40 pixels past it
+    // each way, a step a pixel and y to move no more than 4 pixels in one, as far as y stays
+    // within 20 heights of the view: kept while the view, the unit and the sliders stay
+    function fieldSolutions(c, v, w, h) {
+        var key = [v.x, v.y, v.ux, v.uy, w, h, deg].concat(c.letters.map(function (k) { return graphVars[k]; })).join(),
+            top = graphY(v, 0), bottom = graphY(v, h), big = Math.max(Math.abs(top), Math.abs(bottom)) + 20 * (top - bottom);
+        if (c.kept && c.kept.key === key) return c.kept.sols;
+        c.kept = { key: key, sols: c.starts(deg).map(function (q) {
+            var r = q.every(isFinite) ? CalcEngine.solveField(c, q[0], q[1], graphX(v, -40), graphX(v, w + 40), deg, v.ux, 4 * v.uy, big) :
+                { pts: [], back: null, ahead: null };
+            r.x0 = q[0];
+            r.y0 = q[1];
+            return r;
+        }) };
+        return c.kept.sols;
+    }
+
+    // y at x of the solution k of the slope field c, between the two steps about x; NaN out of it
+    function solutionY(c, k, x) {
+        var pts = c.kept && c.kept.sols[k] ? c.kept.sols[k].pts : [], lo = 0, hi = pts.length - 1, mid, t;
+        if (!pts.length || x < pts[0][0] || x > pts[hi][0]) return NaN;
+        while (hi - lo > 1) {
+            mid = (lo + hi) >> 1;
+            if (pts[mid][0] <= x) lo = mid; else hi = mid;
+        }
+        t = pts[hi][0] === pts[lo][0] ? 0 : (x - pts[lo][0]) / (pts[hi][0] - pts[lo][0]);
+        return pts[lo][1] + t * (pts[hi][1] - pts[lo][1]);
+    }
+
+    // y at x of the solution k of the slope field c, to all the digits shown: from its start in 4096
+    // steps of Runge and Kutta, as far as it is drawn; NaN out of it
+    function solutionAt(c, k, x) {
+        var s = c.kept && c.kept.sols[k], r;
+        if (!s || !isFinite(solutionY(c, k, x))) return NaN;
+        if (x === s.x0) return s.y0;
+        r = CalcEngine.solveField(c, s.x0, s.y0, Math.min(x, s.x0), Math.max(x, s.x0), deg, Math.abs(x - s.x0) / 4096);
+        return r.back || r.ahead ? NaN : r.pts[x < s.x0 ? 0 : r.pts.length - 1][1];
+    }
+
+    // where a solution starts, as the point is written: (0, 1), or (0; 1) with the decimal comma
+    function startText(s) {
+        return '(' + local(String(+s.x0.toPrecision(6))) + (engine.comma ? '; ' : ', ') + local(String(+s.y0.toPrecision(6))) + ')';
+    }
+
+    // What stops a solution of a slope field in the view, said, of the first one stopped; else
+    // of a slope field of no slope anywhere in the view; else, with a slope field, what a click
+    // does; '' where there is none. One gone far out of the view, up or down, stops unsaid
+    function fieldNote() {
+        var v = viewNow(), from = graphX(v, 0), to = graphX(v, graphWidth || graphPlot.clientWidth), top = graphY(v, 0), bottom = graphY(v, graphPlot.clientHeight), out = '',
+            fields = graphPlanes.filter(function (c) { return c && c.kind === 'field'; });
+        fields.some(function (c) {
+            if (c.none) {
+                out = 'The slope has no value anywhere in the view.';
+                return true;
+            }
+            return (c.kept ? c.kept.sols : []).some(function (s) {
+                var stop = [s.back, s.ahead].filter(function (q) { return q && q.x >= from && q.x <= to && q.y >= bottom && q.y <= top; })[0];
+                if (!stop) return false;
+                out = 'The solution through ' + startText(s) + ' stops at x = ' + local(String(graphNice(stop.x, v.ux))) + ': ' + {
+                    none: 'its slope has no value there.',
+                    large: 'it grows too large to draw.',
+                    steep: 'it goes straight up or down there.',
+                    many: 'it takes too many steps.'
+                }[stop.why];
+                return true;
+            });
+        });
+        return out || (fields.length ? 'Point for values; click off the curves for a solution there.' : '');
+    }
+
+    // A click off the curves with a slope field shown: the solution through the place clicked,
+    // its start written in the braces of the field's box, the last of them shown, so it is kept
+    // with the box and taken out as any text is. The point on it clicked, or null with no field.
+    // Up to FIELD_STARTS of them: past that the first one goes, so the box stays short enough to read
+    function addStart(p) {
+        var i = graphPlanes.length - 1, c, sep = engine.comma ? '; ' : ', ', given;
+        while (i >= 0 && !(graphPlanes[i] && graphPlanes[i].kind === 'field')) i--;
+        if (i < 0) return null;
+        c = graphPlanes[i];
+        given = c.given.concat('y(' + local(String(p.x)) + ') = ' + local(String(p.y))).slice(-FIELD_STARTS);
+        graphInputs[i].value = c.text + ' {' + given.join(sep) + '}';
+        readGraph();
+        saveState();
+        return { i: i, sol: given.length - 1, x: p.x, y: p.y };
     }
 
     // The area of a curve from a to b, shaded in its color down to the x axis, or to the curve
@@ -2651,6 +2802,10 @@
         } else if (graphPlanes[i] && p.u !== undefined && (key === 37 || key === 39)) {
             next = graphPlanes[i].kind === 'seq' ? traceSequence(p, i, dir, shift ? 10 : 1) : tracePlane(v, p, i, dir, GRAPH_TRACE * (shift ? 10 : 1));
             if (!next) return true;
+        } else if (graphPlanes[i] && p.sol !== undefined && (key === 37 || key === 39)) { // along a solution of a slope field, as along a curve
+            x = graphRound(p.x + dir * GRAPH_TRACE * (shift ? 10 : 1) * v.ux, v.ux);
+            next = { i: i, sol: p.sol, x: x, y: solutionAt(graphPlanes[i], p.sol, x) };
+            if (!isFinite(next.y)) return true;
         } else if (graphRels[i] && (key === 37 || key === 39)) {
             next = traceEquation(v, p, i, dir, GRAPH_TRACE * (shift ? 10 : 1));
             if (!next) return true;
@@ -3092,6 +3247,17 @@
                 var q = c.at(u, deg);
                 return Math.hypot(plotX(v, q[0]) - at.x, plotY(v, q[1]) - at.y);
             }
+            if (c && c.kind === 'field') { // a slope field: its solution within reach above or below, at its x
+                (c.kept ? c.kept.sols : []).forEach(function (s, k) {
+                    var y = solutionY(c, k, x), d = Math.abs(plotY(v, y) - at.y);
+                    if (isFinite(y) && d <= reach * 1.2 && (!best || d < best.d)) best = { d: d, p: { i: i, sol: k, x: x, y: y, near: true } };
+                });
+                if (best && best.p.near) { // the one found, to all its digits
+                    delete best.p.near;
+                    best.p.y = solutionAt(c, best.p.sol, x);
+                }
+                return;
+            }
             if (c && c.kind === 'seq') { // a sequence: the nearest of its terms by the pointer
                 r = c.terms(deg);
                 hi = Math.min(r.from + r.list.length - 1, graphX(v, at.x + reach * 1.2));
@@ -3132,6 +3298,9 @@
         var fit = !p.spot && !p.area && !p.t && graphData[p.i] && graphFns[p.i] && graphFns[p.i].fit;
         if (fit) return 'Best fit, r² = ' + local(String(+fit.r2.toPrecision(4)));
         if (seqOf(p)) return 'Term';
+        if (!p.spot && !p.area && p.sol !== undefined && graphPlanes[p.i]) {
+            return graphPlanes[p.i].kept && graphPlanes[p.i].kept.sols[p.sol] ? 'Solution through ' + startText(graphPlanes[p.i].kept.sols[p.sol]) : 'Solution';
+        }
         return p.spot ? 'Point' : p.area ? (p.rel ? 'Area of the region' : p.j === undefined ? 'Area under the curve' : 'Area between the curves') :
             p.t ? p.t.map(function (t) { return GRAPH_NAMES[t]; }).join(', ') : 'On the curve';
     }
@@ -3191,6 +3360,8 @@
             graphNote.textContent = 'Type a function of x. Drag to move, scroll or pinch to zoom.';
         } else if (sequenceNote(false)) {
             graphNote.textContent = sequenceNote(false);
+        } else if (fieldNote()) {
+            graphNote.textContent = fieldNote();
         } else {
             graphNote.textContent = 'Point at the graph for values; click to insert.' + (unit ? ' · ' + unit : '');
         }
@@ -3460,6 +3631,7 @@
                 if (graphPopShut) graphPopShut = false; else graphPinned = null;
             } else {
                 graphPinned = graphPoint(at, mouse ? 10 : 18);
+                if (graphPinned.spot && !graphShading) graphPinned = addStart(graphPinned) || graphPinned; // off the curves, with a slope field: its solution through there
                 graphPopShut = false;
                 if (mouse) graphAt = graphPinned;
             }
@@ -4088,11 +4260,11 @@
         saveState();
     }
 
-    // the tip of a formula: what it gives, its letters and an example; a constant has the tip of a result (peekOf)
+    // the tip of a formula, open or not: what it gives, its letters and an example; a constant has the tip of a result (peekOf)
     function fxTip(el) {
         var item = el.parentNode, it;
         if (el.classList.contains('calc-past-close')) return CalcTips['formulas close'];
-        if (!el.classList.contains('calc-fx-row') || item.classList.contains('calc-on')) return null;
+        if (!el.classList.contains('calc-fx-row')) return null;
         it = fxItems[fxTab][+item.dataset.i].item;
         if (fxTab === 'constants') return null;
         return {
@@ -4117,7 +4289,7 @@
     // key k, a label l, a placeholder ph, and fn for a function, text for words read as they
     // are, def for the number of an empty one, inf where ∞ is a number, area for a box of lines,
     // a list, choice for ways to choose one of, each a button, which it has as '0', '1' …; cols the
-    // columns of the boxes; run(numbers, typed) its results: { rows: [{ l, v: a number, text, m: a
+    // columns of the boxes; example, what its Example button types in its boxes, by key; run(numbers, typed) its results: { rows: [{ l, v: a number, text, m: a
     // matrix, head: the heads of its columns, a table with Copy table, places: its number or numbers
     // shown to these decimal places, money to the cent, put in and copied whole, wide }], note, warn, bad: the keys of the boxes that are not what they
     // should be, cols: the columns of the tiles, where not three }
@@ -4262,10 +4434,14 @@
                 } }
         ],
         finance: [
-            { id: 'schedule', t: 'Payment schedule', f: 'interest, principal, balance', d: 'A loan paid back in equal payments at the end of each period: the payment, all the interest, and a table ' +
+            { id: 'schedule', t: 'Loan calculator', f: 'Interest, Principal, Balance', d: 'A loan paid back in equal payments at the end of each period: the payment, all the interest, and a table ' +
                 'of each year, or of each payment, of the interest paid, the principal paid and what is left of the loan. Copy table copies it for a spreadsheet.',
                 fields: [{ k: 'loan', l: 'Loan', ph: '' }, { k: 'rate', l: 'Rate %', ph: '' }, { k: 'years', l: 'Years', ph: '' }, { k: 'py', l: 'A year', ph: '12', def: 12, aria: 'Payments a year' },
                     { k: 'by', l: 'Table', choice: ['By year', 'By payment'] }], cols: 2, run: runSchedule },
+            { id: 'savings', t: 'Savings growth', f: 'P(1 + r/m)<sup>mt</sup>', d: 'Money saved at a rate a year, of interest m times a year, for years, with an amount added each period if you like, at its end or its start: ' +
+                'what it grows to, all that was put in, the interest, and a table of each year. m may be ∞, typed inf, for interest all the time, with nothing added. Copy table copies it for a spreadsheet.',
+                fields: [{ k: 'start', l: 'Start', ph: '' }, { k: 'rate', l: 'Rate %', ph: '' }, { k: 'years', l: 'Years', ph: '' }, { k: 'm', l: 'A year', ph: '12', def: 12, inf: true, aria: 'Periods a year' },
+                    { k: 'add', l: 'Add', ph: '0', def: 0, aria: 'Added each period' }, { k: 'due', l: 'Added', choice: ['At the end', 'At the start'] }], cols: 2, run: runSavings },
             { id: 'rates', t: 'Interest rates', f: 'APR ↔ APY', d: 'A nominal rate a year, its APR, as the effective one, its APY, of interest m times a year, and back: type one, ' +
                 'and the other is worked out. m may be ∞, typed inf, for interest all the time.',
                 fields: [{ k: 'apr', l: 'APR %', ph: '' }, { k: 'apy', l: 'APY %', ph: '' }, { k: 'm', l: 'm', ph: '12', def: 12, inf: true, aria: 'Periods a year' }], cols: 3, run: runRates },
@@ -4278,7 +4454,26 @@
             { id: 'npv', t: 'NPV and IRR', f: 'Σ CF<sub>t</sub> / (1 + r)<sup>t</sup>', d: 'Of cash flows, one a period, the first at the start and usually below 0, as it is paid out: their net present value at the rate r, ' +
                 'a percentage a period; their internal rate of return, the rate of an NPV of 0; and how many periods they take to pay back what went out. ' +
                 'Type the flows one to a line, or apart as the statistics list is: -1000, 300, 400, 500.',
-                fields: [{ k: 'r', l: 'Rate %', ph: '10', def: 10 }, { k: 'cf', l: 'Cash flows', ph: '-1000&#10;300&#10;400&#10;500', area: true }], run: runNpv }
+                fields: [{ k: 'r', l: 'Rate %', ph: '10', def: 10 }, { k: 'cf', l: 'Cash flows', ph: '-1000&#10;300&#10;400&#10;500', area: true }], run: runNpv },
+            { id: 'bond', t: 'Bond price and yield', f: 'Σ C / (1 + y)<sup>t</sup> + F / (1 + y)<sup>n</sup>', d: 'A bond of a face value paying its coupon, a percentage of it a year, in parts a number of times a year, for years: ' +
+                'leave one of Price and Yield empty, and it is worked out, the yield a year as a BA II Plus gives it. Years that are not whole coupons bring the next coupon nearer: ' +
+                'the price is then without the interest earned since the last one, the accrued interest, and the dirty price with it. With the current yield and the duration.',
+                fields: [{ k: 'face', l: 'Face', ph: '100', def: 100 }, { k: 'coupon', l: 'Coupon %', ph: '' }, { k: 'years', l: 'Years', ph: '' }, { k: 'freq', l: 'A year', ph: '2', def: 2, aria: 'Coupons a year' },
+                    { k: 'price', l: 'Price', ph: '' }, { k: 'yld', l: 'Yield %', ph: '' }], cols: 2, run: runBond },
+            { id: 'depreciation', t: 'Depreciation', f: 'Straight line, declining balance', d: 'What an asset loses each year of its life, down to what it is worth at the end, its salvage value: the same each year by the straight line, ' +
+                'or twice the straight line\'s rate of what is left by the double declining balance, then the straight line once that loses more. A table of each year; Copy table copies it for a spreadsheet.',
+                fields: [{ k: 'cost', l: 'Cost', ph: '' }, { k: 'salvage', l: 'Salvage', ph: '0', def: 0 }, { k: 'life', l: 'Years', ph: '' },
+                    { k: 'way', l: 'Way', choice: ['Straight line', 'Declining balance'] }], cols: 3, run: runDepreciation },
+            { id: 'breakeven', t: 'Break-even', f: 'Fixed ÷ (Price – Cost)', d: 'How many must be sold to cover the fixed costs, and a profit if you like, at a price and a cost of each one: ' +
+                'the units, what they sell for, and what each one leaves.',
+                fields: [{ k: 'fixed', l: 'Fixed costs', ph: '' }, { k: 'price', l: 'Price', ph: '' }, { k: 'cost', l: 'Cost each', ph: '' }, { k: 'profit', l: 'Profit', ph: '0', def: 0 }], cols: 2,
+                run: runBreakEven },
+            { id: 'inflation', t: 'Inflation', f: 'A(1 + r)<sup>t</sup>', d: 'An amount at inflation of a rate a year for years: what it costs then, what it was worth in money of today, ' +
+                'how many times prices grow, and how much of what money buys is lost.',
+                fields: [{ k: 'amount', l: 'Amount', ph: '' }, { k: 'rate', l: 'Rate %', ph: '' }, { k: 'years', l: 'Years', ph: '' }], cols: 3, run: runInflation },
+            { id: 'change', t: 'Percentage change', f: '(b – a) ÷ a', d: 'The change from one number to another, and as a percentage of the first; of a cost and its price, the first is the markup and the margin ' +
+                'the profit as a percentage of the price.',
+                fields: [{ k: 'a', l: 'From', ph: '' }, { k: 'b', l: 'To', ph: '' }], cols: 2, run: runChange }
         ]
     };
 
@@ -4729,6 +4924,110 @@
         };
     }
 
+    // money saved: what it grows to, all put in, the interest and a table of its years
+    function runSavings(n, raw) {
+        var none = [{ l: 'Balance', v: NaN }, { l: 'Put in', v: NaN }, { l: 'Interest', v: NaN }], r, why;
+        if (!raw.start || !raw.rate || !raw.years || [n.start, n.rate, n.years, n.m, n.add].some(isNaN)) return { rows: none };
+        r = CalcMaths.savings(n.start, n.rate, n.years, n.m, n.add, raw.due === '1', SCHEDULE_ROWS);
+        why = {
+            money: 'Start and Add are 0 or more.',
+            years: 'Years are above 0.',
+            m: 'm, the periods a year, is above 0.',
+            add: 'Nothing is added with interest all the time: m is a number for that.',
+            rate: 'The rate a period, the rate a year ÷ m, is above –100%.',
+            whole: 'Years × m is a whole number of periods.',
+            long: 'Up to 100000 periods.'
+        }[r.error];
+        if (why) return { rows: none, warn: true, note: why };
+        return {
+            rows: [{ l: 'Balance', v: r.balance, places: 2 }, { l: 'Put in', v: r.added, places: 2 }, { l: 'Interest', v: r.interest, places: 2 }, { l: 'APY %', v: r.apy },
+                { l: 'Each year', m: r.byYear, head: ['Year', 'Put in', 'Interest', 'Balance'], places: 2 }],
+            note: (n.m === Infinity ? 'Interest all the time.' : 'Interest ' + local(String(n.m)) + ' times a year' + (n.add ? ', ' + local(String(n.add)) + ' added at the ' + (raw.due === '1' ? 'start' : 'end') + ' of each period.' : '.')) +
+                (r.more ? ' The table has the first ' + SCHEDULE_ROWS + ' years.' : '')
+        };
+    }
+
+    // a bond's price of its yield, or its yield of its price, with what more it has
+    function runBond(n, raw) {
+        var none = [{ l: raw.price && !raw.yld ? 'Yield %' : 'Price', v: NaN }], r, why;
+        if (raw.price && raw.yld) return { rows: none, warn: true, note: 'Leave one of Price and Yield empty, the one to work out.' };
+        if (!raw.coupon || !raw.years || (!raw.price && !raw.yld) || [n.face, n.coupon, n.years, n.freq].some(isNaN) || (raw.price && isNaN(n.price)) || (raw.yld && isNaN(n.yld))) {
+            return { rows: none };
+        }
+        r = CalcMaths.bond(n.face, n.coupon, n.years, n.freq, raw.price ? n.price : NaN, raw.yld ? n.yld : NaN);
+        why = {
+            face: 'The face value is above 0.',
+            coupon: 'The coupon is 0% or more.',
+            years: 'Years are above 0.',
+            freq: 'Coupons a year are a whole number from 1 to 12.',
+            yield: 'The yield a period, the yield a year ÷ coupons a year, is above –100%.',
+            price: 'The price is above 0, of a yield a period above –99.99%.',
+            long: 'Up to 100000 coupons.'
+        }[r.error];
+        if (why) return { rows: none, warn: true, note: why };
+        return {
+            rows: (raw.price ? [{ l: 'Yield %', v: r.yld }, { l: 'Price', v: r.price, places: 2 }] : [{ l: 'Price', v: r.price, places: 2 }, { l: 'Yield %', v: r.yld }])
+                .concat([{ l: 'Current yield %', v: r.current }, { l: 'Duration', v: r.duration }, { l: 'Modified duration', v: r.modified }],
+                    r.accrued ? [{ l: 'Accrued', v: r.accrued, places: 2 }, { l: 'Dirty price', v: r.dirty, places: 2 }] : []),
+            note: 'Duration in years, Macaulay\'s; the modified one is how much the price falls, as a percentage, for each 1% more yield.' +
+                (r.accrued ? ' The next coupon is nearer than a whole period: the price is without the interest earned since the last one, the dirty price with it.' : '')
+        };
+    }
+
+    // what an asset loses each year, by the straight line or the declining balance
+    function runDepreciation(n, raw) {
+        var none = [{ l: 'First year', v: NaN }, { l: 'A year %', v: NaN }, { l: 'In all', v: NaN }], r, why;
+        if (!raw.cost || !raw.life || [n.cost, n.salvage, n.life].some(isNaN)) return { rows: none };
+        r = CalcMaths.depreciation(n.cost, n.salvage, n.life, raw.way === '1');
+        why = {
+            cost: 'The cost is above 0.',
+            salvage: 'The salvage value is 0 or more, and no more than the cost.',
+            life: 'Years are a whole number from 1 to 1000.'
+        }[r.error];
+        if (why) return { rows: none, warn: true, note: why };
+        return {
+            rows: [{ l: 'First year', v: r.first, places: 2 }, { l: 'A year %', v: r.rate }, { l: 'In all', v: CalcMaths.round(n.cost - n.salvage), places: 2 },
+                { l: 'Each year', m: r.byYear, head: ['Year', 'Depreciation', 'So far', 'Book value'], places: 2 }],
+            note: raw.way === '1' ? 'Each year ' + local(String(r.rate)) + '% of what is left, until the straight line over the years left loses more; never below the salvage value.' :
+                'The same each year: the cost less the salvage value, over the years.'
+        };
+    }
+
+    // how many must be sold to cover the fixed costs and the profit
+    function runBreakEven(n, raw) {
+        var none = [{ l: 'Units', v: NaN }, { l: 'Sales', v: NaN }, { l: 'Margin each', v: NaN }], r;
+        if (!raw.fixed || !raw.price || !raw.cost || [n.fixed, n.price, n.cost, n.profit].some(isNaN)) return { rows: none };
+        r = CalcMaths.breakEven(n.fixed, n.price, n.cost, n.profit);
+        if (r.error) return { rows: none, warn: true, note: 'The price is above the cost of each one, or no number of them is enough.' };
+        return {
+            rows: [{ l: 'Units', v: r.units }, { l: 'Sales', v: r.sales, places: 2 }, { l: 'Margin each', v: r.margin, places: 2 }, { l: 'Margin %', v: r.percent }],
+            note: r.units > 0 && r.units % 1 ? local(String(Math.ceil(r.units - 1e-9))) + ' whole units cover them.' : ''
+        };
+    }
+
+    // an amount brought on by inflation, and back
+    function runInflation(n, raw) {
+        var none = [{ l: 'Costs then', v: NaN }, { l: 'Worth now', v: NaN }, { l: 'Prices ×', v: NaN }], r;
+        if (!raw.amount || !raw.rate || !raw.years || [n.amount, n.rate, n.years].some(isNaN)) return { rows: none };
+        r = CalcMaths.inflation(n.amount, n.rate, n.years);
+        if (r.error) return { rows: none, warn: true, note: 'The rate is above –100%.' };
+        return {
+            rows: [{ l: 'Costs then', v: r.then, places: 2 }, { l: 'Worth now', v: r.now, places: 2 }, { l: 'Prices ×', v: r.factor }, { l: 'Value lost %', v: r.lost }],
+            note: 'What costs the amount now costs Costs then after the years; the amount then is worth Worth now in money of today.'
+        };
+    }
+
+    // the change from a to b, and as percentages
+    function runChange(n, raw) {
+        var r;
+        if (!raw.a || !raw.b || isNaN(n.a) || isNaN(n.b)) return { rows: [{ l: 'Change', v: NaN }, { l: 'Change %', v: NaN }, { l: 'Margin %', v: NaN }] };
+        r = CalcMaths.percentChange(n.a, n.b);
+        return {
+            rows: [{ l: 'Change', v: r.change }, { l: 'Change %', v: r.percent }, { l: 'Margin %', v: r.margin }, { l: 'To ÷ From', v: r.ratio }],
+            note: !n.a ? 'No percentage of a From of 0.' : 'Of a cost and its price, Change % is the markup, and Margin % the profit as a percentage of the price.'
+        };
+    }
+
     // APR to APY, or back, of m periods a year, and the rate a period
     function runRates(n, raw) {
         var none = [{ l: 'APR %', v: NaN }, { l: 'APY %', v: NaN }, { l: 'A period %', v: NaN }], apr, apy;
@@ -4751,30 +5050,36 @@
     // for each number, as many as its size says
     var NUMBER_TOOLS = {
         matrix: [
-            { id: 'matrix', t: 'A matrix', f: 'det A, A<sup>–1</sup>, A<sup>T</sup>, A<sup>n</sup>', d: 'Its determinant, rank, inverse, transpose and its power n, a whole number, below 0 of its inverse. Type its size, 3×3 or 2 3, and a number in each box; an empty one is 0.',
+            { id: 'matrix', t: 'A matrix', f: 'det A, A<sup>–1</sup>, A<sup>T</sup>, A<sup>n</sup>', d: 'Its determinant, rank, inverse, transpose and its power n, a whole number, below 0 of its inverse. Type its size, 3×3 or 2 3, up to 10×10, and a number in each box, or paste a whole matrix into one, from a spreadsheet or as [1 2; 3 4]; an empty one is 0.',
                 fields: function (raw) {
                     return [{ k: 'size', l: 'Size', ph: '2×2', text: true, shape: true }, { k: 'power', l: 'n', ph: '2', def: 2 }].concat(cells('a', 'A', raw.size));
-                }, cols: 2, run: runMatrix },
-            { id: 'rref', t: 'Row reduce', f: 'rref A, null space', d: 'Its rows reduced as far as they go, its reduced row echelon form, its rank and the columns of its first 1s, and its null space: a basis of the vectors it takes to 0. Type its size, 3×3 or 2 3, and a number in each box; an empty one is 0.',
-                fields: function (raw) { return [{ k: 'size', l: 'Size', ph: '3×3', text: true, shape: true }].concat(cells('a', 'A', raw.size || '3')); }, run: runRref },
-            { id: 'matrices', t: 'Two matrices', f: 'A + B, A × B', d: 'The sum, difference and products of two matrices, where their sizes allow. Type each size, 3×3 or 2 3, and a number in each box; an empty one is 0.',
+                }, cols: 2, run: runMatrix,
+                example: { size: '3×3', power: '2', a11: '4', a12: '7', a13: '2', a21: '3', a22: '6', a23: '1', a31: '2', a32: '5', a33: '3' } },
+            { id: 'rref', t: 'Row reduce', f: 'rref A, null space', d: 'Its rows reduced as far as they go, its reduced row echelon form, its rank and the columns of its first 1s, and its null space: a basis of the vectors it takes to 0. Type its size, 3×3 or 2 3, up to 10×10, and a number in each box, or paste a whole matrix into one, from a spreadsheet or as [1 2; 3 4]; an empty one is 0.',
+                fields: function (raw) { return [{ k: 'size', l: 'Size', ph: '3×3', text: true, shape: true }].concat(cells('a', 'A', raw.size || '3')); }, run: runRref,
+                example: { size: '3×3', a11: '1', a12: '2', a13: '3', a21: '4', a22: '5', a23: '6', a31: '7', a32: '8', a33: '9' } },
+            { id: 'matrices', t: 'Two matrices', f: 'A + B, A × B', d: 'The sum, difference and products of two matrices, where their sizes allow. Type each size, 3×3 or 2 3, up to 10×10, and a number in each box, or paste a whole matrix into one, from a spreadsheet or as [1 2; 3 4]; an empty one is 0.',
                 fields: function (raw) {
                     return [{ k: 'sizeA', l: 'Size of A', ph: '2×2', text: true, shape: true }, { k: 'sizeB', l: 'Size of B', ph: '2×2', text: true, shape: true }]
-                        .concat(cells('a', 'A', raw.sizeA), cells('b', 'B', raw.sizeB));
-                }, cols: 2, run: runMatrices },
-            { id: 'eigen', t: 'Eigenvalues', f: 'A<b>v</b> = λ<b>v</b>', d: 'The eigenvalues of a square matrix, real or a ± bi, its characteristic polynomial and trace, and the eigenvectors of each real eigenvalue: the v that A only stretches, by λ. Type its size, 3×3 or 3, and a number in each box; an empty one is 0.',
-                fields: function (raw) { return [{ k: 'size', l: 'Size', ph: '2×2', text: true, shape: true }].concat(cells('a', 'A', raw.size)); }, run: runEigen },
-            { id: 'axb', t: 'A x = b', f: 'A<b>x</b> = <b>b</b>', d: 'The unknowns of linear equations, up to ten of them: a row of A for each equation and what it equals in b. As many equations as rows, as many unknowns as columns. Where they have many answers, all of them, x = p + t v; where they have none, the nearest, by least squares. Type the size of A, 3×3 or 3 2, and a number in each box; an empty one is 0.',
+                        .concat(cells('a', 'A', raw.sizeA, 'sizeA'), cells('b', 'B', raw.sizeB, 'sizeB'));
+                }, cols: 2, run: runMatrices,
+                example: { sizeA: '2×3', sizeB: '3×2', a11: '1', a12: '2', a13: '3', a21: '4', a22: '5', a23: '6', b11: '7', b12: '8', b21: '9', b22: '10', b31: '11', b32: '12' } },
+            { id: 'eigen', t: 'Eigenvalues', f: 'A<b>v</b> = λ<b>v</b>', d: 'The eigenvalues of a square matrix, real or a ± bi, its characteristic polynomial and trace, and the eigenvectors of each real eigenvalue: the v that A only stretches, by λ. Type its size, 3×3 or 3, up to 10×10, and a number in each box, or paste a whole matrix into one, from a spreadsheet or as [1 2; 3 4]; an empty one is 0.',
+                fields: function (raw) { return [{ k: 'size', l: 'Size', ph: '2×2', text: true, shape: true }].concat(cells('a', 'A', raw.size)); }, run: runEigen,
+                example: { size: '3×3', a11: '2', a12: '-1', a13: '0', a21: '-1', a22: '2', a23: '-1', a31: '0', a32: '-1', a33: '2' } },
+            { id: 'axb', t: 'A x = b', f: 'A<b>x</b> = <b>b</b>', d: 'The unknowns of linear equations, up to ten of them: a row of A for each equation and what it equals in b. As many equations as rows, as many unknowns as columns. Where they have many answers, all of them, x = p + t v; where they have none, the nearest, by least squares. Type the size of A, 3×3 or 3 2, up to 10×10, and a number in each box, or paste a whole matrix into one, from a spreadsheet or as [1 2; 3 4]; an empty one is 0.',
                 fields: function (raw) {
                     var size = sizeOf(raw.size) || [2, 2], out = [{ k: 'size', l: 'Size of A', ph: '2×2', text: true, shape: true }, { head: 'A | b', cols: size[1] + 1 }], i, j;
                     for (i = 1; i <= size[0]; i++) {
-                        for (j = 1; j <= size[1]; j++) out.push({ k: 'a' + i + j, ph: '0', def: 0, aria: 'A row ' + i + ' column ' + j });
-                        out.push({ k: 'b' + i + '1', ph: '0', def: 0, aria: 'b row ' + i, cls: 'calc-sv-rhs' });
+                        for (j = 1; j <= size[1]; j++) out.push({ k: 'a' + i + j, ph: '0', def: 0, aria: 'A row ' + i + ' column ' + j, cell: { g: 'ab', s: 'size', i: i, j: j, n: size } });
+                        out.push({ k: 'b' + i + '1', ph: '0', def: 0, aria: 'b row ' + i, cls: 'calc-sv-rhs', cell: { g: 'ab', s: 'size', i: i, j: j, n: size } });
                     }
                     return out;
-                }, run: runAxb },
-            { id: 'lu', t: 'LU and QR', f: 'P A = L U, A = Q R', d: 'A matrix as products: P A = L U, L below its diagonal with 1s on it and U above it, P the rows changed round; and A = Q R, the columns of Q of length 1 and at right angles, R above its diagonal. Type its size, 3×3 or 3 2, and a number in each box; an empty one is 0.',
-                fields: function (raw) { return [{ k: 'size', l: 'Size', ph: '2×2', text: true, shape: true }].concat(cells('a', 'A', raw.size)); }, run: runLu },
+                }, run: runAxb,
+                example: { size: '3×3', a11: '1', a12: '1', a13: '1', a21: '0', a22: '2', a23: '5', a31: '2', a32: '5', a33: '-1', b11: '6', b21: '-4', b31: '27' } },
+            { id: 'lu', t: 'LU and QR', f: 'P A = L U, A = Q R', d: 'A matrix as products: P A = L U, L below its diagonal with 1s on it and U above it, P the rows changed round; and A = Q R, the columns of Q of length 1 and at right angles, R above its diagonal. Type its size, 3×3 or 3 2, up to 10×10, and a number in each box, or paste a whole matrix into one, from a spreadsheet or as [1 2; 3 4]; an empty one is 0.',
+                fields: function (raw) { return [{ k: 'size', l: 'Size', ph: '2×2', text: true, shape: true }].concat(cells('a', 'A', raw.size)); }, run: runLu,
+                example: { size: '3×3', a11: '2', a12: '1', a13: '1', a21: '4', a22: '-6', a23: '0', a31: '-2', a32: '7', a33: '2' } },
             { id: 'vectors', t: 'Vectors', f: '<b>u</b> · <b>v</b>, <b>u</b> × <b>v</b>', d: 'Of two vectors of 2, 3 or 4 numbers, typed 1, 2, 3: their dot product, cross product, lengths and the angle between them, the projection of u on v, and u of length 1.',
                 fields: [{ k: 'u', l: 'u', ph: '1, 2, 3', fn: true }, { k: 'v', l: 'v', ph: '4, 5, 6', fn: true }], run: runVectors }
         ],
@@ -4829,11 +5134,14 @@
     }
 
     // a box for each number of a matrix of the size typed, its letter and a row and column to
-    // each, a11, a12 …, under the head of its name
-    function cells(letter, name, size) {
+    // each, a11, a12 …, under the head of its name. Each knows where it is, for a matrix pasted
+    // in it: cell, the letter, the box of the size (key, or size), its row and column, and the size
+    function cells(letter, name, size, key) {
         var s = sizeOf(size) || [2, 2], out = [{ head: name, cols: s[1] }], i, j;
         for (i = 1; i <= s[0]; i++) {
-            for (j = 1; j <= s[1]; j++) out.push({ k: letter + i + j, ph: '0', def: 0, aria: name + ' row ' + i + ' column ' + j });
+            for (j = 1; j <= s[1]; j++) {
+                out.push({ k: letter + i + j, ph: '0', def: 0, aria: name + ' row ' + i + ' column ' + j, cell: { g: letter, s: key || 'size', i: i, j: j, n: s } });
+            }
         }
         return out;
     }
@@ -5003,7 +5311,7 @@
                 { l: 'A<sup>–1</sup>', m: inv }, { l: 'A<sup>T</sup>', m: CalcMaths.transpose(a) },
                 { l: 'A<sup>' + (whole ? local(String(power)).replace('-', '–') : 'n') + '</sup>', m: square && whole ? CalcMaths.matrixPower(a, power) : null }],
             bad: bad, warn: !!bad.length || (square && !inv) || (isFinite(power) && !whole) || !!trust,
-            note: bad.length ? 'A size of rows and columns, each 1 to 10: 3×3, or 2 3.' : !square ? 'Not square: no determinant, inverse or power.' :
+            note: bad.length ? 'A size of rows and columns, each 1 to 10: 3×3, 2 3, or up to 10×10.' : !square ? 'Not square: no determinant, inverse or power.' :
                 isFinite(power) && !whole ? 'n is a whole number from –1000 to 1000.' : !inv ? 'No inverse: its determinant is 0' + (power < 0 ? ', so no power below 0.' : '.') : trust
         };
     }
@@ -5020,7 +5328,7 @@
 
     function runEigen(n, raw) {
         var size = sizeOf(raw.size), a = matrixOf(n, 'a', raw.size), square = a.length === a[0].length, e = size && square ? CalcMaths.eigen(a) : null, rows, trust;
-        if (!size) return { rows: [{ l: 'λ', v: NaN }], bad: ['size'], warn: true, note: 'A size of rows and columns, each 1 to 10: 3×3, or 3.' };
+        if (!size) return { rows: [{ l: 'λ', v: NaN }], bad: ['size'], warn: true, note: 'A size of rows and columns, each 1 to 10: 3×3, 3, or up to 10×10.' };
         if (!square) return { rows: [{ l: 'λ', v: NaN }], warn: true, note: 'Not square: an eigenvalue is of a square matrix.' };
         if (!e) return { rows: [{ l: 'λ', v: NaN }] }; // a box that is not a number, marked
         rows = e.values.map(function (z, i) {
@@ -5054,7 +5362,7 @@
         trust = r && r.x && a.length === a[0].length ? trustNote(a) : '';
         return {
             rows: rows, bad: size ? [] : ['size'], warn: !size || !!trust,
-            note: !size ? 'A size of rows and columns, each 1 to 10: 3×3, or 3 2.' : !r ? '' :
+            note: !size ? 'A size of rows and columns, each 1 to 10: 3×3, 3 2, or up to 10×10.' : !r ? '' :
                 r.none ? 'No answer: the equations cannot all hold. The x above is the nearest, by least squares' + (r.least && r.least.many ? ', one of many as near.' : '.') :
                 r.many ? 'Many answers: x is p and any of the v, each times a number t; the x above is p, each t 0.' : trust
         };
@@ -5062,7 +5370,7 @@
 
     function runRref(n, raw) {
         var size = sizeOf(raw.size || '3'), a = matrixOf(n, 'a', raw.size || '3'), r = size ? CalcMaths.rref(a) : null, rows, trust;
-        if (!r) return { rows: [{ l: 'rref A', m: null }], bad: ['size'], warn: true, note: 'A size of rows and columns, each 1 to 10: 3×3, or 2 3.' };
+        if (!r) return { rows: [{ l: 'rref A', m: null }], bad: ['size'], warn: true, note: 'A size of rows and columns, each 1 to 10: 3×3, 2 3, or up to 10×10.' };
         rows = [{ l: 'rref A', m: r.m }, { l: 'Rank', v: r.rank }, { l: 'Nullity', v: r.kernel.length },
             { l: 'Columns of its first 1s', text: r.pivots.length ? r.pivots.map(function (c) { return c + 1; }).join(', ') : 'none', wide: true }];
         r.kernel.forEach(function (v, i) { rows.push({ l: 'Null space <b>v</b><sub>' + (i + 1) + '</sub>', m: [v] }); });
@@ -5073,7 +5381,7 @@
 
     function runLu(n, raw) {
         var size = sizeOf(raw.size), a = matrixOf(n, 'a', raw.size), f = size ? CalcMaths.lu(a) : null, q = size ? CalcMaths.qr(a) : null;
-        if (!size) return { rows: [{ l: 'L', m: null }], bad: ['size'], warn: true, note: 'A size of rows and columns, each 1 to 10: 3×3, or 3 2.' };
+        if (!size) return { rows: [{ l: 'L', m: null }], bad: ['size'], warn: true, note: 'A size of rows and columns, each 1 to 10: 3×3, 3 2, or up to 10×10.' };
         return {
             rows: [{ l: 'P', m: f && f.p }, { l: 'L', m: f && f.l }, { l: 'U', m: f && f.u }, { l: 'Q', m: q.q }, { l: 'R', m: q.r }],
             note: f ? 'P A = L U and A = Q R.' : 'Not square: no L U; A = Q R.'
@@ -5287,7 +5595,7 @@
             rows: [{ l: 'A + B', m: CalcMaths.plus(a, b) }, { l: 'A – B', m: CalcMaths.plus(a, b, true) },
                 { l: 'A × B', m: CalcMaths.times(a, b) }, { l: 'B × A', m: CalcMaths.times(b, a) }],
             bad: bad, warn: !!bad.length,
-            note: bad.length ? 'A size of rows and columns, each 1 to 10: 3×3, or 2 3.' :
+            note: bad.length ? 'A size of rows and columns, each 1 to 10: 3×3, 2 3, or up to 10×10.' :
                 'A sum needs one size; a product A × B as many columns of A as rows of B.'
         };
     }
@@ -5298,9 +5606,9 @@
     // months and days, with cards as the solver has. An empty date is today
     var DATE_TOOLS = {
         dates: [
-            { id: 'span', t: 'Between two dates', f: 'years, months, weeks and days', d: 'The time from one date to another: in years, months and days; then the whole years, months and weeks of it, its days, its weekdays, Monday to Friday, both dates in, and its hours, each below 0 where the second date is before the first. An empty date is today.',
+            { id: 'span', t: 'Time between dates', f: 'years, months, weeks and days', d: 'The time from one date to another: in years, months and days; then the whole years, months and weeks of it, its days, its weekdays, Monday to Friday, both dates in, and its hours, each below 0 where the second date is before the first. An empty date is today.',
                 fields: [{ k: 'a', l: 'From', date: true }, { k: 'b', l: 'To', date: true }], run: runSpan },
-            { id: 'add', t: 'Add or subtract', f: 'date ± years, months, days', d: 'A date some years, months and days on, below 0 to go back: the date and its weekday, its day of the year and its week. The years and months go first; a month from 31 January is the last day of February. An empty date is today.',
+            { id: 'add', t: 'Add or subtract time', f: 'date ± years, months, days', d: 'A date some years, months and days on, below 0 to go back: the date and its weekday, its day of the year and its week. The years and months go first; a month from 31 January is the last day of February. An empty date is today.',
                 fields: [{ k: 'd', l: 'Date', date: true }, { k: 'y', l: 'Years', ph: '0', def: 0, cls: 'calc-sv-dated' },
                     { k: 'm', l: 'Months', ph: '0', def: 0, cls: 'calc-sv-dated' }, { k: 'days', l: 'Days', ph: '0', def: 0, cls: 'calc-sv-dated' }],
                 cols: 3, run: runAdd }
@@ -5571,7 +5879,7 @@
     // done(), after a value is put in }
     // { render(), load(saved), clear(), keep(), tab(), setTab(tab), focus(), tip(el) }
     function toolCards(list, tools, key, plain, now) {
-        var tab = Object.keys(tools)[0], openId = '', values = {}, rows = [];
+        var tab = Object.keys(tools)[0], openId = '', values = {}, rows = [], pasted = '';
 
         // the boxes of a tool, as what is typed in it says: a matrix has as many as its size
         function fieldsOf(tool, raw) {
@@ -5618,6 +5926,7 @@
             form = item.appendChild(document.createElement('div'));
             form.className = 'calc-sv-form';
             form.innerHTML = '<div class="calc-sv-boxes"></div><div class="calc-sv-note"></div>' + (tool.again ? '<span class="calc-sv-again">Again</span>' : '') +
+                (tool.example ? '<span class="calc-sv-again calc-sv-example" role="button">Example</span>' : '') +
                 '<div class="calc-sv-grid"></div>';
             item.classList.add('calc-on');
             boxes(tool, item);
@@ -5692,12 +6001,26 @@
             [].forEach.call(item.querySelectorAll('.calc-sv-tile'), function (el) {
                 el.row = out.rows[+el.dataset.r]; // for its tip
             });
-            [].forEach.call(item.querySelectorAll('.calc-sv-value, .calc-sv-tile:not(.calc-sv-table) .calc-sv-cell'), function (shown) {
-                var size = !shown.classList.contains('calc-sv-cell') ? 17 : shown.parentNode.classList.contains('calc-sv-many') ? 10 : 15;
-                while (size > 11 && shown.scrollWidth > shown.clientWidth) shown.style.fontSize = --size + 'px'; // a long one gets smaller, as on the display
+            [].forEach.call(item.querySelectorAll('.calc-sv-value, .calc-sv-tile:not(.calc-sv-table) .calc-sv-cell'), function (shown) { // of a matrix of more than 5 columns, kept at 10px
+                var value = !shown.classList.contains('calc-sv-cell'), size = value ? 17 : shown.parentNode.classList.contains('calc-sv-many') ? 10 : 15;
+                while (size > (value ? 13 : 12) && tooWide(shown)) shown.style.fontSize = --size + 'px'; // a long one gets smaller, as on the display, a little: to 13px, a cell to 12
             });
-            item.querySelector('.calc-sv-note').textContent = out.note || '';
-            item.querySelector('.calc-sv-note').classList.toggle('calc-sv-warn', !!out.warn);
+            [].forEach.call(item.querySelectorAll('.calc-sv-table .calc-sv-cells'), function (table) { // a table all one size, as small as its longest number of each column needs
+                var cells = [].slice.call(table.querySelectorAll('.calc-sv-cell')), longest = {}, size = 12;
+                cells.forEach(function (cell) {
+                    var b = cell.dataset.b;
+                    if (!longest[b] || cell.textContent.length > longest[b].textContent.length) longest[b] = cell;
+                });
+                longest = Object.keys(longest).map(function (b) { return longest[b]; });
+                while (size > 11 && longest.some(tooWide)) {
+                    size--;
+                    longest.forEach(function (cell) { cell.style.fontSize = size + 'px'; });
+                }
+                if (size < 12) cells.forEach(function (cell) { cell.style.fontSize = size + 'px'; });
+            });
+            item.querySelector('.calc-sv-note').textContent = pasted || out.note || '';
+            item.querySelector('.calc-sv-note').classList.toggle('calc-sv-warn', !!(pasted || out.warn));
+            pasted = ''; // what a matrix pasted that did not fit says, until a box is typed in
         }
 
         // A result: a number to put in, a text to read, as a complex number, or a matrix, each of
@@ -5730,7 +6053,7 @@
             }
             return '<div class="calc-sv-tile' + (r.m !== undefined || r.wide ? ' calc-sv-wide' : '') + (r.m ? ' calc-sv-matrix' : '') + (r.bits ? ' calc-sv-bits' : '') + (r.wrap ? ' calc-sv-wrap' : '') +
                 (r.head ? ' calc-sv-table' : '') + (known && !r.m ? '' : ' calc-none') + '" data-r="' + i + '"><span class="calc-sv-label">' + r.l +
-                (r.head && r.m ? '<span class="calc-sv-copy" role="button">Copy table</span>' : '') + '</span>' + shown + '</div>';
+                (r.m ? r.head ? '<span class="calc-sv-copy" role="button">Copy table</span>' : '</span><span class="calc-sv-copy calc-sv-copy-m" role="button">Copy' : '') + '</span>' + shown + '</div>';
         }
 
         // x to as many digits as fit in room characters, as few as one: 0.093, not 0.0928 cut off
@@ -5759,11 +6082,12 @@
             if (saved.v && typeof saved.v === 'object') values = saved.v;
         }
 
-        // a card opens its boxes, or closes them; Again draws more random numbers; a tile, or a
+        // a card opens its boxes, or closes them; Again draws more random numbers; Example types its example; a tile, or a
         // number of a matrix, is put in
         list.addEventListener('click', function (e) {
             var row = e.target.closest('.calc-sv-row'), t = e.target.closest('.calc-sv-tile'), cell = e.target.closest('.calc-sv-cell'), bit = e.target.closest('.calc-sv-bit'), r, v;
             if (row) return openTool(row.parentNode.classList.contains('calc-on') ? null : row.parentNode);
+            if (e.target.closest('.calc-sv-example')) return example(e.target.closest('.calc-sv-item'));
             if (e.target.closest('.calc-sv-again')) return run();
             if (e.target.closest('.calc-sv-opt')) return choose(e.target.closest('.calc-sv-opt'));
             r = t && rows[+t.dataset.r];
@@ -5777,6 +6101,16 @@
             saveState();
         }, false);
 
+        // a card's example in its boxes, in place of what was typed, with the decimal mark in use
+        function example(item) {
+            var tool = tools[tab][+item.dataset.i];
+            values[tool.id] = {};
+            Object.keys(tool.example).forEach(function (k) { values[tool.id][k] = local(tool.example[k]); });
+            boxes(tool, item);
+            run();
+            keep();
+        }
+
         // one of the ways of a choice chosen: kept as a box's text is, and the results
         function choose(opt) {
             var item = opt.closest('.calc-sv-item'), tool = tools[tab][+item.dataset.i], k = opt.parentNode.dataset.k;
@@ -5788,9 +6122,10 @@
         }
 
         // A table of results as a spreadsheet takes it pasted: its heads, then a line of each row,
-        // a tab between each number, all its digits, with the decimal mark in use
+        // a tab between each number, all its digits, with the decimal mark in use. A matrix the
+        // same, without heads, which a matrix's box takes pasted as well
         function tableText(r) {
-            return [r.head.join('\t')].concat(r.m.map(function (row) {
+            return (r.head ? [r.head.join('\t')] : []).concat(r.m.map(function (row) {
                 return row.map(function (x) { return local(String(x)); }).join('\t');
             })).join('\n') + '\n';
         }
@@ -5822,6 +6157,45 @@
                 input.focus();
                 input.setSelectionRange(at, at);
             }
+            run();
+            keep();
+        }, false);
+
+        // A matrix pasted in a box of one, of more than one number: a block of a spreadsheet, lines
+        // of numbers or [1 2; 3 4]. It fills the boxes from that one, right and down, the matrix
+        // made bigger where it needs to be, up to 10×10; of A | b its last column is b, and in b
+        // only a column goes. A number of the plain kind a box keeps goes in as it is, another as
+        // its value. One number alone, or what is not a matrix, is pasted in the box as ever
+        list.addEventListener('paste', function (e) {
+            var item = e.target.closest('.calc-sv-item'), tool = item && tools[tab][+item.dataset.i], k = e.target.dataset.k, field, got, c, rows, cols, ab, kept, input,
+                plainNumber = engine.comma ? /^-?\d*,?\d*$/ : /^-?\d*\.?\d*$/;
+            if (!tool || e.target.tagName !== 'INPUT') return;
+            field = fieldsOf(tool, rawOf(tool)).filter(function (f) { return f.k === k; })[0];
+            got = field && field.cell && CalcMaths.matrixText(e.clipboardData.getData('text'), engine.comma, deg);
+            if (!got) return;
+            e.preventDefault();
+            c = field.cell;
+            ab = c.g === 'ab' ? 1 : 0; // of A | b, one column more than A has
+            rows = Math.max(c.n[0], c.i - 1 + got.cells.length);
+            cols = Math.max(c.n[1] + ab, c.j - 1 + got.cells[0].length) - ab;
+            if (ab && c.j > c.n[1] && got.cells[0].length > 1) {
+                pasted = 'b is one column: paste a column of numbers in it, or all of A | b in its first box.';
+            } else if (rows > 10 || cols > 10) {
+                pasted = got.cells.length > 10 || got.cells[0].length > 10 + ab ? 'A matrix of up to 10×10: this one is ' + got.cells.length + '×' + got.cells[0].length + '.' :
+                    'Up to 10×10: from row ' + c.i + ', column ' + c.j + ' this one of ' + got.cells.length + '×' + got.cells[0].length + ' does not fit.';
+            } else {
+                kept = values[tool.id] = values[tool.id] || {};
+                got.cells.forEach(function (row, a) {
+                    row.forEach(function (text, b) {
+                        var i = c.i + a, j = c.j + b;
+                        kept[ab ? (j > cols ? 'b' + i + '1' : 'a' + i + j) : c.g + i + j] = plainNumber.test(text) ? text : local(String(got.values[a][b]));
+                    });
+                });
+                if (rows !== c.n[0] || cols !== c.n[1]) kept[c.s] = rows + '×' + cols;
+                boxes(tool, item);
+            }
+            input = item.querySelector('.calc-sv-boxes input[data-k="' + k + '"]');
+            if (input) input.focus();
             run();
             keep();
         }, false);
@@ -5858,14 +6232,15 @@
                 var box = list.querySelector('.calc-sv-item.calc-on input');
                 if (box && focusBox(box)) box.select();
             },
-            // the tip of a card: what it gives; of a way of a choice, and of Copy table, what they do
+            // the tip of a card, open or not: what it gives; of a way of a choice, of Copy table, of Copy and of Example, what they do
             tip: function (el) {
                 var tool;
                 if (el.classList.contains('calc-sv-opt')) return CalcTips['choice ' + el.parentNode.dataset.k + ' ' + el.dataset.c] || null;
-                if (el.classList.contains('calc-sv-copy')) return CalcTips['table copy'];
-                if (!el.classList.contains('calc-sv-row') || el.parentNode.classList.contains('calc-on')) return null;
+                if (el.classList.contains('calc-sv-example')) return CalcTips['card example'];
+                if (el.classList.contains('calc-sv-copy')) return CalcTips[el.classList.contains('calc-sv-copy-m') ? 'matrix copy' : 'table copy'];
+                if (!el.classList.contains('calc-sv-row')) return null;
                 tool = tools[tab][+el.parentNode.dataset.i];
-                return { t: tool.t, d: tool.d + ' Click to open it.', k: '' };
+                return { t: tool.t, d: tool.d + (el.parentNode.classList.contains('calc-on') ? ' Click to close it.' : ' Click to open it.'), k: '' };
             }
         };
     }
