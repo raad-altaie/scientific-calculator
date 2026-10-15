@@ -192,7 +192,7 @@
     // so far } or { error: 'inequality' | 'letters' }
     function inequality(text, comma, deg, from, to) {
         var s = String(text), ops = s.match(/<=|>=|=<|=>|[<>≤≥]/g), sides, curves, parts = [], ends = [], more,
-            bounded = isFinite(from) && isFinite(to) && from < to, n = 2000, xs = [], far, states = [], marks, k, u, r, p, lo, hi, out = [], cur;
+            bounded = isFinite(from) && isFinite(to) && from < to, n = 2000, xs = [], far, farSolves = 4, states = [], marks, k, u, r, p, lo, hi, out = [], cur;
         if (!ops || ops.length > 2 || /=/.test(s.replace(/<=|>=|=<|=>/g, ''))) return { error: 'inequality' };
         ops = ops.map(function (op) { return { '<=': '≤', '=<': '≤', '>=': '≥', '=>': '≥' }[op] || op; });
         if (ops.length === 2 && /[<≤]/.test(ops[0]) !== /[<≤]/.test(ops[1])) return { error: 'inequality' };
@@ -254,7 +254,9 @@
         for (k = 0; k < xs.length; k++) {
             states.push(holds(xs[k]));
             if (k && states[k] !== states[k - 1] && (states[k] === true || states[k - 1] === true)) { // not from no value to false, as sqrt(x) < -1 at 0
-                if (!bounded && Math.abs(xs[k - 1] + xs[k]) > 2 * SEARCH && roots(xs[k - 1], xs[k])) continue; // past where solve looked, its roots there
+                // past where solve looked, its roots there; only for the first few, as sin(x) > 0 changes
+                // between every two samples out there, and halving finds the rest at once
+                if (!bounded && Math.abs(xs[k - 1] + xs[k]) > 2 * SEARCH && farSolves-- > 0 && roots(xs[k - 1], xs[k])) continue;
                 lo = xs[k - 1];
                 hi = xs[k];
                 for (r = 0; r < 200; r++) {
@@ -1630,7 +1632,7 @@
         top = Math.min(n, K);
         return counts(function (j) {
             return j < low || j > top || j !== Math.floor(j) ? 0 : Math.exp(lnChoose(K, j) + lnChoose(N - K, n - j) - lnChoose(N, n));
-        }, k, top);
+        }, k, top, n * K / N);
     }
 
     // the chances of an exponential value of rate lambda below and above x, and its density there:
@@ -1689,26 +1691,36 @@
     }
 
     // The chances of a count k: { eq: exactly k, le: k or fewer, ge: k or more }, chance(j) being
-    // that of exactly j, from 0 up to top. The smaller of k or fewer and k or more is summed, the
-    // other is 1 less it, so a small one keeps its digits
-    function counts(chance, k, top) {
-        var le = 0, ge = 0, j, eq;
+    // that of exactly j, from 0 up to top, and mean its mean. The tail away from the mean is
+    // summed from k, the other is 1 less it, so a small one keeps its digits. The chances only
+    // get smaller away from the most likely count, which is next to the mean, so the sum stops
+    // where they are too small to tell: a few thousand terms where n or k is a billion
+    function counts(chance, k, top, mean) {
+        var le, ge, eq;
         if (isNaN(chance(0)) || !isFinite(k)) return { eq: NaN, le: NaN, ge: NaN };
         k = Math.floor(k);
-        eq = chance(k);
         if (k < 0) return { eq: 0, le: 0, ge: 1 };
-        if (k <= (isFinite(top) ? top / 2 : 0)) {
-            for (j = 0; j <= k; j++) le += chance(j);
+        if (k > top) return { eq: 0, le: 1, ge: 0 };
+        eq = chance(k);
+        if (k <= mean) {
+            le = tail(-1);
             ge = 1 - le + eq;
-        } else if (isFinite(top)) {
-            for (j = Math.min(k, top); j <= top; j++) ge += chance(j);
-            if (k > top) ge = 0;
-            le = 1 - ge + eq;
         } else {
-            for (j = 0; j <= k; j++) le += chance(j);
-            ge = 1 - le + eq;
+            ge = tail(1);
+            le = 1 - ge + eq;
         }
         return { eq: round(eq), le: round(Math.min(1, Math.max(0, le))), ge: round(Math.min(1, Math.max(0, ge))) };
+
+        function tail(step) {
+            var sum = 0, last = Infinity, j, c;
+            for (j = k; j >= 0 && j <= top; j += step) {
+                c = chance(j);
+                sum += c;
+                if (c < last && c <= 1e-20 * sum) break;
+                last = c;
+            }
+            return sum;
+        }
     }
 
     function isWhole(n) {
@@ -1938,7 +1950,7 @@
             } else if ((m = /^0o([0-7]+)/i.exec(s))) {
                 toks.push({ n: BigInt('0o' + m[1]) });
             } else if ((m = /^\d+/.exec(s))) {
-                toks.push({ n: BigInt(m[0]) });
+                toks.push({ n: BigInt(m[0]), decimal: true });
             } else if ((m = /^(nand|nor|xnor|and|xor|or|not|mod|shl|shr|rol|ror)(?![a-z])/i.exec(s))) {
                 toks.push({ op: m[0].toLowerCase() });
             } else if ((m = /^(<<|>>|[-+−–*×/÷%&|~()])/.exec(s))) {
@@ -1959,6 +1971,11 @@
         function unary() {
             var t = toks[i++], v;
             if (!t) throw 'expression';
+            if (t.op === '-' && toks[i] && toks[i].decimal) { // -128 is a number of 8 bits, not 128 turned negative
+                v = -toks[i++].n;
+                if (v < -(BigInt(1) << BigInt(bits - 1))) wrapped = true;
+                return BigInt.asIntN(bits, v);
+            }
             if (t.op === '-') return fit(-unary());
             if (t.op === '+') return unary();
             if (t.op === 'not') return fit(~unary());
@@ -1969,7 +1986,10 @@
                 return v;
             }
             if (t.n === undefined) throw 'expression';
-            return fit(t.n);
+            // a number in decimal is one, 200 too big for 8 bits; one in hex, binary or octal is its
+            // bits, 0xFF in 8 bits -1 and not too big
+            if (t.n >> BigInt(t.decimal ? bits - 1 : bits)) wrapped = true;
+            return BigInt.asIntN(bits, t.n);
         }
         function level(next, ops, f) {
             return function () {
@@ -2299,9 +2319,9 @@
         return r;
     }
 
-    // Miller and Rabin's test, on the first twelve primes, which tells for certain below 3 × 10²⁴
+    // Miller and Rabin's test, on the first thirteen primes, which tells for certain below 3.3 × 10²⁴
     function isPrime(n) {
-        var d = n - BIG.one, s = 0, bases = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37], i, j, a, x;
+        var d = n - BIG.one, s = 0, bases = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41], i, j, a, x;
         if (n < BIG.two) return false;
         for (i = 0; i < bases.length; i++) {
             if (n % BigInt(bases[i]) === BIG.zero) return n === BigInt(bases[i]);
@@ -3269,10 +3289,10 @@
         normalDensity: normalDensity,
         normalInverse: normalInverse,
         binomial: function (n, p, k) {
-            return counts(function (j) { return binomial(n, p, j); }, k, isWhole(n) && n >= 0 ? n : NaN);
+            return counts(function (j) { return binomial(n, p, j); }, k, isWhole(n) && n >= 0 ? n : NaN, n * p);
         },
         poisson: function (lambda, k) {
-            return counts(function (j) { return poisson(lambda, j); }, k, Infinity);
+            return counts(function (j) { return poisson(lambda, j); }, k, Infinity, lambda);
         },
         randomWhole: randomWhole,
         round: round,

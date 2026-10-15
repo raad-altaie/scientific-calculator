@@ -203,7 +203,13 @@ check(JSON.stringify(M.binomial(10, 0.5, 5)) === '{"eq":0.24609375,"le":0.623046
     M.binomial(1000, 0.3, 280).le === 0.0885795226059 && M.binomial(10, 0.5, 11).le === 1 && isNaN(M.binomial(10, 1.5, 3).eq),
     'binomial: of 10 coins, of a thousand, past n, a chance above 1');
 check(JSON.stringify(M.poisson(3, 2)) === '{"eq":0.224041807655,"le":0.423190081127,"ge":0.800851726529}' &&
-    M.poisson(100, 120).ge === 0.0282303939648 && isNaN(M.poisson(-1, 2).eq), 'poisson: of 3, of 100; a mean below 0');
+    M.poisson(100, 120).ge === 0.0282303939649 && isNaN(M.poisson(-1, 2).eq), 'poisson: of 3, of 100; a mean below 0');
+check(M.binomial(30, 0.01, 11).ge === 4.58633793733e-15 && M.binomial(100, 0.1, 40).ge === 2.94552979375e-15 && M.poisson(3, 20).ge === 8.31442358819e-11,
+    'binomial and poisson: a small tail above the mean keeps its digits');
+(function () {
+    var t = Date.now(), b = M.binomial(1e9, 0.5, 5e8), p = M.poisson(3, 3e9);
+    check(Date.now() - t < 500 && Math.abs(b.le - 0.50001) < 1e-5 && p.le === 1 && p.ge === 0, 'binomial and poisson: a billion at once', Date.now() - t);
+})();
 check(M.randomWhole(1, 6, function () { return 0; }) === 1 && M.randomWhole(1, 6, function () { return 0.9999; }) === 6 && isNaN(M.randomWhole(1.5, 6)),
     'randomWhole: from 1 to 6, both in; whole ends only');
 
@@ -262,7 +268,8 @@ function bits(text, n) {
 ].forEach(function (c) {
     check(bits(c[0]) === c[1], 'bitwise: ' + c[0] + ' is ' + c[1], bits(c[0]));
 });
-check(bits('200', 8) === '-56 wrapped' && bits('1', 12) === 'bits' && M.inBase(BigInt(-1), 8, 16) === 'FF' && M.inBase(BigInt(10), 8, 2) === '0000 1010' &&
+check(bits('200', 8) === '-56 wrapped' && bits('0xFF', 8) === '-1' && bits('0b10000000', 8) === '-128' && bits('0x100', 8) === '0 wrapped' &&
+    bits('-128', 8) === '-128' && bits('-129', 8) === '127 wrapped' && bits('1', 12) === 'bits' && M.inBase(BigInt(-1), 8, 16) === 'FF' && M.inBase(BigInt(10), 8, 2) === '0000 1010' &&
     M.inBase(BigInt(-1), 16, 8) === '177777', 'bitwise: 8 bits signed; the bases of the bits');
 
 // matrices
@@ -298,6 +305,7 @@ function factors(text) {
     check(String(r.gcd) === '6' && String(r.lcm) === '0' && M.divisorsOf('12, 1.5', false, 0).at === '1.5', 'divisorsOf: with a decimal comma; of 0; one not whole');
     check(M.isPrime(BigInt(2)) && !M.isPrime(BigInt(1)) && !M.isPrime(BigInt('3825123056546413051')) && M.isPrime(BigInt('2305843009213693951')),
         'isPrime: 2, 1, a strong pseudoprime to the first nine primes, 2^61 – 1');
+    check(!M.isPrime(BigInt('318665857834031151167461')), 'isPrime: a strong pseudoprime to the first twelve primes, of 24 digits');
 })();
 [
     [1.005, 2, 'round', 1.01], [2.5, 0, 'round', 3], [-2.5, 0, 'round', -3], [-0.4, 0, 'round', 0], [1234, -2, 'round', 1200], [1250, -2, 'round', 1300],
@@ -346,6 +354,11 @@ check(M.inequality('sqrt(x) < -1', false, 0).ends.length === 0 && M.inequality('
     M.inequality('x > 1', false, 0, 0, 5).within === undefined, 'inequality: no ends where it never holds; how far it was looked for, but between From and To');
 check(roots('x^2 = 1e-20') === '-1e-10 1e-10', 'solve: two roots nearer than 1e-9', roots('x^2 = 1e-20'));
 check(/ …$/.test(holds('sin(x) > 0')) && M.inequality('sin(x) > 0', false, 0).ends.length === 12, 'inequality: of very many ends, the twelve nearest 0');
+(function () {
+    var t = Date.now();
+    M.inequality('sin(x) > 0.5', false, 0);
+    check(Date.now() - t < 500, 'inequality: a periodic one at once, not solved again between every two samples far out', Date.now() - t);
+})();
 check(holds('x^2 = 4') === 'inequality' && holds('x <') === 'inequality' && holds('1 < x > 2') === 'inequality' && holds('a x > 1') === 'letters',
     'inequality: an equation, half of one, two ways at once, a letter of its own');
 

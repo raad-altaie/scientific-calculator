@@ -9,6 +9,7 @@
     margin: auto;
     border: 1px solid #000000;
     background: #3a5872;
+    background-clip: padding-box; /* the blue stops inside the border, or it shows round its rounded edge on a dark page */
     border: 2px solid #4d5368;
     border-top-left-radius: 1em;
     border-top-right-radius: 1em;

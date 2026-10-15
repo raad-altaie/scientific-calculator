@@ -88,9 +88,9 @@ html, body {
     user-select: text;
 }
 
-/* the title of a part of the guide in the calculator's red, lighter so it reads on the blue */
+/* the title of a part of the guide in white */
 :where(.wrapper) .title:not(.sub) {
-    color: #e8939c;
+    color: #fff;
 }
 
 /* a section inside a part of the guide: smaller, under the part's title */
