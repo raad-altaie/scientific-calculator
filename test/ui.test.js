@@ -1207,10 +1207,16 @@ async function numbersPanel(page, at) {
     await card('Roots of a complex number');
     await set(0, '-16');
     check(await page.calc(tiles) === 'z1=1.41421356237 + 1.41421356237i | z2=-1.41421356237 + 1.41421356237i | z3=-1.41421356237 – 1.41421356237i | ' +
-        'z4=1.41421356237 – 1.41421356237i', t + 'the four fourth roots of -16', await page.calc(tiles));
+        'z4=1.41421356237 – 1.41421356237i | On the plane=', t + 'the four fourth roots of -16, drawn on the plane', await page.calc(tiles));
+    check(await page.calc('document.querySelectorAll("' + on + ' .calc-sv-plane circle").length') === 5, t + 'the plane: a dot for each root, and their circle');
+    await card('Polynomial roots');
+    await set(0, 'x^2+1');
+    check(await page.calc(tiles) === 'Multiplied out=x2 + 1 | z1=–i | z2=i | On the plane=', t + 'x² + 1 has the roots ±i', await page.calc(tiles));
+    await set(0, 'x^2 + (1+i)x + 2i');
+    check((await page.calc(tiles)).indexOf('Multiplied out=x2 + (1 + i)x + 2i | z1=-1.36602540378 + 0.366025403784i | ') === 0, t + 'a polynomial of complex coefficients', await page.calc(tiles));
 
     await page.click('.calc-numbers .calc-solve-tab[data-tab="base"]');
-    check(await page.calc('document.querySelectorAll(".calc-numbers .calc-sv-item").length') === 3, t + 'three cards of bases');
+    check(await page.calc('document.querySelectorAll(".calc-numbers .calc-sv-item").length') === 5, t + 'five cards of bases');
     await card('Bases');
     await set(0, '0xFF AND 0b1010');
     check(await page.calc(tiles) === 'Decimal=10 | Unsigned=10 | Hexadecimal=A | Octal=12 | Binary=0000 0000 0000 0000 0000 0000 0000 1010',
@@ -1242,15 +1248,31 @@ async function numbersPanel(page, at) {
         t + '0.1 as a double and a float, to its last digit', got);
     await set(0, '0x3DCCCCCD');
     check(/^The bits of a float/.test(await page.calc(note)) && (await page.calc(tiles)).indexOf('Double, 64 bits=0x3FB99999A0000000') > 0, t + 'the bits of a float for the number', await page.calc(tiles));
+    await card('Any base');
+    await set(0, '0.1');
+    check(await page.calc(tiles) === 'In base 2=0.0(0011) | Decimal=0.1 | Fraction=1/10', t + '0.1 in base 2 comes round', await page.calc(tiles));
+    await set(0, 'FF.8');
+    await set(1, '16');
+    await set(2, '10');
+    check(await page.calc(tiles) === 'In base 10=255.5 | Decimal=255.5 | Fraction=511/2', t + 'FF.8 of base 16 in base 10', await page.calc(tiles));
+    await card('Text and codes');
+    await set(0, 'Hé');
+    check((await page.calc(tiles)).indexOf('Text=Hé | Code points=U+0048 U+00E9 | Decimal=72 233 | UTF-8=48 C3 A9 | ') === 0, t + 'the codes of a text', await page.calc(tiles));
+    await set(0, '');
+    await set(1, '0xC3 0xA9');
+    check((await page.calc(tiles)).indexOf('Text=é | ') === 0, t + 'a text of the bytes of UTF-8', await page.calc(tiles));
 
     await page.click('.calc-numbers .calc-solve-tab[data-tab="matrix"]');
     await card('A matrix');
-    check(await page.calc('document.querySelectorAll("' + on + ' input").length') === 5, t + 'a matrix of 2×2 at first, its size and four boxes');
-    for (const [n, v] of [[1, '1'], [2, '2'], [3, '3'], [4, '4']]) await set(n, v);
+    check(await page.calc('document.querySelectorAll("' + on + ' input").length') === 6, t + 'a matrix of 2×2 at first, its size, its power and four boxes');
+    for (const [n, v] of [[2, '1'], [3, '2'], [4, '3'], [5, '4']]) await set(n, v);
     got = await page.calc(tiles);
-    check(got.indexOf('det A=-2 | Rank=2 | A–1=-211.5-0.5 | AT=1324') === 0, t + 'det, rank and inverse of [1 2; 3 4]', got);
+    check(got === 'det A=-2 | Rank=2 | A–1=-211.5-0.5 | AT=1324 | A2=7101522', t + 'det, rank, inverse and square of [1 2; 3 4]', got);
+    await set(1, '-1');
+    check((await page.calc(tiles)).indexOf('A–1=-211.5-0.5') > 0 && / \| A–1=-211\.5-0\.5$/.test(await page.calc(tiles)), t + 'its power -1 is its inverse', await page.calc(tiles));
+    await set(1, '');
     await set(0, '3');
-    check(await page.calc('document.querySelectorAll("' + on + ' input").length') === 10 &&
+    check(await page.calc('document.querySelectorAll("' + on + ' input").length') === 11 &&
         await page.calc('document.activeElement === document.querySelector("' + on + ' input")'), t + 'a size of 3 makes nine boxes, the size keeping the focus');
     await set(0, '2');
     await page.click(on + ' .calc-sv-matrix .calc-sv-cell:nth-child(2)');
@@ -1276,10 +1298,23 @@ async function numbersPanel(page, at) {
     check(await page.calc('document.querySelectorAll("' + on + ' input").length') === 7 && await page.calc('document.querySelectorAll("' + on + ' .calc-sv-rhs").length') === 2,
         t + 'A x = b: a size, and a row of A and of b for each equation');
     for (const [n, v] of [[1, '1'], [2, '1'], [3, '3'], [4, '1'], [5, '-1'], [6, '1']]) await set(n, v);
-    check(await page.calc(tiles) === 'x1=2 | x2=1', t + 'x + y = 3 and x – y = 1', await page.calc(tiles));
+    check((await page.calc(tiles)).indexOf('x1=2 | x2=1 | [A | b] reduced=102011') === 0, t + 'x + y = 3 and x – y = 1, and [A | b] reduced', await page.calc(tiles));
+    for (const [n, v] of [[4, '2'], [5, '2'], [6, '6']]) await set(n, v);
+    check((await page.calc(tiles)).indexOf('x1=3 | x2=0 | All of them=x = p + t1v1 | p=30 | v1=-11') === 0 && /^Many answers/.test(await page.calc(note)),
+        t + 'the same line twice: all of its answers', await page.calc(tiles));
     await set(0, '3 2');
     for (const [n, v] of [[1, '1'], [2, '0'], [3, '1'], [4, '0'], [5, '1'], [6, '2'], [7, '1'], [8, '1'], [9, '4']]) await set(n, v);
-    check(/^No answer/.test(await page.calc(note)), t + 'three equations of two unknowns that cannot all hold', await page.calc(note));
+    check(/^No answer/.test(await page.calc(note)) && /least squares/.test(await page.calc(note)) && (await page.calc(tiles)).indexOf('|Ax – b|=') > 0,
+        t + 'three equations of two unknowns that cannot all hold: the nearest by least squares', await page.calc(note));
+    await card('Row reduce');
+    for (let n = 1; n <= 9; n++) await set(n, String(n));
+    check(await page.calc(tiles) === 'rref A=10-1012000 | Rank=2 | Nullity=1 | Columns of its first 1s=1, 2 | Null space v1=1-21', t + 'row reduce [1 2 3; 4 5 6; 7 8 9], and its null space', await page.calc(tiles));
+    await card('Vectors');
+    await set(0, '1, 2, 3');
+    await set(1, '4, 5, 6');
+    check((await page.calc(tiles)).indexOf('u · v=32 | u × v=-36-3 | |u|=3.74165738677 | |v|=8.77496438739 | ') === 0, t + 'the dot and cross products of two vectors', await page.calc(tiles));
+    await set(1, '4, 5');
+    check(/^Two vectors of one size/.test(await page.calc(note)), t + 'vectors of two sizes', await page.calc(note));
 
     await page.click('.calc-numbers .calc-solve-tab[data-tab="whole"]');
     await card('Prime factors');
@@ -1294,6 +1329,30 @@ async function numbersPanel(page, at) {
     await card('GCD and LCM');
     await set(0, '12, 18, 30');
     check(await page.calc(tiles) === 'GCD=6 | LCM=180 | Coprime=No', t + 'the GCD and LCM of 12, 18 and 30', await page.calc(tiles));
+    await card('Modular arithmetic');
+    await set(0, '3');
+    await set(1, '4');
+    await set(2, '7');
+    check(await page.calc(tiles) === 'a mod m=3 | ab mod m=4 | a–1 mod m=5 | a x ≡ b (mod m)=x ≡ 6 (mod 7)', t + '3, 4 and 7 mod 7', await page.calc(tiles));
+    await card('Chinese remainder');
+    await set(0, '2 mod 3, 3 mod 5, 2 mod 7');
+    check(await page.calc(tiles) === 'x=23 | Modulus=105 | All of them=x ≡ 23 (mod 105)', t + 'the Chinese remainder theorem', await page.calc(tiles));
+    await card('Exactly');
+    await set(0, '50 nCr 25');
+    check((await page.calc(tiles)).indexOf('Exactly=126410606437752 | Digits=15 | ') === 0, t + '50 nCr 25 to every digit', await page.calc(tiles));
+    await set(0, '1/3 + 1/6');
+    check((await page.calc(tiles)).indexOf('Exactly=1/2 | ') === 0, t + 'fractions stay fractions', await page.calc(tiles));
+    await card('Primes');
+    await set(0, '100');
+    check(await page.calc(tiles) === 'Prime=No | Previous prime=97 | Next prime=101 | π(n), primes up to n=25 | The n-th prime=541', t + 'the primes about 100', await page.calc(tiles));
+    await card('Primes between');
+    await set(0, '10');
+    await set(1, '30');
+    check(await page.calc(tiles) === 'How many=6 | The primes=11, 13, 17, 19, 23, 29', t + 'the primes from 10 to 30', await page.calc(tiles));
+    await card('Fraction and decimal');
+    await set(0, '0.1(6)');
+    check((await page.calc(tiles)).indexOf('Fraction=1/6 | Mixed=– | ') === 0 && (await page.calc(tiles)).indexOf('Decimal=0.1(6) | Continued fraction=[0; 6]') > 0,
+        t + '0.1(6) is 1/6', await page.calc(tiles));
     await card('Round');
     await set(0, '-2.5');
     check((await page.calc(tiles)).indexOf('Rounded=-3 | Down ⌊x⌋=-3 | Up ⌈x⌉=-2 | Toward 0=-2 | Fraction part=-0.5') === 0,

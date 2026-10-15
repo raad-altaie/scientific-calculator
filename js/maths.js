@@ -4,11 +4,13 @@
 // sums and products, on to ∞ as well, limits, Taylor series, areas between curves, lengths of
 // them and differential equations; and the normal, Student's t, χ², F, binomial, Poisson,
 // geometric, hypergeometric, exponential and uniform distributions, and confidence intervals.
-// And of the Numbers panel: complex numbers, whole numbers in bits and their bases, numbers as
-// a computer keeps them, by IEEE 754, and matrices, their eigenvalues and linear equations of
-// them; and whole numbers: their prime factors, divisors, greatest common divisor and least
-// common multiple, and numbers rounded. Functions are read as the graph reads them, by the
-// engine.
+// And of the Numbers panel: complex numbers, and polynomials of complex coefficients; whole
+// numbers in bits and their bases, numbers in any base, text as its codes, and numbers as a
+// computer keeps them, by IEEE 754; matrices, their eigenvalues, linear equations of them,
+// their rows reduced, powers, LU and QR, and vectors; and whole numbers: their prime factors,
+// divisors, greatest common divisor and least common multiple, modular arithmetic and the
+// Chinese remainder theorem, numbers worked out exactly, primes, fractions and their decimals,
+// and numbers rounded. Functions are read as the graph reads them, by the engine.
 // It works on its own in Node as well, for the tests
 (function (root) {
     'use strict';
@@ -2221,42 +2223,35 @@
         c = characteristic(a);
         values = poly(c) || [];
         values.forEach(function (z, i) {
-            var m, r, tol, free, big;
+            var m, r, tol;
             if (z.im || (i && !values[i - 1].im && values[i - 1].re === z.re)) return; // each real one once
             m = a.map(function (row, i) { return row.map(function (x, j) { return x - (i === j ? z.re : 0); }); });
             for (tol = 1e-10; tol <= 1e-5; tol *= 100) { // λ is only so near: a little more of 0 till it has a way to 0
                 r = reduce(m, n, tol);
                 if (r.rank < n) break;
             }
-            for (free = 0; free < n; free++) {
-                if (r.where.indexOf(free) > -1) continue;
-                var v = [], k, j;
-                for (j = 0; j < n; j++) v[j] = j === free ? 1 : 0;
-                r.where.forEach(function (col, row) { v[col] = -r.m[row][free]; });
-                big = Math.max.apply(null, v.map(Math.abs));
-                v = v.map(function (x) { return Math.abs(x) <= 1e-9 * big ? 0 : x; });
-                for (k = 1; k <= 12; k++) {
-                    if (v.every(function (x) { return Math.abs(k * x - Math.round(k * x)) <= 1e-8 * Math.max(1, Math.abs(k * x)); })) {
-                        v = v.map(function (x) { return Math.round(k * x) + 0; });
-                        break;
-                    }
-                }
-                vectors.push({ value: z.re, v: v.map(function (x) { return round(x) + 0; }) });
-            }
+            kernel(r, n).forEach(function (v) { vectors.push({ value: z.re, v: v }); });
         });
         return { poly: c.map(function (x) { return round(x) + 0; }), values: values, vectors: vectors };
     }
 
-    // Linear equations A x = b of any size, a matrix and a column: { x } where they have one
-    // answer, { none: true } where they have none, { many: true } where they have more
-    function system(a, b) {
-        var rows = a.length, cols = a[0].length, r, i, big;
+    // Linear equations A x = b of any size, a matrix and a column, with [A | b] reduced, rref:
+    // { x } where they have one answer; { many: true, p, basis }, x = p + t₁v₁ + …, each v of
+    // the basis, where they have more; { none: true, least } where they have none, least the
+    // nearest by least squares, unless inner, of least squares itself
+    function system(a, b, inner) {
+        var rows = a.length, cols = a[0].length, r, i, big, m, p = [];
         if (!a.every(function (row) { return row.every(isFinite); }) || !b.every(isFinite)) return null;
         r = reduce(a.map(function (row, i) { return row.concat([b[i]]); }), cols);
+        m = clean(r.m, [a, b.map(function (x) { return [x]; })]);
         big = Math.max.apply(null, b.map(Math.abs)); // left over of b, as small as b is: none where it is 0 throughout
-        for (i = r.rank; i < rows; i++) if (Math.abs(r.m[i][cols]) > 1e-9 * big) return { none: true };
-        if (r.rank < cols) return { many: true };
-        return { x: clean(r.m.slice(0, cols).map(function (row) { return [row[cols]]; }), [a, [b]]).map(function (row) { return row[0]; }) };
+        for (i = r.rank; i < rows; i++) if (Math.abs(r.m[i][cols]) > 1e-9 * big) return { none: true, rref: m, least: inner ? null : leastSquares(a, b) };
+        if (r.rank < cols) {
+            for (i = 0; i < cols; i++) p.push(0);
+            r.where.forEach(function (col, row) { p[col] = r.m[row][cols]; }); // each free unknown 0
+            return { many: true, rref: m, p: clean([p], [a, [b]])[0], basis: kernel(r, cols) };
+        }
+        return { x: clean(r.m.slice(0, cols).map(function (row) { return [row[cols]]; }), [a, [b]]).map(function (row) { return row[0]; }), rref: m };
     }
 
     // ---------- whole numbers ---------- //
@@ -2457,6 +2452,787 @@
         return roundTo(x, s - 1 - (digits.length - 1 + (m[3] ? +m[3] : 0) - (m[2] || '').length), 'round');
     }
 
+    // ---------- more of matrices ---------- //
+
+    // v made whole where a small whole number times it is, [-1, 2] not [-0.5, 1], each to 12 digits
+    function wholeVector(v) {
+        var big = Math.max.apply(null, v.map(Math.abs)), k;
+        v = v.map(function (x) { return Math.abs(x) <= 1e-9 * big ? 0 : x; });
+        for (k = 1; k <= 12; k++) {
+            if (v.every(function (x) { return Math.abs(k * x - Math.round(k * x)) <= 1e-8 * Math.max(1, Math.abs(k * x)); })) {
+                return v.map(function (x) { return Math.round(k * x) + 0; });
+            }
+        }
+        return v.map(function (x) { return round(x) + 0; });
+    }
+
+    // The vectors a matrix takes to 0, from its rows reduced, r as reduce gives it, of n columns:
+    // one for each column without a first 1 of a row, with a 1 there, made whole
+    function kernel(r, n) {
+        var out = [], free, v, j;
+        for (free = 0; free < n; free++) {
+            if (r.where.indexOf(free) > -1) continue;
+            v = [];
+            for (j = 0; j < n; j++) v[j] = j === free ? 1 : 0;
+            r.where.forEach(function (col, row) { v[col] = -r.m[row][free]; });
+            out.push(wholeVector(v));
+        }
+        return out;
+    }
+
+    // A matrix's rows reduced as far as they go, its reduced row echelon form: { m, rank, pivots:
+    // the column of each row's first 1, kernel: a basis of the vectors it takes to 0 }
+    function rref(a) {
+        var r = reduce(a, a[0].length);
+        return { m: clean(r.m, [a]), rank: r.rank, pivots: r.where, kernel: kernel(r, a[0].length) };
+    }
+
+    // The x that makes A x as near b as it can be, by least squares, AᵀA x = Aᵀb: { x, residual:
+    // the length of A x – b, many: other x are as near }
+    function leastSquares(a, b) {
+        var at = transpose(a), r = system(times(at, a, true), times(at, b.map(function (x) { return [x]; }), true).map(function (row) { return row[0]; }), true), x, d; // inner: no least squares of its own
+        if (!r) return null;
+        x = r.x || r.p;
+        d = a.map(function (row, i) { return row.reduce(function (s, v, j) { return s + v * x[j]; }, 0) - b[i]; });
+        return { x: x, residual: round(Math.sqrt(d.reduce(function (s, v) { return s + v * v; }, 0))), many: !!r.many };
+    }
+
+    // a square matrix to the power n, a whole number up to 1000 either way, by squaring; of n
+    // below 0, of its inverse; null where it is not square or has no inverse
+    function matrixPower(a, n) {
+        var size = a.length, out, base, k;
+        if (!size || a.some(function (r) { return r.length !== size; }) || !isWhole(n) || Math.abs(n) > 1000) return null;
+        base = n < 0 ? inverse(a) : a;
+        if (!base) return null;
+        out = a.map(function (r, i) { return r.map(function (x, j) { return i === j ? 1 : 0; }); });
+        for (k = Math.abs(n); k > 0; k = Math.floor(k / 2)) {
+            if (k % 2) out = times(out, base, true);
+            if (k > 1) base = times(base, base, true);
+        }
+        return clean(out, [out]);
+    }
+
+    // P A = L U of a square matrix, by elimination with the largest first: { p, l, u }, null
+    // where it is not square
+    function lu(a) {
+        var n = a.length, u = a.map(function (r) { return r.slice(); }), l = [], p = [], i, j, k, q, f, big;
+        if (!n || a.some(function (r) { return r.length !== n; })) return null;
+        for (i = 0; i < n; i++) {
+            l.push(a.map(function () { return 0; }));
+            p.push(i);
+        }
+        big = Math.max.apply(null, a.map(function (r) { return Math.max.apply(null, r.map(Math.abs)); })) || 1;
+        for (j = 0; j < n; j++) {
+            q = j;
+            for (i = j + 1; i < n; i++) if (Math.abs(u[i][j]) > Math.abs(u[q][j])) q = i;
+            if (q !== j) {
+                [u, l, p].forEach(function (m) { var t = m[j]; m[j] = m[q]; m[q] = t; });
+            }
+            l[j][j] = 1;
+            if (Math.abs(u[j][j]) <= 1e-13 * big) continue; // nothing below to take away
+            for (i = j + 1; i < n; i++) {
+                f = u[i][j] / u[j][j];
+                l[i][j] = f;
+                for (k = j; k < n; k++) u[i][k] -= f * u[j][k];
+            }
+        }
+        return {
+            p: p.map(function (c) { return a.map(function (x, j) { return j === c ? 1 : 0; }); }),
+            l: clean(l, [l]),
+            u: clean(u, [a])
+        };
+    }
+
+    // A = Q R, Q's columns of length 1 and at right angles, R above its diagonal, which is 0 or
+    // more: by Householder's reflections. { q, r }
+    function qr(a) {
+        var m = a.length, n = a[0].length, r = a.map(function (row) { return row.slice(); }), q = [], i, j, k, norm, alpha, v, vv, dot;
+        for (i = 0; i < m; i++) q.push(a.map(function (x, j) { return i === j ? 1 : 0; }));
+        for (k = 0; k < Math.min(m - 1, n); k++) {
+            for (norm = 0, i = k; i < m; i++) norm += r[i][k] * r[i][k];
+            norm = Math.sqrt(norm);
+            if (!norm) continue;
+            alpha = r[k][k] > 0 ? -norm : norm;
+            v = [];
+            for (i = 0; i < m; i++) v.push(i < k ? 0 : i === k ? r[k][k] - alpha : r[i][k]);
+            vv = v.reduce(function (s, x) { return s + x * x; }, 0);
+            if (!vv) continue;
+            for (j = 0; j < n; j++) {
+                for (dot = 0, i = k; i < m; i++) dot += v[i] * r[i][j];
+                for (i = k; i < m; i++) r[i][j] -= 2 * dot / vv * v[i];
+            }
+            for (i = 0; i < m; i++) {
+                for (dot = 0, j = k; j < m; j++) dot += q[i][j] * v[j];
+                for (j = k; j < m; j++) q[i][j] -= 2 * dot / vv * v[j];
+            }
+        }
+        for (k = 0; k < Math.min(m, n); k++) {
+            if (r[k][k] < 0) { // a diagonal of 0 or more: the row of R and the column of Q the other way
+                for (j = 0; j < n; j++) r[k][j] = -r[k][j];
+                for (i = 0; i < m; i++) q[i][k] = -q[i][k];
+            }
+        }
+        return { q: clean(q, [q]), r: clean(r, [a]) };
+    }
+
+    // Numbers typed as a vector: 1, 2, 3, or with spaces or ; between them, as with a decimal
+    // comma; each may be worked out, sqrt(2). An array of 2 to 4 of them, or null
+    function vectorOf(text, comma, deg) {
+        var parts = String(text).trim().split(comma ? /\s*;\s*|\s+/ : /\s*[,;]\s*|\s+/).filter(Boolean), v;
+        if (parts.length < 2 || parts.length > 4) return null;
+        v = parts.map(function (p) { return number(p, comma, deg); });
+        return v.every(isFinite) ? v : null;
+    }
+
+    // Of two vectors of one size: { dot, cross: of two of 3 a vector, of 2 its one number, of 4
+    // none, lengths: [|u|, |v|], angle between them in the unit deg, projection of u on v, unit:
+    // u of length 1 }
+    function vectors(u, v, deg) {
+        var dot = u.reduce(function (s, x, i) { return s + x * v[i]; }, 0), lu = Math.hypot.apply(null, u), lv = Math.hypot.apply(null, v), cross = null, cos;
+        if (u.length === 3) cross = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]].map(function (x) { return round(x) + 0; });
+        if (u.length === 2) cross = round(u[0] * v[1] - u[1] * v[0]) + 0;
+        cos = lu && lv ? Math.max(-1, Math.min(1, dot / (lu * lv))) : NaN;
+        return {
+            dot: round(dot) + 0, cross: cross, lengths: [round(lu), round(lv)],
+            angle: round(Math.acos(cos) / [1, PI / 180, PI / 200][deg || 0]),
+            projection: lv ? v.map(function (x) { return round(x * dot / (lv * lv)) + 0; }) : null,
+            unit: lu ? u.map(function (x) { return round(x / lu) + 0; }) : null
+        };
+    }
+
+    // ---------- polynomials of complex coefficients ---------- //
+
+    // The roots of a polynomial of complex coefficients [re, im], the highest power first, by
+    // Aberth's steps for all at once and Newton's for each, as poly: [{ re, im }] by their real
+    // parts, then imaginary; null where it has no power of x or a coefficient is not a number
+    function cpoly(coefs) {
+        var c = coefs.slice(), zeros = [], n, roots = [], big, i, k, j, step, h, q, s, w, out;
+        if (!c.every(function (z) { return isFinite(z[0]) && isFinite(z[1]); })) return null;
+        while (c.length && !c[0][0] && !c[0][1]) c.shift();
+        if (c.length < 2) return null;
+        while (c.length > 1 && !c[c.length - 1][0] && !c[c.length - 1][1]) {
+            c.pop();
+            zeros.push({ re: 0, im: 0 });
+        }
+        n = c.length - 1;
+        function at(z) { // the value and slope at z
+            var p = c[0], d = [0, 0], k;
+            for (k = 1; k <= n; k++) {
+                d = add(cmul(d, z), p);
+                p = add(cmul(p, z), c[k]);
+            }
+            return { p: p, d: d };
+        }
+        if (n >= 1) {
+            big = 1 + Math.max.apply(null, c.slice(1).map(function (z) { return cabs(cdiv(z, c[0])); }));
+            for (k = 0; k < n; k++) roots.push([big * Math.cos(2 * PI * k / n + 0.4), big * Math.sin(2 * PI * k / n + 0.4)]);
+            for (i = 0; i < 800; i++) {
+                step = 0;
+                for (k = 0; k < n; k++) {
+                    h = at(roots[k]);
+                    if (!h.p[0] && !h.p[1]) continue;
+                    q = cdiv(h.p, h.d);
+                    for (s = [0, 0], j = 0; j < n; j++) if (j !== k) s = add(s, cdiv([1, 0], sub(roots[k], roots[j])));
+                    q = cdiv(q, sub([1, 0], cmul(q, s)));
+                    if (!isFinite(q[0]) || !isFinite(q[1])) continue;
+                    roots[k] = sub(roots[k], q);
+                    step = Math.max(step, cabs(q) / Math.max(1, cabs(roots[k])));
+                }
+                if (step < 1e-16) break;
+            }
+        }
+        out = roots.map(function (z) {
+            for (w = z, k = 0; k < 3; k++) { // Newton's steps, each kept only if it is nearer
+                h = at(w);
+                if (!(cabs(h.d) > 0)) break;
+                q = sub(w, cdiv(h.p, h.d));
+                if (isFinite(q[0]) && isFinite(q[1]) && cabs(at(q).p) <= cabs(h.p)) w = q;
+            }
+            return tidyComplex(w);
+        }).concat(zeros);
+        return out.sort(function (p, q) { return p.re - q.re || p.im - q.im; });
+    }
+
+    // A polynomial of x typed with complex coefficients, x^2 + (1 + i)x + 2i, multiplied out, or
+    // its coefficients from the highest power: 1, 1 + i, 2i (with ; between them with the comma).
+    // { c: [[re, im]], the highest power first } or { error: 'polynomial' | 'letters' | 'power' }
+    function cpolynomial(text, comma, deg) {
+        var s = String(text).trim(), parts, sides, trees, big = false, letters = false, c, top;
+        if (!s) return { error: 'polynomial' };
+        parts = s.split(comma ? /\s*;\s*/ : /\s*[,;]\s*/);
+        if (parts.length > 1 && !/x/i.test(s)) {
+            c = parts.map(function (p) { return complex(p, comma, deg); });
+            if (!c.every(function (z) { return z && isFinite(z.re) && isFinite(z.im); })) return { error: 'polynomial' };
+            c = c.map(function (z) { return [z.re, z.im]; });
+            while (c.length > 1 && !c[0][0] && !c[0][1]) c.shift();
+            return c.length - 1 > POWER_MAX ? { error: 'power' } : { c: c };
+        }
+        function cadd(a, b, minus) {
+            var out = [], k;
+            for (k = 0; k < Math.max(a.length, b.length); k++) out.push((minus ? sub : add)(a[k] || [0, 0], b[k] || [0, 0]));
+            return out;
+        }
+        function cmulp(a, b) {
+            var out = [], j, k;
+            for (k = 0; k < a.length + b.length - 1; k++) out.push([0, 0]);
+            for (j = 0; j < a.length; j++) for (k = 0; k < b.length; k++) out[j + k] = add(out[j + k], cmul(a[j], b[k]));
+            return out;
+        }
+        function hasX(n) {
+            var a, b, r;
+            if (!n) return false;
+            if (n.t === 'const' && n.p && n.v !== 'i') letters = true;
+            a = hasX(n.arg);
+            b = hasX(n.l);
+            r = hasX(n.r);
+            return n.t === 'const' && n.v === 'x' || a || b || r;
+        }
+        function expand(n) { // the coefficients, the lowest power first, as polynomial's, of complex numbers
+            var a, b, out, k;
+            if (!hasX(n)) {
+                a = cvalue(n, deg);
+                return isFinite(a[0]) && isFinite(a[1]) ? [a] : null;
+            }
+            switch (n.t) {
+                case 'const': return [[0, 0], [1, 0]];
+                case 'group': return expand(n.arg);
+                case 'neg':
+                    a = expand(n.arg);
+                    return a && a.map(function (z) { return [0 - z[0], 0 - z[1]]; });
+                case 'fn':
+                case 'post':
+                    a = expand(n.arg);
+                    if (!a) return null;
+                    if (n.key === 'x2') return cmulp(a, a);
+                    return n.key === 'x3' ? cmulp(cmulp(a, a), a) : null;
+                case 'bin':
+                    a = expand(n.l);
+                    b = expand(n.r);
+                    if (!a || !b) return null;
+                    if (n.op === '+' || n.op === '–') return cadd(a, b, n.op === '–');
+                    if (n.op === '×') return a.length + b.length - 2 > POWER_MAX ? (big = true) && null : cmulp(a, b);
+                    if (n.op === '÷') return b.length === 1 && (b[0][0] || b[0][1]) ? a.map(function (z) { return cdiv(z, b[0]); }) : null;
+                    if (n.op === 'yx' && b.length === 1 && !b[0][1] && b[0][0] >= 0 && b[0][0] === Math.floor(b[0][0])) {
+                        if ((a.length - 1) * b[0][0] > POWER_MAX) return (big = true) && null;
+                        for (out = [[1, 0]], k = 0; k < b[0][0]; k++) out = cmulp(out, a);
+                        return out;
+                    }
+            }
+            return null;
+        }
+        sides = s.split('=');
+        if (sides.length > 2 || sides.some(function (side) { return !side.trim(); })) return { error: 'polynomial' };
+        trees = sides.map(function (side) { return Engine.tree(side, comma); });
+        if (!trees.every(Boolean)) return { error: 'polynomial' };
+        trees.forEach(hasX);
+        if (letters) return { error: 'letters' };
+        c = trees.map(expand);
+        if (big) return { error: 'power' };
+        if (!c.every(Boolean)) return { error: 'polynomial' };
+        c = c.length === 2 ? cadd(c[0], c[1], true) : c[0];
+        top = Math.max.apply(null, c.map(cabs));
+        c = c.map(function (z) { return [Math.abs(z[0]) <= 1e-14 * top ? 0 : round(z[0]), Math.abs(z[1]) <= 1e-14 * top ? 0 : round(z[1])]; }).reverse();
+        while (c.length > 1 && !c[0][0] && !c[0][1]) c.shift();
+        return c.length - 1 > POWER_MAX ? { error: 'power' } : { c: c };
+    }
+
+    // ---------- any base ---------- //
+
+    var DIGITS = '0123456789abcdefghijklmnopqrstuvwxyz';
+
+    // A number written in a base from 2 to 36, with a point and its digits after it, a part that
+    // comes again and again in brackets as well: FF.8 in 16, 0.(3) in 10. As a fraction [top,
+    // bottom] of BigInts, the bottom above 0; null where it is not one
+    function fromBase(text, base) {
+        var s = String(text).trim().toLowerCase().replace(/[\s_]/g, '').replace(/^[−–]/, '-'), neg = s.charAt(0) === '-', m, b = BigInt(base),
+            top, bottom, rep, g;
+        function read(digits) { // the digits as a whole number, null where one is not of the base
+            var v = BIG.zero, i, d;
+            for (i = 0; i < digits.length; i++) {
+                d = DIGITS.indexOf(digits.charAt(i));
+                if (d < 0 || d >= base) return null;
+                v = v * b + BigInt(d);
+            }
+            return v;
+        }
+        if (!(base >= 2 && base <= 36 && base === Math.floor(base))) return null;
+        if (neg || s.charAt(0) === '+') s = s.slice(1);
+        m = /^([0-9a-z]*)(?:[.,]([0-9a-z]*)(?:\(([0-9a-z]+)\))?)?$/.exec(s);
+        if (!m || !(m[1] || m[2] || m[3])) return null;
+        top = read((m[1] || '') + (m[2] || ''));
+        if (top === null) return null;
+        bottom = b ** BigInt((m[2] || '').length);
+        if (m[3]) { // and rep / ((b^len – 1) b^frac)
+            rep = read(m[3]);
+            if (rep === null) return null;
+            top = top * (b ** BigInt(m[3].length) - BIG.one) + rep;
+            bottom *= b ** BigInt(m[3].length) - BIG.one;
+        }
+        g = gcdBig(top, bottom) || BIG.one;
+        return [(neg ? -top : top) / g, bottom / g];
+    }
+
+    // A fraction written in a base from 2 to 36: its whole part, a point and the digits after it,
+    // the part that comes again and again in brackets, 0.0(0011) for 0.1 in 2; … after max digits
+    // where it goes on further without coming round
+    function toBase(top, bottom, base, max) {
+        var b = BigInt(base), neg = top < BIG.zero, whole, rest, digits = '', seen = new Map(), k, d, at;
+        if (neg) top = -top;
+        whole = (top / bottom).toString(base);
+        rest = top % bottom;
+        for (k = 0; rest && k < (max || 64); k++) {
+            if (seen.has(rest)) {
+                at = seen.get(rest);
+                digits = digits.slice(0, at) + '(' + digits.slice(at) + ')';
+                rest = BIG.zero;
+                break;
+            }
+            seen.set(rest, k);
+            rest *= b;
+            d = rest / bottom;
+            digits += DIGITS.charAt(Number(d));
+            rest %= bottom;
+        }
+        if (rest) digits += '…';
+        return ((neg && (top || digits) ? '-' : '') + whole + (digits ? '.' + digits : '')).toUpperCase();
+    }
+
+    // ---------- text and its codes ---------- //
+
+    // The codes of a text: { points: its code points, utf8: its bytes in UTF-8, utf16: its units }
+    function textCodes(text) {
+        var s = String(text), points = [], units = [], i;
+        for (i = 0; i < s.length; i++) units.push(s.charCodeAt(i));
+        Array.from(s).forEach(function (ch) { points.push(ch.codePointAt(0)); });
+        return { points: points, utf8: Array.from(new TextEncoder().encode(s)), utf16: units };
+    }
+
+    // A text from its codes typed: U+00E9 or é for code points, 0xC3 0xA9 for bytes of
+    // UTF-8, 0b11000011 in binary as well, or 233 in decimal for code points; apart by spaces or
+    // commas. The text, or null where they are not one
+    function fromCodes(text) {
+        var parts = String(text).trim().split(/[\s,;]+/).filter(Boolean), bytes = [], points = [], i, p, v, out = '';
+        if (!parts.length) return null;
+        for (i = 0; i < parts.length; i++) {
+            p = parts[i];
+            if (/^(u\+|\\u)[0-9a-f]{1,6}$/i.test(p)) {
+                if (bytes.length) return null;
+                points.push(parseInt(p.slice(2), 16));
+            } else if (/^0x[0-9a-f]{1,2}$/i.test(p) || /^0b[01]{1,8}$/i.test(p)) {
+                if (points.length) return null;
+                bytes.push(parseInt(p.slice(2), /^0x/i.test(p) ? 16 : 2));
+            } else if (/^\d+$/.test(p)) {
+                if (bytes.length) return null;
+                points.push(+p);
+            } else {
+                return null;
+            }
+        }
+        if (bytes.length) {
+            try {
+                return new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array(bytes));
+            } catch (e) {
+                return null;
+            }
+        }
+        for (i = 0; i < points.length; i++) {
+            v = points[i];
+            if (v > 0x10FFFF || (v >= 0xD800 && v <= 0xDFFF)) return null;
+            out += String.fromCodePoint(v);
+        }
+        return out;
+    }
+
+    // ---------- modular arithmetic ---------- //
+
+    // a whole number typed, as a BigInt, of up to 1000 digits; one worked out as whole does
+    function wholeLong(text, comma, deg) {
+        var s = String(text).trim().replace(/^[−–]/, '-').replace(/^\+/, '');
+        if (/^-?\d+$/.test(s)) return s.replace(/^-?0*/, '').length <= 1000 ? BigInt(s) : null;
+        return whole(s, comma, deg);
+    }
+
+    // x modulo m, from 0 up to m
+    function modOf(x, m) {
+        x %= m;
+        return x < BIG.zero ? x + m : x;
+    }
+
+    // the inverse of a modulo m, by Euclid's steps both ways, or null where they have a factor in common
+    function modInverse(a, m) {
+        var r0 = modOf(a, m), r1 = m, s0 = BIG.one, s1 = BIG.zero, q, t;
+        while (r1) {
+            q = r0 / r1;
+            t = r0 - q * r1;
+            r0 = r1;
+            r1 = t;
+            t = s0 - q * s1;
+            s0 = s1;
+            s1 = t;
+        }
+        return r0 === BIG.one ? modOf(s0, m) : m === BIG.one ? BIG.zero : null;
+    }
+
+    // Of whole numbers a, b and m typed: { mod: a mod m, power: aᵇ mod m, of b below 0 by the
+    // inverse, inverse: a⁻¹ mod m, solve: { x, step, count } of a x ≡ b (mod m), x + k·step for
+    // each k below count, or null where it has none } or { error: 'whole', at: 'a' | 'b' | 'm' }
+    // | { error: 'modulus' } for an m that is not above 0
+    function modular(texts, comma, deg) {
+        var v = texts.map(function (t) { return wholeLong(t, comma, deg); }), a = v[0], b = v[1], m = v[2], inv, g, step, x, power;
+        for (g = 0; g < 3; g++) if (v[g] === null) return { error: 'whole', at: 'abm'.charAt(g) };
+        if (m <= BIG.zero) return { error: 'modulus' };
+        inv = modInverse(a, m);
+        power = b < BIG.zero ? (inv === null ? null : powMod(inv, -b, m)) : m === BIG.one ? BIG.zero : powMod(modOf(a, m), b, m);
+        g = gcdBig(a, m); // 1 or more, as m is
+        if (modOf(b, g)) {
+            x = null;
+        } else {
+            step = m / g;
+            x = { x: modOf(b / g * modInverse(a / g, step), step), step: step, count: g };
+        }
+        return { mod: modOf(a, m), power: power, inverse: inv, solve: x };
+    }
+
+    // The x of x ≡ r (mod m) for each of a list typed, 2 mod 3, 3 mod 5, 2 mod 7, by the Chinese
+    // remainder theorem, the moduli with a factor in common as well: { x, m: x is one of x + k·m },
+    // { none: true } where they cannot all hold, or { error: 'list', at } with the part that is not one
+    function chinese(text, comma, deg) {
+        var parts = String(text).split(comma ? /\s*;\s*/ : /\s*[,;]\s*/).filter(function (s) { return s.trim(); }), x = BIG.zero, m = BIG.one, i, p, r, n, g, t;
+        if (!parts.length) return { error: 'list', at: '' };
+        for (i = 0; i < parts.length; i++) {
+            p = /^\s*(?:x\s*[≡=]\s*)?(\S+)\s*(?:\(\s*mod\s+(\S+?)\s*\)|mod\s+(\S+))\s*$/i.exec(parts[i]);
+            r = p && wholeLong(p[1], comma, deg);
+            n = p && wholeLong(p[2] || p[3], comma, deg);
+            if (!p || r === null || n === null || n <= BIG.zero) return { error: 'list', at: parts[i].trim() };
+            g = gcdBig(m, n);
+            if (modOf(r - x, g)) return { none: true };
+            t = modOf((r - x) / g * (modInverse(m / g, n / g) || BIG.zero), n / g);
+            x = modOf(x + m * t, m / g * n);
+            m = m / g * n;
+        }
+        return { x: x, m: m };
+    }
+
+    // ---------- exact whole numbers and fractions ---------- //
+
+    var EXACT_DIGITS = 20000; // a number found exactly of more digits is not worked out
+
+    // A calculation worked out exactly, of whole numbers and fractions as BigInts: + – × ÷, ^,
+    // n!, nCr and nPr, or C(n, k), P(n, k) and fib(n): 100!, 2^200, 50 nCr 25, fib(300), 1/3 + 1/6.
+    // { top, bottom } in lowest terms, the bottom above 0, or { error: 'expression' | 'large' |
+    // 'zero' | 'whole' }: not one; past EXACT_DIGITS; a division by 0; a factorial, a power or a
+    // choice of what is not a whole number of the size it can be
+    function exact(text, comma) {
+        var s = String(text).replace(/×|\*/g, '*').replace(/÷/g, '/').replace(/[−–]/g, '-'), at = 0, error = null, v;
+        function fail(e) {
+            if (!error) error = e;
+            return null;
+        }
+        function frac(t, b) {
+            var g;
+            if (t === null || b === null) return null;
+            if (!b) return fail('zero');
+            if (b < BIG.zero) {
+                t = -t;
+                b = -b;
+            }
+            g = gcdBig(t, b) || BIG.one;
+            t /= g;
+            b /= g;
+            if (t.toString().length > EXACT_DIGITS + 1 || b.toString().length > EXACT_DIGITS) return fail('large');
+            return [t, b];
+        }
+        function log10(v) { // of a whole number above 0, from its first 15 digits and how many there are
+            var d = v.toString();
+            return v ? d.length - 15 + Math.log10(Number(d.slice(0, 15)) * Math.pow(10, 15 - Math.min(15, d.length))) : 0;
+        }
+        function intOf(x, max) { // a whole number of x, at most max, or null
+            return x && x[1] === BIG.one && x[0] >= BIG.zero && x[0] <= BigInt(max) ? x[0] : fail('whole');
+        }
+        function space() {
+            while (at < s.length && /\s/.test(s.charAt(at))) at++;
+        }
+        function is(word) {
+            space();
+            if (s.substr(at, word.length).toLowerCase() === word.toLowerCase()) {
+                at += word.length;
+                return true;
+            }
+            return false;
+        }
+        function factorial(n, from) { // from + 1 up to n, multiplied in halves, so the products are of a size
+            if (n - from <= BigInt(8)) {
+                for (var p = BIG.one, k = from + BIG.one; k <= n; k++) p *= k;
+                return p;
+            }
+            var mid = (n + from) / BIG.two;
+            return factorial(mid, from) * factorial(n, mid);
+        }
+        function fib(n) { // by doubling: F(2k) = F(k)(2F(k+1) – F(k)), F(2k+1) = F(k)² + F(k+1)²
+            var bits = n.toString(2), a = BIG.zero, b = BIG.one, i, c, d;
+            for (i = 0; i < bits.length; i++) {
+                c = a * (BIG.two * b - a);
+                d = a * a + b * b;
+                a = c;
+                b = d;
+                if (bits.charAt(i) === '1') {
+                    c = a + b;
+                    a = b;
+                    b = c;
+                }
+            }
+            return a;
+        }
+        function choose(n, k, perm) {
+            if (n === null || k === null) return null;
+            if (k > n) return [BIG.zero, BIG.one];
+            if (!perm && k > n - k) k = n - k;
+            var p = factorial(n, n - k);
+            return frac(perm ? p : p / factorial(k, BIG.zero), BIG.one);
+        }
+        function primary() {
+            var m, x, y, name;
+            space();
+            m = (comma ? /^(\d+)(?:,(\d+))?/ : /^(\d+)(?:\.(\d+))?/).exec(s.slice(at)); // with the decimal mark in use, not the , of C(5, 2)
+            if (m) {
+                at += m[0].length;
+                return frac(BigInt(m[1] + (m[2] || '')), BigInt(10) ** BigInt((m[2] || '').length));
+            }
+            m = /^(fib|nCr|nPr|C|P|F)\s*\(/i.exec(s.slice(at));
+            if (m) {
+                name = m[1].toLowerCase();
+                at += m[0].length;
+                x = expr();
+                if (name === 'fib' || name === 'f') {
+                    if (!is(')')) return fail('expression');
+                    x = intOf(x, 100000);
+                    return x === null ? null : frac(fib(x), BIG.one);
+                }
+                if (!is(comma ? ';' : ',')) return fail('expression');
+                y = expr();
+                if (!is(')')) return fail('expression');
+                return choose(intOf(x, 5000), intOf(y, 5000), name === 'npr' || name === 'p');
+            }
+            if (is('(')) {
+                x = expr();
+                return is(')') ? x : fail('expression');
+            }
+            return fail('expression');
+        }
+        function postfix() {
+            var x = primary(), n;
+            while (x && is('!')) {
+                n = intOf(x, 5000);
+                x = n === null ? null : frac(factorial(n, BIG.zero), BIG.one);
+            }
+            return x;
+        }
+        function power() {
+            var x = postfix(), e, t, b;
+            if (x && is('^')) {
+                e = unary();
+                if (!e) return null;
+                if (e[1] !== BIG.one) return fail('whole');
+                if (!x[0] && e[0] < BIG.zero) return fail('zero');
+                // the digits of the larger part, as its logarithm, times the power: past the most, not worked out, 2^99999999 as well
+                if (Math.max(log10(x[0] < BIG.zero ? -x[0] : x[0]), log10(x[1])) * Math.abs(Number(e[0])) > EXACT_DIGITS) return fail('large');
+                t = e[0] < BIG.zero ? x[1] : x[0];
+                b = e[0] < BIG.zero ? x[0] : x[1];
+                e = e[0] < BIG.zero ? -e[0] : e[0];
+                return frac(t ** e, b ** e);
+            }
+            return x;
+        }
+        function unary() {
+            var x;
+            if (is('-')) {
+                x = unary();
+                return x && [-x[0], x[1]];
+            }
+            if (is('+')) return unary();
+            return power();
+        }
+        function combo() {
+            var x = unary(), y, perm;
+            for (;;) {
+                if (is('nCr')) perm = false;
+                else if (is('nPr')) perm = true;
+                else return x;
+                y = unary();
+                if (!x || !y) return null;
+                x = choose(intOf(x, 5000), intOf(y, 5000), perm);
+            }
+        }
+        function term() {
+            var x = combo(), y, op;
+            for (;;) {
+                space();
+                op = s.charAt(at);
+                if (op !== '*' && op !== '/') return x;
+                at++;
+                y = combo();
+                if (!x || !y) return null;
+                x = op === '*' ? frac(x[0] * y[0], x[1] * y[1]) : frac(x[0] * y[1], x[1] * y[0]);
+            }
+        }
+        function expr() {
+            var x = term(), y, op;
+            for (;;) {
+                space();
+                op = s.charAt(at);
+                if (op !== '+' && op !== '-') return x;
+                at++;
+                y = term();
+                if (!x || !y) return null;
+                x = frac(x[0] * y[1] + (op === '+' ? y[0] : -y[0]) * x[1], x[1] * y[1]);
+            }
+        }
+        if (!s.trim()) return { error: 'expression' };
+        v = expr();
+        space();
+        if (v && at < s.length) v = fail('expression');
+        return v ? { top: v[0], bottom: v[1] } : { error: error || 'expression' };
+    }
+
+    // A number of a fraction of BigInts, to 12 digits: as a Number where it is one, 9.33262154439e157
+    // for 100!; past what a Number keeps, a text of its digits and power of 10, 4.02387260077e2567
+    function about(top, bottom) {
+        var t = top < BIG.zero ? -top : top, k, q, d, e;
+        if (!t) return 0;
+        k = 14 - (t.toString().length - bottom.toString().length);
+        q = k >= 0 ? t * BigInt(10) ** BigInt(k) / bottom : t / (bottom * BigInt(10) ** BigInt(-k));
+        d = q.toString();
+        e = d.length - 1 - k;
+        if (Math.abs(e) < 300) return round((top < BIG.zero ? -1 : 1) * +(d.charAt(0) + '.' + d.slice(1) + 'e' + e));
+        return (top < BIG.zero ? '-' : '') + d.charAt(0) + '.' + d.slice(1, 12).replace(/0+$/, '').replace(/^$/, '0') + 'e' + e;
+    }
+
+    // ---------- primes ---------- //
+
+    var SIEVE_MAX = 1e7, sieved = null; // the primes up to this are sieved once, as they are asked for
+
+    // a byte for each number up to SIEVE_MAX, 1 for a prime, by Eratosthenes' sieve
+    function sieve() {
+        var s, i, j;
+        if (sieved) return sieved;
+        s = new Uint8Array(SIEVE_MAX + 1).fill(1);
+        s[0] = s[1] = 0;
+        for (i = 2; i * i <= SIEVE_MAX; i++) {
+            if (s[i]) for (j = i * i; j <= SIEVE_MAX; j += i) s[j] = 0;
+        }
+        return (sieved = s);
+    }
+
+    // Of a whole number typed: { n, prime, previous: the prime below it, or null, next: above it,
+    // count: π(n), how many primes there are up to it, nth: the n-th prime, each where n is up to
+    // SIEVE_MAX, or null } or { error: 'whole' }
+    function primesNear(text, comma, deg) {
+        var n = wholeLong(text, comma, deg), p, q, s, count = null, nth = null, i, c, N;
+        if (n === null || n.toString().replace('-', '').length > 24) return { error: 'whole' };
+        for (p = n - BIG.one; p >= BIG.two && !isPrime(p); p--);
+        for (q = n < BIG.two ? BIG.two : n + BIG.one; !isPrime(q); q++);
+        if (n >= BIG.zero && n <= BigInt(SIEVE_MAX)) {
+            s = sieve();
+            N = Number(n);
+            count = 0;
+            for (i = 2, c = 0; i <= SIEVE_MAX && (i <= N || (nth === null && N >= 1)); i++) {
+                if (s[i] && ++c === N) nth = i;
+                if (i === N) count = c;
+            }
+        }
+        return { n: n, prime: isPrime(n), previous: p >= BIG.two ? p : null, next: q, count: count, nth: nth };
+    }
+
+    // The primes from a to b, both in, b up to 1e14 and as many as 10⁷ apart: by the sieve, or
+    // by one of the stretch, from the primes up to √b. { count, list: up to max of them, more }
+    // or { error: 'whole' | 'far' }
+    function primesBetween(texts, comma, deg, max) {
+        var v = texts.map(function (t) { return wholeLong(t, comma, deg); }), a, b, s, list = [], count = 0, mark, i, j, p, root;
+        if (v[0] === null || v[1] === null) return { error: 'whole' };
+        a = Number(v[0] < v[1] ? v[0] : v[1]);
+        b = Number(v[0] < v[1] ? v[1] : v[0]);
+        a = Math.max(a, 2);
+        if (b > 1e14 || b - a > SIEVE_MAX) return { error: 'far' };
+        if (b < 2) return { count: 0, list: [], more: false };
+        if (b <= SIEVE_MAX) {
+            s = sieve();
+            for (i = a; i <= b; i++) {
+                if (s[i] && ++count <= max) list.push(i);
+            }
+        } else {
+            mark = new Uint8Array(b - a + 1).fill(1);
+            s = sieve();
+            root = Math.floor(Math.sqrt(b));
+            for (p = 2; p <= root; p++) {
+                if (!s[p]) continue;
+                for (j = Math.max(p * p, Math.ceil(a / p) * p); j <= b; j += p) mark[j - a] = 0;
+            }
+            for (i = 0; i < mark.length; i++) {
+                if (mark[i] && ++count <= max) list.push(a + i);
+            }
+        }
+        return { count: count, list: list, more: count > max };
+    }
+
+    // ---------- decimals and fractions ---------- //
+
+    // A number typed as a fraction, 22/7, a decimal, 0.125, one whose last digits come again and
+    // again in brackets, 0.1(42857), or a calculation, pi: { top, bottom } exactly of the first
+    // three, { value } of a calculation, or { error: 'number' }
+    function fractionOf(text, comma, deg) {
+        var s = String(text).trim().replace(/[−–]/g, '-').replace(/\s+/g, ''), m, a, b, g, v;
+        m = /^(-?\d+)\/(-?\d+)$/.exec(s);
+        if (m) {
+            a = BigInt(m[1]);
+            b = BigInt(m[2]);
+            if (!b) return { error: 'number' };
+            g = gcdBig(a, b);
+            if (b < BIG.zero) {
+                a = -a;
+                b = -b;
+            }
+            return { top: a / g, bottom: b / g };
+        }
+        if (comma ? /^-?\d*(,\d*)?(\(\d+\))?$/.test(s) && /\d/.test(s) : /^-?\d*(\.\d*)?(\(\d+\))?$/.test(s) && /\d/.test(s)) {
+            v = fromBase(s.replace(',', '.'), 10);
+            if (v) return { top: v[0], bottom: v[1] };
+        }
+        v = number(s, comma, deg);
+        return isFinite(v) ? { value: v } : { error: 'number' };
+    }
+
+    // the continued fraction of top/bottom, [a0; a1, a2 …], by Euclid's steps, up to max terms
+    function continued(top, bottom, max) {
+        var out = [], q;
+        while (bottom && out.length < max) {
+            q = top / bottom;
+            if (top < BIG.zero && q * bottom !== top) q -= BIG.one; // the whole part below it, for a number below 0
+            out.push(q);
+            q = top - q * bottom;
+            top = bottom;
+            bottom = q;
+        }
+        return out;
+    }
+
+    // the continued fraction of a number, as far as its digits tell: up to where a convergent is it
+    function continuedOf(x, max) {
+        var out = [], y = x, h = 1, h0 = 0, k = 0, k0 = 1, f, t, i;
+        for (i = 0; i < max && isFinite(y); i++) {
+            f = Math.floor(y);
+            out.push(f);
+            t = f * h + h0;
+            h0 = h;
+            h = t;
+            t = f * k + k0;
+            k0 = k;
+            k = t;
+            if (Math.abs(h / k - x) <= 1e-15 * Math.abs(x) || y === f) break;
+            y = 1 / (y - f);
+        }
+        return out;
+    }
+
     var CalcMaths = {
         number: number,
         fn: fn,
@@ -2520,7 +3296,28 @@
         divisorsOf: divisorsOf,
         isPrime: isPrime,
         roundTo: roundTo,
-        significant: significant
+        significant: significant,
+        rref: rref,
+        matrixPower: matrixPower,
+        lu: lu,
+        qr: qr,
+        vectorOf: vectorOf,
+        vectors: vectors,
+        cpoly: cpoly,
+        cpolynomial: cpolynomial,
+        fromBase: fromBase,
+        toBase: toBase,
+        textCodes: textCodes,
+        fromCodes: fromCodes,
+        modular: modular,
+        chinese: chinese,
+        exact: exact,
+        about: about,
+        primesNear: primesNear,
+        primesBetween: primesBetween,
+        fractionOf: fractionOf,
+        continued: continued,
+        continuedOf: continuedOf
     };
 
     root.CalcMaths = CalcMaths;

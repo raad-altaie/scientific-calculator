@@ -2003,6 +2003,22 @@
     grid-column: 1 / -1;
 }
 
+/* complex numbers on the plane: its axes, a circle about 0, and a dot for each */
+#calculator .calc-sv-plane {
+    display: block;
+    width: 100%;
+    height: 130px;
+    margin: 2px 0 1px;
+}
+
+#calculator .calc-sv-plane line,
+#calculator .calc-sv-plane .calc-sv-ring {
+    fill: none;
+    stroke: #33443b;
+    stroke-width: 0.012;
+    opacity: 0.45;
+}
+
 /* the bits of a binary number, 64 of them on two lines */
 #calculator .calc-sv-bits .calc-sv-value {
     font-size: 13px;

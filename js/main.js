@@ -4199,8 +4199,12 @@
     // for each number, as many as its size says
     var NUMBER_TOOLS = {
         matrix: [
-            { id: 'matrix', t: 'A matrix', f: 'det A, A<sup>–1</sup>, A<sup>T</sup>', d: 'Its determinant, rank, inverse, transpose and square. Type its size, 3×3 or 2 3, and a number in each box; an empty one is 0.',
-                fields: function (raw) { return [{ k: 'size', l: 'Size', ph: '2×2', text: true, shape: true }].concat(cells('a', 'A', raw.size)); }, run: runMatrix },
+            { id: 'matrix', t: 'A matrix', f: 'det A, A<sup>–1</sup>, A<sup>T</sup>, A<sup>n</sup>', d: 'Its determinant, rank, inverse, transpose and its power n, a whole number, below 0 of its inverse. Type its size, 3×3 or 2 3, and a number in each box; an empty one is 0.',
+                fields: function (raw) {
+                    return [{ k: 'size', l: 'Size', ph: '2×2', text: true, shape: true }, { k: 'power', l: 'n', ph: '2', def: 2 }].concat(cells('a', 'A', raw.size));
+                }, cols: 2, run: runMatrix },
+            { id: 'rref', t: 'Row reduce', f: 'rref A, null space', d: 'Its rows reduced as far as they go, its reduced row echelon form, its rank and the columns of its first 1s, and its null space: a basis of the vectors it takes to 0. Type its size, 3×3 or 2 3, and a number in each box; an empty one is 0.',
+                fields: function (raw) { return [{ k: 'size', l: 'Size', ph: '3×3', text: true, shape: true }].concat(cells('a', 'A', raw.size || '3')); }, run: runRref },
             { id: 'matrices', t: 'Two matrices', f: 'A + B, A × B', d: 'The sum, difference and products of two matrices, where their sizes allow. Type each size, 3×3 or 2 3, and a number in each box; an empty one is 0.',
                 fields: function (raw) {
                     return [{ k: 'sizeA', l: 'Size of A', ph: '2×2', text: true, shape: true }, { k: 'sizeB', l: 'Size of B', ph: '2×2', text: true, shape: true }]
@@ -4208,7 +4212,7 @@
                 }, cols: 2, run: runMatrices },
             { id: 'eigen', t: 'Eigenvalues', f: 'A<b>v</b> = λ<b>v</b>', d: 'The eigenvalues of a square matrix, real or a ± bi, its characteristic polynomial and trace, and the eigenvectors of each real eigenvalue: the v that A only stretches, by λ. Type its size, 3×3 or 3, and a number in each box; an empty one is 0.',
                 fields: function (raw) { return [{ k: 'size', l: 'Size', ph: '2×2', text: true, shape: true }].concat(cells('a', 'A', raw.size)); }, run: runEigen },
-            { id: 'axb', t: 'A x = b', f: 'A<b>x</b> = <b>b</b>', d: 'The unknowns of linear equations, up to four of them: a row of A for each equation and what it equals in b. As many equations as rows, as many unknowns as columns. Type the size of A, 3×3 or 3 2, and a number in each box; an empty one is 0.',
+            { id: 'axb', t: 'A x = b', f: 'A<b>x</b> = <b>b</b>', d: 'The unknowns of linear equations, up to four of them: a row of A for each equation and what it equals in b. As many equations as rows, as many unknowns as columns. Where they have many answers, all of them, x = p + t v; where they have none, the nearest, by least squares. Type the size of A, 3×3 or 3 2, and a number in each box; an empty one is 0.',
                 fields: function (raw) {
                     var size = sizeOf(raw.size) || [2, 2], out = [{ k: 'size', l: 'Size of A', ph: '2×2', text: true, shape: true }, { head: 'A | b', cols: size[1] + 1 }], i, j;
                     for (i = 1; i <= size[0]; i++) {
@@ -4216,13 +4220,19 @@
                         out.push({ k: 'b' + i + '1', ph: '0', def: 0, aria: 'b row ' + i, cls: 'calc-sv-rhs' });
                     }
                     return out;
-                }, run: runAxb }
+                }, run: runAxb },
+            { id: 'lu', t: 'LU and QR', f: 'P A = L U, A = Q R', d: 'A matrix as products: P A = L U, L below its diagonal with 1s on it and U above it, P the rows changed round; and A = Q R, the columns of Q of length 1 and at right angles, R above its diagonal. Type its size, 3×3 or 3 2, and a number in each box; an empty one is 0.',
+                fields: function (raw) { return [{ k: 'size', l: 'Size', ph: '2×2', text: true, shape: true }].concat(cells('a', 'A', raw.size)); }, run: runLu },
+            { id: 'vectors', t: 'Vectors', f: '<b>u</b> · <b>v</b>, <b>u</b> × <b>v</b>', d: 'Of two vectors of 2, 3 or 4 numbers, typed 1, 2, 3: their dot product, cross product, lengths and the angle between them, the projection of u on v, and u of length 1.',
+                fields: [{ k: 'u', l: 'u', ph: '1, 2, 3', fn: true }, { k: 'v', l: 'v', ph: '4, 5, 6', fn: true }], run: runVectors }
         ],
         complex: [
             { id: 'complex', t: 'Complex number', f: 'a + b<i>i</i>, r∠θ', d: 'Work out a complex number: (2 + 3i)(1 – i), sqrt(-4), e^(iπ), or 2∠30 in polar form. Its real and imaginary parts, its length, angle and conjugate.',
                 fields: [{ k: 'z', ph: '(2 + 3i)(1 - i)', fn: true }], run: runComplex },
             { id: 'croots', t: 'Roots of a complex number', f: 'z<sup>1/n</sup>', d: 'The n n-th roots of a complex number: the cube roots of 1, the fourth roots of -16.',
-                fields: [{ k: 'z', ph: '-16', fn: true }, { k: 'n', l: 'n', ph: '4', def: 4 }], run: runRoots }
+                fields: [{ k: 'z', ph: '-16', fn: true }, { k: 'n', l: 'n', ph: '4', def: 4 }], run: runRoots },
+            { id: 'cpoly', t: 'Polynomial roots', f: 'x<sup>2</sup> + (1 + <i>i</i>)x + 2<i>i</i>', d: 'Every root of a polynomial of complex coefficients, of any power up to 30: typed, x^2 + (1 + i)x + 2i, or its coefficients from the highest power, 1, 1 + i, 2i.',
+                fields: [{ k: 'p', ph: 'x^2 + (1 + i)x + 2i', fn: true }], run: runCpoly }
         ],
         base: [
             { id: 'bits', t: 'Bases', f: '0xFF AND 0b1010', d: 'Whole numbers as a computer keeps them, in 8, 16, 32 or 64 bits: decimal, 0x hexadecimal, 0b binary or 0o octal, with + – × ÷ mod AND OR XOR NOT NAND NOR XNOR, &lt;&lt; &gt;&gt; and ROL ROR, which turn the bits round. Each result in every base.',
@@ -4230,13 +4240,29 @@
             { id: 'bitview', t: 'Bits', f: 'b<sub>7</sub> … b<sub>1</sub> b<sub>0</sub>', d: 'The bits of a whole number, each turned over with a click; how many are 1, the 0s before and after them, and the highest and lowest bit that is 1. Empty, it is 0, to click a number together.',
                 fields: [{ k: 'e', ph: '0', fn: true }, { k: 'bits', l: 'Bits', ph: '32', def: 32 }], run: runBitView },
             { id: 'float', t: 'IEEE 754', f: '0.1 = 0x3FB999999999999A', d: 'A number as a computer keeps it: a double of 64 bits and a float of 32, in hexadecimal; its sign, exponent and fraction; the number it is, to its last digit, and the gap to the next. Or the bits, 0x3FB999999999999A, for the number.',
-                fields: [{ k: 'x', ph: '0.1', fn: true }], run: runFloat }
+                fields: [{ k: 'x', ph: '0.1', fn: true }], run: runFloat },
+            { id: 'anybase', t: 'Any base', f: 'FF.8<sub>16</sub> = 11111111.1<sub>2</sub>', d: 'A number in any base from 2 to 36 written in another, the digits after its point as well: 0.1 in base 10 is 0.0(0011) in base 2, the part in brackets coming again and again. A part in brackets may be typed too.',
+                fields: [{ k: 'x', ph: '0.1', fn: true }, { k: 'from', l: 'From base', ph: '10', def: 10 }, { k: 'to', l: 'To base', ph: '2', def: 2 }], cols: 2, run: runAnyBase },
+            { id: 'codes', t: 'Text and codes', f: 'é = U+00E9 = C3 A9', d: 'The codes of a text: its code points, its bytes in UTF-8 and its units of UTF-16. Or a text from its codes: U+00E9, 0xC3 0xA9 for the bytes of UTF-8, or 233.',
+                fields: [{ k: 't', l: 'Text', ph: 'Hé', fn: true }, { k: 'c', l: 'Codes', ph: 'U+0048 U+00E9', fn: true }], run: runCodes }
         ],
         whole: [
             { id: 'factors', t: 'Prime factors', f: '360 = 2<sup>3</sup> × 3<sup>2</sup> × 5', d: 'A whole number of up to 20 digits in its prime factors, whether it is prime, and its divisors: how many, their sum, each of them, and how many numbers up to it have none of its factors.',
                 fields: [{ k: 'n', ph: '360', fn: true }], run: runFactors },
             { id: 'gcd', t: 'GCD and LCM', f: 'gcd(12, 18, 30)', d: 'The greatest common divisor and least common multiple of two whole numbers or more, typed with commas or spaces between them.',
                 fields: [{ k: 'list', ph: '12, 18, 30', fn: true }], run: runGcd },
+            { id: 'modular', t: 'Modular arithmetic', f: 'a<sup>b</sup> mod m, a<sup>–1</sup>, a x ≡ b', d: 'Of whole numbers a, b and m, of up to 200 digits: a mod m, a to the power b mod m, the inverse of a mod m, and every x of a x ≡ b (mod m).',
+                fields: [{ k: 'a', l: 'a', ph: '3', fn: true }, { k: 'b', l: 'b', ph: '4', fn: true }, { k: 'm', l: 'm', ph: '7', fn: true }], run: runModular },
+            { id: 'crt', t: 'Chinese remainder', f: 'x ≡ 2 (mod 3), x ≡ 3 (mod 5)', d: 'The x of x ≡ r (mod m) for each of a list, typed 2 mod 3, 3 mod 5, 2 mod 7, the moduli with a factor in common as well: x and the modulus all of them make.',
+                fields: [{ k: 'list', ph: '2 mod 3, 3 mod 5, 2 mod 7', fn: true }], run: runChinese },
+            { id: 'exact', t: 'Exactly', f: '100!, 2<sup>200</sup>, 50 nCr 25', d: 'A calculation of whole numbers and fractions worked out exactly, to every digit, up to 20000: + – × ÷, ^, n!, nCr and nPr, or C(n, k), P(n, k) and fib(n). A fraction stays one, 1/3 + 1/6 is 1/2.',
+                fields: [{ k: 'e', ph: '100!', fn: true }], run: runExact },
+            { id: 'primes', t: 'Primes', f: 'p<sub>n</sub>, π(n), next and previous', d: 'Whether a whole number of up to 24 digits is prime, the primes before and after it, and up to 10 million how many primes there are up to it, π(n), and the n-th prime.',
+                fields: [{ k: 'n', ph: '100', fn: true }], run: runPrimes },
+            { id: 'between', t: 'Primes between', f: 'the primes from a to b', d: 'The primes from a to b, both in: how many and each of them, b up to 10¹⁴ and the two up to 10 million apart.',
+                fields: [{ k: 'a', l: 'From', ph: '1', fn: true }, { k: 'b', l: 'To', ph: '100', fn: true }], run: runBetween2 },
+            { id: 'fraction', t: 'Fraction and decimal', f: '0.1(6) = 1/6', d: 'A fraction, 22/7, a decimal, 0.125, or one whose last digits come again and again in brackets, 0.1(6): as a fraction, a mixed number, a decimal with the part that comes again in brackets, and a continued fraction. A calculation, pi, as near as its digits tell.',
+                fields: [{ k: 'x', ph: '0.1(6)', fn: true }], run: runFraction },
             { id: 'round', t: 'Round', f: '⌊x⌋, ⌈x⌉, x to d places', d: 'A number rounded to d decimal places, half away from 0, down, up and toward 0; its fraction part, and the number to d significant figures. Places below 0 round to tens, hundreds …',
                 fields: [{ k: 'x', l: 'x', ph: '3.14159' }, { k: 'd', l: 'Places', ph: '0', def: 0 }], cols: 2, run: runRound }
         ]
@@ -4279,7 +4305,8 @@
         return {
             rows: [{ l: 'a + b<i>i</i>', text: complexText(z), wide: true }, { l: 'Real part', v: z.re }, { l: 'Imaginary part', v: z.im },
                 { l: 'Length |z|', v: p.r }, { l: 'Angle', v: p.theta }, { l: 'Polar', text: local(String(p.r)) + ' ∠ ' + local(String(p.theta)) + (deg === 1 ? '°' : ''), wide: true },
-                { l: 'Conjugate', text: complexText({ re: z.re, im: CalcMaths.round(0 - z.im) }) }],
+                { l: 'Conjugate', text: complexText({ re: z.re, im: CalcMaths.round(0 - z.im) }) },
+                planeTile([z, { re: z.re, im: -z.im }], 0, 'z and its conjugate')],
             note: 'Angles in ' + ['radians', 'degrees', 'gradians'][deg] + ', the unit in use.'
         };
     }
@@ -4288,7 +4315,8 @@
         var z = raw.z ? CalcMaths.complex(raw.z, engine.comma, deg) : null, roots = z && CalcMaths.croots(z, n.n);
         if (raw.z && !z) return { rows: [{ l: 'Roots', v: NaN, wide: true }], bad: ['z'], warn: true, note: 'Not a complex number yet: -16, 1 + i, with i.' };
         if (!roots) return { rows: [{ l: 'Roots', v: NaN, wide: true }], warn: isFinite(n.n), note: isFinite(n.n) && z ? 'n is a whole number from 1 to 24.' : '' };
-        return { rows: roots.map(function (r, i) { return { l: 'z<sub>' + (i + 1) + '</sub>', text: complexText(r), wide: true }; }) };
+        return { rows: roots.map(function (r, i) { return { l: 'z<sub>' + (i + 1) + '</sub>', text: complexText(r), wide: true }; })
+            .concat([planeTile(roots, Math.hypot(roots[0].re, roots[0].im))]) };
     }
 
     function runBits(n, raw) {
@@ -4401,13 +4429,14 @@
 
     function runMatrix(n, raw) {
         var a = matrixOf(n, 'a', raw.size), square = a.length === a[0].length, inv = square ? CalcMaths.inverse(a) : null,
-            bad = sizeOf(raw.size) ? [] : ['size'];
+            bad = sizeOf(raw.size) ? [] : ['size'], power = n.power, whole = isFinite(power) && power === Math.floor(power) && Math.abs(power) <= 1000;
         return {
             rows: [{ l: 'det A', v: square ? CalcMaths.det(a) : NaN }, { l: 'Rank', v: CalcMaths.rank(a) },
-                { l: 'A<sup>–1</sup>', m: inv }, { l: 'A<sup>T</sup>', m: CalcMaths.transpose(a) }, { l: 'A<sup>2</sup>', m: square ? CalcMaths.times(a, a) : null }],
-            bad: bad, warn: !!bad.length || (square && !inv),
-            note: bad.length ? 'A size of rows and columns, each 1 to 4: 3×3, or 2 3.' : !square ? 'Not square: no determinant, inverse or square.' :
-                !inv ? 'No inverse: its determinant is 0.' : ''
+                { l: 'A<sup>–1</sup>', m: inv }, { l: 'A<sup>T</sup>', m: CalcMaths.transpose(a) },
+                { l: 'A<sup>' + (whole ? local(String(power)).replace('-', '–') : 'n') + '</sup>', m: square && whole ? CalcMaths.matrixPower(a, power) : null }],
+            bad: bad, warn: !!bad.length || (square && !inv) || (isFinite(power) && !whole),
+            note: bad.length ? 'A size of rows and columns, each 1 to 4: 3×3, or 2 3.' : !square ? 'Not square: no determinant, inverse or power.' :
+                isFinite(power) && !whole ? 'n is a whole number from –1000 to 1000.' : !inv ? 'No inverse: its determinant is 0' + (power < 0 ? ', so no power below 0.' : '.') : ''
         };
     }
 
@@ -4437,14 +4466,240 @@
         return { rows: rows, note: e.values.some(function (z) { return z.im; }) ? 'Its complex eigenvalues have eigenvectors of complex numbers, not shown here.' : '' };
     }
 
+    // The unknowns, or where there are many all of them, x = p + t₁v₁ + …, and where there are
+    // none the nearest by least squares; and [A | b] with its rows reduced
     function runAxb(n, raw) {
         var size = sizeOf(raw.size), a = matrixOf(n, 'a', raw.size), b = matrixOf(n, 'b', (size || [2, 2])[0] + '×1').map(function (r) { return r[0]; }),
-            r = size ? CalcMaths.system(a, b) : null, rows = [], k;
-        for (k = 0; k < a[0].length; k++) rows.push({ l: 'x<sub>' + (k + 1) + '</sub>', v: r && r.x ? r.x[k] : NaN });
+            r = size ? CalcMaths.system(a, b) : null, rows = [], k, x = r && (r.x || r.p || r.least && r.least.x), name;
+        name = function (k) { return 'x<sub>' + (k + 1) + '</sub>'; };
+        for (k = 0; k < a[0].length; k++) rows.push({ l: name(k), v: x ? x[k] : NaN });
+        if (r && r.many) {
+            rows.push({ l: 'All of them', text: '<b>x</b> = <b>p</b>' + r.basis.map(function (v, i) { return ' + t<sub>' + (i + 1) + '</sub><b>v</b><sub>' + (i + 1) + '</sub>'; }).join(''), wide: true },
+                { l: '<b>p</b>', m: [r.p] });
+            r.basis.forEach(function (v, i) { rows.push({ l: '<b>v</b><sub>' + (i + 1) + '</sub>', m: [v] }); });
+        }
+        if (r && r.none && r.least) rows.push({ l: '|A<b>x</b> – <b>b</b>|', v: r.least.residual });
+        if (r) rows.push({ l: '[A | <b>b</b>] reduced', m: r.rref });
         return {
             rows: rows, bad: size ? [] : ['size'], warn: !size,
-            note: !size ? 'A size of rows and columns, each 1 to 4: 3×3, or 3 2.' : !r ? '' : r.none ? 'No answer: the equations cannot all hold.' :
-                r.many ? 'Many answers: the equations do not each say something new, or there are fewer of them than unknowns.' : ''
+            note: !size ? 'A size of rows and columns, each 1 to 4: 3×3, or 3 2.' : !r ? '' :
+                r.none ? 'No answer: the equations cannot all hold. The x above is the nearest, by least squares' + (r.least && r.least.many ? ', one of many as near.' : '.') :
+                r.many ? 'Many answers: x is p and any of the v, each times a number t; the x above is p, each t 0.' : ''
+        };
+    }
+
+    function runRref(n, raw) {
+        var size = sizeOf(raw.size || '3'), a = matrixOf(n, 'a', raw.size || '3'), r = size ? CalcMaths.rref(a) : null, rows;
+        if (!r) return { rows: [{ l: 'rref A', m: null }], bad: ['size'], warn: true, note: 'A size of rows and columns, each 1 to 4: 3×3, or 2 3.' };
+        rows = [{ l: 'rref A', m: r.m }, { l: 'Rank', v: r.rank }, { l: 'Nullity', v: r.kernel.length },
+            { l: 'Columns of its first 1s', text: r.pivots.length ? r.pivots.map(function (c) { return c + 1; }).join(', ') : 'none', wide: true }];
+        r.kernel.forEach(function (v, i) { rows.push({ l: 'Null space <b>v</b><sub>' + (i + 1) + '</sub>', m: [v] }); });
+        return { rows: rows, note: r.kernel.length ? 'Its null space: each v, and each sum of them times numbers, A takes to 0.' : 'Only 0 does it take to 0.' };
+    }
+
+    function runLu(n, raw) {
+        var size = sizeOf(raw.size), a = matrixOf(n, 'a', raw.size), f = size ? CalcMaths.lu(a) : null, q = size ? CalcMaths.qr(a) : null;
+        if (!size) return { rows: [{ l: 'L', m: null }], bad: ['size'], warn: true, note: 'A size of rows and columns, each 1 to 4: 3×3, or 3 2.' };
+        return {
+            rows: [{ l: 'P', m: f && f.p }, { l: 'L', m: f && f.l }, { l: 'U', m: f && f.u }, { l: 'Q', m: q.q }, { l: 'R', m: q.r }],
+            note: f ? 'P A = L U and A = Q R.' : 'Not square: no L U; A = Q R.'
+        };
+    }
+
+    function runVectors(n, raw) {
+        var u = raw.u ? CalcMaths.vectorOf(raw.u, engine.comma, deg) : null, v = raw.v ? CalcMaths.vectorOf(raw.v, engine.comma, deg) : null, r, bad = [],
+            none = [{ l: '<b>u</b> · <b>v</b>', v: NaN }, { l: '<b>u</b> × <b>v</b>', v: NaN }];
+        if (raw.u && !u) bad.push('u');
+        if (raw.v && !v) bad.push('v');
+        if (bad.length) return { rows: none, bad: bad, warn: true, note: 'A vector is 2 to 4 numbers, 1, 2, 3, ' + (engine.comma ? 'with ; or spaces' : 'with commas or spaces') + ' between them.' };
+        if (!u || !v) return { rows: none };
+        if (u.length !== v.length) return { rows: none, warn: true, note: 'Two vectors of one size.' };
+        r = CalcMaths.vectors(u, v, deg);
+        return {
+            rows: [{ l: '<b>u</b> · <b>v</b>', v: r.dot }, r.cross === null ? { l: '<b>u</b> × <b>v</b>', v: NaN } : typeof r.cross === 'number' ? { l: '<b>u</b> × <b>v</b>', v: r.cross } : { l: '<b>u</b> × <b>v</b>', m: [r.cross] },
+                { l: '|<b>u</b>|', v: r.lengths[0] }, { l: '|<b>v</b>|', v: r.lengths[1] }, { l: 'Angle', v: r.angle },
+                { l: '<b>u</b> on <b>v</b>', m: r.projection && [r.projection] }, { l: '<b>u</b> of length 1', m: r.unit && [r.unit] }],
+            note: (u.length === 2 ? 'Of two of 2, the cross product is the one number of it, out of the plane. ' : u.length === 4 ? 'No cross product of 4. ' : '') +
+                'The angle in ' + ['radians', 'degrees', 'gradians'][deg] + ', the unit in use.'
+        };
+    }
+
+    // Complex numbers drawn on the plane, as a tile: a dot for each, the axes through 0, and a
+    // circle about 0 of radius r where given; the second color for the second of two
+    function planeTile(points, r, label) {
+        var big = Math.max.apply(null, [r || 0].concat(points.map(function (z) { return Math.max(Math.abs(z.re), Math.abs(z.im)); }))) || 1,
+            svg = '<svg class="calc-sv-plane" viewBox="-1.3 -1.3 2.6 2.6" aria-hidden="true">' +
+                '<line x1="-1.3" y1="0" x2="1.3" y2="0"/><line x1="0" y1="-1.3" x2="0" y2="1.3"/>' +
+                (r ? '<circle cx="0" cy="0" r="' + r / big + '" class="calc-sv-ring"/>' : '') +
+                points.map(function (z, i) {
+                    return '<circle cx="' + (z.re / big).toFixed(4) + '" cy="' + (-z.im / big).toFixed(4) + '" r="0.07" fill="' + GRAPH_CURVES[points.length === 2 && i === 1 ? 1 : 0] + '"/>';
+                }).join('') + '</svg>';
+        return { l: label || 'On the plane', text: svg, wide: true };
+    }
+
+    // a polynomial of complex coefficients written out, the highest power first
+    function cpolyHtml(c) {
+        var n = c.length - 1, out = '';
+        c.forEach(function (z, k) {
+            var p = n - k, power = p ? 'x' + (p > 1 ? '<sup>' + p + '</sup>' : '') : '', text;
+            if (!z[0] && !z[1]) return;
+            if (!z[1] || !z[0]) { // one part: a sign of its own
+                text = !z[1] ? (Math.abs(z[0]) === 1 && p ? '' : local(String(Math.abs(z[0])))) : complexText({ re: 0, im: Math.abs(z[1]) });
+                out += (out ? ((z[1] || z[0]) < 0 ? ' – ' : ' + ') : (z[1] || z[0]) < 0 ? '–' : '') + text + power;
+            } else {
+                out += (out ? ' + ' : '') + '(' + complexText({ re: z[0], im: z[1] }) + ')' + power;
+            }
+        });
+        return out || '0';
+    }
+
+    function runCpoly(n, raw) {
+        var none = [{ l: 'z', v: NaN }], r = raw.p ? CalcMaths.cpolynomial(raw.p, engine.comma, deg) : null, z, why;
+        if (!r) return { rows: none };
+        why = {
+            polynomial: 'Not a polynomial of x yet: x^2 + (1 + i)x + 2i, or its coefficients from the highest power, ' + (engine.comma ? '1; 1 + i; 2i.' : '1, 1 + i, 2i.'),
+            letters: 'Only x and i have values here: write the other letters as numbers.',
+            power: 'Up to the power 30.'
+        }[r.error];
+        if (why) return { rows: none, bad: ['p'], warn: true, note: why };
+        z = CalcMaths.cpoly(r.c);
+        if (!z) return { rows: none, warn: true, note: 'No x left: its coefficients of x are all 0.' };
+        return {
+            rows: [{ l: 'Multiplied out', text: cpolyHtml(r.c), wide: true, wrap: true }].concat(z.map(function (w, i) {
+                return w.im ? { l: rootName(i, z.length, 'z'), text: complexText(w) } : { l: rootName(i, z.length, 'z'), v: w.re };
+            }), [planeTile(z)])
+        };
+    }
+
+    // a text as HTML: its own &, < and > not tags
+    function escaped(text) {
+        return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function runAnyBase(n, raw) {
+        var none = [{ l: 'In base ' + (isFinite(n.to) ? n.to : 'b'), text: '–', wide: true }], from = n.from, to = n.to, f, ok = function (b) { return b >= 2 && b <= 36 && b === Math.floor(b); };
+        if (!raw.x) return { rows: none };
+        if (!ok(from) || !ok(to)) return { rows: none, warn: true, note: 'Bases are whole numbers from 2 to 36.' };
+        f = CalcMaths.fromBase(raw.x, from);
+        if (!f) return { rows: none, bad: ['x'], warn: true, note: 'Not a number of base ' + from + ': digits 0 to ' + '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'.charAt(from - 1) + ', a point, and a part in brackets that comes again, 0.(3).' };
+        return {
+            rows: [{ l: 'In base ' + to, text: CalcMaths.toBase(f[0], f[1], to, 64), wide: true, wrap: true },
+                { l: 'Decimal', v: typeof CalcMaths.about(f[0], f[1]) === 'number' ? CalcMaths.about(f[0], f[1]) : NaN },
+                { l: 'Fraction', text: f[1] === BigInt(1) ? '–' : String(f[0]).replace('-', '–') + '/' + f[1] }],
+            note: /…/.test(CalcMaths.toBase(f[0], f[1], to, 64)) ? 'It goes on past 64 digits before it comes round.' : ''
+        };
+    }
+
+    function runCodes(n, raw) {
+        var text = raw.t ? raw.t : raw.c ? CalcMaths.fromCodes(raw.c) : null, c, hex = function (v, w) { return v.toString(16).toUpperCase().padStart(w, '0'); },
+            none = [{ l: 'Code points', text: '–', wide: true }];
+        if (raw.c && !raw.t && text === null) return { rows: none, bad: ['c'], warn: true, note: 'Codes, apart by spaces: U+00E9 for code points, 0xC3 0xA9 for the bytes of UTF-8, or 233.' };
+        if (text === null) return { rows: none };
+        c = CalcMaths.textCodes(text);
+        return {
+            rows: [{ l: 'Text', text: escaped(text) || '–', wide: true, wrap: true },
+                { l: 'Code points', text: c.points.map(function (v) { return 'U+' + hex(v, 4); }).join(' '), wide: true, wrap: true },
+                { l: 'Decimal', text: c.points.join(' '), wide: true, wrap: true },
+                { l: 'UTF-8', text: c.utf8.map(function (v) { return hex(v, 2); }).join(' '), wide: true, wrap: true },
+                { l: 'UTF-8 in binary', text: c.utf8.map(function (v) { return v.toString(2).padStart(8, '0'); }).join(' '), wide: true, wrap: true, bits: true },
+                { l: 'UTF-16', text: c.utf16.map(function (v) { return hex(v, 4); }).join(' '), wide: true, wrap: true },
+                { l: 'Characters', v: c.points.length }, { l: 'Bytes of UTF-8', v: c.utf8.length }],
+            note: raw.t && raw.c ? 'Of the text: the codes box is read while the text is empty.' : ''
+        };
+    }
+
+    function runModular(n, raw) {
+        var none = [{ l: 'a mod m', v: NaN }], r, s;
+        if (!raw.a || !raw.m) return { rows: none };
+        r = CalcMaths.modular([raw.a, raw.b || '1', raw.m], engine.comma, deg);
+        if (r.error) {
+            return { rows: none, bad: r.error === 'whole' ? [r.at] : ['m'], warn: true,
+                note: r.error === 'whole' ? r.at + ' is a whole number, of up to 200 digits.' : 'm is a whole number above 0.' };
+        }
+        s = r.solve;
+        return {
+            rows: [wholeTile('a mod m', r.mod), raw.b ? wholeTile('a<sup>b</sup> mod m', r.power) : { l: 'a<sup>b</sup> mod m', v: NaN }, wholeTile('a<sup>–1</sup> mod m', r.inverse),
+                { l: 'a x ≡ b (mod m)', text: !raw.b ? '–' : s ? 'x ≡ ' + s.x + ' (mod ' + s.step + ')' + (s.count > BigInt(1) ? ', ' + s.count + ' of them below m' : '') : 'none', wide: true, wrap: true }],
+            note: r.inverse === null ? 'a and m have a factor in common: a has no inverse mod m' + (raw.b && r.power === null ? ', so no power below 0.' : '.') : ''
+        };
+    }
+
+    function runChinese(n, raw) {
+        var none = [{ l: 'x', v: NaN }], r = raw.list ? CalcMaths.chinese(raw.list, engine.comma, deg) : null;
+        if (!r) return { rows: none };
+        if (r.error) return { rows: none, bad: ['list'], warn: true, note: (r.at ? r.at + ': not' : 'Not') + ' of the form 2 mod 3, ' + (engine.comma ? 'with ; between them.' : 'with commas between them.') };
+        if (r.none) return { rows: none, warn: true, note: 'None: they cannot all hold, their moduli having a factor in common.' };
+        return { rows: [wholeTile('x', r.x), wholeTile('Modulus', r.m), { l: 'All of them', text: 'x ≡ ' + r.x + ' (mod ' + r.m + ')', wide: true, wrap: true }] };
+    }
+
+    function runExact(n, raw) {
+        var none = [{ l: 'Exactly', text: '–', wide: true }], r = raw.e ? CalcMaths.exact(raw.e, engine.comma) : null, top, about, digits;
+        if (!r) return { rows: none };
+        if (r.error) {
+            return { rows: none, bad: r.error === 'expression' ? ['e'] : [], warn: true, note: {
+                expression: 'Of whole numbers and fractions: + – × ÷, ^, n!, nCr, nPr, C(n' + (engine.comma ? ';' : ',') + ' k), P(n' + (engine.comma ? ';' : ',') + ' k), fib(n).',
+                large: 'More than 20000 digits.',
+                zero: 'Division by 0.',
+                whole: 'n! and a choice of whole numbers up to 5000, fib(n) of one, a power of a whole number.'
+            }[r.error] };
+        }
+        top = String(r.top).replace('-', '–');
+        about = CalcMaths.about(r.top, r.bottom);
+        digits = String(r.top).replace('-', '').length;
+        return {
+            rows: [{ l: 'Exactly', text: r.bottom === BigInt(1) ? top : top + '/' + r.bottom, wide: true, wrap: true },
+                { l: r.bottom === BigInt(1) ? 'Digits' : 'Digits of the top', v: digits },
+                typeof about === 'number' ? { l: 'About', v: about } : { l: 'About', text: about.replace('-', '–').replace(/e(-?)(\d+)$/, function (m, s, e) { return ' × 10<sup>' + (s ? '–' : '') + e + '</sup>'; }) }]
+                .concat(r.bottom === BigInt(1) ? [] : [{ l: 'Decimal', text: CalcMaths.toBase(r.top, r.bottom, 10, 60).replace('-', '–'), wide: true, wrap: true }])
+        };
+    }
+
+    function runPrimes(n, raw) {
+        var none = [{ l: 'Prime', text: '–' }], r = raw.n ? CalcMaths.primesNear(raw.n, engine.comma, deg) : null;
+        if (!r) return { rows: none };
+        if (r.error) return { rows: none, bad: ['n'], warn: true, note: 'A whole number of up to 24 digits.' };
+        return {
+            rows: [{ l: 'Prime', text: r.prime ? 'Yes' : 'No' }, wholeTile('Previous prime', r.previous), wholeTile('Next prime', r.next),
+                { l: 'π(n), primes up to n', v: r.count === null ? NaN : r.count }, { l: 'The n-th prime', v: r.nth === null ? NaN : r.nth }],
+            note: r.count === null ? 'π(n) and the n-th prime up to 10 million.' : r.nth === null && r.n > BigInt(0) ? 'The n-th prime while it is up to 10 million.' : ''
+        };
+    }
+
+    function runBetween2(n, raw) {
+        var none = [{ l: 'How many', v: NaN }], r = raw.a && raw.b ? CalcMaths.primesBetween([raw.a, raw.b], engine.comma, deg, 200) : null;
+        if (!r) return { rows: none };
+        if (r.error) return { rows: none, bad: r.error === 'whole' ? ['a', 'b'] : [], warn: true, note: r.error === 'whole' ? 'Whole numbers.' : 'To up to 10¹⁴, the two up to 10 million apart.' };
+        return {
+            rows: [{ l: 'How many', v: r.count }, { l: 'The primes', text: r.list.length ? r.list.join(', ') + (r.more ? ' …' : '') : 'none', wide: true, wrap: true }],
+            note: r.more ? 'The first 200 of them.' : ''
+        };
+    }
+
+    function runFraction(n, raw) {
+        var none = [{ l: 'Fraction', text: '–' }], r = raw.x ? CalcMaths.fractionOf(raw.x, engine.comma, deg) : null, t, b, whole, rest, cf, f, sign;
+        if (!r) return { rows: none };
+        if (r.error) return { rows: none, bad: ['x'], warn: true, note: 'A fraction, 22/7, a decimal, 0.125, one with a part in brackets that comes again, 0.1(6), or a calculation.' };
+        if (r.value !== undefined) {
+            f = CalcEngine.fraction(r.value);
+            cf = CalcMaths.continuedOf(r.value, 20);
+            return {
+                rows: [{ l: 'Fraction', text: f ? String(f[0]).replace('-', '–') + '/' + f[1] : '–' }, { l: 'Value', v: r.value },
+                    { l: 'Continued fraction', text: '[' + cf[0] + (cf.length > 1 ? '; ' + cf.slice(1).join(', ') : '') + ']', wide: true, wrap: true }],
+                note: 'Of a calculation: as near as its digits tell.' + (f ? '' : ' Not a fraction of up to 10 digits.')
+            };
+        }
+        t = r.top;
+        b = r.bottom;
+        sign = t < BigInt(0) ? '–' : '';
+        whole = (t < BigInt(0) ? -t : t) / b;
+        rest = (t < BigInt(0) ? -t : t) % b;
+        cf = CalcMaths.continued(t, b, 40);
+        return {
+            rows: [{ l: 'Fraction', text: sign + (t < BigInt(0) ? -t : t) + (b === BigInt(1) ? '' : '/' + b) },
+                { l: 'Mixed', text: b === BigInt(1) || !whole ? '–' : sign + whole + ' ' + rest + '/' + b },
+                { l: 'Value', v: CalcMaths.about(t, b) },
+                { l: 'Decimal', text: local(CalcMaths.toBase(t, b, 10, 100)).replace('-', '–'), wide: true, wrap: true },
+                { l: 'Continued fraction', text: '[' + cf[0] + (cf.length > 1 ? '; ' + cf.slice(1).join(', ') : '') + ']', wide: true, wrap: true }]
         };
     }
 

@@ -152,10 +152,11 @@
         // the numbers
         'numbers': {
             t: 'Matrices, complex numbers and bases',
-            d: 'Matrices, their determinant, inverse, products and eigenvalues, and A x = b; ' +
-                'complex numbers, (2 + 3i)(1 – i), with their length and angle; whole numbers in bits, in decimal, ' +
-                'hexadecimal, octal and binary, with AND, OR and XOR, their bits to click, and numbers as doubles and floats; ' +
-                'and the prime factors of a whole number, GCD and LCM, and rounding. Click a result to put it in.',
+            d: 'Matrices, their determinant, inverse, powers, products and eigenvalues, rows reduced, LU and QR, and A x = b; vectors; ' +
+                'complex numbers, (2 + 3i)(1 – i), with their length and angle, and roots of polynomials of them; whole numbers in bits, in decimal, ' +
+                'hexadecimal, octal and binary, with AND, OR and XOR, their bits to click, any base, text as its codes, and numbers as doubles and floats; ' +
+                'and the prime factors of a whole number, GCD and LCM, modular arithmetic, primes, numbers to every digit, fractions, and rounding. ' +
+                'Click a result to put it in.',
             k: ''
         },
         'numbers close': {

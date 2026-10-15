@@ -412,6 +412,117 @@ check(M.arcLength('x', false, 0, 0, 1).length === 1.414213562 && M.arcLength('x^
 check(M.exactOf(1.772453851, 1e-9, 'constants', 0, function () { return true; }) === '√π' &&
     M.exactOf(1.234567891, 1e-9, 'constants', 0, function () { return true; }) === null, 'exactOf: an integral\'s, of fractions and constants only');
 
+// more of matrices: A x = b of many answers or none, rows reduced, powers, LU and QR, vectors
+check(JSON.stringify(M.system([[1, 1, 1], [2, 2, 2]], [3, 6])) === '{"many":true,"rref":[[1,1,1,3],[0,0,0,0]],"p":[3,0,0],"basis":[[-1,1,0],[-1,0,1]]}',
+    'system: many answers, x = p + t v', JSON.stringify(M.system([[1, 1, 1], [2, 2, 2]], [3, 6])));
+check(JSON.stringify(M.system([[1, 0], [1, 1], [1, 2]], [1, 2, 4]).least) === '{"x":[0.833333333333,1.5],"residual":0.408248290464,"many":false}',
+    'system: none, the line nearest three points by least squares');
+check(JSON.stringify(M.rref([[1, 2, 3], [4, 5, 6], [7, 8, 9]])) === '{"m":[[1,0,-1],[0,1,2],[0,0,0]],"rank":2,"pivots":[0,1],"kernel":[[1,-2,1]]}', 'rref: and its null space');
+check(JSON.stringify(M.matrixPower([[1, 1], [1, 0]], 10)) === '[[89,55],[55,34]]' && JSON.stringify(M.matrixPower([[2, 0], [0, 4]], -2)) === '[[0.25,0],[0,0.0625]]' &&
+    JSON.stringify(M.matrixPower([[2, 3], [1, 4]], 0)) === '[[1,0],[0,1]]' && M.matrixPower([[1, 2], [2, 4]], -1) === null && M.matrixPower([[1, 2, 3]], 2) === null,
+    'matrixPower: Fibonacci, below 0, of 0; none of no inverse, or not square');
+check(JSON.stringify(M.lu([[1, 2], [3, 4]])) === '{"p":[[0,1],[1,0]],"l":[[1,0],[0.333333333333,1]],"u":[[3,4],[0,0.666666666667]]}' && M.lu([[1, 2, 3]]) === null, 'lu: P A = L U');
+(function () {
+    var f = M.qr([[1, 0], [1, 1], [1, 2]]), back = f.q.map(function (row) { return f.r[0].map(function (x, j) { return row.reduce(function (s, v, k) { return s + v * f.r[k][j]; }, 0); }); });
+    check(near(back[2][1], 2, 1e-11) && near(back[0][0], 1, 1e-11) && f.r[1][0] === 0 && f.r[0][0] > 0 && f.r[1][1] > 0, 'qr: Q R is A, R above its diagonal, which is above 0');
+})();
+check(JSON.stringify(M.vectors([1, 2, 3], [4, 5, 6], 0)).indexOf('{"dot":32,"cross":[-3,6,-3],"lengths":[3.74165738677,8.77496438739],"angle":0.225726128553') === 0 &&
+    M.vectors([1, 0], [0, 1], 1).angle === 90 && M.vectors([1, 0], [0, 1], 1).cross === 1 && M.vectors([1, 0, 0, 0], [0, 1, 0, 0], 0).cross === null,
+    'vectors: dot and cross, the angle in degrees, of 2 and of 4');
+check(JSON.stringify(M.vectorOf('1, 2, 3', false, 0)) === '[1,2,3]' && M.vectorOf('1', false, 0) === null && JSON.stringify(M.vectorOf('1;2,5', true, 0)) === '[1,2.5]',
+    'vectorOf: 2 to 4 numbers, with the comma as well');
+
+// polynomials of complex coefficients
+function croots(text) {
+    var r = M.cpolynomial(text, false, 0);
+    return r.error || (M.cpoly(r.c) || []).map(function (z) { return z.re + (z.im < 0 ? '-' : '+') + Math.abs(z.im) + 'i'; }).join(' ');
+}
+[
+    ['x^2 + 1', '0-1i 0+1i', 'x² + 1'],
+    ['(x - i)(x - 2)', '0+1i 2+0i', 'two of its roots typed'],
+    ['1, 1+i, 2i', '-1.36602540378+0.366025403784i 0.366025403784-1.36602540378i', 'of its coefficients'],
+    ['x^2 + (1+i)x + 2i', '-1.36602540378+0.366025403784i 0.366025403784-1.36602540378i', 'typed with i'],
+    ['x^3 - 1', '-0.5-0.866025403784i -0.5+0.866025403784i 1+0i', 'the cube roots of 1'],
+    ['a x + i', 'letters', 'a letter of its own'],
+    ['1/x', 'polynomial', 'not a polynomial']
+].forEach(function (c) {
+    check(croots(c[0]) === c[1], 'cpoly: ' + c[2], croots(c[0]));
+});
+
+// any base, text and its codes
+function inBase(text, from, to) {
+    var f = M.fromBase(text, from);
+    return f ? M.toBase(f[0], f[1], to) : 'none';
+}
+[
+    ['0.1', 10, 2, '0.0(0011)'], ['FF.8', 16, 10, '255.5'], ['255.5', 10, 16, 'FF.8'], ['1', 7, 10, '1'], ['0.(3)', 10, 3, '0.1'],
+    ['-10', 10, 2, '-1010'], ['z', 36, 10, '35'], ['12', 2, 10, 'none'], ['1', 37, 10, 'none'], ['', 10, 2, 'none']
+].forEach(function (c) {
+    check(inBase(c[0], c[1], c[2]) === c[3], 'base: ' + c[0] + ' of ' + c[1] + ' in ' + c[2] + ' is ' + c[3], inBase(c[0], c[1], c[2]));
+});
+check(M.toBase(BigInt(1), BigInt(7), 10) === '0.(142857)' && /…$/.test(M.toBase(BigInt(1), BigInt(97), 10)), 'toBase: 1/7 comes round, 1/97 past 64 digits');
+check(JSON.stringify(M.textCodes('Hé😀')) === '{"points":[72,233,128512],"utf8":[72,195,169,240,159,152,128],"utf16":[72,233,55357,56832]}', 'textCodes: of a letter, an accent and a face');
+check(M.fromCodes('U+0048 U+00E9') === 'Hé' && M.fromCodes('0xC3 0xA9') === 'é' && M.fromCodes('72 105') === 'Hi' && M.fromCodes('0xC3') === null &&
+    M.fromCodes('U+48 0x41') === null && M.fromCodes('U+D800') === null, 'fromCodes: code points, bytes of UTF-8 and decimals; none of half a letter');
+
+// modular arithmetic, the Chinese remainder theorem
+function mod(a, b, m) {
+    return JSON.stringify(M.modular([a, b, m], false, 0), function (k, v) { return typeof v === 'bigint' ? Number(v) : v; });
+}
+check(mod('3', '4', '7') === '{"mod":3,"power":4,"inverse":5,"solve":{"x":6,"step":7,"count":1}}' &&
+    mod('6', '4', '10') === '{"mod":6,"power":6,"inverse":null,"solve":{"x":4,"step":5,"count":2}}' &&
+    mod('6', '3', '10') === '{"mod":6,"power":6,"inverse":null,"solve":null}' && mod('3', '-1', '7') === '{"mod":3,"power":5,"inverse":5,"solve":{"x":2,"step":7,"count":1}}' &&
+    mod('-1', '2', '5') === '{"mod":4,"power":1,"inverse":4,"solve":{"x":3,"step":5,"count":1}}' && mod('3', '1', '0') === '{"error":"modulus"}' && mod('x', '1', '5') === '{"error":"whole","at":"a"}',
+    'modular: powers, inverses and a x ≡ b, of a below 0 as well; m above 0');
+check(M.modular(['2', '1000', '1000000007'], false, 0).power === BigInt(688423210), 'modular: a power far past what a number keeps');
+check(String(M.chinese('2 mod 3, 3 mod 5, 2 mod 7', false, 0).x) === '23' && String(M.chinese('x ≡ 1 (mod 4), x ≡ 3 (mod 6)', false, 0).m) === '12' &&
+    M.chinese('1 mod 4, 2 mod 6', false, 0).none && M.chinese('1 mod 4, 2', false, 0).at === '2', 'chinese: coprime and not, none, and what is not one');
+
+// exactly, to every digit
+function exactly(text, comma) {
+    var r = M.exact(text, comma);
+    return r.error || String(r.top) + (r.bottom === BigInt(1) ? '' : '/' + r.bottom);
+}
+[
+    ['50 nCr 25', '126410606437752'], ['C(50, 25)', '126410606437752'], ['P(10, 3)', '720'], ['fib(100)', '354224848179261915075'],
+    ['2^100', '1267650600228229401496703205376'], ['1/3 + 1/6', '1/2'], ['0.1 + 0.2', '3/10'], ['2^-3', '1/8'], ['-2^2', '-4'], ['2^3^2', '512'],
+    ['(1/2)^10', '1/1024'], ['20!', '2432902008176640000'], ['1/0', 'zero'], ['0^-1', 'zero'], ['2.5!', 'whole'], ['10^30000', 'large'], ['5001!', 'whole'], ['2 +', 'expression']
+].forEach(function (c) {
+    check(exactly(c[0]) === c[1], 'exact: ' + c[0] + ' is ' + c[1], exactly(c[0]));
+});
+check(exactly('1,5 * 2', true) === '3' && exactly('C(5; 2)', true) === '10', 'exact: with the decimal comma');
+check(M.exact('100!', false).top.toString().length === 158 && M.about(M.exact('100!', false).top, BigInt(1)) === 9.33262154439e157 &&
+    M.about(M.exact('3000!', false).top, BigInt(1)) === '4.14935960343e9130' && M.about(BigInt(1), BigInt(3)) === 0.333333333333, 'exact: 100! of 158 digits, about as a number, past one');
+
+// primes
+function near1(text) {
+    var r = M.primesNear(text, false, 0);
+    return r.error || [r.prime, r.previous, r.next, r.count, r.nth].map(String).join(' ');
+}
+[
+    ['100', 'false 97 101 25 541'], ['1', 'false null 2 0 2'], ['2', 'true null 3 1 3'], ['97', 'true 89 101 25 509'],
+    ['10000000', 'false 9999991 10000019 664579 null'], ['1000000000000000000', 'false 999999999999999989 1000000000000000003 null null'], ['1.5', 'whole']
+].forEach(function (c) {
+    check(near1(c[0]) === c[1], 'primesNear: ' + c[0], near1(c[0]));
+});
+check(JSON.stringify(M.primesBetween(['10', '30'], false, 0, 200)) === '{"count":6,"list":[11,13,17,19,23,29],"more":false}' &&
+    M.primesBetween(['100000000000', '100000000100'], false, 0, 200).count === 7 && M.primesBetween(['1', '100000000'], false, 0, 200).error === 'far' &&
+    M.primesBetween(['1', '1000000'], false, 0, 10).count === 78498 && M.primesBetween(['1', '1000000'], false, 0, 10).more,
+    'primesBetween: by the sieve, by a stretch of it far out; up to 10 million apart; π(10⁶)');
+
+// fractions and decimals
+function fraction(text) {
+    var r = M.fractionOf(text, false, 0);
+    return r.error || (r.value !== undefined ? 'value ' + r.value : String(r.top) + '/' + r.bottom);
+}
+[
+    ['22/7', '22/7'], ['-3/6', '-1/2'], ['0.125', '1/8'], ['0.1(6)', '1/6'], ['0.(142857)', '1/7'], ['5', '5/1'], ['pi', 'value 3.141592653589793'], ['1/0', 'number'], ['abc', 'number']
+].forEach(function (c) {
+    check(fraction(c[0]) === c[1], 'fractionOf: ' + c[0], fraction(c[0]));
+});
+check(M.continued(BigInt(415), BigInt(93), 40).join() === '4,2,6,7' && M.continued(BigInt(-7), BigInt(3), 40).join() === '-3,1,2' &&
+    M.continuedOf(Math.PI, 40).slice(0, 5).join() === '3,7,15,1,292', 'continued: of fractions, below 0, and of π');
+
 // limits
 function lim(text, a, deg) {
     var r = M.limit(M.fn(text, false), a, deg || 0);
@@ -472,8 +583,8 @@ function eig(a) {
     check(eig(c[0]) === c[1], 'eigen: ' + c[2], eig(c[0]));
 });
 check(M.eigen([[1, 2, 3], [4, 5, 6], [7, 8, 9]]).poly.join(' ') === '1 -15 -18 0' && M.eigen([[1, 2, 3]]) === null, 'eigen: the characteristic polynomial; none of a matrix not square');
-check(JSON.stringify(M.system([[2, 1, -1], [-3, -1, 2], [-2, 1, 2]], [8, -11, -3])) === '{"x":[2,3,-1]}' &&
-    JSON.stringify(M.system([[1, 0], [0, 1], [1, 1]], [1, 2, 3])) === '{"x":[1,2]}' && M.system([[1, 0], [0, 1], [1, 1]], [1, 2, 4]).none &&
+check(JSON.stringify(M.system([[2, 1, -1], [-3, -1, 2], [-2, 1, 2]], [8, -11, -3]).x) === '[2,3,-1]' &&
+    JSON.stringify(M.system([[1, 0], [0, 1], [1, 1]], [1, 2, 3]).x) === '[1,2]' && M.system([[1, 0], [0, 1], [1, 1]], [1, 2, 4]).none &&
     M.system([[1, 1], [2, 2]], [3, 6]).many && M.system([[1, 1, 1]], [3]).many && M.system([[1, 1], [1, 1]], [1e-10, 0]).none &&
     M.system([[1, 1], [3, 3]], [0.1, 0.3]).many, 'system: none where what is left over is small, as b is; three of three; three of two that hold, or not; many answers');
 
