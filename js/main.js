@@ -213,11 +213,7 @@
             } else if (e.which === 27 && graph.contains(e.target) && graphBig(false)) { // then makes the big graph small
                 e.preventDefault();
             } else if (e.which === 27) { // Esc closes the panel, as the history
-                showStats(false);
-                showFx(false);
-                showConv(false);
-                showSolve(false);
-                showNumbers(false);
+                closePanels(graph);
                 closeGraph();
                 e.preventDefault();
             }
@@ -287,14 +283,7 @@
             showConv(false);
             return true;
         }
-        if (key === 27 && solvePanel.classList.contains('calc-open')) { // and the solver
-            showSolve(false);
-            return true;
-        }
-        if (key === 27 && numbersPanel.classList.contains('calc-open')) { // and the numbers
-            showNumbers(false);
-            return true;
-        }
+        if (key === 27 && toolPanels.some(function (p) { return p.open() && (p.show(false), true); })) return true; // and the solver and the numbers
         if (key === 27 && graph.classList.contains('calc-open')) { // and the graph, after the point clicked on it and its big view
             if (!graphUnpin() && !graphBig(false)) closeGraph();
             return true;
@@ -665,7 +654,7 @@
     // ---------------- the menu of a right click ---------------- //
 
     // What it holds depends on where it opens. On the display: Cut, Copy, Paste, and Reset
-    // (everything but the history and the statistics). In a box of a panel: Cut, Copy,
+    // (everything but the history, what is typed in the panels as well). In a box of a panel: Cut, Copy,
     // Paste and Select all, as the browser's menu has. On a value of a panel, a unit of
     // the converter, a result of the statistics, a constant, a line of the history:
     // Copy and Insert; elsewhere in a panel, the menu of its box. On the keys there is none
@@ -965,14 +954,15 @@
         }
     }, false);
 
+    // one panel at a time: every one closed but the one opening
+    function closePanels(but) {
+        [[past, showPast], [stats, showStats], [fx, showFx], [conv, showConv], [graph, showGraph], [solvePanel, showSolve], [numbersPanel, showNumbers]]
+            .forEach(function (p) { if (p[0] !== but) p[1](false); });
+    }
+
     function showPast(open) {
         if (open) {
-            showStats(false); // one panel at a time
-            showFx(false);
-            showConv(false);
-            showGraph(false);
-            showSolve(false);
-            showNumbers(false);
+            closePanels(past);
             placePanel(past);
             renderPast();
         }
@@ -1053,12 +1043,7 @@
 
     function showStats(open) {
         if (open) {
-            showPast(false);
-            showFx(false);
-            showConv(false);
-            showGraph(false);
-            showSolve(false);
-            showNumbers(false);
+            closePanels(stats);
             placePanel(stats);
             renderStats();
         }
@@ -1130,8 +1115,8 @@
         graphMoved = false, // the press became a drag or a pinch, so it is not a click
         graphSaving, // saves the view once the wheel stops
         graphSliding = 0, // the next frame of the view sliding under an area dragged to the side, or 0
-        graphClickAt = -1e9, // when the plot was last clicked
-        graphClickWas = null, // the point or area clicked, and its popup put away, before the first click of two
+        graphClickLast = null, // the point or area clicked, and its popup put away, before the last click
+        graphClickWas = null, // and before the click before it, the first of two
         GRAPH_SLIDE_EDGE = 28, // an area dragged this many pixels from the left or right slides the view that way
         GRAPH_SLIDE_SPEED = 300, // at the side or past it, this many pixels a second; slower farther in
         graphOff = [false, false, false, false, false, false, false], // the curves hidden by a click on their dot: kept, not drawn
@@ -1444,19 +1429,12 @@
     function showGraph(open) {
         var box;
         if (!open && graphAlone) return; // its own window stays, even as a value is put in
-        if (open) {
-            showSolve(false);
-            showNumbers(false);
-        }
         if (!open) graphBig(false); // a value put in from the big graph: the calculator again
         if (!open && stopSliders()) saveState(); // the sliders played stop where they are
         if (!open) areaOn(false);
         if (!open) showWindow(false);
         if (open) {
-            showPast(false);
-            showStats(false);
-            showFx(false);
-            showConv(false);
+            closePanels(graph);
             placePanel(graph);
         }
         graph.classList.toggle('calc-open', open);
@@ -2025,19 +2003,51 @@
         return Math.abs(m) <= 1e-9 ? 0 : +m.toPrecision(8);
     }
 
-    // A curve of a parameter, from 2000 places along it, as the parameter goes from its start
-    // to its end. It breaks where it has no value and where it jumps across most of the plot,
-    // as (t, tan t) does. The places are kept while the view, the unit and its letters stay
+    // A curve of a parameter, from places evenly along it as the parameter goes from its start
+    // to its end, 2000, or one each quarter of a radian of it up to 50000, so no turn is lost
+    // between two: r = θ/2 to 7720π goes round 3860 times. Between two that are far apart on
+    // the plot where it may be seen, more, halved until they are 3 pixels apart: zoomed in, it
+    // is a curve and not lines too long to draw. It breaks where it has no value and where it
+    // jumps across most of the plot however near the places, as (t, tan t) does. The places
+    // along it are kept while the unit and its letters stay; those on the plot while the view does too
     function drawPlane(ctx, v, w, h, c, color) {
-        var key = [v.x, v.y, v.ux, v.uy, w, h, deg].concat(c.letters.map(function (k) { return graphVars[k]; })).join(), pts, on = false;
+        var at = [deg].concat(c.letters.map(function (k) { return graphVars[k]; })).join(),
+            key = [v.x, v.y, v.ux, v.uy, w, h, at].join(), pts, on = false;
+        if (!c.along || c.along.key !== at) {
+            (function () {
+                var ends = c.range(deg), turn = [2 * Math.PI, 360, 400][deg] / (2 * Math.PI),
+                    n = Math.min(50000, Math.max(2000, Math.ceil((ends[1] - ends[0]) / turn / 0.25))), us = [], qs = [], k;
+                for (k = 0; k <= n; k++) {
+                    us.push(ends[0] + (ends[1] - ends[0]) * k / n);
+                    qs.push(c.at(us[k], deg));
+                }
+                c.along = { key: at, us: us, qs: qs };
+            })();
+        }
         if (!c.kept || c.kept.key !== key) {
             pts = [];
             (function () {
-                var ends = c.range(deg), n = 2000, k, u, q;
-                for (k = 0; k <= n; k++) {
-                    u = ends[0] + (ends[1] - ends[0]) * k / n;
-                    q = c.at(u, deg);
-                    pts.push({ u: u, px: plotX(v, q[0]), py: plotY(v, q[1]) });
+                var more = 20000, k, a, b;
+                function place(u, q) {
+                    q = q || c.at(u, deg);
+                    return { u: u, px: plotX(v, q[0]), py: plotY(v, q[1]) };
+                }
+                // the places between a and b, in order, after a and before b
+                function between(a, b, depth) {
+                    var d = Math.abs(b.px - a.px) + Math.abs(b.py - a.py), m;
+                    if (!(d > 3) || !isFinite(d) || depth > 48 || more <= 0) return;
+                    if (Math.max(a.px, b.px) < -d || Math.min(a.px, b.px) > w + d || Math.max(a.py, b.py) < -d || Math.min(a.py, b.py) > h + d) return; // not in the view
+                    m = place((a.u + b.u) / 2);
+                    more--;
+                    between(a, m, depth + 1);
+                    pts.push(m);
+                    between(m, b, depth + 1);
+                }
+                for (k = 0; k < c.along.us.length; k++) {
+                    b = place(c.along.us[k], c.along.qs[k]);
+                    if (k) between(a, b, 0);
+                    pts.push(b);
+                    a = b;
                 }
             })();
             c.kept = { key: key, pts: pts };
@@ -3021,8 +3031,9 @@
             popWhenMoved(mouse && at);
             drawGraph();
         } else if (e.type === 'pointerup' && !graphMoved && !graphPointers().length) {
-            if (e.timeStamp - graphClickAt > 500) graphClickWas = { pinned: p, shut: graphPopShut }; // a double click puts it back
-            graphClickAt = e.timeStamp;
+            // a double click puts back what was before its first click, however long the system lets it take
+            graphClickWas = graphClickLast;
+            graphClickLast = { pinned: p, shut: graphPopShut };
             if (p && (p.area ? onArea(v, p, at) : Math.hypot(plotX(v, p.x) - at.x, plotY(v, p.y) - at.y) <= (mouse ? 8 : 16))) {
                 if (graphPopShut) graphPopShut = false; else graphPinned = null;
             } else {
@@ -3514,12 +3525,7 @@
 
     function showFx(open) {
         if (open) {
-            showPast(false);
-            showStats(false);
-            showConv(false);
-            showGraph(false);
-            showSolve(false);
-            showNumbers(false);
+            closePanels(fx);
             placePanel(fx);
             renderFx();
         }
@@ -4244,7 +4250,7 @@
             { id: 'anybase', t: 'Any base', f: 'FF.8<sub>16</sub> = 11111111.1<sub>2</sub>', d: 'A number in any base from 2 to 36 written in another, the digits after its point as well: 0.1 in base 10 is 0.0(0011) in base 2, the part in brackets coming again and again. A part in brackets may be typed too.',
                 fields: [{ k: 'x', ph: '0.1', fn: true }, { k: 'from', l: 'From base', ph: '10', def: 10 }, { k: 'to', l: 'To base', ph: '2', def: 2 }], cols: 2, run: runAnyBase },
             { id: 'codes', t: 'Text and codes', f: 'é = U+00E9 = C3 A9', d: 'The codes of a text: its code points, its bytes in UTF-8 and its units of UTF-16. Or a text from its codes: U+00E9, 0xC3 0xA9 for the bytes of UTF-8, or 233.',
-                fields: [{ k: 't', l: 'Text', ph: 'Hé', fn: true }, { k: 'c', l: 'Codes', ph: 'U+0048 U+00E9', fn: true }], run: runCodes }
+                fields: [{ k: 't', l: 'Text', ph: 'Hé', fn: true }, { k: 'c', l: 'Codes', ph: 'U+0048 U+00E9', fn: true }], spaces: ['t'], run: runCodes }
         ],
         whole: [
             { id: 'factors', t: 'Prime factors', f: '360 = 2<sup>3</sup> × 3<sup>2</sup> × 5', d: 'A whole number of up to 20 digits in its prime factors, whether it is prime, and its divisors: how many, their sum, each of them, and how many numbers up to it have none of its factors.',
@@ -4577,16 +4583,18 @@
     }
 
     function runAnyBase(n, raw) {
-        var none = [{ l: 'In base ' + (isFinite(n.to) ? n.to : 'b'), text: '–', wide: true }], from = n.from, to = n.to, f, ok = function (b) { return b >= 2 && b <= 36 && b === Math.floor(b); };
+        var none = [{ l: 'In base ' + (isFinite(n.to) ? n.to : 'b'), text: '–', wide: true }], from = n.from, to = n.to, f, out, about, ok = function (b) { return b >= 2 && b <= 36 && b === Math.floor(b); };
         if (!raw.x) return { rows: none };
         if (!ok(from) || !ok(to)) return { rows: none, warn: true, note: 'Bases are whole numbers from 2 to 36.' };
         f = CalcMaths.fromBase(raw.x, from);
         if (!f) return { rows: none, bad: ['x'], warn: true, note: 'Not a number of base ' + from + ': digits 0 to ' + '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'.charAt(from - 1) + ', a point, and a part in brackets that comes again, 0.(3).' };
+        out = CalcMaths.toBase(f[0], f[1], to, 64);
+        about = CalcMaths.about(f[0], f[1]);
         return {
-            rows: [{ l: 'In base ' + to, text: CalcMaths.toBase(f[0], f[1], to, 64), wide: true, wrap: true },
-                { l: 'Decimal', v: typeof CalcMaths.about(f[0], f[1]) === 'number' ? CalcMaths.about(f[0], f[1]) : NaN },
+            rows: [{ l: 'In base ' + to, text: out, wide: true, wrap: true },
+                { l: 'Decimal', v: typeof about === 'number' ? about : NaN },
                 { l: 'Fraction', text: f[1] === BigInt(1) ? '–' : String(f[0]).replace('-', '–') + '/' + f[1] }],
-            note: /…/.test(CalcMaths.toBase(f[0], f[1], to, 64)) ? 'It goes on past 64 digits before it comes round.' : ''
+            note: /…/.test(out) ? 'It goes on past 64 digits before it comes round.' : ''
         };
     }
 
@@ -4736,19 +4744,17 @@
         // what is typed in each box of the tool open, trimmed
         function rawOf(tool) {
             var kept = values[tool.id] || {}, raw = {};
-            Object.keys(kept).forEach(function (k) { raw[k] = typeof kept[k] === 'string' ? kept[k].trim() : ''; });
+            // a box of text keeps its spaces, which are of the text
+            Object.keys(kept).forEach(function (k) {
+                raw[k] = typeof kept[k] !== 'string' ? '' : (tool.spaces || []).indexOf(k) > -1 ? kept[k] : kept[k].trim();
+            });
             return raw;
         }
 
         function show(open) {
             var box;
             if (open) {
-                showPast(false);
-                showStats(false);
-                showFx(false);
-                showConv(false);
-                showGraph(false);
-                toolPanels.forEach(function (p) { if (p !== self) p.show(false); }); // one panel at a time
+                closePanels(panel);
                 placePanel(panel);
                 render();
             }
@@ -5145,12 +5151,7 @@
     // A result in the display starts the value, as in the formulas
     function showConv(open) {
         if (open) {
-            showPast(false);
-            showStats(false);
-            showFx(false);
-            showGraph(false);
-            showSolve(false);
-            showNumbers(false);
+            closePanels(conv);
             placePanel(conv);
             if (!engine.edit && !engine.error && (engine.done || engine.plain()) && +engine.value) {
                 convInput.value = local(+(+engine.value).toPrecision(13));
