@@ -157,14 +157,24 @@ html, body {
     stroke-linejoin: round;
 }
 
-/* the button as it looks on a page */
+/* the button as it looks on a page (page-icon.js): the grey of the browser's theme, and
+   the logo with its thin line round it */
 .page-button {
-    background: #bebebe;
+    --ring: #555555;
+    background: #cfcfcf;
 }
 
 .page-button img {
-    width: 30px;
-    height: 30px;
+    width: 27px;
+    height: 27px;
+    filter: drop-shadow(0.5px 0 0 var(--ring)) drop-shadow(-0.5px 0 0 var(--ring)) drop-shadow(0 0.5px 0 var(--ring)) drop-shadow(0 -0.5px 0 var(--ring));
+}
+
+@media (prefers-color-scheme: dark) {
+    .page-button {
+        --ring: #9a9a9a;
+        background: #232323;
+    }
 }
 
 .option-text {
@@ -241,20 +251,13 @@ html, body {
 .option.managed .option-icon,
 .option.managed h3,
 .option.managed .switch,
-.option.managed .launch {
+.option.managed .choice {
     opacity: 0.45;
 }
 
 .option.managed .switch,
-.option.managed .switch input,
-.option.managed .launch {
+.option.managed .switch input {
     cursor: not-allowed;
-}
-
-.option.managed .launch {
-    background: #39576f;
-    box-shadow: none;
-    transform: none;
 }
 
 .option .managed-note {
@@ -447,11 +450,12 @@ html, body {
     padding-bottom: 0.7em;
 }
 
-/* the number format: notation, decimal places and separators on one line */
+/* the number format: notation, decimal places and separators on one line, in the middle of
+   the option, as the rows of choices */
 .format-row {
     display: flex;
     flex-wrap: wrap;
-    justify-content: flex-start;
+    justify-content: center;
     align-items: center;
     gap: 0.8em;
     margin: 0.6em 0 0.6em;
@@ -515,6 +519,62 @@ html, body {
 .format-row select:disabled {
     opacity: 0.45;
     cursor: default;
+}
+
+/* a row of choices, drawn as the tabs: Before or After, Fixed or Detached */
+.choice {
+    display: inline-flex;
+    flex-wrap: wrap;
+    min-width: 0;
+    margin: 0;
+    padding: 3px;
+    gap: 3px;
+    background: #1a2f38;
+    border: 1px solid #4d6b80;
+    border-radius: 8px;
+}
+
+.choice label {
+    position: relative;
+}
+
+/* the radio itself is hidden; its label is the button */
+.choice input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.choice span {
+    display: block;
+    padding: 0.4em 0.9em;
+    color: #acb4c1;
+    border-radius: 5px;
+    font-size: 0.95em;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.choice label:hover span {
+    color: #fff;
+}
+
+.choice input:checked + span {
+    color: #fff;
+    background: #39576f;
+}
+
+.choice input:focus-visible + span {
+    outline: 2px solid #fff;
+    outline-offset: 1px;
+}
+
+.choice:disabled span {
+    cursor: not-allowed;
 }
 
 /* phones: less space around the page, and the options stack where they don't fit */

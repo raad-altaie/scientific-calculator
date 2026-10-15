@@ -200,6 +200,66 @@
             d: 'A row of each payment, up to 600 of them: the interest and the principal of it, and what is left after it.',
             k: ''
         },
+        'choice circuit 0': {
+            t: 'Series',
+            d: 'R, L and C one after another, the same current through each: their impedances added, Z = R + i(ωL – 1/ωC).',
+            k: ''
+        },
+        'choice circuit 1': {
+            t: 'Parallel',
+            d: 'R, L and C side by side, the same voltage across each: 1/Z = 1/R + 1/(iωL) + iωC.',
+            k: ''
+        },
+        'choice enc 2': {
+            t: 'Base64',
+            d: 'Of A–Z, a–z, 0–9, + and /: four letters for each three bytes, as email attachments and data: addresses have them. And of web addresses, - and _ for + and /.',
+            k: ''
+        },
+        'choice enc 0': {
+            t: 'Base32',
+            d: 'Of A–Z and 2–7, by RFC 4648: eight letters for each five bytes, as the secret keys of two-step sign-in apps are.',
+            k: ''
+        },
+        'choice enc 1': {
+            t: 'Base58',
+            d: 'As Bitcoin addresses and IPFS are written: no 0, O, I or l, which look alike, and no + or /.',
+            k: ''
+        },
+        'choice enc 3': {
+            t: 'Base85',
+            d: 'Ascii85, as PDF and PostScript have it: five letters, ! to u, for each four bytes, z for four 0s.',
+            k: ''
+        },
+        'choice ver 0': {
+            t: 'Version 4',
+            d: 'UUIDs all random but for 6 bits of their version and variant: 122 random bits, as most UUIDs are.',
+            k: ''
+        },
+        'choice ver 1': {
+            t: 'Version 7',
+            d: 'UUIDs of the Unix time now, to the millisecond, then random bits: they sort in the order they were made, as keys of a database are best.',
+            k: ''
+        },
+        'choice convert 0': {
+            t: 'Unix → Date',
+            d: 'A Unix timestamp, the seconds from 1 January 1970 in UTC, for its date and time.',
+            k: ''
+        },
+        'choice convert 1': {
+            t: 'Date → Unix',
+            d: 'A date and a time for its Unix timestamp.',
+            k: ''
+        },
+        'choice zone 0': {
+            t: 'UTC',
+            d: 'The date and time typed are in UTC, as a timestamp is counted.',
+            k: ''
+        },
+        'choice zone 1': {
+            t: 'Time here',
+            d: 'The date and time typed are in the time of this computer\'s time zone, summer time as well.',
+            k: ''
+        },
         'table copy': {
             t: 'Copy table',
             d: 'Copies the table with its heads, a tab between the numbers, all their digits: it pastes into a spreadsheet, a number in each cell.',
@@ -208,6 +268,11 @@
         'card example': {
             t: 'Example',
             d: 'Types an example in the boxes, in place of what is there, to see what the card does: then change any number of it.',
+            k: ''
+        },
+        'text copy': {
+            t: 'Copy',
+            d: 'Copies it, as it is written here, to paste anywhere.',
             k: ''
         },
         'matrix copy': {

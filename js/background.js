@@ -280,20 +280,69 @@ async function followPolicy() {
 }
 
 chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === "managed") followPolicy();
+    if (area === "managed") {
+        followPolicy();
+        followOpenMode();
+    } else if (area === "local" && changes.openMode) {
+        followOpenMode();
+    }
 });
 
 // a policy changed while the browser was closed
 chrome.runtime.onStartup.addListener(followPolicy);
 
 
-// Listen for commands
-chrome.commands.onCommand.addListener(function (command) {
-    if (command === "open_popup") {
-        chrome.action.openPopup()
+// What the toolbar icon and its shortcut open, an option: "fixed", the popup under the
+// icon, or "detached", the window of its own. Fixed unless Detached is chosen, and while
+// an administrator allows Detached Mode
+function opensDetached() {
+    return chrome.storage.local.get("openMode")
+        .catch(() => ({}))
+        .then(async ({ openMode }) => openMode === "detached" && !await policyOff("detachedMode"));
+}
+
+// Without a popup the browser tells of a click on the icon, which then opens the window
+async function followOpenMode() {
+    chrome.action.setPopup({ popup: await opensDetached() ? "" : "popup.html" });
+}
+
+// Launch on the options page opens the mode chosen. The popup is given back to the icon
+// first, in case the choice of Fixed has only just been made
+function launchOpenMode() {
+    opensDetached().then((detached) => {
+        if (detached) {
+            openCalculatorInDetachedMode();
+            return;
+        }
+        chrome.action.setPopup({ popup: "popup.html" })
+            .then(() => chrome.action.openPopup())
             .catch(error => {
                 console.log("Failed to open popup:", error);
             });
+    });
+}
+
+chrome.action.onClicked.addListener(() => unlessOff("detachedMode", openCalculatorInDetachedMode));
+
+// the popup the browser gives the icon from the manifest, at each start
+chrome.runtime.onStartup.addListener(followOpenMode);
+// and each time the worker starts, as after the extension is turned off and on, which fires neither
+followOpenMode();
+
+
+// Listen for commands
+chrome.commands.onCommand.addListener(function (command) {
+    if (command === "open_popup") {
+        opensDetached().then((detached) => {
+            if (detached) {
+                openCalculatorInDetachedMode();
+                return;
+            }
+            chrome.action.openPopup()
+                .catch(error => {
+                    console.log("Failed to open popup:", error);
+                });
+        });
     }
 });
 
@@ -323,6 +372,7 @@ chrome.runtime.onInstalled.addListener((details) => {
     });
 
     showPageIcon();
+    followOpenMode();
 });
 
 
@@ -343,6 +393,8 @@ function unlessOff(key, open) {
 chrome.runtime.onMessage.addListener((message) => {
     if (message?.command === "open-detached") {
         unlessOff("detachedMode", openCalculatorInDetachedMode);
+    } else if (message?.command === "launch") {
+        launchOpenMode();
     } else if (message?.command === "open-graph") {
         unlessOff("graph", openGraphWindow);
     } else if (message?.command === "show-calculator") {

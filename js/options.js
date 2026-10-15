@@ -3,30 +3,46 @@ document.querySelectorAll('.year').forEach((el) => {
     el.textContent = new Date().getFullYear();
 });
 
-// Two tabs: the options, and the guide to the calculator. The page opens on the one
-// last chosen
+// Two tabs: the options, and the guide to the calculator. The page always opens on
+// the options
 const tabs = document.querySelectorAll('.tab');
 const showTab = (name) => {
     tabs.forEach((tab) => tab.setAttribute('aria-selected', tab.dataset.tabFor === name));
     document.querySelector('.tabs').parentElement.dataset.show = name;
 };
 
-try {
-    showTab(localStorage.getItem('optionsTab') === 'guide' ? 'guide' : 'options');
-} catch (e) {
-    showTab('options');
-}
-tabs.forEach((tab) => tab.addEventListener('click', () => {
-    showTab(tab.dataset.tabFor);
-    try {
-        localStorage.setItem('optionsTab', tab.dataset.tabFor);
-    } catch (e) { }
-}));
+showTab('options');
+tabs.forEach((tab) => tab.addEventListener('click', () => showTab(tab.dataset.tabFor)));
 
-// the launch button opens the detached window, like the list of the toolbar icon does
+// the launch button opens the mode chosen: the popup, or the detached window
 document.getElementById('launch-detached').addEventListener('click', () => {
-    chrome.runtime.sendMessage({ command: 'open-detached' });
+    chrome.runtime.sendMessage({ command: 'launch' });
 });
+
+// A row of choices, as the tabs: the one chosen, and choosing one
+const chosen = (group) => group.querySelector('input:checked').value;
+const choose = (group, value) => {
+    group.querySelector(`input[value="${value}"]`).checked = true;
+};
+
+// What the toolbar icon opens, the popup or the detached window: kept in chrome.storage.local,
+// where background.js reads it and changes what the icon does. Fixed until Detached is chosen
+const openMode = document.getElementById('open-mode');
+const modeStore = typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local;
+
+const showOpenMode = () => {
+    if (!modeStore) return;
+    modeStore.get('openMode', ({ openMode: mode } = {}) => {
+        // an administrator who turns Detached Mode off leaves the popup
+        choose(openMode, mode === 'detached' && !CalcPolicy.off('detachedMode') ? 'detached' : 'fixed');
+    });
+};
+
+choose(openMode, 'fixed');
+openMode.addEventListener('change', () => {
+    if (modeStore) modeStore.set({ openMode: chosen(openMode) });
+});
+showOpenMode();
 
 // The button on every page is on while the extension holds this access, as in
 // background.js. The browser asks for it when the switch is turned on; background.js then
@@ -150,14 +166,14 @@ const readOrder = () => {
 const showOrder = () => {
     const root = '<span class="root-sign">√</span>';
 
-    orderIcon.innerHTML = fnOrder.value === 'first' ? root + '9' : '9' + root;
+    orderIcon.innerHTML = chosen(fnOrder) === 'first' ? root + '9' : '9' + root;
 };
 
-fnOrder.value = readOrder();
+choose(fnOrder, readOrder());
 showOrder();
 fnOrder.addEventListener('change', () => {
     showOrder();
-    localStorage.setItem('fnOrder', JSON.stringify(fnOrder.value));
+    localStorage.setItem('fnOrder', JSON.stringify(chosen(fnOrder)));
 });
 
 // The formulas, the converter, the statistics, the graph, the solver and the numbers: a button on the display for each
@@ -183,7 +199,7 @@ fnOrder.addEventListener('change', () => {
 // says why. Turned on again, the switch shows the choice that was kept
 const managed = [['panel-fx', 'formulas', 'fxOn'], ['panel-conv', 'converter', 'convOn'], ['panel-graph', 'graph', 'graphOn'],
     ['panel-stats', 'statistics', 'statsOn'], ['panel-solve', 'solve', 'solveOn'], ['panel-numbers', 'numbers', 'numbersOn'],
-    ['launch-detached', 'detachedMode'], ['page-icon', 'pageButton']];
+    ['open-mode', 'detachedMode'], ['page-icon', 'pageButton']];
 
 const showPolicy = () => {
     managed.forEach(([id, key, kept]) => {
@@ -204,6 +220,8 @@ const showPolicy = () => {
         }
         if (id === 'page-icon') {
             showPageIconOption();
+        } else if (id === 'open-mode') {
+            showOpenMode();
         } else if (kept) {
             try {
                 control.checked = !off && JSON.parse(localStorage.getItem(kept)) !== false;

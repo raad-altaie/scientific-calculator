@@ -5,7 +5,8 @@
 // them and differential equations; and the normal, Student's t, χ², F, binomial, Poisson,
 // geometric, hypergeometric, exponential and uniform distributions, and confidence intervals.
 // And of the Numbers panel: complex numbers, and polynomials of complex coefficients; whole
-// numbers in bits and their bases, numbers in any base, text as its codes, and numbers as a
+// numbers in bits and their bases, numbers in any base, text as its codes and in Base64, 32, 58 and 85, the
+// networks of IPv4 and IPv6 addresses, the impedance of R, L and C, and numbers as a
 // computer keeps them, by IEEE 754; matrices, their eigenvalues, linear equations of them,
 // their rows reduced, powers, LU and QR, and vectors; and whole numbers: their prime factors,
 // divisors, greatest common divisor and least common multiple, modular arithmetic and the
@@ -1934,13 +1935,13 @@
 
     // ---------- bases ---------- //
 
-    // A calculation of whole numbers in bits, signed as a computer keeps them: decimal, 0x1F,
+    // A calculation of whole numbers in bits, 8 to 128 of them, signed as a computer keeps them: decimal, 0x1F,
     // 0b1010 or 0o17; + – × ÷ (whole), mod or %, AND & OR | XOR NOT ~, NAND, NOR, XNOR, << >>,
     // ROL and ROR, which turn the bits round, brackets. Each value kept to the bits, as the machine does. { value: a BigInt, wrapped:
     // it did not fit } or { error: 'expression' | 'zero' | 'bits' }
     function bitwise(text, bits) {
         var s = String(text).trim(), toks = [], m, i = 0, wrapped = false, out;
-        if ([8, 16, 32, 64].indexOf(bits) < 0) return { error: 'bits' };
+        if ([8, 16, 32, 64, 128].indexOf(bits) < 0) return { error: 'bits' };
         while (s) {
             if ((m = /^\s+/.exec(s))) {
                 // skipped
@@ -2049,6 +2050,21 @@
     // a value of the bits, b-th of them, 0 the lowest, turned over
     function flipBit(v, bits, b) {
         return BigInt.asIntN(bits, v ^ (BigInt(1) << BigInt(b)));
+    }
+
+    // the bytes of a value of bits, the highest first, as it is kept big-endian; reversed, as little-endian
+    function bytesOf(v, bits) {
+        return BigInt.asUintN(bits, v).toString(16).padStart(bits / 4, '0').match(/../g).map(function (b) { return parseInt(b, 16); });
+    }
+
+    // bytes as 2 hexadecimal digits each, joined by sep (none by default): [10, 255] is 0aff
+    function hexOfBytes(bytes, sep) {
+        return Array.prototype.map.call(bytes, function (b) { return b.toString(16).padStart(2, '0'); }).join(sep || '');
+    }
+
+    // a value of bits with its bytes in the other order, as it is read from the other end
+    function byteSwap(v, bits) {
+        return BigInt.asIntN(bits, BigInt('0x' + hexOfBytes(bytesOf(v, bits).reverse())));
     }
 
     // ---------- floating point ---------- //
@@ -3074,6 +3090,325 @@
         return out;
     }
 
+    // ---------- Base64 ---------- //
+
+    var BASE64 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+    // bytes in Base64, 4 letters for each 3 of them, = filling out the last 4; url: with - and _
+    // for + and /, and no =, as a web address or a file name has it
+    function toBase64(bytes, url) {
+        var out = '', i, n, k;
+        for (i = 0; i < bytes.length; i += 3) {
+            n = (bytes[i] << 16) | ((bytes[i + 1] || 0) << 8) | (bytes[i + 2] || 0);
+            for (k = 0; k < 4; k++) out += k <= bytes.length - i ? BASE64.charAt((n >> (18 - 6 * k)) & 63) : url ? '' : '=';
+        }
+        return url ? out.replace(/\+/g, '-').replace(/\//g, '_') : out;
+    }
+
+    // The bytes of Base64 typed, of either alphabet, its = and spaces left out where they are; null where it is not
+    function fromBase64(text) {
+        var s = String(text).replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/').replace(/=+$/, ''), out = [], n = 0, have = 0, i, v;
+        if (/[^A-Za-z0-9+/]/.test(s) || s.length % 4 === 1) return null;
+        for (i = 0; i < s.length; i++) {
+            v = BASE64.indexOf(s.charAt(i));
+            n = (n << 6) | v;
+            have += 6;
+            if (have >= 8) {
+                have -= 8;
+                out.push((n >> have) & 255);
+            }
+        }
+        return out;
+    }
+
+    // bytes in Base32, of RFC 4648: 8 letters, A–Z and 2–7, for each 5 bytes, = filling out the last 8
+    function toBase32(bytes) {
+        var A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567', out = '', n = 0, have = 0, i;
+        for (i = 0; i < bytes.length; i++) {
+            n = (n << 8) | bytes[i];
+            have += 8;
+            while (have >= 5) {
+                have -= 5;
+                out += A.charAt((n >> have) & 31);
+            }
+            n &= (1 << have) - 1;
+        }
+        if (have) out += A.charAt((n << (5 - have)) & 31);
+        return out + '========'.slice(0, (8 - out.length % 8) % 8);
+    }
+
+    // The bytes of Base32 typed, small letters as well, its = and spaces left out; null where it is not
+    function fromBase32(text) {
+        var A = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567', s = String(text).replace(/\s+/g, '').replace(/=+$/, '').toUpperCase(), out = [], n = 0, have = 0, i;
+        if (/[^A-Z2-7]/.test(s) || [1, 3, 6].indexOf(s.length % 8) > -1) return null;
+        for (i = 0; i < s.length; i++) {
+            n = ((n << 5) | A.indexOf(s.charAt(i))) & 0xFFFF;
+            have += 5;
+            if (have >= 8) {
+                have -= 8;
+                out.push((n >> have) & 255);
+            }
+        }
+        return out;
+    }
+
+    // bytes in Base58, as Bitcoin writes them: a number in base 58 of letters that do not look alike,
+    // no 0, O, I or l; a 1 for each 0 byte before it
+    var BASE58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+
+    function toBase58(bytes) {
+        var zeros = 0, n = BIG.zero, out = '', i, b58 = BigInt(58);
+        while (zeros < bytes.length && !bytes[zeros]) zeros++;
+        for (i = zeros; i < bytes.length; i++) n = n * BigInt(256) + BigInt(bytes[i]);
+        while (n > BIG.zero) {
+            out = BASE58.charAt(Number(n % b58)) + out;
+            n /= b58;
+        }
+        return '1'.repeat(zeros) + out;
+    }
+
+    // The bytes of Base58 typed; null where it is not
+    function fromBase58(text) {
+        var s = String(text).trim(), zeros = 0, n = BIG.zero, out = [], i;
+        if (/[^1-9A-HJ-NP-Za-km-z]/.test(s)) return null;
+        while (zeros < s.length && s.charAt(zeros) === '1') zeros++;
+        for (i = zeros; i < s.length; i++) n = n * BigInt(58) + BigInt(BASE58.indexOf(s.charAt(i)));
+        while (n > BIG.zero) {
+            out.unshift(Number(n % BigInt(256)));
+            n /= BigInt(256);
+        }
+        return new Array(zeros).fill(0).concat(out);
+    }
+
+    // bytes in Base85, Ascii85 as PDF and PostScript have it: 5 letters, ! to u, for each 4 bytes, z
+    // for 4 that are 0, and one more letter than the bytes of the last
+    function toBase85(bytes) {
+        var out = '', i, k, n, chunk, g;
+        for (i = 0; i < bytes.length; i += 4) {
+            chunk = bytes.slice(i, i + 4);
+            n = ((chunk[0] << 24) >>> 0) + ((chunk[1] || 0) << 16) + ((chunk[2] || 0) << 8) + (chunk[3] || 0);
+            if (!n && chunk.length === 4) {
+                out += 'z';
+                continue;
+            }
+            for (g = '', k = 0; k < 5; k++) {
+                g = String.fromCharCode(33 + n % 85) + g;
+                n = Math.floor(n / 85);
+            }
+            out += g.slice(0, chunk.length + 1);
+        }
+        return out;
+    }
+
+    // The bytes of Base85 typed, between <~ and ~> as well, spaces left out; null where it is not
+    function fromBase85(text) {
+        var s = String(text).replace(/\s+/g, '').replace(/^<~/, '').replace(/~>$/, ''), out = [], i = 0, k, n, g, take;
+        while (i < s.length) {
+            if (s.charAt(i) === 'z') {
+                out.push(0, 0, 0, 0);
+                i++;
+                continue;
+            }
+            g = s.slice(i, i + 5);
+            if (g.length === 1 || /[^!-u]/.test(g)) return null; // a letter alone is no byte; z only in place of a group
+            take = g.length - 1;
+            g = (g + 'uuuu').slice(0, 5);
+            for (n = 0, k = 0; k < 5; k++) n = n * 85 + g.charCodeAt(k) - 33;
+            if (n > 0xFFFFFFFF) return null;
+            out.push(n >>> 24, (n >>> 16) & 255, (n >>> 8) & 255, n & 255);
+            out.length -= 4 - take;
+            i += 5;
+        }
+        return out;
+    }
+
+    // ---------- UUIDs ---------- //
+
+    // 16 bytes as a UUID is written: 8-4-4-4-12 hexadecimal digits, small letters
+    function uuidText(bytes) {
+        var hex = hexOfBytes(bytes);
+        return [hex.slice(0, 8), hex.slice(8, 12), hex.slice(12, 16), hex.slice(16, 20), hex.slice(20)].join('-');
+    }
+
+    // A new UUID of RFC 9562 from 16 random bytes: version 4 all random but its version and
+    // variant, version 7 its first 48 bits the Unix time in milliseconds, ms, so they sort by time
+    function makeUuid(version, random, ms) {
+        var b = random.slice(0, 16), k;
+        if (version === 7) for (k = 0; k < 6; k++) b[k] = Math.floor(ms / Math.pow(2, 8 * (5 - k))) % 256;
+        b[6] = (b[6] & 0x0F) | (version << 4);
+        b[8] = (b[8] & 0x3F) | 0x80; // the variant of RFC 9562, 10 in its top bits
+        return uuidText(b);
+    }
+
+    // A UUID read: 8-4-4-4-12 hexadecimal digits, or 32 with no hyphens, in braces or after urn:uuid:
+    // if you like. { bytes, text: as uuidText writes it, variant: 'NCS' | 'RFC' | 'Microsoft' |
+    // 'Future', version: 0 to 15, of the variant of RFC 9562, else null; nil, max: all 0s, all 1s;
+    // time: the milliseconds from 1970 it was made, of versions 1, 6 and 7, else null } or null
+    function readUuid(text) {
+        var s = String(text).trim().replace(/^urn:uuid:/i, '').replace(/^\{(.*)\}$/, '$1'),
+            m = /^([0-9a-f]{8})(-?)([0-9a-f]{4})\2([0-9a-f]{4})\2([0-9a-f]{4})\2([0-9a-f]{12})$/i.exec(s), bytes = [], hex, k, v, t, top;
+        if (!m) return null;
+        hex = (m[1] + m[3] + m[4] + m[5] + m[6]).toLowerCase();
+        for (k = 0; k < 32; k += 2) bytes.push(parseInt(hex.substr(k, 2), 16));
+        top = bytes[8] >> 5; // the variant, in the top 1 to 3 bits of byte 8
+        v = { bytes: bytes, text: uuidText(bytes), variant: top < 4 ? 'NCS' : top < 6 ? 'RFC' : top === 6 ? 'Microsoft' : 'Future',
+            version: null, nil: /^0+$/.test(hex), max: /^f+$/.test(hex), time: null };
+        if (v.variant !== 'RFC') return v;
+        v.version = bytes[6] >> 4;
+        if (v.version === 1 || v.version === 6) { // 100 ns from 15 October 1582, of 60 bits: in 1 its low 32 bits first, in 6 its high ones
+            t = v.version === 1 ? BigInt('0x' + hex.slice(13, 16) + hex.slice(8, 12) + hex.slice(0, 8)) : BigInt('0x' + hex.slice(0, 12) + hex.slice(13, 16));
+            v.time = Number(t - BigInt('122192928000000000')) / 10000;
+        } else if (v.version === 7) {
+            v.time = parseInt(hex.slice(0, 12), 16);
+        }
+        return v;
+    }
+
+    // ---------- networks ---------- //
+
+    // an address of IPv4, 192.168.1.10, as a whole number of 32 bits; null where it is not one
+    function ipv4(text) {
+        var parts = String(text).split('.');
+        if (parts.length !== 4 || parts.some(function (p) { return !/^\d{1,3}$/.test(p) || +p > 255; })) return null;
+        return parts.reduce(function (a, p) { return a * 256 + +p; }, 0);
+    }
+
+    // a whole number of 32 bits as an address: 192.168.1.10
+    function ipText(n) {
+        return [n >>> 24, (n >>> 16) & 255, (n >>> 8) & 255, n & 255].join('.');
+    }
+
+    // The network of an address of IPv4, typed 192.168.1.10/24 or with its mask, 192.168.1.10
+    // 255.255.255.0; alone, of itself, /32. One with a colon is of IPv6, as subnet6 has it. { address, mask, wildcard, network, broadcast, first,
+    // last: each a whole number of 32 bits; prefix, all: the addresses of the network, hosts: those
+    // to give out, all but the first and last but in /31 and /32; given: whether it had a prefix or
+    // mask, kind: private, public … } or { error: 'address' | 'prefix' | 'mask' }
+    function subnet(text) {
+        if (String(text).indexOf(':') > -1) return subnet6(text);
+        var m = /^\s*([\d.]+)\s*(?:\/\s*(\d+)|\s+([\d.]+))?\s*$/.exec(String(text)), a, mask, prefix, inv, network, broadcast, all, kind;
+        if (!m || (a = ipv4(m[1])) === null) return { error: 'address' };
+        if (m[3]) {
+            mask = ipv4(m[3]);
+            inv = mask === null ? 1 : (~mask) >>> 0;
+            if (mask === null || (inv & (inv + 1)) !== 0) return { error: 'mask' }; // its 1s first, then its 0s
+            prefix = Math.clz32(inv);
+        } else {
+            prefix = m[2] === undefined ? 32 : +m[2];
+            if (prefix > 32) return { error: 'prefix' };
+            mask = prefix ? (0xFFFFFFFF << (32 - prefix)) >>> 0 : 0;
+        }
+        network = (a & mask) >>> 0;
+        broadcast = (network | ~mask) >>> 0;
+        all = Math.pow(2, 32 - prefix);
+        kind = [[0x0A000000, 8, 'Private'], [0xAC100000, 12, 'Private'], [0xC0A80000, 16, 'Private'], [0x7F000000, 8, 'Loopback'],
+            [0xA9FE0000, 16, 'Link-local'], [0x64400000, 10, 'Shared, CGNAT'], [0xE0000000, 4, 'Multicast'], [0xF0000000, 4, 'Reserved'],
+            [0x00000000, 8, 'This network']].filter(function (k) {
+            return ((a & ((0xFFFFFFFF << (32 - k[1])) >>> 0)) >>> 0) === k[0];
+        });
+        return {
+            address: a, prefix: prefix, mask: mask, wildcard: (~mask) >>> 0, network: network, broadcast: broadcast,
+            first: prefix >= 31 ? network : network + 1, last: prefix >= 31 ? broadcast : broadcast - 1,
+            all: all, hosts: prefix >= 31 ? all : all - 2, given: m[2] !== undefined || !!m[3],
+            kind: a === 0xFFFFFFFF ? 'Broadcast' : kind.length ? kind[0][2] : 'Public'
+        };
+    }
+
+    // An address of IPv6 as a whole number of 128 bits: 2001:db8::1, :: for the run of 0s it leaves
+    // out, an address of IPv4 for its last 32 bits, ::ffff:192.168.1.1, as well; null where it is not one
+    function ipv6(text) {
+        var s = String(text).trim().toLowerCase(), halves, groups, tail, four, n = BIG.zero, i;
+        if (/[^0-9a-f:.]/.test(s) || /:::/.test(s) || s.split('::').length > 2) return null;
+        if (s.indexOf('.') > -1) { // its last 32 bits as an address of IPv4
+            tail = s.slice(s.lastIndexOf(':') + 1);
+            four = ipv4(tail);
+            if (four === null) return null;
+            s = s.slice(0, s.length - tail.length) + (four >>> 16).toString(16) + ':' + (four & 0xFFFF).toString(16);
+        }
+        halves = s.split('::').map(function (h) { return h ? h.split(':') : []; });
+        groups = halves.length === 2 ? halves[0].concat(new Array(Math.max(0, 8 - halves[0].length - halves[1].length)).fill('0'), halves[1]) : halves[0];
+        if (groups.length !== 8 || (halves.length === 2 && halves[0].length + halves[1].length > 7) || groups.some(function (g) { return !/^[0-9a-f]{1,4}$/.test(g); })) return null;
+        for (i = 0; i < 8; i++) n = (n << BigInt(16)) | BigInt(parseInt(groups[i], 16));
+        return n;
+    }
+
+    // the 8 groups of 16 bits of an address of IPv6, the highest first
+    function ipv6Groups(n) {
+        var out = [], i;
+        for (i = 7; i >= 0; i--) out.push(Number((n >> BigInt(16 * i)) & BigInt(0xFFFF)));
+        return out;
+    }
+
+    // An address of IPv6 written as RFC 5952 has it: small letters, no 0s before a group's digits,
+    // the longest run of two 0 groups or more as ::, the first of the longest; one of IPv4 mapped
+    // ending in it, ::ffff:192.168.1.1. full: each group of 4 digits, none left out
+    function ipv6Text(n, full) {
+        var g = ipv6Groups(n), best = -1, len = 0, i, j, hex;
+        if (full) return g.map(function (x) { return x.toString(16).padStart(4, '0'); }).join(':');
+        if (n >> BigInt(32) === BigInt(0xFFFF)) return '::ffff:' + ipText(Number(n & BigInt(0xFFFFFFFF)));
+        for (i = 0; i < 8; i = j + 1) {
+            for (j = i; j < 8 && !g[j]; j++);
+            if (j - i > len && j - i >= 2) {
+                best = i;
+                len = j - i;
+            }
+        }
+        hex = g.map(function (x) { return x.toString(16); });
+        return best < 0 ? hex.join(':') : hex.slice(0, best).join(':') + '::' + hex.slice(best + len).join(':');
+    }
+
+    // the kinds of address of IPv6 by their prefix, the narrowest first: its address, its length; then, once
+    // parsed, the prefix as a number, the shift that leaves it, and the name
+    var KINDS6 = null, KINDS6_TEXT = [['::', 128, 'Unspecified'], ['::1', 128, 'Loopback'], ['::ffff:0:0', 96, 'IPv4-mapped'], ['64:ff9b::', 96, 'IPv4 translation'],
+        ['2001:db8::', 32, 'Documentation'], ['3fff::', 20, 'Documentation'], ['2001::', 32, 'Teredo'], ['2002::', 16, '6to4'], ['fc00::', 7, 'Unique local'], ['fe80::', 10, 'Link-local'],
+        ['ff00::', 8, 'Multicast'], ['2000::', 3, 'Global unicast']];
+
+    // The network of an address of IPv6, typed 2001:db8::1/48; alone, of itself, /128. { v6: true,
+    // address, network, last: whole numbers of 128 bits, BigInt; prefix, all: the addresses of the
+    // network, subnets: the /64 networks in it, or null in one smaller, both BigInt; given, kind,
+    // reverse: the name of the address for reverse DNS } or { error: 'address' | 'prefix', v6: true }
+    function subnet6(text) {
+        var m = /^\s*([0-9a-f:.]+)\s*(?:\/\s*(\d+))?\s*$/i.exec(String(text)), a, prefix, host, network, kind;
+        if (!KINDS6) KINDS6 = KINDS6_TEXT.map(function (k) { return [ipv6(k[0]) >> BigInt(128 - k[1]), BigInt(128 - k[1]), k[2]]; }); // parsed once
+        if (!m || (a = ipv6(m[1])) === null) return { error: 'address', v6: true };
+        prefix = m[2] === undefined ? 128 : +m[2];
+        if (prefix > 128) return { error: 'prefix', v6: true };
+        host = (BIG.one << BigInt(128 - prefix)) - BIG.one;
+        network = a & ~host;
+        kind = KINDS6.filter(function (k) { return a >> k[1] === k[0]; });
+        return {
+            v6: true, address: a, prefix: prefix, network: network, last: network | host, all: host + BIG.one,
+            subnets: prefix <= 64 ? BIG.one << BigInt(64 - prefix) : null, given: m[2] !== undefined,
+            kind: kind.length ? kind[0][2] : 'Reserved',
+            reverse: ipv6Text(a, true).replace(/:/g, '').split('').reverse().join('.') + '.ip6.arpa'
+        };
+    }
+
+    // ---------- alternating current ---------- //
+
+    // The impedance of a resistor, a coil and a capacitor, in series or side by side, at a
+    // frequency: r in ohms, l in henries, c in farads, f in hertz, each of the three null where
+    // there is none. { z: { re, im }, xl, xc: the reactance of the coil and of the capacitor,
+    // resonance: the frequency where they are the same, or NaN } or { error: 'none' | 'value' }
+    function impedance(r, l, c, f, parallel) {
+        var w = 2 * PI * f, xl = l === null ? NaN : w * l, xc = c === null ? NaN : 1 / (w * c), g, b, d, z;
+        if (r === null && l === null && c === null) return { error: 'none' };
+        if (!(f >= 0) || [r, l, c].some(function (v) { return v !== null && !(v >= 0); }) || c === 0) return { error: 'value' };
+        if (!parallel) {
+            z = { re: r || 0, im: (l === null ? 0 : xl) - (c === null ? 0 : xc) };
+        } else if (r === 0 || (l !== null && xl === 0) || (c !== null && xc === 0)) {
+            z = { re: 0, im: 0 }; // one way through of nothing in the way: all of it goes by that
+        } else { // the admittance, G + iB, of the three side by side, and Z of it, 1 / (G + iB)
+            g = r === null ? 0 : 1 / r;
+            b = (c === null ? 0 : 1 / xc) - (l === null ? 0 : 1 / xl);
+            d = g * g + b * b;
+            z = d ? { re: g / d, im: -b / d } : { re: Infinity, im: Infinity };
+        }
+        return {
+            z: { re: round(z.re), im: round(z.im) }, xl: round(xl), xc: round(xc),
+            resonance: l > 0 && c > 0 ? round(1 / (2 * PI * Math.sqrt(l * c))) : NaN
+        };
+    }
+
     // ---------- modular arithmetic ---------- //
 
     // a whole number typed, as a BigInt, of up to 1000 digits; one worked out as whole does
@@ -3866,9 +4201,12 @@
     // The day of a date as it is typed: in numbers, the year first, 2026-10-14 or 2026. 10. 14., or last,
     // 14/10/2026, 14.10.2026, the day first unless order is 'mdy', as in the US, 10/14/2026; or in words,
     // 14 Oct 2026, Oct 14, 2026 or Wednesday, 14 October 2026, a month by its English name or the start of
-    // it, Sept as well. A year of two digits is not read, 14/10/26. NaN for what is not a date there is
+    // it, Sept as well. A year of two digits is not read, 14/10/26. Of a date and a time in ISO 8601,
+    // 2026-10-14T09:30:00Z or with an offset, +03:00, the date as it is written; the time is left out.
+    // NaN for what is not a date there is
     function readDate(text, order) {
-        var t = String(text).trim().toLowerCase().replace(/,/g, ' '), m,
+        var t = String(text).trim().toLowerCase().replace(/,/g, ' ')
+            .replace(/^(\d{4}-\d{1,2}-\d{1,2})[t ]\d{1,2}:\d{2}(:\d{2}(\.\d+)?)?(z|[+-]\d{2}(:?\d{2})?)?$/, '$1'), m,
             names = 'january february march april may june july august september october november december'.split(' '), parts, month = 0, nums = [];
         if (/^[\d\s./-]+$/.test(t) && (m = t.match(/\d+/g)).length === 3) {
             if (m[0].length > 2) return dayFrom(+m[0], +m[1], +m[2]);
@@ -3934,6 +4272,17 @@
         return { week: Math.floor((thursday - dayFrom(y, 1, 1)) / 7) + 1, year: y };
     }
 
+    // A time of day typed, 14:30, 2:30:15 pm or 23:59:59.5, as the seconds from midnight; NaN for one there is not
+    function readTime(text) {
+        var m = /^\s*(\d{1,2})(?:[:.](\d{2}))?(?:[:.](\d{2}(?:\.\d+)?))?\s*(am|pm|a\.m\.|p\.m\.)?\s*$/i.exec(String(text)), h;
+        if (!m || (m[2] === undefined && !m[4])) return NaN; // 14 alone is no time, 2 pm is
+        h = +m[1];
+        if (m[4] ? h < 1 || h > 12 : h > 23) return NaN;
+        if (m[4]) h = h % 12 + (/^p/i.test(m[4]) ? 12 : 0);
+        if (+(m[2] || 0) > 59 || +(m[3] || 0) >= 60) return NaN;
+        return h * 3600 + +(m[2] || 0) * 60 + +(m[3] || 0);
+    }
+
     var CalcMaths = {
         number: number,
         fn: fn,
@@ -3984,6 +4333,9 @@
         inBase: inBase,
         bitCount: bitCount,
         flipBit: flipBit,
+        bytesOf: bytesOf,
+        byteSwap: byteSwap,
+        hexOfBytes: hexOfBytes,
         float: float,
         det: det,
         inverse: inverse,
@@ -4012,6 +4364,22 @@
         toBase: toBase,
         textCodes: textCodes,
         fromCodes: fromCodes,
+        toBase64: toBase64,
+        fromBase64: fromBase64,
+        toBase32: toBase32,
+        fromBase32: fromBase32,
+        toBase58: toBase58,
+        fromBase58: fromBase58,
+        toBase85: toBase85,
+        fromBase85: fromBase85,
+        uuidText: uuidText,
+        makeUuid: makeUuid,
+        readUuid: readUuid,
+        ipText: ipText,
+        ipv6: ipv6,
+        ipv6Text: ipv6Text,
+        subnet: subnet,
+        impedance: impedance,
         modular: modular,
         chinese: chinese,
         exact: exact,
@@ -4041,7 +4409,8 @@
         addDate: addDate,
         datesBetween: datesBetween,
         dayOfYear: dayOfYear,
-        isoWeek: isoWeek
+        isoWeek: isoWeek,
+        readTime: readTime
     };
 
     root.CalcMaths = CalcMaths;

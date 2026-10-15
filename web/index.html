@@ -505,8 +505,8 @@
                 <span class="calc-solve-tabs">
                     <span class="calc-solve-tab" data-tab="matrix">Matrix</span>
                     <span class="calc-solve-tab" data-tab="complex">Complex</span>
-                    <span class="calc-solve-tab" data-tab="base">Base</span>
                     <span class="calc-solve-tab" data-tab="whole">Integer</span>
+                    <span class="calc-solve-tab" data-tab="computer">Computer</span>
                 </span>
                 <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
             </div>
@@ -592,6 +592,44 @@
             <button type="button" class="tab" role="tab" data-tab-for="guide">Guide</button>
         </div>
         <div class="options" data-tab="options">
+            <div class="option format-option">
+                <span class="option-icon format-icon keys-icon" id="order-icon" aria-hidden="true"><span class="root-sign">√</span>9</span>
+                <div class="option-text">
+                    <h3>Function keys</h3>
+                    <p>Press <kbd class="k"><span class="root-sign">√</span></kbd> <kbd class="k">sin</kbd> <kbd class="k">cos</kbd>
+                        <kbd class="k">tan</kbd> <kbd class="k">ln</kbd> <kbd class="k">log</kbd> … before the number, as most
+                        calculators do, or after it.</p>
+                    <div class="format-row">
+                        <fieldset class="choice" id="fn-order" title="Function keys">
+                            <label><input type="radio" name="fn-order" value="first"><span>Before the number: √ 9</span></label>
+                            <label><input type="radio" name="fn-order" value="after"><span>After the number: 9 √</span></label>
+                        </fieldset>
+                    </div>
+                </div>
+            </div>
+            <div class="option format-option">
+                <span class="option-icon format-icon" id="format-icon" aria-hidden="true">1500</span>
+                <div class="option-text">
+                    <h3>Number format</h3>
+                    <p>Choose how numbers look: results rounded to fixed decimals, scientific (1.23e+4) or engineering (12.3e+3), and how thousands and decimals are written. Auto places show as many digits as each result needs.</p>
+                    <div class="format-row">
+                        <select id="format-notation" title="Notation">
+                            <option value="norm">Normal</option>
+                            <option value="fix">Fix</option>
+                            <option value="sci">Sci</option>
+                            <option value="eng">Eng</option>
+                        </select>
+                        <select id="format-places" title="Decimal places"></select>
+                        <select id="format-group" title="Thousands separators and decimal mark">
+                            <option value="">No separators: 1234.5</option>
+                            <option value="comma">Comma: 1,234.5</option>
+                            <option value="space">Space: 1 234.5</option>
+                            <option value="dot">Dot, decimal comma: 1.234,5</option>
+                            <option value="spacecomma">Space, decimal comma: 1 234,5</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
             <div class="option">
                 <span class="option-icon screen-icon">
                     <svg viewBox="0 0 16 16" aria-hidden="true">
@@ -707,44 +745,6 @@
                     <span></span>
                 </label>
             </div>
-            <div class="option format-option">
-                <span class="option-icon format-icon" id="format-icon" aria-hidden="true">1500</span>
-                <div class="option-text">
-                    <h3>Number format</h3>
-                    <p>Choose how numbers look: results rounded to fixed decimals, scientific (1.23e+4) or engineering (12.3e+3), and how thousands and decimals are written. Auto places show as many digits as each result needs.</p>
-                    <div class="format-row">
-                        <select id="format-notation" title="Notation">
-                            <option value="norm">Normal</option>
-                            <option value="fix">Fix</option>
-                            <option value="sci">Sci</option>
-                            <option value="eng">Eng</option>
-                        </select>
-                        <select id="format-places" title="Decimal places"></select>
-                        <select id="format-group" title="Thousands separators and decimal mark">
-                            <option value="">No separators: 1234.5</option>
-                            <option value="comma">Comma: 1,234.5</option>
-                            <option value="space">Space: 1 234.5</option>
-                            <option value="dot">Dot, decimal comma: 1.234,5</option>
-                            <option value="spacecomma">Space, decimal comma: 1 234,5</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
-            <div class="option format-option">
-                <span class="option-icon format-icon keys-icon" id="order-icon" aria-hidden="true"><span class="root-sign">√</span>9</span>
-                <div class="option-text">
-                    <h3>Function keys</h3>
-                    <p>Press <kbd class="k"><span class="root-sign">√</span></kbd> <kbd class="k">sin</kbd> <kbd class="k">cos</kbd>
-                        <kbd class="k">tan</kbd> <kbd class="k">ln</kbd> <kbd class="k">log</kbd> … before the number, as most
-                        calculators do, or after it.</p>
-                    <div class="format-row">
-                        <select id="fn-order" title="Function keys">
-                            <option value="first">Before the number: √ 9</option>
-                            <option value="after">After the number: 9 √</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
         </div>
 
         <div class="features" data-tab="guide">
@@ -850,7 +850,7 @@
                     degrees, radians, gradians and turns.</li>
                 <li>The kind, the units and the value stay for the next time.</li>
             </ul>
-            <p>The Dates tab beside Units has two cards, each opened with a click. Dates are written as your
+            <p>The Dates tab beside Units has three cards, each opened with a click. Dates are written as your
                 region writes them, 14/10/2026 in the UK and France, 14.10.2026 in Germany, 10/14/2026 in the US,
                 and typed so, or as 14 Oct 2026 or 2026-10-14. A click in a box of a date, its button or the arrow
                 down opens its calendar, its weeks starting on your region's first day; an empty box is today. In
@@ -863,6 +863,10 @@
                 <li>Add or subtract time: a date some years, months and days on, below 0 to go back, with its weekday,
                     its day of the year and its week by ISO 8601. The years and months go first, and a month from
                     31 January is the last day of February.</li>
+                <li>Unix time, one way or the other. Unix → Date: the date and time of a Unix timestamp, 1700000000
+                    being Tuesday 14 November 2023, 22:13:20 UTC, one of 13 digits being of milliseconds, in UTC, in the
+                    time here and in ISO 8601. Date → Unix: the timestamp of a date and a time, 14:30 or 2:30 pm, in
+                    UTC or the time here.</li>
                 <li>Click a number among the results to put it into the equation. The tab and the dates stay for
                     the next time.</li>
             </ul>
@@ -997,16 +1001,11 @@
                     and cross products, lengths, the angle between them and the projection of one on the
                     other.</li>
                 <li>Complex works out a complex number, (2 + 3i)(1 – i), sqrt(-4) or 2∠30 in polar form, for its
-                    real and imaginary parts, length, angle and conjugate, and the n-th roots of one, each drawn on
-                    the plane; and the roots of a polynomial of complex coefficients, x^2 + (1 + i)x + 2i.</li>
-                <li>Base works out whole numbers as a computer keeps them, in 8, 16, 32 or 64 bits: decimal, 0xFF,
-                    0b1010 or 0o17, with + – × ÷, mod, AND, OR, XOR, NOT, shifts and ROL and ROR, shown in decimal,
-                    hexadecimal, octal and binary. Bits shows each bit of a number, to turn over with a click, and
-                    how many are 1; IEEE 754 shows a number as a double and a float, 0.1 = 0x3FB999999999999A, what
-                    it is to its last digit, and the number of the bits of one. Any base writes a number of any base
-                    from 2 to 36 in another, the digits after its point as well, 0.1 as 0.0(0011) in base 2; Text and
-                    codes gives the code points, UTF-8 and UTF-16 of a text, é = U+00E9 = C3 A9, and a text of
-                    them.</li>
+                    real and imaginary parts, length, angle and conjugate and as r e^(iθ), and the n-th roots of one,
+                    each drawn on the plane; the roots of a polynomial of complex coefficients, x^2 + (1 + i)x + 2i;
+                    and the AC impedance of a resistor, a coil and a capacitor in series or side by side at a
+                    frequency, its size and phase, their reactances and the frequency of resonance, a value typed
+                    with a prefix as well, 4.7k, 10m or 100µ.</li>
                 <li>Integer has the prime factors of a whole number of up to 20 digits, 360 = 2³ × 3² × 5, whether
                     it is prime, and its divisors; the GCD and LCM of two numbers or more; a mod m, a^b mod m, the
                     inverse of a and every x of a x ≡ b (mod m), and the Chinese remainder theorem, 2 mod 3, 3 mod 5;
@@ -1015,6 +1014,21 @@
                     fraction, a decimal with the part that comes again in brackets and a continued fraction; and a
                     number rounded to d places, half away from 0, down, up and toward 0, and to d significant
                     figures.</li>
+                <li>Computer works out whole numbers as they are kept in 8, 16, 32, 64 or 128 bits: decimal, 0xFF,
+                    0b1010 or 0o17, with + – × ÷, mod, AND, OR, XOR, NOT, shifts and ROL and ROR, shown in decimal,
+                    hexadecimal, octal and binary, and its bytes big-endian, little-endian and swapped. Bits shows each bit of a number, to turn over with a click, and
+                    how many are 1; IEEE 754 shows a number as a double and a float, 0.1 = 0x3FB999999999999A, what
+                    it is to its last digit, and the number of the bits of one. Any base writes a number of any base
+                    from 2 to 36 in another, the digits after its point as well, 0.1 as 0.0(0011) in base 2; Text and
+                    codes gives the code points, UTF-8 and UTF-16 of a text, é = U+00E9 = C3 A9, and a text of
+                    them; IP subnet gives the network of an IPv4 address, 192.168.1.10/24 or with its mask: its
+                    network and broadcast addresses, mask, first and last host and how many hosts; or of an IPv6
+                    address, 2001:db8::1/48: the address in full and written short, its first and last address, how
+                    many addresses and /64 networks, its kind and its name for reverse DNS; Base32, 58, 64 and 85
+                    writes a text in Base32, as the keys of two-step sign-in are, in Base58, as Bitcoin addresses
+                    are, in Base64, and in that of web addresses, or in Ascii85, and reads one back; and UUID makes
+                    five new UUIDs of version 4, random, or of version 7, in order by time, each to copy, and reads
+                    one for its version, variant and the time it was made.</li>
             </ul>
         </div>
 

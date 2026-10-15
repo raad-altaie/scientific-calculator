@@ -792,6 +792,10 @@ check(JSON.stringify(M.bitCount(BigInt(0xB0), 8)) === '{"ones":3,"leading":0,"tr
         d('14/10/2026', 'ymd') === z && d('0005-01-01') === M.dayFrom(5, 1, 1), 'readDate: the year first, or the day first, or the month where the region writes it first');
     check(isNaN(d('14/10/26')) && isNaN(d('14/10')) && isNaN(d('1/2/3/2026')) && isNaN(d('Oct 14 26')) && isNaN(d('14 Oct 26')) && isNaN(d('26 Oct 14')),
         'readDate: no year of two digits, in words as well, nor two numbers or four');
+    check(['2026-10-14T00:00:00Z', '2026-10-14T23:59:59.999Z', '2026-10-14T09:30+03:00', '2026-10-14T09:30:00-0500', '2026-10-14 09:30:00'].every(function (s) {
+        return d(s) === z;
+    }) && isNaN(d('2026-10-14T')) && isNaN(d('2026-10-14T9')) && isNaN(d('2026-10-14T09:30Q')) && isNaN(d('14/10/2026T09:30')),
+        'readDate: a date and a time in ISO 8601, the date as it is written');
     check(M.weekday(d('2026-10-14')) === 2 && M.weekday(d('1970-01-01')) === 3, 'weekday: 14 October 2026 a Wednesday, 1 January 1970 a Thursday');
 
     r = M.datesBetween(d('2000-02-29'), d('2026-10-14'));
@@ -814,6 +818,98 @@ check(JSON.stringify(M.bitCount(BigInt(0xB0), 8)) === '{"ones":3,"leading":0,"tr
         M.isoWeek(d('2024-12-30')).week === 1 && M.isoWeek(d('2026-10-14')).week === 42, 'isoWeek: of the year with its first Thursday');
     check(M.dayOfYear(d('2024-12-31')) === 366 && M.dayOfYear(d('2025-12-31')) === 365 && M.dayOfYear(d('2026-01-01')) === 1, 'dayOfYear');
 })();
+
+// 128 bits; a value's bytes either way round; Base64; the network of an IPv4 address; the
+// impedance of R, L and C; a time of day
+check(String(M.bitwise('1 << 100', 128).value) === '1267650600228229401496703205376' && String(M.bitwise('0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF', 128).value) === '-1' &&
+    !M.bitwise('0xFFFFFFFFFFFFFFFF + 1', 128).wrapped && M.bitwise('1 << 127 + 0', 128).value < BigInt(0) && M.bitwise('1', 256).error === 'bits',
+    'bitwise: 128 bits, a number of them that is not 64 too big');
+check(M.inBase(BigInt(-1), 128, 16) === 'F'.repeat(32) && M.inBase(BigInt(1), 128, 2).replace(/ /g, '').length === 128, 'inBase: of 128 bits');
+check(M.bytesOf(BigInt(0x12345678), 32).join() === '18,52,86,120' && M.bytesOf(BigInt(-2), 16).join() === '255,254' && M.bytesOf(BigInt(1), 128).length === 16 &&
+    M.byteSwap(BigInt(0x12345678), 32) === BigInt(0x78563412) && M.byteSwap(BigInt(1), 16) === BigInt(256) && M.byteSwap(BigInt(0x80), 16) === BigInt(-32768) &&
+    M.byteSwap(BigInt(5), 8) === BigInt(5), 'bytesOf and byteSwap: big-endian first; swapped, its sign as its bits say');
+check(M.hexOfBytes([10, 255, 0]) === '0aff00' && M.hexOfBytes([10, 255, 0], ' ') === '0a ff 00' && M.hexOfBytes([]) === '' && M.hexOfBytes(new Uint8Array([1, 171])) === '01ab' &&
+    M.uuidText(new Array(16).fill(171)) === 'abababab-abab-abab-abab-abababababab', 'hexOfBytes: 2 digits each, a separator if given, of a typed array too; as uuidText has it');
+(function () {
+    var utf8 = function (s) { return Array.from(new TextEncoder().encode(s)); };
+    check(['', 'f', 'fo', 'foo', 'foob', 'fooba', 'foobar'].map(function (s) { return M.toBase64(utf8(s)); }).join() === ',Zg==,Zm8=,Zm9v,Zm9vYg==,Zm9vYmE=,Zm9vYmFy' &&
+        M.toBase64(utf8('Hé')) === 'SMOp' && M.toBase64([251, 255]) === '+/8=' && M.toBase64([251, 255], true) === '-_8', 'toBase64: of RFC 4648, and its alphabet for addresses');
+    check(M.fromBase64('Zm9vYmFy').join() === utf8('foobar').join() && M.fromBase64('+/8=').join() === '251,255' && M.fromBase64('-_8').join() === '251,255' &&
+        M.fromBase64('Zm9v\nYg==').join() === utf8('foob').join() && M.fromBase64('').length === 0 && M.fromBase64('Zm9vY') === null && M.fromBase64('Zm9v!') === null,
+        'fromBase64: of either alphabet, with or without =, across lines; none of a letter too many or not of it');
+    check(['', 'f', 'fo', 'foo', 'foob', 'fooba', 'foobar'].map(function (s) { return M.toBase32(utf8(s)); }).join() === ',MY======,MZXQ====,MZXW6===,MZXW6YQ=,MZXW6YTB,MZXW6YTBOI======' &&
+        M.fromBase32('MZXW6YTBOI======').join() === utf8('foobar').join() && M.fromBase32('mzxw6').join() === utf8('foo').join() && M.fromBase32('MZX') === null &&
+        M.fromBase32('MZ1=') === null, 'Base32: of RFC 4648, small letters read as well, none of a length it cannot be');
+    check(M.toBase58(utf8('Hello World!')) === '2NEpo7TZRRrLZSi2U' && M.toBase58([0, 0, 1]) === '112' && M.toBase58([]) === '' &&
+        M.fromBase58('2NEpo7TZRRrLZSi2U').join() === utf8('Hello World!').join() && M.fromBase58('112').join() === '0,0,1' && M.fromBase58('0OIl') === null,
+        'Base58: as Bitcoin writes it, a 1 for each 0 byte before; no 0, O, I or l');
+    check(M.toBase85(utf8('Man is distinguished')) === '9jqo^BlbD-BleB1DJ+*+F(f,q' && M.toBase85([0, 0, 0, 0, 1]) === 'z!<' &&
+        M.fromBase85('<~9jqo^BlbD-BleB1DJ+*+F(f,q~>').join() === utf8('Man is distinguished').join() && M.fromBase85('z!<').join() === '0,0,0,0,1' &&
+        M.fromBase85('s8W-"') === null && M.fromBase85('9jqo^B') === null && M.fromBase85('9jqo{') === null, 'Base85: Ascii85, z for four 0s, between <~ and ~> as well');
+})();
+(function () {
+    var r = M.readUuid('{C232AB00-9414-11EC-B3C8-9F6BDECED846}'), ones = [], k;
+    check(r.text === 'c232ab00-9414-11ec-b3c8-9f6bdeced846' && r.version === 1 && r.variant === 'RFC' && new Date(r.time).toISOString() === '2022-02-22T19:22:22.000Z',
+        'UUID: of version 1, in braces, made at the time of RFC 9562\'s example', JSON.stringify(r));
+    check(new Date(M.readUuid('1EC9414C-232A-6B00-B3C8-9F6BDECED846').time).toISOString() === '2022-02-22T19:22:22.000Z' &&
+        new Date(M.readUuid('urn:uuid:017F22E279B07CC398C4DC0C0C07398F').time).toISOString() === '2022-02-22T19:22:22.000Z' &&
+        M.readUuid('919108f7-52d1-4320-9bac-f847db4148a8').version === 4 && M.readUuid('919108f7-52d1-4320-9bac-f847db4148a8').time === null,
+        'UUID: the times of versions 6 and 7, after urn:uuid: and with no hyphens; none of version 4');
+    check(M.readUuid('00000000-0000-0000-0000-000000000000').nil && M.readUuid('FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF').max && M.readUuid('f81d4fae-7dec-11d0-c765-00a0c91e6bf6').variant === 'Microsoft' &&
+        M.readUuid('f81d4fae-7dec-11d0-c765-00a0c91e6bf6').version === null && M.readUuid('f81d4fae7dec-11d0-a765-00a0c91e6bf6') === null && M.readUuid('f81d4fae-7dec-11d0-a765-00a0c91e6bf') === null,
+        'UUID: nil and max, a variant of Microsoft of no version; hyphens all or none, and 32 digits');
+    for (k = 0; k < 16; k++) ones.push(255);
+    check(M.makeUuid(4, ones) === 'ffffffff-ffff-4fff-bfff-ffffffffffff' && M.makeUuid(7, ones, 1645557742000) === '017f22e2-79b0-7fff-bfff-ffffffffffff' &&
+        M.readUuid(M.makeUuid(7, ones, 1645557742000)).time === 1645557742000, 'UUID: made, of version 4 and 7, its version and variant in it, of 7 the time first');
+})();
+(function () {
+    var r = M.subnet('192.168.1.10/24');
+    check(M.ipText(r.network) === '192.168.1.0' && M.ipText(r.broadcast) === '192.168.1.255' && M.ipText(r.mask) === '255.255.255.0' &&
+        M.ipText(r.wildcard) === '0.0.0.255' && M.ipText(r.first) === '192.168.1.1' && M.ipText(r.last) === '192.168.1.254' && r.hosts === 254 && r.all === 256 &&
+        r.kind === 'Private' && r.given, 'subnet: 192.168.1.10/24', JSON.stringify(r));
+    r = M.subnet('10.20.30.40 255.255.240.0');
+    check(r.prefix === 20 && M.ipText(r.network) === '10.20.16.0' && M.ipText(r.broadcast) === '10.20.31.255' && r.hosts === 4094, 'subnet: with its mask, 255.255.240.0 a /20', JSON.stringify(r));
+    r = M.subnet('1.2.3.5/31');
+    check(r.hosts === 2 && M.ipText(r.first) === '1.2.3.4' && M.ipText(r.last) === '1.2.3.5' && r.kind === 'Public', 'subnet: a /31 of two hosts, by RFC 3021');
+    r = M.subnet('8.8.8.8');
+    check(r.prefix === 32 && r.hosts === 1 && !r.given && M.subnet('0.0.0.0/0').hosts === 4294967294 && M.subnet('127.0.0.1/8').kind === 'Loopback' &&
+        M.subnet('172.31.0.1/16').kind === 'Private' && M.subnet('172.32.0.1/16').kind === 'Public' && M.subnet('100.64.1.1/10').kind === 'Shared, CGNAT',
+        'subnet: an address alone of itself, the whole of IPv4, and its kinds');
+    check(M.subnet('256.1.1.1/24').error === 'address' && M.subnet('1.2.3/24').error === 'address' && M.subnet('1.2.3.4/33').error === 'prefix' &&
+        M.subnet('1.2.3.4 255.0.255.0').error === 'mask' && M.subnet('1.2.3.4 255.255.255.1').error === 'mask', 'subnet: not an address, prefix or mask');
+})();
+(function () {
+    var r = M.impedance(100, 0.1, 10e-6, 50, false);
+    check(r.z.re === 100 && near(r.z.im, 31.4159265358979 - 318.309886183791, 1e-12) && near(r.xl, 31.4159265358979) && near(r.xc, 318.309886183791) &&
+        near(r.resonance, 159.154943091895), 'impedance: R, L and C in series at 50 Hz', JSON.stringify(r));
+    r = M.impedance(100, 0.1, 10e-6, 50, true);
+    check(near(r.z.re, 10.8332803128057, 1e-10) && near(r.z.im, 31.0800268491638, 1e-10), 'impedance: side by side, 1 / (1/R + 1/(iωL) + iωC)', JSON.stringify(r));
+    check(M.impedance(null, 0.1, null, 0, false).z.im === 0 && M.impedance(null, null, 1e-6, 0, false).z.im === -Infinity && M.impedance(100, 0.1, null, 0, true).z.re === 0 &&
+        M.impedance(0, 0.1, 1e-6, 50, true).z.re === 0 && isNaN(M.impedance(100, null, null, 50, true).resonance) && M.impedance(100, null, null, 50, true).z.re === 100,
+        'impedance: of direct current, a coil a wire and a capacitor in the way; side by side, a short all of it');
+    check(M.impedance(null, null, null, 50, false).error === 'none' && M.impedance(-1, null, null, 50, false).error === 'value' && M.impedance(1, null, 0, 50, false).error === 'value' &&
+        M.impedance(1, null, null, -50, false).error === 'value', 'impedance: none of them, or below 0');
+})();
+(function () {
+    var t = function (s) { var n = M.ipv6(s); return n === null ? null : M.ipv6Text(n); }, r;
+    check(t('2001:0DB8:0000:0000:0000:ff00:0042:8329') === '2001:db8::ff00:42:8329' && t('2001:db8:0:0:1:0:0:1') === '2001:db8::1:0:0:1' && t('::') === '::' &&
+        t('::1') === '::1' && t('1::') === '1::' && t('2001:db8:0:1:1:1:1:1') === '2001:db8:0:1:1:1:1:1' && t('::ffff:192.168.1.1') === '::ffff:192.168.1.1' &&
+        t('::1.2.3.4') === '::102:304', 'ipv6Text: as RFC 5952 writes it, the first of the longest run of 0s as ::, a single 0 not, IPv4 mapped as it is');
+    check(M.ipv6Text(M.ipv6('2001:db8::1'), true) === '2001:0db8:0000:0000:0000:0000:0000:0001', 'ipv6Text: in full');
+    check(['1::2::3', '12345::', '1:2:3:4:5:6:7:8:9', '1:2:3', 'fe80::1%eth0', ':1:2:3:4:5:6:7', '::1.2.3', 'g::'].every(function (s) { return M.ipv6(s) === null; }),
+        'ipv6: none of two ::, a group too long, too many or too few, nor what is not of it');
+    r = M.subnet('2001:db8:abcd:12::1/48');
+    check(r.v6 && M.ipv6Text(r.network) === '2001:db8:abcd::' && M.ipv6Text(r.last) === '2001:db8:abcd:ffff:ffff:ffff:ffff:ffff' && r.all === BigInt(2) ** BigInt(80) &&
+        r.subnets === BigInt(65536) && r.kind === 'Documentation' && r.given &&
+        r.reverse === '1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.2.1.0.0.d.c.b.a.8.b.d.0.1.0.0.2.ip6.arpa', 'subnet: of IPv6, 2001:db8:abcd:12::1/48', JSON.stringify(r, function (k, v) { return typeof v === 'bigint' ? String(v) : v; }));
+    r = M.subnet('fe80::1');
+    check(r.prefix === 128 && !r.given && r.all === BigInt(1) && r.subnets === null && r.kind === 'Link-local' && M.subnet('fd12::1/64').kind === 'Unique local' &&
+        M.subnet('ff02::1').kind === 'Multicast' && M.subnet('2606:4700::1111').kind === 'Global unicast' && M.subnet('::ffff:1.2.3.4').kind === 'IPv4-mapped' &&
+        M.subnet('::1').kind === 'Loopback' && M.subnet('::/0').all === BigInt(2) ** BigInt(128), 'subnet: of IPv6, alone /128; its kinds');
+    check(M.subnet('::1/129').error === 'prefix' && M.subnet('2001:db8::g/64').error === 'address' && M.subnet('2001:db8::g/64').v6, 'subnet: of IPv6, no prefix past /128');
+})();
+check(M.readTime('14:30') === 52200 && M.readTime('2:30:15 pm') === 52215 && M.readTime('12 am') === 0 && M.readTime('12:00 pm') === 43200 && M.readTime('23:59:59.5') === 86399.5 &&
+    isNaN(M.readTime('24:00')) && isNaN(M.readTime('13 pm')) && isNaN(M.readTime('14')) && isNaN(M.readTime('10:60')), 'readTime: of 24 hours or 12, its seconds as well');
 
 console.log(failures ? failures + ' of ' + checks + ' checks failed' : 'all ' + checks + ' checks passed');
 process.exitCode = failures ? 1 : 0;

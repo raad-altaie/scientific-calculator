@@ -22,8 +22,11 @@
         menu = root.querySelector('.calc-menu-box'), // the menu of a right click
         tip = root.querySelector('.calc-tip'), // what the key under the pointer does
         tipKey = null, // that key
-        tipTimer,
+        tipTimer = 0, // till it shows, 0 while none is coming
+        tipEmpty = false, // that key has no tip: the pointer moving on it does not start the wait again
         tipGone = 0, // when the last tip went, so the next one comes at once
+        pressedAt = null, // where a press put the tips away: none again till the pointer moves from there
+        scrolledAt = null, // where a scroll put the tips away: none again till the pointer moves from there
         copying = null, // text a history button is copying, in place of the main line
         past = root.querySelector('.calc-past:not(.calc-stats):not(.calc-fx):not(.calc-conv):not(.calc-graph):not(.calc-solve):not(.calc-numbers)'), // the history, over the keys
         pastList = past.querySelector('.calc-past-list'),
@@ -524,7 +527,12 @@
     // function 2nd gives the key. The marks in the display, the history and
     // the ? beside the name have tips as well
     tip.parentNode.addEventListener('mouseover', function (e) {
-        var key = e.target.closest('.calc-left > *, .calc-right > .del-ac, .calc-rad, .calc-mem, .calc-frac, .calc-fmt, .calc-hold, ' +
+        if (!scrolledAt) onKey(e.target, true);
+    }, false);
+
+    // the pointer on target: the tip of its key, after a second of rest; quick, at once from a tip just gone
+    function onKey(target, quick) {
+        var key = target.closest('.calc-left > *, .calc-right > .del-ac, .calc-rad, .calc-mem, .calc-frac, .calc-fmt, .calc-hold, ' +
             '.calc-stat-btn, .calc-fx-btn, .calc-fx-row, .calc-gx-row, .calc-conv-btn, .calc-solve-btn, .calc-numbers-btn, .calc-sv-row, ' +
             '.calc-graph-btn, .calc-graph-size, .calc-graph-add, .calc-graph-del, .calc-graph-diff, .calc-graph-points, .calc-graph-zoom > span, .calc-graph-pop-end, .calc-graph-pop-row, .calc-graph-play, ' +
             '.calc-graph-fn > .calc-graph-swatch, ' +
@@ -533,13 +541,38 @@
         if (key === tipKey) return;
         hideTip();
         tipKey = key;
-        if (key) tipTimer = setTimeout(showTip, Date.now() - tipGone < 400 ? 0 : 1000); // after a second of rest; from key to key at once
+        tipEmpty = false;
+        if (key) tipTimer = setTimeout(showTip, quick && Date.now() - tipGone < 400 ? 0 : 1000); // after a second of rest; from key to key at once
+    }
+
+    // A tip put away by a press, a key or a scroll comes again as the pointer moves on what has one, not
+    // only once it has gone out and come back in, as mouseover alone has it; after a press, once the
+    // pointer has moved from where it was pressed, so the tip does not come back under a click
+    document.addEventListener('mousedown', function (e) {
+        pressedAt = [e.clientX, e.clientY];
+    }, true);
+
+    tip.parentNode.addEventListener('mousemove', function (e) {
+        if (pressedAt && Math.abs(e.clientX - pressedAt[0]) + Math.abs(e.clientY - pressedAt[1]) <= 6) return;
+        if (scrolledAt && Math.abs(e.clientX - scrolledAt[0]) + Math.abs(e.clientY - scrolledAt[1]) <= 6) return;
+        pressedAt = null;
+        scrolledAt = null;
+        if (tip.hidden && !tipTimer && !tipEmpty) {
+            tipKey = null;
+            onKey(e.target, false);
+        }
+        if (peek.hidden && !peekTimer && !peekStill) peekAt(e.target);
     }, false);
 
-    pastList.addEventListener('scroll', hideTip, false);
-    fxList.addEventListener('scroll', hideTip, false);
-    convList.addEventListener('scroll', hideTip, false);
-    stats.querySelector('.calc-stats-out').addEventListener('scroll', hideTip, false); // the chart's tip would stay where it was
+    // A scroll anywhere puts the tips away at once, and none comes again till the pointer moves: what the
+    // scroll brings under a still pointer would otherwise have its tip at once, as from key to key
+    document.addEventListener('wheel', function (e) {
+        scrolledAt = [e.clientX, e.clientY];
+        hideTip();
+        hidePeek();
+        tipKey = null;
+        tipGone = peekGone = 0; // the next tip after its usual rest
+    }, { capture: true, passive: true });
 
     tip.parentNode.addEventListener('mouseleave', function () {
         hideTip();
@@ -552,11 +585,16 @@
     });
 
     function showTip() {
+        tipTimer = 0;
         var name = tipKey.textContent.replace(/\s*/g, ''), info = tipOf(tipKey, name), calc = tip.parentNode,
             cam = tipKey.closest('.calc-graph-export') && tipKey.querySelector('svg'), // the camera has no box: from the camera itself
-            at = inside((cam || tipKey).getBoundingClientRect()), left, top, below, gap = cam ? 6 : 10;
+            at = inside((cam || tipKey).getBoundingClientRect()), left, top, below,
+            gap = cam ? 6 : tipKey.matches('.calc-sv-row, .calc-fx-row, .calc-gx-row') ? 6 : 10; // a card of a list: its arrow on the card, not in the gap above it
 
-        if (!info) return;
+        if (!info) {
+            tipEmpty = true;
+            return;
+        }
         tip.innerHTML = '<div class="calc-tip-head"><b>' + info.t + '</b>' +
             (secondKey(name) ? '<span class="calc-tip-2nd">2nd</span>' : '') +
             (info.k ? '<kbd>' + info.k + '</kbd>' : '') + '</div><div>' + info.d + '</div>' +
@@ -576,6 +614,7 @@
 
     function hideTip() {
         clearTimeout(tipTimer);
+        tipTimer = 0;
         if (!tip.hidden) tipGone = Date.now();
         tip.hidden = true;
     }
@@ -586,7 +625,7 @@
     // on the result or on the tip, to click its buttons. Not on a touch screen, where a touch puts it in
     var peek = document.createElement('div'),
         peekTile = null, // the result it is of, or is to be of
-        peekTimer = 0, // till it shows
+        peekTimer = 0, // till it shows, 0 while none is coming
         peekHide = 0, // till it goes, after the pointer has left
         peekGone = 0, // when the last one went, so the next one comes at once
         peekStill = null; // where Copy was pressed: no tip till the pointer moves from there, though the result under it changed
@@ -628,6 +667,7 @@
     }
 
     function showPeek() {
+        peekTimer = 0;
         var info = peekTile && document.contains(peekTile) && peekOf(peekTile), calc = tip.parentNode, at, left, top, below;
         if (!info) return;
         hideTip();
@@ -651,6 +691,7 @@
 
     function hidePeek() {
         clearTimeout(peekTimer);
+        peekTimer = 0;
         clearTimeout(peekHide);
         if (!peek.hidden) peekGone = Date.now();
         peek.hidden = true;
@@ -660,6 +701,7 @@
     // the pointer gone from the result and the tip: it goes a moment later, unless the pointer comes back
     function leavePeek() {
         clearTimeout(peekTimer);
+        peekTimer = 0;
         clearTimeout(peekHide);
         if (peek.hidden) peekTile = null;
         else peekHide = setTimeout(hidePeek, 300);
@@ -668,7 +710,7 @@
     // A tip shown stays while the pointer goes over another result on its way to the buttons: that one's
     // tip comes only if the pointer rests on it a moment, and not if the pointer goes on to the tip
     tip.parentNode.addEventListener('mouseover', function (e) {
-        if (!peekStill) peekAt(e.target);
+        if (!peekStill && !scrolledAt) peekAt(e.target);
     }, false);
 
     // the pointer on target: its result's tip, or the tip shown kept, or let go
@@ -677,7 +719,10 @@
         if (el && el.classList.contains('calc-fx-row') && fxTab !== 'constants') el = null; // a formula has the tip of a key
         if (peek.contains(target) || (el && el === peekTile)) {
             clearTimeout(peekHide);
-            if (!peek.hidden) clearTimeout(peekTimer); // not on to another one
+            if (!peek.hidden) { // not on to another one
+                clearTimeout(peekTimer);
+                peekTimer = 0;
+            }
             return;
         }
         if (!el || window.matchMedia('(hover: none)').matches) return leavePeek();
@@ -4300,6 +4345,12 @@
 
     // ---------------- solve ---------------- //
 
+    // The subtitle of a card in light rounded badges: one of a few things each in its own, in
+    // place of commas between them, pills(['A + B', 'A × B']); one alone in one, as each card draws it
+    function pills(items) {
+        return [].concat(items).map(function (x) { return '<span class="calc-sv-pill"><span>' + x + '</span></span>'; }).join('');
+    }
+
     // Equations solved for x, calculus and probability, a tab each: a card for each tool, as the
     // formulas have, which opens its boxes. What it gives is worked out as they are typed, in
     // tiles that put a value into the calculation with a click, as the statistics do. A box of
@@ -4340,14 +4391,14 @@
                 fields: system(2), cols: 3, run: function (n) { return runSystem(n, 2); } },
             { id: 'system3', t: 'Three equations', f: 'a<sub>1</sub>x + b<sub>1</sub>y + c<sub>1</sub>z = d<sub>1</sub>', d: 'x, y and z of three linear equations, each a row: a, b, c and what it equals, d.',
                 fields: system(3), cols: 4, run: function (n) { return runSystem(n, 3); } },
-            { id: 'curves', t: 'Two curves', f: 'x<sup>2</sup> + y<sup>2</sup> = 25, x + y = 7', d: 'Every x and y where two equations of them hold together, not only lines: where the circle x^2 + y^2 = 25 and the line x + y = 7 cross, or y = x^2 and x + y = 1.',
+            { id: 'curves', t: 'Two curves', f: ['x<sup>2</sup> + y<sup>2</sup> = 25', 'x + y = 7'], d: 'Every x and y where two equations of them hold together, not only lines: where the circle x^2 + y^2 = 25 and the line x + y = 7 cross, or y = x^2 and x + y = 1.',
                 fields: [{ k: 'e1', ph: 'x^2 + y^2 = 25', fn: true, aria: 'First equation' }, { k: 'e2', ph: 'x + y = 7', fn: true, aria: 'Second equation' }], run: runCurves }
         ],
         calculus: [
             { id: 'integral', t: 'Integral', f: '∫<sub>a</sub><sup>b</sup> f(x) dx', d: 'The integral of a function from a to b, the area under it, its exact form where it has one, √π or 1/3, and the average value of the function there; an end may be ∞, typed inf.',
                 fields: [{ k: 'f', ph: 'x^2', fn: true }, { k: 'a', l: 'From', ph: '0', def: 0, inf: true }, { k: 'b', l: 'To', ph: '1', def: 1, inf: true }], cols: 2,
                 run: runIntegral },
-            { id: 'derivative', t: 'Derivative', f: 'f′(x), f″(x)', d: 'The value of a function at x, its slope there and the slope of that, and the line that touches it there.',
+            { id: 'derivative', t: 'Derivative', f: ['f′(x)', 'f″(x)'], d: 'The value of a function at x, its slope there and the slope of that, and the line that touches it there.',
                 fields: [{ k: 'f', ph: 'x^3', fn: true }, { k: 'x', l: 'x', ph: '2' }], cols: 1, run: runDerivative },
             { id: 'sum', t: 'Sum', f: 'Σ f(n)', d: 'The sum of a function of n, k, i or j, or of x, for each whole number from a to b. b may be ∞, typed inf: 1/n^2 from 1 on is π²/6.',
                 fields: [{ k: 'f', ph: 'n^2', fn: true }, { k: 'a', l: 'From', ph: '1', def: 1 }, { k: 'b', l: 'To', ph: '10', def: 10, inf: true }], cols: 2,
@@ -4454,7 +4505,7 @@
                 } }
         ],
         finance: [
-            { id: 'schedule', t: 'Loan calculator', f: 'Interest, Principal, Balance', d: 'A loan paid back in equal payments at the end of each period: the payment, all the interest, and a table ' +
+            { id: 'schedule', t: 'Loan calculator', f: ['Interest', 'Principal', 'Balance'], d: 'A loan paid back in equal payments at the end of each period: the payment, all the interest, and a table ' +
                 'of each year, or of each payment, of the interest paid, the principal paid and what is left of the loan. Copy table copies it for a spreadsheet.',
                 fields: [{ k: 'loan', l: 'Loan', ph: '' }, { k: 'rate', l: 'Rate %', ph: '' }, { k: 'years', l: 'Years', ph: '' }, { k: 'py', l: 'A year', ph: '12', def: 12, aria: 'Payments a year' },
                     { k: 'by', l: 'Table', choice: ['By year', 'By payment'] }], cols: 2, run: runSchedule },
@@ -4472,11 +4523,11 @@
             { id: 'inflation', t: 'Inflation', f: 'A(1 + r)<sup>t</sup>', d: 'An amount at inflation of a rate a year for years: what it costs then, what it was worth in money of today, ' +
                 'how many times prices grow, and how much of what money buys is lost.',
                 fields: [{ k: 'amount', l: 'Amount', ph: '' }, { k: 'rate', l: 'Rate %', ph: '' }, { k: 'years', l: 'Years', ph: '' }], cols: 3, run: runInflation },
-            { id: 'depreciation', t: 'Depreciation', f: 'Straight line, declining balance', d: 'What an asset loses each year of its life, down to what it is worth at the end, its salvage value: the same each year by the straight line, ' +
+            { id: 'depreciation', t: 'Depreciation', f: ['Straight line', 'Declining balance'], d: 'What an asset loses each year of its life, down to what it is worth at the end, its salvage value: the same each year by the straight line, ' +
                 'or twice the straight line\'s rate of what is left by the double declining balance, then the straight line once that loses more. A table of each year; Copy table copies it for a spreadsheet.',
                 fields: [{ k: 'cost', l: 'Cost', ph: '' }, { k: 'salvage', l: 'Salvage', ph: '0', def: 0 }, { k: 'life', l: 'Years', ph: '' },
                     { k: 'way', l: 'Way', choice: ['Straight line', 'Declining balance'] }], cols: 3, run: runDepreciation },
-            { id: 'tvm', t: 'Time value of money', f: 'N, I/Y, PV, PMT, FV', d: 'Money over time, as a BA II Plus or an HP 12C works it out: leave one of N, I/Y, PV, PMT and FV empty, and it is worked out. ' +
+            { id: 'tvm', t: 'Time value of money', f: ['N', 'I/Y', 'PV', 'PMT', 'FV'], d: 'Money over time, as a BA II Plus or an HP 12C works it out: leave one of N, I/Y, PV, PMT and FV empty, and it is worked out. ' +
                 'N payments of PMT, at I/Y, a percentage a year, of P/Y payments a year, bring PV at the start to FV at the end; each payment at the end of its period, or at its start. ' +
                 'Money received is above 0 and money paid below 0: a loan of 200000 is PV = 200000, its PMT below 0. With all the money paid, and the interest.',
                 fields: [{ k: 'n', l: 'N', ph: '' }, { k: 'iy', l: 'I/Y %', ph: '' }, { k: 'pv', l: 'PV', ph: '' }, { k: 'pmt', l: 'PMT', ph: '' },
@@ -5070,15 +5121,15 @@
     // for each number, as many as its size says
     var NUMBER_TOOLS = {
         matrix: [
-            { id: 'matrix', t: 'A matrix', f: 'det A, A<sup>–1</sup>, A<sup>T</sup>, A<sup>n</sup>', d: 'Its determinant, rank, inverse, transpose and its power n, a whole number, below 0 of its inverse. Type its size, 3×3 or 2 3, up to 10×10, and a number in each box, or paste a whole matrix into one, from a spreadsheet or as [1 2; 3 4]; an empty one is 0.',
+            { id: 'matrix', t: 'A matrix', f: ['det A', 'A<sup>–1</sup>', 'A<sup>T</sup>', 'A<sup>n</sup>'], d: 'Its determinant, rank, inverse, transpose and its power n, a whole number, below 0 of its inverse. Type its size, 3×3 or 2 3, up to 10×10, and a number in each box, or paste a whole matrix into one, from a spreadsheet or as [1 2; 3 4]; an empty one is 0.',
                 fields: function (raw) {
                     return [{ k: 'size', l: 'Size', ph: '2×2', text: true, shape: true }, { k: 'power', l: 'n', ph: '2', def: 2 }].concat(cells('a', 'A', raw.size));
                 }, cols: 2, run: runMatrix,
                 example: { size: '3×3', power: '2', a11: '4', a12: '7', a13: '2', a21: '3', a22: '6', a23: '1', a31: '2', a32: '5', a33: '3' } },
-            { id: 'rref', t: 'Row reduce', f: 'rref A, null space', d: 'Its rows reduced as far as they go, its reduced row echelon form, its rank and the columns of its first 1s, and its null space: a basis of the vectors it takes to 0. Type its size, 3×3 or 2 3, up to 10×10, and a number in each box, or paste a whole matrix into one, from a spreadsheet or as [1 2; 3 4]; an empty one is 0.',
+            { id: 'rref', t: 'Row reduce', f: ['rref A', 'null space'], d: 'Its rows reduced as far as they go, its reduced row echelon form, its rank and the columns of its first 1s, and its null space: a basis of the vectors it takes to 0. Type its size, 3×3 or 2 3, up to 10×10, and a number in each box, or paste a whole matrix into one, from a spreadsheet or as [1 2; 3 4]; an empty one is 0.',
                 fields: function (raw) { return [{ k: 'size', l: 'Size', ph: '3×3', text: true, shape: true }].concat(cells('a', 'A', raw.size || '3')); }, run: runRref,
                 example: { size: '3×3', a11: '1', a12: '2', a13: '3', a21: '4', a22: '5', a23: '6', a31: '7', a32: '8', a33: '9' } },
-            { id: 'matrices', t: 'Two matrices', f: 'A + B, A × B', d: 'The sum, difference and products of two matrices, where their sizes allow. Type each size, 3×3 or 2 3, up to 10×10, and a number in each box, or paste a whole matrix into one, from a spreadsheet or as [1 2; 3 4]; an empty one is 0.',
+            { id: 'matrices', t: 'Two matrices', f: ['A + B', 'A × B'], d: 'The sum, difference and products of two matrices, where their sizes allow. Type each size, 3×3 or 2 3, up to 10×10, and a number in each box, or paste a whole matrix into one, from a spreadsheet or as [1 2; 3 4]; an empty one is 0.',
                 fields: function (raw) {
                     return [{ k: 'sizeA', l: 'Size of A', ph: '2×2', text: true, shape: true }, { k: 'sizeB', l: 'Size of B', ph: '2×2', text: true, shape: true }]
                         .concat(cells('a', 'A', raw.sizeA, 'sizeA'), cells('b', 'B', raw.sizeB, 'sizeB'));
@@ -5097,50 +5148,62 @@
                     return out;
                 }, run: runAxb,
                 example: { size: '3×3', a11: '1', a12: '1', a13: '1', a21: '0', a22: '2', a23: '5', a31: '2', a32: '5', a33: '-1', b11: '6', b21: '-4', b31: '27' } },
-            { id: 'lu', t: 'LU and QR', f: 'P A = L U, A = Q R', d: 'A matrix as products: P A = L U, L below its diagonal with 1s on it and U above it, P the rows changed round; and A = Q R, the columns of Q of length 1 and at right angles, R above its diagonal. Type its size, 3×3 or 3 2, up to 10×10, and a number in each box, or paste a whole matrix into one, from a spreadsheet or as [1 2; 3 4]; an empty one is 0.',
+            { id: 'lu', t: 'LU and QR', f: ['P A = L U', 'A = Q R'], d: 'A matrix as products: P A = L U, L below its diagonal with 1s on it and U above it, P the rows changed round; and A = Q R, the columns of Q of length 1 and at right angles, R above its diagonal. Type its size, 3×3 or 3 2, up to 10×10, and a number in each box, or paste a whole matrix into one, from a spreadsheet or as [1 2; 3 4]; an empty one is 0.',
                 fields: function (raw) { return [{ k: 'size', l: 'Size', ph: '2×2', text: true, shape: true }].concat(cells('a', 'A', raw.size)); }, run: runLu,
                 example: { size: '3×3', a11: '2', a12: '1', a13: '1', a21: '4', a22: '-6', a23: '0', a31: '-2', a32: '7', a33: '2' } },
-            { id: 'vectors', t: 'Vectors', f: '<b>u</b> · <b>v</b>, <b>u</b> × <b>v</b>', d: 'Of two vectors of 2, 3 or 4 numbers, typed 1, 2, 3: their dot product, cross product, lengths and the angle between them, the projection of u on v, and u of length 1.',
+            { id: 'vectors', t: 'Vectors', f: ['<b>u</b> · <b>v</b>', '<b>u</b> × <b>v</b>'], d: 'Of two vectors of 2, 3 or 4 numbers, typed 1, 2, 3: their dot product, cross product, lengths and the angle between them, the projection of u on v, and u of length 1.',
                 fields: [{ k: 'u', l: 'u', ph: '1, 2, 3', fn: true }, { k: 'v', l: 'v', ph: '4, 5, 6', fn: true }], run: runVectors }
         ],
         complex: [
-            { id: 'complex', t: 'Complex number', f: 'a + b<i>i</i>, r∠θ', d: 'Work out a complex number: (2 + 3i)(1 – i), sqrt(-4), e^(iπ), or 2∠30 in polar form. Its real and imaginary parts, its length, angle and conjugate.',
+            { id: 'complex', t: 'Complex number', f: ['a + b<i>i</i>', 'r∠θ'], d: 'Work out a complex number: (2 + 3i)(1 – i), sqrt(-4), e^(iπ), or 2∠30 in polar form. Its real and imaginary parts, its length, angle and conjugate, and it as r e^(iθ).',
                 fields: [{ k: 'z', ph: '(2 + 3i)(1 - i)', fn: true }], run: runComplex },
             { id: 'croots', t: 'Roots of a complex number', f: 'z<sup>1/n</sup>', d: 'The n n-th roots of a complex number: the cube roots of 1, the fourth roots of -16.',
                 fields: [{ k: 'z', ph: '-16', fn: true }, { k: 'n', l: 'n', ph: '4', def: 4 }], run: runRoots },
             { id: 'cpoly', t: 'Polynomial roots', f: 'x<sup>2</sup> + (1 + <i>i</i>)x + 2<i>i</i>', d: 'Every root of a polynomial of complex coefficients, of any power up to 30: typed, x^2 + (1 + i)x + 2i, or its coefficients from the highest power, 1, 1 + i, 2i.',
-                fields: [{ k: 'p', ph: 'x^2 + (1 + i)x + 2i', fn: true }], run: runCpoly }
+                fields: [{ k: 'p', ph: 'x^2 + (1 + i)x + 2i', fn: true }], run: runCpoly },
+            { id: 'impedance', t: 'AC impedance', f: 'Z = R + <i>i</i>(ωL – 1/ωC)', d: 'The impedance of a resistor, a coil and a capacitor at a frequency, in series or side by side: Z as a + bi, its size and phase, the reactance of the coil and of the capacitor, and the frequency where they cancel. Leave out any of R, L and C; a value may have a prefix, 4.7k, 10m, 100µ or 1e-6.',
+                fields: [{ k: 'r', l: 'R, Ω', ph: '100', text: true }, { k: 'l', l: 'L, H', ph: '0.1', text: true }, { k: 'c', l: 'C, F', ph: '10µ', text: true },
+                    { k: 'f', l: 'f, Hz', ph: '50', text: true }, { k: 'circuit', l: 'Circuit', choice: ['Series', 'Parallel'] }], cols: 2, run: runImpedance,
+                example: { r: '100', l: '0.1', c: '10µ', f: '50' } }
         ],
-        base: [
-            { id: 'bits', t: 'Bases', f: '0xFF AND 0b1010', d: 'Whole numbers as a computer keeps them, in 8, 16, 32 or 64 bits: decimal, 0x hexadecimal, 0b binary or 0o octal, with + – × ÷ mod AND OR XOR NOT NAND NOR XNOR, &lt;&lt; &gt;&gt; and ROL ROR, which turn the bits round. Each result in every base.',
-                fields: [{ k: 'e', ph: '0xFF AND 0b1010', fn: true }, { k: 'bits', l: 'Bits', choice: ['8', '16', '32', '64'], at: 2 }], run: runBits },
+        computer: [
+            { id: 'bits', t: 'Bases', f: '0xFF AND 0b1010', d: 'Whole numbers as a computer keeps them, in 8, 16, 32, 64 or 128 bits: decimal, 0x hexadecimal, 0b binary or 0o octal, with + – × ÷ mod AND OR XOR NOT NAND NOR XNOR, &lt;&lt; &gt;&gt; and ROL ROR, which turn the bits round. Each result in every base, and its bytes big-endian and little-endian, and swapped.',
+                fields: [{ k: 'e', ph: '0xFF AND 0b1010', fn: true }, { k: 'bits', l: 'Bits', choice: ['8', '16', '32', '64', '128'], at: 2 }], run: runBits },
             { id: 'bitview', t: 'Bits', f: 'b<sub>7</sub> … b<sub>1</sub> b<sub>0</sub>', d: 'The bits of a whole number, each turned over with a click; how many are 1, the 0s before and after them, and the highest and lowest bit that is 1. Empty, it is 0, to click a number together.',
-                fields: [{ k: 'e', ph: '0', fn: true }, { k: 'bits', l: 'Bits', choice: ['8', '16', '32', '64'], at: 2 }], run: runBitView },
+                fields: [{ k: 'e', ph: '0', fn: true }, { k: 'bits', l: 'Bits', choice: ['8', '16', '32', '64', '128'], at: 2 }], run: runBitView },
             { id: 'float', t: 'IEEE 754', f: '0.1 = 0x3FB999999999999A', d: 'A number as a computer keeps it: a double of 64 bits and a float of 32, in hexadecimal; its sign, exponent and fraction; the number it is, to its last digit, and the gap to the next. Or the bits, 0x3FB999999999999A, for the number.',
                 fields: [{ k: 'x', ph: '0.1', fn: true }], run: runFloat },
             { id: 'anybase', t: 'Any base', f: 'FF.8<sub>16</sub> = 11111111.1<sub>2</sub>', d: 'A number in any base from 2 to 36 written in another, the digits after its point as well: 0.1 in base 10 is 0.0(0011) in base 2, the part in brackets coming again and again. A part in brackets may be typed too.',
                 fields: [{ k: 'x', ph: '0.1', fn: true }, { k: 'from', l: 'From base', ph: '10', def: 10 }, { k: 'to', l: 'To base', ph: '2', def: 2 }], cols: 2, run: runAnyBase },
             { id: 'codes', t: 'Text and codes', f: 'é = U+00E9 = C3 A9', d: 'The codes of a text: its code points, its bytes in UTF-8 and its units of UTF-16. Or a text from its codes: U+00E9, 0xC3 0xA9 for the bytes of UTF-8, or 233.',
-                fields: [{ k: 't', l: 'Text', ph: 'Hé', fn: true }, { k: 'c', l: 'Codes', ph: 'U+0048 U+00E9', fn: true }], spaces: ['t'], run: runCodes }
+                fields: [{ k: 't', l: 'Text', ph: 'Hé', fn: true }, { k: 'c', l: 'Codes', ph: 'U+0048 U+00E9', fn: true }], spaces: ['t'], run: runCodes },
+            { id: 'subnet', t: 'IP subnet', f: ['192.168.1.0/24', '2001:db8::/32'], d: 'The network of an IPv4 address with its prefix, 192.168.1.10/24, or its mask, 192.168.1.10 255.255.255.0: its network and broadcast addresses, its mask, the first and last host and how many hosts it has. Or of an IPv6 address, 2001:db8::1/48: its network, the address in full and written short, its first and last address, how many addresses and /64 networks, its kind and its name for reverse DNS.',
+                fields: [{ k: 'ip', ph: '192.168.1.10/24 or 2001:db8::1/48', fn: true }], run: runSubnet },
+            { id: 'base64', t: 'Base32, 58, 64 and 85', f: 'Hé = SMOp', d: 'A text\'s bytes of UTF-8 written in letters: Base32, of A–Z and 2–7, as the secrets of two-step sign-in are; Base58, as Bitcoin addresses are, no 0, O, I or l; Base64, and that of web addresses and file names, with - and _ and no =; or Base85, Ascii85 as in PDF. Or the text, and the bytes, of what is so written.',
+                fields: [{ k: 't', l: 'Text', ph: 'Hé', fn: true }, { k: 'b', l: 'Encoded', ph: 'SMOp', fn: true }, { k: 'enc', l: 'In', choice: ['Base32', 'Base58', 'Base64', 'Base85'], at: 2 }],
+                spaces: ['t'], run: runBase64 },
+            { id: 'uuid', t: 'UUID', f: ['Version 4', 'Version 7'], d: 'Five new UUIDs, of RFC 9562: of version 4, all random, or of version 7, the time now and then random, so they sort as they were made. Again for five more; Copy copies one. ' +
+                'Or one typed, with hyphens or none, in braces or after urn:uuid: if you like: its version and variant, the time it was made, of versions 1, 6 and 7, and it in hexadecimal, Base64 and as a whole number.',
+                fields: [{ k: 'ver', l: 'New', choice: ['Version 4', 'Version 7'] }, { k: 'u', l: 'Read', ph: 'f81d4fae-7dec-11d0-a765-00a0c91e6bf6', fn: true }], again: true, run: runUuid }
         ],
         whole: [
             { id: 'factors', t: 'Prime factors', f: '360 = 2<sup>3</sup> × 3<sup>2</sup> × 5', d: 'A whole number of up to 20 digits in its prime factors, whether it is prime, and its divisors: how many, their sum, each of them, and how many numbers up to it have none of its factors.',
                 fields: [{ k: 'n', ph: '360', fn: true }], run: runFactors },
             { id: 'gcd', t: 'GCD and LCM', f: 'gcd(12, 18, 30)', d: 'The greatest common divisor and least common multiple of two whole numbers or more, typed with commas or spaces between them.',
                 fields: [{ k: 'list', ph: '12, 18, 30', fn: true }], run: runGcd },
-            { id: 'modular', t: 'Modular arithmetic', f: 'a<sup>b</sup> mod m, a<sup>–1</sup>, a x ≡ b', d: 'Of whole numbers a, b and m, of up to 200 digits: a mod m, a to the power b mod m, the inverse of a mod m, and every x of a x ≡ b (mod m).',
+            { id: 'modular', t: 'Modular arithmetic', f: ['a<sup>b</sup> mod m', 'a<sup>–1</sup>', 'a x ≡ b'], d: 'Of whole numbers a, b and m, of up to 200 digits: a mod m, a to the power b mod m, the inverse of a mod m, and every x of a x ≡ b (mod m).',
                 fields: [{ k: 'a', l: 'a', ph: '3', fn: true }, { k: 'b', l: 'b', ph: '4', fn: true }, { k: 'm', l: 'm', ph: '7', fn: true }], run: runModular },
-            { id: 'crt', t: 'Chinese remainder', f: 'x ≡ 2 (mod 3), x ≡ 3 (mod 5)', d: 'The x of x ≡ r (mod m) for each of a list, typed 2 mod 3, 3 mod 5, 2 mod 7, the moduli with a factor in common as well: x and the modulus all of them make.',
+            { id: 'crt', t: 'Chinese remainder', f: ['x ≡ 2 (mod 3)', 'x ≡ 3 (mod 5)'], d: 'The x of x ≡ r (mod m) for each of a list, typed 2 mod 3, 3 mod 5, 2 mod 7, the moduli with a factor in common as well: x and the modulus all of them make.',
                 fields: [{ k: 'list', ph: '2 mod 3, 3 mod 5, 2 mod 7', fn: true }], run: runChinese },
-            { id: 'exact', t: 'Exactly', f: '100!, 2<sup>200</sup>, 50 nCr 25', d: 'A calculation of whole numbers and fractions worked out exactly, to every digit, up to 20000: + – × ÷, ^, n!, nCr and nPr, or C(n, k), P(n, k) and fib(n). A fraction stays one, 1/3 + 1/6 is 1/2.',
+            { id: 'exact', t: 'Exactly', f: ['100!', '2<sup>200</sup>', '50 nCr 25'], d: 'A calculation of whole numbers and fractions worked out exactly, to every digit, up to 20000: + – × ÷, ^, n!, nCr and nPr, or C(n, k), P(n, k) and fib(n). A fraction stays one, 1/3 + 1/6 is 1/2.',
                 fields: [{ k: 'e', ph: '100!', fn: true }], run: runExact },
-            { id: 'primes', t: 'Primes', f: 'p<sub>n</sub>, π(n), next and previous', d: 'Whether a whole number of up to 24 digits is prime, the primes before and after it, and up to 10 million how many primes there are up to it, π(n), and the n-th prime.',
+            { id: 'primes', t: 'Primes', f: ['p<sub>n</sub>', 'π(n)', 'next and previous'], d: 'Whether a whole number of up to 24 digits is prime, the primes before and after it, and up to 10 million how many primes there are up to it, π(n), and the n-th prime.',
                 fields: [{ k: 'n', ph: '100', fn: true }], run: runPrimes },
             { id: 'between', t: 'Primes between', f: 'the primes from a to b', d: 'The primes from a to b, both in: how many and each of them, b up to 10¹⁴ and the two up to 10 million apart.',
                 fields: [{ k: 'a', l: 'From', ph: '1', fn: true }, { k: 'b', l: 'To', ph: '100', fn: true }], run: runBetween2 },
             { id: 'fraction', t: 'Fraction and decimal', f: '0.1(6) = 1/6', d: 'A fraction, 22/7, a decimal, 0.125, or one whose last digits come again and again in brackets, 0.1(6): as a fraction, a mixed number, a decimal with the part that comes again in brackets, and a continued fraction. A calculation, pi, as near as its digits tell.',
                 fields: [{ k: 'x', ph: '0.1(6)', fn: true }], run: runFraction },
-            { id: 'round', t: 'Round', f: '⌊x⌋, ⌈x⌉, x to d places', d: 'A number rounded to d decimal places, half away from 0, down, up and toward 0; its fraction part, and the number to d significant figures. Places below 0 round to tens, hundreds …',
+            { id: 'round', t: 'Round', f: ['⌊x⌋', '⌈x⌉', 'x to d places'], d: 'A number rounded to d decimal places, half away from 0, down, up and toward 0; its fraction part, and the number to d significant figures. Places below 0 round to tens, hundreds …',
                 fields: [{ k: 'x', l: 'x', ph: '3.14159' }, { k: 'd', l: 'Places', ph: '0', def: 0 }], cols: 2, run: runRound }
         ]
     };
@@ -5185,9 +5248,55 @@
         return {
             rows: [{ l: 'a + b<i>i</i>', text: complexText(z), wide: true }, { l: 'Real part', v: z.re }, { l: 'Imaginary part', v: z.im },
                 { l: 'Length |z|', v: p.r }, { l: 'Angle', v: p.theta }, { l: 'Polar', text: local(String(p.r)) + ' ∠ ' + local(String(p.theta)) + (deg === 1 ? '°' : ''), wide: true },
+                { l: 'Exponential', text: exponentialText(p), wide: true },
                 { l: 'Conjugate', text: complexText({ re: z.re, im: CalcMaths.round(0 - z.im) }) },
                 planeTile([z, { re: z.re, im: -z.im }], 0, 'z and its conjugate')],
             note: 'Angles in ' + ['radians', 'degrees', 'gradians'][deg] + ', the unit in use.'
+        };
+    }
+
+    // a complex number of its length and angle as r e^(iθ), the angle in the unit in use: 2e^(i·30°), 2e^(–i·0.5)
+    function exponentialText(p) {
+        if (!p.r) return '0';
+        if (!p.theta) return local(String(p.r)); // a positive real: e^(i·0) is 1
+        return (p.r === 1 ? '' : local(String(p.r))) + '<i>e</i><sup>' + (p.theta < 0 ? '–' : '') + '<i>i</i>' +
+            '·' + local(String(Math.abs(p.theta))) + (deg === 1 ? '°' : '') + '</sup>';
+    }
+
+    // A value of a box of R, L, C or f, of a prefix of SI as well: 4.7k or 4.7K, 10m, 100µ or 100u, 1e-6, 2.2 nF;
+    // null for an empty box, NaN for one that is not a value
+    function siValue(text, unit) {
+        var m = new RegExp('^([-+]?(?:\\d+(?:[.,]\\d*)?|[.,]\\d+)(?:e[-+]?\\d+)?)\\s*([pnuµμmkKMG]?)\\s*(?:' + unit + ')?$', 'i').exec(String(text || '').trim()), v;
+        if (!String(text || '').trim()) return null;
+        if (!m || (m[2] && !/^[pnuµμmkKMG]$/.test(m[2]))) return NaN;
+        if (!engine.comma && m[1].indexOf(',') > -1) { // the comma is a thousands mark here: 4,700 is 4700, and 4,7 is no value
+            if (!/^[-+]?\d{1,3}(?:,\d{3})+(?:\.\d*)?(?:e[-+]?\d+)?$/i.test(m[1])) return NaN;
+            m[1] = m[1].replace(/,/g, '');
+        }
+        v = parseFloat(m[1].replace(',', '.'));
+        return m[2] ? CalcMaths.round(v * { p: 1e-12, n: 1e-9, u: 1e-6, 'µ': 1e-6, 'μ': 1e-6, m: 1e-3, k: 1e3, K: 1e3, M: 1e6, G: 1e9 }[m[2]]) : v;
+    }
+
+    // The impedance of R, L and C at a frequency, in series or side by side: Z, its size and phase,
+    // what is in the way of each, and the frequency where the coil and capacitor cancel. Its phase
+    // above 0 is of a coil, the current behind the voltage; below 0, of a capacitor, ahead of it
+    function runImpedance(n, raw) {
+        var v = { r: siValue(raw.r, 'Ω|ohms?'), l: siValue(raw.l, 'h'), c: siValue(raw.c, 'f'), f: raw.f ? siValue(raw.f, 'hz') : 50 },
+            bad = Object.keys(v).filter(function (k) { return v[k] !== null && isNaN(v[k]); }), none = [{ l: 'Z', v: NaN, wide: true }], r, p;
+        if (bad.length) return { rows: none, bad: bad, warn: true, note: bad.map(function (k) { return k === 'r' ? 'R' : k === 'l' ? 'L' : k === 'c' ? 'C' : 'f'; }).join(' and ') +
+            (bad.length > 1 ? ' are' : ' is') + ' not a value: 100, 4.7k, 10m, 100µ or 1e-6.' };
+        r = CalcMaths.impedance(v.r, v.l, v.c, v.f, raw.circuit === '1');
+        if (r.error === 'none') return { rows: none };
+        if (r.error) return { rows: none, warn: true, note: v.c === 0 ? 'C is above 0: a capacitor of 0 F is none.' : 'R, L, C and f are 0 or above.' };
+        if (!isFinite(r.z.re) || !isFinite(r.z.im)) return { rows: none, warn: true, note: 'No current goes through: Z is infinite, as of a capacitor in series at 0 Hz, or of L and C side by side at resonance.' };
+        p = CalcMaths.polar(r.z, deg);
+        return {
+            rows: [{ l: 'Z', text: complexText(r.z), wide: true }, { l: '|Z|, Ω', v: p.r }, { l: 'Phase φ', v: p.theta }, { l: 'Resistance, Ω', v: r.z.re },
+                { l: 'Reactance, Ω', v: r.z.im }, { l: 'X<sub>L</sub> = ωL', v: isFinite(r.xl) ? r.xl : NaN }, { l: 'X<sub>C</sub> = 1/ωC', v: isFinite(r.xc) ? r.xc : NaN },
+                { l: 'Resonance f<sub>0</sub>, Hz', v: r.resonance, wide: true },
+                planeTile([r.z], 0, 'Z on the plane')],
+            note: (!r.z.im ? 'In phase: as a resistor alone.' : r.z.im > 0 ? 'Of a coil: the current is behind the voltage by φ.' : 'Of a capacitor: the current is ahead of the voltage by |φ|.') +
+                ' Angles in ' + ['radians', 'degrees', 'gradians'][deg] + '.' + (raw.f ? '' : ' f is 50 Hz while it is empty.')
         };
     }
 
@@ -5200,23 +5309,28 @@
     }
 
     function runBits(n, raw) {
-        var bits = n.bits, r = raw.e ? CalcMaths.bitwise(raw.e, bits) : null, big, none = [{ l: 'Decimal', v: NaN }];
+        var bits = n.bits, r = raw.e ? CalcMaths.bitwise(raw.e, bits) : null, big, bytes, none = [{ l: 'Decimal', v: NaN }];
         if (raw.e && r && r.error) {
             return { rows: none, bad: r.error === 'expression' ? ['e'] : [], warn: true, note: {
                 expression: 'Whole numbers, 255, 0xFF, 0b1010 or 0o17, with + – × ÷ mod AND OR XOR NOT NAND NOR XNOR << >> ROL ROR.',
                 zero: 'Division by 0.',
-                bits: 'Bits are 8, 16, 32 or 64.'
+                bits: 'Bits are 8, 16, 32, 64 or 128.'
             }[r.error] };
         }
         if (!r) return { rows: none };
         big = BigInt.asUintN(bits, r.value);
+        bytes = CalcMaths.bytesOf(r.value, bits).map(function (b) { return CalcMaths.hexOfBytes([b]).toUpperCase(); });
         return {
             rows: [
-                Math.abs(Number(r.value)) <= Number.MAX_SAFE_INTEGER ? { l: 'Decimal', v: Number(r.value) } : { l: 'Decimal', text: String(r.value) },
-                big <= BigInt(Number.MAX_SAFE_INTEGER) ? { l: 'Unsigned', v: Number(big) } : { l: 'Unsigned', text: String(big) },
-                { l: 'Hexadecimal', text: CalcMaths.inBase(r.value, bits, 16) }, { l: 'Octal', text: CalcMaths.inBase(r.value, bits, 8), wide: bits === 64 },
-                { l: 'Binary', text: CalcMaths.inBase(r.value, bits, 2).replace(/^(.{39}) /, bits === 64 ? '$1<br>' : '$1 '), wide: true, bits: true }
-            ],
+                Math.abs(Number(r.value)) <= Number.MAX_SAFE_INTEGER ? { l: 'Decimal', v: Number(r.value) } : { l: 'Decimal', text: String(r.value), wide: bits === 128 },
+                big <= BigInt(Number.MAX_SAFE_INTEGER) ? { l: 'Unsigned', v: Number(big) } : { l: 'Unsigned', text: String(big), wide: bits === 128 },
+                { l: 'Hexadecimal', text: CalcMaths.inBase(r.value, bits, 16), wide: bits === 128 }, { l: 'Octal', text: CalcMaths.inBase(r.value, bits, 8), wide: bits >= 64, wrap: bits === 128 },
+                // of 64 bits and more, 32 to a line
+                { l: 'Binary', text: CalcMaths.inBase(r.value, bits, 2).replace(/((?:[01]{4} ){7}[01]{4}) /g, '$1<br>'), wide: true, bits: true }
+            ].concat(bits === 8 ? [] : [
+                { l: 'Big-endian', text: bytes.join(' '), wide: bits >= 64, wrap: true }, { l: 'Little-endian', text: bytes.slice().reverse().join(' '), wide: bits >= 64, wrap: true },
+                { l: 'Bytes swapped', text: '0x' + CalcMaths.inBase(CalcMaths.byteSwap(r.value, bits), bits, 16).padStart(bits / 4, '0'), wide: bits >= 64 }
+            ]),
             note: r.wrapped ? 'Out of ' + bits + ' bits: kept to them, as a computer does.' : ''
         };
     }
@@ -5225,13 +5339,13 @@
     // many are 1 and where. A bit turned over writes the number again as it was typed, 0x for 0x,
     // or in hexadecimal for a calculation; empty, in binary up to 16 bits
     function runBitView(n, raw) {
-        var bits = n.bits, r = raw.e ? CalcMaths.bitwise(raw.e, bits) : bits === 8 || bits === 16 || bits === 32 || bits === 64 ? { value: BigInt(0) } : { error: 'bits' },
+        var bits = n.bits, r = raw.e ? CalcMaths.bitwise(raw.e, bits) : [8, 16, 32, 64, 128].indexOf(bits) > -1 ? { value: BigInt(0) } : { error: 'bits' },
             c, none = [{ l: 'Bits', v: NaN, wide: true }];
         if (r.error) {
             return { rows: none, bad: r.error === 'expression' ? ['e'] : [], warn: true, note: {
                 expression: 'A whole number, 255, 0xFF, 0b1010 or 0o17, or a calculation of them.',
                 zero: 'Division by 0.',
-                bits: 'Bits are 8, 16, 32 or 64.'
+                bits: 'Bits are 8, 16, 32, 64 or 128.'
             }[r.error] };
         }
         c = CalcMaths.bitCount(r.value, bits);
@@ -5241,8 +5355,8 @@
                     how = m ? (m[1] || '').toLowerCase() : raw.e ? '0x' : bits <= 16 ? '0b' : '0x';
                 return how === '0x' ? '0x' + u.toString(16).toUpperCase() : how === '0b' ? '0b' + u.toString(2) : how === '0o' ? '0o' + u.toString(8) : String(v);
             } }, wide: true },
-                Math.abs(Number(r.value)) <= Number.MAX_SAFE_INTEGER ? { l: 'Decimal', v: Number(r.value) } : { l: 'Decimal', text: String(r.value) },
-                { l: 'Hexadecimal', text: CalcMaths.inBase(r.value, bits, 16) },
+                Math.abs(Number(r.value)) <= Number.MAX_SAFE_INTEGER ? { l: 'Decimal', v: Number(r.value) } : { l: 'Decimal', text: String(r.value), wide: bits === 128 },
+                { l: 'Hexadecimal', text: CalcMaths.inBase(r.value, bits, 16), wide: bits === 128 },
                 { l: 'Ones', v: c.ones }, { l: 'Leading zeros', v: c.leading }, { l: 'Trailing zeros', v: c.trailing },
                 { l: 'Highest 1', v: c.high < 0 ? NaN : c.high }, { l: 'Lowest 1', v: c.low < 0 ? NaN : c.low }],
             note: r.wrapped ? 'Out of ' + bits + ' bits: kept to them, as a computer does.' : 'Click a bit to turn it over.'
@@ -5512,6 +5626,125 @@
         };
     }
 
+    // A text in Base64, 32, 58 or 85, as its bytes of UTF-8 are; or the text of one, and its bytes, where they are not text
+    var ENCODINGS = [ // in the order of their buttons, Base64 the one at first
+        { name: 'Base32', to: CalcMaths.toBase32, from: CalcMaths.fromBase32, not: 'Not Base32: of A–Z and 2–7, eight letters for each five bytes, = filling the last eight.' },
+        { name: 'Base58', to: CalcMaths.toBase58, from: CalcMaths.fromBase58, not: 'Not Base58: of 1–9, A–Z and a–z but 0, O, I and l.' },
+        { name: 'Base64', to: CalcMaths.toBase64, from: CalcMaths.fromBase64, not: 'Not Base64: of A–Z, a–z, 0–9 and + and / or - and _, four letters for each three bytes, = filling the last four.' },
+        { name: 'Base85', to: CalcMaths.toBase85, from: CalcMaths.fromBase85, not: 'Not Base85: of ! to u, five letters for each four bytes, z for four 0s, between <~ and ~> if you like.' }
+    ];
+
+    function runBase64(n, raw) {
+        var how = ENCODINGS[+raw.enc] || ENCODINGS[2], none = [{ l: how.name, text: '–', wide: true }], bytes, text = null, hex, encoded;
+        if (raw.t) {
+            bytes = Array.from(new TextEncoder().encode(raw.t));
+        } else if (raw.b) {
+            bytes = how.from(raw.b);
+            if (!bytes) return { rows: none, bad: ['b'], warn: true, note: how.not };
+            try {
+                text = new TextDecoder('utf-8', { fatal: true }).decode(new Uint8Array(bytes));
+            } catch (e) { }
+        } else {
+            return { rows: none };
+        }
+        hex = CalcMaths.hexOfBytes(bytes, ' ').toUpperCase();
+        encoded = raw.t ? how.to(bytes) : '';
+        return {
+            rows: raw.t ? [{ l: how.name, text: encoded || '–', wide: true, wrap: true }].concat(how.name === 'Base64' ? [{ l: 'For web addresses', text: CalcMaths.toBase64(bytes, true) || '–', wide: true, wrap: true }] : [],
+                [{ l: 'Bytes of UTF-8', text: hex || '–', wide: true, wrap: true }, { l: 'Bytes', v: bytes.length }, { l: 'Letters of ' + how.name, v: encoded.length }]) :
+                [{ l: 'Text', text: text === null ? '–' : escaped(text) || '–', wide: true, wrap: true }, { l: 'Bytes', text: hex || '–', wide: true, wrap: true }, { l: 'Bytes', v: bytes.length }],
+            note: raw.t && raw.b ? 'Of the text: the box of what is encoded is read while the text is empty.' : text === null && !raw.t ? 'Not text of UTF-8: its bytes alone.' : ''
+        };
+    }
+
+    // Five new UUIDs of the version chosen, from the browser's strong random bytes, those of
+    // version 7 in order; or one typed read: its version, variant, the time it was made and it in
+    // other ways. Each to copy
+    var UUID_VERSIONS = {
+        1: '1, of the time and a node', 2: '2, DCE security', 3: '3, of a name, MD5', 4: '4, random', 5: '5, of a name, SHA-1',
+        6: '6, of the time, in order', 7: '7, of Unix time', 8: '8, of its own kind'
+    };
+
+    function runUuid(n, raw) {
+        var none = [{ l: 'UUID', text: '–', wide: true }], v, ver, made = [], out = [], bytes, k, at, hex, b64, b64url, whole;
+        if (!raw.u) {
+            ver = raw.ver === '1' ? 7 : 4;
+            at = Date.now();
+            for (k = 0; k < 5; k++) {
+                bytes = new Uint8Array(16);
+                if (window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(bytes);
+                else bytes = bytes.map(function () { return Math.floor(Math.random() * 256); });
+                made.push(CalcMaths.makeUuid(ver, Array.from(bytes), at));
+            }
+            if (ver === 7) made.sort();
+            return { rows: made.map(function (u, i) { return { l: 'UUID ' + (i + 1), text: u, copy: u, wide: true }; }),
+                note: ver === 7 ? 'The time now, to the millisecond, then 74 random bits.' : '122 random bits, and 6 of its version and variant.' };
+        }
+        v = CalcMaths.readUuid(raw.u);
+        if (!v) return { rows: none, bad: ['u'], warn: true, note: 'A UUID is 32 hexadecimal digits, 8-4-4-4-12 with hyphens, or none: f81d4fae-7dec-11d0-a765-00a0c91e6bf6.' };
+        hex = '0x' + v.text.replace(/-/g, '').toUpperCase();
+        out.push({ l: 'UUID', text: v.text, copy: v.text, wide: true });
+        out.push({ l: 'Version', text: v.nil ? 'Nil, all 0' : v.max ? 'Max, all 1' : v.version === null ? 'None: not of RFC 9562' : UUID_VERSIONS[v.version] || v.version + ', of none yet', wide: true });
+        if (!v.nil && !v.max) out.push({ l: 'Variant', text: { NCS: 'NCS, of the 1980s', RFC: 'RFC 9562', Microsoft: 'Microsoft, of old', Future: 'Kept for the future' }[v.variant], wide: true });
+        if (v.time !== null) {
+            at = new Date(Math.floor(v.time));
+            out.push({ l: 'Made, in UTC', text: at.toISOString().replace('T', ', ').replace('Z', ''), wide: true },
+                { l: 'Made, here', text: at.toLocaleString(DATE_LANG, { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short' }), wide: true });
+        }
+        b64 = CalcMaths.toBase64(v.bytes);
+        b64url = CalcMaths.toBase64(v.bytes, true);
+        whole = BigInt(hex).toString();
+        out.push({ l: 'Hexadecimal', text: hex, copy: hex, wide: true },
+            { l: 'Base64', text: b64, copy: b64, wide: true },
+            { l: 'For web addresses', text: b64url, copy: b64url, wide: true },
+            { l: 'As a whole number', text: whole, copy: whole, wide: true, wrap: true });
+        return { rows: out, note: 'Its hexadecimal, pasted into Bits of 128, shows its bits.' };
+    }
+
+    // The network of an IPv4 address: its network and broadcast addresses, mask, hosts and kind
+    function runSubnet(n, raw) {
+        var none = [{ l: 'Network', text: '–', wide: true }], r = raw.ip ? CalcMaths.subnet(raw.ip) : null, ip = CalcMaths.ipText;
+        if (!r) return { rows: none };
+        if (r.error) return { rows: none, bad: ['ip'], warn: true, note: {
+            address: r.v6 ? 'An IPv6 address, up to eight groups of up to four hexadecimal digits with colons between them, :: for a run of 0s, and its prefix: 2001:db8::1/48.' :
+                'An IPv4 address, four numbers from 0 to 255 with dots between them, and its prefix or mask: 192.168.1.10/24, or 192.168.1.10 255.255.255.0; or an IPv6 address, 2001:db8::1/48.',
+            prefix: 'The prefix is from /0 to /' + (r.v6 ? 128 : 32) + ': how many bits, from the left, are of the network.',
+            mask: 'Not a mask: its 1s are all on the left, 255.255.255.0, 255.255.240.0.'
+        }[r.error] };
+        if (r.v6) return runSubnet6(r);
+        return {
+            rows: [{ l: 'Network', text: ip(r.network) + '/' + r.prefix, wide: true }, { l: 'Broadcast', text: ip(r.broadcast), wide: true },
+                { l: 'Mask', text: ip(r.mask), wide: true }, { l: 'Wildcard', text: ip(r.wildcard), wide: true },
+                { l: 'First host', text: ip(r.first), wide: true }, { l: 'Last host', text: ip(r.last), wide: true },
+                { l: 'Hosts', v: r.hosts }, { l: 'Addresses', v: r.all }, { l: 'Kind', text: r.kind, wide: true },
+                { l: 'Address in binary', text: CalcMaths.inBase(BigInt(r.address), 32, 2).replace(/ /g, '').replace(/(\d{8})(?=\d)/g, '$1.'), wide: true, bits: true },
+                { l: 'Mask in binary', text: CalcMaths.inBase(BigInt(r.mask), 32, 2).replace(/ /g, '').replace(/(\d{8})(?=\d)/g, '$1.'), wide: true, bits: true }],
+            note: !r.given ? 'Of the address alone, /32: add its prefix, /24, for its network.' : r.prefix === 31 ? 'A /31 links two hosts, both of them given out, by RFC 3021.' :
+                r.prefix === 32 ? 'A /32 is one address.' : 'Hosts are all its addresses but the first, the network, and the last, its broadcast.'
+        };
+    }
+
+    // A count of addresses of IPv6, a power of 2: as a number while it is one exactly, else 2ⁿ and all its digits
+    function powerTile(l, count) {
+        var bits = count.toString(2).length - 1;
+        return count <= BigInt(Number.MAX_SAFE_INTEGER) ? { l: l, v: Number(count) } : { l: l, text: '2<sup>' + bits + '</sup> = ' + count, wide: true, wrap: true };
+    }
+
+    // The network of an IPv6 address: no broadcast, mask or hosts kept from it, as IPv4 has; each of its
+    // addresses may be given out. Its address in full and as it is written short, and its name for reverse DNS
+    function runSubnet6(r) {
+        var ip = CalcMaths.ipv6Text;
+        return {
+            rows: [{ l: 'Network', text: ip(r.network) + '/' + r.prefix, wide: true }, { l: 'Address', text: ip(r.address), wide: true },
+                { l: 'In full', text: ip(r.address, true), wide: true, wrap: true },
+                { l: 'First address', text: ip(r.network), wide: true }, { l: 'Last address', text: ip(r.last), wide: true, wrap: true },
+                powerTile('Addresses', r.all), r.subnets === null ? { l: '/64 networks', text: '–' } : powerTile('/64 networks', r.subnets), { l: 'Kind', text: r.kind, wide: true },
+                { l: 'Reverse DNS', text: r.reverse, wide: true, wrap: true }],
+            note: !r.given ? 'Of the address alone, /128: add its prefix, /64, for its network.' : r.prefix > 64 ? 'Smaller than a /64, the size of a network of hosts that make their own addresses.' :
+                'IPv6 has no broadcast address: each address of the network may be given out.'
+        };
+    }
+
     function runModular(n, raw) {
         var none = [{ l: 'a mod m', v: NaN }], r, s;
         if (!raw.a || !raw.m) return { rows: none };
@@ -5631,9 +5864,50 @@
             { id: 'add', t: 'Add or subtract time', f: 'date ± years, months, days', d: 'A date some years, months and days on, below 0 to go back: the date and its weekday, its day of the year and its week. The years and months go first; a month from 31 January is the last day of February. An empty date is today.',
                 fields: [{ k: 'd', l: 'Date', date: true }, { k: 'y', l: 'Years', ph: '0', def: 0, cls: 'calc-sv-dated' },
                     { k: 'm', l: 'Months', ph: '0', def: 0, cls: 'calc-sv-dated' }, { k: 'days', l: 'Days', ph: '0', def: 0, cls: 'calc-sv-dated' }],
-                cols: 3, run: runAdd }
+                cols: 3, run: runAdd },
+            { id: 'unix', t: 'Unix time', f: '1700000000 ↔ 14 Nov 2023 22:13:20', d: 'One way or the other. Unix → Date: the date and time of a Unix timestamp, the seconds from 1 January 1970 in UTC, or of 13 digits its milliseconds, in UTC, here, and in ISO 8601. Date → Unix: the timestamp of a date and time, in UTC or the time here; an empty date is today, an empty time midnight.',
+                // the boxes of the way chosen only: a timestamp, or a date, a time and its zone
+                fields: function (raw) {
+                    var way = [{ k: 'convert', l: 'Convert', choice: ['Unix → Date', 'Date → Unix'] }];
+                    return raw.convert === '1' ? way.concat([{ k: 'd', l: 'Date', date: true }, { k: 'time', l: 'Time', ph: '00:00:00', text: true },
+                        { k: 'zone', l: 'Time in', choice: ['UTC', 'Time here'] }]) : way.concat([{ k: 'ts', l: 'Unix time', ph: '1700000000' }]);
+                }, run: runUnix }
         ]
     };
+
+    // The date and time of a Unix timestamp, or the timestamp of a date and time: the timestamp in
+    // seconds and milliseconds, the time in UTC, here and in ISO 8601. One of 13 digits or more is
+    // of milliseconds; leap seconds are left out, as Unix time leaves them
+    function runUnix(n, raw) {
+        var ms, secs, day, at, t, bad = [], none = [{ l: 'Unix time', v: NaN }, { l: 'UTC', text: '–', wide: true }], two = function (v) { return String(v).padStart(2, '0'); }, milli;
+        if (raw.convert !== '1') { // Unix → Date
+            if (!raw.ts) return { rows: none };
+            if (!isFinite(n.ts)) return { rows: none, bad: ['ts'], warn: true, note: 'Seconds from 1 January 1970, 1700000000, or milliseconds, 1700000000000.' };
+            milli = /^-?\d{13,}/.test(raw.ts);
+            ms = milli ? n.ts : n.ts * 1000;
+        } else {
+            day = dayOfBox(raw.d);
+            t = raw.time ? CalcMaths.readTime(raw.time) : 0;
+            if (isNaN(day)) bad.push('d');
+            if (isNaN(t)) bad.push('time');
+            if (bad.length) return { rows: none, bad: bad, warn: true, note: bad[0] === 'd' ? 'A date, as ' + dateNumbers(today()) + ' or 14 Oct 2026, from the year 1 to 9999.' : 'A time, 14:30, 14:30:15 or 2:30 pm.' };
+            ms = day * 86400000 + t * 1000;
+            if (raw.zone === '1') ms += new Date(ms + new Date(ms).getTimezoneOffset() * 60000).getTimezoneOffset() * 60000; // the time here, its offset of that day
+        }
+        ms = Math.round(ms); // first, so that the day, the time and the seconds all come from the same millisecond
+        day = Math.floor(ms / 86400000);
+        if (!(day >= CAL_FIRST && day <= CAL_LAST)) return { rows: none, warn: true, note: 'Before the year 1 or after 9999.' };
+        at = ms - day * 86400000;
+        secs = (ms < 0 ? '-' : '') + Math.floor(Math.abs(ms) / 1000) + local(Math.abs(ms) % 1000 ? '.' + String(Math.abs(ms) % 1000).padStart(3, '0').replace(/0+$/, '') : ''); // from its whole milliseconds, every digit
+        return {
+            // to the last millisecond: more digits than a tile of a number shows, so as they are
+            rows: [{ l: 'Unix time', text: secs, wide: true }, { l: 'Milliseconds', text: String(Math.round(ms)), wide: true },
+                { l: 'UTC', text: dateText(day) + ', ' + two(Math.floor(at / 3600000)) + ':' + two(Math.floor(at / 60000) % 60) + ':' + two(Math.floor(at / 1000) % 60) + (at % 1000 ? '.' + String(at % 1000).padStart(3, '0') : ''), wide: true },
+                { l: 'Time here', text: new Date(ms).toLocaleString(DATE_LANG, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short' }), wide: true },
+                { l: 'ISO 8601', text: new Date(ms).toISOString().replace('.000Z', 'Z').replace(/^\+0*(?=\d{4}-)/, ''), wide: true }],
+            note: milli ? 'Of 13 digits: milliseconds.' : raw.convert !== '1' ? 'Seconds from 1 January 1970, in UTC.' : 'The date and time in ' + (raw.zone === '1' ? 'the time here.' : 'UTC.')
+        };
+    }
 
     // the day of today, here
     function today() {
@@ -5922,7 +6196,8 @@
             list.innerHTML = tools[tab].map(function (tool, i) {
                 if (tool.id === openId) open = i;
                 return '<div class="calc-sv-item" data-i="' + i + '"><div class="calc-sv-row"><span class="calc-sv-col">' +
-                    '<span class="calc-sv-name">' + tool.t + '</span><span class="calc-sv-f calc-sv-eq calc-sv-val"><span>' + tool.f + '</span></span></span></div></div>';
+                    '<span class="calc-sv-name">' + tool.t + '</span><span class="calc-sv-f calc-sv-eq calc-sv-val"><span>' +
+                    pills(tool.f) + '</span></span></span></div></div>'; // each in a badge, one alone as well
             }).join('');
             list.scrollTop = 0;
             if (open === undefined && tools[tab].length === 1) open = 0;
@@ -6096,9 +6371,10 @@
             } else {
                 shown = '<span class="calc-sv-value">' + (r.text !== undefined ? r.text : known ? (r.places !== undefined ? placesValue(r.v, r.places) : statsValue(r.v)).html : '–') + '</span>';
             }
-            return '<div class="calc-sv-tile' + (r.m !== undefined || r.wide ? ' calc-sv-wide' : '') + (r.m ? ' calc-sv-matrix' : '') + (r.bits ? ' calc-sv-bits' : '') + (r.wrap ? ' calc-sv-wrap' : '') +
+            return '<div class="calc-sv-tile' + (r.m !== undefined || r.wide ? ' calc-sv-wide' : '') + (r.m ? ' calc-sv-matrix' : r.copy ? ' calc-sv-copies' : '') + (r.bits ? ' calc-sv-bits' : '') + (r.wrap ? ' calc-sv-wrap' : '') +
                 (r.head ? ' calc-sv-table' : '') + (known && !r.m ? '' : ' calc-none') + '" data-r="' + i + '"><span class="calc-sv-label">' + r.l +
-                (r.m ? r.head ? '<span class="calc-sv-copy" role="button">Copy table</span>' : '</span><span class="calc-sv-copy calc-sv-copy-m" role="button">Copy' : '') + '</span>' + shown + '</div>';
+                (r.m ? r.head ? '<span class="calc-sv-copy" role="button">Copy table</span>' : '</span><span class="calc-sv-copy calc-sv-copy-m" role="button">Copy' :
+                    r.copy ? '</span><span class="calc-sv-copy calc-sv-copy-m calc-sv-copy-t" role="button">Copy' : '') + '</span>' + shown + '</div>';
         }
 
         // x to as many digits as fit in room characters, as few as one: 0.093, not 0.0928 cut off
@@ -6129,7 +6405,7 @@
             if (saved.v && typeof saved.v === 'object') values = saved.v;
         }
 
-        // a card opens its boxes, or closes them; Again draws more random numbers; Example types its example; a tile, or a
+        // a card opens its boxes, or closes them; Again draws more random numbers and UUIDs; Example types its example; a tile, or a
         // number of a matrix, is put in
         list.addEventListener('click', function (e) {
             var row = e.target.closest('.calc-sv-row'), t = e.target.closest('.calc-sv-tile'), cell = e.target.closest('.calc-sv-cell'), bit = e.target.closest('.calc-sv-bit'), r, v;
@@ -6139,6 +6415,7 @@
             if (e.target.closest('.calc-sv-opt')) return choose(e.target.closest('.calc-sv-opt'));
             r = t && rows[+t.dataset.r];
             if (e.target.closest('.calc-sv-copy') && r && r.m) return copy(tableText(r));
+            if (e.target.closest('.calc-sv-copy') && r && r.copy) return copy(r.copy);
             if (bit && r && r.flip) return flip(t, r.flip, +bit.dataset.b);
             v = !r ? NaN : r.m ? (cell ? r.m[+cell.dataset.a][+cell.dataset.b] : NaN) : r.text === undefined ? r.v : NaN;
             if (!isFinite(v) || !engine.put(v)) return;
@@ -6160,10 +6437,15 @@
 
         // one of the ways of a choice chosen: kept as a box's text is, and the results
         function choose(opt) {
-            var item = opt.closest('.calc-sv-item'), tool = tools[tab][+item.dataset.i], k = opt.parentNode.dataset.k;
+            var item = opt.closest('.calc-sv-item'), tool = tools[tab][+item.dataset.i], k = opt.parentNode.dataset.k, again;
             values[tool.id] = values[tool.id] || {};
             values[tool.id][k] = opt.dataset.c;
             [].forEach.call(opt.parentNode.children, function (o) { o.classList.toggle('calc-on', o === opt); });
+            if (typeof tool.fields === 'function') { // boxes of the way chosen, as Unix time has: drawn again, the button keeping the focus
+                boxes(tool, item);
+                again = item.querySelector('.calc-sv-choice[data-k="' + k + '"] .calc-sv-opt[data-c="' + opt.dataset.c + '"]');
+                if (again && !item.contains(document.activeElement)) again.focus();
+            }
             run();
             keep();
         }
@@ -6284,7 +6566,7 @@
                 var tool;
                 if (el.classList.contains('calc-sv-opt')) return CalcTips['choice ' + el.parentNode.dataset.k + ' ' + el.dataset.c] || null;
                 if (el.classList.contains('calc-sv-example')) return CalcTips['card example'];
-                if (el.classList.contains('calc-sv-copy')) return CalcTips[el.classList.contains('calc-sv-copy-m') ? 'matrix copy' : 'table copy'];
+                if (el.classList.contains('calc-sv-copy')) return CalcTips[el.classList.contains('calc-sv-copy-t') ? 'text copy' : el.classList.contains('calc-sv-copy-m') ? 'matrix copy' : 'table copy'];
                 if (!el.classList.contains('calc-sv-row')) return null;
                 tool = tools[tab][+el.parentNode.dataset.i];
                 return { t: tool.t, d: tool.d + (el.parentNode.classList.contains('calc-on') ? ' Click to close it.' : ' Click to open it.'), k: '' };

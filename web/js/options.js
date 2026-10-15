@@ -3,25 +3,16 @@ document.querySelectorAll('.year').forEach((el) => {
     el.textContent = new Date().getFullYear();
 });
 
-// Two tabs: the options, and the guide to the calculator. The page opens on the one
-// last chosen
+// Two tabs: the options, and the guide to the calculator. The page always opens on
+// the options
 const tabs = document.querySelectorAll('.tab');
 const showTab = (name) => {
     tabs.forEach((tab) => tab.setAttribute('aria-selected', tab.dataset.tabFor === name));
     document.querySelector('.tabs').parentElement.dataset.show = name;
 };
 
-try {
-    showTab(localStorage.getItem('optionsTab') === 'guide' ? 'guide' : 'options');
-} catch (e) {
-    showTab('options');
-}
-tabs.forEach((tab) => tab.addEventListener('click', () => {
-    showTab(tab.dataset.tabFor);
-    try {
-        localStorage.setItem('optionsTab', tab.dataset.tabFor);
-    } catch (e) { }
-}));
+showTab('options');
+tabs.forEach((tab) => tab.addEventListener('click', () => showTab(tab.dataset.tabFor)));
 
 // The number format of the results. It is kept where the calculator reads it when
 // it opens, and the calculator gets a storage event, which app.js sends within this
@@ -89,6 +80,12 @@ window.addEventListener('storage', (e) => {
     showFormat();
 });
 
+// A row of choices, as the tabs: the one chosen, and choosing one
+const chosen = (group) => group.querySelector('input:checked').value;
+const choose = (group, value) => {
+    group.querySelector(`input[value="${value}"]`).checked = true;
+};
+
 // The order of the function keys: √ 9, or 9 √. Without a choice yet it is the
 // one the calculator starts with: √ 9, or 9 √ for who used it before the option came
 const fnOrder = document.getElementById('fn-order');
@@ -107,15 +104,15 @@ const readOrder = () => {
 const showOrder = () => {
     const root = '<span class="root-sign">√</span>';
 
-    orderIcon.innerHTML = fnOrder.value === 'first' ? root + '9' : '9' + root;
+    orderIcon.innerHTML = chosen(fnOrder) === 'first' ? root + '9' : '9' + root;
 };
 
-fnOrder.value = readOrder();
+choose(fnOrder, readOrder());
 showOrder();
 fnOrder.addEventListener('change', () => {
     showOrder();
     try {
-        localStorage.setItem('fnOrder', JSON.stringify(fnOrder.value));
+        localStorage.setItem('fnOrder', JSON.stringify(chosen(fnOrder)));
     } catch (e) { }
 });
 

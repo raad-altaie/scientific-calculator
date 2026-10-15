@@ -1880,6 +1880,22 @@
     line-height: 0;
 }
 
+/* the subtitle of a card in a light rounded badge; a few things side by side, an IPv4 and an
+   IPv6 network, each in a badge of its own, in place of commas between them */
+#calculator .calc-sv-pill {
+    display: inline-block;
+    margin: 0 5px;
+    padding: 2px 9px;
+    border-radius: 4px;
+    background: rgba(51, 68, 59, 0.1);
+}
+
+/* the font sits low in its line: its letters half a pixel up, as much room over them as under them */
+#calculator .calc-sv-pill > span {
+    display: inline-block;
+    transform: translateY(-0.5px);
+}
+
 /* the symbol of a constant, and the letter of a formula by its box */
 #calculator .calc-fx-sym,
 #calculator .calc-sv-sym {
@@ -2383,12 +2399,14 @@
     background: #46677f;
 }
 
-/* Copy of a matrix of results, at the top right of its tile, smaller, over the line of its name */
-#calculator .calc-sv-matrix {
+/* Copy of a matrix of results, or of a text as a UUID, at the top right of its tile, smaller, over the line of its name */
+#calculator .calc-sv-matrix,
+#calculator .calc-sv-copies {
     position: relative;
 }
 
-#calculator .calc-sv-matrix:not(.calc-sv-table) .calc-sv-label {
+#calculator .calc-sv-matrix:not(.calc-sv-table) .calc-sv-label,
+#calculator .calc-sv-copies .calc-sv-label {
     padding-right: 46px;
 }
 
@@ -2428,7 +2446,9 @@
 }
 
 #calculator .calc-sv-bitat {
-    flex: 0 0 15px;
+    flex: 0 0 3ch; /* room for 127, the same on each row so the bits line up */
+    min-width: 0;
+    font-variant-numeric: tabular-nums;
     margin-right: 4px;
     color: #33443b;
     font-size: 11px;

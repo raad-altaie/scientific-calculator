@@ -3,10 +3,16 @@
 (() => {
     const id = 'scientific-calculator-page-icon';
     const logoSize = 30;
-    // the tab that holds the logo, in pixels: its length along the side of the
-    // window, how far it comes out of it, the round of its outer corners, and how
-    // far the curves that join it to the side reach along the side and up the tab
-    const size = { length: 78, depth: 37, round: 10, foot: { along: 20, up: 16 } };
+    // The tab that holds the logo, in pixels: its width and height on the left and
+    // right sides, and on the top and bottom, and the round of its outer corners. The
+    // logo has the same room towards the page and along the side, and less towards
+    // the side of the window: edge is how far its box is from that side. The logo
+    // has a little clear space at its left and right, so the sides need less
+    const size = {
+        upright: { width: 36, height: 42, edge: 2.5 },
+        flat: { width: 37, height: 40, edge: 4 },
+        round: 10
+    };
     const gap = 6; // kept free at both ends of a side
     const svgNS = 'http://www.w3.org/2000/svg';
     const sides = ['left', 'right', 'top', 'bottom'];
@@ -42,15 +48,20 @@
 
     // percent and not pixels, so the button keeps its place in a window of any size
     const attach = () => {
-        const along = `clamp(${gap}px, calc(${place.at}% - ${size.length / 2}px), calc(100% - ${size.length + gap}px))`;
-        const farSide = `calc(100% - ${size.depth}px)`;
+        const upright = place.side === 'left' || place.side === 'right';
+        const box = upright ? size.upright : size.flat;
+        const length = upright ? box.height : box.width; // along the side
+        const depth = upright ? box.width : box.height; // out of it
+        const along = `clamp(${gap}px, calc(${place.at}% - ${length / 2}px), calc(100% - ${length + gap}px))`;
+        const farSide = `calc(100% - ${depth}px)`;
 
-        if (place.side === 'left' || place.side === 'right') {
+        if (upright) {
             show(place.side === 'left' ? '0px' : farSide, along);
         } else {
             show(along, place.side === 'top' ? '0px' : farSide);
         }
         button.className = place.side;
+        drawShape();
     };
 
     const usePlace = (saved) => {
@@ -64,34 +75,32 @@
 
     // a style sheet made here is not stopped by the security rules of the page
     sheet.replaceSync(`
-        /* the tab is attached to the side of the window; it is drawn standing on
-           the bottom side and turned for the others */
+        /* the tab is attached to the side of the window */
         button {
             all: initial;
             position: relative;
             display: block;
-            width: ${size.length}px;
-            height: ${size.depth}px;
+            width: ${size.upright.width}px;
+            height: ${size.upright.height}px;
             cursor: pointer;
             touch-action: none;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
         }
 
-        .left,
-        .right {
-            width: ${size.depth}px;
-            height: ${size.length}px;
+        .top,
+        .bottom {
+            width: ${size.flat.width}px;
+            height: ${size.flat.height}px;
         }
 
         svg {
             position: absolute;
-            left: 50%;
-            top: 50%;
-            width: ${size.length}px;
-            height: ${size.depth}px;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
             overflow: visible;
-            transform: translate(-50%, -50%);
             filter: drop-shadow(0 1px 4px rgba(0, 0, 0, 0.3));
             pointer-events: none;
             transition: opacity 0.2s;
@@ -105,72 +114,106 @@
         }
 
         .moving img {
-            filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
+            filter: drop-shadow(0.5px 0 0 var(--ring)) drop-shadow(-0.5px 0 0 var(--ring)) drop-shadow(0 0.5px 0 var(--ring)) drop-shadow(0 -0.5px 0 var(--ring))
+                drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
         }
 
-        .top svg {
-            transform: translate(-50%, -50%) rotate(180deg);
+        /* the grey around the calculator in the popup, a little lighter */
+        button {
+            --ring: #555555;
         }
 
-        .left svg {
-            transform: translate(-50%, -50%) rotate(90deg);
-        }
-
-        .right svg {
-            transform: translate(-50%, -50%) rotate(-90deg);
-        }
-
-        /* the grey around the calculator in the popup */
         .fill {
-            fill: #bebebe;
+            fill: #cfcfcf;
             transition: fill 0.2s;
         }
 
         .line {
             fill: none;
-            stroke: #9a9a9a;
+            stroke: #b0b0b0;
             stroke-width: 1;
         }
 
         button:hover .fill {
-            fill: #c8c8c8;
+            fill: #dadada;
+        }
+
+        /* darker when the browser is in its dark theme, as the popup, and darker still */
+        @media (prefers-color-scheme: dark) {
+            button {
+                --ring: #9a9a9a;
+            }
+
+            .fill {
+                fill: #232323;
+            }
+
+            .line {
+                stroke: #383838;
+            }
+
+            button:hover .fill {
+                fill: #2e2e2e;
+            }
         }
 
         .moving {
             cursor: grabbing;
         }
 
-        /* the logo in the tab */
+        /* the logo in the tab, near the side of the window, with a thin line round
+           its shape that sets it apart from the grey */
         img {
             position: absolute;
+            filter: drop-shadow(0.5px 0 0 var(--ring)) drop-shadow(-0.5px 0 0 var(--ring)) drop-shadow(0 0.5px 0 var(--ring)) drop-shadow(0 -0.5px 0 var(--ring));
             width: ${logoSize}px;
             height: ${logoSize}px;
             pointer-events: none;
-            transition: transform 0.25s ease-out;
-        }
-
-        .bottom img {
-            left: calc(50% - ${logoSize / 2}px);
-            bottom: ${(size.depth - logoSize) / 2}px;
-        }
-
-        .top img {
-            left: calc(50% - ${logoSize / 2}px);
-            top: ${(size.depth - logoSize) / 2}px;
         }
 
         .left img {
-            top: calc(50% - ${logoSize / 2}px);
-            left: ${(size.depth - logoSize) / 2}px;
+            left: ${size.upright.edge}px;
+            top: ${(size.upright.height - logoSize) / 2}px;
         }
 
         .right img {
-            top: calc(50% - ${logoSize / 2}px);
-            right: ${(size.depth - logoSize) / 2}px;
+            right: ${size.upright.edge}px;
+            top: ${(size.upright.height - logoSize) / 2}px;
         }
 
-        button:hover img {
-            transform: scale(1.08);
+        .top img {
+            top: ${size.flat.edge}px;
+            left: ${(size.flat.width - logoSize) / 2}px;
+        }
+
+        .bottom img {
+            bottom: ${size.flat.edge}px;
+            left: ${(size.flat.width - logoSize) / 2}px;
+        }
+
+        /* the whole tab grows a tiny bit, out from the side of the window it is on */
+        button {
+            transition: transform 0.25s ease-out;
+        }
+
+        .left {
+            transform-origin: left center;
+        }
+
+        .right {
+            transform-origin: right center;
+        }
+
+        .top {
+            transform-origin: center top;
+        }
+
+        .bottom {
+            transform-origin: center bottom;
+        }
+
+        button:hover:not(.moving) {
+            transform: scale(1.04);
         }
 
         button:focus-visible .line {
@@ -186,20 +229,30 @@
     `);
     root.adoptedStyleSheets = [sheet];
 
-    // the tab: it curves softly out of the side of the window and is round
+    // The tab: straight out of the side of the window and round at the two corners
     // towards the page, and the line around it, but not along the side
-    const { length: l, depth: d, round: r, foot: { along: f, up: u } } = size;
-    const outline = `M0 ${d} A${f} ${u} 0 0 0 ${f} ${d - u} L${f} ${r} A${r} ${r} 0 0 1 ${f + r} 0 ` +
-        `L${l - f - r} 0 A${r} ${r} 0 0 1 ${l - f} ${r} L${l - f} ${d - u} A${f} ${u} 0 0 0 ${l} ${d}`;
+    const r = size.round;
+    const outlines = {
+        bottom: (w, h) => `M0 ${h} L0 ${r} A${r} ${r} 0 0 1 ${r} 0 L${w - r} 0 A${r} ${r} 0 0 1 ${w} ${r} L${w} ${h}`,
+        top: (w, h) => `M0 0 L0 ${h - r} A${r} ${r} 0 0 0 ${r} ${h} L${w - r} ${h} A${r} ${r} 0 0 0 ${w} ${h - r} L${w} 0`,
+        left: (w, h) => `M0 0 L${w - r} 0 A${r} ${r} 0 0 1 ${w} ${r} L${w} ${h - r} A${r} ${r} 0 0 1 ${w - r} ${h} L0 ${h}`,
+        right: (w, h) => `M${w} 0 L${r} 0 A${r} ${r} 0 0 0 0 ${r} L0 ${h - r} A${r} ${r} 0 0 0 ${r} ${h} L${w} ${h}`
+    };
+    const fill = document.createElementNS(svgNS, 'path');
+    const line = document.createElementNS(svgNS, 'path');
 
-    shape.setAttribute('viewBox', `0 0 ${l} ${d}`);
-    [['fill', outline + ' Z'], ['line', outline]].forEach(([name, path]) => {
-        const line = document.createElementNS(svgNS, 'path');
+    function drawShape() {
+        const { width, height } = place.side === 'left' || place.side === 'right' ? size.upright : size.flat;
+        const outline = outlines[place.side](width, height);
 
-        line.setAttribute('class', name);
-        line.setAttribute('d', path);
-        shape.appendChild(line);
-    });
+        shape.setAttribute('viewBox', `0 0 ${width} ${height}`);
+        fill.setAttribute('d', outline + ' Z');
+        line.setAttribute('d', outline);
+    }
+
+    fill.setAttribute('class', 'fill');
+    line.setAttribute('class', 'line');
+    shape.append(fill, line);
 
     // the logo of the extension, the same file as the toolbar icon
     logo.src = chrome.runtime.getURL('imgs/icon128.png');

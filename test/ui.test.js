@@ -282,6 +282,12 @@ async function calculator(page, at) {
     check(/^Options and guide/.test(note), t + 'the tip says it is the options and the guide', note);
     check(await page.calc('document.querySelector(".calc-tip").classList.contains("calc-tip-below") && ' +
         '!document.querySelector(".calc-help").title'), t + 'it is below the ?, which has no title');
+    // put away by a key, it comes again as the pointer moves on the ?, without going out and back in
+    await page.key('Shift', 16);
+    check(await page.calc('document.querySelector(".calc-tip").hidden'), t + 'a key puts the tip away');
+    const help = await page.at('.calc-help');
+    await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: help[0] + 1, y: help[1] });
+    check(await page.until('!document.querySelector(".calc-tip").hidden', 2500), t + 'and moving on the ? brings it back');
     await page.hover('#box');
     check(await page.until('document.querySelector(".calc-tip").hidden', 2500), t + 'the tip goes as the pointer leaves the ?');
 
@@ -1208,6 +1214,12 @@ async function numbersPanel(page, at) {
         t + '(2 + 3i)(1 – i) is 5 + i, its length and conjugate', got);
     await set(0, 'e^(i pi)');
     check((await page.calc(tiles)).indexOf('a + bi=-1 | ') === 0 && (await page.calc(tiles)).indexOf('Conjugate=-1') > 0, t + 'e^(iπ) is -1', await page.calc(tiles));
+    check(/ \| Exponential=ei·(3\.14159265359|180°|200) \| /.test(await page.calc(tiles)), t + 'and as r e^(iθ), of length 1 e^(iπ) again', await page.calc(tiles));
+    await set(0, '5');
+    check(/ \| Exponential=5 \| /.test(await page.calc(tiles)), t + 'a positive real is its length alone as r e^(iθ), not 5ei', await page.calc(tiles));
+    await set(0, '2∠1');
+    check(/ \| Exponential=2(\.0*1)?ei·1 \| /.test(await page.calc(tiles)), t + 'and an angle is written in it', await page.calc(tiles));
+    check(await page.calc('document.querySelectorAll(".calc-numbers .calc-sv-item:nth-child(1) .calc-sv-pill").length') === 2, t + 'a card\'s subtitle: a badge for each of its two');
     await set(0, 'x + i');
     check(/^Not a complex number/.test(await page.calc(note)), t + 'x has no value here', await page.calc(note));
     await card('Roots of a complex number');
@@ -1220,16 +1232,38 @@ async function numbersPanel(page, at) {
     check(await page.calc(tiles) === 'Multiplied out=x2 + 1 | z1=–i | z2=i | On the plane=', t + 'x² + 1 has the roots ±i', await page.calc(tiles));
     await set(0, 'x^2 + (1+i)x + 2i');
     check((await page.calc(tiles)).indexOf('Multiplied out=x2 + (1 + i)x + 2i | z1=-1.36602540378 + 0.366025403784i | ') === 0, t + 'a polynomial of complex coefficients', await page.calc(tiles));
+    await card('AC impedance');
+    for (const [n, v] of [[0, '100'], [1, '0.1'], [2, '10µ'], [3, '50']]) await set(n, v);
+    got = await page.calc(tiles);
+    check(got.indexOf('Z=100 – 286.893959648i | |Z|, Ω=303.822553611 | ') === 0 && got.indexOf('XL = ωL=31.4159265359 | XC = 1/ωC=318.309886184 | Resonance f0, Hz=159.154943092 | Z on the plane=') > 0 &&
+        /^Of a capacitor/.test(await page.calc(note)), t + 'R, L and C in series at 50 Hz, a capacitor\'s', got);
+    await page.click(on + ' .calc-sv-opt[data-c="1"]');
+    check((await page.calc(tiles)).indexOf('Z=10.8332803128 + 31.0800268492i | ') === 0 && /^Of a coil/.test(await page.calc(note)), t + 'and side by side, a coil\'s', await page.calc(tiles));
+    await set(2, '');
+    await set(1, '10mH');
+    check(/^Z=0\.09859873096\d* \+ 3\.13849508\d*i \| /.test(await page.calc(tiles)), t + 'a prefix and a unit, 10mH: 10 mH and 100 Ω side by side', await page.calc(tiles));
+    await set(1, '10 mm');
+    check(/^L is not a value/.test(await page.calc(note)) && await page.calc('document.querySelectorAll("' + on + ' input")[1].classList.contains("calc-bad")'), t + 'what is not a value of L', await page.calc(note));
+    await set(1, '');
+    await set(0, '4,700');
+    check(/\|Z\|, Ω=4700 \| /.test(await page.calc(tiles)), t + 'a comma is a thousands mark here: 4,700 Ω is 4700', await page.calc(tiles));
+    await set(0, '4,7');
+    check(/^R is not a value/.test(await page.calc(note)), t + 'and 4,7 is no value, not 4.7', await page.calc(note));
 
-    await page.click('.calc-numbers .calc-solve-tab[data-tab="base"]');
-    check(await page.calc('document.querySelectorAll(".calc-numbers .calc-sv-item").length') === 5, t + 'five cards of bases');
+    await page.click('.calc-numbers .calc-solve-tab[data-tab="computer"]');
+    check(await page.calc('document.querySelectorAll(".calc-numbers .calc-sv-item").length') === 8, t + 'eight cards of bases');
     await card('Bases');
     await set(0, '0xFF AND 0b1010');
-    check(await page.calc(tiles) === 'Decimal=10 | Unsigned=10 | Hexadecimal=A | Octal=12 | Binary=0000 0000 0000 0000 0000 0000 0000 1010',
-        t + '0xFF AND 0b1010 in every base', await page.calc(tiles));
+    check(await page.calc(tiles) === 'Decimal=10 | Unsigned=10 | Hexadecimal=A | Octal=12 | Binary=0000 0000 0000 0000 0000 0000 0000 1010 | ' +
+        'Big-endian=00 00 00 0A | Little-endian=0A 00 00 00 | Bytes swapped=0x0A000000', t + '0xFF AND 0b1010 in every base, and its bytes either way round', await page.calc(tiles));
+    await set(0, '1 << 100');
+    await page.click(on + ' .calc-sv-opt[data-c="4"]');
+    got = await page.calc(tiles);
+    check(got.indexOf('Decimal=1267650600228229401496703205376 | Unsigned=1267650600228229401496703205376 | Hexadecimal=10000000000000000000000000 | ') === 0 &&
+        await page.calc('document.querySelectorAll("' + on + ' .calc-sv-tile br").length') === 3, t + '128 bits: 2¹⁰⁰, its binary on four lines', got);
     await set(0, '-1');
-    check(await page.calc('[].map.call(document.querySelectorAll("' + on + ' .calc-sv-opt"), function (o) { return o.textContent; }).join()') === '8,16,32,64' &&
-        await page.calc('document.querySelector("' + on + ' .calc-sv-opt.calc-on").textContent') === '32', t + 'Bits: 8, 16, 32 or 64, a button each, 32 at first');
+    check(await page.calc('[].map.call(document.querySelectorAll("' + on + ' .calc-sv-opt"), function (o) { return o.textContent; }).join()') === '8,16,32,64,128',
+        t + 'Bits: 8, 16, 32, 64 or 128, a button each');
     await page.click(on + ' .calc-sv-opt[data-c="0"]');
     check(await page.calc(tiles) === 'Decimal=-1 | Unsigned=255 | Hexadecimal=FF | Octal=377 | Binary=1111 1111', t + '-1 in 8 bits', await page.calc(tiles));
     await set(0, '0x81 rol 1');
@@ -1248,6 +1282,11 @@ async function numbersPanel(page, at) {
     await set(0, '0xF0');
     await page.click(on + ' .calc-sv-bit[data-b="0"]');
     check(await page.calc('document.querySelector("' + on + ' input").value') === '0xF1' && await open(page, '.calc-numbers'), t + 'bits: a click writes 0x as it was typed, and puts nothing in');
+    check(await page.calc('document.querySelectorAll("' + on + ' .calc-sv-pill").length') === 1, t + 'a card\'s subtitle of one thing: one badge');
+    await page.click(on + ' .calc-sv-opt[data-c="4"]');
+    await set(0, '1 << 100');
+    check(await page.calc('[].filter.call(document.querySelectorAll("' + on + ' .calc-sv-tile"), function (e) { return /^(Decimal|Hexadecimal)/.test(e.querySelector(".calc-sv-label").textContent); })' +
+        '.map(function (e) { return e.classList.contains("calc-sv-wide"); }).join()') === 'true,true', t + 'bits: at 128, the decimal and the hexadecimal in wide tiles', await page.calc(tiles));
     await card('IEEE 754');
     await set(0, '0.1');
     got = await page.calc(tiles);
@@ -1269,6 +1308,66 @@ async function numbersPanel(page, at) {
     await set(0, '');
     await set(1, '0xC3 0xA9');
     check((await page.calc(tiles)).indexOf('Text=é | ') === 0, t + 'a text of the bytes of UTF-8', await page.calc(tiles));
+    await card('Base32, 58, 64 and 85');
+    check(await page.calc('[].map.call(document.querySelectorAll("' + on + ' .calc-sv-opt"), function (o) { return o.textContent; }).join()') === 'Base32,Base58,Base64,Base85' &&
+        await page.calc('document.querySelector("' + on + ' .calc-sv-opt.calc-on").textContent') === 'Base64', t + 'Base32, 58, 64 and 85, a button each, Base64 at first');
+    await set(0, 'Hé');
+    check(await page.calc(tiles) === 'Base64=SMOp | For web addresses=SMOp | Bytes of UTF-8=48 C3 A9 | Bytes=3 | Letters of Base64=4', t + 'a text in Base64', await page.calc(tiles));
+    await page.click(on + ' .calc-sv-opt[data-c="0"]');
+    check(await page.calc(tiles) === 'Base32=JDB2S=== | Bytes of UTF-8=48 C3 A9 | Bytes=3 | Letters of Base32=8', t + 'in Base32', await page.calc(tiles));
+    await set(0, 'Hello World!');
+    await page.click(on + ' .calc-sv-opt[data-c="1"]');
+    check((await page.calc(tiles)).indexOf('Base58=2NEpo7TZRRrLZSi2U | ') === 0, t + 'in Base58, as Bitcoin writes it', await page.calc(tiles));
+    await page.click(on + ' .calc-sv-opt[data-c="3"]');
+    check((await page.calc(tiles)).indexOf('Base85=87cURD]i,"Ebo80 | ') === 0, t + 'in Base85', await page.calc(tiles));
+    await set(0, '');
+    await set(1, '<~87cURD]i,"Ebo80~>');
+    check((await page.calc(tiles)).indexOf('Text=Hello World! | ') === 0, t + 'and read back', await page.calc(tiles));
+    await page.click(on + ' .calc-sv-opt[data-c="2"]');
+    await set(1, 'SGk=');
+    check(await page.calc(tiles) === 'Text=Hi | Bytes=48 69 | Bytes=2', t + 'the text of Base64', await page.calc(tiles));
+    await set(1, '/w==');
+    check(/^Not text of UTF-8/.test(await page.calc(note)) && (await page.calc(tiles)).indexOf('Bytes=FF') > 0, t + 'bytes that are not text', await page.calc(tiles));
+    await set(1, 'SGk!');
+    check(/^Not Base64/.test(await page.calc(note)), t + 'nor what is not Base64', await page.calc(note));
+    await card('IP subnet');
+    await set(0, '192.168.1.10/24');
+    got = await page.calc(tiles);
+    check(got.indexOf('Network=192.168.1.0/24 | Broadcast=192.168.1.255 | Mask=255.255.255.0 | Wildcard=0.0.0.255 | First host=192.168.1.1 | Last host=192.168.1.254 | ' +
+        'Hosts=254 | Addresses=256 | Kind=Private | Address in binary=11000000.10101000.00000001.00001010') === 0, t + 'the network of 192.168.1.10/24', got);
+    await set(0, '10.20.30.40 255.255.240.0');
+    check((await page.calc(tiles)).indexOf('Network=10.20.16.0/20 | Broadcast=10.20.31.255 | ') === 0, t + 'and of an address with its mask', await page.calc(tiles));
+    await set(0, '10.20.30.40/33');
+    check(/^The prefix is from \/0 to \/32/.test(await page.calc(note)), t + 'no prefix past /32', await page.calc(note));
+    await set(0, '2001:DB8:abcd:0012:0000::1/48');
+    got = await page.calc(tiles);
+    check(got === 'Network=2001:db8:abcd::/48 | Address=2001:db8:abcd:12::1 | In full=2001:0db8:abcd:0012:0000:0000:0000:0001 | First address=2001:db8:abcd:: | ' +
+        'Last address=2001:db8:abcd:ffff:ffff:ffff:ffff:ffff | Addresses=280 = 1208925819614629174706176 | /64 networks=65536 | Kind=Documentation | ' +
+        'Reverse DNS=1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.2.1.0.0.d.c.b.a.8.b.d.0.1.0.0.2.ip6.arpa', t + 'the network of an IPv6 address, written short and in full', got);
+    await set(0, 'fe80::1::2');
+    check(/^An IPv6 address/.test(await page.calc(note)), t + 'no IPv6 address of two ::', await page.calc(note));
+    await card('UUID');
+    got = (await page.calc(tiles)).split(' | ');
+    check(got.length === 5 && got.every(function (u, i) { return new RegExp('^UUID ' + (i + 1) + '=[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$').test(u); }) &&
+        await page.calc('document.querySelectorAll("' + on + ' .calc-sv-copy-t").length') === 5, t + 'five new UUIDs of version 4, each to copy', got.join(' | '));
+    await page.click(on + ' .calc-sv-again');
+    check((await page.calc(tiles)).split(' | ')[0] !== got[0], t + 'Again for five more', await page.calc(tiles));
+    await page.click(on + ' .calc-sv-opt[data-c="1"]');
+    got = (await page.calc(tiles)).split(' | ').map(function (u) { return u.split('=')[1]; });
+    check(got.length === 5 && got.every(function (u) { return /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab]/.test(u); }) && got.slice().sort().join() === got.join() &&
+        Math.abs(parseInt(got[0].replace('-', '').slice(0, 12), 16) - Date.now()) < 60000, t + 'of version 7, of the time now, in order', got.join(' | '));
+    await page.calc('document.addEventListener("copy", function (e) { window.copied = e.clipboardData.getData("text/plain"); })');
+    await page.calc('document.querySelectorAll("' + on + ' .calc-sv-copy-t")[1].click()');
+    check(await page.calc('window.copied') === got[1], t + 'Copy copies one', await page.calc('window.copied'));
+    await set(0, '{C232AB00-9414-11EC-B3C8-9F6BDECED846}');
+    got = await page.calc(tiles);
+    check(got.indexOf('UUID=c232ab00-9414-11ec-b3c8-9f6bdeced846 | Version=1, of the time and a node | Variant=RFC 9562 | Made, in UTC=2022-02-22, 19:22:22.000 | Made, here=') === 0 &&
+        got.indexOf(' | Hexadecimal=0xC232AB00941411ECB3C89F6BDECED846 | Base64=wjKrAJQUEeyzyJ9r3s7YRg== | For web addresses=wjKrAJQUEeyzyJ9r3s7YRg | As a whole number=258133314363070689776975542038781941830') > 0,
+        t + 'one read: its version, variant, the time it was made, and it written other ways', got);
+    await set(0, '00000000-0000-0000-0000-000000000000');
+    check((await page.calc(tiles)).indexOf('UUID=00000000-0000-0000-0000-000000000000 | Version=Nil, all 0 | Hexadecimal=') === 0, t + 'the nil UUID', await page.calc(tiles));
+    await set(0, 'c232ab00-9414-11ec-b3c8');
+    check(/^A UUID is 32 hexadecimal digits/.test(await page.calc(note)), t + 'nor what is not a UUID', await page.calc(note));
 
     await page.click('.calc-numbers .calc-solve-tab[data-tab="matrix"]');
     await card('A matrix');
@@ -2744,7 +2843,7 @@ async function convDates(page, at) {
         tiles = '[].map.call(document.querySelectorAll("' + on + ' .calc-sv-tile"), function (e) {' +
             ' return e.querySelector(".calc-sv-label").textContent + "=" + e.lastChild.textContent; }).join(" | ")',
         note = 'document.querySelector("' + on + ' .calc-sv-note").textContent',
-        seen = function (s) { return page.calc('getComputedStyle(document.querySelector(' + JSON.stringify(s) + ')).display !== "none"'); };
+        seen = function (s) { return page.calc('getComputedStyle(document.querySelector(' + JSON.stringify(s) + ')).display !== "none"'); }, got;
 
     function set(n, text) {
         return page.calc('(function (b) { b.value = ' + JSON.stringify(text) + '; b.dispatchEvent(new Event("input", { bubbles: true })); })' +
@@ -2847,6 +2946,37 @@ async function convDates(page, at) {
     check(/^Date=– \| /.test(await page.calc(tiles)) && /^Whole years/.test(await page.calc(note)), t + 'half a year is none', await page.calc(note));
     await set(1, '8000');
     check(/^Before the year 1 or after 9999/.test(await page.calc(note)), t + 'nor past 9999', await page.calc(note));
+
+    // Unix time: a timestamp's date and time, of milliseconds too, and the timestamp of a date
+    await page.click('.calc-conv .calc-sv-item:nth-child(3) .calc-sv-row');
+    check(await page.calc('[].map.call(document.querySelectorAll("' + on + ' input"), function (i) { return i.dataset.k; }).join()') === 'ts',
+        t + 'Unix time: Unix → Date at first, a box of the timestamp alone');
+    await set(0, '1700000000');
+    got = await page.calc(tiles);
+    check(/^Unix time=1700000000 \| Milliseconds=1700000000000 \| UTC=Tuesday, (14 November|November 14), 2023, 22:13:20 \| Time here=.+ \| ISO 8601=2023-11-14T22:13:20Z$/.test(got),
+        t + 'Unix time: 1700000000 is 14 November 2023, 22:13:20 UTC', got);
+    await set(0, '1700000000123');
+    check(/^Of 13 digits/.test(await page.calc(note)) && / \| ISO 8601=2023-11-14T22:13:20\.123Z$/.test(await page.calc(tiles)), t + 'of 13 digits, milliseconds', await page.calc(tiles));
+    await set(0, '1.9996');
+    check(/^Unix time=2 \| Milliseconds=2000 \| UTC=.*, 00:00:02 \| .* \| ISO 8601=1970-01-01T00:00:02Z$/.test(await page.calc(tiles)),
+        t + 'Unix time: a fraction of a millisecond rounds first, so the rows agree', await page.calc(tiles));
+    await set(0, '1700000000123');
+    await page.click(on + ' .calc-sv-choice[data-k="convert"] .calc-sv-opt[data-c="1"]');
+    check(await page.calc('[].map.call(document.querySelectorAll("' + on + ' input"), function (i) { return i.dataset.k; }).join()') === 'd,time',
+        t + 'Date → Unix: a date and a time in place of the timestamp');
+    await set(0, '2000-01-01');
+    await set(1, '12:00');
+    check((await page.calc(tiles)).indexOf('Unix time=946728000 | ') === 0, t + 'the timestamp of noon on 1 January 2000, UTC', await page.calc(tiles));
+    await set(1, '23:59:59.9996');
+    got = await page.calc(tiles);
+    check(got.indexOf('Unix time=946771200 | ') === 0 && /UTC=.*2000, 00:00:00 \|/.test(got) && / \| ISO 8601=2000-01-02T00:00:00Z$/.test(got),
+        t + 'Date → Unix: 23:59:59.9996 rounds to the next day in every row', got);
+    await page.click(on + ' .calc-sv-choice[data-k="convert"] .calc-sv-opt[data-c="0"]');
+    check(await page.calc('document.querySelector("' + on + ' input").value') === '1700000000123' && /^Unix time=1700000000\.123 \| Milliseconds=1700000000123 \| /.test(await page.calc(tiles)),
+        t + 'Unix → Date again, its timestamp kept', await page.calc(tiles));
+    await page.click(on + ' .calc-sv-choice[data-k="convert"] .calc-sv-opt[data-c="1"]');
+    await set(1, '25:00');
+    check(/^A time/.test(await page.calc(note)), t + 'no hour 25', await page.calc(note));
 
     // the units again, the value with the focus; Esc closes it
     await page.click('.calc-conv .calc-solve-tab[data-tab="units"]');
@@ -3425,8 +3555,9 @@ async function adminPolicy(page) {
     check(await page.until('document.getElementById("panel-graph").disabled') && !await page.ev('document.getElementById("panel-graph").checked') &&
         /administrator/.test(await page.ev('document.getElementById("panel-graph").closest(".option").textContent')),
         t + 'the graph\'s switch is off and locked, and says it is the administrator\'s');
-    check(await page.ev('document.getElementById("launch-detached").disabled && document.getElementById("page-icon").disabled'),
-        t + 'Detached Mode cannot be launched, nor the button on the pages turned on');
+    check(await page.ev('document.getElementById("open-mode").disabled && document.querySelector("#open-mode input[value=fixed]").checked && ' +
+        '!document.getElementById("launch-detached").disabled && document.getElementById("page-icon").disabled'),
+        t + 'Detached cannot be chosen, Launch opens the popup, and the button on the pages cannot be turned on');
     check(await page.ev('!document.getElementById("panel-fx").disabled && document.getElementById("panel-fx").checked && ' +
         '!document.querySelector("#panel-fx").closest(".option").querySelector(".managed-note")'), t + 'f(x) is as it was');
     await change({ solve: false, numbers: false });
@@ -3434,7 +3565,7 @@ async function adminPolicy(page) {
         '!document.getElementById("panel-solve").checked && !document.getElementById("panel-graph").disabled'), t + 'the switches of the solver and the numbers are locked too');
     await change({});
     check(await page.until('!document.getElementById("panel-graph").disabled') && await page.ev('document.getElementById("panel-graph").checked') &&
-        !await page.ev('document.querySelector(".managed-note")') && !await page.ev('document.getElementById("launch-detached").disabled'),
+        !await page.ev('document.querySelector(".managed-note")') && !await page.ev('document.getElementById("open-mode").disabled'),
         t + 'turned on again, the switches are as they were kept');
 
     await page.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: script });
