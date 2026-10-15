@@ -259,19 +259,21 @@ async function calculator(page, at) {
 
     // the formulas, the converter, the statistics and the graph are on at first, in the order of their options
     await page.fresh(at, {});
-    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-stat-btn', t + 'all four at first', await buttons(page));
-    check(await page.calc('document.getElementById("display-box").style.getPropertyValue("--tools")') === '4',
+    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-solve-btn calc-stat-btn calc-numbers-btn', t + 'all of them at first', await buttons(page));
+    check(await page.calc('document.getElementById("display-box").style.getPropertyValue("--tools")') === '6',
         t + 'the line above a result clears them');
-    await page.fresh(at, { fxOn: false, convOn: false, statsOn: false, graphOn: false });
-    check(await buttons(page) === '', t + 'no buttons with all four off', await buttons(page));
+    await page.fresh(at, { fxOn: false, convOn: false, statsOn: false, graphOn: false, solveOn: false, numbersOn: false });
+    check(await buttons(page) === '', t + 'no buttons with all of them off', await buttons(page));
     check(await page.calc('document.getElementById("display-box").style.getPropertyValue("--tools")') === '0',
         t + 'the line above a result starts at the left');
 
     // what an administrator turned off, as the extension keeps it: on in the options does not bring it
     await page.fresh(at, { statsOn: true, policy: { statistics: false, formulas: false } });
-    check(await buttons(page) === 'calc-conv-btn calc-graph-btn', t + 'the statistics and f(x) turned off by an administrator', await buttons(page));
+    check(await buttons(page) === 'calc-conv-btn calc-graph-btn calc-solve-btn calc-numbers-btn', t + 'the statistics and f(x) turned off by an administrator', await buttons(page));
+    await page.fresh(at, { solveOn: true, policy: { solve: false, numbers: false } });
+    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-stat-btn', t + 'and the solver and the numbers', await buttons(page));
     await page.fresh(at, { convOn: false });
-    check(await buttons(page) === 'calc-fx-btn calc-graph-btn calc-stat-btn', t + 'three buttons with the converter off', await buttons(page));
+    check(await buttons(page) === 'calc-fx-btn calc-graph-btn calc-solve-btn calc-stat-btn calc-numbers-btn', t + 'three buttons with the converter off', await buttons(page));
 
     // the ? beside the name has a tip of the calculator's own, below it, in place of a title
     await page.hover('.calc-help');
@@ -286,9 +288,9 @@ async function calculator(page, at) {
     // the keys still work, and the history adds its clock
     await page.type('2+3\r');
     check(await shown(page) === '5', t + '2 + 3 = 5', await shown(page));
-    check(await buttons(page) === 'calc-hist calc-fx-btn calc-graph-btn calc-stat-btn', t + 'the clock comes with a history', await buttons(page));
-    check(await page.calc('document.getElementById("display-box").style.getPropertyValue("--tools")') === '4',
-        t + 'the line above a result clears the four buttons');
+    check(await buttons(page) === 'calc-hist calc-fx-btn calc-graph-btn calc-solve-btn calc-stat-btn calc-numbers-btn', t + 'the clock comes with a history', await buttons(page));
+    check(await page.calc('document.getElementById("display-box").style.getPropertyValue("--tools")') === '6',
+        t + 'the line above a result clears the buttons');
 
     // the panel: the search has the keys, the result in the display starts the first box
     await page.click('.calc-fx-btn');
@@ -1042,6 +1044,330 @@ async function graphPanel(page, at) {
 // The big graph: on the website the calculator fills the window with it, not the screen; Esc,
 // its button or a value put in make it small. In the extension it has a window of
 // its own, popup.html?graph, with only the graph, which keeps up with the calculator
+// The solver: a tab each of tools for equations, calculus and probability, a card for each; a
+// card opens its boxes, worked out as they are typed; a result goes in with a click. What was
+// typed is there the next time
+async function solver(page, at) {
+    var t = at + ': solve: ', on = '.calc-sv-item.calc-on',
+        tiles = '[].map.call(document.querySelectorAll(".calc-sv-item.calc-on .calc-sv-tile"), function (e) {' +
+            ' return e.querySelector(".calc-sv-label").textContent + "=" + e.querySelector(".calc-sv-value").textContent; }).join(" | ")',
+        note = 'document.querySelector(".calc-sv-item.calc-on .calc-sv-note").textContent', got;
+
+    // a box of the card open, typed in
+    function set(n, text) {
+        return page.calc('(function (b) { b.value = ' + JSON.stringify(text) + '; b.dispatchEvent(new Event("input", { bubbles: true })); })' +
+            '(document.querySelectorAll(".calc-sv-item.calc-on input")[' + n + '])');
+    }
+    async function card(name) {
+        await page.calc('[].filter.call(document.querySelectorAll(".calc-sv-name"), function (n) { return n.textContent === ' + JSON.stringify(name) +
+            '; })[0].parentNode.parentNode.click()');
+        await sleep(60);
+    }
+
+    await page.fresh(at, {});
+    await page.click('.calc-solve-btn');
+    check(await open(page, '.calc-solve') && await page.calc('document.querySelectorAll(".calc-solve .calc-solve-tab").length') === 3 &&
+        await page.calc('document.querySelectorAll(".calc-solve .calc-sv-item").length') === 10, t + 'its button opens it: three tabs, ten cards on the first');
+    await page.click('.calc-sv-item:nth-child(1) .calc-sv-row');
+    check(await page.calc('document.activeElement === document.querySelector("' + on + ' input")'), t + 'a card opens its boxes, the first to type in');
+    await page.type('x^2=2x+3');
+    check(await page.calc(tiles) === 'x1=-1 | x2=3', t + 'x² = 2x + 3 is solved as it is typed', await page.calc(tiles));
+    await set(0, 'x^2=2');
+    check((await page.calc(tiles)).indexOf(' | Exact=x1 = –√2, x2 = √2') > 0, t + 'x² = 2 in exact form as well', await page.calc(tiles));
+    await set(0, 'a x = 1');
+    check(/^Only x/.test(await page.calc(note)) && await page.calc('document.querySelector("' + on + ' input").classList.contains("calc-bad")'),
+        t + 'a letter of its own says so', await page.calc(note));
+    await card('Inequality');
+    await set(0, 'x^2-4>0');
+    check(await page.calc(tiles) === 'x=x < -2 or x > 2 | Intervals=(–∞, -2) ∪ (2, ∞) | End 1=-2 | End 2=2', t + 'x² – 4 > 0 where it holds', await page.calc(tiles));
+    await set(0, 'sqrt(x)<=3');
+    check((await page.calc(tiles)).indexOf('x=0 ≤ x ≤ 9 | Intervals=[0, 9]') === 0, t + 'sqrt(x) ≤ 3 from where it has values', await page.calc(tiles));
+    await set(0, 'x^2+1<0');
+    check(/^It holds for no x/.test(await page.calc(note)) && (await page.calc(tiles)).indexOf('x=none') === 0, t + 'x² + 1 < 0 holds for none', await page.calc(note));
+    check(/Looked for from –1e15 to 1e15/.test(await page.calc(note)), t + 'none, where it was looked for only so far, says how far', await page.calc(note));
+    await set(0, 'x<2e9');
+    check((await page.calc(tiles)).indexOf('x=x < 2000000000 | ') === 0, t + 'an end past 1e8', await page.calc(tiles));
+    await card('Quadratic');
+    await set(1, '2');
+    await set(2, '5');
+    got = await page.calc(tiles);
+    check(got.indexOf('x1=-1 + 2i | x2=-1 – 2i') === 0 && got.indexOf('Discriminant=-16') > 0, t + 'x² + 2x + 5: its roots -1 ± 2i, a of 1 while empty', got);
+    await card('Two equations');
+    for (const [n, v] of [[0, '1'], [1, '1'], [2, '3'], [3, '1'], [4, '-1'], [5, '1']]) await set(n, v);
+    check(await page.calc(tiles) === 'x=2 | y=1', t + 'x + y = 3 and x – y = 1', await page.calc(tiles));
+    await set(3, '2');
+    await set(4, '2');
+    await set(5, '6');
+    check(/^Many answers/.test(await page.calc(note)) && await page.calc(tiles) === 'x=– | y=–', t + 'the same line twice has many answers', await page.calc(note));
+    await card('Two curves');
+    await set(0, 'x^2+y^2=25');
+    await set(1, 'x+y=7');
+    check(await page.calc(tiles) === 'x1=3 | y1=4 | x2=4 | y2=3', t + 'where a circle and a line cross', await page.calc(tiles));
+    await card('Polynomial');
+    await set(0, '(x-1)(x^2-x-1)');
+    got = await page.calc(tiles);
+    check(got.indexOf('Multiplied out=x3 – 2x2 + 1 | ') === 0 && got.indexOf('Exact=x1 = (1 – √5)/2, x3 = (1 + √5)/2') > 0, t + 'a polynomial typed, multiplied out and solved', got);
+    await card('Turning points');
+    await set(0, 'x^3-3x');
+    check(await page.calc(tiles) === 'Max x=-1 | Max y=2 | Min x=1 | Min y=-2', t + 'the turning points of x³ – 3x', await page.calc(tiles));
+
+    await page.click('.calc-solve-tab[data-tab="calculus"]');
+    await card('Integral');
+    await set(0, 'x^2');
+    await set(2, '3');
+    check(await page.calc(tiles) === '∫=9 | Average=3', t + 'the integral of x² from 0 to 3, and its average', await page.calc(tiles));
+    await set(0, 'e^(-x)');
+    await set(2, 'inf');
+    check(await page.calc(tiles) === '∫=1 | Average=–', t + 'of e^-x to ∞, of no average', await page.calc(tiles));
+    await set(0, 'e^(-x^2)');
+    await set(1, '-inf');
+    check(await page.calc(tiles) === '∫=1.772453851 | Average=– | Exact=∫ = √π', t + 'of e^-x² over all of it, √π', await page.calc(tiles));
+    await card('Sum');
+    await set(0, 'n^2');
+    check(await page.calc(tiles) === 'Σ=385', t + 'the sum of n² from 1 to 10, its ends while empty', await page.calc(tiles));
+    await set(0, '1/n^2');
+    await set(2, 'inf');
+    check(await page.calc(tiles) === 'Σ=1.64493406685 | Exact=Σ = π²/6', t + 'the sum of 1/n² on to ∞ is π²/6', await page.calc(tiles));
+    await set(0, '1/n');
+    check(await page.calc(tiles) === 'Σ=∞' && /grows without end/.test(await page.calc(note)), t + '1/n grows without end', await page.calc(tiles));
+    await card('Taylor series');
+    await set(0, 'sin(x)');
+    check((await page.calc(tiles)).indexOf('Series=x – x3/6 + x5/120 – x7/5040 | c0=0 | c1=1') === 0, t + 'the Taylor series of sin x', await page.calc(tiles));
+    await card('Limit');
+    await set(0, 'sin(x)/x');
+    check(await page.calc(tiles) === 'Limit=1 | From below=1 | From above=1', t + 'sin(x)/x comes to 1 at 0, in Rad', await page.calc(tiles));
+    await set(0, '1/x');
+    check(await page.calc(tiles) === 'Limit=– | From below=–∞ | From above=∞' && /^No limit/.test(await page.calc(note)), t + '1/x goes to –∞ and ∞', await page.calc(tiles));
+    await set(1, 'abc');
+    check(await page.calc(note) === '', t + 'a limit at what is not a number blames not the function', await page.calc(note));
+    await set(0, '(1+1/x)^x');
+    await set(1, 'inf');
+    check(await page.calc(tiles) === 'Limit=2.71828182846', t + '(1 + 1/x)^x comes to e at ∞, one side only', await page.calc(tiles));
+    await card('Differential equation');
+    await set(0, 'y');
+    check(await page.calc(tiles) === 'y(x)=2.718281828 | y′(x)=2.718281828', t + 'y′ = y from y(0) = 1 is e at 1', await page.calc(tiles));
+    await set(0, 'a y');
+    check(/^Only x and y/.test(await page.calc(note)), t + 'a letter of its own says so', await page.calc(note));
+
+    await page.click('.calc-solve-tab[data-tab="chance"]');
+    await card('Normal probability');
+    await set(0, '-1');
+    await set(1, '1');
+    check(await page.calc(tiles) === 'P(a ≤ X ≤ b)=0.682689492137 | Outside=0.317310507863', t + 'within one σ of the mean', await page.calc(tiles));
+    await card('Student\'s t');
+    await set(0, '2.228');
+    got = await page.calc(tiles);
+    check(got.indexOf('P(|T| ≥ |t|)=0.0500117718171') > 0 && got.indexOf('±t for p=2.228138852') > 0, t + 't of 10 degrees: its p-value and the t of 95%', got);
+    await card('Normal probability');
+    await page.click(on + ' .calc-sv-tile');
+    check(!await open(page, '.calc-solve') && near(await value(page), 0.682689492137), t + 'a click on a result puts it in', await value(page));
+    await page.click('.calc-solve-btn');
+    check(await page.calc('document.querySelector(".calc-solve-tab.calc-on").dataset.tab') === 'chance' &&
+        await page.calc('[].map.call(document.querySelectorAll("' + on + ' input"), function (b) { return b.value; }).join()') === '-1,1,,',
+        t + 'opened again, as it was left');
+    await page.key('Escape', 27);
+    check(!await open(page, '.calc-solve'), t + 'Esc closes it');
+}
+
+// The numbers: complex numbers worked out, whole numbers in bits in every base, a matrix and two;
+// a number of a matrix found goes in with a click
+async function numbersPanel(page, at) {
+    var t = at + ': numbers: ', on = '.calc-numbers .calc-sv-item.calc-on',
+        tiles = '[].map.call(document.querySelectorAll(".calc-numbers .calc-sv-item.calc-on .calc-sv-tile"), function (e) {' +
+            ' return e.querySelector(".calc-sv-label").textContent + "=" + e.lastChild.textContent; }).join(" | ")',
+        note = 'document.querySelector(".calc-numbers .calc-sv-item.calc-on .calc-sv-note").textContent', got;
+
+    function set(n, text) {
+        return page.calc('(function (b) { b.value = ' + JSON.stringify(text) + '; b.dispatchEvent(new Event("input", { bubbles: true })); })' +
+            '(document.querySelectorAll("' + on + ' input")[' + n + '])');
+    }
+    async function card(name) {
+        await page.calc('[].filter.call(document.querySelectorAll(".calc-numbers .calc-sv-name"), function (n) { return n.textContent === ' + JSON.stringify(name) +
+            '; })[0].parentNode.parentNode.click()');
+        await sleep(60);
+    }
+
+    await page.fresh(at, {});
+    await page.click('.calc-numbers-btn');
+    check(await open(page, '.calc-numbers') && await page.calc('document.querySelectorAll(".calc-numbers .calc-solve-tab").length') === 4,
+        t + 'its button opens it, with four tabs');
+    check(await page.calc('document.querySelector(".calc-numbers .calc-solve-tab.calc-on").dataset.tab') === 'matrix' &&
+        await page.calc('document.querySelector(".calc-numbers .calc-solve-tab").dataset.tab') === 'matrix', t + 'Matrix the first tab, open at first');
+    await page.click('.calc-numbers .calc-solve-tab[data-tab="complex"]');
+    await page.click('.calc-numbers .calc-sv-item:nth-child(1) .calc-sv-row');
+    check(await page.calc('document.activeElement === document.querySelector("' + on + ' input")'), t + 'a card opens with its box to type in');
+    await set(0, '(2+3i)(1-i)'); // the harness types ( as the arrow down
+    got = await page.calc(tiles);
+    check(got.indexOf('a + bi=5 + i | Real part=5 | Imaginary part=1 | Length |z|=5.09901951359') === 0 && got.indexOf('Conjugate=5 – i') > 0,
+        t + '(2 + 3i)(1 – i) is 5 + i, its length and conjugate', got);
+    await set(0, 'e^(i pi)');
+    check((await page.calc(tiles)).indexOf('a + bi=-1 | ') === 0 && (await page.calc(tiles)).indexOf('Conjugate=-1') > 0, t + 'e^(iπ) is -1', await page.calc(tiles));
+    await set(0, 'x + i');
+    check(/^Not a complex number/.test(await page.calc(note)), t + 'x has no value here', await page.calc(note));
+    await card('Roots of a complex number');
+    await set(0, '-16');
+    check(await page.calc(tiles) === 'z1=1.41421356237 + 1.41421356237i | z2=-1.41421356237 + 1.41421356237i | z3=-1.41421356237 – 1.41421356237i | ' +
+        'z4=1.41421356237 – 1.41421356237i | On the plane=', t + 'the four fourth roots of -16, drawn on the plane', await page.calc(tiles));
+    check(await page.calc('document.querySelectorAll("' + on + ' .calc-sv-plane circle").length') === 5, t + 'the plane: a dot for each root, and their circle');
+    await card('Polynomial roots');
+    await set(0, 'x^2+1');
+    check(await page.calc(tiles) === 'Multiplied out=x2 + 1 | z1=–i | z2=i | On the plane=', t + 'x² + 1 has the roots ±i', await page.calc(tiles));
+    await set(0, 'x^2 + (1+i)x + 2i');
+    check((await page.calc(tiles)).indexOf('Multiplied out=x2 + (1 + i)x + 2i | z1=-1.36602540378 + 0.366025403784i | ') === 0, t + 'a polynomial of complex coefficients', await page.calc(tiles));
+
+    await page.click('.calc-numbers .calc-solve-tab[data-tab="base"]');
+    check(await page.calc('document.querySelectorAll(".calc-numbers .calc-sv-item").length') === 5, t + 'five cards of bases');
+    await card('Bases');
+    await set(0, '0xFF AND 0b1010');
+    check(await page.calc(tiles) === 'Decimal=10 | Unsigned=10 | Hexadecimal=A | Octal=12 | Binary=0000 0000 0000 0000 0000 0000 0000 1010',
+        t + '0xFF AND 0b1010 in every base', await page.calc(tiles));
+    await set(0, '-1');
+    await set(1, '8');
+    check(await page.calc(tiles) === 'Decimal=-1 | Unsigned=255 | Hexadecimal=FF | Octal=377 | Binary=1111 1111', t + '-1 in 8 bits', await page.calc(tiles));
+    await set(0, '0x81 rol 1');
+    check((await page.calc(tiles)).indexOf('Decimal=3 | ') === 0, t + 'ROL turns the bits round', await page.calc(tiles));
+    await set(0, '0x81 rol');
+    check(/ROL ROR\.$/.test(await page.calc(note)), t + 'what is not one says ROL and ROR as well', await page.calc(note));
+    await card('Bits');
+    await set(1, '8');
+    check(await page.calc('document.querySelectorAll("' + on + ' .calc-sv-bit").length') === 8 && await page.calc('document.querySelectorAll("' + on + ' .calc-sv-bit.calc-on").length') === 0,
+        t + 'bits: empty is 0, eight bits to click');
+    await page.click(on + ' .calc-sv-bit[data-b="7"]');
+    await page.click(on + ' .calc-sv-bit[data-b="0"]');
+    got = await page.calc(tiles);
+    check(await page.calc('document.querySelector("' + on + ' input").value') === '0b10000001' && got.indexOf('Decimal=-127 | Hexadecimal=81 | Ones=2 | Leading zeros=0 | Trailing zeros=0 | Highest 1=7 | Lowest 1=0') > 0,
+        t + 'bits: two clicked, written in binary in its box', got);
+    await set(0, '0xF0');
+    await page.click(on + ' .calc-sv-bit[data-b="0"]');
+    check(await page.calc('document.querySelector("' + on + ' input").value') === '0xF1' && await open(page, '.calc-numbers'), t + 'bits: a click writes 0x as it was typed, and puts nothing in');
+    await card('IEEE 754');
+    await set(0, '0.1');
+    got = await page.calc(tiles);
+    check(got.indexOf('Number=0.1 | Double, 64 bits=0x3FB999999999999A | Kept as a double=0.1000000000000000055511151231257827021181583404541015625 | Sign=+ | Exponent=-4 | Kind=Normal') === 0 &&
+        got.indexOf('Float, 32 bits=0x3DCCCCCD | Kept as a float=0.100000001490116119384765625') > 0,
+        t + '0.1 as a double and a float, to its last digit', got);
+    await set(0, '0x3DCCCCCD');
+    check(/^The bits of a float/.test(await page.calc(note)) && (await page.calc(tiles)).indexOf('Double, 64 bits=0x3FB99999A0000000') > 0, t + 'the bits of a float for the number', await page.calc(tiles));
+    await card('Any base');
+    await set(0, '0.1');
+    check(await page.calc(tiles) === 'In base 2=0.0(0011) | Decimal=0.1 | Fraction=1/10', t + '0.1 in base 2 comes round', await page.calc(tiles));
+    await set(0, 'FF.8');
+    await set(1, '16');
+    await set(2, '10');
+    check(await page.calc(tiles) === 'In base 10=255.5 | Decimal=255.5 | Fraction=511/2', t + 'FF.8 of base 16 in base 10', await page.calc(tiles));
+    await card('Text and codes');
+    await set(0, 'Hé');
+    check((await page.calc(tiles)).indexOf('Text=Hé | Code points=U+0048 U+00E9 | Decimal=72 233 | UTF-8=48 C3 A9 | ') === 0, t + 'the codes of a text', await page.calc(tiles));
+    await set(0, '');
+    await set(1, '0xC3 0xA9');
+    check((await page.calc(tiles)).indexOf('Text=é | ') === 0, t + 'a text of the bytes of UTF-8', await page.calc(tiles));
+
+    await page.click('.calc-numbers .calc-solve-tab[data-tab="matrix"]');
+    await card('A matrix');
+    check(await page.calc('document.querySelectorAll("' + on + ' input").length') === 6, t + 'a matrix of 2×2 at first, its size, its power and four boxes');
+    for (const [n, v] of [[2, '1'], [3, '2'], [4, '3'], [5, '4']]) await set(n, v);
+    got = await page.calc(tiles);
+    check(got === 'det A=-2 | Rank=2 | A–1=-211.5-0.5 | AT=1324 | A2=7101522', t + 'det, rank, inverse and square of [1 2; 3 4]', got);
+    await set(1, '-1');
+    check((await page.calc(tiles)).indexOf('A–1=-211.5-0.5') > 0 && / \| A–1=-211\.5-0\.5$/.test(await page.calc(tiles)), t + 'its power -1 is its inverse', await page.calc(tiles));
+    await set(1, '');
+    await set(0, '3');
+    check(await page.calc('document.querySelectorAll("' + on + ' input").length') === 11 &&
+        await page.calc('document.activeElement === document.querySelector("' + on + ' input")'), t + 'a size of 3 makes nine boxes, the size keeping the focus');
+    await set(0, '2');
+    await page.click(on + ' .calc-sv-matrix .calc-sv-cell:nth-child(2)');
+    check(!await open(page, '.calc-numbers') && await value(page) === 1, t + 'a number of the inverse goes in with a click', await value(page));
+    await page.click('.calc-numbers-btn');
+    await card('Two matrices');
+    await set(0, '1x2');
+    check(/Size of A/.test(await page.calc('document.querySelector("' + on + '").textContent')) &&
+        (await page.calc(tiles)).indexOf('A + B=– | A – B=– | A × B=00') === 0, t + 'two matrices: a sum of sizes that differ has none', await page.calc(tiles));
+    await card('Eigenvalues');
+    for (const [n, v] of [[1, '2'], [2, '1'], [3, '1'], [4, '2']]) await set(n, v);
+    check(await page.calc(tiles) === 'λ1=1 | λ2=3 | Trace=4 | det(λI – A)=λ2 – 4λ + 3 | v1 of λ = 1=-11 | v2 of λ = 3=11', t + 'the eigenvalues and vectors of [2 1; 1 2]', await page.calc(tiles));
+    for (const [n, v] of [[1, '0'], [2, '-1'], [3, '1'], [4, '0']]) await set(n, v);
+    check(await page.calc(tiles) === 'λ1=i | λ2=–i | Trace=0 | det(λI – A)=λ2 + 1' && /^Its complex eigenvalues/.test(await page.calc(note)), t + 'a turn has eigenvalues ±i', await page.calc(tiles));
+    await set(1, 'a1b.5.c-');
+    check(await page.calc('document.querySelectorAll("' + on + ' input")[1].value') === '1.5', t + 'a box of a number keeps only a number, as the formulas\' do',
+        await page.calc('document.querySelectorAll("' + on + ' input")[1].value'));
+    await set(0, '2a×b2');
+    check(await page.calc('document.querySelector("' + on + ' input").value') === '2×2', t + 'and its size only a size', await page.calc('document.querySelector("' + on + ' input").value'));
+    await set(0, '5');
+    check(/^A size/.test(await page.calc(note)) && await page.calc(tiles) === 'λ=–', t + 'eigenvalues: a size that is not one is said so', await page.calc(note));
+    await card('A x = b');
+    check(await page.calc('document.querySelectorAll("' + on + ' input").length') === 7 && await page.calc('document.querySelectorAll("' + on + ' .calc-sv-rhs").length') === 2,
+        t + 'A x = b: a size, and a row of A and of b for each equation');
+    for (const [n, v] of [[1, '1'], [2, '1'], [3, '3'], [4, '1'], [5, '-1'], [6, '1']]) await set(n, v);
+    check((await page.calc(tiles)).indexOf('x1=2 | x2=1 | [A | b] reduced=102011') === 0, t + 'x + y = 3 and x – y = 1, and [A | b] reduced', await page.calc(tiles));
+    for (const [n, v] of [[4, '2'], [5, '2'], [6, '6']]) await set(n, v);
+    check((await page.calc(tiles)).indexOf('x1=3 | x2=0 | All of them=x = p + t1v1 | p=30 | v1=-11') === 0 && /^Many answers/.test(await page.calc(note)),
+        t + 'the same line twice: all of its answers', await page.calc(tiles));
+    await set(0, '3 2');
+    for (const [n, v] of [[1, '1'], [2, '0'], [3, '1'], [4, '0'], [5, '1'], [6, '2'], [7, '1'], [8, '1'], [9, '4']]) await set(n, v);
+    check(/^No answer/.test(await page.calc(note)) && /least squares/.test(await page.calc(note)) && (await page.calc(tiles)).indexOf('|Ax – b|=') > 0,
+        t + 'three equations of two unknowns that cannot all hold: the nearest by least squares', await page.calc(note));
+    await card('Row reduce');
+    for (let n = 1; n <= 9; n++) await set(n, String(n));
+    check(await page.calc(tiles) === 'rref A=10-1012000 | Rank=2 | Nullity=1 | Columns of its first 1s=1, 2 | Null space v1=1-21', t + 'row reduce [1 2 3; 4 5 6; 7 8 9], and its null space', await page.calc(tiles));
+    await card('Vectors');
+    await set(0, '1, 2, 3');
+    await set(1, '4, 5, 6');
+    check((await page.calc(tiles)).indexOf('u · v=32 | u × v=-36-3 | |u|=3.74165738677 | |v|=8.77496438739 | ') === 0, t + 'the dot and cross products of two vectors', await page.calc(tiles));
+    await set(1, '4, 5');
+    check(/^Two vectors of one size/.test(await page.calc(note)), t + 'vectors of two sizes', await page.calc(note));
+
+    await page.click('.calc-numbers .calc-solve-tab[data-tab="whole"]');
+    await card('Prime factors');
+    await set(0, '360');
+    got = await page.calc(tiles);
+    check(got.indexOf('Prime factors=23 × 32 × 5 | Prime=No | Divisors=24 | ') === 0 && /Each divisor=1, 2, 3, 4, 5, 6, 8, 9, 10, 12, 15, 18, 20, 24, 30, 36, 40, 45, 60, 72, 90, 120, 180, 360$/.test(got),
+        t + '360 in its prime factors, with its divisors', got);
+    await set(0, '1000000016000000063');
+    check((await page.calc(tiles)).indexOf('Prime factors=1000000007 × 1000000009 | Prime=No') === 0, t + 'a number of 19 digits factored', await page.calc(tiles));
+    await set(0, '1.5');
+    check(/^A whole number/.test(await page.calc(note)), t + '1.5 is not whole', await page.calc(note));
+    await card('GCD and LCM');
+    await set(0, '12, 18, 30');
+    check(await page.calc(tiles) === 'GCD=6 | LCM=180 | Coprime=No', t + 'the GCD and LCM of 12, 18 and 30', await page.calc(tiles));
+    await card('Modular arithmetic');
+    await set(0, '3');
+    await set(1, '4');
+    await set(2, '7');
+    check(await page.calc(tiles) === 'a mod m=3 | ab mod m=4 | a–1 mod m=5 | a x ≡ b (mod m)=x ≡ 6 (mod 7)', t + '3, 4 and 7 mod 7', await page.calc(tiles));
+    await card('Chinese remainder');
+    await set(0, '2 mod 3, 3 mod 5, 2 mod 7');
+    check(await page.calc(tiles) === 'x=23 | Modulus=105 | All of them=x ≡ 23 (mod 105)', t + 'the Chinese remainder theorem', await page.calc(tiles));
+    await card('Exactly');
+    await set(0, '50 nCr 25');
+    check((await page.calc(tiles)).indexOf('Exactly=126410606437752 | Digits=15 | ') === 0, t + '50 nCr 25 to every digit', await page.calc(tiles));
+    await set(0, '1/3 + 1/6');
+    check((await page.calc(tiles)).indexOf('Exactly=1/2 | ') === 0, t + 'fractions stay fractions', await page.calc(tiles));
+    await card('Primes');
+    await set(0, '100');
+    check(await page.calc(tiles) === 'Prime=No | Previous prime=97 | Next prime=101 | π(n), primes up to n=25 | The n-th prime=541', t + 'the primes about 100', await page.calc(tiles));
+    await card('Primes between');
+    await set(0, '10');
+    await set(1, '30');
+    check(await page.calc(tiles) === 'How many=6 | The primes=11, 13, 17, 19, 23, 29', t + 'the primes from 10 to 30', await page.calc(tiles));
+    await card('Fraction and decimal');
+    await set(0, '0.1(6)');
+    check((await page.calc(tiles)).indexOf('Fraction=1/6 | Mixed=– | ') === 0 && (await page.calc(tiles)).indexOf('Decimal=0.1(6) | Continued fraction=[0; 6]') > 0,
+        t + '0.1(6) is 1/6', await page.calc(tiles));
+    await card('Round');
+    await set(0, '-2.5');
+    check((await page.calc(tiles)).indexOf('Rounded=-3 | Down ⌊x⌋=-3 | Up ⌈x⌉=-2 | Toward 0=-2 | Fraction part=-0.5') === 0,
+        t + '-2.5 rounded half away from 0, down, up and toward 0', await page.calc(tiles));
+    await set(0, '1.005');
+    await set(1, '2');
+    check((await page.calc(tiles)).indexOf('Rounded=1.01 | Down ⌊x⌋=1 | Up ⌈x⌉=1.01 | Toward 0=1 | Fraction part=0.005 | To 2 figures=1') === 0,
+        t + '1.005 to 2 places is 1.01, as it reads', await page.calc(tiles));
+    await page.click(on + ' .calc-sv-tile:nth-child(1)');
+    check(!await open(page, '.calc-numbers') && await value(page) === 1.01, t + 'a number rounded goes in with a click', await value(page));
+    await page.click('.calc-numbers-btn');
+    await page.key('Escape', 27);
+    check(!await open(page, '.calc-numbers'), t + 'Esc closes it');
+}
+
 async function graphBig(page, at) {
     var t = at + ': big: ', big = 'document.getElementById("calculator").classList.contains("calc-big")',
         note = 'document.querySelector(".calc-graph-note").textContent',
@@ -1623,6 +1949,17 @@ async function secondKeys(page, at) {
     check(await shown(page) === '4', t + 'h, ^ is logᵧ', await shown(page));
     await page.type('hp');
     check(near(await value(page), Math.E), t + 'h, p is e', await shown(page));
+
+    // floor and ceil on the 2nd layer of abs and x!, side by side, and round on that of Rand
+    await page.fresh(at, {});
+    await page.click(KEYS + '1)');
+    check(await label(KEYS + '25)') === 'floor' && await label(KEYS + '26)') === 'ceil' && await label(KEYS + '30)') === 'round',
+        t + '2nd turns abs, x! and Rand into floor, ceil and round', await label(KEYS + '25)') + ' ' + await label(KEYS + '26)') + ' ' + await label(KEYS + '30)'));
+    for (const [key, want] of [['25', 3], ['26', 4], ['30', 4]]) {
+        await page.click(KEYS + key + ')');
+        await page.type('7/2\r');
+        check(await value(page) === want, t + '7/2 ' + await label(KEYS + key + ')') + ' = ' + want, await shown(page));
+    }
 }
 
 // the °′″ key: results in degrees, minutes and seconds, kept in the
@@ -1748,7 +2085,7 @@ async function converter(page, at) {
 
     // its button comes after f(x), as its option does
     await page.fresh(at, {});
-    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-stat-btn', t + 'the converter between f(x) and the graph',
+    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-solve-btn calc-stat-btn calc-numbers-btn', t + 'the converter between f(x) and the graph',
         await buttons(page));
 
     // the result shown is the value to start from
@@ -1956,7 +2293,7 @@ async function menus(page, at) {
     await page.rightClick('.calc-past-res');
     await pick(page, 'Delete');
     check(await page.calc('document.querySelectorAll(".calc-past-row").length') === 1, t + 'Delete takes the line out');
-    await page.rightClick('.calc-past:not(.calc-stats):not(.calc-fx):not(.calc-conv):not(.calc-graph) .calc-past-head span');
+    await page.rightClick('.calc-past:not(.calc-stats):not(.calc-fx):not(.calc-conv):not(.calc-graph):not(.calc-solve):not(.calc-numbers) .calc-past-head span');
     check(await menu(page) === 'Clear history', t + 'above the lines, Clear history', await menu(page));
     await pick(page, 'Clear history');
     check(await page.calc('document.querySelector(".calc-hist").hidden'), t + 'which empties it');
@@ -2196,7 +2533,7 @@ async function options(page) {
 
     await page.fresh('/frame.html', {});
     t = 'in a frame: ';
-    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-stat-btn', t + 'all four buttons');
+    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-solve-btn calc-stat-btn calc-numbers-btn', t + 'all four buttons');
     await page.click('.calc-fx-btn');
     await page.ev('localStorage.setItem("fxOn", "false")');
     check(await page.until('!(document.getElementById("calc-iframe").contentDocument.querySelector(".calc-fx-btn").offsetWidth)'),
@@ -2298,7 +2635,7 @@ async function adminPolicy(page) {
     // the popup: the graph goes, kept for the next time it opens
     await page.fresh('/popup.html', {});
     check(await page.until('document.querySelector(".calc-graph-btn").hidden'), t + 'the graph turned off goes from the popup');
-    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-stat-btn', t + 'the rest stays', await buttons(page));
+    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-solve-btn calc-stat-btn calc-numbers-btn', t + 'the rest stays', await buttons(page));
     check(await page.ev('localStorage.getItem("policy")') === '{"graph":false,"detachedMode":false,"pageButton":false}',
         t + 'kept, with the button on the pages, which opens Detached Mode', await page.ev('localStorage.getItem("policy")'));
     await change({});
@@ -2320,6 +2657,9 @@ async function adminPolicy(page) {
         t + 'Detached Mode cannot be launched, nor the button on the pages turned on');
     check(await page.ev('!document.getElementById("panel-fx").disabled && document.getElementById("panel-fx").checked && ' +
         '!document.querySelector("#panel-fx").closest(".option").querySelector(".managed-note")'), t + 'f(x) is as it was');
+    await change({ solve: false, numbers: false });
+    check(await page.until('document.getElementById("panel-solve").disabled') && await page.ev('document.getElementById("panel-numbers").disabled && ' +
+        '!document.getElementById("panel-solve").checked && !document.getElementById("panel-graph").disabled'), t + 'the switches of the solver and the numbers are locked too');
     await change({});
     check(await page.until('!document.getElementById("panel-graph").disabled') && await page.ev('document.getElementById("panel-graph").checked') &&
         !await page.ev('document.querySelector(".managed-note")') && !await page.ev('document.getElementById("launch-detached").disabled'),
@@ -2444,6 +2784,10 @@ async function website(page) {
         await modeKey(page, '/web/index.html');
         await converter(page, '/popup.html');
         await converter(page, '/web/index.html');
+        await solver(page, '/popup.html');
+        await solver(page, '/web/index.html');
+        await numbersPanel(page, '/popup.html');
+        await numbersPanel(page, '/web/index.html');
         await graphPanel(page, '/popup.html');
         await graphPanel(page, '/web/index.html');
         await graphTable(page, '/popup.html');

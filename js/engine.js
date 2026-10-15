@@ -31,7 +31,8 @@
             'sin': 'sin', 'cos': 'cos', 'tan': 'tan', 'sinh': 'sinh', 'cosh': 'cosh', 'tanh': 'tanh',
             'asin': 'sin-1', 'acos': 'cos-1', 'atan': 'tan-1', 'asinh': 'sinh-1', 'acosh': 'cosh-1', 'atanh': 'tanh-1',
             'arcsin': 'sin-1', 'arccos': 'cos-1', 'arctan': 'tan-1', 'arsinh': 'sinh-1', 'arcosh': 'cosh-1', 'artanh': 'tanh-1',
-            'ln': 'ln', 'log': 'log', 'sqrt': '√', 'exp': 'ex', 'abs': 'abs'
+            'ln': 'ln', 'log': 'log', 'sqrt': '√', 'exp': 'ex', 'abs': 'abs',
+            'round': 'round', 'floor': 'floor', 'ceil': 'ceil', 'ceiling': 'ceil', 'trunc': 'trunc'
         },
         OPS = { // operator characters in pasted text
             '+': '+', '-': '-', '−': '-', '–': '-', '—': '-', '*': '×', '×': '×', '·': '×', '⋅': '×',
@@ -81,7 +82,13 @@
             'sinh-1': { t: 'fn', f: function (x) { return Math.asinh(x); } },
             'cosh-1': { t: 'fn', f: function (x) { return Math.acosh(x); } },
             'tanh-1': { t: 'fn', f: function (x) { return Math.atanh(x); } },
-            'abs': { t: 'fn', f: function (x) { return Math.abs(x); } }
+            'abs': { t: 'fn', f: function (x) { return Math.abs(x); } },
+            // to a whole number: the nearest, half away from 0 as on paper; the one below, above, or toward 0.
+            // Of the number as it reads, so floor(0.7 ÷ 0.1) is 7 however the machine keeps it
+            'round': { t: 'fn', f: function (x) { return x < 0 ? 0 - Math.round(-tidy(x)) : Math.round(tidy(x)) + 0; } },
+            'floor': { t: 'fn', f: function (x) { return Math.floor(tidy(x)) + 0; } },
+            'ceil': { t: 'fn', f: function (x) { return Math.ceil(tidy(x)) + 0; } },
+            'trunc': { t: 'fn', f: function (x) { return Math.trunc(tidy(x)) + 0; } }
         };
 
     // ---------- accuracy ---------- //
@@ -910,6 +917,14 @@
             rough: c.rough,
             piece: c.piece
         };
+    }
+
+    // An expression read as the graph reads it, its letters each a number of its own: what
+    // parse gives, for others to work out in their own way, as with complex numbers; null if
+    // the text is not one, or stops before its end
+    function tree(text, comma) {
+        var s = separators(String(text).trim(), comma), toks = s.length <= MAX_PASTE && tokens(s, null, true), t = toks && parse(toks);
+        return t && complete(t) ? t : null;
     }
 
     // the name of the function a box makes, g of g(x) = x^2 + 1, or null
@@ -3001,6 +3016,7 @@
     Engine.fitLine = fitLine;
     Engine.fit = fit;
     Engine.named = named;
+    Engine.tree = tree;
     Engine.spans = spans;
     Engine.regionArea = regionArea;
     Engine.onRelation = onRelation;

@@ -134,6 +134,37 @@
             k: 'Esc'
         },
 
+        // the solver
+        'solve': {
+            t: 'Solve',
+            d: 'Equations and inequalities solved for x, in exact form as well; turning points; polynomials, linear equations and ' +
+                'two curves; integrals, slopes, sums, products, ' +
+                'limits, Taylor series, areas between curves, arc lengths and differential equations; the normal, t, χ², F, binomial, ' +
+                'Poisson and other distributions, and confidence intervals. Click a result to put it in.',
+            k: ''
+        },
+        'solve close': {
+            t: 'Close the solver',
+            d: 'What you typed stays for the next time.',
+            k: 'Esc'
+        },
+
+        // the numbers
+        'numbers': {
+            t: 'Matrices, complex numbers and bases',
+            d: 'Matrices, their determinant, inverse, powers, products and eigenvalues, rows reduced, LU and QR, and A x = b; vectors; ' +
+                'complex numbers, (2 + 3i)(1 – i), with their length and angle, and roots of polynomials of them; whole numbers in bits, in decimal, ' +
+                'hexadecimal, octal and binary, with AND, OR and XOR, their bits to click, any base, text as its codes, and numbers as doubles and floats; ' +
+                'and the prime factors of a whole number, GCD and LCM, modular arithmetic, primes, numbers to every digit, fractions, and rounding. ' +
+                'Click a result to put it in.',
+            k: ''
+        },
+        'numbers close': {
+            t: 'Close the numbers',
+            d: 'What you typed stays for the next time.',
+            k: 'Esc'
+        },
+
         // the graph
         'graph': {
             t: 'Graph',
@@ -154,7 +185,7 @@
         },
         'graph in': {
             t: 'Zoom in',
-            d: 'Twice as close, about the middle. The wheel or a pinch zooms about where it is.',
+            d: 'Twice as close, about the middle. The wheel zooms about where it points, bringing that toward the middle; a pinch zooms about where it is.',
             k: ''
         },
         'graph out': {
@@ -287,8 +318,8 @@
             t: 'Area under a curve',
             d: 'Press, then drag along a curve from one x to another: the area between it and the x axis is shaded, ' +
                 'above the axis counted up and below it down. Pressed between two curves, the area between them, ' +
-                'the upper one less the lower. An end near a root or a crossing goes to it. It stays pressed for another, ' +
-                'until it is pressed again, Esc, or a button of the view.',
+                'the upper one less the lower. An end near a root or a crossing goes to it; held at a side, the view slides on for more. It stays pressed for another, ' +
+                'until it is pressed again, a double click on the plot, Esc, or a button of the view.',
             k: ''
         },
         'graph end a': {
@@ -654,12 +685,32 @@
             t: 'Absolute value',
             d: 'The number without its sign: 3 +/– abs = 3.',
             first: 'The number without its sign: abs – 3 = 3.',
-            k: '|'
+            k: '|',
+            second: 'floor'
+        },
+        'round': {
+            t: 'Round',
+            d: 'The nearest whole number, half away from 0: 2.5 round = 3, 2.4 round = 2. For d places, the Integer tab of the numbers.',
+            first: 'The nearest whole number, half away from 0: round 2.5 = 3, round 2.4 = 2. For d places, the Integer tab of the numbers.',
+            k: 'Shift+O'
+        },
+        'floor': {
+            t: 'Floor',
+            d: 'The whole number at or below the number: 2.7 floor = 2, and of -2.7, -3.',
+            first: 'The whole number at or below the number: floor 2.7 = 2, and of -2.7, -3.',
+            k: 'Shift+F'
+        },
+        'ceil': {
+            t: 'Ceiling',
+            d: 'The whole number at or above the number: 2.1 ceil = 3, and of -2.1, -2.',
+            first: 'The whole number at or above the number: ceil 2.1 = 3, and of -2.1, -2.',
+            k: 'Shift+U'
         },
         'x!': {
             t: 'Factorial',
             d: '5 x! = 120, 1 × 2 × 3 × 4 × 5. Decimals work as well: 2.5 x! = 3.323350970448.',
-            k: 'x'
+            k: 'x',
+            second: 'ceil'
         },
         'nCr': {
             t: 'Combinations',
@@ -699,7 +750,8 @@
         'Rand': {
             t: 'Random number',
             d: 'A new random number between 0 and 1 each time.',
-            k: 'h, n'
+            k: 'h, n',
+            second: 'round'
         },
         'Ans': {
             t: 'Last answer',

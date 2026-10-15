@@ -78,6 +78,26 @@
             <div class="option">
                 <span class="option-icon screen-icon">
                     <svg viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M2 4.5l5 7M7 4.5l-5 7" stroke-width="1.6"></path>
+                        <path d="M9.5 6.5H14M9.5 9.5H14" stroke-width="1.6"></path>
+                    </svg>
+                </span>
+                <div class="option-text">
+                    <h3>Solve</h3>
+                    <p>A button at the top left of the display that solves an equation or an inequality for x, a
+                        polynomial, two or three linear equations or two curves, finds turning points, integrals,
+                        slopes, sums and products to ∞, limits, Taylor series, areas between curves, arc lengths and
+                        differential equations, the chances of the normal, t, χ², F, binomial, Poisson and other
+                        distributions, and confidence intervals.</p>
+                </div>
+                <label class="switch" title="Solve">
+                    <input type="checkbox" id="panel-solve">
+                    <span></span>
+                </label>
+            </div>
+            <div class="option">
+                <span class="option-icon screen-icon">
+                    <svg viewBox="0 0 16 16" aria-hidden="true">
                         <path d="M3.5 13.5V9M8 13.5V3M12.5 13.5V6.5" stroke-width="1.8"></path>
                     </svg>
                 </span>
@@ -88,6 +108,27 @@
                 </div>
                 <label class="switch" title="Statistics">
                     <input type="checkbox" id="panel-stats">
+                    <span></span>
+                </label>
+            </div>
+            <div class="option">
+                <span class="option-icon screen-icon">
+                    <svg viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M4.2 2.5H2.2v11h2M11.8 2.5h2v11h-2" stroke-width="1.4"></path>
+                        <path d="M6.19 7.42C6.34 6.82 7.2 6.07 8.28 5.83C8.85 5.7 9.18 6 9.11 6.54L7.96 11.06C7.81 11.53 8.1 11.69 8.5 11.38C8.85 11.1 9.18 10.75 9.34 10.52C9.43 10.38 9.61 10.46 9.54 10.66C9.18 11.45 8.35 12.35 7.49 12.35C6.85 12.35 6.56 11.84 6.74 11.14L7.71 7.32C7.81 6.85 7.56 6.54 7.2 6.66C6.85 6.78 6.52 7.17 6.42 7.52C6.36 7.7 6.14 7.63 6.19 7.42ZM9.62 3.87a0.82 0.82 0 1 0-1.64 0a0.82 0.82 0 1 0 1.64 0Z" fill="currentColor" stroke-width=".35"></path>
+                    </svg>
+                </span>
+                <div class="option-text">
+                    <h3>Numbers</h3>
+                    <p>A button at the top left of the display for matrices: their determinant, inverse, powers,
+                        sums, products, eigenvalues, rows reduced, LU and QR, and A x = b, and vectors; complex
+                        numbers, such as (2 + 3i)(1 – i), and the roots of polynomials of them; whole numbers in bits
+                        with their hexadecimal, octal and binary, numbers in any base, text as its codes, and numbers
+                        as doubles and floats; and whole numbers' prime factors, GCD and LCM, modular arithmetic,
+                        primes, numbers to every digit, fractions and their decimals, and rounding.</p>
+                </div>
+                <label class="switch" title="Numbers">
+                    <input type="checkbox" id="panel-numbers">
                     <span></span>
                 </label>
             </div>
@@ -173,15 +214,22 @@
                 <li><kbd class="k k-red">DEL</kbd> button (or Backspace) to take back the last key you pressed, one key at a time.</li>
                 <li>Cursor: click into the equation, or use the arrow keys, to fix a number or an
                     operator in the middle of it. Back at the end, the calculator goes on as before.</li>
-                <li>Statistics: count, sum, mean, standard deviation, min, median and max of a list of numbers. See the
-                    "Statistics" section below.</li>
                 <li>Formulas and constants: some hundred formulas to fill in and sixty constants of math and science.
                     See the "Formulas and Constants" section below.</li>
                 <li>Converter: units of length, area, volume, mass, temperature and more. See the "Converter" section
                     below.</li>
                 <li>Graph: functions, equations, inequalities and points drawn, with their roots, highs, lows and
                     crossings. See the "Graph" section below.</li>
+                <li>Solve: every root of an equation, in exact form as well, inequalities, turning points,
+                    polynomials, linear systems, two curves, integrals, slopes, sums, limits, Taylor series,
+                    differential equations, probability and confidence intervals. See the "Solve" section below.</li>
+                <li>Statistics: count, sum, mean, standard deviation, min, median and max of a list of numbers. See the
+                    "Statistics" section below.</li>
+                <li>Numbers: matrices and their eigenvalues, vectors, complex numbers, bases and bits, text and its
+                    codes, IEEE 754, prime factors, modular arithmetic, primes, exact numbers, fractions and rounding.
+                    See the "Numbers" section below.</li>
                 <li><kbd class="k">mod</kbd>, <kbd class="k">gcd</kbd> and <kbd class="k">lcm</kbd> on the <kbd class="k">2nd</kbd> layer of <kbd class="k">%</kbd>, <kbd class="k"><sup>n</sup>C<sub>r</sub></kbd> and <kbd class="k"><sup>n</sup>P<sub>r</sub></kbd>.</li>
+                <li><kbd class="k">floor</kbd> and <kbd class="k">ceil</kbd> on the <kbd class="k">2nd</kbd> layer of <kbd class="k">abs</kbd> and <kbd class="k">x!</kbd>, side by side, and <kbd class="k">round</kbd> on that of <kbd class="k">Rand</kbd>: a number to the whole number below or above it, and to the nearest, half away from 0. They can be pasted too, with trunc, which goes toward 0: floor(7.5) = 7.</li>
                 <li><kbd class="k">10<sup>x</sup></kbd>, <kbd class="k">e</kbd> and <kbd class="k">log<sub>y</sub></kbd> (the logarithm to any base: 8 log<sub>y</sub> 2 = 3) on the <kbd class="k">2nd</kbd> layer of <kbd class="k">log</kbd>, <kbd class="k">&pi;</kbd> and <kbd class="k">y<sup>x</sup></kbd>.</li>
                 <li>Degrees, minutes and seconds: the <kbd class="k">°′″</kbd> key shows results as 36°52′11.63″, and DMS in the display shows it is on. Paste an angle written so, 12°30′15″, 12°30'15" or 51°30′26″N: alone it shows as written, and DMS turns on. In an equation it is a number of degrees, and sin, cos and tan of it are worked out in degrees whatever the unit in use: sin(30°) is 0.5 in Rad as well. The converter has degrees, minutes and seconds among its angles too.</li>
                 <li>Fraction mode: the <kbd class="k">a/b</kbd> key draws each division as a fraction while you type, and shows results like
@@ -215,7 +263,7 @@
         </div>
 
         <div class="features" data-tab="guide">
-            <h2 class="logo title">Formulas and Constants</h2>
+            <h2 class="logo title sub">Formulas and Constants</h2>
             <p>Click <i>f</i>x at the top left of the display. It has two tabs, Formulas and Constants, each with a
                 search: type a few words, area circle or interest, and only what has them all is listed. Enter in
                 the search opens the first one found.</p>
@@ -245,7 +293,7 @@
         </div>
 
         <div class="features" data-tab="guide">
-            <h2 class="logo title">Converter</h2>
+            <h2 class="logo title sub">Converter</h2>
             <p>Click the arrows at the top left of the display. Pick what to convert and the unit your value is in,
                 and the list shows it in all the other units of its kind at once, worked out as you type.</p>
             <ul>
@@ -265,7 +313,7 @@
         </div>
 
         <div class="features" data-tab="guide">
-            <h2 class="logo title">Graph</h2>
+            <h2 class="logo title sub">Graph</h2>
             <ul>
                 <li>Click the curve at the top left of the display and type a function of x, as you would paste it:
                     x^2 – 3, 2sin(x), 1/x or sqrt(x). The + at the top adds a box for another curve, up to seven,
@@ -290,8 +338,9 @@
                     drag along the curve from one x to another: the area to the x axis is shaded, below the axis
                     counted down; started between two curves, it is the area between them; an end near a root or a
                     crossing goes to it, else to a round number, and its popup inserts the area; type in its From x
-                    and To x for ends of your own. The button stays pressed for another area, and the graph does not
-                    move as you drag, until you press it again, Esc, or zoom, home or the view.</li>
+                    and To x for ends of your own. The graph does not move as you drag, but held at its left or right
+                    side it slides on that way, the area growing with it. The button stays pressed for another
+                    area, until you press it again, double-click the graph, Esc, or zoom, home or the view.</li>
                 <li>Click a curve's y′ to draw its slope, the derivative, dashed in its color, or type d/dx before
                     a function for its slope as a curve of its own: d/dx(x^2) is 2x.</li>
                 <li>An equation of x and y is drawn too, where its two sides are equal: x = 3, x^2 + y^2 = 25, x =
@@ -326,7 +375,35 @@
         </div>
 
         <div class="features" data-tab="guide">
-            <h2 class="logo title">Statistics</h2>
+            <h2 class="logo title sub">Solve</h2>
+            <p>Click x= at the top left of the display. Each tool is a card: open it, type in its boxes, and it is
+                worked out as you type. Click a result to put it into your calculation.</p>
+            <ul>
+                <li>Solve finds every root of an equation of x, x^3 = 2x + 1 or sin(x) = 0.5 (From and To say where
+                    to look), where an inequality holds, x^2 – 4 &gt; 0 as x &lt; –2 or x &gt; 2 and in intervals,
+                    the turning points of a function, its highs and lows, the real and complex roots of a quadratic,
+                    a cubic, a quartic or a polynomial of any power up to 30, typed as (x – 1)(x + 2)^2 or as its
+                    coefficients, x, y and z of two or three linear equations, and x and y where two curves meet,
+                    x^2 + y^2 = 25 and x + y = 7. A root that has an exact form shows it as well: √2, (1 + √5)/2,
+                    π/6, ln 2.</li>
+                <li>Calculus has the integral of a function from a to b, an end of inf going on without end, its
+                    exact form, √π or 1/3, and the function's average there; its value and slopes at x and the
+                    tangent line there; sums and products for n from a to b, b inf as well, 1/n^2 from 1 on as
+                    π²/6; the limit of a function as x comes to a, from below and above, sin(x)/x at 0 or
+                    (1 + 1/x)^x at inf; its Taylor series about a, sin x as x – x³/6 + x⁵/120 – …; the area between
+                    two curves and the length of one from a to b; and y at x of a differential equation, y′ = x + y
+                    with y(0) = 1.</li>
+                <li>Probability has the normal distribution's chances, density and inverse; Student's t, χ² and F,
+                    their chances, p-values and the value for a chance; binomial, Poisson, geometric and
+                    hypergeometric chances; exponential and uniform ones; confidence intervals of a mean and of a
+                    proportion; and random whole numbers.</li>
+                <li>A box of a number takes a calculation too: pi/4, sqrt(2). What you typed stays for the next
+                    time.</li>
+            </ul>
+        </div>
+
+        <div class="features" data-tab="guide">
+            <h2 class="logo title sub">Statistics</h2>
             <p>Click the bars at the top left of the display and type or paste a list of numbers, a column from a
                 spreadsheet as well, for its count, sum, mean, standard deviation (σ and s), min, median and max.
                 Click a result to use it in your calculation. The list finds what is between its numbers by itself;
@@ -334,6 +411,41 @@
                 instead, and a number written 1,234.5, 1 234,5 or $1,200 is read whole.</p>
         </div>
 
+        <div class="features" data-tab="guide">
+            <h2 class="logo title sub">Numbers</h2>
+            <p>Click the brackets with an i at the top left of the display. It has cards as the solver has, on four
+                tabs. Click a result, or a number of a matrix, to put it into your calculation.</p>
+            <ul>
+                <li>Matrix has a matrix of up to 4 × 4, its determinant, rank, inverse, transpose and power n, and
+                    the sum and products of two; its eigenvalues, real or complex, its characteristic polynomial and
+                    its eigenvectors; A x = b, linear equations of up to four unknowns, all of their answers where
+                    there are many, x = p + t v, and the nearest by least squares where there are none; its rows
+                    reduced, its rank and null space; P A = L U and A = Q R; and of two vectors, 1, 2, 3, their dot
+                    and cross products, lengths, the angle between them and the projection of one on the
+                    other.</li>
+                <li>Complex works out a complex number, (2 + 3i)(1 – i), sqrt(-4) or 2∠30 in polar form, for its
+                    real and imaginary parts, length, angle and conjugate, and the n-th roots of one, each drawn on
+                    the plane; and the roots of a polynomial of complex coefficients, x^2 + (1 + i)x + 2i.</li>
+                <li>Base works out whole numbers as a computer keeps them, in 8, 16, 32 or 64 bits: decimal, 0xFF,
+                    0b1010 or 0o17, with + – × ÷, mod, AND, OR, XOR, NOT, shifts and ROL and ROR, shown in decimal,
+                    hexadecimal, octal and binary. Bits shows each bit of a number, to turn over with a click, and
+                    how many are 1; IEEE 754 shows a number as a double and a float, 0.1 = 0x3FB999999999999A, what
+                    it is to its last digit, and the number of the bits of one. Any base writes a number of any base
+                    from 2 to 36 in another, the digits after its point as well, 0.1 as 0.0(0011) in base 2; Text and
+                    codes gives the code points, UTF-8 and UTF-16 of a text, é = U+00E9 = C3 A9, and a text of
+                    them.</li>
+                <li>Integer has the prime factors of a whole number of up to 20 digits, 360 = 2³ × 3² × 5, whether
+                    it is prime, and its divisors; the GCD and LCM of two numbers or more; a mod m, a^b mod m, the
+                    inverse of a and every x of a x ≡ b (mod m), and the Chinese remainder theorem, 2 mod 3, 3 mod 5;
+                    a calculation to every digit, 100!, 2^200, 50 nCr 25, fib(300); the primes before and after a
+                    number, π(n), the n-th prime and the primes from a to b; a fraction, a decimal or 0.1(6) as a
+                    fraction, a decimal with the part that comes again in brackets and a continued fraction; and a
+                    number rounded to d places, half away from 0, down, up and toward 0, and to d significant
+                    figures.</li>
+            </ul>
+        </div>
+
+        <hr class="guide-rule" data-tab="guide">
         <div class="features" data-tab="guide">
             <h2 class="logo title">Using the Calculator</h2>
             <div>
@@ -355,7 +467,7 @@
 
 
 
-                <h2 class="logo title">Keyboard Support</h2>
+                <h2 class="logo title sub">Keyboard Support</h2>
                 <p>There is full keyboard support for each button on the calculator.</p>
                 <ul>
                     <li>The numbers and + – × ÷ , . = keys can also be input on number block.</li>
@@ -374,7 +486,10 @@
                         is calculated right away.<br>
                         Double-click a number in the equation to select it whole, or drag over a part of it: what you
                         type or paste then goes in its place, and DEL takes it out.<br>
-                        Right-click the display for a menu with Cut, Copy and Paste as well. Copy takes
+                        Right-click the display for a menu with Cut, Copy and Paste as well, and Reset all, which
+                        starts the calculator afresh: the equation and the memory cleared, 2nd, fractions and °′″
+                        off, Rad, and what is typed in the statistics, the search of the formulas, the converter,
+                        the graph, the solver and the numbers cleared; the history stays. Copy takes
                         the part of the display you selected, or else the result. The first time you use Paste
                         there, the browser asks you to allow the calculator to read what you copied; Ctrl+V works
                         without that. The history, the formulas, the converter and the statistics have the menu
@@ -396,7 +511,7 @@
             </div>
         </div>
         <div class="calc-main" data-tab="guide">
-            <h2 class="logo title">Standard Functions </h2>
+            <h2 class="logo title sub">Standard Functions </h2>
             <div class="info">
                 <div class="calc-brown keys del-ac">
                     DEL
@@ -467,7 +582,7 @@
         </div>
 
         <div class="calc-sci" data-tab="guide">
-            <h2 class="logo title">Scientific Functions </h2>
+            <h2 class="logo title sub">Scientific Functions </h2>
             <div class="info">
                 <div class="trigo-keys">
                     [← →]
@@ -481,45 +596,23 @@
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
-                    <span><sup>n</sup>C<sub>r</sub></span>
-                </div><span class="des">[Shift+N] Combinations: the ways to choose r of n things. For example
-                    10 nCr 3 = returns 120. It works out before × and ÷, and after powers.</span>
+                <div id="rad" class="trigo-keys">
+                    Deg
+                </div><span class="des">[d or °] Changes the mode to express trigonometric functions in
+                    degrees.</span>
             </div>
-
             <div class="info">
-                <div class="trigo-keys">
-                    <span><sup>n</sup>P<sub>r</sub></span>
-                </div><span class="des">[Shift+P] Permutations: the ways to arrange r of n things in order. For
-                    example 5 nPr 2 = returns 20.</span>
+                <div id="rad" class="trigo-keys">
+                    Rad
+                </div><span class="des">[d or °] Changes the mode to express trigonometric functions in
+                    radians.</span>
             </div>
-
             <div class="info">
-                <div class="trigo-keys">
-                    mod
-                </div><span class="des">[Shift+M] On the <kbd class="k">2nd</kbd> layer of <kbd class="k">%</kbd>. The remainder after dividing: 17 mod 5 = 2.
-                    It takes the sign of the second number (-7 mod 3 = 2), and works with decimals (7.5 mod 2 =
-                    1.5).</span>
-            </div>
-
-            <div class="info">
-                <div class="trigo-keys">
-                    gcd
-                </div><span class="des">[Shift+G] On the <kbd class="k">2nd</kbd> layer of <kbd class="k"><sup>n</sup>C<sub>r</sub></kbd>. The greatest common divisor of two whole
-                    numbers: 12 gcd 18 = 6.</span>
-            </div>
-
-            <div class="info">
-                <div class="trigo-keys">
-                    lcm
-                </div><span class="des">[Shift+K] On the <kbd class="k">2nd</kbd> layer of <kbd class="k"><sup>n</sup>P<sub>r</sub></kbd>. The least common multiple of two whole
-                    numbers: 4 lcm 6 = 12.</span>
-            </div>
-
-            <div class="info">
-                <div class="trigo-keys">
-                    abs
-                </div><span class="des">[|] The absolute value: the number without its sign. abs(-3) is 3.</span>
+                <div id="rad" class="trigo-keys">
+                    Grad
+                </div><span class="des">[d or °] Changes the mode to express trigonometric functions in
+                    gradians, 400 to a full turn and 100 to a right angle: sin 100 is 1. The key goes from Rad to
+                    Deg to Grad and back to Rad, and names the unit it goes to next.</span>
             </div>
 
             <div class="info">
@@ -846,26 +939,67 @@
             </div>
 
             <div class="info">
-                <div id="rad" class="trigo-keys">
-                    Deg
-                </div><span class="des">[d or °] Changes the mode to express trigonometric functions in
-                    degrees.</span>
+                <div class="trigo-keys">
+                    <span><sup>n</sup>C<sub>r</sub></span>
+                </div><span class="des">[Shift+N] Combinations: the ways to choose r of n things. For example
+                    10 nCr 3 = returns 120. It works out before × and ÷, and after powers.</span>
             </div>
+
             <div class="info">
-                <div id="rad" class="trigo-keys">
-                    Rad
-                </div><span class="des">[d or °] Changes the mode to express trigonometric functions in
-                    radians.</span>
+                <div class="trigo-keys">
+                    <span><sup>n</sup>P<sub>r</sub></span>
+                </div><span class="des">[Shift+P] Permutations: the ways to arrange r of n things in order. For
+                    example 5 nPr 2 = returns 20.</span>
             </div>
+
             <div class="info">
-                <div id="rad" class="trigo-keys">
-                    Grad
-                </div><span class="des">[d or °] Changes the mode to express trigonometric functions in
-                    gradians, 400 to a full turn and 100 to a right angle: sin 100 is 1. The key goes from Rad to
-                    Deg to Grad and back to Rad, and names the unit it goes to next.</span>
+                <div class="trigo-keys">
+                    mod
+                </div><span class="des">[Shift+M] On the <kbd class="k">2nd</kbd> layer of <kbd class="k">%</kbd>. The remainder after dividing: 17 mod 5 = 2.
+                    It takes the sign of the second number (-7 mod 3 = 2), and works with decimals (7.5 mod 2 =
+                    1.5).</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    gcd
+                </div><span class="des">[Shift+G] On the <kbd class="k">2nd</kbd> layer of <kbd class="k"><sup>n</sup>C<sub>r</sub></kbd>. The greatest common divisor of two whole
+                    numbers: 12 gcd 18 = 6.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    lcm
+                </div><span class="des">[Shift+K] On the <kbd class="k">2nd</kbd> layer of <kbd class="k"><sup>n</sup>P<sub>r</sub></kbd>. The least common multiple of two whole
+                    numbers: 4 lcm 6 = 12.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    abs
+                </div><span class="des">[|] The absolute value: the number without its sign. abs(-3) is 3.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    round
+                </div><span class="des">[Shift+O] On the <kbd class="k">2nd</kbd> layer of <kbd class="k">Rand</kbd>. The nearest whole number, half away from 0: round(2.5) is 3, round(-2.5) is -3.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    floor
+                </div><span class="des">[Shift+F] On the <kbd class="k">2nd</kbd> layer of <kbd class="k">abs</kbd>. The whole number at or below: floor(2.7) is 2, floor(-2.7) is -3.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    ceil
+                </div><span class="des">[Shift+U] On the <kbd class="k">2nd</kbd> layer of <kbd class="k">x!</kbd>. The whole number at or above: ceil(2.1) is 3, ceil(-2.1) is -2.</span>
             </div>
 
         </div>
+        <hr class="guide-rule" data-tab="guide">
         <div class="features" data-tab="guide">
             <h2 class="logo title">About Precision</h2>
             <p>This calculator operates with a precision of about 15 significant digits (only). This is due to how
@@ -894,8 +1028,8 @@
         <div class="features" data-tab="guide">
             <h2 class="logo title">For Schools and Organizations</h2>
             <p>Administrators can disable specific calculator features that students are not permitted to use,
-                including formulas, the unit converter, graphing, statistics, Detached Mode, and the option to display
-                the calculator on every page. These settings can be configured centrally for all managed students
+                including formulas, the unit converter, graphing, statistics, the solver, the numbers, Detached Mode,
+                and the option to display the calculator on every page. These settings can be configured centrally for all managed students
                 through the Google Admin Console or Chrome policies.</p>
             <p>Once a feature is disabled, it is immediately removed from the calculator, and students cannot
                 re-enable it. The setting is locked and displays the message “Turned off by your administrator.”

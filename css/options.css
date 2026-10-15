@@ -3,10 +3,17 @@
     src: url('../fonts/Play-Regular.ttf');
 }
 
-html, body { 
+html, body {
     background: #39576f;
     margin: 0;
     }
+
+/* text picked out with the mouse in grey, not the system's blue; on the options and
+   the guide only, as on the website the calculator's boxes keep their own light shade and dark text */
+.wrapper ::selection {
+    color: #fff;
+    background: #6b7580;
+}
 
 .wrapper{
     font-size: 17px; /* the page is in em, so this scales it all */
@@ -81,12 +88,28 @@ html, body {
     user-select: text;
 }
 
+/* the title of a part of the guide in the calculator's red, lighter so it reads on the blue */
+:where(.wrapper) .title:not(.sub) {
+    color: #e8939c;
+}
 
-/* a line in the guide before For Schools and Organizations, a part of its own */
+/* a section inside a part of the guide: smaller, under the part's title */
+:where(.wrapper) .title.sub {
+    margin: 2.6em 0 0.9em;
+    font-size: 18px;
+}
+
+
+/* a line in the guide between its parts: what the calculator has, how to use it, its precision, and
+   for schools; the title under it close, as the line's own */
 .guide-rule {
-    margin: 4em 0;
+    margin: 4em 0 2.4em;
     border: none;
     border-top: 1px solid #8a929c;
+}
+
+.guide-rule + .features > .title:first-child {
+    margin-top: 0;
 }
 
 /* the options: one panel, one row for each option */
@@ -128,6 +151,7 @@ html, body {
     height: 20px;
     fill: none;
     stroke: #fff;
+    color: #fff; /* what is filled, as the lines: the i of the numbers */
     stroke-width: 2;
     stroke-linecap: round;
     stroke-linejoin: round;
@@ -684,6 +708,7 @@ html, body {
 
 .screen-icon svg {
     stroke: #1f333c;
+    color: #1f333c;
 }
 
 /* two tabs at the top: the options, and the guide to the calculator */

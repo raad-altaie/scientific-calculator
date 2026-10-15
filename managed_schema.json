@@ -16,9 +16,19 @@
             "description": "false turns off the graph for everyone, with its own window, and its option cannot turn it on.",
             "type": "boolean"
         },
+        "solve": {
+            "title": "Solve",
+            "description": "false turns off the solver of equations, calculus and probability for everyone, and its option cannot turn it on.",
+            "type": "boolean"
+        },
         "statistics": {
             "title": "Statistics",
             "description": "false turns off the statistics for everyone, and its option cannot turn it on.",
+            "type": "boolean"
+        },
+        "numbers": {
+            "title": "Numbers",
+            "description": "false turns off the panel of matrices, complex numbers, bases, prime factors and rounding for everyone, and its option cannot turn it on.",
             "type": "boolean"
         },
         "detachedMode": {

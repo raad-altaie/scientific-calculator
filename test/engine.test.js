@@ -475,6 +475,21 @@ dels.forEach(function (c) {
     check(state(e) === '7 | 2 – -5 =', 'negative memory', state(e));
 })();
 
+// ---------- round, floor, ceil and trunc ---------- //
+
+(function () {
+    var e = new Engine();
+    [
+        ['2 . 5 round =', '3'], ['2 . 5 +/– round =', '-3'], ['2 . 4 round =', '2'], ['0 . 5 +/– round =', '-1'], ['2 . 7 floor =', '2'], ['2 . 7 +/– floor =', '-3'],
+        ['2 . 1 ceil =', '3'], ['2 . 1 +/– ceil =', '-2'], ['0 . 5 +/– ceil =', '0'], ['3 . 7 trunc =', '3'], ['3 . 7 +/– trunc =', '-3'], ['0 . 7 ÷ 0 . 1 = floor =', '7']
+    ].forEach(function (c) {
+        run(e, 'AC ' + c[0]);
+        check(e.value === c[1], c[0] + ' ' + c[1], state(e));
+    });
+    check(e.paste('floor(7.5) + ceil(0.2) + round(-1.5) + trunc(-2.9)', 0, true) && (run(e, '='), e.value === '4'), 'pasted: floor, ceil, round and trunc', state(e));
+    check(Engine.graph('floor(x)', false, {}).at(-1.5) === -2 && Engine.graph('ceiling(x)', false, {}).at(1.2) === 2, 'graphed: floor(x), ceiling(x)');
+})();
+
 // ---------- Rand and paste ---------- //
 
 (function () {

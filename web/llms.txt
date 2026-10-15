@@ -1,16 +1,16 @@
 # Scientific Calculator
 
-> A free scientific calculator that works offline: fractions, trigonometry, logarithms, statistics, unit converter, formulas and constants, and a history of past calculations. Nothing leaves your browser.
+> A free scientific calculator that works offline: fractions, trigonometry, logarithms, formulas and constants, a unit converter, a graph, a solver, statistics, matrices and complex numbers, and a history of past calculations. Nothing leaves your browser.
 
 A static web app (no account, no server, no tracking): everything is calculated in the browser. Installable as an app on iOS, Android and desktop. Also available as a Chrome extension.
 
 ## Links
 - [Calculator](https://raad.dev/calculator/): the app, with options and a guide to every function
-- [For schools and companies](https://raad.dev/calculator/admin): turning features of the Chrome extension off for students, from the Google Admin Console
+- [For schools and organizations](https://raad.dev/calculator/admin): turning features of the Chrome extension off for students, from the Google Admin Console
 - [Source code and documentation](https://github.com/raad-altaie/scientific-calculator): README, tests, MIT license
 
 ## Facts
 - Precision: about 15 significant digits (IEEE 754 doubles), shown to 13.
 - Angle units: degrees, radians, gradians. Fraction mode. Fix, Sci and Eng formats.
-- Panels: formulas and constants, unit converter, statistics (mean, median, standard deviation, min, max).
+- Panels: formulas and constants; unit converter; graph (functions, sliders, roots and crossings, areas, derivatives, equations and inequalities of x and y, polar and parametric curves, best fits); solver (roots of equations in exact form as well, inequalities, turning points, polynomials, linear systems, two curves, integrals, sums to infinity, limits, Taylor series, areas between curves, arc lengths, differential equations, normal, t, chi-squared, F, binomial, Poisson, geometric, hypergeometric, exponential and uniform distributions, confidence intervals); statistics (mean, median, standard deviation, min, max); numbers (matrices with eigenvalues, powers, row reduction, null space, LU and QR, least squares; vectors; complex numbers and polynomials of them; bases and bits, any base from 2 to 36, text and Unicode codes, IEEE 754; prime factors, GCD and LCM, modular arithmetic, the Chinese remainder theorem, exact big numbers, primes, fractions and repeating decimals).
 - Author: Raad Altaie. License: MIT.
