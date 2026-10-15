@@ -8,7 +8,7 @@
         },
         "converter": {
             "title": "Converter",
-            "description": "false turns off the unit converter for everyone, and its option cannot turn it on.",
+            "description": "false turns off the converter, of units and of dates, for everyone, and its option cannot turn it on.",
             "type": "boolean"
         },
         "graph": {

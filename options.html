@@ -49,7 +49,8 @@
                     <h3>Converter</h3>
                     <p>A button at the top left of the display that converts units of length, area, volume, mass,
                         temperature, speed, time, data, pressure, energy, power, angles and fuel economy. The result
-                        shown is the value to start from; click a converted value to put it into the display.</p>
+                        shown is the value to start from; click a converted value to put it into the display. Its
+                        Dates tab counts the days between two dates and moves a date on by years, months and days.</p>
                 </div>
                 <label class="switch" title="Converter">
                     <input type="checkbox" id="panel-conv">
@@ -104,7 +105,8 @@
                 <div class="option-text">
                     <h3>Statistics</h3>
                     <p>A button at the top left of the display: type or paste a list of numbers for its count, sum,
-                        mean, standard deviation, min, median and max.</p>
+                        mean, standard deviation, quartiles, median and more, with a histogram and a box plot; or pairs
+                        of numbers for their line of best fit and correlation.</p>
                 </div>
                 <label class="switch" title="Statistics">
                     <input type="checkbox" id="panel-stats">
@@ -216,15 +218,15 @@
                     operator in the middle of it. Back at the end, the calculator goes on as before.</li>
                 <li>Formulas and constants: some hundred formulas to fill in and sixty constants of math and science.
                     See the "Formulas and Constants" section below.</li>
-                <li>Converter: units of length, area, volume, mass, temperature and more. See the "Converter" section
-                    below.</li>
+                <li>Converter: units of length, area, volume, mass, temperature and more, and dates. See the
+                    "Converter" section below.</li>
                 <li>Graph: functions, equations, inequalities and points drawn, with their roots, highs, lows and
                     crossings. See the "Graph" section below.</li>
                 <li>Solve: every root of an equation, in exact form as well, inequalities, turning points,
                     polynomials, linear systems, two curves, integrals, slopes, sums, limits, Taylor series,
                     differential equations, probability and confidence intervals. See the "Solve" section below.</li>
-                <li>Statistics: count, sum, mean, standard deviation, min, median and max of a list of numbers. See the
-                    "Statistics" section below.</li>
+                <li>Statistics: count, sum, mean, standard deviation, quartiles, median and more of a list of numbers,
+                    and the line of best fit of pairs of them. See the "Statistics" section below.</li>
                 <li>Numbers: matrices and their eigenvalues, vectors, complex numbers, bases and bits, text and its
                     codes, IEEE 754, prime factors, modular arithmetic, primes, exact numbers, fractions and rounding.
                     See the "Numbers" section below.</li>
@@ -310,6 +312,22 @@
                     degrees, radians, gradians and turns.</li>
                 <li>The kind, the units and the value stay for the next time.</li>
             </ul>
+            <p>The Dates tab beside Units has two cards, each opened with a click. Dates are written as your
+                region writes them, 14/10/2026 in the UK and France, 14.10.2026 in Germany, 10/14/2026 in the US,
+                and typed so, or as 14 Oct 2026 or 2026-10-14. A click in a box of a date, its button or the arrow
+                down opens its calendar, its weeks starting on your region's first day; an empty box is today. In
+                the calendar the arrows go a day or a week, Page Up and Page Down a month, and Enter chooses.</p>
+            <ul>
+                <li>Between two dates: first the years, months and days, 29 February 2000 to 14 October 2026 being
+                    26 years, 7 months, 15 days; then the whole of it in each unit, 26 years, 319 months, 1,389 weeks,
+                    9,724 days, the weekdays, Monday to Friday, both dates in, and the hours, each below 0 where the
+                    second date is before the first.</li>
+                <li>Add or subtract: a date some years, months and days on, below 0 to go back, with its weekday,
+                    its day of the year and its week by ISO 8601. The years and months go first, and a month from
+                    31 January is the last day of February.</li>
+                <li>Click a number among the results to put it into the equation. The tab and the dates stay for
+                    the next time.</li>
+            </ul>
         </div>
 
         <div class="features" data-tab="guide">
@@ -377,7 +395,8 @@
         <div class="features" data-tab="guide">
             <h2 class="logo title sub">Solve</h2>
             <p>Click x= at the top left of the display. Each tool is a card: open it, type in its boxes, and it is
-                worked out as you type. Click a result to put it into your calculation.</p>
+                worked out as you type. Click a result to put it into your calculation, or rest the pointer on it to see it
+                in full, with Insert and Copy.</p>
             <ul>
                 <li>Solve finds every root of an equation of x, x^3 = 2x + 1 or sin(x) = 0.5 (From and To say where
                     to look), where an inequality holds, x^2 – 4 &gt; 0 as x &lt; –2 or x &gt; 2 and in intervals,
@@ -405,16 +424,29 @@
         <div class="features" data-tab="guide">
             <h2 class="logo title sub">Statistics</h2>
             <p>Click the bars at the top left of the display and type or paste a list of numbers, a column from a
-                spreadsheet as well, for its count, sum, mean, standard deviation (σ and s), min, median and max.
-                Click a result to use it in your calculation. The list finds what is between its numbers by itself;
-                choose new lines, tabs, spaces, commas, semicolons, pipes or colons at the top of the panel
-                instead, and a number written 1,234.5, 1 234,5 or $1,200 is read whole.</p>
+                spreadsheet as well. Click a result to use it in your calculation, or rest the pointer on it for what it is
+                and its value in full, with Insert and Copy. The list finds what is between
+                its numbers by itself; choose new lines, tabs, spaces, commas, semicolons, pipes or colons at the
+                top of the panel instead, and a number written 1,234.5, 1 234,5 or $1,200 is read whole.</p>
+            <ul>
+                <li>List gives the count, the sum and the sum of squares, the mean, the standard deviation of a
+                    population (σ) and of a sample (s), the variance s², min, the quartiles Q1 and Q3, the median, max,
+                    the range, the interquartile range and the mode. The quartiles are found as a TI-84 finds them:
+                    the medians of the halves below and above the median, the median in neither. Under the results, a
+                    histogram of the numbers and their box plot.</li>
+                <li>Pairs takes x and y on each line, 1 2 or 1, 2, or two columns pasted from a spreadsheet, for
+                    their means, standard deviations, sums, Σxy and covariance, and the line of best fit by least
+                    squares, y = a + bx, with its slope, intercept, correlation r and r². The line is in the note under
+                    the box, and drawn through the pairs under the results.</li>
+                <li>Each tab keeps its own numbers, and both stay for the next time.</li>
+            </ul>
         </div>
 
         <div class="features" data-tab="guide">
             <h2 class="logo title sub">Numbers</h2>
             <p>Click the brackets with an i at the top left of the display. It has cards as the solver has, on four
-                tabs. Click a result, or a number of a matrix, to put it into your calculation.</p>
+                tabs. Click a result, or a number of a matrix, to put it into your calculation; rest the pointer on a result
+                to see it in full, with Insert and Copy.</p>
             <ul>
                 <li>Matrix has a matrix of up to 4 × 4, its determinant, rank, inverse, transpose and power n, and
                     the sum and products of two; its eigenvalues, real or complex, its characteristic polynomial and

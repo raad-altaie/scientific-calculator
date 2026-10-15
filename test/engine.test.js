@@ -1583,6 +1583,42 @@ dels.forEach(function (c) {
     check(s.n === 0 && s.mean === undefined, 'an empty list', JSON.stringify(s));
     s = Engine.stats('1 2 3 4');
     check(s.median === 2.5 && same(s.sds, 1.2909944487358056) && same(s.sdp, 1.118033988749895), 'an even list', JSON.stringify(s));
+
+    // the quartiles, as a TI-84 finds them, the median in neither half; the ranges, the mode and s²
+    s = Engine.stats('2 4 4 4 5 5 7 9');
+    check(s.q1 === 4 && s.q3 === 6 && s.iqr === 2 && s.range === 7 && s.mode === 4 && same(s.vars, 32 / 7) && s.values.join(' ') === '2 4 4 4 5 5 7 9',
+        'the textbook list: Q1 4, Q3 6, mode 4, s² 32/7', JSON.stringify(s));
+    s = Engine.stats('7 1 3 5 2 6 4');
+    check(s.q1 === 2 && s.median === 4 && s.q3 === 6 && s.iqr === 4 && isNaN(s.mode), 'an odd list: the median left out of the halves; no number twice, no mode', JSON.stringify(s));
+    s = Engine.stats('0.1 0.2 0.3 0.4');
+    check(s.q1 === 0.15 && s.q3 === 0.35 && s.iqr === 0.2 && s.range === 0.3 && same(s.vars, 1 / 60), 'the quartiles and ranges exact: 0.35 – 0.15 is 0.2', JSON.stringify(s));
+    check(isNaN(Engine.stats('1 1 2 2').mode) && Engine.stats('1 1 2 2 2').mode === 2, 'two that come most often: no mode');
+    s = Engine.stats('42');
+    check(isNaN(s.q1) && isNaN(s.q3) && isNaN(s.iqr) && s.range === 0 && isNaN(s.vars) && isNaN(s.mode), 'one number: no quartiles, no s²', JSON.stringify(s));
+})();
+
+// pairs: x and y on each line, and the line of best fit through them
+(function () {
+    var p = Engine.pairs('1 2\n2 4.1\n3 5.9\n4 8.2\n5 9.9');
+    check(p.n === 5 && p.sumx === 15 && p.sumy === 30.1 && p.sumx2 === 55 && p.sumy2 === 220.87 && p.sumxy === 110.2 && p.xmean === 3 && p.ymean === 6.02 &&
+        p.b === 1.99 && p.a === 0.05 && p.cov === 4.975 && same(p.sx, Math.sqrt(2.5)) && same(p.sdpx, Math.sqrt(2)) && same(p.r, 19.9 / Math.sqrt(10 * 39.668)) &&
+        same(p.r2, p.r * p.r), 'five pairs: y = 0.05 + 1.99x, exact', JSON.stringify(p));
+    p = Engine.pairs('1\t2\n2\t4\r\nfoo\n3 3 3\n\n');
+    check(p.n === 2 && p.bad.join('|') === 'foo|3 3 3' && p.b === 2 && p.a === 0 && p.r === 1 && p.xs.join() === '1,2' && p.ys.join() === '2,4',
+        'two columns of a spreadsheet; a line not of two numbers left out', JSON.stringify(p));
+    p = Engine.pairs('1,5; 2,5\n2,5; 3');
+    check(p.n === 2 && p.xs.join(' ') === '1.5 2.5' && p.ys.join(' ') === '2.5 3', 'with semicolons, a comma is the decimal mark', JSON.stringify(p));
+    p = Engine.pairs('1 234,5 6\n2 7', true, 'space');
+    check(p.n === 1 && p.bad[0] === '1 234,5 6', 'apart by spaces only, 1 234,5 is two numbers', JSON.stringify(p));
+    p = Engine.pairs('1 234,5\t6\n2\t7', true, 'tab');
+    check(p.n === 2 && p.xs[0] === 1234.5, 'apart by tabs, 1 234,5 is one', JSON.stringify(p));
+    p = Engine.pairs('2 5\n2 7');
+    check(isNaN(p.b) && isNaN(p.a) && isNaN(p.r) && p.cov === 0, 'every x the same: no line', JSON.stringify(p));
+    p = Engine.pairs('1 5\n2 5\n3 5');
+    check(p.b === 0 && p.a === 5 && isNaN(p.r), 'every y the same: a flat line, no r', JSON.stringify(p));
+    p = Engine.pairs('3 4');
+    check(p.n === 1 && isNaN(p.sx) && isNaN(p.b) && p.sdpx === 0, 'one pair: no line', JSON.stringify(p));
+    check(Engine.pairs('  \n ').n === 0, 'no pairs');
 })();
 
 // ---------- the cursor ---------- //

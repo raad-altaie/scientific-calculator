@@ -10,7 +10,8 @@
 // their rows reduced, powers, LU and QR, and vectors; and whole numbers: their prime factors,
 // divisors, greatest common divisor and least common multiple, modular arithmetic and the
 // Chinese remainder theorem, numbers worked out exactly, primes, fractions and their decimals,
-// and numbers rounded. Functions are read as the graph reads them, by the engine.
+// and numbers rounded. And of the converter's dates: the time from one date to another, and a
+// date moved on by years, months and days. Functions are read as the graph reads them, by the engine.
 // It works on its own in Node as well, for the tests
 (function (root) {
     'use strict';
@@ -3253,6 +3254,106 @@
         return out;
     }
 
+    // ---------- dates ---------- //
+
+    // A date is its day: the days from 1 January 1970, as the calendar of today goes back
+    // and on, from the year 1 to 9999. 1 January 1970 was a Thursday
+
+    // the day of a year, month and day; NaN for a date there is not, 30 February
+    function dayFrom(y, m, d) {
+        var era, yoe, doy;
+        if (!isWhole(y) || !isWhole(m) || !isWhole(d) || y < 1 || y > 9999 || m < 1 || m > 12 || d < 1 || d > monthDays(y, m)) return NaN;
+        y -= m <= 2 ? 1 : 0;
+        era = Math.floor(y / 400);
+        yoe = y - era * 400;
+        doy = Math.floor((153 * (m + (m > 2 ? -3 : 9)) + 2) / 5) + d - 1;
+        return era * 146097 + yoe * 365 + Math.floor(yoe / 4) - Math.floor(yoe / 100) + doy - 719468;
+    }
+
+    // the year, month and day of a day
+    function dateOf(day) {
+        var z = day + 719468, era = Math.floor(z / 146097), doe = z - era * 146097,
+            yoe = Math.floor((doe - Math.floor(doe / 1460) + Math.floor(doe / 36524) - Math.floor(doe / 146096)) / 365),
+            doy = doe - (365 * yoe + Math.floor(yoe / 4) - Math.floor(yoe / 100)), mp = Math.floor((5 * doy + 2) / 153),
+            m = mp < 10 ? mp + 3 : mp - 9;
+        return { y: yoe + era * 400 + (m <= 2 ? 1 : 0), m: m, d: doy - Math.floor((153 * mp + 2) / 5) + 1 };
+    }
+
+    function monthDays(y, m) {
+        return m === 2 ? (y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0) ? 29 : 28) : [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1];
+    }
+
+    // The day of a date as it is typed: in numbers, the year first, 2026-10-14 or 2026. 10. 14., or last,
+    // 14/10/2026, 14.10.2026, the day first unless order is 'mdy', as in the US, 10/14/2026; or in words,
+    // 14 Oct 2026, Oct 14, 2026 or Wednesday, 14 October 2026, a month by its English name or the start of
+    // it, Sept as well. A year of two digits is not read, 14/10/26. NaN for what is not a date there is
+    function readDate(text, order) {
+        var t = String(text).trim().toLowerCase().replace(/,/g, ' '), m,
+            names = 'january february march april may june july august september october november december'.split(' '), parts, month = 0, nums = [];
+        if (/^[\d\s./-]+$/.test(t) && (m = t.match(/\d+/g)).length === 3) {
+            if (m[0].length > 2) return dayFrom(+m[0], +m[1], +m[2]);
+            if (m[2].length < 3) return NaN;
+            return order === 'mdy' ? dayFrom(+m[2], +m[0], +m[1]) : dayFrom(+m[2], +m[1], +m[0]);
+        }
+        parts = t.split(/[\s.]+/).filter(Boolean);
+        if (parts.some(function (p) {
+            var i = p.length < 3 ? -1 : p === 'sept' ? 8 : names.findIndex(function (n) { return n.indexOf(p) === 0; });
+            if (/^\d+$/.test(p)) return nums.push(p) > 2;
+            if (i > -1 && /^[a-z]+$/.test(p) && !month) return !(month = i + 1);
+            return !/^(mon|tue|wed|thu|fri|sat|sun)[a-z]*$/.test(p); // a weekday is left out
+        }) || !month || nums.length !== 2) return NaN;
+        // the year is the one of 3 digits or more, first or last; one of 2 is no year
+        if (nums[0].length > 2) return dayFrom(+nums[0], month, +nums[1]);
+        return nums[1].length > 2 ? dayFrom(+nums[1], month, +nums[0]) : NaN;
+    }
+
+    // 0 for Monday to 6 for Sunday
+    function weekday(day) {
+        return ((day + 3) % 7 + 7) % 7;
+    }
+
+    // months on from a day, to the same day of the month, or to its last day where the month is shorter:
+    // a month from 31 January is 28 or 29 February. NaN before the year 1 or after 9999
+    function addMonths(day, n) {
+        var c = dateOf(day), total = c.y * 12 + c.m - 1 + n, y = Math.floor(total / 12), m = total - y * 12 + 1;
+        return y < 1 || y > 9999 ? NaN : dayFrom(y, m, Math.min(c.d, monthDays(y, m)));
+    }
+
+    // a day on by whole years, months and days, each below 0 to go back: the years and months first
+    function addDate(day, years, months, days) {
+        var to;
+        if (!isWhole(years) || !isWhole(months) || !isWhole(days)) return NaN;
+        to = addMonths(day, years * 12 + months) + days;
+        return to >= dayFrom(1, 1, 1) && to <= dayFrom(9999, 12, 31) ? to : NaN;
+    }
+
+    // From one day to another: the days, below 0 back; and, of the two in order, the whole months
+    // from the first, then the days left, so that adding them gives the second again; the weeks
+    // and days; and the weekdays, Monday to Friday, both days counted
+    function datesBetween(a, b) {
+        var from = Math.min(a, b), to = Math.max(a, b), ca = dateOf(from), cb = dateOf(to),
+            months = (cb.y - ca.y) * 12 + cb.m - ca.m, n = to - from + 1, full = Math.floor(n / 7), w = weekday(from), work = full * 5, i;
+        if (addMonths(from, months) > to) months--;
+        for (i = 0; i < n % 7; i++) if ((w + i) % 7 < 5) work++;
+        return {
+            days: b - a,
+            years: Math.floor(months / 12), months: months % 12, rest: to - addMonths(from, months),
+            weeks: Math.floor((to - from) / 7), weekDays: (to - from) % 7,
+            workdays: work
+        };
+    }
+
+    // the day of the year, 1 to 366, and the week of the year by ISO 8601: weeks start on Monday,
+    // the first being the one with the year's first Thursday
+    function dayOfYear(day) {
+        return day - dayFrom(dateOf(day).y, 1, 1) + 1;
+    }
+
+    function isoWeek(day) {
+        var thursday = day - weekday(day) + 3, y = dateOf(thursday).y;
+        return { week: Math.floor((thursday - dayFrom(y, 1, 1)) / 7) + 1, year: y };
+    }
+
     var CalcMaths = {
         number: number,
         fn: fn,
@@ -3337,7 +3438,15 @@
         primesBetween: primesBetween,
         fractionOf: fractionOf,
         continued: continued,
-        continuedOf: continuedOf
+        continuedOf: continuedOf,
+        dayFrom: dayFrom,
+        dateOf: dateOf,
+        readDate: readDate,
+        weekday: weekday,
+        addDate: addDate,
+        datesBetween: datesBetween,
+        dayOfYear: dayOfYear,
+        isoWeek: isoWeek
     };
 
     root.CalcMaths = CalcMaths;

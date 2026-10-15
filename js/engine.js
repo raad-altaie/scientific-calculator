@@ -2170,13 +2170,44 @@
         return { values: values, bad: bad };
     }
 
+    // the median of numbers in order; NaN of none
+    function medianOf(sorted) {
+        var n = sorted.length, mid = n >> 1;
+        return !n ? NaN : n % 2 ? sorted[mid] : arith('÷', arith('+', sorted[mid - 1], sorted[mid]), 2);
+    }
+
+    // the number that comes most often, of numbers in order; NaN where none comes twice, or
+    // where two or more come most often
+    function modeOf(sorted) {
+        var best = NaN, most = 1, tie = false, run = 1, i;
+        for (i = 1; i <= sorted.length; i++) {
+            if (i < sorted.length && sorted[i] === sorted[i - 1]) {
+                run++;
+                continue;
+            }
+            if (run > most) {
+                most = run;
+                best = sorted[i - 1];
+                tie = false;
+            } else if (run === most && most > 1) {
+                tie = true;
+            }
+            run = 1;
+        }
+        return tie ? NaN : best;
+    }
+
     // n, the sum, the sum of the squares, the mean, the standard deviation of
     // the list as the whole population (σ) and as a sample of one (s, NaN for
-    // a single number), min, median and max. The sums and the mean are worked
+    // a single number) and the variance of a sample, s²; min, the quartiles,
+    // the median, max, the range, the interquartile range and the mode. The
+    // quartiles are as a TI-84 and most school books find them: the medians of the
+    // half below the median and the half above it, the median itself in neither.
+    // values: the numbers in order. The sums and the mean are worked
     // out exactly, as + – × ÷ are: the mean of 0.1, 0.2 and 0.3 is 0.2
     function stats(text, comma, by) {
         var read = numbers(text, comma, by), xs = read.values, n = xs.length, r = { n: n, bad: read.bad },
-            sum = 0, squares = 0, spread = 0, sorted, mid;
+            sum = 0, squares = 0, spread = 0, sorted;
         if (!n) return r;
         xs.forEach(function (x) {
             sum = arith('+', sum, x);
@@ -2191,11 +2222,67 @@
         });
         r.sdp = tidy(Math.sqrt(arith('÷', spread, n)));
         r.sds = n > 1 ? tidy(Math.sqrt(arith('÷', spread, n - 1))) : NaN;
+        r.vars = n > 1 ? tidy(arith('÷', spread, n - 1)) : NaN;
         sorted = xs.slice().sort(function (a, b) { return a - b; });
-        mid = n >> 1;
+        r.values = sorted;
         r.min = sorted[0];
         r.max = sorted[n - 1];
-        r.median = n % 2 ? sorted[mid] : arith('÷', arith('+', sorted[mid - 1], sorted[mid]), 2);
+        r.median = medianOf(sorted);
+        r.q1 = medianOf(sorted.slice(0, n >> 1));
+        r.q3 = medianOf(sorted.slice(n - (n >> 1)));
+        r.iqr = n > 1 ? arith('–', r.q3, r.q1) : NaN;
+        r.range = arith('–', r.max, r.min);
+        r.mode = modeOf(sorted);
+        return r;
+    }
+
+    // Pairs of numbers, x and y on each line, as two columns of a spreadsheet are pasted:
+    // n; the sums of x, y, x², y² and xy; the means; the standard deviations of each, as a
+    // sample (sx, sy) and as the whole population (σx, σy); the covariance of a sample; and the
+    // line of best fit by least squares, y = a + bx, with its correlation r and r². by: what
+    // is between x and y, as for a list, new lines being between the pairs whatever it is.
+    // xs and ys: the pairs read. bad: the lines that are no pair
+    function pairs(text, comma, by) {
+        var xs = [], ys = [], bad = [], r = { n: 0, bad: bad, xs: xs, ys: ys }, n, dxx = 0, dyy = 0, dxy = 0;
+        String(text).split(/\r\n|\r|\n/).forEach(function (line) {
+            var read;
+            if (!line.trim()) return;
+            read = numbers(line, comma, by === 'line' ? 'auto' : by);
+            if (read.values.length === 2 && !read.bad.length) {
+                xs.push(read.values[0]);
+                ys.push(read.values[1]);
+            } else {
+                bad.push(line.trim());
+            }
+        });
+        n = r.n = xs.length;
+        if (!n) return r;
+        r.sumx = r.sumy = r.sumx2 = r.sumy2 = r.sumxy = 0;
+        xs.forEach(function (x, i) {
+            var y = ys[i];
+            r.sumx = arith('+', r.sumx, x);
+            r.sumy = arith('+', r.sumy, y);
+            r.sumx2 = arith('+', r.sumx2, arith('×', x, x));
+            r.sumy2 = arith('+', r.sumy2, arith('×', y, y));
+            r.sumxy = arith('+', r.sumxy, arith('×', x, y));
+        });
+        r.xmean = arith('÷', r.sumx, n);
+        r.ymean = arith('÷', r.sumy, n);
+        xs.forEach(function (x, i) {
+            var dx = arith('–', x, r.xmean), dy = arith('–', ys[i], r.ymean);
+            dxx = arith('+', dxx, arith('×', dx, dx));
+            dyy = arith('+', dyy, arith('×', dy, dy));
+            dxy = arith('+', dxy, arith('×', dx, dy));
+        });
+        r.sdpx = tidy(Math.sqrt(arith('÷', dxx, n)));
+        r.sdpy = tidy(Math.sqrt(arith('÷', dyy, n)));
+        r.sx = n > 1 ? tidy(Math.sqrt(arith('÷', dxx, n - 1))) : NaN;
+        r.sy = n > 1 ? tidy(Math.sqrt(arith('÷', dyy, n - 1))) : NaN;
+        r.cov = n > 1 ? tidy(arith('÷', dxy, n - 1)) : NaN;
+        r.b = dxx ? tidy(arith('÷', dxy, dxx)) : NaN; // no line where every x is the same
+        r.a = isFinite(r.b) ? tidy(arith('–', r.ymean, arith('×', r.b, r.xmean))) : NaN;
+        r.r = dxx && dyy ? tidy(Math.max(-1, Math.min(1, dxy / Math.sqrt(dxx * dyy)))) : NaN;
+        r.r2 = tidy(r.r * r.r);
         return r;
     }
 
@@ -2997,6 +3084,7 @@
     };
 
     Engine.stats = stats;
+    Engine.pairs = pairs;
     Engine.format = format;
     Engine.group = group;
     Engine.decimal = decimal;

@@ -125,12 +125,13 @@
         'converter': {
             t: 'Converter',
             d: 'Length, area, volume, mass, temperature, speed, time, data, pressure, energy, power, angles and ' +
-                'fuel economy. The result shown is the value to start from; click a converted value to put it in.',
+                'fuel economy. The result shown is the value to start from; click a converted value to put it in. ' +
+                'Its Dates tab counts the days between two dates and moves a date on.',
             k: ''
         },
         'converter close': {
             t: 'Close the converter',
-            d: 'The value and units stay for the next time.',
+            d: 'The value, the units and the dates stay for the next time.',
             k: 'Esc'
         },
 
@@ -362,17 +363,18 @@
         'stats': {
             t: 'Statistics',
             d: 'Type or paste a list of numbers, a column from a spreadsheet as well, for its mean, standard ' +
-                'deviation, sum, median and more.',
+                'deviation, sum, quartiles, median and more, with a histogram and a box plot. The Pairs tab takes x and y ' +
+                'on each line, for the line of best fit and the correlation.',
             k: ''
         },
         'stats close': {
             t: 'Close the statistics',
-            d: 'The list stays for the next time.',
+            d: 'The list and the pairs stay for the next time.',
             k: 'Esc'
         },
         'stats clear': {
             t: 'Clear the list',
-            d: 'Removes all the numbers, to start a new list.',
+            d: 'Removes all the numbers of this tab, to start a new list.',
             k: ''
         },
         'stats n': {
@@ -411,6 +413,113 @@
         'stats max': {
             t: 'Maximum',
             d: 'The largest number of the list.'
+        },
+        'stats q1': {
+            t: 'First quartile, Q<sub>1</sub>',
+            d: 'The median of the lower half of the list, the median itself left out of both halves, as a TI-84 ' +
+                'finds it. A quarter of the numbers are below it.'
+        },
+        'stats q3': {
+            t: 'Third quartile, Q<sub>3</sub>',
+            d: 'The median of the upper half of the list, the median itself left out of both halves. A quarter of ' +
+                'the numbers are above it.'
+        },
+        'stats iqr': {
+            t: 'Interquartile range, IQR',
+            d: 'Q<sub>3</sub> − Q<sub>1</sub>: how far apart the middle half of the numbers are.'
+        },
+        'stats range': {
+            t: 'Range',
+            d: 'max − min: how far apart the largest and smallest numbers are.'
+        },
+        'stats mode': {
+            t: 'Mode',
+            d: 'The number that comes most often. None where no number comes twice, or where two or more come most often.'
+        },
+        'stats vars': {
+            t: 'Sample variance, s<sup>2</sup>',
+            d: 'The square of s: the squares of how far each number is from the mean, added up and divided by n − 1. ' +
+                'For the whole population, square σ.'
+        },
+        'stats chart': {
+            t: 'Histogram and box plot',
+            d: 'Each bar counts the numbers in its part of the range, the parts all as wide. Under them the box goes ' +
+                'from Q<sub>1</sub> to Q<sub>3</sub> with the median across it, and its lines out to the smallest and the largest.'
+        },
+
+        // the statistics of pairs, x and y on each line
+        'pairs n': {
+            t: 'Count, n',
+            d: 'How many pairs there are.'
+        },
+        'pairs xmean': {
+            t: 'Mean of x, <span class="calc-x-bar">x</span>',
+            d: 'The average of the x values.'
+        },
+        'pairs ymean': {
+            t: 'Mean of y, <span class="calc-x-bar">y</span>',
+            d: 'The average of the y values.'
+        },
+        'pairs sx': {
+            t: 'Sample standard deviation of x, s<sub>x</sub>',
+            d: 'How far the x values spread from their mean, as a sample: divided by n − 1.'
+        },
+        'pairs sy': {
+            t: 'Sample standard deviation of y, s<sub>y</sub>',
+            d: 'How far the y values spread from their mean, as a sample: divided by n − 1.'
+        },
+        'pairs r': {
+            t: 'Correlation, r',
+            d: 'How near the pairs are to a straight line, from −1 to 1: 1 on a line going up, −1 on one going down, ' +
+                'near 0 on none.'
+        },
+        'pairs b': {
+            t: 'Slope, b',
+            d: 'The slope of the line of best fit, y = a + bx, by least squares: how much y goes up for each 1 of x.'
+        },
+        'pairs a': {
+            t: 'Intercept, a',
+            d: 'Where the line of best fit, y = a + bx, meets the y axis: its y at x = 0.'
+        },
+        'pairs r2': {
+            t: 'Coefficient of determination, r<sup>2</sup>',
+            d: 'The square of r: the share of how y varies that the line accounts for, from 0 to 1.'
+        },
+        'pairs sdpx': {
+            t: 'Standard deviation of x, σ<sub>x</sub>',
+            d: 'How far the x values spread from their mean, as the whole population: divided by n.'
+        },
+        'pairs sdpy': {
+            t: 'Standard deviation of y, σ<sub>y</sub>',
+            d: 'How far the y values spread from their mean, as the whole population: divided by n.'
+        },
+        'pairs cov': {
+            t: 'Sample covariance',
+            d: 'How x and y vary together: each x less its mean times each y less its mean, added up and divided by n − 1.'
+        },
+        'pairs sumx': {
+            t: 'Sum of x, Σx',
+            d: 'All the x values added up.'
+        },
+        'pairs sumy': {
+            t: 'Sum of y, Σy',
+            d: 'All the y values added up.'
+        },
+        'pairs sumxy': {
+            t: 'Sum of products, Σxy',
+            d: 'Each x times its y, then added up.'
+        },
+        'pairs sumx2': {
+            t: 'Sum of squares of x, Σx<sup>2</sup>',
+            d: 'Each x squared, then added up.'
+        },
+        'pairs chart': {
+            t: 'Scatter plot',
+            d: 'Each pair as a dot, x across and y up, with the line of best fit through them.'
+        },
+        'pairs sumy2': {
+            t: 'Sum of squares of y, Σy<sup>2</sup>',
+            d: 'Each y squared, then added up.'
         },
 
         // the history

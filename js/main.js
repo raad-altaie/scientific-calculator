@@ -41,11 +41,26 @@
             ['colon', 'Colon <b>:</b>', 'colons']
         ],
         statsNow = { n: 0 }, // what the list gives
-        STATS = [ // the results in the order shown: the name the engine gives each, and its label
-            ['n', 'n'], ['sum', 'Σx'], ['squares', 'Σx<sup>2</sup>'],
-            ['mean', '<span class="calc-x-bar">x</span>'], ['sdp', 'σ'], ['sds', 's'],
-            ['min', 'min'], ['median', 'median'], ['max', 'max']
-        ],
+        statsTab = 'list', // the tab shown: a list of numbers, or pairs of them
+        statsTexts = { list: '', pairs: '' }, // what is typed in each
+        statsChart = stats.querySelector('.calc-stats-chart'),
+        STATS = { // the results of each tab in the order shown: the name the engine gives each, and its label
+            list: [
+                ['n', 'n'], ['sum', 'Σx'], ['squares', 'Σx<sup>2</sup>'],
+                ['mean', '<span class="calc-x-bar">x</span>'], ['sdp', 'σ'], ['sds', 's'],
+                ['min', 'min'], ['median', 'median'], ['max', 'max'],
+                ['q1', 'Q<sub>1</sub>'], ['q3', 'Q<sub>3</sub>'], ['iqr', 'IQR'],
+                ['range', 'range'], ['mode', 'mode'], ['vars', 's<sup>2</sup>']
+            ],
+            pairs: [
+                ['n', 'n'], ['xmean', '<span class="calc-x-bar">x</span>'], ['ymean', '<span class="calc-x-bar">y</span>'],
+                ['sx', 's<sub>x</sub>'], ['sy', 's<sub>y</sub>'], ['r', 'r'],
+                ['b', 'slope b'], ['a', 'intercept a'], ['r2', 'r<sup>2</sup>'],
+                ['sdpx', 'σ<sub>x</sub>'], ['sdpy', 'σ<sub>y</sub>'], ['cov', 'cov'],
+                ['sumx', 'Σx'], ['sumy', 'Σy'], ['sumxy', 'Σxy'],
+                ['sumx2', 'Σx<sup>2</sup>'], ['sumy2', 'Σy<sup>2</sup>']
+            ]
+        },
         fx = root.querySelector('.calc-fx'), // formulas and constants, over the keys
         fxButton = root.querySelector('.calc-fx-btn'),
         fxSearch = fx.querySelector('.calc-fx-search'),
@@ -60,6 +75,7 @@
         convNote = conv.querySelector('.calc-conv-note'),
         convList = conv.querySelector('.calc-conv-list'),
         convAt = { g: 0, u: {} }, // the group shown, and the unit chosen in each group, by its name
+        convTab = 'units', // the tab of the converter: units, or dates
         convNow = [], // the value in each unit of the group, as the list shows them
         graph = root.querySelector('.calc-graph'), // the graph of a function of x, over the keys
         graphButton = root.querySelector('.calc-graph-btn'),
@@ -498,10 +514,10 @@
     // the ? beside the name have tips as well
     tip.parentNode.addEventListener('mouseover', function (e) {
         var key = e.target.closest('.calc-left > *, .calc-right > .del-ac, .calc-rad, .calc-mem, .calc-frac, .calc-fmt, .calc-hold, ' +
-            '.calc-stat-btn, .calc-stats-tile, .calc-fx-btn, .calc-fx-row, .calc-gx-row, .calc-conv-btn, .calc-conv-row, .calc-solve-btn, .calc-numbers-btn, .calc-sv-row, ' +
+            '.calc-stat-btn, .calc-fx-btn, .calc-fx-row, .calc-gx-row, .calc-conv-btn, .calc-solve-btn, .calc-numbers-btn, .calc-sv-row, ' +
             '.calc-graph-btn, .calc-graph-size, .calc-graph-add, .calc-graph-del, .calc-graph-diff, .calc-graph-points, .calc-graph-zoom > span, .calc-graph-pop-end, .calc-graph-pop-row, .calc-graph-play, ' +
             '.calc-graph-fn > .calc-graph-swatch, ' +
-            '.calc-hist, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit, .calc-help');
+            '.calc-stats-chart, .calc-hist, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit, .calc-help');
         if (key === tipKey) return;
         hideTip();
         tipKey = key;
@@ -511,6 +527,7 @@
     pastList.addEventListener('scroll', hideTip, false);
     fxList.addEventListener('scroll', hideTip, false);
     convList.addEventListener('scroll', hideTip, false);
+    stats.querySelector('.calc-stats-out').addEventListener('scroll', hideTip, false); // the chart's tip would stay where it was
 
     tip.parentNode.addEventListener('mouseleave', function () {
         hideTip();
@@ -551,6 +568,153 @@
         tip.hidden = true;
     }
 
+    // Resting on a result of the solver, the numbers, the converter, the statistics or a constant shows it in a tip, as a
+    // key's: its name, what it is where a tip says so, and the result in full, a long one that its tile
+    // cuts short as well; with Insert, where it is a number, and Copy. The tip stays while the pointer is
+    // on the result or on the tip, to click its buttons. Not on a touch screen, where a touch puts it in
+    var peek = document.createElement('div'),
+        peekTile = null, // the result it is of, or is to be of
+        peekTimer = 0, // till it shows
+        peekHide = 0, // till it goes, after the pointer has left
+        peekGone = 0, // when the last one went, so the next one comes at once
+        peekStill = null; // where Copy was pressed: no tip till the pointer moves from there, though the result under it changed
+
+    peek.className = 'calc-tip calc-peek';
+    peek.hidden = true;
+    tip.parentNode.appendChild(peek);
+
+    // what the tip of a result shows: { t: its name, d: what it is, html: the value, text: as it is copied,
+    // put: it goes in }. One that says what it is, as a result of the statistics, has its tip with no value
+    // as well, only that; null for any other with no value, – as well, a matrix, whose numbers go in one at
+    // a time, and bits
+    function peekOf(el) {
+        var value, info, row = el.row, unit;
+        // a constant: what it is, and its value, with its unit, as its row has it and as Copy of its menu does
+        if (el.classList.contains('calc-fx-row')) {
+            info = fxItems.constants[+el.parentNode.dataset.i].item;
+            return { t: info.t, d: info.d, html: constantValue(info), text: local(info.v), put: true };
+        }
+        // a unit of the converter: its name, and its value as the display has it and as Copy of its menu does
+        if (el.classList.contains('calc-conv-row')) {
+            unit = CalcUnits.units[convAt.g].list[+el.dataset.i];
+            value = convNow[+el.dataset.i];
+            info = unit.t.charAt(0).toUpperCase() + unit.t.slice(1);
+            if (!isFinite(value)) return { t: info, d: 'No value in it for the one typed.' };
+            return { t: info, html: el.querySelector('.calc-conv-num').innerHTML,
+                text: unit.dms && local(CalcEngine.dms(value)) || local(+value.toPrecision(15)), put: true };
+        }
+        if (el.classList.contains('calc-stats-tile')) {
+            value = statsNow[el.dataset.k];
+            info = CalcTips[(statsTab === 'pairs' ? 'pairs ' : 'stats ') + el.dataset.k];
+            if (!statsNow.n || !isFinite(value)) return { t: info.t, d: info.d };
+            return { t: info.t, d: info.d, html: statsValue(value).html, text: local(statsValue(value).text), put: true };
+        }
+        value = el.querySelector('.calc-sv-value');
+        if (!row || row.m !== undefined || row.flip || (row.text === undefined && !isFinite(row.v)) || !value || /^–?$/.test(value.textContent.trim())) return null;
+        return { t: el.querySelector('.calc-sv-label').innerHTML, html: value.innerHTML,
+            text: row.text !== undefined ? value.textContent : local(statsValue(row.v).text), put: row.text === undefined };
+    }
+
+    function showPeek() {
+        var info = peekTile && document.contains(peekTile) && peekOf(peekTile), calc = tip.parentNode, at, left, top, below;
+        if (!info) return;
+        hideTip();
+        peek.innerHTML = '<div class="calc-tip-head"><b>' + info.t + '</b></div>' + (info.d ? '<div>' + info.d + '</div>' : '') +
+            (info.html === undefined ? '' : '<div class="calc-peek-value">' + info.html + '</div><div class="calc-peek-acts">' +
+                (info.put ? '<span class="calc-peek-act" data-act="insert">Insert' + insertIcon() + '</span>' : '') +
+                '<span class="calc-peek-act" data-act="copy">Copy</span></div>');
+        peek.text = info.text;
+        peek.hidden = false;
+        // above the result, in the middle of it; below it where there is no room above, as a key's tip
+        at = inside(peekTile.getBoundingClientRect());
+        left = Math.max(6, Math.min(calc.clientWidth - peek.offsetWidth - 6, at.left + at.width / 2 - peek.offsetWidth / 2));
+        top = at.top - peek.offsetHeight - 8;
+        below = top < 4;
+        if (below) top = at.bottom + 8;
+        peek.style.left = left + 'px';
+        peek.style.top = top + 'px';
+        peek.style.setProperty('--arrow', at.left + at.width / 2 - left - peek.clientLeft + 'px');
+        peek.classList.toggle('calc-tip-below', below);
+    }
+
+    function hidePeek() {
+        clearTimeout(peekTimer);
+        clearTimeout(peekHide);
+        if (!peek.hidden) peekGone = Date.now();
+        peek.hidden = true;
+        peekTile = null;
+    }
+
+    // the pointer gone from the result and the tip: it goes a moment later, unless the pointer comes back
+    function leavePeek() {
+        clearTimeout(peekTimer);
+        clearTimeout(peekHide);
+        if (peek.hidden) peekTile = null;
+        else peekHide = setTimeout(hidePeek, 300);
+    }
+
+    // A tip shown stays while the pointer goes over another result on its way to the buttons: that one's
+    // tip comes only if the pointer rests on it a moment, and not if the pointer goes on to the tip
+    tip.parentNode.addEventListener('mouseover', function (e) {
+        if (!peekStill) peekAt(e.target);
+    }, false);
+
+    // the pointer on target: its result's tip, or the tip shown kept, or let go
+    function peekAt(target) {
+        var el = target.closest('.calc-sv-tile, .calc-stats-tile, .calc-conv-row, .calc-fx-row');
+        if (el && el.classList.contains('calc-fx-row') && fxTab !== 'constants') el = null; // a formula has the tip of a key
+        if (peek.contains(target) || (el && el === peekTile)) {
+            clearTimeout(peekHide);
+            if (!peek.hidden) clearTimeout(peekTimer); // not on to another one
+            return;
+        }
+        if (!el || window.matchMedia('(hover: none)').matches) return leavePeek();
+        clearTimeout(peekTimer);
+        if (!peek.hidden) {
+            peekTimer = setTimeout(function () {
+                hidePeek();
+                peekTile = el;
+                showPeek();
+            }, 350);
+            return;
+        }
+        peekTile = el;
+        peekTimer = setTimeout(showPeek, Date.now() - peekGone < 400 ? 0 : 600); // from result to result at once
+    }
+
+    tip.parentNode.addEventListener('mouseleave', leavePeek, false);
+
+    // after Copy, the pointer moved on: the tip of what it is on now
+    tip.parentNode.addEventListener('mousemove', function (e) {
+        if (!peekStill || Math.abs(e.clientX - peekStill[0]) + Math.abs(e.clientY - peekStill[1]) <= 6) return;
+        peekStill = null;
+        peekAt(e.target);
+    }, false);
+
+    // a press elsewhere, a key, or a list scrolled puts it away
+    document.addEventListener('mousedown', function (e) {
+        if (!peek.contains(e.target)) hidePeek();
+    }, true);
+    document.addEventListener('keydown', hidePeek, true);
+    document.addEventListener('scroll', hidePeek, true);
+
+    peek.addEventListener('mousedown', function (e) {
+        e.preventDefault(); // the focus stays where it is
+    }, false);
+
+    // Insert as a click on the result does; Copy, and the tip goes
+    peek.addEventListener('click', function (e) {
+        var act = e.target.closest('[data-act]'), tile = peekTile;
+        if (!act) return;
+        hidePeek();
+        if (act.dataset.act === 'copy') {
+            copy(peek.text);
+            peekStill = [e.clientX, e.clientY];
+            return;
+        }
+        tile.click();
+    }, false);
+
     // the tip of a key, or of a mark in the display; a function key and the unit say
     // how they are used now, tan 45 or 45 tan
     function tipOf(el, name) {
@@ -569,17 +733,8 @@
         if (el === convButton) return CalcTips[conv.classList.contains('calc-open') ? 'converter close' : 'converter'];
         if (conv.contains(el)) return convTip(el);
         if (el === statsButton) return CalcTips[stats.classList.contains('calc-open') ? 'stats close' : 'stats'];
-        if (stats.contains(el)) {
-            if (el.classList.contains('calc-past-clear')) return CalcTips['stats clear'];
-            if (el.classList.contains('calc-past-close')) return CalcTips['stats close'];
-            info = CalcTips['stats ' + el.dataset.k];
-            value = statsNow[el.dataset.k];
-            return {
-                t: info.t,
-                d: info.d + (statsNow.n && isFinite(value) ? ' Now ' + statsValue(value).html + '; click to put it in.' : ''),
-                k: ''
-            };
-        }
+        if (el === statsChart) return CalcTips[statsTab === 'pairs' ? 'pairs chart' : 'stats chart'];
+        if (stats.contains(el)) return CalcTips[el.classList.contains('calc-past-clear') ? 'stats clear' : 'stats close'];
         if (el === solveButton) return CalcTips[solvePanel.classList.contains('calc-open') ? 'solve close' : 'solve'];
         if (solvePanel.contains(el)) return solver.tip(el);
         if (el === numbersButton) return CalcTips[numbersPanel.classList.contains('calc-open') ? 'numbers close' : 'numbers'];
@@ -830,8 +985,9 @@
         hold.textContent = '';
         keyBoard['AC'].children[0].firstChild.data = 'AC';
         // what is typed in the panels: the list of the statistics, the search and a formula open,
-        // the value to convert, the graph, and the boxes of the solver and the numbers
+        // the value to convert and the dates, the graph, and the boxes of the solver and the numbers
         statsInput.value = '';
+        statsTexts = { list: '', pairs: '' };
         setStatsBy(0);
         renderStats();
         fxSearch.value = '';
@@ -839,6 +995,7 @@
         convInput.value = '1';
         renderConv();
         saveConv();
+        dates.clear();
         clearGraph();
         toolPanels.forEach(function (p) { p.clear(); });
         refresh();
@@ -890,9 +1047,9 @@
     }, false);
 
     // any press outside the history closes it; the button toggles it itself.
-    // The menu is over the panel it was opened in
+    // The menu is over the panel it was opened in, and the tip of a result over its panel
     document.addEventListener('pointerdown', function (e) {
-        if (menu.contains(e.target) || !root.contains(e.target)) return; // not a press in the rest of the page
+        if (menu.contains(e.target) || peek.contains(e.target) || !root.contains(e.target)) return; // not a press in the rest of the page
         if (past.classList.contains('calc-open') && !past.contains(e.target) && !pastButton.contains(e.target)) {
             showPast(false);
         }
@@ -991,12 +1148,40 @@
     // ---------------- statistics ---------------- //
 
     // A list of numbers, typed or pasted, and what it gives: n, the sums, the
-    // mean, the standard deviations, min, median and max, worked out as it is
-    // typed. A click on a result puts it into the calculation, as Ans does
-    statsGrid.innerHTML = STATS.map(function (s) {
-        return '<div class="calc-stats-tile" data-k="' + s[0] + '"><span class="calc-stats-label">' + s[1] +
-            '</span><span class="calc-stats-value"></span></div>';
-    }).join('');
+    // mean, the standard deviations and variance, min, the quartiles, median, max,
+    // the ranges and the mode, worked out as it is typed, with a histogram and a box
+    // plot of them. Or, on the Pairs tab, x and y on each line: their means, sums and
+    // deviations, and the line of best fit, drawn through them. A click on a result
+    // puts it into the calculation, as Ans does. Each tab keeps what is typed in it
+
+    // the tiles of the tab, the one shown on it
+    function statsTiles() {
+        [].forEach.call(stats.querySelectorAll('.calc-solve-tab'), function (t) {
+            t.classList.toggle('calc-on', t.dataset.tab === statsTab);
+        });
+        stats.classList.toggle('calc-stats-pairs', statsTab === 'pairs');
+        statsInput.placeholder = statsTab === 'pairs' ? 'Type or paste pairs, x and y on each line:\n1 2\n2 4.1\n3 5.9' :
+            'Type or paste numbers: 4 8 15 16 23 42';
+        statsGrid.innerHTML = STATS[statsTab].map(function (s) {
+            return '<div class="calc-stats-tile" data-k="' + s[0] + '"><span class="calc-stats-label">' + s[1] +
+                '</span><span class="calc-stats-value"></span></div>';
+        }).join('');
+    }
+
+    statsTiles();
+
+    stats.querySelector('.calc-solve-tabs').addEventListener('click', function (e) {
+        var t = e.target.closest('.calc-solve-tab');
+        if (!t || t.dataset.tab === statsTab) return;
+        statsTexts[statsTab] = statsInput.value;
+        statsTab = t.dataset.tab;
+        statsInput.value = statsTexts[statsTab];
+        statsTiles();
+        renderStats();
+        statsChart.parentNode.scrollTop = 0;
+        saveState();
+        if (focusBox(statsInput)) statsInput.setSelectionRange(statsInput.value.length, statsInput.value.length);
+    }, false);
 
     statsButton.addEventListener('click', function () {
         showStats(!stats.classList.contains('calc-open'));
@@ -1007,13 +1192,14 @@
     }, false);
 
     stats.querySelector('.calc-past-clear').addEventListener('click', function () {
-        statsInput.value = '';
+        statsInput.value = statsTexts[statsTab] = '';
         renderStats();
         saveState();
         focusBox(statsInput);
     }, false);
 
     statsInput.addEventListener('input', function () {
+        statsTexts[statsTab] = statsInput.value;
         renderStats();
         saveState();
     }, false);
@@ -1045,11 +1231,11 @@
         if (open) {
             closePanels(stats);
             placePanel(stats);
-            renderStats();
         }
         stats.classList.toggle('calc-open', open);
         statsButton.classList.toggle('calc-on', open);
         if (open) {
+            renderStats(); // shown, so a long value can be made smaller to fit
             if (focusBox(statsInput)) statsInput.setSelectionRange(statsInput.value.length, statsInput.value.length);
         } else if (document.activeElement === statsInput) {
             statsInput.blur(); // the keys are the calculator's again
@@ -1057,9 +1243,9 @@
     }
 
     // the results as the display shows numbers: in the number format, and as
-    // fractions in fraction mode
+    // fractions in fraction mode; the chart of them, and a note of how many there are
     function renderStats() {
-        var s = statsNow = CalcEngine.stats(statsInput.value, engine.comma, BY[statsBy.at][0]);
+        var pairs = statsTab === 'pairs', s = statsNow = CalcEngine[pairs ? 'pairs' : 'stats'](statsInput.value, engine.comma, BY[statsBy.at][0]);
         [].forEach.call(statsGrid.children, function (tile) {
             var value = s[tile.dataset.k], known = s.n > 0 && isFinite(value), shown = tile.lastChild, size = 17;
             tile.classList.toggle('calc-none', !known);
@@ -1069,10 +1255,98 @@
                 shown.style.fontSize = --size + 'px';
             }
         });
+        statsChart.innerHTML = !s.n ? '' : pairs ? scatterChart(s) : histogramChart(s);
+        if (pairs) {
+            statsNote.textContent = !s.n && !s.bad.length ? (statsBy.at > 1 ? 'Only ' + BY[statsBy.at][2] + ' are between x and y; a pair on each line.' :
+                'x and y on each line, apart by a space, ' + (engine.comma ? 'semicolon' : 'comma') + ' or tab.') :
+                s.n + (s.n === 1 ? ' pair' : ' pairs') + (isFinite(s.b) ? ' · y = ' + shortNumber(s.a) + (s.b < 0 ? ' − ' : ' + ') + shortNumber(Math.abs(s.b)) + 'x' : '') +
+                (s.bad.length ? ' · left out: ' + s.bad.slice(0, 3).join(', ') + (s.bad.length > 3 ? ' …' : '') : '');
+            return;
+        }
         statsNote.textContent = !s.n && !s.bad.length ? (statsBy.at ? 'Only ' + BY[statsBy.at][2] + (statsBy.at > 1 ? ' and new lines' : '') + ' are between two numbers.' :
             'Apart by spaces, ' + (engine.comma ? 'semicolons' : 'commas') + ' or new lines; a column from a spreadsheet works too.') :
             s.n + (s.n === 1 ? ' number' : ' numbers') +
             (s.bad.length ? ' · left out: ' + s.bad.slice(0, 3).join(', ') + (s.bad.length > 3 ? ' …' : '') : '');
+    }
+
+    // a number to 6 digits, with the decimal mark in use and − for its minus: for the note and the charts
+    function shortNumber(v) {
+        return local(String(+(+v).toPrecision(6))).replace('-', '−');
+    }
+
+    var CHART_W = 340, CHART_H = 120;
+
+    // a line of text in a chart: at x, y, anchored at its start, middle or end
+    function chartText(x, y, text, anchor) {
+        return '<text x="' + x.toFixed(1) + '" y="' + y + '" text-anchor="' + (anchor || 'middle') + '">' + text + '</text>';
+    }
+
+    // The numbers of the list as a histogram, of up to 12 bars of the same width from min to max,
+    // and under it their box plot on the same scale: the box from Q1 to Q3, the median across
+    // it, and the whiskers out to min and max
+    function histogramChart(s) {
+        var lo = s.min, hi = s.max, k, w, counts = [], most, html = '', i, x = function (v) { return 10 + (v - lo) / (hi - lo) * (CHART_W - 20); };
+        if (lo === hi) {
+            lo -= 0.5;
+            hi += 0.5;
+        }
+        k = Math.min(12, Math.ceil(Math.log2(s.n)) + 1);
+        w = (hi - lo) / k;
+        for (i = 0; i < k; i++) counts.push(0);
+        s.values.forEach(function (v) {
+            counts[Math.min(k - 1, Math.floor((v - lo) / w))]++;
+        });
+        most = Math.max.apply(null, counts);
+        counts.forEach(function (c, i) {
+            var h = c / most * 64;
+            if (c) html += '<rect class="calc-stats-bar" x="' + (x(lo + i * w) + 1).toFixed(1) + '" y="' + (70 - h).toFixed(1) + '" width="' +
+                Math.max(1, x(lo + w) - x(lo) - 2).toFixed(1) + '" height="' + h.toFixed(1) + '"/>';
+        });
+        html += '<line class="calc-stats-axis" x1="10" y1="70.5" x2="' + (CHART_W - 10) + '" y2="70.5"/>';
+        if (isFinite(s.q1)) {
+            html += '<line class="calc-stats-whisker" x1="' + x(s.min).toFixed(1) + '" y1="87" x2="' + x(s.q1).toFixed(1) + '" y2="87"/>' +
+                '<line class="calc-stats-whisker" x1="' + x(s.q3).toFixed(1) + '" y1="87" x2="' + x(s.max).toFixed(1) + '" y2="87"/>' +
+                '<line class="calc-stats-whisker" x1="' + x(s.min).toFixed(1) + '" y1="82" x2="' + x(s.min).toFixed(1) + '" y2="92"/>' +
+                '<line class="calc-stats-whisker" x1="' + x(s.max).toFixed(1) + '" y1="82" x2="' + x(s.max).toFixed(1) + '" y2="92"/>' +
+                '<rect class="calc-stats-box" x="' + x(s.q1).toFixed(1) + '" y="79" width="' + Math.max(1, x(s.q3) - x(s.q1)).toFixed(1) + '" height="16"/>' +
+                '<line class="calc-stats-mid" x1="' + x(s.median).toFixed(1) + '" y1="79" x2="' + x(s.median).toFixed(1) + '" y2="95"/>';
+        } else {
+            html += '<circle class="calc-stats-dot" cx="' + x(s.median).toFixed(1) + '" cy="87" r="3"/>';
+        }
+        return '<svg viewBox="0 0 ' + CHART_W + ' ' + CHART_H + '" role="img" aria-label="Histogram and box plot">' + html +
+            chartText(10, 112, shortNumber(s.min), 'start') + (s.n > 1 && s.min !== s.max ? chartText(x(s.median), 112, shortNumber(s.median)) : '') +
+            chartText(CHART_W - 10, 112, shortNumber(s.max), 'end') + '</svg>';
+    }
+
+    // The pairs as dots, x across and y up, and their line of best fit through them
+    function scatterChart(s) {
+        var x0 = Math.min.apply(null, s.xs), x1 = Math.max.apply(null, s.xs), y0 = Math.min.apply(null, s.ys), y1 = Math.max.apply(null, s.ys),
+            px, py, html = '', pad;
+        if (x0 === x1) {
+            x0 -= 0.5;
+            x1 += 0.5;
+        }
+        if (y0 === y1) {
+            y0 -= 0.5;
+            y1 += 0.5;
+        }
+        pad = (y1 - y0) * 0.08;
+        y0 -= pad;
+        y1 += pad;
+        px = function (v) { return 34 + (v - x0) / (x1 - x0) * (CHART_W - 46); };
+        py = function (v) { return 98 - (v - y0) / (y1 - y0) * 90; };
+        html += '<line class="calc-stats-axis" x1="30" y1="102.5" x2="' + (CHART_W - 8) + '" y2="102.5"/><line class="calc-stats-axis" x1="30.5" y1="6" x2="30.5" y2="102.5"/>';
+        if (isFinite(s.b)) {
+            html += '<line class="calc-stats-fit" x1="' + px(x0).toFixed(1) + '" y1="' + py(s.a + s.b * x0).toFixed(1) + '" x2="' + px(x1).toFixed(1) +
+                '" y2="' + py(s.a + s.b * x1).toFixed(1) + '"/>';
+        }
+        s.xs.forEach(function (x, i) {
+            html += '<circle class="calc-stats-dot" cx="' + px(x).toFixed(1) + '" cy="' + py(s.ys[i]).toFixed(1) + '" r="3"/>';
+        });
+        return '<svg viewBox="0 0 ' + CHART_W + ' ' + CHART_H + '" role="img" aria-label="Scatter plot and line of best fit">' +
+            '<clipPath id="calc-stats-clip"><rect x="31" y="0" width="' + (CHART_W - 39) + '" height="102"/></clipPath><g clip-path="url(#calc-stats-clip)">' + html + '</g>' +
+            chartText(34, 115, shortNumber(Math.min.apply(null, s.xs)), 'start') + chartText(CHART_W - 12, 115, shortNumber(Math.max.apply(null, s.xs)), 'end') +
+            chartText(27, 12, shortNumber(Math.max.apply(null, s.ys)), 'end') + chartText(27, 99, shortNumber(Math.min.apply(null, s.ys)), 'end') + '</svg>';
     }
 
     function statsValue(value) {
@@ -3589,11 +3863,11 @@
         f = fxItems.formulas[+item.dataset.i].item;
         form = item.appendChild(document.createElement('div'));
         form.className = 'calc-fx-form';
-        form.innerHTML = f.v.map(function (v) {
+        form.innerHTML = '<div class="calc-fx-fields">' + f.v.map(function (v) {
             return '<label class="calc-fx-var"><span class="calc-fx-sym">' + v[1] + '</span>' +
                 '<input type="text" inputmode="decimal" pattern="-?[0-9]*[.,]?[0-9]*" spellcheck="false" autocomplete="off" maxlength="40" placeholder="' +
                 v[2] + '"></label>';
-        }).join('') + '<div class="calc-fx-actions"><span class="calc-fx-note">' +
+        }).join('') + '</div><div class="calc-fx-actions"><span class="calc-fx-note">' +
             (f.deg ? 'Angles in ' + ['radians', 'degrees', 'gradians'][deg] + ', the unit in use' : '') +
             '</span><span class="calc-fx-insert">Insert' + insertIcon() + '</span></div>';
         item.classList.add('calc-on');
@@ -3654,15 +3928,13 @@
         saveState();
     }
 
-    // the tip of a formula: what it gives, its letters and an example; of a constant, what it is
+    // the tip of a formula: what it gives, its letters and an example; a constant has the tip of a result (peekOf)
     function fxTip(el) {
         var item = el.parentNode, it;
         if (el.classList.contains('calc-past-close')) return CalcTips['formulas close'];
         if (!el.classList.contains('calc-fx-row') || item.classList.contains('calc-on')) return null;
         it = fxItems[fxTab][+item.dataset.i].item;
-        if (fxTab === 'constants') {
-            return { t: it.t, d: (it.d ? it.d + ' ' : '') + 'Click to put it into the equation.', k: '' };
-        }
+        if (fxTab === 'constants') return null;
         return {
             t: it.t,
             d: it.d + '<div class="calc-tip-more">' + it.v.map(function (v) {
@@ -4724,17 +4996,286 @@
         };
     }
 
+    // ---------------- dates ---------------- //
+
+    // The converter's dates: the time from one date to another, and a date moved on by years,
+    // months and days, with cards as the solver has. An empty date is today
+    var DATE_TOOLS = {
+        dates: [
+            { id: 'span', t: 'Between two dates', f: 'years, months, weeks and days', d: 'The time from one date to another: in years, months and days; then the whole years, months and weeks of it, its days, its weekdays, Monday to Friday, both dates in, and its hours, each below 0 where the second date is before the first. An empty date is today.',
+                fields: [{ k: 'a', l: 'From', date: true }, { k: 'b', l: 'To', date: true }], run: runSpan },
+            { id: 'add', t: 'Add or subtract', f: 'date ± years, months, days', d: 'A date some years, months and days on, below 0 to go back: the date and its weekday, its day of the year and its week. The years and months go first; a month from 31 January is the last day of February. An empty date is today.',
+                fields: [{ k: 'd', l: 'Date', date: true }, { k: 'y', l: 'Years', ph: '0', def: 0, cls: 'calc-sv-dated' },
+                    { k: 'm', l: 'Months', ph: '0', def: 0, cls: 'calc-sv-dated' }, { k: 'days', l: 'Days', ph: '0', def: 0, cls: 'calc-sv-dated' }],
+                cols: 3, run: runAdd }
+        ]
+    };
+
+    // the day of today, here
+    function today() {
+        var t = new Date();
+        return CalcMaths.dayFrom(t.getFullYear(), t.getMonth() + 1, t.getDate());
+    }
+
+    // A date is written in numbers as the browser's region writes it: 14/10/2026 in the UK and France,
+    // 14.10.2026 in Germany, 10/14/2026 in the US, 2026-10-14 in Sweden; and read so as it is typed.
+    // Its words are English, as the calculator's, in the order of the US or the UK. The weeks of the
+    // calendar start on the region's first day: Monday, or Sunday in the US
+    var DATE_LANG = /^en\b/i.test(navigator.language || '') ? navigator.language : 'en-GB',
+        DATE_NUMBERS = (function () {
+            var how = { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC', numberingSystem: 'latn', calendar: 'gregory' };
+            try {
+                return new Intl.DateTimeFormat(navigator.language || 'en-GB', how);
+            } catch (e) {
+                return new Intl.DateTimeFormat('en-GB', how);
+            }
+        })(),
+        DATE_ORDER = DATE_NUMBERS.formatToParts(new Date(Date.UTC(2000, 11, 31))).filter(function (p) {
+            return /^(day|month|year)$/.test(p.type);
+        }).map(function (p) { return p.type.charAt(0); }).join(''), // dmy, mdy or ymd
+        WEEK_START = (function () { // 0 Sunday, 1 Monday, 6 Saturday
+            var locale, week;
+            try {
+                locale = new Intl.Locale(navigator.language || 'en-GB');
+                week = locale.getWeekInfo ? locale.getWeekInfo() : locale.weekInfo;
+                if (week && week.firstDay) return week.firstDay % 7;
+            } catch (e) { }
+            return DATE_ORDER === 'mdy' ? 0 : 1;
+        })();
+
+    // a day in words: Wednesday, 14 October 2026. Of the options of toLocaleDateString: { month: 'long', year: 'numeric' } for October 2026
+    function dateText(day, how) {
+        var c = CalcMaths.dateOf(day), t = new Date(0);
+        t.setUTCFullYear(c.y, c.m - 1, c.d);
+        return t.toLocaleDateString(DATE_LANG, Object.assign(how || { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }, { timeZone: 'UTC' }));
+    }
+
+    // a day in numbers, as the region writes it: 14/10/2026; the year of four digits always, so it is read again as it is
+    function dateNumbers(day) {
+        var c = CalcMaths.dateOf(day), t = new Date(0);
+        t.setUTCFullYear(c.y, c.m - 1, c.d);
+        return DATE_NUMBERS.formatToParts(t).map(function (p) {
+            return p.type === 'year' ? p.value.padStart(4, '0') : p.value;
+        }).join('').replace(/[\u200e\u200f]/g, '');
+    }
+
+    // 3 weeks, 1 day: each that is not 0, grouped as the display groups; 0 days for none
+    function timeText(parts) {
+        var text = parts.filter(function (p) { return p[0]; }).map(function (p) {
+            return CalcEngine.group(String(p[0]), fmt.group) + ' ' + p[1] + (p[0] === 1 ? '' : 's');
+        }).join(', ');
+        return text || '0 days';
+    }
+
+    // the date of a box, today while it is empty or says so
+    function dayOfBox(text) {
+        return !text || /^today$/i.test(text) ? today() : CalcMaths.readDate(text, DATE_ORDER);
+    }
+
+    // ---------------- calendar ---------------- //
+
+    // A calendar for a box of a date, drawn as the calculator draws, as the lists of the converter
+    // are: under the box, or over it where the panel has no room below. « and » go a year back and on,
+    // ‹ and › a month; a click on a day, or Enter, writes it in the box. While it is open the arrows go
+    // a day and a week, Page Up and Page Down a month, and Esc closes it. A click in the box opens it,
+    // as its button and the arrow down do
+    var calendar = document.createElement('div'),
+        calBox = null, // the box it is open for
+        calLit = 0, // the day lit, whose month is shown
+        CAL_FIRST = CalcMaths.dayFrom(1, 1, 1), CAL_LAST = CalcMaths.dayFrom(9999, 12, 31),
+        CALENDAR_ICON = '<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">' +
+            '<rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>';
+
+    calendar.className = 'calc-cal';
+    calendar.hidden = true;
+    calendar.setAttribute('role', 'dialog');
+    calendar.setAttribute('aria-label', 'Calendar');
+
+    function openCalendar(box) {
+        var day = dayOfBox(box.value.trim());
+        calBox = box;
+        calLit = isNaN(day) ? today() : day;
+        box.closest('.calc-past').appendChild(calendar);
+        calendar.hidden = false;
+        box.parentNode.classList.add('calc-on');
+        hideTip();
+        drawCalendar();
+        placeCalendar();
+    }
+
+    function closeCalendar() {
+        if (!calBox) return;
+        calendar.hidden = true;
+        calBox.parentNode.classList.remove('calc-on');
+        calBox = null;
+    }
+
+    // the month of the day lit, its weeks from Monday, or Sunday; the day in the box and today marked
+    function drawCalendar() {
+        var c = CalcMaths.dateOf(calLit), first = CalcMaths.dayFrom(c.y, c.m, 1), start = first - (CalcMaths.weekday(first) + 8 - WEEK_START) % 7,
+            chosen = dayOfBox(calBox.value.trim()), now = today(), html = '', i, d;
+        for (i = 0; i < 7; i++) html += '<span class="calc-cal-wk">' + dateText(start + i, { weekday: 'short' }).slice(0, 2) + '</span>';
+        for (i = 0; i < 42; i++) {
+            d = start + i;
+            html += d < CAL_FIRST || d > CAL_LAST ? '<span></span>' : '<span class="calc-cal-day' + (CalcMaths.dateOf(d).m !== c.m ? ' calc-cal-out' : '') +
+                (d === now ? ' calc-cal-now' : '') + (d === chosen ? ' calc-on' : '') + (d === calLit ? ' calc-lit' : '') + '" data-d="' + d + '">' + CalcMaths.dateOf(d).d + '</span>';
+        }
+        calendar.innerHTML = '<div class="calc-cal-head"><span class="calc-cal-go" data-go="-12" title="A year back">«</span>' +
+            '<span class="calc-cal-go" data-go="-1" title="A month back">‹</span><span class="calc-cal-title">' + dateText(calLit, { month: 'long', year: 'numeric' }) + '</span>' +
+            '<span class="calc-cal-go" data-go="1" title="A month on">›</span><span class="calc-cal-go" data-go="12" title="A year on">»</span></div>' +
+            '<div class="calc-cal-grid">' + html + '</div><div class="calc-cal-foot"><span class="calc-cal-today">Today</span></div>';
+    }
+
+    // under the box, at its right; over it where there is no room below, and inside the panel always
+    function placeCalendar() {
+        var panel = calendar.parentNode, p = panel.getBoundingClientRect(), b = calBox.parentNode.getBoundingClientRect(),
+            k = p.width / panel.offsetWidth || 1, h = calendar.offsetHeight, top = (b.bottom - p.top) / k + 4;
+        if (top + h > panel.clientHeight - 4) top = Math.max((b.top - p.top) / k - h - 4, panel.clientHeight - 4 - h);
+        calendar.style.top = Math.max(4, top) + 'px';
+        calendar.style.left = Math.max(6, (b.right - p.left) / k - calendar.offsetWidth) + 'px';
+    }
+
+    // the day lit moved on by days, or by months, below 0 back; never past the year 1 or 9999
+    function moveCalendar(days, months) {
+        var d = months ? CalcMaths.addDate(calLit, 0, months, 0) : calLit + days;
+        if (!isNaN(d) && d >= CAL_FIRST && d <= CAL_LAST) calLit = d;
+        drawCalendar();
+    }
+
+    // the day written in the box, as if typed, and the box has the focus again
+    function chooseDay(day) {
+        var box = calBox;
+        closeCalendar();
+        box.value = dateNumbers(day);
+        box.dispatchEvent(new Event('input', { bubbles: true }));
+        focusBox(box);
+    }
+
+    calendar.addEventListener('mousedown', function (e) {
+        e.preventDefault(); // the box keeps the focus
+    }, false);
+
+    calendar.addEventListener('click', function (e) {
+        var go = e.target.closest('[data-go]'), day = e.target.closest('[data-d]');
+        if (go) moveCalendar(0, +go.dataset.go);
+        else if (day) chooseDay(+day.dataset.d);
+        else if (e.target.closest('.calc-cal-today')) chooseDay(today());
+    }, false);
+
+    // a press anywhere but on it and its box closes it
+    document.addEventListener('mousedown', function (e) {
+        if (calBox && !calendar.contains(e.target) && !calBox.parentNode.contains(e.target)) closeCalendar();
+    }, true);
+
+    // A box of a date: the calendar from a click in it, its button, or the arrow down; its keys while
+    // it is open. A date typed in it shows its month
+    function dateBoxOf(box) {
+        box.addEventListener('click', function () {
+            if (calBox !== box) openCalendar(box);
+        }, false);
+
+        box.parentNode.querySelector('.calc-sv-cal').addEventListener('click', function (e) {
+            e.preventDefault();
+            if (calBox === box) closeCalendar();
+            else openCalendar(box);
+            focusBox(box);
+        }, false);
+
+        box.addEventListener('input', function () {
+            var day = dayOfBox(box.value.trim());
+            if (calBox !== box) return;
+            if (!isNaN(day)) calLit = day;
+            drawCalendar();
+        }, false);
+
+        box.addEventListener('keydown', function (e) {
+            var k = e.which, moves = { 37: -1, 39: 1, 38: -7, 40: 7 };
+            if (calBox !== box) {
+                if (k !== 40) return;
+                openCalendar(box);
+            } else if (moves[k]) {
+                moveCalendar(moves[k]);
+            } else if (k === 33 || k === 34) { // Page Up and Down: a month, with Shift a year
+                moveCalendar(0, (k === 33 ? -1 : 1) * (e.shiftKey ? 12 : 1));
+            } else if (k === 13) {
+                chooseDay(calLit);
+            } else if (k === 27) {
+                closeCalendar();
+            } else {
+                if (k === 9) closeCalendar(); // Tab goes on to the next box
+                return;
+            }
+            e.preventDefault();
+            e.stopPropagation(); // not on to the next box, and the panel stays open
+        }, false);
+
+        box.addEventListener('blur', function () {
+            setTimeout(function () {
+                if (calBox === box && document.activeElement !== box) closeCalendar();
+            }, 0);
+        }, false);
+    }
+
+    // The time between two dates: the whole of it first, in years, months and days, as the calculator
+    // of Windows has it; then a tile for each unit, the whole ones of it in that unit, to put in. All
+    // below 0 where the second date is before the first
+    var SPAN_UNITS = [
+        ['Years', function (r) { return r.years; }],
+        ['Months', function (r) { return r.years * 12 + r.months; }],
+        ['Weeks', function (r) { return r.weeks; }],
+        ['Days', function (r) { return Math.abs(r.days); }],
+        ['Weekdays', function (r) { return r.workdays; }],
+        ['Hours', function (r) { return Math.abs(r.days) * 24; }]
+    ];
+
+    function runSpan(n, raw) {
+        var a = dayOfBox(raw.a), b = dayOfBox(raw.b), bad = [], r, back;
+        if (isNaN(a)) bad.push('a');
+        if (isNaN(b)) bad.push('b');
+        r = bad.length ? null : CalcMaths.datesBetween(a, b);
+        back = !!r && r.days < 0;
+        return {
+            rows: [r ? { l: 'Years, months and days', text: timeText([[r.years, 'year'], [r.months, 'month'], [r.rest, 'day']]), wide: true } :
+                { l: 'Years, months and days', v: NaN, wide: true }].concat(SPAN_UNITS.map(function (u) {
+                var v = r ? u[1](r) : NaN;
+                return { l: u[0], v: back && v ? -v : v };
+            })),
+            bad: bad, warn: !!bad.length,
+            note: bad.length ? 'A date, as ' + dateNumbers(today()) + ' or 14 Oct 2026, from the year 1 to 9999.' :
+                back ? 'The second date is before the first: the numbers are below 0.' : 'Weekdays are Monday to Friday, both dates in.'
+        };
+    }
+
+    function runAdd(n, raw) {
+        var from = dayOfBox(raw.d), bad = [], to, week;
+        if (isNaN(from)) bad.push('d');
+        ['y', 'm', 'days'].forEach(function (k) {
+            if (!Number.isInteger(n[k])) bad.push(k);
+        });
+        to = bad.length ? NaN : CalcMaths.addDate(from, n.y, n.m, n.days);
+        week = isNaN(to) ? null : CalcMaths.isoWeek(to);
+        return {
+            rows: [isNaN(to) ? { l: 'Date', v: NaN } : { l: 'Date', text: dateNumbers(to) }, isNaN(to) ? { l: 'Weekday', v: NaN } : { l: 'Weekday', text: dateText(to, { weekday: 'long' }) },
+                { l: 'Days on', v: to - from }, { l: 'Day of the year', v: isNaN(to) ? NaN : CalcMaths.dayOfYear(to) },
+                { l: 'Week', v: week ? week.week : NaN }],
+            bad: bad, warn: !!bad.length || isNaN(to),
+            note: bad.indexOf('d') > -1 ? 'A date, as ' + dateNumbers(today()) + ' or 14 Oct 2026, from the year 1 to 9999.' : bad.length ? 'Whole years, months and days, below 0 to go back.' :
+                isNaN(to) ? 'Before the year 1 or after 9999.' : 'Below 0 goes back. The week is by ISO 8601, from Monday.'
+        };
+    }
+
     // ---------------- panels of tools ---------------- //
 
-    // A panel of tools on tabs, as the solver and the numbers are: a card for each, which opens
-    // its boxes; what it gives worked out as they are typed, in tiles that put a value into the
-    // calculation with a click, a number of a matrix as well. A tab of one tool has it open.
-    // key: where its tab, its tool open and what is typed in each are kept for the next time;
-    // tip: the name of the tip of its button and its close; plain: its boxes of a number keep only
-    // a number, as the formulas' do, where the solver's take a calculation, pi/4.
-    // { show(open), load(saved), tip(el), open() }
-    function toolPanel(panel, button, tools, key, tip, plain) {
-        var list = panel.querySelector('.calc-sv-list'), tab = Object.keys(tools)[0], openId = '', values = {}, now = [], self;
+    // Cards of tools on tabs, as the solver, the numbers and the converter's dates have: a card
+    // for each, which opens its boxes; what it gives worked out as they are typed, in tiles that
+    // put a value into the calculation with a click, a number of a matrix as well. A tab of one
+    // tool has it open. key: where its tab, its tool open and what is typed in each are kept for
+    // the next time; plain: its boxes of a number keep only a number, as the formulas' do, where
+    // the solver's take a calculation, pi/4. now: { open(), whether its cards are shown,
+    // done(), after a value is put in }
+    // { render(), load(saved), clear(), keep(), tab(), setTab(tab), focus(), tip(el) }
+    function toolCards(list, tools, key, plain, now) {
+        var tab = Object.keys(tools)[0], openId = '', values = {}, rows = [];
 
         // the boxes of a tool, as what is typed in it says: a matrix has as many as its size
         function fieldsOf(tool, raw) {
@@ -4751,29 +5292,9 @@
             return raw;
         }
 
-        function show(open) {
-            var box;
-            if (open) {
-                closePanels(panel);
-                placePanel(panel);
-                render();
-            }
-            panel.classList.toggle('calc-open', open);
-            button.classList.toggle('calc-on', open);
-            if (open) {
-                box = list.querySelector('.calc-sv-item.calc-on input');
-                if (box && focusBox(box)) box.select();
-            } else if (panel.contains(document.activeElement)) {
-                document.activeElement.blur(); // the keys are the calculator's again
-            }
-        }
-
         // the cards of the tab, the one open with its boxes
         function render() {
             var open;
-            [].forEach.call(panel.querySelectorAll('.calc-solve-tab'), function (t) {
-                t.classList.toggle('calc-on', t.dataset.tab === tab);
-            });
             list.innerHTML = tools[tab].map(function (tool, i) {
                 if (tool.id === openId) open = i;
                 return '<div class="calc-sv-item" data-i="' + i + '"><div class="calc-sv-row"><span class="calc-sv-col">' +
@@ -4811,21 +5332,26 @@
             item.scrollIntoView({ block: 'nearest' });
         }
 
-        // the boxes of a tool, in columns, a head before each group of them, filled as they were typed
+        // The boxes of a tool, in columns, a head before each group of them, filled as they were typed.
+        // A date has a button for its calendar, and is today while nothing is typed
         function boxes(tool, item) {
+            closeCalendar();
             var kept = values[tool.id] || {}, cols = tool.cols || 1, html = '<div class="calc-sv-fields" style="--cols: ' + cols + '">';
             fieldsOf(tool, rawOf(tool)).forEach(function (f) {
                 if (f.head) {
                     html += '</div><div class="calc-sv-head">' + f.head + '</div><div class="calc-sv-fields calc-sv-cells-in" style="--cols: ' + f.cols + '">';
                     return;
                 }
-                html += '<label class="calc-sv-var' + (f.fn ? ' calc-sv-wide' : '') + (f.cls ? ' ' + f.cls : '') + '">' + (f.l ? '<span class="calc-sv-sym">' + f.l + '</span>' : '') +
-                    '<input type="text"' + (f.fn || f.text ? '' : ' inputmode="decimal"') + ' spellcheck="false" autocomplete="off" maxlength="' + (f.fn ? 200 : 40) +
-                    '" data-k="' + f.k + '" placeholder="' + f.ph + '" aria-label="' + (f.aria || (f.fn ? tool.t : f.l.replace(/<[^>]*>/g, ''))) + '"></label>';
+                html += '<label class="calc-sv-var' + (f.fn ? ' calc-sv-wide' : '') + (f.date ? ' calc-sv-wide calc-sv-dated' : '') + (f.cls ? ' ' + f.cls : '') + '">' + (f.l ? '<span class="calc-sv-sym">' + f.l + '</span>' : '') +
+                    (f.date ? '<span class="calc-sv-date">' : '') +
+                    '<input type="text"' + (f.fn || f.text || f.date ? '' : ' inputmode="decimal"') + ' spellcheck="false" autocomplete="off" maxlength="' + (f.fn ? 200 : 40) +
+                    '" placeholder="' + (f.date ? 'Today' : f.ph) + '" data-k="' + f.k + '" aria-label="' + (f.aria || (f.fn ? tool.t : f.l.replace(/<[^>]*>/g, ''))) + '">' +
+                    (f.date ? '<span class="calc-sv-cal" title="Calendar">' + CALENDAR_ICON + '</span></span>' : '') + '</label>';
             });
             item.querySelector('.calc-sv-boxes').innerHTML = html + '</div>';
             [].forEach.call(item.querySelectorAll('.calc-sv-boxes input'), function (input) {
                 input.value = typeof kept[input.dataset.k] === 'string' ? kept[input.dataset.k] : '';
+                if (input.parentNode.classList.contains('calc-sv-date')) dateBoxOf(input);
             });
         }
 
@@ -4842,18 +5368,21 @@
                 var text = raw[f.k] || '', v, box = inputs.filter(function (b) { return b.dataset.k === f.k; })[0];
                 if (f.head) return;
                 raw[f.k] = text;
-                if (f.fn || f.text) return;
+                if (f.fn || f.text || f.date) return;
                 v = text ? CalcMaths.number(text, engine.comma, deg, f.inf) : f.def !== undefined ? f.def : NaN;
                 if (box) box.classList.toggle('calc-bad', !!text && isNaN(v));
                 n[f.k] = v;
             });
             out = tool.run(n, raw);
             inputs.forEach(function (box) {
-                if (fields.some(function (f) { return f.k === box.dataset.k && (f.fn || f.text); })) box.classList.toggle('calc-bad', (out.bad || []).indexOf(box.dataset.k) > -1);
+                if (fields.some(function (f) { return f.k === box.dataset.k && (f.fn || f.text || f.date); })) box.classList.toggle('calc-bad', (out.bad || []).indexOf(box.dataset.k) > -1);
             });
-            now = out.rows;
+            rows = out.rows;
             item.querySelector('.calc-sv-grid').style.gridTemplateColumns = out.cols ? 'repeat(' + out.cols + ', 1fr)' : ''; // two, for an x and a y side by side
             item.querySelector('.calc-sv-grid').innerHTML = out.rows.map(tile).join('');
+            [].forEach.call(item.querySelectorAll('.calc-sv-tile'), function (el) {
+                el.row = out.rows[+el.dataset.r]; // for its tip
+            });
             [].forEach.call(item.querySelectorAll('.calc-sv-value, .calc-sv-cell'), function (shown) {
                 var size = shown.classList.contains('calc-sv-cell') ? 15 : 17;
                 while (size > 11 && shown.scrollWidth > shown.clientWidth) shown.style.fontSize = --size + 'px'; // a long one gets smaller, as on the display
@@ -4898,7 +5427,7 @@
         // nothing typed in any tool; the tab and the card open stay
         function clear() {
             values = {};
-            if (panel.classList.contains('calc-open')) render();
+            if (now.open()) render();
             keep();
         }
 
@@ -4909,34 +5438,18 @@
             if (saved.v && typeof saved.v === 'object') values = saved.v;
         }
 
-        button.addEventListener('click', function () {
-            show(!panel.classList.contains('calc-open'));
-        }, false);
-
-        panel.querySelector('.calc-past-close').addEventListener('click', function () {
-            show(false);
-        }, false);
-
-        panel.querySelector('.calc-solve-tabs').addEventListener('click', function (e) {
-            var t = e.target.closest('.calc-solve-tab');
-            if (!t) return;
-            tab = t.dataset.tab;
-            render();
-            keep();
-        }, false);
-
         // a card opens its boxes, or closes them; Again draws more random numbers; a tile, or a
         // number of a matrix, is put in
         list.addEventListener('click', function (e) {
             var row = e.target.closest('.calc-sv-row'), t = e.target.closest('.calc-sv-tile'), cell = e.target.closest('.calc-sv-cell'), bit = e.target.closest('.calc-sv-bit'), r, v;
             if (row) return openTool(row.parentNode.classList.contains('calc-on') ? null : row.parentNode);
             if (e.target.closest('.calc-sv-again')) return run();
-            r = t && now[+t.dataset.r];
+            r = t && rows[+t.dataset.r];
             if (bit && r && r.flip) return flip(t, r.flip, +bit.dataset.b);
             v = !r ? NaN : r.m ? (cell ? r.m[+cell.dataset.a][+cell.dataset.b] : NaN) : r.text === undefined ? r.v : NaN;
             if (!isFinite(v) || !engine.put(v)) return;
             keyBoard['AC'].children[0].firstChild.data = 'C';
-            show(false);
+            now.done();
             refresh();
             saveState();
         }, false);
@@ -4958,7 +5471,7 @@
             if (!tool || e.target.tagName !== 'INPUT') return;
             field = fieldsOf(tool, rawOf(tool)).filter(function (f) { return f.k === k; })[0] || {};
             if (plain && field.shape) onlySize(e.target);
-            else if (plain && !field.fn && !field.text) onlyNumber(e.target);
+            else if (plain && !field.fn && !field.text && !field.date) onlyNumber(e.target);
             values[tool.id] = values[tool.id] || {};
             values[tool.id][k] = e.target.value;
             if (field.shape) {
@@ -4972,6 +5485,8 @@
             keep();
         }, false);
 
+        list.addEventListener('scroll', closeCalendar, false); // the calendar would be left where its box was
+
         // Enter goes on to the next box
         list.addEventListener('keydown', function (e) {
             var inputs, at;
@@ -4982,21 +5497,87 @@
             if (at < inputs.length - 1) inputs[at + 1].focus();
         }, false);
 
-        self = {
-            show: show,
+        return {
+            render: render,
             load: load,
             clear: clear,
-            open: function () { return panel.classList.contains('calc-open'); },
+            keep: keep,
+            tab: function () { return tab; },
+            setTab: function (t) {
+                tab = t;
+                render();
+                keep();
+            },
+            // the first box of the card open, to type in
+            focus: function () {
+                var box = list.querySelector('.calc-sv-item.calc-on input');
+                if (box && focusBox(box)) box.select();
+            },
             // the tip of a card: what it gives
             tip: function (el) {
                 var tool;
-                if (el.classList.contains('calc-past-close')) return CalcTips[tip + ' close'];
                 if (!el.classList.contains('calc-sv-row') || el.parentNode.classList.contains('calc-on')) return null;
                 tool = tools[tab][+el.parentNode.dataset.i];
                 return { t: tool.t, d: tool.d + ' Click to open it.', k: '' };
             }
         };
-        return self;
+    }
+
+    // A panel of cards on tabs, over the keys, as the solver and the numbers are: its button opens it.
+    // tip: the name of the tip of its button and its close
+    // { show(open), load(saved), clear(), tip(el), open() }
+    function toolPanel(panel, button, tools, key, tip, plain) {
+        var cards = toolCards(panel.querySelector('.calc-sv-list'), tools, key, plain, {
+            open: function () { return panel.classList.contains('calc-open'); },
+            done: function () { show(false); }
+        });
+
+        function tabs() {
+            [].forEach.call(panel.querySelectorAll('.calc-solve-tab'), function (t) {
+                t.classList.toggle('calc-on', t.dataset.tab === cards.tab());
+            });
+        }
+
+        function show(open) {
+            if (open) {
+                closePanels(panel);
+                placePanel(panel);
+                tabs();
+                cards.render();
+            }
+            panel.classList.toggle('calc-open', open);
+            button.classList.toggle('calc-on', open);
+            if (open) {
+                cards.focus();
+            } else if (panel.contains(document.activeElement)) {
+                document.activeElement.blur(); // the keys are the calculator's again
+            }
+        }
+
+        button.addEventListener('click', function () {
+            show(!panel.classList.contains('calc-open'));
+        }, false);
+
+        panel.querySelector('.calc-past-close').addEventListener('click', function () {
+            show(false);
+        }, false);
+
+        panel.querySelector('.calc-solve-tabs').addEventListener('click', function (e) {
+            var t = e.target.closest('.calc-solve-tab');
+            if (!t) return;
+            cards.setTab(t.dataset.tab);
+            tabs();
+        }, false);
+
+        return {
+            show: show,
+            load: cards.load,
+            clear: cards.clear,
+            open: function () { return panel.classList.contains('calc-open'); },
+            tip: function (el) {
+                return el.classList.contains('calc-past-close') ? CalcTips[tip + ' close'] : cards.tip(el);
+            }
+        };
     }
 
     var solver = toolPanel(solvePanel, solveButton, SOLVE_TOOLS, 'solve', 'solve'),
@@ -5104,7 +5685,43 @@
 
     // A value in one unit, and the list of what it is in the other units of its
     // group, worked out as it is typed. A click on one puts it into the
-    // calculation, as Ans does. The value can be an equation too: 5*12
+    // calculation, as Ans does. The value can be an equation too: 5*12.
+    // Its other tab has the dates, in cards
+    var dates = toolCards(conv.querySelector('.calc-sv-list'), DATE_TOOLS, 'dates', true, {
+        open: function () { return conv.classList.contains('calc-open') && convTab === 'dates'; },
+        done: function () { showConv(false); }
+    });
+
+    dates.load({ open: 'span' }); // the first card open at first
+
+    conv.querySelector('.calc-solve-tabs').addEventListener('click', function (e) {
+        var t = e.target.closest('.calc-solve-tab');
+        if (!t || t.dataset.tab === convTab) return;
+        convTab = t.dataset.tab;
+        convTabs();
+        convFocus();
+        saveConv();
+    }, false);
+
+    // the tab shown, and what is in it
+    function convTabs() {
+        [].forEach.call(conv.querySelectorAll('.calc-solve-tab'), function (t) {
+            t.classList.toggle('calc-on', t.dataset.tab === convTab);
+        });
+        conv.classList.toggle('calc-conv-dates', convTab === 'dates');
+        closeCalendar();
+        showPicker(convGroup, false);
+        showPicker(convUnit, false);
+        if (convTab === 'dates') dates.render();
+        else renderConv(true);
+    }
+
+    // the value has the focus, or the first box of the card open
+    function convFocus() {
+        if (convTab === 'dates') dates.focus();
+        else if (focusBox(convInput)) convInput.select(); // typing replaces it
+    }
+
     picker(convGroup, function (i) {
         convAt.g = i;
         renderConv(true);
@@ -5150,20 +5767,23 @@
 
     // A result in the display starts the value, as in the formulas
     function showConv(open) {
+        if (!open) {
+            closeCalendar();
+            showPicker(convGroup, false);
+            showPicker(convUnit, false);
+        }
         if (open) {
             closePanels(conv);
             placePanel(conv);
             if (!engine.edit && !engine.error && (engine.done || engine.plain()) && +engine.value) {
                 convInput.value = local(+(+engine.value).toPrecision(13));
             }
-            renderConv(true);
         }
         conv.classList.toggle('calc-open', open);
         convButton.classList.toggle('calc-on', open);
-        showPicker(convGroup, false);
-        showPicker(convUnit, false);
         if (open) {
-            if (focusBox(convInput)) convInput.select(); // typing replaces it
+            convTabs();
+            convFocus();
         } else if (conv.contains(document.activeElement)) {
             document.activeElement.blur(); // the keys are the calculator's again
         }
@@ -5310,24 +5930,23 @@
     }
 
     function saveConv() {
-        store('conv', { g: CalcUnits.units[convAt.g].c, u: convAt.u, v: convInput.value });
+        store('conv', { g: CalcUnits.units[convAt.g].c, u: convAt.u, v: convInput.value, t: convTab });
     }
 
-    // the converter as it was left: its group, kept by its name, the unit of each group, the value
+    // the converter as it was left: its tab, its group, kept by its name, the unit of each group, the value
     function loadConv(s) {
+        convTab = s && s.t === 'dates' ? 'dates' : 'units';
         var g = CalcUnits.units.map(function (group) { return group.c; }).indexOf(s && s.g);
         convAt.g = g > -1 ? g : 0;
         convAt.u = s && s.u && typeof s.u === 'object' ? s.u : {};
         convInput.value = s && typeof s.v === 'string' ? s.v : '1';
     }
 
-    // the tip of a value: what it is, and that a click puts it in
+    // the tip of close, and of what the dates have; a value has the tip of a result (peekOf)
     function convTip(el) {
-        var group = CalcUnits.units[convAt.g], unit;
         if (el.classList.contains('calc-past-close')) return CalcTips['converter close'];
-        if (!el.classList.contains('calc-conv-row') || el.classList.contains('calc-none')) return null;
-        unit = group.list[+el.dataset.i];
-        return { t: unit.t.charAt(0).toUpperCase() + unit.t.slice(1), d: 'Click to put it into the equation.', k: '' };
+        if (el.closest('.calc-sv-list')) return dates.tip(el);
+        return null;
     }
 
     // what an administrator turned off, which the options cannot turn on: the extension keeps it (policy.js), the website has none
@@ -5765,7 +6384,9 @@
         if (graphAlone) return;
         store('secondActive', secondActive);
         store('deg', deg === 2 ? 'grad' : deg === 1); // true or false for Deg and Rad, as before Grad came
-        store('stat', statsInput.value);
+        store('stat', statsTexts.list);
+        store('statPairs', statsTexts.pairs);
+        store('statTab', statsTab);
         store('statBy', BY[statsBy.at][0]);
         store('fraction', fracMode);
         store('dms', dmsMode);
@@ -5777,7 +6398,7 @@
         var s = {};
 
         // all read first: the keys pressed below must not save over what is still to be read
-        ['secondActive', 'deg', 'stat', 'statBy', 'statsOn', 'fxOn', 'fxTab', 'convOn', 'conv', 'graphOn', 'graph', 'solveOn', 'solve', 'numbersOn', 'numbers', 'fraction', 'dms', 'format', 'fnOrder', 'memory', 'calc'].forEach(function (key) {
+        ['secondActive', 'deg', 'stat', 'statPairs', 'statTab', 'statBy', 'statsOn', 'fxOn', 'fxTab', 'convOn', 'conv', 'dates', 'graphOn', 'graph', 'solveOn', 'solve', 'numbersOn', 'numbers', 'fraction', 'dms', 'format', 'fnOrder', 'memory', 'calc'].forEach(function (key) {
             s[key] = stored(key);
         });
         // functions go before their number, tan 45; who used the calculator before this
@@ -5789,7 +6410,11 @@
             doKey('2nd', true);
         }
         setUnit(s.deg === true ? 1 : s.deg === 'grad' ? 2 : 0);
-        if (typeof s.stat === 'string') statsInput.value = s.stat;
+        if (typeof s.stat === 'string') statsTexts.list = s.stat;
+        if (typeof s.statPairs === 'string') statsTexts.pairs = s.statPairs;
+        if (s.statTab === 'pairs') statsTab = 'pairs';
+        statsInput.value = statsTexts[statsTab];
+        statsTiles();
         setStatsBy(Math.max(0, BY.map(function (by) { return by[0]; }).indexOf(s.statBy)));
         // all on, until changed in the options
         setPanels(s.statsOn !== false, s.fxOn !== false, s.convOn !== false, s.graphOn !== false, s.solveOn !== false, s.numbersOn !== false);
@@ -5798,6 +6423,7 @@
         numbers.load(s.numbers);
         if (s.fxTab === 'constants') fxTab = s.fxTab;
         loadConv(s.conv);
+        dates.load(s.dates);
         fracMode = engine.fraction = !!s.fraction;
         dmsMode = engine.dms = !fracMode && !!s.dms; // not both
         setFormat(s.format);

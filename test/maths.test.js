@@ -1,7 +1,7 @@
 // Run with: node test/maths.test.js
 // The maths of the Solve panel: equations, polynomials, typed as well, and their exact forms;
 // linear systems and two curves; turning points; integrals, slopes,
-// sums and products; the normal, binomial and Poisson distributions
+// sums and products; the normal, binomial and Poisson distributions; dates
 'use strict';
 
 var M = require('../js/maths.js'),
@@ -625,6 +625,58 @@ check(JSON.stringify(M.bitCount(BigInt(0xB0), 8)) === '{"ones":3,"leading":0,"tr
         M.float('-0', false, 0).exact === '–0' && M.float('abc', false, 0).error === 'number', 'float: ∞, NaN, 0 and -0; what is not a number');
     check(M.float('1.7976931348623157e308', false, 0).ulp === Math.pow(2, 971) && M.float('-1.7976931348623157e308', false, 0).ulp === Math.pow(2, 971),
         'float: the gap by the largest, not ∞', M.float('1.7976931348623157e308', false, 0).ulp);
+})();
+
+// dates: each day and back, as the calendar of today goes; the time between two, and a date moved on
+(function () {
+    var d = M.readDate, bad = 0, z, c, t, r;
+    for (z = M.dayFrom(1, 1, 1); z <= M.dayFrom(9999, 12, 31); z++) {
+        c = M.dateOf(z);
+        if (M.dayFrom(c.y, c.m, c.d) !== z) bad++;
+    }
+    check(!bad && M.dayFrom(1970, 1, 1) === 0 && M.dayFrom(1, 1, 1) === -719162, 'dayFrom and dateOf: every day from the year 1 to 9999 and back', bad);
+    for (z = -200000; z < 200000; z += 37) {
+        t = new Date(z * 864e5);
+        c = M.dateOf(z);
+        if (c.y !== t.getUTCFullYear() || c.m !== t.getUTCMonth() + 1 || c.d !== t.getUTCDate() || M.weekday(z) !== (t.getUTCDay() + 6) % 7) bad++;
+    }
+    check(!bad, 'dateOf and weekday: as Date has them', bad);
+    check(isNaN(M.dayFrom(2023, 2, 29)) && !isNaN(M.dayFrom(2024, 2, 29)) && isNaN(M.dayFrom(1900, 2, 29)) && !isNaN(M.dayFrom(2000, 2, 29)) &&
+        isNaN(M.dayFrom(0, 1, 1)) && isNaN(M.dayFrom(10000, 1, 1)) && isNaN(M.dayFrom(2026, 4, 31)), 'dayFrom: leap years, and no date there is not');
+    z = M.dayFrom(2026, 10, 14);
+    check(d('2026-10-14') === z && d('2026/10/14') === z && isNaN(d('2026-13-01')) && isNaN(d('')) && isNaN(d('+12026-01-01')) && isNaN(d('hello')),
+        'readDate: 2026-10-14, as a calendar writes it');
+    check(['14 Oct 2026', 'Oct 14, 2026', 'Wednesday, 14 October 2026', 'Wed, Oct 14, 2026', 'Wed, 14 Oct 2026', '2026 Oct 14', '14 octo 2026'].every(function (s) {
+        return d(s) === z;
+    }) && d('14 Sept 2026') === M.dayFrom(2026, 9, 14) && d('1 May 2026') === M.dayFrom(2026, 5, 1), 'readDate: a month by its name or the start of it');
+    check(isNaN(d('14 Octopus 2026')) && isNaN(d('14 Ma 2026')) && isNaN(d('Oct 2026')) && isNaN(d('14 Oct Nov 2026')) && isNaN(d('31 Feb 2026')) && isNaN(d('14 Oct 2026 5')),
+        'readDate: no month, two, or a date there is not');
+    check(d('14/10/2026') === z && d('14.10.2026') === z && d('14-10-2026') === z && d('14/10/2026', 'dmy') === z && isNaN(d('10/14/2026')) &&
+        d('10/14/2026', 'mdy') === z && d('4/10/2026', 'mdy') === M.dayFrom(2026, 4, 10) && d('2026/10/14', 'mdy') === z && d('2026. 10. 14.', 'ymd') === z &&
+        d('14/10/2026', 'ymd') === z && d('0005-01-01') === M.dayFrom(5, 1, 1), 'readDate: the year first, or the day first, or the month where the region writes it first');
+    check(isNaN(d('14/10/26')) && isNaN(d('14/10')) && isNaN(d('1/2/3/2026')) && isNaN(d('Oct 14 26')) && isNaN(d('14 Oct 26')) && isNaN(d('26 Oct 14')),
+        'readDate: no year of two digits, in words as well, nor two numbers or four');
+    check(M.weekday(d('2026-10-14')) === 2 && M.weekday(d('1970-01-01')) === 3, 'weekday: 14 October 2026 a Wednesday, 1 January 1970 a Thursday');
+
+    r = M.datesBetween(d('2000-02-29'), d('2026-10-14'));
+    check(r.days === 9724 && r.years === 26 && r.months === 7 && r.rest === 15 && r.weeks === 1389 && r.weekDays === 1 && r.workdays === 6947,
+        'datesBetween: 29 February 2000 to 14 October 2026', JSON.stringify(r));
+    r = M.datesBetween(d('2026-01-31'), d('2026-03-01'));
+    check(r.days === 29 && r.years === 0 && r.months === 1 && r.rest === 1, 'datesBetween: 31 January to 1 March is a month and a day', JSON.stringify(r));
+    check(M.datesBetween(d('2026-10-12'), d('2026-10-16')).workdays === 5 && M.datesBetween(d('2026-10-17'), d('2026-10-18')).workdays === 0 &&
+        M.datesBetween(d('2026-10-14'), d('2026-10-14')).workdays === 1 && M.datesBetween(d('2026-10-14'), d('2026-10-14')).days === 0,
+        'datesBetween: Monday to Friday five weekdays, a weekend none, a Wednesday to itself one');
+    r = M.datesBetween(d('2026-10-14'), d('2025-10-14'));
+    check(r.days === -365 && r.years === 1 && r.months === 0 && r.rest === 0, 'datesBetween: the second first, the days below 0', JSON.stringify(r));
+
+    check(M.addDate(d('2024-01-31'), 0, 1, 0) === d('2024-02-29') && M.addDate(d('2024-02-29'), 1, 0, 0) === d('2025-02-28') &&
+        M.addDate(d('2026-03-01'), 0, 0, -1) === d('2026-02-28') && M.addDate(d('2026-10-14'), 0, -10, 0) === d('2025-12-14') &&
+        M.addDate(d('2026-10-14'), 0, 0, 100) === d('2027-01-22'), 'addDate: to the last day of a shorter month; back; over a year');
+    check(isNaN(M.addDate(d('9999-12-31'), 0, 0, 1)) && isNaN(M.addDate(d('0001-01-01'), 0, -1, 0)) && isNaN(M.addDate(d('2026-10-14'), 0.5, 0, 0)),
+        'addDate: none past 9999 or before the year 1, nor half a year');
+    check(M.isoWeek(d('2026-01-01')).week === 1 && M.isoWeek(d('2021-01-03')).week === 53 && M.isoWeek(d('2021-01-03')).year === 2020 &&
+        M.isoWeek(d('2024-12-30')).week === 1 && M.isoWeek(d('2026-10-14')).week === 42, 'isoWeek: of the year with its first Thursday');
+    check(M.dayOfYear(d('2024-12-31')) === 366 && M.dayOfYear(d('2025-12-31')) === 365 && M.dayOfYear(d('2026-01-01')) === 1, 'dayOfYear');
 })();
 
 console.log(failures ? failures + ' of ' + checks + ' checks failed' : 'all ' + checks + ' checks passed');
