@@ -596,6 +596,93 @@ function eig(a) {
     check(eig(c[0]) === c[1], 'eigen: ' + c[2], eig(c[0]));
 });
 check(M.eigen([[1, 2, 3], [4, 5, 6], [7, 8, 9]]).poly.join(' ') === '1 -15 -18 0' && M.eigen([[1, 2, 3]]) === null, 'eigen: the characteristic polynomial; none of a matrix not square');
+
+// matrices up to 10 by 10: the eigenvalues of a larger one by the QR algorithm, and how far its answers can be trusted
+(function () {
+    var hilbert = [], tri = [], turn, i, j, e, exact = [1.0932878e-13, 2.2667458e-11, 2.1474388e-9, 1.2289677e-7, 4.7296893e-6,
+        1.2874961e-4, 2.5308908e-3, 3.5741816e-2, 0.34292955, 1.7519197];
+    for (i = 0; i < 10; i++) {
+        hilbert.push([]);
+        tri.push([]);
+        for (j = 0; j < 10; j++) {
+            hilbert[i].push(1 / (i + j + 1));
+            tri[i].push(i === j ? i + 1 : i < j ? 1 : 0);
+        }
+    }
+    e = M.eigen(hilbert);
+    check(e.values.length === 10 && e.values.every(function (z, k) { return !z.im && near(z.re, exact[k], 1e-6); }),
+        'eigen: of the 10×10 Hilbert matrix, all real, each to 7 digits, the smallest 1e-13 as well', eig(hilbert));
+    check(eig(tri).indexOf('1 2 3 4 5 6 7 8 9 10 | 1:1,0,0,0,0,0,0,0,0,0 2:1,1,0,0,0,0,0,0,0,0') === 0 && M.eigen(tri).vectors.length === 10,
+        'eigen: 10×10 upper triangular, its diagonal, each with its vector', eig(tri));
+    turn = [[0, -1, 0, 0, 0], [1, 0, 0, 0, 0], [0, 0, 2, 0, 0], [0, 0, 0, 3, 1], [0, 0, 0, 0, 3]];
+    check(eig(turn) === '2 3 3 0+1i 0-1i | 2:0,0,1,0,0 3:0,0,0,1,0', 'eigen: 5×5, a turn and a shear in it: ±i, and 3 twice of one vector', eig(turn));
+    check(M.eigen(tri).poly.join(' ') === '1 -55 1320 -18150 157773 -902055 3416930 -8409500 12753576 -10628640 3628800',
+        'eigen: the characteristic polynomial of a 10×10, whole', M.eigen(tri).poly.join(' '));
+    check(near(M.condition(hilbert), 3.5354e13, 1e-3) && M.condition([[1, 2], [2, 4]]) === Infinity && M.condition([[2, 0], [0, 1]]) === 2 &&
+        isNaN(M.condition([[1, 2]])), 'condition: of the Hilbert matrix 3.5e13; of one with no inverse ∞; none of one not square', M.condition(hilbert));
+    check(near(M.det(hilbert), 2.16441824e-53, 1e-4) && near(M.inverse(hilbert)[0][0], 100, 1e-3), 'det and inverse of the Hilbert matrix: only so near, as its κ says',
+        M.det(hilbert) + ' ' + M.inverse(hilbert)[0][0]);
+})();
+
+// money: time value of money, as a BA II Plus has it, received above 0 and paid below
+(function () {
+    function tvm(n, iy, pv, pmt, fv, start, py) {
+        return M.tvm({ n: n, iy: iy, pv: pv, pmt: pmt, fv: fv, py: py === undefined ? 12 : py, start: !!start });
+    }
+    var r = tvm(360, 6, 200000, NaN, 0), pmt = r.pmt;
+    check(r.find === 'pmt' && r.value === -1199.10105031 && r.paid === 431676.37811 && r.net === -231676.37811,
+        'tvm: a loan of 200000 at 6% for 30 years: its payment, all paid and the interest', JSON.stringify(r));
+    check(near(tvm(360, NaN, 200000, pmt, 0).value, 6, 1e-9) && near(tvm(NaN, 6, 200000, pmt, 0).value, 360, 1e-9) &&
+        near(tvm(360, 6, NaN, pmt, 0).value, 200000, 1e-9) && Math.abs(tvm(360, 6, 200000, pmt, NaN).value) < 1e-6,
+        'tvm: each of the five found back from the others');
+    r = tvm(120, 5, 0, -100, NaN);
+    check(r.value === 15528.2279446 && r.paid === 12000 && r.net === 3528.22794457, 'tvm: saving 100 a month for 10 years at 5%, the interest earned', JSON.stringify(r));
+    check(tvm(120, 5, 0, -100, NaN, true).value === 15592.9288943, 'tvm: paid at the start of each month, a month more of interest each');
+    check(tvm(10, 0, 1000, NaN, 0, false, 1).value === -100 && tvm(NaN, 0, 1000, -100, 0, false, 1).value === 10 && tvm(10, 0, NaN, -100, 0, false, 1).value === 1000,
+        'tvm: a rate of 0, the money only added up');
+    check(tvm(1, NaN, 1000, 0, -900, false, 1).value === -10 && tvm(NaN, 6, 200000, -1500, 0).value === 220.271307264,
+        'tvm: a rate below 0 found; an N that is not whole', tvm(NaN, 6, 200000, -1500, 0).value);
+    check(tvm(10, NaN, 1000, 100, 0).error === 'none' && tvm(NaN, 6, 200000, -500, 0).error === 'none' && tvm(10, NaN, 1000, 100, 100).error === 'none',
+        'tvm: none where money received and paid cannot balance, nor a payment too small ever to pay a loan');
+    check(tvm(10, 6, NaN, NaN, 0).error === 'one' && tvm(10, 6, 1, 1, 1).error === 'one' && tvm(10, -1300, 100, NaN, 0).error === 'rate' &&
+        tvm(0, 6, 100, NaN, 0).error === 'n' && tvm(10, 6, 100, NaN, 0, false, 0).error === 'py',
+        'tvm: one of them empty; a rate a period not above –100%, an N or P/Y not above 0');
+    r = tvm(1e6, 6, 200000, NaN, 0);
+    check(r.value === -1000 && tvm(1e6, 6, 0, -1, NaN).error === 'large', 'tvm: a very long term: the interest alone; a sum too large to show', JSON.stringify(r));
+})();
+
+// money: NPV, IRR and payback of cash flows
+(function () {
+    var r = M.irr([-1000, 300, 400, 500]);
+    check(r.irr === 8.89633946933 && r.changes === 1 && !r.others.length && M.npv(10, [-1000, 300, 400, 500]) === -21.0368144252 &&
+        M.npv(r.irr, [-1000, 300, 400, 500]) === 0 && M.payback([-1000, 300, 400, 500]) === 2.6, 'irr, npv and payback of an investment', JSON.stringify(r));
+    r = M.irr([-100, 230, -132]);
+    check(r.irr === 10 && r.others.join() === '20' && r.changes === 2, 'irr: of flows that change sign twice, two, the one nearest 10% first', JSON.stringify(r));
+    r = M.irr([100, 200, 300]);
+    check(isNaN(r.irr) && r.changes === 0 && isNaN(M.payback([100, 200])) && isNaN(M.payback([-100, 20, 30])), 'irr and payback: none of flows that never change sign, or never pay back');
+    check(M.npv(0, [-100, 50, 50]) === 0 && isNaN(M.npv(-100, [-100, 50])) && isNaN(M.npv(-150, [-100, 50])) && M.irr([-100, 0, 0, 0, 0, 0, 0, 0, 0, 105]).irr === 0.543585026318 &&
+        M.irr([-100, 400]).irr === 300 && M.irr([-100, 1]).irr === -99, 'npv at 0% and not below –100%; irr of a long wait, a large one and one near –100%');
+})();
+
+// money: a payment schedule, and APR and APY
+(function () {
+    var r = M.amortize(100000, 6, 30, 12, 600), y = r.byYear, last = r.byPayment[359];
+    check(r.payment === 599.550525153 && r.interest === 115838.189055 && r.n === 360 && y.length === 30 && !r.more,
+        'amortize: 100000 at 6% for 30 years, a payment each month', JSON.stringify([r.payment, r.interest, y.length]));
+    check(JSON.stringify(r.byPayment[0]) === '[1,500,99.5505251528,99900.4494748]' && last[3] === 0 && near(last[1] + last[2], 599.550525153, 1e-9) &&
+        y[29][3] === 0 && near(y[0][1] + y[0][2], 12 * 599.550525153, 1e-9), 'amortize: the first payment, the last to 0, a year of 12 of them', JSON.stringify(r.byPayment[0]) + ' ' + JSON.stringify(last));
+    check(M.amortize(1200, 0, 1, 12, 600).payment === 100 && M.amortize(1200, 0, 1, 12, 600).interest === 0, 'amortize: at 0%, the loan in equal parts');
+    r = M.amortize(100000, 5, 100, 12, 600);
+    check(r.byPayment.length === 600 && r.more && r.byYear.length === 100, 'amortize: a long term shows its first 600 payments, and every year');
+    check(M.amortize(0, 5, 1, 12, 600).error === 'loan' && M.amortize(-5, 5, 1, 12, 600).error === 'loan' && M.amortize(1000, 5, 2.3, 12, 600).error === 'whole' &&
+        M.amortize(1000, -1300, 1, 12, 600).error === 'rate' && M.amortize(1000, 5, 10000, 12, 600).error === 'long' && M.amortize(1000, 5, 0, 12, 600).error === 'years',
+        'amortize: a loan above 0, a whole number of payments, a rate above –100% a period, up to 100000 payments');
+    check(M.amortize(1000, 5, 2.5, 12, 600).byYear.map(function (y) { return y[0]; }).join() === '1,2,3', 'amortize: half a year at the end, a year of its own');
+    check(M.effectiveRate(12, 12) === 12.6825030132 && M.nominalRate(12.6825030132, 12) === 12 && M.effectiveRate(10, Infinity) === 10.5170918076 &&
+        M.nominalRate(10.5170918076, Infinity) === 10 && M.effectiveRate(0, 12) === 0, 'APR to APY and back, of 12 periods and all the time');
+    check(isNaN(M.effectiveRate(-1200, 12)) && isNaN(M.nominalRate(-100, 12)) && isNaN(M.effectiveRate(5, 0)) && M.effectiveRate(-50, 1) === -50,
+        'APR and APY: not below –100%, of periods above 0');
+})();
 check(JSON.stringify(M.system([[2, 1, -1], [-3, -1, 2], [-2, 1, 2]], [8, -11, -3]).x) === '[2,3,-1]' &&
     JSON.stringify(M.system([[1, 0], [0, 1], [1, 1]], [1, 2, 3]).x) === '[1,2]' && M.system([[1, 0], [0, 1], [1, 1]], [1, 2, 4]).none &&
     M.system([[1, 1], [2, 2]], [3, 6]).many && M.system([[1, 1, 1]], [3]).many && M.system([[1, 1], [1, 1]], [1e-10, 0]).none &&

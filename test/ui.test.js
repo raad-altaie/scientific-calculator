@@ -1072,8 +1072,8 @@ async function solver(page, at) {
 
     await page.fresh(at, {});
     await page.click('.calc-solve-btn');
-    check(await open(page, '.calc-solve') && await page.calc('document.querySelectorAll(".calc-solve .calc-solve-tab").length') === 3 &&
-        await page.calc('document.querySelectorAll(".calc-solve .calc-sv-item").length') === 10, t + 'its button opens it: three tabs, ten cards on the first');
+    check(await open(page, '.calc-solve') && await page.calc('[].map.call(document.querySelectorAll(".calc-solve .calc-solve-tab"), function (t) { return t.dataset.tab; }).join()') === 'solve,calculus,chance,finance' &&
+        await page.calc('document.querySelectorAll(".calc-solve .calc-sv-item").length') === 10, t + 'its button opens it: four tabs, Finance after Probability, ten cards on the first');
     await page.click('.calc-sv-item:nth-child(1) .calc-sv-row');
     check(await page.calc('document.activeElement === document.querySelector("' + on + ' input")'), t + 'a card opens its boxes, the first to type in');
     await page.type('x^2=2x+3');
@@ -1298,8 +1298,8 @@ async function numbersPanel(page, at) {
         await page.calc('document.querySelectorAll("' + on + ' input")[1].value'));
     await set(0, '2a×b2');
     check(await page.calc('document.querySelector("' + on + ' input").value') === '2×2', t + 'and its size only a size', await page.calc('document.querySelector("' + on + ' input").value'));
-    await set(0, '5');
-    check(/^A size/.test(await page.calc(note)) && await page.calc(tiles) === 'λ=–', t + 'eigenvalues: a size that is not one is said so', await page.calc(note));
+    await set(0, '11');
+    check(/^A size of rows and columns, each 1 to 10/.test(await page.calc(note)) && await page.calc(tiles) === 'λ=–', t + 'eigenvalues: a size that is not one is said so', await page.calc(note));
     await card('A x = b');
     check(await page.calc('document.querySelectorAll("' + on + ' input").length') === 7 && await page.calc('document.querySelectorAll("' + on + ' .calc-sv-rhs").length') === 2,
         t + 'A x = b: a size, and a row of A and of b for each equation');
@@ -1372,6 +1372,319 @@ async function numbersPanel(page, at) {
     await page.click('.calc-numbers-btn');
     await page.key('Escape', 27);
     check(!await open(page, '.calc-numbers'), t + 'Esc closes it');
+}
+
+// Matrices up to 10×10: their boxes smaller, scrolling across inside the card and never the page; the
+// results as big; the eigenvalues of a larger one; and a note where a matrix is too badly conditioned to trust
+async function matrixTen(page, at) {
+    var t = at + ': matrix 10×10: ', on = '.calc-numbers .calc-sv-item.calc-on',
+        note = 'document.querySelector(".calc-numbers .calc-sv-item.calc-on .calc-sv-note").textContent', i, j, got;
+    function set(n, text) {
+        return page.calc('(function (b) { b.value = ' + JSON.stringify(text) + '; b.dispatchEvent(new Event("input", { bubbles: true })); })' +
+            '(document.querySelectorAll("' + on + ' input")[' + n + '])');
+    }
+    async function card(name) {
+        await page.calc('[].filter.call(document.querySelectorAll(".calc-numbers .calc-sv-name"), function (n) { return n.textContent === ' + JSON.stringify(name) +
+            '; })[0].parentNode.parentNode.click()');
+        await sleep(60);
+    }
+    // the page, and the panel's list, as wide as they are: nothing scrolls across but the matrices
+    var wide = '[document.documentElement.scrollWidth - document.documentElement.clientWidth, document.querySelector(".calc-numbers .calc-sv-list").scrollWidth - ' +
+        'document.querySelector(".calc-numbers .calc-sv-list").clientWidth].join()';
+
+    await page.fresh(at, {});
+    await page.click('.calc-numbers-btn');
+    await card('A matrix');
+    await set(0, '10');
+    check(await page.calc('document.querySelectorAll("' + on + ' input").length') === 102 && await page.calc('document.querySelector("' + on + ' .calc-sv-cells-in").classList.contains("calc-sv-many")') &&
+        await page.calc('(function (g) { return g.scrollWidth <= g.clientWidth && document.querySelector("' + on + ' .calc-sv-cells-in input").offsetWidth >= 24; })(document.querySelector("' + on + ' .calc-sv-cells-in"))'),
+        t + 'a size of 10 makes 100 boxes, smaller, that fit across the card');
+    check(await page.calc(wide) === '0,0', t + 'the page and the panel do not scroll across', await page.calc(wide));
+    for (i = 1; i <= 10; i++) for (j = 1; j <= 10; j++) await set(1 + (i - 1) * 10 + j, String(1 / (i + j - 1)));
+    got = await page.calc('[].map.call(document.querySelectorAll("' + on + ' .calc-sv-matrix")[0].querySelectorAll(".calc-sv-cell"), function (c) { return c.textContent; })');
+    check(got.length === 100 && got[0] === '100' && got[1] === '-4950' && /^99\.99/.test(await page.calc('document.querySelector("' + on + ' .calc-sv-matrix .calc-sv-cell").title')) &&
+        await page.calc('(function (c) { return c.scrollWidth <= c.clientWidth + 1; })(document.querySelector("' + on + ' .calc-sv-matrix .calc-sv-cell"))') &&
+        await page.calc('(function (m) { return m.scrollWidth <= m.clientWidth; })(document.querySelector("' + on + ' .calc-sv-matrix .calc-sv-cells"))'),
+        t + 'the inverse of the Hilbert matrix, 10×10, fits its tile, each number to as many digits as fit, the whole in its title', got.slice(0, 3).join(' '));
+    check(/^Badly conditioned, κ ≈ 3,5e13|^Badly conditioned, κ ≈ 3\.5e13: only about 2 digits/.test(await page.calc(note)) && await page.calc('document.querySelector("' + on + ' .calc-sv-note").classList.contains("calc-sv-warn")'),
+        t + 'its note says how few of its digits can be trusted', await page.calc(note));
+    check(await page.calc(wide) === '0,0', t + 'nor with the results', await page.calc(wide));
+    await card('Eigenvalues');
+    await set(0, '10');
+    for (i = 1; i <= 10; i++) for (j = 1; j <= 10; j++) await set((i - 1) * 10 + j, i === j ? String(i) : i < j ? '1' : '0');
+    got = await page.calc('[].map.call(document.querySelectorAll("' + on + ' .calc-sv-tile"), function (e) { return e.querySelector(".calc-sv-label").textContent + "=" + e.lastChild.textContent; }).slice(0, 11).join(" | ")');
+    check(got === 'λ1=1 | λ2=2 | λ3=3 | λ4=4 | λ5=5 | λ6=6 | λ7=7 | λ8=8 | λ9=9 | λ10=10 | Trace=55', t + 'eigenvalues of a 10×10', got);
+    await card('A x = b');
+    await set(0, '10');
+    check(await page.calc('document.querySelectorAll("' + on + ' input").length') === 111 && await page.calc('document.querySelectorAll("' + on + ' .calc-sv-rhs").length') === 10,
+        t + 'A x = b of ten equations: a row of A and of b for each');
+    for (i = 1; i <= 10; i++) await set(1 + (i - 1) * 11 + i - 1, '2'); // 2 on the diagonal
+    for (i = 1; i <= 10; i++) await set(i * 11, String(2 * i));
+    got = await page.calc('[].map.call(document.querySelectorAll("' + on + ' .calc-sv-tile"), function (e) { return e.querySelector(".calc-sv-label").textContent + "=" + e.lastChild.textContent; }).slice(0, 10).join(" | ")');
+    check(got === 'x1=1 | x2=2 | x3=3 | x4=4 | x5=5 | x6=6 | x7=7 | x8=8 | x9=9 | x10=10', t + 'its ten unknowns', got);
+    await card('LU and QR');
+    await set(0, '10');
+    check(await page.calc('document.querySelectorAll("' + on + ' .calc-sv-matrix").length') === 5 &&
+        await page.calc('document.querySelectorAll("' + on + ' .calc-sv-matrix")[0].querySelectorAll(".calc-sv-cell").length') === 100, t + 'LU and QR of a 10×10');
+}
+
+// The Finance tab of the solver: money over time as a BA II Plus works it out, NPV and IRR, a
+// payment schedule as a table to copy, and APR and APY. With the decimal comma and fraction mode
+async function finance(page, at) {
+    var t = at + ': finance: ', on = '.calc-solve .calc-sv-item.calc-on',
+        tiles = '[].map.call(document.querySelectorAll(".calc-solve .calc-sv-item.calc-on .calc-sv-tile:not(.calc-sv-table)"), function (e) {' +
+            ' return e.querySelector(".calc-sv-label").textContent + "=" + e.querySelector(".calc-sv-value").textContent; }).join(" | ")',
+        note = 'document.querySelector(".calc-solve .calc-sv-item.calc-on .calc-sv-note").textContent',
+        rows = 'document.querySelectorAll(".calc-solve .calc-sv-table .calc-sv-cell").length / 4', got;
+
+    // a box of the card open, typed in: one of a line, or of lines
+    function set(n, text) {
+        return page.calc('(function (b) { b.value = ' + JSON.stringify(text) + '; b.dispatchEvent(new Event("input", { bubbles: true })); })' +
+            '(document.querySelectorAll("' + on + ' input, ' + on + ' textarea")[' + n + '])');
+    }
+    async function card(name) {
+        await page.calc('[].filter.call(document.querySelectorAll(".calc-solve .calc-sv-name"), function (n) { return n.textContent === ' + JSON.stringify(name) +
+            '; })[0].parentNode.parentNode.click()');
+        await sleep(60);
+    }
+
+    await page.fresh(at, {});
+    await page.click('.calc-solve-btn');
+    await page.click('.calc-solve .calc-solve-tab[data-tab="finance"]');
+    check(await page.calc('[].map.call(document.querySelectorAll(".calc-solve .calc-sv-name"), function (n) { return n.textContent; }).join()') ===
+        'Payment schedule,Interest rates,Time value of money,NPV and IRR', t + 'four cards, the payment schedule and the rates first');
+
+    // time value of money: the one left empty is found; received above 0, paid below
+    await card('Time value of money');
+    check(/^Leave only one of N, I\/Y, PV, PMT and FV empty/.test(await page.calc(note)) && /Money received is above 0, money paid below 0/.test(await page.calc(note)),
+        t + 'tvm: empty, it says to leave one empty, and which way the money goes', await page.calc(note));
+    for (const [n, v] of [[0, '360'], [1, '6'], [2, '200000'], [4, '0']]) await set(n, v);
+    check(await page.calc(tiles) === 'PMT=-1199.10 | Total paid=431676.38 | Interest paid=231676.38' && /^Money received is above 0/.test(await page.calc(note)),
+        t + 'tvm: the payment of a loan, PMT left empty, below 0 as it is paid; money to the cent', await page.calc(tiles));
+    await page.click(on + ' .calc-sv-opt[data-c="1"]');
+    check((await page.calc(tiles)).indexOf('PMT=-1193.14 | ') === 0 && await page.calc('document.querySelector("' + on + ' .calc-sv-opt[data-c=\\"1\\"]").classList.contains("calc-on")'),
+        t + 'tvm: paid at the start of each month, a little less', await page.calc(tiles));
+    await page.click(on + ' .calc-sv-opt[data-c="0"]');
+    await set(3, '-1500');
+    await set(0, '');
+    check((await page.calc(tiles)).indexOf('N=220.271307264 | ') === 0 && /N is not a whole number/.test(await page.calc(note)), t + 'tvm: N found, not a whole number', await page.calc(note));
+    await set(3, '1500');
+    check(/^No N makes the money balance/.test(await page.calc(note)) && await page.calc('document.querySelector("' + on + ' .calc-sv-note").classList.contains("calc-sv-warn")') &&
+        await page.calc(tiles) === 'N=–', t + 'tvm: money received both ways cannot balance: said, not a wrong number', await page.calc(note));
+    await set(0, '10');
+    await set(3, '');
+    await set(1, '-1300');
+    check(/^The rate a period, I\/Y ÷ P\/Y, is above –100%/.test(await page.calc(note)) && await page.calc(tiles) === 'PMT=–', t + 'tvm: a rate a period below –100%', await page.calc(note));
+    await set(1, '0');
+    check((await page.calc(tiles)).indexOf('PMT=-20000.00 | ') === 0, t + 'tvm: at 0%, PV in equal parts', await page.calc(tiles));
+    await set(0, '1000000');
+    await set(1, '6');
+    check((await page.calc(tiles)).indexOf('PMT=-1000.00 | ') === 0, t + 'tvm: a very long term: the interest alone', await page.calc(tiles));
+    // a result has the tip of a result: Insert and Copy
+    await page.hover(on + ' .calc-sv-tile');
+    await page.until('!document.querySelector(".calc-peek").hidden', 2000);
+    check(await page.calc('!document.querySelector(".calc-peek").hidden && !!document.querySelector(".calc-peek [data-act=insert]") && !!document.querySelector(".calc-peek [data-act=copy]")'),
+        t + 'tvm: a result has its tip, with Insert and Copy');
+    await set(0, '360');
+    await page.click(on + ' .calc-sv-tile');
+    check(!await open(page, '.calc-solve') && await value(page) === -1199.10105031, t + 'tvm: a click puts it in with every digit, shown to the cent', await value(page));
+    await page.click('.calc-solve-btn');
+
+    // NPV and IRR of cash flows, one to a line: Enter there is a new line
+    await card('NPV and IRR');
+    await page.click(on + ' textarea');
+    await page.type('-1000\r300\r400\r500');
+    check(await page.calc('document.querySelector("' + on + ' textarea").value') === '-1000\n300\n400\n500' &&
+        await page.calc(tiles) === 'NPV=-21.04 | IRR %=8.89633946933 | Payback=2.6', t + 'npv: of flows typed one to a line, at 10%', await page.calc(tiles));
+    await set(1, '-100, 230, -132');
+    check(await page.calc(tiles) === 'NPV=0.00 | IRR %=10 | Payback=0.434782608696' && /more than one IRR: this one is the nearest 10%, and 20% is another/.test(await page.calc(note)),
+        t + 'npv: flows that change sign twice: maybe more than one IRR', await page.calc(note));
+    await set(1, '100 200');
+    check(/^No IRR: the flows never change sign/.test(await page.calc(note)) && (await page.calc(tiles)).indexOf('IRR %=– | ') > 0, t + 'npv: none of flows that never change sign', await page.calc(note));
+    await set(1, '-100, abc');
+    check(/^abc is not a number/.test(await page.calc(note)) && await page.calc('document.querySelector("' + on + ' textarea").classList.contains("calc-bad")'),
+        t + 'npv: what is not a number is marked', await page.calc(note));
+
+    // a payment schedule: a table by year, or by payment, to copy for a spreadsheet
+    await card('Payment schedule');
+    for (const [n, v] of [[0, '100000'], [1, '6'], [2, '30']]) await set(n, v);
+    check(await page.calc(tiles) === 'Payment=599.55 | Total interest=115838.19 | Total paid=215838.19' && await page.calc(rows) === 30 &&
+        await page.calc('[].map.call(document.querySelectorAll(".calc-solve .calc-sv-th"), function (h) { return h.textContent; }).join()') === 'Year,Interest,Principal,Balance',
+        t + 'schedule: the payment, the interest, and a row of each year', await page.calc(tiles));
+    check(await page.calc('[].slice.call(document.querySelectorAll(".calc-solve .calc-sv-table .calc-sv-cell"), 116).map(function (c) { return c.textContent; }).join()') === '30,228.47,6966.14,0.00',
+        t + 'schedule: its last year, nothing left; to the cent');
+    await page.click(on + ' .calc-sv-opt[data-c="1"]');
+    check(await page.calc(rows) === 360 && await page.calc('(function (c) { return c.scrollHeight > c.clientHeight; })(document.querySelector(".calc-solve .calc-sv-table .calc-sv-cells"))'),
+        t + 'schedule: by payment, 360 rows, scrolling inside the card');
+    await page.calc('document.addEventListener("copy", function (e) { window.copied = e.clipboardData.getData("text/plain"); })');
+    await page.click(on + ' .calc-sv-copy');
+    got = (await page.calc('window.copied') || '').split('\n');
+    check(got.length === 362 && got[0] === 'No.\tInterest\tPrincipal\tBalance' && got[1] === '1\t500\t99.5505251528\t99900.4494748' && got[360].split('\t')[3] === '0' &&
+        await open(page, '.calc-solve'), t + 'schedule: Copy table copies it apart by tabs, every digit, for a spreadsheet', got.slice(0, 2).join(' / '));
+    await set(2, '100');
+    check(await page.calc(rows) === 600 && /The table has the first 600 payments/.test(await page.calc(note)), t + 'schedule: a long term, up to 600 rows', await page.calc(note));
+    await set(2, '2.31');
+    check(/^Years × payments a year is a whole number/.test(await page.calc(note)), t + 'schedule: payments that are not whole', await page.calc(note));
+    await set(2, '1');
+    await set(0, '-5');
+    check(await page.calc(note) === 'The loan is above 0.' && await page.calc(rows) === 0, t + 'schedule: a loan below 0', await page.calc(note));
+    await set(0, '1200');
+    await set(1, '0');
+    check((await page.calc(tiles)).indexOf('Payment=100.00 | Total interest=0.00 | ') === 0, t + 'schedule: at 0%', await page.calc(tiles));
+
+    // APR and APY, each of the other
+    await card('Interest rates');
+    await set(0, '12');
+    check(await page.calc(tiles) === 'APR %=12 | APY %=12.6825030132 | A period %=1', t + 'rates: APR to APY', await page.calc(tiles));
+    await set(0, '');
+    await set(1, '12.6825030132');
+    check((await page.calc(tiles)).indexOf('APR %=12 | ') === 0, t + 'rates: and back', await page.calc(tiles));
+    await set(0, '10');
+    await set(1, '');
+    await set(2, 'inf');
+    check((await page.calc(tiles)).indexOf('APR %=10 | APY %=10.5170918076 | ') === 0 && /all the time/.test(await page.calc(note)), t + 'rates: of interest all the time', await page.calc(tiles));
+
+    // the decimal comma, as in the other results; fraction mode, in its results as well
+    await page.fresh(at, { format: { notation: 'norm', places: 'auto', group: 'dot' } });
+    await page.click('.calc-solve-btn');
+    await page.click('.calc-solve .calc-solve-tab[data-tab="finance"]');
+    await card('NPV and IRR');
+    await set(1, '-1000; 300,5; 400; 500');
+    check(await page.calc(tiles) === 'NPV=-20,58 | IRR %=8,92002068437 | Payback=2,599', t + 'npv: with the decimal comma, and ; between', await page.calc(tiles));
+    await card('Time value of money');
+    for (const [n, v] of [[0, '12'], [1, '6'], [2, '1000'], [4, '0']]) await set(n, v);
+    check((await page.calc(tiles)).indexOf('PMT=-86,07 | ') === 0, t + 'tvm: with the decimal comma', await page.calc(tiles));
+    await page.fresh(at, { fraction: true });
+    await page.click('.calc-solve-btn');
+    await page.click('.calc-solve .calc-solve-tab[data-tab="finance"]');
+    await card('NPV and IRR');
+    await set(1, '-1000, 300, 400, 500');
+    check(await page.calc('!!document.querySelectorAll(".calc-solve .calc-sv-item.calc-on .calc-sv-value")[2].querySelector(".calc-fr")'),
+        t + 'npv: a payback of 2.6 as 13/5 in fraction mode', await page.calc('document.querySelectorAll(".calc-solve .calc-sv-item.calc-on .calc-sv-value")[2].innerHTML'));
+}
+
+// Sequences in the graph: a(n) of the terms before, or of n alone, with the first terms and the range of n
+// in braces, as a polar curve has its range: dots at each whole n, n and a(n) under the pointer and
+// along with the arrow keys, a column of the table, an example, and what stops them said
+async function graphSequence(page, at) {
+    var t = at + ': sequences: ', note = 'document.querySelector(".calc-graph-note").textContent',
+        pop = 'document.querySelector(".calc-graph-pop").textContent.replace(/\\s+/g, " ").trim()',
+        dots = '(function () { var c = document.querySelector(".calc-graph-plot canvas"), k = c.width / c.clientWidth, w = c.clientWidth, n = 0, i, x, d;' +
+            ' for (x = -5; x <= 4; x++) { d = c.getContext("2d").getImageData(Math.round((w / 2 + x * w / 20) * k) - 1, Math.round((c.clientHeight / 2 - x * w / 20) * k) - 1, 3, 3).data;' +
+            ' for (i = 0; i < d.length; i += 4) if (Math.abs(d[i] - 0x22) < 30 && Math.abs(d[i + 1] - 0x47) < 30 && Math.abs(d[i + 2] - 0x6a) < 30) { n++; break; } } return n; })()',
+        between = '(function () { var c = document.querySelector(".calc-graph-plot canvas"), k = c.width / c.clientWidth, w = c.clientWidth,' +
+            ' d = c.getContext("2d").getImageData(Math.round((w / 2 - 2.5 * w / 20) * k) - 1, Math.round((c.clientHeight / 2 + 2.5 * w / 20) * k) - 1, 3, 3).data, i, n = 0;' +
+            ' for (i = 0; i < d.length; i += 4) if (Math.abs(d[i] - 0x22) < 30 && Math.abs(d[i + 1] - 0x47) < 30) n++; return n; })()', got;
+
+    // a(n) = n – 5 from n = 0 to 9: a dot at x = n, y = n – 5
+    await page.fresh(at, { graph: { f: ['a(n) = n - 5 {0, 9}', ''], view: null } });
+    await page.click('.calc-graph-btn');
+    await sleep(100);
+    check(!await page.calc('document.querySelector(".calc-graph-fn").classList.contains("calc-bad")') &&
+        await page.calc('document.querySelector(".calc-graph-fn").classList.contains("calc-graph-rel")'), t + 'a sequence is read, with no y = before it');
+    await page.hoverAt('.calc-graph-plot', 3.1, -2.1);
+    check(/^Term\s*n = 3\s*a\(n\) = -2$/.test((await page.calc(note)).trim()), t + 'the pointer near a term shows its n and a(n)', await page.calc(note));
+    await page.clickAt('.calc-graph-plot', 3, -2);
+    check(/^Term\s*n = 3\s*a\(n\) = -2$/.test(await page.calc(pop)), t + 'a click keeps it, its popup n and a(n), no slope', await page.calc(pop));
+    await page.key('ArrowRight', 39);
+    check(/^Term\s*n = 4\s*a\(n\) = -1$/.test(await page.calc(pop)), t + '→ goes to the next term', await page.calc(pop));
+    await page.key('ArrowLeft', 37);
+    await page.key('ArrowLeft', 37);
+    check(/^Term\s*n = 2\s*a\(n\) = -3$/.test(await page.calc(pop)), t + '← back', await page.calc(pop));
+    for (let i = 0; i < 4; i++) await page.key('ArrowLeft', 37);
+    check(/^Term\s*n = 0\s*a\(n\) = -5$/.test(await page.calc(pop)), t + 'and no farther than the first', await page.calc(pop));
+    await page.click('.calc-graph-pop-row[data-put="y"]');
+    check(!await open(page, '.calc-graph') && await value(page) === -5, t + 'a(n) goes in with a click', await value(page));
+    await page.click('.calc-graph-btn');
+
+    // drawn as dots at whole n, and nothing between them
+    await page.calc('(function (b) { b.value = "a(n) = n {-5, 4}"; b.dispatchEvent(new Event("input", { bubbles: true })); })(document.querySelector(".calc-graph-input"))');
+    await sleep(100);
+    check(await page.calc(dots) === 10 && await page.calc(between) === 0, t + 'a dot in its color at each whole n, nothing between', await page.calc(dots) + ' ' + await page.calc(between));
+
+    // what stops it, said
+    await page.calc('(function (b) { b.value = "a(n) = a(n - 1) + a(n - 2) {a(1) = 1}"; b.dispatchEvent(new Event("input", { bubbles: true })); })(document.querySelector(".calc-graph-input"))');
+    await sleep(100);
+    check(await page.calc(note) === 'a(2) is of a(0), before its first term: give that one too, {a(0) = …}.', t + 'a term before the first is said, not a crash', await page.calc(note));
+    await page.calc('(function (b) { b.value = "a(n) = 2^n {1, 5000}"; b.dispatchEvent(new Event("input", { bubbles: true })); })(document.querySelector(".calc-graph-input"))');
+    await sleep(100);
+    check(await page.calc(note) === 'a(1024) is too large to draw: the sequence stops there.', t + 'a term too large stops it, said', await page.calc(note));
+
+    // the table: n and a(n), from its first n by 1
+    await page.calc('(function (b) { b.value = "a(n) = a(n - 1) + a(n - 2) {a(1) = 1, a(2) = 1}"; b.dispatchEvent(new Event("input", { bubbles: true })); })(document.querySelector(".calc-graph-input"))');
+    await page.click('.calc-graph-tab[data-tab="table"]');
+    got = await page.calc('[].slice.call(document.querySelectorAll(".calc-graph-line"), 0, 8).map(function (l) { return [].map.call(l.children, function (c) { return c.textContent; }).join(" "); }).join(" | ")');
+    check(got === 'n a(n) | 1 1 | 2 1 | 3 2 | 4 3 | 5 5 | 6 8 | 7 13', t + 'the table lists n and a(n)', got);
+    await page.click('.calc-graph-tab[data-tab="graph"]');
+
+    // an example
+    await page.click('.calc-graph-tab[data-tab="examples"]');
+    await page.type('fibonacci\r');
+    await sleep(200);
+    check(await page.calc('document.querySelector(".calc-graph-input").value') === 'a(n) = a(n - 1) + a(n - 2) {a(1) = 1, a(2) = 1} {1, 15}' &&
+        !await page.calc('document.querySelector(".calc-graph-fn").classList.contains("calc-bad")'), t + 'an example of them, drawn',
+        await page.calc('document.querySelector(".calc-graph-input").value'));
+}
+
+// The history exported: a menu below its button, as the right click's, to copy it as text or save
+// it as a CSV file or a text file. The CSV of RFC 4180, apart by ; with the decimal comma, and a
+// cell a spreadsheet would read as a formula made text
+async function historyExport(page, at) {
+    var t = at + ': history export: ', items = '[].map.call(document.querySelectorAll(".calc-menu-box > div"), function (d) { return d.textContent; }).join("|")',
+        saved = 'JSON.stringify(window.saved)', got;
+    // what a save gives: its name and its text, from the link it clicks
+    function stub() {
+        return page.calc('(function (w) { w.saved = []; w.HTMLAnchorElement.prototype.click = function () { var a = this;' +
+            ' fetch(a.href).then(function (r) { return r.arrayBuffer(); }).then(function (b) {' +
+            ' w.saved.push({ name: a.download, text: new TextDecoder("utf-8", { ignoreBOM: true }).decode(b) }); }); }; })(document.defaultView)');
+    }
+    await page.fresh(at, {});
+    check(await page.calc('document.querySelector(".calc-past-export").classList.contains("calc-off")'), t + 'with no history, its button is off');
+    await page.type('1+2\r');
+    await page.type('5-8\r');
+    await page.type('2*0.5\r');
+    await page.click('.calc-hist');
+    check(!await page.calc('document.querySelector(".calc-past-export").classList.contains("calc-off")'), t + 'with a history, it is on');
+    await page.click('.calc-past-export');
+    check(await page.calc(items) === 'Copy as text|Save as CSV|Save as text' && await page.calc('!document.querySelector(".calc-menu-box").hidden'), t + 'its menu', await page.calc(items));
+    await page.click('.calc-past-export');
+    check(await page.calc('document.querySelector(".calc-menu-box").hidden'), t + 'its button again shuts it');
+    await page.calc('document.addEventListener("copy", function (e) { window.copied = e.clipboardData.getData("text/plain"); })');
+    await page.click('.calc-past-export');
+    await page.click('.calc-menu-box > div:nth-child(1)');
+    check(await page.calc('window.copied') === '1 + 2 = 3\n5 − 8 = -3\n2 × 0.5 = 1\n' || await page.calc('window.copied') === '1 + 2 = 3\n5 – 8 = -3\n2 × 0.5 = 1\n',
+        t + 'copied as text, a line of each, the oldest first', JSON.stringify(await page.calc('window.copied')));
+    await stub();
+    await page.click('.calc-past-export');
+    await page.click('.calc-menu-box > div:nth-child(2)');
+    await page.until('window.saved.length === 1');
+    got = JSON.parse(await page.calc(saved))[0];
+    check(/^calculator-history-\d{4}-\d\d-\d\d\.csv$/.test(got.name) && got.name.indexOf(await page.ev('new Date().getFullYear()')) > 0, t + 'saved as calculator-history-YYYY-MM-DD.csv', got.name);
+    check(/^\ufeffexpression,result\r\n1 \+ 2,3\r\n5 . 8,-3\r\n2 × 0\.5,1\r\n$/.test(got.text), t + 'the CSV: its heads, an equation and its result each line, -3 a number', JSON.stringify(got.text));
+    await page.click('.calc-past-export');
+    await page.click('.calc-menu-box > div:nth-child(3)');
+    await page.until('window.saved.length === 2');
+    got = JSON.parse(await page.calc(saved))[1];
+    check(/\.txt$/.test(got.name) && /^1 \+ 2 = 3\n/.test(got.text), t + 'saved as a text file of the lines', JSON.stringify(got));
+
+    // quoted as RFC 4180 has it, and apart by ; with the decimal comma; a formula made text
+    await page.fresh(at, { format: { notation: 'norm', places: 'auto', group: 'dot' } });
+    await page.type('1,5+1\r');
+    await page.key('Delete', 46); // AC: a new calculation, not one from Ans
+    await page.calc('document.body.dispatchEvent(Object.assign(new Event("paste", { bubbles: true }), { clipboardData: { getData: function () { return "-2-1"; } } }))');
+    await page.type('\r');
+    await page.click('.calc-hist');
+    await stub();
+    await page.click('.calc-past-export');
+    await page.click('.calc-menu-box > div:nth-child(2)');
+    await page.until('window.saved.length === 1');
+    got = JSON.parse(await page.calc(saved))[0].text.replace(/^\ufeff/, '');
+    check(/^expression;result\r\n1,5 \+ 1;2,5\r\n/.test(got) && /\r\n.2 . 1;-3\r\n$/.test(got), t + 'the CSV with the decimal comma: apart by ;, -2 – 1 not made text', JSON.stringify(got));
+
+    // empty again: the history closes, its button off
+    await page.click('.calc-past-export ~ .calc-past-clear');
+    check(await page.calc('document.querySelector(".calc-past-export").classList.contains("calc-off")') && !await page.calc('document.querySelector(".calc-past-export").closest(".calc-past").classList.contains("calc-open")'),
+        t + 'cleared, its button is off again');
 }
 
 async function graphBig(page, at) {
@@ -3023,6 +3336,14 @@ async function website(page) {
         await solver(page, '/web/index.html');
         await numbersPanel(page, '/popup.html');
         await numbersPanel(page, '/web/index.html');
+        await matrixTen(page, '/popup.html');
+        await matrixTen(page, '/web/index.html');
+        await finance(page, '/popup.html');
+        await finance(page, '/web/index.html');
+        await graphSequence(page, '/popup.html');
+        await graphSequence(page, '/web/index.html');
+        await historyExport(page, '/popup.html');
+        await historyExport(page, '/web/index.html');
         await graphPanel(page, '/popup.html');
         await graphPanel(page, '/web/index.html');
         await graphTable(page, '/popup.html');

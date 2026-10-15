@@ -141,7 +141,7 @@
             d: 'Equations and inequalities solved for x, in exact form as well; turning points; polynomials, linear equations and ' +
                 'two curves; integrals, slopes, sums, products, ' +
                 'limits, Taylor series, areas between curves, arc lengths and differential equations; the normal, t, χ², F, binomial, ' +
-                'Poisson and other distributions, and confidence intervals. Click a result to put it in.',
+                'Poisson and other distributions, and confidence intervals; and money over time, NPV and IRR, payment schedules and APR and APY. Click a result to put it in.',
             k: ''
         },
         'solve close': {
@@ -149,11 +149,57 @@
             d: 'What you typed stays for the next time.',
             k: 'Esc'
         },
+        'solve tab solve': {
+            t: 'Solve',
+            d: 'Equations and inequalities of x, turning points, polynomials, linear equations and two curves.',
+            k: ''
+        },
+        'solve tab calculus': {
+            t: 'Calculus',
+            d: 'Integrals, slopes, sums and products, limits, Taylor series, areas between curves, arc lengths and differential equations.',
+            k: ''
+        },
+        'solve tab finance': {
+            t: 'Finance',
+            d: 'Money over time, as a BA II Plus works it out: N, I/Y, PV, PMT and FV, the one left empty found; NPV, IRR and payback of ' +
+                'cash flows; a loan\'s payment schedule, by year or by payment; and APR and APY, each of the other.',
+            k: ''
+        },
+        'solve tab chance': {
+            t: 'Probability',
+            d: 'The normal, t, χ², F, binomial, Poisson and other distributions, confidence intervals and random whole numbers.',
+            k: ''
+        },
+        'choice due 0': {
+            t: 'At the end',
+            d: 'Each payment at the end of its period, as a loan is paid: END on a BA II Plus.',
+            k: ''
+        },
+        'choice due 1': {
+            t: 'At the start',
+            d: 'Each payment at the start of its period, as rent is paid or a saving put in: BGN on a BA II Plus.',
+            k: ''
+        },
+        'choice by 0': {
+            t: 'By year',
+            d: 'A row of each year: the interest and the principal paid in it, and what is left of the loan at its end.',
+            k: ''
+        },
+        'choice by 1': {
+            t: 'By payment',
+            d: 'A row of each payment, up to 600 of them: the interest and the principal of it, and what is left after it.',
+            k: ''
+        },
+        'table copy': {
+            t: 'Copy table',
+            d: 'Copies the table with its heads, a tab between the numbers, all their digits: it pastes into a spreadsheet, a number in each cell.',
+            k: ''
+        },
 
         // the numbers
         'numbers': {
             t: 'Matrices, complex numbers and bases',
-            d: 'Matrices, their determinant, inverse, powers, products and eigenvalues, rows reduced, LU and QR, and A x = b; vectors; ' +
+            d: 'Matrices up to 10 × 10, their determinant, inverse, powers, products and eigenvalues, rows reduced, LU and QR, and A x = b; vectors; ' +
                 'complex numbers, (2 + 3i)(1 – i), with their length and angle, and roots of polynomials of them; whole numbers in bits, in decimal, ' +
                 'hexadecimal, octal and binary, with AND, OR and XOR, their bits to click, any base, text as its codes, and numbers as doubles and floats; ' +
                 'and the prime factors of a whole number, GCD and LCM, modular arithmetic, primes, numbers to every digit, fractions, and rounding. ' +
@@ -169,7 +215,7 @@
         // the graph
         'graph': {
             t: 'Graph',
-            d: 'Draws up to seven functions of x, with a slider for any other letter, as a in a x^2 + b: x^2 – 3, 2sin(x), 1/x, and marks their roots, highs, lows and ' +
+            d: 'Draws up to seven functions of x, with a slider for any other letter, as a in a x^2 + b: x^2 – 3, 2sin(x), 1/x, sequences, a(n) = a(n – 1) + 2 {a(1) = 1}, and marks their roots, highs, lows and ' +
                 'crossings. Drag to move, scroll or pinch to zoom; point at a curve or a dot for its values. ' +
                 'Click one for the slope there and its tangent. The Table tab lists their values.',
             k: ''
@@ -291,6 +337,17 @@
         'graph put u': {
             t: 'Insert t',
             d: 'Puts the parameter of this point, t or θ, into the equation, as Ans does. ← and → move the point along its curve.',
+            k: ''
+        },
+        'graph put term u': {
+            t: 'Insert n',
+            d: 'Puts the n of this term of the sequence into the equation, as Ans does. ← and → go to the term before and the one after, ' +
+                'Shift ten terms on.',
+            k: ''
+        },
+        'graph put term y': {
+            t: 'Insert the term',
+            d: 'Puts this term of the sequence, its value at n, into the equation, as Ans does.',
             k: ''
         },
         'graph put x': {
@@ -533,6 +590,12 @@
             t: 'Close the history',
             d: 'A click anywhere outside it closes it as well.',
             k: 'Esc'
+        },
+        'history export': {
+            t: 'Export the history',
+            d: 'Every calculation in it, the oldest first: copied as text, a line of each, 1 + 2 = 3; saved as a CSV file of ' +
+                'each equation and its result, for a spreadsheet; or saved as a text file of the lines copied.',
+            k: ''
         },
         'history clear': {
             t: 'Clear the history',

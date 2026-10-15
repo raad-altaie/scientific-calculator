@@ -485,13 +485,14 @@
             </div>
         </div>
 
-        <!-- equations solved, calculus and probability, over the keys like the history: a card for each tool -->
+        <!-- equations solved, calculus, money and probability, over the keys like the history: a card for each tool -->
         <div class="calc-past calc-solve">
             <div class="calc-past-head">
                 <span class="calc-solve-tabs">
                     <span class="calc-solve-tab" data-tab="solve">Solve</span>
                     <span class="calc-solve-tab" data-tab="calculus">Calculus</span>
                     <span class="calc-solve-tab" data-tab="chance">Probability</span>
+                    <span class="calc-solve-tab" data-tab="finance">Finance</span>
                 </span>
                 <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
             </div>
@@ -562,6 +563,8 @@
         <div class="calc-past">
             <div class="calc-past-head">
                 <span>History</span>
+                <!-- the history copied, or saved as a file: a menu of how, as the right click's -->
+                <span class="calc-past-export" role="button" aria-label="Export the history" aria-haspopup="menu"><svg viewBox="0 0 16 16" width="14" height="14"><path d="M7 1.5h2v6.4l2.1-2.1 1.4 1.4L8 11.7 3.5 7.2l1.4-1.4L7 7.9z" fill="currentColor" /><path d="M1.5 10.5h2v2h9v-2h2V13a1.5 1.5 0 0 1-1.5 1.5H3A1.5 1.5 0 0 1 1.5 13z" fill="currentColor" /></svg></span>
                 <span class="calc-past-clear">Clear</span>
                 <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
             </div>
@@ -659,7 +662,7 @@
                         polynomial, two or three linear equations or two curves, finds turning points, integrals,
                         slopes, sums and products to ∞, limits, Taylor series, areas between curves, arc lengths and
                         differential equations, the chances of the normal, t, χ², F, binomial, Poisson and other
-                        distributions, and confidence intervals.</p>
+                        distributions, confidence intervals, and money over time, NPV and IRR, payment schedules and APR and APY.</p>
                 </div>
                 <label class="switch" title="Solve">
                     <input type="checkbox" id="panel-solve">
@@ -693,7 +696,7 @@
                 <div class="option-text">
                     <h3>Numbers</h3>
                     <p>A button at the top left of the display for matrices: their determinant, inverse, powers,
-                        sums, products, eigenvalues, rows reduced, LU and QR, and A x = b, and vectors; complex
+                        sums, products, eigenvalues, rows reduced, LU and QR, and A x = b, up to 10 × 10, and vectors; complex
                         numbers, such as (2 + 3i)(1 – i), and the roots of polynomials of them; whole numbers in bits
                         with their hexadecimal, octal and binary, numbers in any base, text as its codes, and numbers
                         as doubles and floats; and whole numbers' prime factors, GCD and LCM, modular arithmetic,
@@ -751,7 +754,7 @@
                 <li>Equation line: the display shows the whole equation while you type it. After the equation sign
                     it shows the result, with the finished equation on a small line above.</li>
                 <li>History: click the clock at the top left of the display to see your past calculations. Insert
-                    an equation or a result into the display again, copy it, or delete it. It is kept when you close the calculator.</li>
+                    an equation or a result into the display again, copy it, or delete it. It is kept when you close the calculator. Export, the arrow beside Clear, copies it all as text or saves it as a CSV file for a spreadsheet, or as a text file.</li>
                 <li><kbd class="k k-red">DEL</kbd> button (or Backspace) to take back the last key you pressed, one key at a time.</li>
                 <li>Cursor: click into the equation, or use the arrow keys, to fix a number or an
                     operator in the middle of it. Back at the end, the calculator goes on as before.</li>
@@ -759,14 +762,14 @@
                     See the "Formulas and Constants" section below.</li>
                 <li>Converter: units of length, area, volume, mass, temperature and more, and dates. See the
                     "Converter" section below.</li>
-                <li>Graph: functions, equations, inequalities and points drawn, with their roots, highs, lows and
+                <li>Graph: functions, equations, inequalities, sequences and points drawn, with their roots, highs, lows and
                     crossings. See the "Graph" section below.</li>
                 <li>Solve: every root of an equation, in exact form as well, inequalities, turning points,
                     polynomials, linear systems, two curves, integrals, slopes, sums, limits, Taylor series,
-                    differential equations, probability and confidence intervals. See the "Solve" section below.</li>
+                    differential equations, probability, confidence intervals, money over time, NPV and IRR, and payment schedules. See the "Solve" section below.</li>
                 <li>Statistics: count, sum, mean, standard deviation, quartiles, median and more of a list of numbers,
                     and the line of best fit of pairs of them. See the "Statistics" section below.</li>
-                <li>Numbers: matrices and their eigenvalues, vectors, complex numbers, bases and bits, text and its
+                <li>Numbers: matrices up to 10 × 10 and their eigenvalues, vectors, complex numbers, bases and bits, text and its
                     codes, IEEE 754, prime factors, modular arithmetic, primes, exact numbers, fractions and rounding.
                     See the "Numbers" section below.</li>
                 <li><kbd class="k">mod</kbd>, <kbd class="k">gcd</kbd> and <kbd class="k">lcm</kbd> on the <kbd class="k">2nd</kbd> layer of <kbd class="k">%</kbd>, <kbd class="k"><sup>n</sup>C<sub>r</sub></kbd> and <kbd class="k"><sup>n</sup>P<sub>r</sub></kbd>.</li>
@@ -904,6 +907,7 @@
                     are.</li>
                 <li>A polar curve, r = 2sin(3θ), and a parametric one, (cos t, sin t), go once round, or as far as
                     {from, to} after them says, r = θ {0, 6π}; click one for its θ or t, and trace it.</li>
+                <li>A sequence is drawn as a dot at each whole n: a(n) = a(n – 1) × 1.05 {a(1) = 100}, each term of the ones before it, its first terms in braces after it as a polar curve has its range; a(n) = a(n – 1) + a(n – 2) {a(1) = 1, a(2) = 1}; or a(n) = 2n + 1, of n alone. n goes from the first term given, or 1, for 50 terms, or as two numbers in the braces say, {1, 100}, up to 10000 terms. Any lowercase letter but x, e and i names one, and the same letter alone is still a slider. Point at a dot or click it for n and a(n), and ← and → go from term to term; a term too large to draw stops it, and one of a term before the first given is said in the note.</li>
                 <li>Type points, (1, 2), (2, 4.1), (3, 5.9), and their fit draws the line nearest them, with its
                     r²; click fit again for a parabola, an exponential (a · bˣ), a power and a logarithm, or the
                     table button beside it to type them in rows of x and y.</li>
@@ -918,10 +922,10 @@
                     instead. Pop out, the arrow out of a box beside Clear, makes the graph big: all of the window
                     on the website, where pop in or Esc makes it small again, and in a window of its own beside the
                     calculator in the extension.</li>
-                <li>The Table tab lists x and the y of each curve, from a start by a step; left empty, they follow
+                <li>The Table tab lists x and the y of each curve, and of a sequence its terms, n by 1 where there are only sequences, from a start by a step; left empty, they follow
                     the view of the graph. Click a value to put it into your calculation.</li>
-                <li>The Examples tab has graphs to try, by group as the constants are: functions, sliders,
-                    equations, inequalities, polar and parametric curves, pieces, functions named and points. Click
+                <li>The Examples tab has graphs to try, by group as the constants are: fun pictures that move,
+                    functions, sliders, equations, inequalities, polar and parametric curves, sequences, pieces, functions named and points. Click
                     one, or search and press Enter, and it is drawn in place of your curves.</li>
                 <li>Functions of an angle follow Deg, Rad or Grad.</li>
             </ul>
@@ -951,6 +955,7 @@
                     their chances, p-values and the value for a chance; binomial, Poisson, geometric and
                     hypergeometric chances; exponential and uniform ones; confidence intervals of a mean and of a
                     proportion; and random whole numbers.</li>
+                <li>Finance works money out as a BA II Plus or an HP 12C does. Time value of money takes N, I/Y (a percentage a year), PV, PMT and FV, with the payments a year and each at the end of its period or at its start: leave one of the five empty and it is worked out, with all the money paid and the interest. Money received is above 0 and money paid below 0, so a loan of 200000 is PV = 200000 with PMT below 0; where the signs cannot balance, the note says so. NPV and IRR takes a rate and cash flows, one to a line or apart as the statistics list is, the first at the start: their net present value, internal rate of return, the one nearest 10% where the flows change sign more than once, and payback period. Payment schedule gives a loan's payment, its interest and a table of each year or, up to 600 rows, each payment, of the interest, the principal and what is left; Copy table copies it for a spreadsheet. Interest rates turns an APR into its APY for m periods a year, ∞ as well, and back. Money is shown to the cent; a click or Insert puts it in with every digit.</li>
                 <li>A box of a number takes a calculation too: pi/4, sqrt(2). What you typed stays for the next
                     time.</li>
             </ul>
@@ -983,11 +988,11 @@
                 tabs. Click a result, or a number of a matrix, to put it into your calculation; rest the pointer on a result
                 to see it in full, with Insert and Copy.</p>
             <ul>
-                <li>Matrix has a matrix of up to 4 × 4, its determinant, rank, inverse, transpose and power n, and
+                <li>Matrix has a matrix of up to 10 × 10, its determinant, rank, inverse, transpose and power n, and
                     the sum and products of two; its eigenvalues, real or complex, its characteristic polynomial and
-                    its eigenvectors; A x = b, linear equations of up to four unknowns, all of their answers where
+                    its eigenvectors; A x = b, linear equations of up to ten unknowns, all of their answers where
                     there are many, x = p + t v, and the nearest by least squares where there are none; its rows
-                    reduced, its rank and null space; P A = L U and A = Q R; and of two vectors, 1, 2, 3, their dot
+                    reduced, its rank and null space; P A = L U and A = Q R. From 6 columns on its boxes and its results are smaller, to fit the card, each number of a result to as many digits as fit, the whole of it shown as you point at it; the eigenvalues of a matrix larger than 4 × 4 are found by the QR algorithm, and where a matrix is badly conditioned, as the 10 × 10 Hilbert matrix is, the note says how few digits of its inverse, determinant or answers can be trusted. And of two vectors, 1, 2, 3, their dot
                     and cross products, lengths, the angle between them and the projection of one on the
                     other.</li>
                 <li>Complex works out a complex number, (2 + 3i)(1 – i), sqrt(-4) or 2∠30 in polar form, for its

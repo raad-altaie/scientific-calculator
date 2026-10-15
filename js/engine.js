@@ -1214,6 +1214,131 @@
         }
     }
 
+    // A sequence: a(n) = a(n – 1) × 1.05, each term of the ones before it, with its first ones in
+    // braces after it, {a(1) = 100}, as a polar curve has its range; a(n) = a(n – 1) + a(n – 2)
+    // {a(1) = 1, a(2) = 1}; or a(n) = 2n + 1, of n alone. Its name is a lowercase letter, any but x,
+    // e and i: a letter followed by (n), (n – 1) and on to (n – 9) is a sequence's, while the same
+    // letter alone is a slider's, as a in a(n) = a(n – 1) + a. n goes from the first term given, or
+    // 1, for 50 terms, or as two numbers in the braces say, {1, 100}, up to 10000 of them; the first
+    // terms given may be of sliders. Null if the text is not one, as of another sequence's terms.
+    // kind: 'seq'; name; at(n, deg) is [n, a(n)], none but at a whole n it has; range(deg) is
+    // [from, to]; terms(deg) is { from, list: the terms from n = from, NaN where one has no value,
+    // stop: where they stop and why, { n, why: 'large' too large a term, 'none' one of no value that
+    // the next are of, 'before' one of a term before the first given, need, or 'many' more than
+    // 10000 }, or null }; letters and angles as of graph
+    function sequence(text, comma, vars, defs) {
+        var s = String(text).trim(), head = /^([a-df-hj-wyz])\s*\(\s*n\s*\)\s*=\s*/.exec(s),
+            name, groups = [], m, starts = {}, ends = [], letters = [], toks = [], back = 0, from, to, first, tree, kept = null, ok = true;
+        if (!head || s.length > MAX_PASTE) return null;
+        name = head[1];
+        s = s.slice(head[0].length);
+        while ((m = /\{([^{}]*)\}\s*$/.exec(s)) && groups.length < 2) {
+            groups.unshift(m[1]);
+            s = s.slice(0, m.index).trim();
+        }
+        if (/[{}]/.test(s)) return null;
+        // each part of the braces: a first term, a(1) = 100, or an end of n
+        groups.forEach(function (g) {
+            apart(g, comma).forEach(function (part) {
+                var t = /^\s*([a-z])\s*\(\s*(-?\d+)\s*\)\s*=(.*)$/.exec(part), tree;
+                if (t) {
+                    tree = t[1] === name && !starts.hasOwnProperty(t[2]) && readOf(t[3]);
+                    if (!tree) ok = false;
+                    else starts[+t[2]] = tree;
+                } else {
+                    tree = readOf(part, true);
+                    if (!tree) ok = false;
+                    else ends.push(valueAt(tree, 0, 0));
+                }
+            });
+        });
+        if (!ok || (ends.length !== 0 && ends.length !== 2)) return null;
+        if (ends.length && !(ends.every(function (e) { return e === Math.floor(e) && Math.abs(e) <= 1e9; }) && ends[0] <= ends[1])) return null;
+        // the terms: a(n – k) stands in for each of those before, a letter's own name for the rest of it
+        m = /([a-zA-Z]+)\s*\(\s*n\s*(?:([-−–])\s*(\d+)\s*)?\)/g;
+        first = 0;
+        s.replace(m, function (all, word, minus, k, at) {
+            if (!ok || word.length > 1 || (defs && defs.hasOwnProperty(word.toLowerCase()) && word !== name)) return all; // sin(n), or a function named
+            if (word !== name || !minus || +k < 1 || +k > 9) {
+                ok = false; // another sequence's, or its own term n, of itself
+                return all;
+            }
+            ok = piece(s.slice(first, at));
+            toks.push({ t: 'const', v: '#' + k, p: true }); // a letter of its own, which the slider's never is
+            back = Math.max(back, +k);
+            first = at + all.length;
+            return all;
+        });
+        if (!ok || !piece(s.slice(first))) return null;
+        tree = parse(toks);
+        if (!tree || !complete(tree)) return null;
+        first = Object.keys(starts).map(Number).sort(function (a, b) { return a - b; });
+        from = ends.length ? ends[0] : first.length ? first[0] : 1;
+        to = ends.length ? ends[1] : from + 49;
+        return {
+            kind: 'seq',
+            name: name,
+            at: function (n, deg) {
+                var r = terms(deg), y = n === Math.floor(n) && n >= r.from ? r.list[n - r.from] : undefined;
+                return y === undefined ? [NaN, NaN] : [n, y];
+            },
+            range: function () { return [from, to]; },
+            terms: terms,
+            angles: angular(tree) || first.some(function (k) { return angular(starts[k]); }),
+            letters: letters
+        };
+
+        // the terms as the sliders are now, kept while they and the unit stay
+        function terms(deg) {
+            var key = [deg].concat(letters.map(function (k) { return vars && vars[k]; })).join(), scope = Object.create(vars || {}),
+                values = {}, list = [], stop = null, low = back ? Math.min(from, first.length ? first[0] : from) : from, n, k, y, top;
+            if (kept && kept.key === key) return kept.r;
+            top = Math.min(to, low + 99999, from + 9999);
+            for (n = low; n <= top && !stop; n++) {
+                if (starts.hasOwnProperty(n)) {
+                    y = valueAt(starts[n], 0, deg, false, vars);
+                } else {
+                    for (k = 1; k <= back; k++) {
+                        if (values[n - k] === undefined) { // not given, nor found
+                            if (back) stop = { n: n, why: 'before', need: n - k };
+                            break;
+                        }
+                        scope['#' + k] = values[n - k];
+                    }
+                    y = stop ? NaN : valueAt(tree, n, deg, false, scope);
+                }
+                if (stop) break;
+                if (Math.abs(y) === Infinity) stop = { n: n, why: 'large' };
+                else if (isNaN(y) && back) stop = { n: n, why: 'none' };
+                else values[n] = y;
+                if (!stop && n >= from) list.push(y);
+            }
+            if (!stop && top < to) stop = { n: top + 1, why: 'many' };
+            kept = { key: key, r: { from: from, list: list, stop: stop } };
+            return kept.r;
+        }
+
+        // the tokens of a part of the text between the terms before: n is the variable, as x is of a function
+        function piece(part) {
+            var t = part.trim() ? tokens(separators(part, comma), null, true, defs) : [];
+            if (!t || t.some(function (q) { return q.t === 'const' && (q.v === 'x' || q.v === 'y'); })) return false;
+            t.forEach(function (q) {
+                if (q.p && q.v !== 'n' && letters.indexOf(q.v) < 0) letters.push(q.v);
+                if (q.of) q.of.letters.forEach(function (k) { if (letters.indexOf(k) < 0) letters.push(k); });
+                toks.push(q.p && q.v === 'n' ? { t: 'const', v: 'x' } : q);
+            });
+            return true;
+        }
+
+        // a first term, of numbers and sliders, or with plain an end of n, of numbers alone
+        function readOf(part, plain) {
+            var t = part.trim() && tokens(separators(part.trim(), comma), null, !plain, plain ? null : defs), tree = t && parse(t);
+            if (!tree || !complete(tree) || t.some(function (q) { return q.t === 'const' && (q.v === 'x' || q.v === 'n'); })) return null;
+            t.forEach(function (q) { if (q.p && letters.indexOf(q.v) < 0) letters.push(q.v); });
+            return tree;
+        }
+    }
+
     // Points to plot, as a list: (1, 2), (2, 4.1), (3, 5.9), or with the comma in use (1,5; 2).
     // [{ x, y }], or null if the text is not one
     function points(text, comma) {
@@ -1638,7 +1763,7 @@
 
         (planes || []).forEach(function (c, i) {
             var ends = c && c.range(deg), m = 800, us = [], at = [], du, k2;
-            if (!c) return;
+            if (!c || c.kind === 'seq') return; // a sequence is its dots, marks enough of themselves
             du = (ends[1] - ends[0]) / m;
             for (k2 = 0; k2 <= m; k2++) {
                 us.push(ends[0] + k2 * du);
@@ -3100,6 +3225,8 @@
     Engine.within = within;
     Engine.holds = holds;
     Engine.plane = plane;
+    Engine.sequence = sequence;
+    Engine.numbers = numbers;
     Engine.points = points;
     Engine.fitLine = fitLine;
     Engine.fit = fit;

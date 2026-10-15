@@ -28,6 +28,7 @@
         past = root.querySelector('.calc-past:not(.calc-stats):not(.calc-fx):not(.calc-conv):not(.calc-graph):not(.calc-solve):not(.calc-numbers)'), // the history, over the keys
         pastList = past.querySelector('.calc-past-list'),
         pastButton = root.querySelector('.calc-hist'),
+        pastExport = past.querySelector('.calc-past-export'), // the history copied or saved: a menu of how
         pastShown = {}, // the history as the list shows it, so it is only built again after a change
         stats = root.querySelector('.calc-stats'), // statistics of a list of numbers, over the keys
         statsButton = root.querySelector('.calc-stat-btn'),
@@ -205,7 +206,8 @@
     // typing in a box of a panel, the list of the statistics, the search, a letter
     // of a formula or a list of units, is typing there, not on the keys
     function field(el) {
-        return el === statsInput || el.tagName === 'INPUT' || el.classList.contains('calc-conv-pick');
+        return el === statsInput || el.tagName === 'INPUT' || el.classList.contains('calc-conv-pick') || el.classList.contains('calc-sv-area') ||
+            el.classList.contains('calc-sv-opt');
     }
 
     document.addEventListener('keypress', function (e) {
@@ -517,7 +519,8 @@
             '.calc-stat-btn, .calc-fx-btn, .calc-fx-row, .calc-gx-row, .calc-conv-btn, .calc-solve-btn, .calc-numbers-btn, .calc-sv-row, ' +
             '.calc-graph-btn, .calc-graph-size, .calc-graph-add, .calc-graph-del, .calc-graph-diff, .calc-graph-points, .calc-graph-zoom > span, .calc-graph-pop-end, .calc-graph-pop-row, .calc-graph-play, ' +
             '.calc-graph-fn > .calc-graph-swatch, ' +
-            '.calc-stats-chart, .calc-hist, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit, .calc-help');
+            '.calc-stats-chart, .calc-hist, .calc-past-export, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit, .calc-help, ' +
+            '.calc-solve .calc-solve-tab, .calc-sv-opt, .calc-sv-copy');
         if (key === tipKey) return;
         hideTip();
         tipKey = key;
@@ -759,7 +762,7 @@
                 return CalcTips[graphCellsRow === graphRows.indexOf(el.parentNode) ? 'graph points off' : 'graph points'];
             }
             if (el.classList.contains('calc-graph-pop-end')) return CalcTips['graph end ' + el.dataset.end];
-            if (el.classList.contains('calc-graph-pop-row')) return CalcTips['graph put ' + el.dataset.put];
+            if (el.classList.contains('calc-graph-pop-row')) return CalcTips['graph put ' + (seqOf(graphPinned) ? 'term ' : '') + el.dataset.put];
             if (el.classList.contains('calc-graph-play')) return CalcTips[graphPlay[el.parentNode.dataset.k] ? 'graph pause' : 'graph play'];
             if (el.classList.contains('calc-graph-swatch')) {
                 value = graphRows.indexOf(el.parentNode);
@@ -768,6 +771,7 @@
             return CalcTips['graph ' + el.dataset.zoom];
         }
         if (el === pastButton) return CalcTips[past.classList.contains('calc-open') ? 'history close' : 'history'];
+        if (el === pastExport) return CalcTips['history export'];
         if (el.classList.contains('calc-past-clear')) return CalcTips['history clear'];
         if (el.classList.contains('calc-past-close')) return CalcTips['history close'];
         if (el.classList.contains('calc-past-del')) return CalcTips['history delete'];
@@ -826,24 +830,34 @@
     }, false);
 
     document.addEventListener('contextmenu', function (e) {
-        var calc = menu.parentNode, at = inside({ left: e.clientX, top: e.clientY }), items;
+        var items;
         if (!root.contains(e.target)) return; // the rest of the page has the menu of the browser
         items = menuItems(e.target);
         e.preventDefault(); // in the calculator the menu of the browser is never shown
-        if (!items) return;
+        if (items) openMenu(items, inside({ left: e.clientX, top: e.clientY }), null);
+    }, false);
+
+    // The menu of these items, at the place at of the calculator, within it, or with at.alignRight its
+    // right edge there; by: the button it opened from, whose press shuts it again, or null
+    function openMenu(items, at, by) {
+        var calc = menu.parentNode;
         menu.items = items;
+        menu.by = by;
         menu.innerHTML = items.map(function (item, i) {
             return '<div data-i="' + i + '"' + (item[2] === false ? ' class="calc-off"' : '') + '>' + item[0] + '</div>';
         }).join('');
         showMenu(true);
-        menu.style.left = Math.min(at.left, calc.clientWidth - menu.offsetWidth - 4) + 'px';
+        menu.style.left = Math.max(4, Math.min(at.alignRight ? at.left - menu.offsetWidth : at.left, calc.clientWidth - menu.offsetWidth - 4)) + 'px';
         menu.style.top = Math.min(at.top, calc.clientHeight - menu.offsetHeight - 4) + 'px';
-    }, false);
+    }
 
     document.addEventListener('mousedown', function (e) {
         // a selection stays for Copy, and a box of a panel keeps the focus
         if (e.button === 2 && e.target.closest('.calc-display, .calc-past') && !e.target.closest('textarea, input')) e.preventDefault();
-        if (!menu.hidden && !menu.contains(e.target)) showMenu(false);
+        if (!menu.hidden && !menu.contains(e.target)) {
+            if (menu.by) menu.by.shut = menu.by.contains(e.target); // its button pressed: it stays shut, and does not open again
+            showMenu(false);
+        }
     }, true);
 
     window.addEventListener('blur', function () {
@@ -1083,6 +1097,56 @@
         refresh();
         saveState();
     }, false);
+
+    // Export: a menu below its button, as the right click's, of the whole history, oldest first:
+    // copied as text, a line of each, 1 + 2 = 3; saved as a CSV file, an equation and its result
+    // on each line, for a spreadsheet; or saved as a text file of the lines copied
+    pastExport.addEventListener('click', function () {
+        var at = inside(pastExport.getBoundingClientRect());
+        if (pastExport.shut || !engine.past.length) {
+            pastExport.shut = false;
+            return;
+        }
+        openMenu([
+            ['Copy as text', function () { copy(pastText()); }],
+            ['Save as CSV', function () { saveText(pastCsv(), 'text/csv', 'csv'); }],
+            ['Save as text', function () { saveText(pastText(), 'text/plain', 'txt'); }]
+        ], { left: at.right, top: at.bottom + 4, alignRight: true }, pastExport);
+    }, false);
+
+    // each calculation of the history, the oldest first: [its equation, its result], as their copy buttons copy them
+    function pastPairs() {
+        return engine.past.map(function (entry, i) {
+            return [local(engine.pastLine(i).text.replace(/ =$/, '')), local(shownResult(entry, '').text)];
+        });
+    }
+
+    function pastText() {
+        return pastPairs().map(function (p) { return p[0] + ' = ' + p[1]; }).join('\n') + '\n';
+    }
+
+    // The history as CSV, as RFC 4180 has it: a line of each calculation, apart by commas, or
+    // semicolons where the decimal mark is a comma, and a cell with one of them, a quote or a new
+    // line in quotes, its quotes twice. The result as a number, all of its digits, which a
+    // spreadsheet reads as one. A cell a spreadsheet would read as a formula, of =, +, @, a tab or
+    // a return first, or a – not before a digit, has a ' first, so it is read as text: –2 stays a
+    // number. A mark first for Excel, which then reads it as UTF-8, its × and √ as they are
+    function pastCsv() {
+        var mark = engine.comma ? ';' : ',';
+        function cell(s) {
+            if (/^[=+@\t\r]/.test(s) || /^-(?!\d)/.test(s)) s = "'" + s;
+            return s.indexOf(mark) > -1 || /["\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+        }
+        return '\ufeff' + [['expression', 'result']].concat(pastPairs().map(function (p, i) {
+            return [p[0], local(engine.past[i].value)];
+        })).map(function (row) { return row.map(cell).join(mark); }).join('\r\n') + '\r\n';
+    }
+
+    // a text saved as a file of the history, calculator-history-2026-10-15.csv, of today
+    function saveText(text, type, ext) {
+        var now = new Date(), day = [now.getFullYear(), now.getMonth() + 1, now.getDate()].map(function (n) { return n < 10 ? '0' + n : n; }).join('-');
+        saveBlob(new Blob([text], { type: type + ';charset=utf-8' }), 'calculator-history-' + day + '.' + ext);
+    }
 
     // the x on a row takes the calculation out of the history, equation and result
     pastList.addEventListener('click', function (e) {
@@ -1351,6 +1415,16 @@
 
     function statsValue(value) {
         return shownResult({ value: String(value), frac: fracMode, dms: dmsMode }, String(+(+value).toPrecision(13)));
+    }
+
+    // A number to so many decimal places, as money to the cent: 1199.10, all of them shown. Fix
+    // of places of its own, Sci and Eng write it their way; never as a fraction or in °′″, which
+    // money is not. What is put in or copied of it is the whole number
+    function placesValue(value, places) {
+        var x = +(+value).toFixed(places) + 0, s = CalcEngine.format(x, fmt.notation === 'sci' || fmt.notation === 'eng' || (fmt.notation === 'fix' && fmt.places !== 'auto') ?
+            fmt : { notation: 'fix', places: places });
+        if (!isFinite(x)) return { html: '–', text: '' }; // too large: none
+        return { html: fmt.group ? CalcEngine.group(s, fmt.group) : s, text: s };
     }
 
     // ---------------- graph ---------------- //
@@ -2022,7 +2096,9 @@
     // the one pressed that a click takes, and not drawn again under the pointer before the click
     [[graphPop, 'pointerenter'], [graphList, 'pointerdown']].forEach(function (on) {
         on[0].addEventListener(on[1], function () {
-            if (stopSliders()) saveState();
+            if (!stopSliders()) return;
+            if (graphTab !== 'table') drawGraph(); // with its marks again; the table is not drawn again under the pointer
+            saveState();
         }, false);
     });
 
@@ -2044,9 +2120,13 @@
     }
 
     // What a box is: a function of x, an equation or an inequality, a curve of a parameter or
-    // points, as { fn }, { rel }, { plane } or { data }; null if none. defs: the functions named
+    // points, as { fn }, { rel }, { plane } or { data }; null if none. A sequence, a(n) = 2n + 1,
+    // is a plane too, of its kind seq: it has its range and its extra boxes as a polar curve has.
+    // defs: the functions named
     function readBox(text, defs) {
-        var r = CalcEngine.graph(text, engine.comma, graphVars, defs);
+        var r = CalcEngine.sequence(text, engine.comma, graphVars, defs);
+        if (r) return { plane: r };
+        r = CalcEngine.graph(text, engine.comma, graphVars, defs);
         if (r) return { fn: r };
         if ((r = CalcEngine.relation(text, engine.comma, graphVars, defs))) return { rel: r };
         if ((r = CalcEngine.plane(text, engine.comma, graphVars, defs))) return { plane: r };
@@ -2173,15 +2253,19 @@
             if (fn) drawCurve(ctx, v, w, h, fn, curveColor(i));
             if (fn && graphDiff[i] && !graphData[i]) drawCurve(ctx, v, w, h, slopeCurve(fn), curveColor(i), true);
             if (graphRels[i]) drawRelation(ctx, v, w, h, graphRels[i], curveColor(i));
-            if (graphPlanes[i]) drawPlane(ctx, v, w, h, graphPlanes[i], curveColor(i));
+            if (graphPlanes[i]) (graphPlanes[i].kind === 'seq' ? drawSequence : drawPlane)(ctx, v, w, h, graphPlanes[i], curveColor(i));
         });
         graphTangent(ctx, v, w + h, graphPinned);
         key = [graphVersion, v.x, v.y, v.ux, v.uy, w, h, deg, JSON.stringify(graphVars)].join();
-        if (!graphMarksKept || graphMarksKept.key !== key) {
-            graphMarksKept = { key: key, marks: CalcEngine.keyPoints(graphFns, { x0: graphX(v, 0), x1: graphX(v, w), y0: graphY(v, h), y1: graphY(v, 0) },
-                deg, graphRels, graphPlanes) };
+        if (Object.keys(graphPlay).length) { // while sliders play the marks wait, found again as they stop: finding them each frame is too slow
+            graphMarks = dataMarks();
+        } else {
+            if (!graphMarksKept || graphMarksKept.key !== key) {
+                graphMarksKept = { key: key, marks: CalcEngine.keyPoints(graphFns, { x0: graphX(v, 0), x1: graphX(v, w), y0: graphY(v, h), y1: graphY(v, 0) },
+                    deg, graphRels, graphPlanes) };
+            }
+            graphMarks = graphBusy(graphMarksKept.marks).concat(dataMarks());
         }
-        graphMarks = graphBusy(graphMarksKept.marks).concat(dataMarks());
         graphMarks.forEach(function (p) {
             if (p.data) graphDot(ctx, v, p, 3.5, curveColor(p.i), curveColor(p.i)); // a point typed: full
             else graphDot(ctx, v, p, 3.5, GRAPH_INK.paper, curveColor(p.i));
@@ -2237,7 +2321,7 @@
             fn = one && !plane && graphFns[p.i], rel = one && !fn && !plane && relPart(p), x, y, k;
         if (!p) return;
         p.m = NaN;
-        if (!fn && !rel && !plane) return;
+        if ((!fn && !rel && !plane) || (plane && plane.kind === 'seq')) return; // a sequence is of dots, with no slope
         if (fn && !p.t) p.y = fn.at(p.x, deg, true); // on the curve as the unit and the letters are now
         p.m = fn ? CalcEngine.slope(fn, p.x, deg) : rel ? CalcEngine.relationSlope(rel, p.x, p.y, deg) : planeSlope(plane, p.u);
         if (isNaN(p.m) || !isFinite(p.y)) return;
@@ -2337,6 +2421,49 @@
         ctx.lineJoin = 'round';
         ctx.strokeStyle = color;
         ctx.stroke();
+    }
+
+    // A sequence, a dot in its color at each of its terms in the view, at each whole n: smaller
+    // where they are close together, so they stay apart
+    function drawSequence(ctx, v, w, h, c, color) {
+        var r = c.terms(deg), size = Math.min(3, Math.max(1.2, 0.35 / v.ux)), n, px, py,
+            last = Math.min(r.from + r.list.length - 1, Math.floor(graphX(v, w + 4)));
+        ctx.beginPath();
+        for (n = Math.max(r.from, Math.ceil(graphX(v, -4))); n <= last; n++) {
+            py = plotY(v, r.list[n - r.from]);
+            if (!(py > -4 && py < h + 4)) continue; // out of the view, or of no value
+            px = plotX(v, n);
+            ctx.moveTo(px + size, py);
+            ctx.arc(px, py, size, 0, 2 * Math.PI);
+        }
+        ctx.fillStyle = color;
+        ctx.fill();
+    }
+
+    // the next term of a sequence from the point p on it, step on that way, past those of no
+    // value, as far as its last; null where there is none
+    function traceSequence(p, i, dir, step) {
+        var r = graphPlanes[i].terms(deg), last = r.from + r.list.length - 1, n = Math.max(r.from, Math.min(last, p.u + dir * step));
+        while (n >= r.from && n <= last && n !== p.u && isNaN(r.list[n - r.from])) n += dir;
+        if (n < r.from || n > last || n === p.u) return null;
+        return { i: i, u: n, x: n, y: r.list[n - r.from] };
+    }
+
+    // What stops a sequence drawn, said, of the first one stopped: '' where none is. bad: of one
+    // whose term is of one before its first, which it cannot be; else of one too large to draw
+    // on, or of no value, or of more than 10000 terms
+    function sequenceNote(bad) {
+        var out = '';
+        graphPlanes.some(function (c) {
+            var s = c && c.kind === 'seq' && c.terms(deg).stop, a = c && c.name;
+            if (!s || (s.why === 'before') !== bad) return false;
+            out = s.why === 'before' ? a + '(' + s.n + ') is of ' + a + '(' + s.need + '), before its first term: give that one too, {' + a + '(' + s.need + ') = …}.' :
+                s.why === 'large' ? a + '(' + s.n + ') is too large to draw: the sequence stops there.' :
+                    s.why === 'none' ? a + '(' + s.n + ') has no value, so the terms after it have none: the sequence stops there.' :
+                        'The first 10000 terms of ' + a + ': n up to ' + (s.n - 1) + '.';
+            return true;
+        });
+        return out;
     }
 
     // The area of a curve from a to b, shaded in its color down to the x axis, or to the curve
@@ -2522,7 +2649,7 @@
             })[0];
             if (!next) return true;
         } else if (graphPlanes[i] && p.u !== undefined && (key === 37 || key === 39)) {
-            next = tracePlane(v, p, i, dir, GRAPH_TRACE * (shift ? 10 : 1));
+            next = graphPlanes[i].kind === 'seq' ? traceSequence(p, i, dir, shift ? 10 : 1) : tracePlane(v, p, i, dir, GRAPH_TRACE * (shift ? 10 : 1));
             if (!next) return true;
         } else if (graphRels[i] && (key === 37 || key === 39)) {
             next = traceEquation(v, p, i, dir, GRAPH_TRACE * (shift ? 10 : 1));
@@ -2960,10 +3087,19 @@
             });
         });
         graphPlanes.forEach(function (c, i) { // a curve of a parameter: the nearest of its places drawn, then nearer between them
-            var pts = c && c.kept && c.kept.pts, near = null, lo, hi, k, m1, m2, q, d;
+            var pts = c && c.kept && c.kept.pts, near = null, lo, hi, k, m1, m2, q, d, r;
             function off(u) {
                 var q = c.at(u, deg);
                 return Math.hypot(plotX(v, q[0]) - at.x, plotY(v, q[1]) - at.y);
+            }
+            if (c && c.kind === 'seq') { // a sequence: the nearest of its terms by the pointer
+                r = c.terms(deg);
+                hi = Math.min(r.from + r.list.length - 1, graphX(v, at.x + reach * 1.2));
+                for (k = Math.max(r.from, Math.ceil(graphX(v, at.x - reach * 1.2))); k <= hi; k++) {
+                    d = Math.hypot(plotX(v, k) - at.x, plotY(v, r.list[k - r.from]) - at.y);
+                    if (d <= reach * 1.2 && (!best || d < best.d)) best = { d: d, p: { i: i, u: k, x: k, y: r.list[k - r.from] } };
+                }
+                return;
             }
             if (!pts) return;
             pts.forEach(function (q, k) {
@@ -2985,10 +3121,17 @@
         return best ? best.p : { x: x, y: graphNice(graphY(v, at.y), v.uy), spot: true };
     }
 
+    // the sequence a point is a term of, or null
+    function seqOf(p) {
+        var c = p && !p.spot && !p.area && p.u !== undefined && graphPlanes[p.i];
+        return c && c.kind === 'seq' ? c : null;
+    }
+
     // what a point is, and its x and y, as the line above the plot and the popup show them
     function graphName(p) {
         var fit = !p.spot && !p.area && !p.t && graphData[p.i] && graphFns[p.i] && graphFns[p.i].fit;
         if (fit) return 'Best fit, r² = ' + local(String(+fit.r2.toPrecision(4)));
+        if (seqOf(p)) return 'Term';
         return p.spot ? 'Point' : p.area ? (p.rel ? 'Area of the region' : p.j === undefined ? 'Area under the curve' : 'Area between the curves') :
             p.t ? p.t.map(function (t) { return GRAPH_NAMES[t]; }).join(', ') : 'On the curve';
     }
@@ -3016,18 +3159,20 @@
 
     // the line above the plot: the point under the pointer, what it is and its x and y; else what to do
     function graphShown() {
-        var unit = graphAngles() ? UNITS[deg] : '', p = graphAt, kind;
+        var unit = graphAngles() ? UNITS[deg] : '', p = graphAt, kind, seq = seqOf(p);
         if (graphTwice) {
             graphNote.textContent = graphTwice + '(x) is named twice: give each function its own letter.';
         } else if (graphRows.some(function (row) { return row.classList.contains('calc-bad'); })) {
             graphNote.textContent = 'Not a function of x yet: write x^2 for x², 2x for 2 × x.';
+        } else if (sequenceNote(true)) {
+            graphNote.textContent = sequenceNote(true);
         } else if (graphRows.some(function (row, i) { return graphData[i] && graphDiff[i] && !graphFns[i]; })) {
             kind = fitKind(graphRows.findIndex(function (row, i) { return graphData[i] && graphDiff[i] && !graphFns[i]; }));
             graphNote.textContent = 'No ' + GRAPH_FIT_NAMES[kind] + ' fit: it needs ' + GRAPH_FIT_NEEDS[kind] + '.';
         } else if (!graphFns.concat(graphRels, graphPlanes, graphData).some(Boolean) && graphOff.some(Boolean)) {
             graphNote.textContent = 'Every curve is hidden: click its dot to show it.';
         } else if (graphTab === 'table') {
-            graphNote.textContent = !graphFns.some(Boolean) ? 'Type a function of x for its values.' :
+            graphNote.textContent = !tableCurves().length ? 'Type a function of x for its values.' :
                 graphTable.querySelector('.calc-bad') ? 'Start and step are numbers, the step above 0.' :
                     'Click a value to put it in the equation.' + (unit ? ' · ' + unit : '');
         } else if (graphShading && graphFns.concat(graphRels).some(Boolean) && graphStart && graphPinned && graphPinned.area) {
@@ -3038,12 +3183,14 @@
                 '<span>Drag to where it ends</span>';
         } else if (graphShading && graphFns.concat(graphRels).some(Boolean)) {
             graphNote.textContent = 'Drag along a curve for the area under it, between two for the area between, in a region for its area.';
-        } else if (p) {
+        } else if (p) { // of a term of a sequence, its n and a(n)
             graphNote.innerHTML = graphSwatches(p) + '<em>' + graphName(p) + '</em>' +
-                '<span><i>x</i> = ' + graphValue(p, 'x') + '</span>' +
-                '<span><i>y</i> = ' + (isFinite(p.y) ? graphValue(p, 'y') : 'none') + '</span>';
+                '<span>' + (seq ? '<i>n</i>' : '<i>x</i>') + ' = ' + graphValue(p, 'x') + '</span>' +
+                '<span>' + (seq ? '<i>' + seq.name + '</i>(<i>n</i>)' : '<i>y</i>') + ' = ' + (isFinite(p.y) ? graphValue(p, 'y') : 'none') + '</span>';
         } else if (!graphInputs.some(function (box) { return box.value.trim(); })) {
             graphNote.textContent = 'Type a function of x. Drag to move, scroll or pinch to zoom.';
+        } else if (sequenceNote(false)) {
+            graphNote.textContent = sequenceNote(false);
         } else {
             graphNote.textContent = 'Point at the graph for values; click to insert.' + (unit ? ' · ' + unit : '');
         }
@@ -3055,7 +3202,7 @@
     // unless an end of its area is being typed: then it stays at the edge, and that box is kept
     function placePop(v) {
         var p = graphPinned, w = graphPlot.clientWidth, h = graphPlot.clientHeight, typing = graphPop.contains(document.activeElement),
-            px, py, html, left, top, below, rows;
+            px, py, html, left, top, below, rows, seq;
         px = p && plotX(v, p.x);
         py = p && plotY(v, p.y);
         if (p && p.area && typing) {
@@ -3066,12 +3213,13 @@
             graphPop.hidden = true;
             return;
         }
+        seq = seqOf(p);
         html = '<div class="calc-graph-pop-head">' + graphSwatches(p) + '<b>' + graphName(p) + '</b></div>' +
-            (p.area ? ['a', 'b', 's'] : p.u !== undefined ? ['u', 'x', 'y', 'm'] : ['x', 'y', 'm']).map(function (k) {
+            (p.area ? ['a', 'b', 's'] : seq ? ['u', 'y'] : p.u !== undefined ? ['u', 'x', 'y', 'm'] : ['x', 'y', 'm']).map(function (k) {
                 if (k === 'm' && !isFinite(p.m)) return '';
                 if (k === 's' && !isFinite(p.s)) return '<div class="calc-graph-pop-none">Area = none</div>';
-                return '<div class="calc-graph-pop-row" data-put="' + k + '"><span>' + (k === 'u' && graphPlanes[p.i] &&
-                    graphPlanes[p.i].kind === 'polar' ? 'θ' : GRAPH_ROWS[k]) + ' = ' +
+                return '<div class="calc-graph-pop-row" data-put="' + k + '"><span>' + (seq ? (k === 'u' ? '<i>n</i>' : '<i>' + seq.name + '</i>(<i>n</i>)') :
+                    k === 'u' && graphPlanes[p.i] && graphPlanes[p.i].kind === 'polar' ? 'θ' : GRAPH_ROWS[k]) + ' = ' +
                     (k === 'a' || k === 'b' ? '<input class="calc-graph-pop-end" data-end="' + k + '" value="' + endValue(p, k) +
                         '" aria-label="' + (k === 'a' ? 'From x' : 'To x') + '">' : graphValue(p, k)) + '</span>' + insertIcon() + '</div>';
             }).join('');
@@ -3533,15 +3681,19 @@
 
     // saved as a file, graph.png
     function saveGraph() {
-        graphPicture().toBlob(function (blob) {
-            var a = document.createElement('a'), url = URL.createObjectURL(blob);
-            a.href = url;
-            a.download = 'graph.png';
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
-        }, 'image/png');
+        graphPicture().toBlob(function (blob) { saveBlob(blob, 'graph.png'); }, 'image/png');
+    }
+
+    // A file saved, as the browser saves what a link to it downloads, with no permission of its
+    // own: the picture of the graph, the history
+    function saveBlob(blob, name) {
+        var a = document.createElement('a'), url = URL.createObjectURL(blob);
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 10000);
     }
 
     // copied, to paste into a document or a message
@@ -3597,19 +3749,21 @@
     });
 
     // the first x and the step: as the boxes hold them, else from the view. A box that
-    // holds no number, or a step that is not above 0, is marked, and goes by the view
+    // holds no number, or a step that is not above 0, is marked, and goes by the view. Of
+    // sequences alone, n from the first of them, by 1
     function tableSteps() {
         var v = viewNow(), w = plotWidth(), want = w * v.ux / 20, p = Math.pow(10, Math.floor(Math.log10(want))), m = want / p,
             by = graphAngles() && deg === 1 && want > 3 && want <= 180 ?
                 [5, 10, 15, 30, 45, 90, 180].filter(function (d) { return d >= want; })[0] :
                 p * (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10),
-            from, typed;
-        by = +by.toPrecision(12);
+            seqs = tableSeqs(), from, typed;
+        by = seqs ? 1 : +by.toPrecision(12);
         graphBy.placeholder = local(String(by));
         typed = +boxValue(graphBy);
         graphBy.parentNode.classList.toggle('calc-bad', !!graphBy.value && !(typed > 0 && isFinite(typed)));
         if (graphBy.value && typed > 0 && isFinite(typed)) by = typed;
-        from = +(Math.ceil((v.x - w / 2 * v.ux) / by) * by).toPrecision(12);
+        from = seqs ? Math.min.apply(null, seqs.map(function (i) { return graphPlanes[i].range(deg)[0]; })) :
+            +(Math.ceil((v.x - w / 2 * v.ux) / by) * by).toPrecision(12);
         graphFrom.placeholder = local(String(from));
         typed = +boxValue(graphFrom);
         graphFrom.parentNode.classList.toggle('calc-bad', !!graphFrom.value && !isFinite(typed));
@@ -3642,7 +3796,7 @@
         var html = '', room = tableRoom(), k, x, row;
         for (k = from; k < to; k++) {
             x = +(s.from + k * s.by).toPrecision(12); // 0.3, not 0.30000000000000004
-            row = [x].concat(shown.map(function (i) { return graphFns[i].at(x, deg, true); }));
+            row = [x].concat(shown.map(function (i) { return graphFns[i] ? graphFns[i].at(x, deg, true) : graphPlanes[i].at(x, deg)[1]; }));
             graphValues[k] = row;
             html += '<div class="calc-graph-line">' + row.map(function (n, c) {
                 var text = !isFinite(n) ? '–' : c ? tableValue(n, room) : graphValue({ x: n }, 'x');
@@ -3653,9 +3807,15 @@
         return html;
     }
 
-    // the curves shown in the table, by their number
+    // the curves shown in the table, by their number: the functions, and the sequences, each a(n) at a whole x it has
     function tableCurves() {
-        return graphFns.map(function (fn, i) { return fn ? i : -1; }).filter(function (i) { return i > -1; });
+        return graphFns.map(function (fn, i) { return fn || (graphPlanes[i] && graphPlanes[i].kind === 'seq') ? i : -1; }).filter(function (i) { return i > -1; });
+    }
+
+    // the curves of the table where they are all sequences, its x being their n; else null
+    function tableSeqs() {
+        var shown = tableCurves();
+        return shown.length && shown.every(function (i) { return !graphFns[i]; }) ? shown : null;
     }
 
     function renderTable() {
@@ -3665,8 +3825,8 @@
         graphLines = Math.max(graphLines, 60);
         graphValues = [];
         graphList.style.setProperty('--cols', shown.length + 1);
-        graphList.innerHTML = '<div class="calc-graph-line calc-graph-names"><span><i>x</i></span>' + shown.map(function (i) {
-            return '<span>' + graphSwatch(i) + '<i>y</i></span>';
+        graphList.innerHTML = '<div class="calc-graph-line calc-graph-names"><span><i>' + (tableSeqs() ? 'n' : 'x') + '</i></span>' + shown.map(function (i) {
+            return '<span>' + graphSwatch(i) + (graphFns[i] ? '<i>y</i>' : '<i>' + graphPlanes[i].name + '</i>(<i>n</i>)') + '</span>';
         }).join('') + '</div>'; // first, so the room of a column can be measured
         if (shown.length) graphList.insertAdjacentHTML('beforeend', tableRows(s, shown, 0, graphLines));
         graphShown();
@@ -3955,10 +4115,12 @@
     // and an empty one its default, which it shows; a box of a function what the graph reads.
     // Each tool: t its name, f how it is written, d what it gives; fields its boxes, each of a
     // key k, a label l, a placeholder ph, and fn for a function, text for words read as they
-    // are, def for the number of an empty one, inf where ∞ is a number; cols the columns of the
-    // boxes; run(numbers, typed) its results: { rows: [{ l, v: a number, text, m: a matrix,
-    // wide }], note, warn, bad: the keys of the boxes that are not what they should be, cols: the
-    // columns of the tiles, where not three }
+    // are, def for the number of an empty one, inf where ∞ is a number, area for a box of lines,
+    // a list, choice for ways to choose one of, each a button, which it has as '0', '1' …; cols the
+    // columns of the boxes; run(numbers, typed) its results: { rows: [{ l, v: a number, text, m: a
+    // matrix, head: the heads of its columns, a table with Copy table, places: its number or numbers
+    // shown to these decimal places, money to the cent, put in and copied whole, wide }], note, warn, bad: the keys of the boxes that are not what they
+    // should be, cols: the columns of the tiles, where not three }
     var MEAN = { k: 'mu', l: 'μ', ph: '0', def: 0 }, // the boxes of a normal distribution
         SPREAD = { k: 'sigma', l: 'σ', ph: '1', def: 1 },
         PROBABILITY = { k: 'p', l: 'p', ph: '0.95', def: 0.95 }, // a chance to find the value of
@@ -4098,6 +4260,25 @@
                     for (k = 0; k < 5; k++) rows.push({ l: 'Number ' + (k + 1), v: CalcMaths.randomWhole(n.a, n.b, chance) });
                     return { rows: rows, note: isNaN(rows[0].v) && isFinite(n.a) && isFinite(n.b) ? 'Whole numbers, From the smaller.' : '', warn: isNaN(rows[0].v) };
                 } }
+        ],
+        finance: [
+            { id: 'schedule', t: 'Payment schedule', f: 'interest, principal, balance', d: 'A loan paid back in equal payments at the end of each period: the payment, all the interest, and a table ' +
+                'of each year, or of each payment, of the interest paid, the principal paid and what is left of the loan. Copy table copies it for a spreadsheet.',
+                fields: [{ k: 'loan', l: 'Loan', ph: '' }, { k: 'rate', l: 'Rate %', ph: '' }, { k: 'years', l: 'Years', ph: '' }, { k: 'py', l: 'A year', ph: '12', def: 12, aria: 'Payments a year' },
+                    { k: 'by', l: 'Table', choice: ['By year', 'By payment'] }], cols: 2, run: runSchedule },
+            { id: 'rates', t: 'Interest rates', f: 'APR ↔ APY', d: 'A nominal rate a year, its APR, as the effective one, its APY, of interest m times a year, and back: type one, ' +
+                'and the other is worked out. m may be ∞, typed inf, for interest all the time.',
+                fields: [{ k: 'apr', l: 'APR %', ph: '' }, { k: 'apy', l: 'APY %', ph: '' }, { k: 'm', l: 'm', ph: '12', def: 12, inf: true, aria: 'Periods a year' }], cols: 3, run: runRates },
+            { id: 'tvm', t: 'Time value of money', f: 'N, I/Y, PV, PMT, FV', d: 'Money over time, as a BA II Plus or an HP 12C works it out: leave one of N, I/Y, PV, PMT and FV empty, and it is worked out. ' +
+                'N payments of PMT, at I/Y, a percentage a year, of P/Y payments a year, bring PV at the start to FV at the end; each payment at the end of its period, or at its start. ' +
+                'Money received is above 0 and money paid below 0: a loan of 200000 is PV = 200000, its PMT below 0. With all the money paid, and the interest.',
+                fields: [{ k: 'n', l: 'N', ph: '' }, { k: 'iy', l: 'I/Y %', ph: '' }, { k: 'pv', l: 'PV', ph: '' }, { k: 'pmt', l: 'PMT', ph: '' },
+                    { k: 'fv', l: 'FV', ph: '' }, { k: 'py', l: 'P/Y', ph: '12', def: 12 },
+                    { k: 'due', l: 'Payments', choice: ['At the end', 'At the start'] }], cols: 2, run: runTvm },
+            { id: 'npv', t: 'NPV and IRR', f: 'Σ CF<sub>t</sub> / (1 + r)<sup>t</sup>', d: 'Of cash flows, one a period, the first at the start and usually below 0, as it is paid out: their net present value at the rate r, ' +
+                'a percentage a period; their internal rate of return, the rate of an NPV of 0; and how many periods they take to pay back what went out. ' +
+                'Type the flows one to a line, or apart as the statistics list is: -1000, 300, 400, 500.',
+                fields: [{ k: 'r', l: 'Rate %', ph: '10', def: 10 }, { k: 'cf', l: 'Cash flows', ph: '-1000&#10;300&#10;400&#10;500', area: true }], run: runNpv }
         ]
     };
 
@@ -4470,6 +4651,99 @@
             bad: r.error === 'function' || r.error === 'letters' ? ['f'] : [], note: why || '', warn: !!why && !(endless && Math.abs(r.value) === Infinity) };
     }
 
+    // ---------------- money ---------------- //
+
+    var SIGNS = 'Money received is above 0, money paid below 0: a loan of 200000 is PV = 200000, its PMT below 0.';
+
+    // Time value of money: the one of N, I/Y, PV, PMT and FV left empty, its tile first, then all
+    // the money paid and the interest, paid or earned; or what is wrong, said
+    function runTvm(n, raw) {
+        var keys = ['n', 'iy', 'pv', 'pmt', 'fv'], names = { n: 'N', iy: 'I/Y %', pv: 'PV', pmt: 'PMT', fv: 'FV' },
+            empty = keys.filter(function (k) { return !raw[k]; }), none = [{ l: empty.length === 1 ? names[empty[0]] : 'N, I/Y, PV, PMT or FV', v: NaN, wide: empty.length !== 1 }], r, why, part;
+        if (keys.some(function (k) { return raw[k] && isNaN(n[k]); }) || (raw.py && isNaN(n.py))) return { rows: none }; // its box is marked
+        if (empty.length !== 1) {
+            return { rows: none, warn: !empty.length,
+                note: (empty.length ? 'Leave only one of N, I/Y, PV, PMT and FV empty, the one to work out. ' : 'Leave one of N, I/Y, PV, PMT and FV empty, the one to work out. ') + SIGNS };
+        }
+        r = CalcMaths.tvm({ n: n.n, iy: n.iy, pv: n.pv, pmt: n.pmt, fv: n.fv, py: n.py, start: raw.due === '1' });
+        why = {
+            py: 'P/Y, the payments a year, is above 0.',
+            rate: 'The rate a period, I/Y ÷ P/Y, is above –100%.',
+            n: 'N, the payments, is above 0.',
+            none: 'No ' + names[empty[0]] + ' makes the money balance: ' + (empty[0] === 'n' ? 'the payments never bring PV to FV at this rate. ' : 'money received and money paid need opposite signs. ') + SIGNS,
+            large: 'Too large a number to show.'
+        }[r.error];
+        if (why) return { rows: none, warn: true, note: why };
+        part = (empty[0] === 'n' ? r.n : n.n) % 1;
+        return {
+            rows: [{ l: names[r.find], v: r.value, places: /^(pv|pmt|fv)$/.test(r.find) ? 2 : undefined }, { l: 'Total paid', v: r.paid, places: 2 },
+                { l: r.net < 0 ? 'Interest paid' : r.net > 0 ? 'Interest earned' : 'Interest', v: CalcMaths.round(Math.abs(r.net)), places: 2 }],
+            note: SIGNS + (part > 1e-9 && part < 1 - 1e-9 ? ' N is not a whole number of payments: a last, smaller one makes up the part.' : '')
+        };
+    }
+
+    // NPV at the rate, IRR and the payback of cash flows typed as a list is
+    function runNpv(n, raw) {
+        var read = raw.cf ? CalcEngine.numbers(raw.cf, engine.comma, 'auto') : { values: [], bad: [] }, flows = read.values,
+            none = [{ l: 'NPV', v: NaN }, { l: 'IRR %', v: NaN }, { l: 'Payback', v: NaN }], r, back, notes = [];
+        if (read.bad.length) return { rows: none, bad: ['cf'], warn: true, note: read.bad[0] + ' is not a number: type the cash flows one to a line, or apart by spaces or ' + (engine.comma ? 'semicolons.' : 'commas.') };
+        if (flows.length < 2) return { rows: none, note: raw.cf ? 'Two cash flows or more: the first at the start, then one a period.' : '' };
+        if (flows.length > 1000) return { rows: none, bad: ['cf'], warn: true, note: 'Up to 1000 cash flows.' };
+        r = CalcMaths.irr(flows);
+        back = CalcMaths.payback(flows);
+        if (isFinite(n.r) && !(n.r > -100)) notes.push('The rate is above –100%.');
+        if (!r.changes) notes.push('No IRR: the flows never change sign, so no rate makes their NPV 0.');
+        else if (isNaN(r.irr)) notes.push('No IRR found from –99.99% to 1000000%.');
+        else if (r.changes > 1) notes.push('The flows change sign ' + r.changes + ' times, so there may be more than one IRR' + (r.others.length ? ': this one is the nearest 10%, and ' +
+            r.others.map(function (x) { return local(String(x)) + '%'; }).join(', ') + (r.others.length > 1 ? ' are others.' : ' is another.') : '; this one is the nearest 10%.'));
+        if (isNaN(back) && flows[0] < 0) notes.push('They never pay back what went out.');
+        return {
+            rows: [{ l: 'NPV', v: CalcMaths.npv(n.r, flows), places: 2 }, { l: 'IRR %', v: r.irr }, { l: 'Payback', v: back }],
+            warn: !!notes.length && (!(n.r > -100) || !r.changes), note: notes.join(' ')
+        };
+    }
+
+    var SCHEDULE_ROWS = 600; // a table of more payments shows the first of them
+
+    // a loan's payment, its interest and a table of its years or of its payments
+    function runSchedule(n, raw) {
+        var none = [{ l: 'Payment', v: NaN }, { l: 'Total interest', v: NaN }, { l: 'Total paid', v: NaN }], by = raw.by === '1', r, why;
+        if (!raw.loan || !raw.rate || !raw.years || [n.loan, n.rate, n.years, n.py].some(isNaN)) {
+            return { rows: none, warn: raw.loan && n.loan <= 0, note: raw.loan && n.loan <= 0 ? 'The loan is above 0.' : '' };
+        }
+        r = CalcMaths.amortize(n.loan, n.rate, n.years, n.py, SCHEDULE_ROWS);
+        why = {
+            loan: 'The loan is above 0.',
+            years: 'Years are above 0.',
+            py: 'Payments a year are above 0.',
+            rate: 'The rate a period, the rate a year ÷ payments a year, is above –100%.',
+            whole: 'Years × payments a year is a whole number of payments.',
+            long: 'Up to 100000 payments.'
+        }[r.error];
+        if (why) return { rows: none, warn: true, note: why };
+        return {
+            rows: [{ l: 'Payment', v: r.payment, places: 2 }, { l: 'Total interest', v: r.interest, places: 2 }, { l: 'Total paid', v: CalcMaths.round(n.loan + r.interest), places: 2 },
+                { l: by ? 'Each payment' : 'Each year', m: by ? r.byPayment : r.byYear, head: [by ? 'No.' : 'Year', 'Interest', 'Principal', 'Balance'], places: 2 }],
+            note: (r.n === 1 ? '1 payment' : r.n + ' payments') + ', each at the end of its period.' +
+                (r.more ? ' The table has the first ' + SCHEDULE_ROWS + (by ? ' payments: By year has them all.' : ' years.') : '')
+        };
+    }
+
+    // APR to APY, or back, of m periods a year, and the rate a period
+    function runRates(n, raw) {
+        var none = [{ l: 'APR %', v: NaN }, { l: 'APY %', v: NaN }, { l: 'A period %', v: NaN }], apr, apy;
+        if (raw.apr && raw.apy) return { rows: none, warn: true, note: 'Leave one of APR and APY empty, the one to work out.' };
+        if ((!raw.apr && !raw.apy) || isNaN(n.m) || (raw.apr && isNaN(n.apr)) || (raw.apy && isNaN(n.apy))) return { rows: none };
+        if (!(n.m > 0)) return { rows: none, warn: true, note: 'm, the periods a year, is above 0.' };
+        apr = raw.apr ? n.apr : CalcMaths.nominalRate(n.apy, n.m);
+        apy = raw.apy ? n.apy : CalcMaths.effectiveRate(n.apr, n.m);
+        if (isNaN(apr) || isNaN(apy)) return { rows: none, warn: true, note: raw.apr ? 'The rate a period, APR ÷ m, is above –100%.' : 'APY is above –100%.' };
+        return {
+            rows: [{ l: 'APR %', v: apr }, { l: 'APY %', v: apy }, { l: 'A period %', v: n.m === Infinity ? NaN : CalcMaths.round(apr / n.m) }],
+            note: n.m === Infinity ? 'Interest all the time: APY is e to the APR, less 1.' : 'Interest ' + local(String(n.m)) + ' times a year, of APR ÷ m each time.'
+        };
+    }
+
     // ---------------- numbers ---------------- //
 
     // Matrices, complex numbers, whole numbers in bits and their bases, and whole numbers'
@@ -4490,7 +4764,7 @@
                 }, cols: 2, run: runMatrices },
             { id: 'eigen', t: 'Eigenvalues', f: 'A<b>v</b> = λ<b>v</b>', d: 'The eigenvalues of a square matrix, real or a ± bi, its characteristic polynomial and trace, and the eigenvectors of each real eigenvalue: the v that A only stretches, by λ. Type its size, 3×3 or 3, and a number in each box; an empty one is 0.',
                 fields: function (raw) { return [{ k: 'size', l: 'Size', ph: '2×2', text: true, shape: true }].concat(cells('a', 'A', raw.size)); }, run: runEigen },
-            { id: 'axb', t: 'A x = b', f: 'A<b>x</b> = <b>b</b>', d: 'The unknowns of linear equations, up to four of them: a row of A for each equation and what it equals in b. As many equations as rows, as many unknowns as columns. Where they have many answers, all of them, x = p + t v; where they have none, the nearest, by least squares. Type the size of A, 3×3 or 3 2, and a number in each box; an empty one is 0.',
+            { id: 'axb', t: 'A x = b', f: 'A<b>x</b> = <b>b</b>', d: 'The unknowns of linear equations, up to ten of them: a row of A for each equation and what it equals in b. As many equations as rows, as many unknowns as columns. Where they have many answers, all of them, x = p + t v; where they have none, the nearest, by least squares. Type the size of A, 3×3 or 3 2, and a number in each box; an empty one is 0.',
                 fields: function (raw) {
                     var size = sizeOf(raw.size) || [2, 2], out = [{ k: 'size', l: 'Size of A', ph: '2×2', text: true, shape: true }, { head: 'A | b', cols: size[1] + 1 }], i, j;
                     for (i = 1; i <= size[0]; i++) {
@@ -4547,9 +4821,9 @@
     };
 
     // the rows and columns of a size typed: 3×3, 2 3, 2x3, 2,3, or 3 for a square; [2, 2] while
-    // empty; null for a size that is not one, of more than 4 or fewer than 1
+    // empty; null for a size that is not one, of more than 10 or fewer than 1
     function sizeOf(text) {
-        var m = /^\s*([1-4])\s*(?:[x×*,\s]\s*([1-4]))?\s*$/i.exec(text || '');
+        var m = /^\s*([1-9]|10)\s*(?:[x×*,\s]\s*([1-9]|10))?\s*$/i.exec(text || '');
         if (!String(text || '').trim()) return [2, 2];
         return m ? [+m[1], +(m[2] || m[1])] : null;
     }
@@ -4705,16 +4979,32 @@
         };
     }
 
+    // What is said of a square matrix whose answers are only so near, κ of its condition being
+    // large: of about 16 digits, some log₁₀ κ are lost, and fewer than its 10 shown are right. '' where they are
+    function trustNote(a) {
+        var k = a.every(function (r) { return r.every(isFinite); }) ? CalcMaths.condition(a) : NaN, right;
+        if (!(k >= 1e6) || k === Infinity) return '';
+        right = Math.max(0, Math.floor(16 - Math.log10(k)));
+        return 'Badly conditioned, κ ≈ ' + local(k.toPrecision(2).replace(/e\+?/, 'e')) + ': ' +
+            (right ? 'only about ' + right + (right === 1 ? ' digit' : ' digits') : 'none of the digits') + ' of what is worked out of it can be trusted.';
+    }
+
+    // a note, and another after it, either of which may be ''
+    function notes(a, b) {
+        return a && b ? a + ' ' + b : a || b;
+    }
+
     function runMatrix(n, raw) {
         var a = matrixOf(n, 'a', raw.size), square = a.length === a[0].length, inv = square ? CalcMaths.inverse(a) : null,
-            bad = sizeOf(raw.size) ? [] : ['size'], power = n.power, whole = isFinite(power) && power === Math.floor(power) && Math.abs(power) <= 1000;
+            bad = sizeOf(raw.size) ? [] : ['size'], power = n.power, whole = isFinite(power) && power === Math.floor(power) && Math.abs(power) <= 1000,
+            trust = inv && !bad.length ? trustNote(a) : '';
         return {
             rows: [{ l: 'det A', v: square ? CalcMaths.det(a) : NaN }, { l: 'Rank', v: CalcMaths.rank(a) },
                 { l: 'A<sup>–1</sup>', m: inv }, { l: 'A<sup>T</sup>', m: CalcMaths.transpose(a) },
                 { l: 'A<sup>' + (whole ? local(String(power)).replace('-', '–') : 'n') + '</sup>', m: square && whole ? CalcMaths.matrixPower(a, power) : null }],
-            bad: bad, warn: !!bad.length || (square && !inv) || (isFinite(power) && !whole),
-            note: bad.length ? 'A size of rows and columns, each 1 to 4: 3×3, or 2 3.' : !square ? 'Not square: no determinant, inverse or power.' :
-                isFinite(power) && !whole ? 'n is a whole number from –1000 to 1000.' : !inv ? 'No inverse: its determinant is 0' + (power < 0 ? ', so no power below 0.' : '.') : ''
+            bad: bad, warn: !!bad.length || (square && !inv) || (isFinite(power) && !whole) || !!trust,
+            note: bad.length ? 'A size of rows and columns, each 1 to 10: 3×3, or 2 3.' : !square ? 'Not square: no determinant, inverse or power.' :
+                isFinite(power) && !whole ? 'n is a whole number from –1000 to 1000.' : !inv ? 'No inverse: its determinant is 0' + (power < 0 ? ', so no power below 0.' : '.') : trust
         };
     }
 
@@ -4729,8 +5019,8 @@
     }
 
     function runEigen(n, raw) {
-        var size = sizeOf(raw.size), a = matrixOf(n, 'a', raw.size), square = a.length === a[0].length, e = size && square ? CalcMaths.eigen(a) : null, rows;
-        if (!size) return { rows: [{ l: 'λ', v: NaN }], bad: ['size'], warn: true, note: 'A size of rows and columns, each 1 to 4: 3×3, or 3.' };
+        var size = sizeOf(raw.size), a = matrixOf(n, 'a', raw.size), square = a.length === a[0].length, e = size && square ? CalcMaths.eigen(a) : null, rows, trust;
+        if (!size) return { rows: [{ l: 'λ', v: NaN }], bad: ['size'], warn: true, note: 'A size of rows and columns, each 1 to 10: 3×3, or 3.' };
         if (!square) return { rows: [{ l: 'λ', v: NaN }], warn: true, note: 'Not square: an eigenvalue is of a square matrix.' };
         if (!e) return { rows: [{ l: 'λ', v: NaN }] }; // a box that is not a number, marked
         rows = e.values.map(function (z, i) {
@@ -4741,14 +5031,17 @@
         e.vectors.forEach(function (v, i) {
             rows.push({ l: 'v<sub>' + (i + 1) + '</sub> of λ = ' + local(String(v.value)), m: [v.v] });
         });
-        return { rows: rows, note: e.values.some(function (z) { return z.im; }) ? 'Its complex eigenvalues have eigenvectors of complex numbers, not shown here.' : '' };
+        trust = trustNote(a);
+        return { rows: rows, warn: !!trust,
+            note: notes(e.values.some(function (z) { return z.im; }) ? 'Its complex eigenvalues have eigenvectors of complex numbers, not shown here.' : '',
+                trust && trust.replace(' of what is worked out of it', ' of its eigenvalues near 0, and of their eigenvectors,')) };
     }
 
     // The unknowns, or where there are many all of them, x = p + t₁v₁ + …, and where there are
     // none the nearest by least squares; and [A | b] with its rows reduced
     function runAxb(n, raw) {
         var size = sizeOf(raw.size), a = matrixOf(n, 'a', raw.size), b = matrixOf(n, 'b', (size || [2, 2])[0] + '×1').map(function (r) { return r[0]; }),
-            r = size ? CalcMaths.system(a, b) : null, rows = [], k, x = r && (r.x || r.p || r.least && r.least.x), name;
+            r = size ? CalcMaths.system(a, b) : null, rows = [], k, x = r && (r.x || r.p || r.least && r.least.x), name, trust;
         name = function (k) { return 'x<sub>' + (k + 1) + '</sub>'; };
         for (k = 0; k < a[0].length; k++) rows.push({ l: name(k), v: x ? x[k] : NaN });
         if (r && r.many) {
@@ -4758,26 +5051,29 @@
         }
         if (r && r.none && r.least) rows.push({ l: '|A<b>x</b> – <b>b</b>|', v: r.least.residual });
         if (r) rows.push({ l: '[A | <b>b</b>] reduced', m: r.rref });
+        trust = r && r.x && a.length === a[0].length ? trustNote(a) : '';
         return {
-            rows: rows, bad: size ? [] : ['size'], warn: !size,
-            note: !size ? 'A size of rows and columns, each 1 to 4: 3×3, or 3 2.' : !r ? '' :
+            rows: rows, bad: size ? [] : ['size'], warn: !size || !!trust,
+            note: !size ? 'A size of rows and columns, each 1 to 10: 3×3, or 3 2.' : !r ? '' :
                 r.none ? 'No answer: the equations cannot all hold. The x above is the nearest, by least squares' + (r.least && r.least.many ? ', one of many as near.' : '.') :
-                r.many ? 'Many answers: x is p and any of the v, each times a number t; the x above is p, each t 0.' : ''
+                r.many ? 'Many answers: x is p and any of the v, each times a number t; the x above is p, each t 0.' : trust
         };
     }
 
     function runRref(n, raw) {
-        var size = sizeOf(raw.size || '3'), a = matrixOf(n, 'a', raw.size || '3'), r = size ? CalcMaths.rref(a) : null, rows;
-        if (!r) return { rows: [{ l: 'rref A', m: null }], bad: ['size'], warn: true, note: 'A size of rows and columns, each 1 to 4: 3×3, or 2 3.' };
+        var size = sizeOf(raw.size || '3'), a = matrixOf(n, 'a', raw.size || '3'), r = size ? CalcMaths.rref(a) : null, rows, trust;
+        if (!r) return { rows: [{ l: 'rref A', m: null }], bad: ['size'], warn: true, note: 'A size of rows and columns, each 1 to 10: 3×3, or 2 3.' };
         rows = [{ l: 'rref A', m: r.m }, { l: 'Rank', v: r.rank }, { l: 'Nullity', v: r.kernel.length },
             { l: 'Columns of its first 1s', text: r.pivots.length ? r.pivots.map(function (c) { return c + 1; }).join(', ') : 'none', wide: true }];
         r.kernel.forEach(function (v, i) { rows.push({ l: 'Null space <b>v</b><sub>' + (i + 1) + '</sub>', m: [v] }); });
-        return { rows: rows, note: r.kernel.length ? 'Its null space: each v, and each sum of them times numbers, A takes to 0.' : 'Only 0 does it take to 0.' };
+        trust = a.length === a[0].length && r.rank === a.length ? trustNote(a) : '';
+        return { rows: rows, warn: !!trust, note: notes(r.kernel.length ? 'Its null space: each v, and each sum of them times numbers, A takes to 0.' : 'Only 0 does it take to 0.',
+            trust && trust.replace('of what is worked out of it can be trusted.', 'can be trusted: its rank may be less.')) };
     }
 
     function runLu(n, raw) {
         var size = sizeOf(raw.size), a = matrixOf(n, 'a', raw.size), f = size ? CalcMaths.lu(a) : null, q = size ? CalcMaths.qr(a) : null;
-        if (!size) return { rows: [{ l: 'L', m: null }], bad: ['size'], warn: true, note: 'A size of rows and columns, each 1 to 4: 3×3, or 3 2.' };
+        if (!size) return { rows: [{ l: 'L', m: null }], bad: ['size'], warn: true, note: 'A size of rows and columns, each 1 to 10: 3×3, or 3 2.' };
         return {
             rows: [{ l: 'P', m: f && f.p }, { l: 'L', m: f && f.l }, { l: 'U', m: f && f.u }, { l: 'Q', m: q.q }, { l: 'R', m: q.r }],
             note: f ? 'P A = L U and A = Q R.' : 'Not square: no L U; A = Q R.'
@@ -4991,7 +5287,7 @@
             rows: [{ l: 'A + B', m: CalcMaths.plus(a, b) }, { l: 'A – B', m: CalcMaths.plus(a, b, true) },
                 { l: 'A × B', m: CalcMaths.times(a, b) }, { l: 'B × A', m: CalcMaths.times(b, a) }],
             bad: bad, warn: !!bad.length,
-            note: bad.length ? 'A size of rows and columns, each 1 to 4: 3×3, or 2 3.' :
+            note: bad.length ? 'A size of rows and columns, each 1 to 10: 3×3, or 2 3.' :
                 'A sum needs one size; a product A × B as many columns of A as rows of B.'
         };
     }
@@ -5338,8 +5634,21 @@
             closeCalendar();
             var kept = values[tool.id] || {}, cols = tool.cols || 1, html = '<div class="calc-sv-fields" style="--cols: ' + cols + '">';
             fieldsOf(tool, rawOf(tool)).forEach(function (f) {
-                if (f.head) {
-                    html += '</div><div class="calc-sv-head">' + f.head + '</div><div class="calc-sv-fields calc-sv-cells-in" style="--cols: ' + f.cols + '">';
+                if (f.choice) { // one of two ways, each a button, as the tabs are: the first while none is chosen
+                    html += '<div class="calc-sv-var calc-sv-wide"><span class="calc-sv-sym">' + f.l + '</span><span class="calc-sv-choice" role="radiogroup" aria-label="' +
+                        f.l + '" data-k="' + f.k + '">' + f.choice.map(function (c, i) {
+                            return '<span class="calc-sv-opt' + (String(kept[f.k] || 0) === String(i) ? ' calc-on' : '') + '" role="radio" tabindex="0" data-c="' + i + '">' + c + '</span>';
+                        }).join('') + '</span></div>';
+                    return;
+                }
+                if (f.area) { // numbers of a list, on lines of their own as well, as a column of a spreadsheet is pasted
+                    html += '<label class="calc-sv-var calc-sv-wide calc-sv-areas"><span class="calc-sv-sym">' + f.l + '</span><textarea class="calc-sv-area" rows="3" spellcheck="false" ' +
+                        'autocomplete="off" maxlength="20000" placeholder="' + f.ph + '" data-k="' + f.k + '" aria-label="' + f.l + '"></textarea></label>';
+                    return;
+                }
+                if (f.head) { // a matrix: of more than 5 columns, smaller boxes, so up to 11 fit across the card
+                    html += '</div><div class="calc-sv-head">' + f.head + '</div><div class="calc-sv-fields calc-sv-cells-in' + (f.cols > 5 ? ' calc-sv-many' : '') +
+                        '" style="--cols: ' + f.cols + '">';
                     return;
                 }
                 html += '<label class="calc-sv-var' + (f.fn ? ' calc-sv-wide' : '') + (f.date ? ' calc-sv-wide calc-sv-dated' : '') + (f.cls ? ' ' + f.cls : '') + '">' + (f.l ? '<span class="calc-sv-sym">' + f.l + '</span>' : '') +
@@ -5349,7 +5658,7 @@
                     (f.date ? '<span class="calc-sv-cal" title="Calendar">' + CALENDAR_ICON + '</span></span>' : '') + '</label>';
             });
             item.querySelector('.calc-sv-boxes').innerHTML = html + '</div>';
-            [].forEach.call(item.querySelectorAll('.calc-sv-boxes input'), function (input) {
+            [].forEach.call(item.querySelectorAll('.calc-sv-boxes input, .calc-sv-boxes textarea'), function (input) {
                 input.value = typeof kept[input.dataset.k] === 'string' ? kept[input.dataset.k] : '';
                 if (input.parentNode.classList.contains('calc-sv-date')) dateBoxOf(input);
             });
@@ -5363,19 +5672,19 @@
             tool = tools[tab][+item.dataset.i];
             raw = rawOf(tool);
             fields = fieldsOf(tool, raw);
-            inputs = [].slice.call(item.querySelectorAll('.calc-sv-boxes input'));
+            inputs = [].slice.call(item.querySelectorAll('.calc-sv-boxes input, .calc-sv-boxes textarea'));
             fields.forEach(function (f) {
                 var text = raw[f.k] || '', v, box = inputs.filter(function (b) { return b.dataset.k === f.k; })[0];
                 if (f.head) return;
                 raw[f.k] = text;
-                if (f.fn || f.text || f.date) return;
+                if (f.fn || f.text || f.date || f.choice || f.area) return;
                 v = text ? CalcMaths.number(text, engine.comma, deg, f.inf) : f.def !== undefined ? f.def : NaN;
                 if (box) box.classList.toggle('calc-bad', !!text && isNaN(v));
                 n[f.k] = v;
             });
             out = tool.run(n, raw);
             inputs.forEach(function (box) {
-                if (fields.some(function (f) { return f.k === box.dataset.k && (f.fn || f.text || f.date); })) box.classList.toggle('calc-bad', (out.bad || []).indexOf(box.dataset.k) > -1);
+                if (fields.some(function (f) { return f.k === box.dataset.k && (f.fn || f.text || f.date || f.area); })) box.classList.toggle('calc-bad', (out.bad || []).indexOf(box.dataset.k) > -1);
             });
             rows = out.rows;
             item.querySelector('.calc-sv-grid').style.gridTemplateColumns = out.cols ? 'repeat(' + out.cols + ', 1fr)' : ''; // two, for an x and a y side by side
@@ -5383,8 +5692,8 @@
             [].forEach.call(item.querySelectorAll('.calc-sv-tile'), function (el) {
                 el.row = out.rows[+el.dataset.r]; // for its tip
             });
-            [].forEach.call(item.querySelectorAll('.calc-sv-value, .calc-sv-cell'), function (shown) {
-                var size = shown.classList.contains('calc-sv-cell') ? 15 : 17;
+            [].forEach.call(item.querySelectorAll('.calc-sv-value, .calc-sv-tile:not(.calc-sv-table) .calc-sv-cell'), function (shown) {
+                var size = !shown.classList.contains('calc-sv-cell') ? 17 : shown.parentNode.classList.contains('calc-sv-many') ? 10 : 15;
                 while (size > 11 && shown.scrollWidth > shown.clientWidth) shown.style.fontSize = --size + 'px'; // a long one gets smaller, as on the display
             });
             item.querySelector('.calc-sv-note').textContent = out.note || '';
@@ -5394,7 +5703,7 @@
         // A result: a number to put in, a text to read, as a complex number, or a matrix, each of
         // its numbers to put in; – while it has none
         function tile(r, i) {
-            var known = r.text === undefined && (r.m ? !!r.m : isFinite(r.v)), shown, bits, b;
+            var known = r.text === undefined && (r.m ? !!r.m : isFinite(r.v)), shown, bits, b, many;
             if (r.flip) { // a row of up to 16 bits for each, the highest first, each to turn over
                 bits = BigInt.asUintN(r.flip.n, r.flip.v).toString(2).padStart(r.flip.n, '0');
                 shown = '<span class="calc-sv-bitgrid">';
@@ -5406,17 +5715,29 @@
                 shown += '</span></span>';
                 return '<div class="calc-sv-tile calc-sv-wide calc-sv-flip" data-r="' + i + '"><span class="calc-sv-label">' + r.l + '</span>' + shown + '</div>';
             }
-            if (r.m !== undefined) {
-                shown = r.m ? '<span class="calc-sv-cells" style="--cols: ' + r.m[0].length + '">' + r.m.map(function (row, a) {
-                    return row.map(function (x, b) { // to 10 digits, so a row of them fits; a click puts it in whole
-                        return '<span class="calc-sv-cell" data-a="' + a + '" data-b="' + b + '">' + statsValue(+x.toPrecision(10)).html + '</span>';
+            if (r.m !== undefined) { // of more than 5 columns, smaller, to fit the tile; a table under its heads, scrolling down
+                many = r.m && r.m[0].length > 5;
+                shown = r.m ? '<span class="calc-sv-cells' + (many ? ' calc-sv-many' : '') + '" style="--cols: ' + r.m[0].length + '">' + (r.head || []).map(function (h) {
+                    return '<span class="calc-sv-th">' + h + '</span>';
+                }).join('') + r.m.map(function (row, a) {
+                    return row.map(function (x, b) { // to 10 digits, so a row of them fits, of more than 5 columns to as many characters as its cell has room for, the whole number in its title; or to its places, as money to the cent, but a table's first column, its years; a click puts it in whole
+                        return '<span class="calc-sv-cell" data-a="' + a + '" data-b="' + b + '"' + (many ? ' title="' + local(String(x)) + '"' : '') + '>' +
+                            (r.places !== undefined && !(r.head && !b) ? placesValue(x, r.places) : statsValue(many ? fitted(x, r.m[0].length > 8 ? 5 : 7) : +x.toPrecision(10))).html + '</span>';
                     }).join('');
                 }).join('') + '</span>' : '<span class="calc-sv-value">–</span>';
             } else {
-                shown = '<span class="calc-sv-value">' + (r.text !== undefined ? r.text : known ? statsValue(r.v).html : '–') + '</span>';
+                shown = '<span class="calc-sv-value">' + (r.text !== undefined ? r.text : known ? (r.places !== undefined ? placesValue(r.v, r.places) : statsValue(r.v)).html : '–') + '</span>';
             }
             return '<div class="calc-sv-tile' + (r.m !== undefined || r.wide ? ' calc-sv-wide' : '') + (r.m ? ' calc-sv-matrix' : '') + (r.bits ? ' calc-sv-bits' : '') + (r.wrap ? ' calc-sv-wrap' : '') +
-                (known && !r.m ? '' : ' calc-none') + '" data-r="' + i + '"><span class="calc-sv-label">' + r.l + '</span>' + shown + '</div>';
+                (r.head ? ' calc-sv-table' : '') + (known && !r.m ? '' : ' calc-none') + '" data-r="' + i + '"><span class="calc-sv-label">' + r.l +
+                (r.head && r.m ? '<span class="calc-sv-copy" role="button">Copy table</span>' : '') + '</span>' + shown + '</div>';
+        }
+
+        // x to as many digits as fit in room characters, as few as one: 0.093, not 0.0928 cut off
+        function fitted(x, room) {
+            var d = 10;
+            while (d > 1 && String(+x.toPrecision(d)).length > room) d--;
+            return +x.toPrecision(d);
         }
 
         // the tab, the tool open and what is typed in each, for the next time
@@ -5444,7 +5765,9 @@
             var row = e.target.closest('.calc-sv-row'), t = e.target.closest('.calc-sv-tile'), cell = e.target.closest('.calc-sv-cell'), bit = e.target.closest('.calc-sv-bit'), r, v;
             if (row) return openTool(row.parentNode.classList.contains('calc-on') ? null : row.parentNode);
             if (e.target.closest('.calc-sv-again')) return run();
+            if (e.target.closest('.calc-sv-opt')) return choose(e.target.closest('.calc-sv-opt'));
             r = t && rows[+t.dataset.r];
+            if (e.target.closest('.calc-sv-copy') && r && r.m) return copy(tableText(r));
             if (bit && r && r.flip) return flip(t, r.flip, +bit.dataset.b);
             v = !r ? NaN : r.m ? (cell ? r.m[+cell.dataset.a][+cell.dataset.b] : NaN) : r.text === undefined ? r.v : NaN;
             if (!isFinite(v) || !engine.put(v)) return;
@@ -5453,6 +5776,24 @@
             refresh();
             saveState();
         }, false);
+
+        // one of the ways of a choice chosen: kept as a box's text is, and the results
+        function choose(opt) {
+            var item = opt.closest('.calc-sv-item'), tool = tools[tab][+item.dataset.i], k = opt.parentNode.dataset.k;
+            values[tool.id] = values[tool.id] || {};
+            values[tool.id][k] = opt.dataset.c;
+            [].forEach.call(opt.parentNode.children, function (o) { o.classList.toggle('calc-on', o === opt); });
+            run();
+            keep();
+        }
+
+        // A table of results as a spreadsheet takes it pasted: its heads, then a line of each row,
+        // a tab between each number, all its digits, with the decimal mark in use
+        function tableText(r) {
+            return [r.head.join('\t')].concat(r.m.map(function (row) {
+                return row.map(function (x) { return local(String(x)); }).join('\t');
+            })).join('\n') + '\n';
+        }
 
         // a bit turned over: its number written in its box again, and the results
         function flip(t, f, b) {
@@ -5468,7 +5809,7 @@
         // box typed in keeping the focus
         list.addEventListener('input', function (e) {
             var item = e.target.closest('.calc-sv-item'), tool = item && tools[tab][+item.dataset.i], k = e.target.dataset.k, at, input, field;
-            if (!tool || e.target.tagName !== 'INPUT') return;
+            if (!tool || (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA')) return;
             field = fieldsOf(tool, rawOf(tool)).filter(function (f) { return f.k === k; })[0] || {};
             if (plain && field.shape) onlySize(e.target);
             else if (plain && !field.fn && !field.text && !field.date) onlyNumber(e.target);
@@ -5487,9 +5828,13 @@
 
         list.addEventListener('scroll', closeCalendar, false); // the calendar would be left where its box was
 
-        // Enter goes on to the next box
+        // Enter goes on to the next box; in a box of lines it is a new line. Enter or Space chooses a way of a choice
         list.addEventListener('keydown', function (e) {
             var inputs, at;
+            if ((e.which === 13 || e.which === 32) && e.target.classList.contains('calc-sv-opt')) {
+                e.preventDefault();
+                return choose(e.target);
+            }
             if (e.which !== 13 || e.target.tagName !== 'INPUT') return;
             e.preventDefault();
             inputs = [].slice.call(e.target.closest('.calc-sv-form').querySelectorAll('input'));
@@ -5513,9 +5858,11 @@
                 var box = list.querySelector('.calc-sv-item.calc-on input');
                 if (box && focusBox(box)) box.select();
             },
-            // the tip of a card: what it gives
+            // the tip of a card: what it gives; of a way of a choice, and of Copy table, what they do
             tip: function (el) {
                 var tool;
+                if (el.classList.contains('calc-sv-opt')) return CalcTips['choice ' + el.parentNode.dataset.k + ' ' + el.dataset.c] || null;
+                if (el.classList.contains('calc-sv-copy')) return CalcTips['table copy'];
                 if (!el.classList.contains('calc-sv-row') || el.parentNode.classList.contains('calc-on')) return null;
                 tool = tools[tab][+el.parentNode.dataset.i];
                 return { t: tool.t, d: tool.d + ' Click to open it.', k: '' };
@@ -5575,6 +5922,7 @@
             clear: cards.clear,
             open: function () { return panel.classList.contains('calc-open'); },
             tip: function (el) {
+                if (el.classList.contains('calc-solve-tab')) return CalcTips[tip + ' tab ' + el.dataset.tab] || null;
                 return el.classList.contains('calc-past-close') ? CalcTips[tip + ' close'] : cards.tip(el);
             }
         };
@@ -5643,14 +5991,14 @@
     }
 
     // An example drawn in place of the curves there were, as Clear leaves them: its boxes,
-    // its sliders at their values, its points with their fit, in Rad if it needs it, and the
-    // view as it starts, or its own. Then the plot shows it
+    // its sliders at their values, its points with their fit, its colors, in Rad if it needs it, and the
+    // view as it starts, or its own. Then the plot shows it, the sliders it plays playing
     function putExample(ex) {
         var w, h, u, v = ex.v;
         stopSliders();
         graphInputs.forEach(function (box, i) { box.value = i < ex.f.length ? exampleText(ex.f[i]) : ''; });
         graphCount = ex.f.length;
-        graphHue = [0, 1, 2, 3, 4, 5, 6];
+        graphHue = (ex.hue || [0, 1, 2, 3, 4, 5, 6]).slice();
         graphOff = graphOff.map(function () { return false; });
         graphDiff = graphDiff.map(function (d, i) { return !i && ex.fit ? ex.fit : false; });
         graphFrom.value = graphBy.value = '';
@@ -5665,13 +6013,14 @@
         graphView = null;
         showGraphTab('graph');
         readGraph();
-        if (v) { // all of its view shown, as much each way
+        if (v) { // all of its view shown, as much each way, or with stretch each filling the plot
             w = graphPlot.clientWidth;
             h = graphPlot.clientHeight;
             u = Math.max((v[1] - v[0]) / w, (v[3] - v[2]) / h);
-            graphView = { x: (v[0] + v[1]) / 2, y: (v[2] + v[3]) / 2, ux: u, uy: u };
+            graphView = { x: (v[0] + v[1]) / 2, y: (v[2] + v[3]) / 2, ux: ex.stretch ? (v[1] - v[0]) / w : u, uy: ex.stretch ? (v[3] - v[2]) / h : u };
             graphRender();
         }
+        (ex.play || []).forEach(function (k) { playSlider(k, true); });
         saveState();
     }
 
@@ -6708,6 +7057,8 @@
         keyBoard['a/b'].classList.toggle('calc-lit', fracMode); // a red dot on the key of the mode that is on
         keyBoard['°′″'].classList.toggle('calc-lit', dmsMode);
         pastButton.hidden = !engine.past.length; // shown once there is a history
+        pastExport.classList.toggle('calc-off', !engine.past.length); // and its export, which has nothing to export before
+        pastExport.setAttribute('aria-disabled', String(!engine.past.length));
         showTools();
         slide(logline, logline.scrollWidth); // after the tools: they take room from the line, and its end must be in view
         if (stats.classList.contains('calc-open')) renderStats(); // the number format or fraction mode may have changed

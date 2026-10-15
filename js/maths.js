@@ -2234,15 +2234,185 @@
         return c;
     }
 
-    // The eigenvalues of a square matrix, the roots of its characteristic polynomial, as poly
-    // gives them, real or a ± bi; and for each real one its eigenvectors, as the matrix less it
-    // times I takes to 0: each with a 1 where it is free, made whole where a small whole number
-    // times it is, [-1, 2] not [-0.5, 1]. { poly, values: [{ re, im }], vectors: [{ value, v }] }; null if not square
+    // The eigenvalues of a square matrix of any size, by the QR algorithm, as EISPACK and JAMA
+    // have it: the matrix brought to Hessenberg form by Householder's reflections, zeros below the
+    // diagonal under its first, then Francis's double steps until it comes apart into blocks of one
+    // and two, a real eigenvalue each, or a pair a ± bi. [{ re, im }], or null where it does not settle
+    function qrValues(a) {
+        var size = a.length, h = a.map(function (r) { return r.slice(); }), ort = [], d = [], e = [], eps = Math.pow(2, -52),
+            exshift = 0, norm = 0, iter = 0, steps = 0, n = size - 1, i, j, k, l, m, f, g, hh, scale, p = 0, q = 0, r = 0, s = 0, z = 0, w, x, y, notlast;
+        for (m = 1; m < size - 1; m++) { // to Hessenberg form
+            scale = 0;
+            for (i = m; i < size; i++) scale += Math.abs(h[i][m - 1]);
+            if (!scale) continue;
+            hh = 0;
+            for (i = size - 1; i >= m; i--) {
+                ort[i] = h[i][m - 1] / scale;
+                hh += ort[i] * ort[i];
+            }
+            g = ort[m] > 0 ? -Math.sqrt(hh) : Math.sqrt(hh);
+            hh -= ort[m] * g;
+            ort[m] -= g;
+            for (j = m; j < size; j++) {
+                for (f = 0, i = size - 1; i >= m; i--) f += ort[i] * h[i][j];
+                for (f /= hh, i = m; i < size; i++) h[i][j] -= f * ort[i];
+            }
+            for (i = 0; i < size; i++) {
+                for (f = 0, j = size - 1; j >= m; j--) f += ort[j] * h[i][j];
+                for (f /= hh, j = m; j < size; j++) h[i][j] -= f * ort[j];
+            }
+            h[m][m - 1] = scale * g;
+        }
+        for (i = 0; i < size; i++) {
+            for (j = Math.max(i - 1, 0); j < size; j++) norm += Math.abs(h[i][j]);
+        }
+        while (n >= 0) {
+            if (++steps > 3000) return null;
+            for (l = n; l > 0; l--) { // a small number below the diagonal: the matrix comes apart there
+                s = Math.abs(h[l - 1][l - 1]) + Math.abs(h[l][l]) || norm;
+                if (Math.abs(h[l][l - 1]) < eps * s) break;
+            }
+            if (l === n) { // one eigenvalue found
+                d[n] = h[n][n] + exshift;
+                e[n] = 0;
+                n--;
+                iter = 0;
+            } else if (l === n - 1) { // two of them
+                w = h[n][n - 1] * h[n - 1][n];
+                p = (h[n - 1][n - 1] - h[n][n]) / 2;
+                q = p * p + w;
+                z = Math.sqrt(Math.abs(q));
+                x = h[n][n] + exshift;
+                if (q >= 0) { // real
+                    z = p >= 0 ? p + z : p - z;
+                    d[n - 1] = x + z;
+                    d[n] = z ? x - w / z : x + z;
+                    e[n - 1] = e[n] = 0;
+                } else { // a ± bi
+                    d[n - 1] = d[n] = x + p;
+                    e[n - 1] = z;
+                    e[n] = -z;
+                }
+                n -= 2;
+                iter = 0;
+            } else { // a double step, shifted by the eigenvalues of the block of two at the end
+                x = h[n][n];
+                y = h[n - 1][n - 1];
+                w = h[n][n - 1] * h[n - 1][n];
+                if (iter === 10) { // Wilkinson's shift, where it is slow to settle
+                    exshift += x;
+                    for (i = 0; i <= n; i++) h[i][i] -= x;
+                    s = Math.abs(h[n][n - 1]) + Math.abs(h[n - 1][n - 2]);
+                    x = y = 0.75 * s;
+                    w = -0.4375 * s * s;
+                }
+                if (iter === 30) { // and MATLAB's
+                    s = (y - x) / 2;
+                    s = s * s + w;
+                    if (s > 0) {
+                        s = Math.sqrt(s);
+                        if (y < x) s = -s;
+                        s = x - w / ((y - x) / 2 + s);
+                        for (i = 0; i <= n; i++) h[i][i] -= s;
+                        exshift += s;
+                        x = y = w = 0.964;
+                    }
+                }
+                iter++;
+                for (m = n - 2; m >= l; m--) { // two small numbers in a row below the diagonal: the step starts there
+                    z = h[m][m];
+                    r = x - z;
+                    s = y - z;
+                    p = (r * s - w) / h[m + 1][m] + h[m][m + 1];
+                    q = h[m + 1][m + 1] - z - r - s;
+                    r = h[m + 2][m + 1];
+                    s = Math.abs(p) + Math.abs(q) + Math.abs(r);
+                    p /= s;
+                    q /= s;
+                    r /= s;
+                    if (m === l || Math.abs(h[m][m - 1]) * (Math.abs(q) + Math.abs(r)) <
+                        eps * (Math.abs(p) * (Math.abs(h[m - 1][m - 1]) + Math.abs(z) + Math.abs(h[m + 1][m + 1])))) break;
+                }
+                for (i = m + 2; i <= n; i++) {
+                    h[i][i - 2] = 0;
+                    if (i > m + 2) h[i][i - 3] = 0;
+                }
+                for (k = m; k <= n - 1; k++) {
+                    notlast = k !== n - 1;
+                    if (k !== m) {
+                        p = h[k][k - 1];
+                        q = h[k + 1][k - 1];
+                        r = notlast ? h[k + 2][k - 1] : 0;
+                        x = Math.abs(p) + Math.abs(q) + Math.abs(r);
+                        if (!x) continue;
+                        p /= x;
+                        q /= x;
+                        r /= x;
+                    }
+                    s = Math.sqrt(p * p + q * q + r * r);
+                    if (p < 0) s = -s;
+                    if (!s) continue;
+                    if (k !== m) h[k][k - 1] = -s * x;
+                    else if (l !== m) h[k][k - 1] = -h[k][k - 1];
+                    p += s;
+                    x = p / s;
+                    y = q / s;
+                    z = r / s;
+                    q /= p;
+                    r /= p;
+                    for (j = k; j < size; j++) {
+                        p = h[k][j] + q * h[k + 1][j];
+                        if (notlast) {
+                            p += r * h[k + 2][j];
+                            h[k + 2][j] -= p * z;
+                        }
+                        h[k][j] -= p * x;
+                        h[k + 1][j] -= p * y;
+                    }
+                    for (i = 0; i <= Math.min(n, k + 3); i++) {
+                        p = x * h[i][k] + y * h[i][k + 1];
+                        if (notlast) {
+                            p += z * h[i][k + 2];
+                            h[i][k + 2] -= p * r;
+                        }
+                        h[i][k] -= p;
+                        h[i][k + 1] -= p * q;
+                    }
+                }
+            }
+        }
+        // to 12 digits, a part as small as the rounding of the largest of them 0, as poly has them
+        // in order: the real ones from the lowest, then each pair a ± bi
+        scale = Math.max.apply(null, d.map(function (re, i) { return Math.hypot(re, e[i]); })) || 1;
+        return d.map(function (re, i) {
+            return { re: round(Math.abs(re) <= 1e-14 * scale ? 0 : re), im: round(Math.abs(e[i]) <= 1e-10 * scale ? 0 : e[i]) };
+        }).sort(function (p, q) {
+            return (!!p.im - !!q.im) || p.re - q.re || Math.abs(p.im) - Math.abs(q.im) || q.im - p.im;
+        });
+    }
+
+    // How far a square matrix's answers can be from right, κ = |A| |A⁻¹|, the largest sum along a
+    // row of each: an error in the last digit of a number of A can be κ times as large in its
+    // inverse, and in what is worked out of it. Of about 16 digits, some log₁₀ κ are lost.
+    // Infinity where it has no inverse; NaN where it is not square
+    function condition(a) {
+        var inv = inverse(a);
+        function size(m) { return Math.max.apply(null, m.map(function (r) { return r.reduce(function (s, x) { return s + Math.abs(x); }, 0); })); }
+        if (!a.length || a.some(function (r) { return r.length !== a.length; })) return NaN;
+        return inv ? size(a) * size(inv) : Infinity;
+    }
+
+    // The eigenvalues of a square matrix, real or a ± bi: up to 4×4 the roots of its characteristic
+    // polynomial, as poly gives them; of a larger one by the QR algorithm, which keeps its digits
+    // where the roots of a polynomial of a high power would not. And for each real one its
+    // eigenvectors, as the matrix less it times I takes to 0: each with a 1 where it is free, made
+    // whole where a small whole number times it is, [-1, 2] not [-0.5, 1]. { poly, values: [{ re, im }],
+    // vectors: [{ value, v }] }; null if not square
     function eigen(a) {
-        var n = a.length, c, values, vectors = [];
+        var n = a.length, c, values, vectors = [], big;
         if (!n || a.some(function (r) { return r.length !== n; }) || !a.every(function (r) { return r.every(isFinite); })) return null;
         c = characteristic(a);
-        values = poly(c) || [];
+        values = (n <= 4 ? poly(c) : qrValues(a)) || [];
         values.forEach(function (z, i) {
             var m, r, tol;
             if (z.im || (i && !values[i - 1].im && values[i - 1].re === z.re)) return; // each real one once
@@ -2253,7 +2423,9 @@
             }
             kernel(r, n).forEach(function (v) { vectors.push({ value: z.re, v: v }); });
         });
-        return { poly: c.map(function (x) { return round(x) + 0; }), values: values, vectors: vectors };
+        // of a larger one, a coefficient as small as the rounding of the power of A it comes of is 0
+        big = Math.max(1, Math.max.apply(null, a.map(function (r) { return r.reduce(function (s, x) { return s + Math.abs(x); }, 0); })));
+        return { poly: c.map(function (x, k) { return n > 4 && Math.abs(x) <= 1e-13 * Math.pow(big, k) ? 0 : round(x) + 0; }), values: values, vectors: vectors };
     }
 
     // Linear equations A x = b of any size, a matrix and a column, with [A | b] reduced, rref:
@@ -3254,6 +3426,219 @@
         return out;
     }
 
+    // ---------- money ---------- //
+
+    // The rates of money are per period: i of 0.005 is 0.5% a month. (1 + i)^n, and the n
+    // payments of 1, one at the end of each period, each brought back to the start, (1 – (1 + i)^–n)/i:
+    // n of them at a rate of 0, and written so a rate near 0 keeps its digits
+    function grown(i, n) {
+        return Math.exp(n * Math.log1p(i));
+    }
+
+    function annuity(i, n) {
+        return Math.abs(i) < 1e-14 ? n : -Math.expm1(-n * Math.log1p(i)) / i;
+    }
+
+    // A root of f between a and b, where f has a sign at a and the other at b: by Newton's steps,
+    // the slope found by a step either way, and where a step would leave what is left between them,
+    // or there is no slope, by halving it instead, which always gets there
+    function safeRoot(f, a, b) {
+        var fa = f(a), fb = f(b), x = (a + b) / 2, fx, h, d, next, k;
+        if (fa === 0) return a;
+        if (fb === 0) return b;
+        for (k = 0; k < 300; k++) {
+            fx = f(x);
+            if (fx === 0) return x;
+            if ((fx < 0) === (fa < 0)) {
+                a = x;
+                fa = fx;
+            } else {
+                b = x;
+            }
+            h = 1e-7 * Math.max(1e-7, Math.abs(x));
+            d = (f(x + h) - f(x - h)) / (2 * h);
+            next = x - fx / d;
+            if (!(next > a && next < b)) next = a / 2 + b / 2; // halving, where Newton's step goes wrong
+            if (Math.abs(next - x) <= 1e-15 * Math.max(1, Math.abs(x)) || next <= a || next >= b) return next;
+            x = next;
+        }
+        return x;
+    }
+
+    // Every rate of money where f, of the rate per period, is 0, looked for from –99.99% to
+    // 1000000% a period: f's sign at a step of each, then each change of it found by safeRoot.
+    // f is of the logarithm of 1 + the rate, so the steps are as fine near –100% as near 0
+    function rateRoots(f, steps) {
+        var lo = Math.log(1e-4), hi = Math.log(1e4), du = (hi - lo) / steps, out = [], k, u, v, last, at;
+        function g(u) { return f(Math.expm1(u)); }
+        for (k = 0; k <= steps; k++) {
+            u = lo + k * du;
+            v = g(u);
+            if (v === 0) out.push(Math.expm1(u));
+            else if (k && isFinite(v) && isFinite(last) && last && (v < 0) !== (last < 0)) out.push(Math.expm1(safeRoot(g, at, u)));
+            last = v;
+            at = u;
+        }
+        return out;
+    }
+
+    // Money over time, as a BA II Plus or an HP 12C works it out: n payments of pmt, one each
+    // period, at the end of it or with start at its start, at the rate iy, a percentage a year,
+    // of py payments a year, which bring pv at the start to fv at the end. Money received is above
+    // 0 and money paid below: a loan of 200000 is pv of 200000 with pmt below 0. Of n, iy, pv, pmt
+    // and fv, the one that is NaN is worked out, the one empty. { find: its name, value, paid: all
+    // the money paid, net: all of it received less paid, which is the interest earned, below 0 the
+    // interest paid } or { error: 'one' where not one is NaN, 'py', 'rate' for a rate per period
+    // not above –100%, 'n' for an n not above 0, 'none' where nothing makes them balance, as of
+    // money received and none paid, and 'large' for a value too large to show }
+    function tvm(t) {
+        var keys = ['n', 'iy', 'pv', 'pmt', 'fv'], find = keys.filter(function (k) { return isNaN(t[k]); }),
+            n = t.n, pv = t.pv, pmt = t.pmt, fv = t.fv, b = t.start ? 1 : 0, i, k, ratio, roots, v, out;
+        if (find.length !== 1 || !keys.every(function (k) { return isNaN(t[k]) || isFinite(t[k]); })) return { error: 'one' };
+        find = find[0];
+        if (!(t.py > 0) || !isFinite(t.py)) return { error: 'py' };
+        i = t.iy / 100 / t.py;
+        if (find !== 'iy' && !(i > -1)) return { error: 'rate' };
+        if (find !== 'n' && !(n > 0)) return { error: 'n' };
+        // what is left over of all the money brought to the start, at a rate i a period: 0 where they balance
+        function left(i) {
+            return pv + pmt * (1 + i * b) * annuity(i, n) + fv / grown(i, n);
+        }
+        if (find === 'pv') v = -pmt * (1 + i * b) * annuity(i, n) - fv / grown(i, n);
+        if (find === 'fv') v = -(pv + pmt * (1 + i * b) * annuity(i, n)) * grown(i, n);
+        if (find === 'pmt') v = -(pv + fv / grown(i, n)) / ((1 + i * b) * annuity(i, n));
+        if (find === 'n') {
+            if (Math.abs(i) < 1e-14) {
+                v = -(pv + fv) / pmt;
+            } else {
+                k = pmt * (1 + i * b) / i; // all the payments brought to the start, of an n without end
+                ratio = (k - fv) / (pv + k);
+                v = ratio > 0 ? Math.log(ratio) / Math.log1p(i) : NaN;
+            }
+            if (!(v > 0) || !isFinite(v)) return { error: 'none' };
+            n = v;
+        }
+        if (find === 'iy') {
+            roots = rateRoots(left, 4000);
+            if (!roots.length) return { error: 'none' };
+            i = roots.sort(function (p, q) { return Math.abs(p - 0.1 / t.py) - Math.abs(q - 0.1 / t.py); })[0]; // the one nearest 10% a year
+            v = i * 100 * t.py;
+        }
+        if (!isFinite(v)) return { error: v === v ? 'large' : 'none' };
+        out = { find: find, value: round(v) };
+        out[find] = v;
+        n = find === 'n' ? v : n;
+        pv = find === 'pv' ? v : pv;
+        pmt = find === 'pmt' ? v : pmt;
+        fv = find === 'fv' ? v : fv;
+        out.paid = round(-Math.min(0, pv) - Math.min(0, pmt) * n - Math.min(0, fv));
+        out.net = round(pv + pmt * n + fv);
+        if (!isFinite(out.paid) || !isFinite(out.net)) return { error: 'large' };
+        return out;
+    }
+
+    // the cash flows of a list, from the one at the start, brought to the start at the rate r a period;
+    // of the largest power of 1 + r taken out of all of them where it is below 1, so none is too large
+    function flowsAt(flows, r) {
+        var u = Math.log1p(r), shift = u < 0 ? (flows.length - 1) * u : 0, sum = 0, t;
+        for (t = 0; t < flows.length; t++) sum += flows[t] * Math.exp(shift - t * u);
+        return sum;
+    }
+
+    // The net present value of cash flows, one a period from the first at the start, at the
+    // rate a percentage a period; NaN for a rate not above –100%
+    function npv(rate, flows) {
+        var r = rate / 100, big = 0, sum;
+        if (!(r > -1) || !isFinite(r) || !flows.length) return NaN;
+        sum = flows.reduce(function (s, c, t) {
+            c /= grown(r, t);
+            big = Math.max(big, Math.abs(c));
+            return s + c;
+        }, 0);
+        return Math.abs(sum) <= 1e-12 * big ? 0 : round(sum); // as small as the rounding of the flows it sums: 0
+    }
+
+    // The internal rate of return of cash flows: the rate, a percentage a period, at which their
+    // net present value is 0, the one nearest 10% where there are more. A cash flow that changes
+    // sign more than once may have more than one, and one that never does has none.
+    // { irr, others: the other rates found, changes: how many times the flows change sign }
+    function irr(flows) {
+        var changes = 0, last = 0, roots;
+        flows.forEach(function (c) {
+            if (c && last && (c < 0) !== (last < 0)) changes++;
+            if (c) last = c;
+        });
+        if (!changes) return { irr: NaN, others: [], changes: 0 };
+        roots = rateRoots(function (r) { return flowsAt(flows, r); }, 1200).map(function (r) { return round(r * 100); })
+            .sort(function (p, q) { return Math.abs(p - 10) - Math.abs(q - 10); });
+        return { irr: roots.length ? roots[0] : NaN, others: roots.slice(1).sort(function (p, q) { return p - q; }), changes: changes };
+    }
+
+    // How many periods the cash flows take to pay back what goes out first: where all of them so
+    // far come to 0, within the period it is in as though its flow came evenly through it. NaN
+    // where they never do, or nothing is paid out first
+    function payback(flows) {
+        var sum = 0, before, t;
+        for (t = 0; t < flows.length; t++) {
+            before = sum;
+            sum += flows[t];
+            if (before < 0 && sum >= 0) return round(t - 1 + -before / flows[t]);
+        }
+        return NaN;
+    }
+
+    // A loan paid back by n equal payments at the end of each period, at the rate a percentage a
+    // year, of py payments a year for years: { payment, interest: all of it, n, byPayment: [number,
+    // interest, principal, balance after it] for each of the first max, byYear: the same of
+    // each year, more: there were more payments than max, or more years } or { error: 'loan' for one
+    // not above 0, 'years', 'py', 'rate' for a rate per period not above –100%, 'whole' where years
+    // times py is not a whole number of payments, 'long' for more than 100000 of them }
+    function amortize(loan, rate, years, py, max) {
+        var i = rate / 100 / py, n = years * py, balance = loan, interest = 0, byPayment = [], byYear = [], year = null,
+            payment, k, owed, part;
+        if (!(loan > 0) || !isFinite(loan)) return { error: 'loan' };
+        if (!(years > 0) || !isFinite(years)) return { error: 'years' };
+        if (!(py > 0) || !isFinite(py)) return { error: 'py' };
+        if (!(i > -1) || !isFinite(i)) return { error: 'rate' };
+        if (Math.abs(n - Math.round(n)) > 1e-9 * n || Math.round(n) < 1) return { error: 'whole' };
+        n = Math.round(n);
+        if (n > 100000) return { error: 'long' };
+        payment = loan / annuity(i, n);
+        for (k = 1; k <= n; k++) {
+            owed = balance * i;
+            part = k === n ? balance : payment - owed; // the last takes what is left, so it comes to 0
+            balance = k === n ? 0 : balance - part;
+            interest += owed;
+            if (byPayment.length < max) byPayment.push([k, round(owed), round(part), Math.abs(balance) <= 1e-9 * loan ? 0 : round(balance)]);
+            if (!year || year[0] !== Math.ceil(k / py - 1e-9)) {
+                if (byYear.length >= max) continue;
+                year = [Math.ceil(k / py - 1e-9), 0, 0, 0];
+                byYear.push(year);
+            }
+            year[1] += owed;
+            year[2] += part;
+            year[3] = Math.abs(balance) <= 1e-9 * loan ? 0 : balance;
+        }
+        byYear = byYear.map(function (y) { return y.map(round); });
+        return { payment: round(payment), interest: round(interest), n: n, byPayment: byPayment, byYear: byYear, more: n > max || byYear.length < Math.ceil(n / py - 1e-9) };
+    }
+
+    // The effective rate a year, its APY, of a nominal one, its APR, both percentages, of m periods a
+    // year, and back: (1 + APR/m)^m – 1, and of m of ∞ e^APR – 1. NaN for a rate per period not
+    // above –100%, or an m not above 0
+    function effectiveRate(apr, m) {
+        var r = apr / 100;
+        if (!(m > 0) || !isFinite(r)) return NaN;
+        if (m === Infinity) return round(Math.expm1(r) * 100);
+        return r / m > -1 ? round(Math.expm1(m * Math.log1p(r / m)) * 100) : NaN;
+    }
+
+    function nominalRate(apy, m) {
+        var r = apy / 100;
+        if (!(m > 0) || !(r > -1) || !isFinite(r)) return NaN;
+        return round((m === Infinity ? Math.log1p(r) : m * Math.expm1(Math.log1p(r) / m)) * 100);
+    }
+
     // ---------- dates ---------- //
 
     // A date is its day: the days from 1 January 1970, as the calendar of today goes back
@@ -3412,6 +3797,7 @@
         plus: plus,
         times: times,
         eigen: eigen,
+        condition: condition,
         system: system,
         factorize: factorize,
         divisorsOf: divisorsOf,
@@ -3439,6 +3825,13 @@
         fractionOf: fractionOf,
         continued: continued,
         continuedOf: continuedOf,
+        tvm: tvm,
+        npv: npv,
+        irr: irr,
+        payback: payback,
+        amortize: amortize,
+        effectiveRate: effectiveRate,
+        nominalRate: nominalRate,
         dayFrom: dayFrom,
         dateOf: dateOf,
         readDate: readDate,

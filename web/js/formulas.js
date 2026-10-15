@@ -870,9 +870,37 @@
 
     // Examples of the graph, by group: t its name, f what it types, a box for each; d what it
     // is. p: the values of its sliders, [value, from, to]; fit: the best fit of its points;
-    // v: the view, [x from, to, y from, to], all of it shown; rad: drawn in Rad, its t or x
-    // being a number and not an angle
+    // v: the view, [x from, to, y from, to], all of it shown, and with stretch each of them
+    // filling the plot, x and y apart; rad: drawn in Rad, its t or x being a number and not an angle;
+    // play: the sliders that play as it is drawn; hue: the colors of its boxes, in place of the first ones
     var graphs = [
+        {
+            c: 'Fun', list: [
+                { t: 'Standing wave', f: ['sin(x - p)', 'sin(x + p)', 'sin(x - p) + sin(x + p)'],
+                    d: 'Two waves going opposite ways, and their sum, which only grows and shrinks: it is 0 at the same places always.', p: { p: [0, 0, 6.28] }, play: ['p'], v: [-7, 7, -3, 3], rad: true },
+                { t: 'Bouncing ball', f: ['0.4 + 4e^(-(x + 9)/8)abs(sin(x)) {-9 < x < b}', '(b + 0.4cos(t), 0.4 + 4e^(-(b + 9)/8)abs(sin(b)) + 0.4sin(t))'],
+                    d: 'A ball at b, a little lower each bounce, and the path it leaves behind it.', p: { b: [-9, -9, 9] }, play: ['b'], v: [-10, 10, -2, 6], rad: true },
+                { t: 'Sun, Earth and Moon', f: ['x^2 + y^2 = 25', '(5cos(t) + cos(12t), 5sin(t) + sin(12t))', '(5cos(a) + 0.55cos(t), 5sin(a) + 0.55sin(t))',
+                    '(5cos(a) + cos(12a) + 0.22cos(t), 5sin(a) + sin(12a) + 0.22sin(t))', 'x^2 + y^2 <= 1'],
+                    d: 'The Earth going once round the Sun as a goes to 2π, the Moon twelve times round it, along the loops it draws.', p: { a: [0, 0, 6.28] }, play: ['a'], v: [-7, 7, -7, 7], rad: true },
+                { t: 'Golden spiral', f: ['r = ((1 + √5)/2)^(2(θ + w)/π) {-8π, 2π}', 'r = -((1 + √5)/2)^(2(θ + w)/π) {-8π, 2π}'],
+                    d: 'Two arms growing by the golden ratio, (1 + √5)/2, each quarter turn. Turned by w it is the same spiral, only bigger: it seems to come at you.',
+                    p: { w: [0, 0, 3.14] }, play: ['w'], v: [-8, 8, -8, 8], rad: true },
+                { t: 'Heart curve', f: ['(16sin(t)^3, 13cos(t) - 5cos(2t) - 2cos(3t) - cos(4t))'], d: 'A heart, x and y each a sum of waves of t.',
+                    hue: [1, 0, 2, 3, 4, 5, 6], v: [-20, 20, -20, 15] },
+                { t: 'Atom', f: ['x^2 + y^2 <= 0.5', '(5cos(t), 1.8sin(t))', '(2.5cos(t) - 1.56sin(t), 4.33cos(t) + 0.9sin(t))', '(-2.5cos(t) - 1.56sin(t), 4.33cos(t) - 0.9sin(t))',
+                    '(5cos(a) + 0.35cos(t), 1.8sin(a) + 0.35sin(t))', '(2.5cos(a + 2) - 1.56sin(a + 2) + 0.35cos(t), 4.33cos(a + 2) + 0.9sin(a + 2) + 0.35sin(t))',
+                    '(-2.5cos(a + 4) - 1.56sin(a + 4) + 0.35cos(t), 4.33cos(a + 4) - 0.9sin(a + 4) + 0.35sin(t))'],
+                    d: 'A nucleus, three orbits, each an ellipse turned 60° on from the one before, and an electron going round each as a plays: all seven boxes.',
+                    p: { a: [0, 0, 6.28] }, play: ['a'], v: [-6, 6, -6, 6], rad: true },
+                { t: 'Phases of the Moon', f: ['x^2 + y^2 <= 9 {x > k sqrt(9 - y^2)}', 'x^2 + y^2 = 9'],
+                    d: 'Lit where x is more than k√(9 – y²): new at k = 1, half at 0, full at –1.', p: { k: [0, -1, 1] }, play: ['k'], v: [-4, 4, -4, 4] },
+                { t: 'Spirograph', f: ['(2cos(t) + d cos(2t/3), 2sin(t) - d sin(2t/3)) {0, 6π}', '(6cos(t) - d cos(6t), 6sin(t) - d sin(6t))'],
+                    d: 'A pen in a wheel rolling inside a ring, and in one rolling round it; d is how far the pen is from the middle of its wheel.', p: { d: [1, 0, 3] }, play: ['d'], v: [-9, 9, -9, 9], rad: true },
+                { t: 'Pendulum', f: ['(t sin(a), -t cos(a)) {0, 4}', '(4sin(a) + 0.45cos(t), -4cos(a) + 0.45sin(t))', '(4sin(t), -4cos(t)) {-0.7, 0.7}', '0 {-1 < x < 1}'],
+                    d: 'A rod, the bob at its end and the arc it swings on, a its angle.', p: { a: [0.7, -0.7, 0.7] }, play: ['a'], v: [-5, 5, -5.5, 1], rad: true }
+            ]
+        },
         {
             c: 'Functions', list: [
                 { t: 'Line', f: ['y = 2x + 1'], d: 'A slope of 2, meeting the y axis at 1.' },
@@ -934,6 +962,16 @@
                 { t: 'Astroid', f: ['(4cos(t)^3, 4sin(t)^3)'], d: 'A star of four points.' },
                 { t: 'Epicycloid', f: ['(5cos t - cos(5t), 5sin t - sin(5t))'], d: 'A point of a circle rolling round another, four times its size.' },
                 { t: 'Cycloid', f: ['(t - sin t, 1 - cos t) {0, 6π}'], d: 'A point of a wheel rolling along the x axis.', rad: true }
+            ]
+        },
+        {
+            c: 'Sequences', list: [
+                { t: 'Compound growth', f: ['a(n) = 1.05a(n - 1) {a(1) = 100}'], d: '100 growing by 5% a step, each term of the one before: a dot at each whole n.',
+                    v: [-3, 53, -100, 1300], stretch: true },
+                { t: 'Fibonacci', f: ['a(n) = a(n - 1) + a(n - 2) {a(1) = 1, a(2) = 1} {1, 15}'], d: 'Each term the sum of the two before it, from 1 and 1, for 15 terms.',
+                    v: [-1, 16, -40, 660], stretch: true },
+                { t: 'Odd numbers', f: ['a(n) = 2n + 1 {0, 20}'], d: 'A term of n alone, from n = 0 to 20.', v: [-2, 22, -4, 45], stretch: true },
+                { t: 'Halving', f: ['a(n) = a(n - 1)/2 + 1 {a(0) = 10}'], d: 'Each term half the one before, and 1: it settles at 2.', v: [-2, 22, -1, 11], stretch: true }
             ]
         },
         {

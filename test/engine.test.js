@@ -2450,6 +2450,36 @@ dels.forEach(function (c) {
             'keyPoints: a curve of t meets the axes, and crosses y = x', marks.length);
     })();
 
+    // sequences: of the terms before, or of n alone, their first terms and the range of n in braces, as a polar curve's range is
+    (function () {
+        function terms(text, comma, vars) {
+            var s = Engine.sequence(text, comma, vars || {}, {}), r = s && s.terms(0);
+            return s ? r.from + ': ' + r.list.slice(0, 6).map(function (y) { return +y.toPrecision(12); }).join(' ') + ' … ' + r.list.length +
+                (r.stop ? ' stop ' + r.stop.why + ' ' + r.stop.n : '') : 'none';
+        }
+        var growth = Engine.sequence('a(n) = a(n − 1) × 1.05 {a(1) = 100}', false, {}, {});
+        check(growth.kind === 'seq' && growth.name === 'a' && growth.range(0).join() === '1,50' && growth.at(3, 0).join() === '3,110.25' &&
+            isNaN(growth.at(2.5, 0)[1]) && isNaN(growth.at(51, 0)[1]) && isNaN(growth.at(0, 0)[1]), 'sequence: a(n) = a(n − 1) × 1.05, from a(1) = 100, 50 terms at whole n');
+        check(terms('a(n) = a(n-1) + a(n-2) {a(1) = 1, a(2) = 1}') === '1: 1 1 2 3 5 8 … 50' && terms('a(n) = 2n + 1') === '1: 3 5 7 9 11 13 … 50' &&
+            terms('b(n) = 1.5b(n-1) - 0.5b(n-2) {b(0) = 0, b(1) = 1}') === '0: 0 1 1.5 1.75 1.875 1.9375 … 50', 'sequence: Fibonacci; of n alone; from n = 0');
+        check(terms('a(n) = 2n + 1 {0, 9}') === '0: 1 3 5 7 9 11 … 10' && terms('a(n) = a(n-1)*2 {a(1) = 1} {1, 20}') === '1: 1 2 4 8 16 32 … 20' &&
+            terms('a(n) = a(n-1)*2 {a(1) = 1, 5, 8}') === '5: 16 32 64 128 … 4' && terms('a(n) = n {1, 20000}') === '1: 1 2 3 4 5 6 … 10000 stop many 10001',
+            'sequence: its range in braces, alone or with the first terms; from past the first, its terms worked out from there; up to 10000 terms');
+        check(terms('a(n) = a(n-1) + a(n-2) {a(1) = 1}') === '1: 1 … 1 stop before 2' && Engine.sequence('a(n) = a(n-1) + a(n-2) {a(1) = 1}', false, {}, {}).terms(0).stop.need === 0 &&
+            terms('a(n) = 2^n {1, 2000}') === '1: 2 4 8 16 32 64 … 1023 stop large 1024' && terms('a(n) = sqrt(a(n-1) - 3) {a(1) = 4}') === '1: 4 1 … 2 stop none 3' &&
+            terms('a(n) = sqrt(n - 3)') === '1: NaN NaN 0 1 1.41421356237 1.73205080757 … 50', 'sequence: a term before the first, too large, or of none, stops it; of n alone, one of none is a gap');
+        check(terms('a(n) = a(n-1) + b {a(1) = c}', false, { b: 2, c: 5 }) === '1: 5 7 9 11 13 15 … 50' && Engine.sequence('a(n) = a(n-1) + b {a(1) = c}', false, {}, {}).letters.sort().join() === 'b,c' &&
+            terms('a(n) = a(n-1) + a {a(1) = 1}', false, { a: 3 }) === '1: 1 4 7 10 13 16 … 50', 'sequence: sliders, in its terms and its first ones; its own letter alone is a slider');
+        check(terms('a(n) = a(n-1)*1,05 {a(1) = 100; 1; 3}', true) === '1: 100 105 110.25 … 3' && terms('y(n) = y(n-1) + 1 {y(1) = 0}') === '1: 0 1 2 3 4 5 … 50' &&
+            terms('a(n) = sin(n) {1, 2}') === '1: 0.841470984808 0.909297426826 … 2', 'sequence: the comma as the decimal mark; y and sin(n) as they are');
+        check(['a(n) = b(n-1) + 1 {a(1) = 1}', 'a(n) = a(n) + 1', 'x(n) = n', 'e(n) = n', 'i(n) = n', 'A(n) = n', 'a(n) = a(n-1) + x {a(1) = 1}', 'a(n) = 2n {5, 1}',
+            'a(n) = 2n {1.5, 3}', 'a(n) = 2n {a(1) = 1} {a(2) = 2} {1, 5}', 'a(n) = n {b(1) = 2}', 'a(x) = 2x', 'a(n) = '].every(function (t) { return terms(t) === 'none'; }),
+            'sequence: none of another sequence\'s terms, of itself, named x, e, i or a capital, of x, or of ends that are not');
+        check(Engine.sequence('a(n) = f(n) + 1', false, {}, { f: Engine.graph('f(x) = x^2') }).at(3, 0)[1] === 10 && Engine.graph('a(n) = 2n') === null &&
+            Engine.plane('a(n) = 2n') === null && Engine.keyPoints([], { x0: -5, x1: 5, y0: -5, y1: 5 }, 0, [], [growth]).length === 0,
+            'sequence: of a function named; neither a function of x nor a curve of t; no marks of its own');
+    })();
+
     // functions of other boxes by name, kept to where inequalities hold, in pieces; fits of more kinds; inflections
     (function () {
         var f = Engine.graph('f(x) = x^3 - 3x'), defs = { f: f, g: null }, kept, pieces, fit, bends;

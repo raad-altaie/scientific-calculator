@@ -670,6 +670,12 @@
     cursor: pointer;
 }
 
+/* the fit of points, lin, quad, exp, pow, log: about 10% smaller than y′ */
+#calculator .calc-graph-fn.calc-graph-data > .calc-graph-diff {
+    padding-right: 6px;
+    font-size: 11.73px;
+}
+
 #calculator .calc-graph-fn > .calc-graph-diff:hover {
     opacity: 1;
     background: #97b3a4;
@@ -2163,6 +2169,187 @@
     background: #98b3a5;
 }
 
+/* A matrix of more than 5 columns, up to 10, A | b of 11: its boxes and its numbers smaller, so a
+   row of them fits the card, each number to as many digits as its cell has room for, the whole of it in its title. Nothing scrolls across */
+#calculator .calc-sv-cells-in.calc-sv-many {
+    column-gap: 2px;
+}
+
+#calculator .calc-sv-cells-in.calc-sv-many .calc-sv-var {
+    margin-bottom: 3px;
+}
+
+#calculator .calc-sv-cells-in.calc-sv-many .calc-sv-var input {
+    padding: 2px 0;
+    font-size: 11px;
+    line-height: 16px;
+}
+
+#calculator .calc-sv-cells.calc-sv-many {
+    gap: 1px 2px;
+}
+
+#calculator .calc-sv-cells.calc-sv-many .calc-sv-cell {
+    padding: 0;
+    font-size: 10px;
+    line-height: 18px;
+    text-align: center;
+}
+
+/* one of two ways, each a button side by side, the one chosen lit as a tab is: payments at the
+   end or at the start, a table by year or by payment */
+#calculator .calc-sv-choice {
+    display: flex;
+    gap: 4px;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+#calculator .calc-sv-opt {
+    flex: 1;
+    padding: 2px 6px;
+    border: 1px solid #8eab9b;
+    border-radius: 4px;
+    outline: none;
+    background: #a9c4b5;
+    color: #33443b;
+    font-size: 13px;
+    line-height: 18px;
+    text-align: center;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+#calculator .calc-sv-opt:hover {
+    background: #98b3a5;
+}
+
+#calculator .calc-sv-opt:focus-visible {
+    border-color: #3a5872;
+}
+
+#calculator .calc-sv-opt.calc-on {
+    border-color: #3a5872;
+    background: #3a5872;
+    color: #fff;
+}
+
+/* a box of a list on lines of its own, the cash flows: as a box of one line is, taller */
+#calculator .calc-sv-var textarea {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 3px 7px;
+    border: 1px solid #8eab9b;
+    border-radius: 4px;
+    outline: none;
+    background: #a9c4b5;
+    color: #000;
+    font: 14px/18px 'Play', 'Russo One', sans-serif;
+    resize: vertical;
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+#calculator .calc-sv-var textarea::placeholder {
+    color: #5b7768;
+}
+
+#calculator .calc-sv-var textarea:focus {
+    border-color: #3a5872;
+    background: #b3cdbf;
+}
+
+#calculator .calc-sv-var textarea.calc-bad {
+    border-color: #d86672;
+    box-shadow: 0 0 0 1px #d86672;
+}
+
+#calculator .calc-sv-areas .calc-sv-sym {
+    align-self: start;
+    padding-top: 4px;
+}
+
+/* a table of results, a payment schedule: as wide as its tile, in a border, a line between its
+   rows and its columns, each number in the middle of its cell, its heads over them on a darker ground, staying there as its rows scroll
+   inside the card; over it, its name and Copy table on a line of their own */
+#calculator .calc-sv-table .calc-sv-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+
+#calculator .calc-sv-table .calc-sv-cells {
+    width: 100%;
+    box-sizing: border-box;
+    grid-template-columns: minmax(0, 0.42fr) repeat(3, minmax(0, 1fr));
+    gap: 0;
+    max-height: 230px;
+    margin: 0 0 3px;
+    overflow-y: auto;
+    border: 1px solid #7f9c8c;
+    border-radius: 4px;
+    background: #b3cdbf;
+}
+
+#calculator .calc-sv-table .calc-sv-cell,
+#calculator .calc-sv-th {
+    padding: 0 5px;
+    border-left: 1px solid #8eab9b;
+    border-bottom: 1px solid #a3bdaf;
+    border-radius: 0;
+}
+
+/* the first column, its numbers of years or payments: no line before it */
+#calculator .calc-sv-table .calc-sv-cells > :nth-child(4n + 1) {
+    border-left: none;
+}
+
+#calculator .calc-sv-table .calc-sv-cell {
+    font-size: 12px;
+    line-height: 20px;
+    text-align: center;
+}
+
+#calculator .calc-sv-th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    border-bottom-color: #7f9c8c;
+    background: #98b3a5;
+    color: #33443b;
+    font-size: 12px;
+    line-height: 20px;
+    text-align: center;
+}
+
+#calculator .calc-sv-table .calc-sv-cells::-webkit-scrollbar {
+    width: 6px;
+}
+
+#calculator .calc-sv-table .calc-sv-cells::-webkit-scrollbar-thumb {
+    background: #6b8196;
+    border-radius: 3px;
+}
+
+#calculator .calc-sv-copy {
+    flex: none;
+    padding: 0 8px;
+    border-radius: 3px;
+    background: #3a5872;
+    color: #fff;
+    font-size: 12px;
+    line-height: 20px;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+#calculator .calc-sv-copy:hover {
+    background: #46677f;
+}
+
 /* the column of what linear equations equal, b of A | b: a line before it */
 #calculator .calc-sv-rhs input {
     border-left: 3px solid #5d7a6b;
@@ -2764,6 +2951,7 @@
 
 #calculator .calc-past-clear,
 #calculator .calc-past-close,
+#calculator .calc-past-export,
 #calculator .calc-graph-size,
 #calculator .calc-graph-add {
     height: 22px;
@@ -2779,6 +2967,7 @@
 }
 
 #calculator .calc-past-close,
+#calculator .calc-past-export,
 #calculator .calc-graph-size,
 #calculator .calc-graph-add {
     display: flex;
@@ -2789,10 +2978,19 @@
 
 #calculator .calc-past-clear:hover,
 #calculator .calc-past-close:hover,
+#calculator .calc-past-export:hover,
 #calculator .calc-graph-size:hover,
 #calculator .calc-graph-add:hover {
     opacity: 1;
     background: #52687d;
+}
+
+/* export, with nothing in the history to export: faint, and nothing lights up */
+#calculator .calc-past-export.calc-off,
+#calculator .calc-past-export.calc-off:hover {
+    opacity: 0.3;
+    background: none;
+    cursor: default;
 }
 
 /* another curve: its button always lit, so it is seen as one; a mouse on it lighter */
