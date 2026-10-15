@@ -1017,7 +1017,8 @@
         }
         if (to === Infinity) {
             out = { value: product ? endlessProduct(term, from) : endlessSum(term, from) };
-            out.exact = isFinite(out.value) ? exactOf(out.value, 1e-11, false, 0, function () { return true; }) : null;
+            // as near as its digits: a sum's 12, any exact form; a product's 10, only fractions and constants, 2/π
+            out.exact = isFinite(out.value) ? exactOf(out.value, product ? 6e-10 : 1e-11, product ? 'constants' : false, 0, function () { return true; }) : null;
             return out;
         }
         if (to - from + 1 > TERMS_MAX) return { error: 'many' };

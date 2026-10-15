@@ -374,7 +374,7 @@ function endless(text, from, product) {
 });
 [
     ['1-1/n^2', 2, '0.5 1/2', 'to a half'],
-    ['1-1/(4n^2)', 1, '0.636619772368 2/π', 'Wallis'],
+    ['1-1/(4n^2)', 1, '0.6366197724 2/π', 'Wallis, to 10 digits'],
     ['n', 1, 'Infinity', 'that grows without end'],
     ['1/2', 1, '0', 'to 0']
 ].forEach(function (c) {
