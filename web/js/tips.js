@@ -137,7 +137,8 @@
         // the solver
         'solve': {
             t: 'Solve',
-            d: 'Equations and inequalities solved for x, polynomials and linear equations; integrals, slopes, sums, products, ' +
+            d: 'Equations and inequalities solved for x, in exact form as well; turning points; polynomials, linear equations and ' +
+                'two curves; integrals, slopes, sums, products, ' +
                 'limits and differential equations; and the normal, binomial and Poisson distributions. Click a result to put it in.',
             k: ''
         },

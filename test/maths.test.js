@@ -1,5 +1,6 @@
 // Run with: node test/maths.test.js
-// The maths of the Solve panel: equations, polynomials and linear systems; integrals, slopes,
+// The maths of the Solve panel: equations, polynomials, typed as well, and their exact forms;
+// linear systems and two curves; turning points; integrals, slopes,
 // sums and products; the normal, binomial and Poisson distributions
 'use strict';
 
@@ -77,6 +78,103 @@ check(JSON.stringify(M.linear([[1, 1, 3], [1, -1, 1]])) === '{"x":[2,1]}' &&
     JSON.stringify(M.linear([[2, 1, -1, 8], [-3, -1, 2, -11], [-2, 1, 2, -3]])) === '{"x":[2,3,-1]}', 'linear: two and three equations');
 check(M.linear([[1, 1, 3], [2, 2, 6]]).many && M.linear([[1, 1, 3], [1, 1, 4]]).none && M.linear([[1, 2, 3, 6], [2, 4, 6, 12], [1, 0, 1, 2]]).many &&
     M.linear([[0, 0, 1], [0, 0, 2]]).none, 'linear: many answers, or none');
+
+// exact forms: of the roots of an equation, as near as a number goes, and of a polynomial's, checked in whole numbers
+function exact(text, from, to) {
+    var r = M.solve(text, false, 0, from, to, true);
+    return r.exact.map(String).join(' ');
+}
+[
+    ['x^2 = 2', '-√2 √2', 'roots of a whole number'],
+    ['x^2 - x - 1', '(1 - √5)/2 (1 + √5)/2', 'the golden ratio'],
+    ['3x = 1', '1/3', 'a fraction'],
+    ['e^x = 2', 'ln 2', 'a logarithm'],
+    ['x^3 = 2x + 1', 'null (1 - √5)/2 (1 + √5)/2', 'none for a whole number'],
+    ['cos(x) = x', 'null', 'none where it has none'],
+    ['(x - sqrt(2))^2', '√2', 'a root it only touches, to 9 digits']
+].forEach(function (c) {
+    check(exact(c[0]) === c[1], 'exact: ' + c[0] + ': ' + c[2], exact(c[0]));
+});
+check(exact('sin(x) = 0.5', -4, 4) === '-7π/6 π/6 5π/6', 'exact: parts of π, in radians', exact('sin(x) = 0.5', -4, 4));
+check(M.solve('x^2 = 2', false, 0).exact === undefined, 'exact: only where asked for');
+[
+    [[1, 0, -2, 1], '(-1 - √5)/2 (-1 + √5)/2 1'],
+    [[1, 2, 3], '-1 + i√2 -1 - i√2'],
+    [[2, -3, -2, 0], '-1/2 0 2'],
+    [[4, 0, -3], '-√3/2 √3/2'],
+    [[1 / 3, -1, 0.5], '(3 - √3)/2 (3 + √3)/2'],
+    [[1, 0, 1], 'i -i'],
+    [[1, -3, 3, -1], '1 1 1'],
+    [[1, 0, 0, -2], 'null null null'],
+    [[1, 0, -10, 0, 1], 'null null null null']
+].forEach(function (c) {
+    var got = M.exactRoots(c[0], M.poly(c[0])).map(String).join(' ');
+    check(got === c[1], 'exactRoots: ' + c[0].join(', ') + ' has ' + c[1], got);
+});
+check(M.exactRoots([Math.PI, 1], M.poly([Math.PI, 1])) === null, 'exactRoots: none of a coefficient not a fraction');
+
+// polynomials typed, multiplied out
+[
+    ['(x-1)(x+2)^2 - 3x/2', '1,3,-1.5,-4'],
+    ['1, 0, -2, 1', '1,0,-2,1'],
+    ['x^3 = 2x+1', '1,0,-2,-1'],
+    ['x^2 - x^2 + x', '1,0'],
+    ['sin(x)+x', 'polynomial'],
+    ['1/x', 'polynomial'],
+    ['a x^2', 'letters'],
+    ['(x+1)^40', 'power']
+].forEach(function (c) {
+    var r = M.polynomial(c[0], false, 0), got = r.error || r.c.join();
+    check(got === c[1], 'polynomial: ' + c[0] + ' is ' + c[1], got);
+});
+
+// two curves: where both hold
+function points(a, b) {
+    var r = M.system2([a, b], false, 0, true);
+    return r.error ? r.error + ' ' + r.which : r.many ? 'many' : r.points.map(function (p) { return p.x + ',' + p.y; }).join(' ') + (r.more ? ' …' : '');
+}
+[
+    ['x^2 + y^2 = 25', 'x + y = 7', '3,4 4,3', 'a circle and a line'],
+    ['2x + 3y = 7', 'x - y = 1', '2,1', 'two lines'],
+    ['x^2 + y^2 = 1', 'y = 1', '0,1', 'a line that touches'],
+    ['y = x^2', 'y = 2x - 1', '1,1', 'a parabola its tangent touches'],
+    ['x^2 + y^2 = 1', 'y = 3', '', 'none'],
+    ['x + y = 1', '2x + 2y = 2', 'many', 'one line twice'],
+    ['x y = 2', 'x + y = 3', '1,2 2,1', 'a hyperbola'],
+    ['y = sin(x)', 'y = x/10', '-8.42320393236,-0.842320393236 -7.0681743581,-0.70681743581 -2.85234189445,-0.285234189445 0,0 ' +
+        '2.85234189445,0.285234189445 7.0681743581,0.70681743581 8.42320393236,0.842320393236', 'a wave'],
+    ['x^2 +', 'x + y = 1', 'equation 0', 'not an equation'],
+    ['x + y = 1', 'a x = 1', 'letters 1', 'a letter of its own']
+].forEach(function (c) {
+    check(points(c[0], c[1]) === c[2], 'system2: ' + c[0] + ' and ' + c[1] + ': ' + c[3], points(c[0], c[1]));
+});
+check(JSON.stringify(M.system2(['y = x^2', 'x + y = 1'], false, 0, true).points.map(function (p) { return p.exact; })) ===
+    '[["(-1 - √5)/2","(3 + √5)/2"],["(-1 + √5)/2","(3 - √5)/2"]]', 'system2: exact forms of each');
+
+// turning points
+function turns(text, from, to) {
+    var r = M.extrema(text, false, 0, from, to);
+    return r.error || r.points.map(function (p) { return (p.max ? 'max ' : 'min ') + p.x + ',' + p.y; }).join(' ') +
+        (r.top ? ' | top ' + r.top.x + ',' + r.top.y + ' bottom ' + r.bottom.x + ',' + r.bottom.y : '') + (r.more ? ' …' : '');
+}
+[
+    ['x^3 - 3x', 'max -1,2 min 1,-2', 'a cubic'],
+    ['x e^(-x)', 'max 1,0.367879441171', 'not where it is too small to tell'],
+    ['abs(x - 1)', 'min 1,0', 'a corner'],
+    ['x^4', 'min 0,0', 'flat at the bottom'],
+    ['x^3', '', 'none where it only flattens'],
+    ['1/x', '', 'none where it jumps'],
+    ['x/(x^2+1)', 'min -1,-0.5 max 1,0.5', 'a fraction'],
+    ['x^2 - 6x + 1e6', 'min 3,999991', 'large beside how it bends'],
+    ['y = x^2 - 4x', 'min 2,-4', 'written y = …'],
+    ['a x^2', 'letters', 'a letter of its own'],
+    ['x^2 +', 'function', 'not a function']
+].forEach(function (c) {
+    check(turns(c[0]) === c[1], 'extrema: ' + c[0] + ': ' + c[2], turns(c[0]));
+});
+check(turns('x^3 - 3x', -3, 3) === 'max -1,2 min 1,-2 | top 3,18 bottom -3,-18', 'extrema: the highest and lowest between ends, the ends among them', turns('x^3 - 3x', -3, 3));
+check(turns('floor(x)', -3, 3) === ' | top 3,3 bottom -3,-3', 'extrema: none along a step', turns('floor(x)', -3, 3));
+check(/^(min|max) /.test(turns('sin(x)')) && / …$/.test(turns('sin(x)')), 'extrema: of very many, the twelve nearest 0', turns('sin(x)'));
 
 // calculus
 check(M.integral(M.fn('x^2'), 0, 3, 0) === 9 && M.integral(M.fn('x^2'), 3, 0, 0) === -9 && M.integral(M.fn('sin(x)'), 0, Math.PI, 0) === 2,

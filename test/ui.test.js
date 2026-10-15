@@ -1067,11 +1067,13 @@ async function solver(page, at) {
     await page.fresh(at, {});
     await page.click('.calc-solve-btn');
     check(await open(page, '.calc-solve') && await page.calc('document.querySelectorAll(".calc-solve .calc-solve-tab").length') === 3 &&
-        await page.calc('document.querySelectorAll(".calc-solve .calc-sv-item").length') === 7, t + 'its button opens it: three tabs, seven cards on the first');
+        await page.calc('document.querySelectorAll(".calc-solve .calc-sv-item").length') === 10, t + 'its button opens it: three tabs, ten cards on the first');
     await page.click('.calc-sv-item:nth-child(1) .calc-sv-row');
     check(await page.calc('document.activeElement === document.querySelector("' + on + ' input")'), t + 'a card opens its boxes, the first to type in');
     await page.type('x^2=2x+3');
     check(await page.calc(tiles) === 'x1=-1 | x2=3', t + 'x² = 2x + 3 is solved as it is typed', await page.calc(tiles));
+    await set(0, 'x^2=2');
+    check((await page.calc(tiles)).indexOf(' | Exact=x1 = –√2, x2 = √2') > 0, t + 'x² = 2 in exact form as well', await page.calc(tiles));
     await set(0, 'a x = 1');
     check(/^Only x/.test(await page.calc(note)) && await page.calc('document.querySelector("' + on + ' input").classList.contains("calc-bad")'),
         t + 'a letter of its own says so', await page.calc(note));
@@ -1097,6 +1099,17 @@ async function solver(page, at) {
     await set(4, '2');
     await set(5, '6');
     check(/^Many answers/.test(await page.calc(note)) && await page.calc(tiles) === 'x=– | y=–', t + 'the same line twice has many answers', await page.calc(note));
+    await card('Two curves');
+    await set(0, 'x^2+y^2=25');
+    await set(1, 'x+y=7');
+    check(await page.calc(tiles) === 'x1=3 | y1=4 | x2=4 | y2=3', t + 'where a circle and a line cross', await page.calc(tiles));
+    await card('Polynomial');
+    await set(0, '(x-1)(x^2-x-1)');
+    got = await page.calc(tiles);
+    check(got.indexOf('Multiplied out=x3 – 2x2 + 1 | ') === 0 && got.indexOf('Exact=x1 = (1 – √5)/2, x3 = (1 + √5)/2') > 0, t + 'a polynomial typed, multiplied out and solved', got);
+    await card('Turning points');
+    await set(0, 'x^3-3x');
+    check(await page.calc(tiles) === 'Max x=-1 | Max y=2 | Min x=1 | Min y=-2', t + 'the turning points of x³ – 3x', await page.calc(tiles));
 
     await page.click('.calc-solve-tab[data-tab="calculus"]');
     await card('Integral');

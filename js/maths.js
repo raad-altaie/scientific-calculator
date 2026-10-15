@@ -1,10 +1,12 @@
 // The maths of the Solve panel: equations and inequalities solved for x, the roots of a
-// polynomial and of a system of linear equations; integrals, slopes, sums, products, limits and
-// differential equations; and the normal, binomial and Poisson distributions. And of the Numbers
-// panel: complex numbers, whole numbers in bits and their bases, numbers as a computer keeps
-// them, by IEEE 754, and matrices, their eigenvalues and linear equations of them; and whole
-// numbers: their prime factors, divisors, greatest common divisor and least common multiple,
-// and numbers rounded. Functions are read as the graph reads them, by the engine.
+// polynomial, typed or of its coefficients, and their exact forms, (1 + √5)/2; linear equations,
+// and two equations of x and y, which may be curves; where a function turns; integrals, slopes,
+// sums, products, limits and differential equations; and the normal, binomial and Poisson
+// distributions. And of the Numbers panel: complex numbers, whole numbers in bits and their
+// bases, numbers as a computer keeps them, by IEEE 754, and matrices, their eigenvalues and
+// linear equations of them; and whole numbers: their prime factors, divisors, greatest common
+// divisor and least common multiple, and numbers rounded. Functions are read as the graph reads
+// them, by the engine.
 // It works on its own in Node as well, for the tests
 (function (root) {
     'use strict';
@@ -14,6 +16,7 @@
         SEARCH = 1e8, // an equation's roots are looked for between -SEARCH and SEARCH, unless given ends
         FAR = 1e15, // and where an inequality changes, past them to -FAR and FAR
         ROOTS_MAX = 12, // more roots than these: the ones nearest 0
+        POWER_MAX = 30, // a polynomial typed of a higher power is not solved
         TERMS_MAX = 1e6, // a sum or a product of more terms is not worked out
         LANCZOS = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313,
             -176.61502916214059, 12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
@@ -62,10 +65,11 @@
     // From samples between from and to, or from -1e8 to 1e8 spread most near 0: where the
     // difference of the sides changes sign, found by halving, unless it only jumps there, as
     // 1/x does; and where it comes to 0 without crossing, as (x – 1)² does, by the golden
-    // section. { roots: ascending, more: there were more than these, the ones nearest 0 } or
-    // { error: 'equation' } where it is not one, 'letters' where it has letters besides x
-    function solve(text, comma, deg, from, to) {
-        var sides = String(text).split('='), left, right, xs = [], fs = [], found = [], n = 6000, k, u, a, b, r, ends;
+    // section. { roots: ascending, more: there were more than these, the ones nearest 0, and with
+    // exact, exact: each root's exact form, as exactOf has it, or null } or { error: 'equation' }
+    // where it is not one, 'letters' where it has letters besides x
+    function solve(text, comma, deg, from, to, exact) {
+        var sides = String(text).split('='), left, right, xs = [], fs = [], found = [], n = 6000, k, u, a, b, r, ends, more;
         if (sides.length > 2 || !sides[0].trim() || (sides.length === 2 && !sides[1].trim())) return { error: 'equation' };
         left = Engine.graph(sides[0], comma, {});
         right = sides.length === 2 ? Engine.graph(sides[1], comma, {}) : Engine.graph('0', comma, {});
@@ -95,14 +99,14 @@
             b = fs[k];
             if (!isFinite(b)) continue;
             if (b === 0) {
-                found.push(xs[k]);
+                found.push({ x: xs[k], raw: xs[k], near: true });
             } else if (k && isFinite(a) && a !== 0 && (a < 0) !== (b < 0)) {
                 r = halve(f, xs[k - 1], xs[k], a);
-                if (r !== null && Math.abs(f(r)) <= Math.min(Math.abs(a), Math.abs(b))) found.push(polish(r, 1e-12));
+                if (r !== null && Math.abs(f(r)) <= Math.min(Math.abs(a), Math.abs(b))) found.push({ x: polish(r, 1e-12), raw: r, near: true });
             } else if (k && k < n && isFinite(a) && isFinite(fs[k + 1]) && Math.abs(b) < Math.abs(a) && Math.abs(b) <= Math.abs(fs[k + 1]) &&
                 (a < 0) === (b < 0) && (b < 0) === (fs[k + 1] < 0)) {
                 r = lowest(function (x) { return -Math.abs(f(x)); }, xs[k - 1], xs[k + 1]); // touching 0: where it comes nearest
-                if (zero(r) || Math.abs(f(r)) <= 1e-9 * Math.max(1, size(r)) && Math.abs(f(r)) < 1e-6 * Math.abs(b)) found.push(polish(r, 1e-9));
+                if (zero(r) || Math.abs(f(r)) <= 1e-9 * Math.max(1, size(r)) && Math.abs(f(r)) < 1e-6 * Math.abs(b)) found.push({ x: polish(r, 1e-9), raw: r, near: false });
             }
         }
         // r as short as it goes, to tol: a root found by halving is as near as a number goes, so
@@ -115,14 +119,18 @@
                 return v <= best || v <= 1e-14 * Math.max(1, size(q));
             });
         }
-        found.sort(function (p, q) { return p - q; });
-        found = found.filter(function (x, i) { // one root once, not twice from the two sides of a sample
-            return !i || Math.abs(x - found[i - 1]) > 1e-11 * Math.max(1, Math.abs(x));
-        }).map(function (x) { return x + 0; });
-        if (found.length <= ROOTS_MAX) return { roots: found, more: false };
+        found.sort(function (p, q) { return p.x - q.x; });
+        found = found.filter(function (p, i) { // one root once, not twice from the two sides of a sample
+            return !i || Math.abs(p.x - found[i - 1].x) > 1e-11 * Math.max(1, Math.abs(p.x));
+        });
+        more = found.length > ROOTS_MAX;
+        if (more) found = found.slice().sort(function (p, q) { return Math.abs(p.x) - Math.abs(q.x) || p.x - q.x; }).slice(0, ROOTS_MAX).sort(function (p, q) { return p.x - q.x; });
         return {
-            roots: found.slice().sort(function (p, q) { return Math.abs(p) - Math.abs(q) || p - q; }).slice(0, ROOTS_MAX).sort(function (p, q) { return p - q; }),
-            more: true
+            roots: found.map(function (p) { return p.x + 0; }),
+            exact: exact ? found.map(function (p) { // a root found by halving is as near as a number goes; one touching 0, to 9 digits
+                return exactOf(p.raw, p.near ? 5e-13 : 1e-8, !p.near, deg, function (v) { return zero(v) || Math.abs(f(v)) <= Math.abs(f(p.raw)); });
+            }) : undefined,
+            more: more
         };
     }
 
@@ -299,6 +307,202 @@
         return +x.toPrecision(13);
     }
 
+    // ---------- two equations of x and y ---------- //
+
+    // An equation of x and y, or of one of them: x^2 + y^2 = 25, y = 2x + 1, or one side alone,
+    // which is 0. As the graph reads it, at(x, y, deg) the left side less the right; null where it
+    // is not one
+    function equationXY(text, comma) {
+        var sides = String(text).split('='), r;
+        if (sides.length > 2 || !sides[0].trim() || (sides.length === 2 && !sides[1].trim()) || /[<>≤≥{}]/.test(text)) return null;
+        r = Engine.relation('(' + sides[0] + ') - (' + (sides.length === 2 ? sides[1] : '0') + ') = 0', comma, {});
+        return r && !r.parts ? r : null;
+    }
+
+    // Two equations of x and y solved together, not only lines: x^2 + y^2 = 25 and x + y = 7, where
+    // a circle and a line cross. Newton's steps, damped as Levenberg and Marquardt's are, from starts
+    // over the plane, most near 0 and the nearest first, for a fifth of a second at most; each point
+    // once, as short as it can be while both hold as well. { points: [{ x, y, exact: [x's, y's
+    // exact form or null] }] by x, then y, more: there were more than these, the ones nearest 0,
+    // many: they hold together along a curve, not at points } or { error: 'equation' | 'letters',
+    // which: the equation, 0 or 1 }
+    function system2(texts, comma, deg, exact) {
+        var eqs = texts.map(function (t) { return equationXY(t, comma); }), steps = [0, 0.5, 1, 2, 3.5, 6, 10, 20, 50, 200, 1000],
+            starts = [], found = [], flat = 0, start = Date.now(), i, j, p, more;
+        for (i = 0; i < 2; i++) {
+            if (!eqs[i]) return { error: 'equation', which: i };
+            if (eqs[i].letters.length) return { error: 'letters', which: i };
+        }
+        function F(x, y) {
+            return [eqs[0].at(x, y, deg), eqs[1].at(x, y, deg)];
+        }
+        // its slopes at x, y: [[∂f/∂x, ∂f/∂y], [∂g/∂x, ∂g/∂y]], by the middle difference
+        function jacobian(x, y) {
+            var h = 1e-7 * Math.max(1, Math.abs(x)), k = 1e-7 * Math.max(1, Math.abs(y)), a = F(x + h, y), b = F(x - h, y), c = F(x, y + k), d = F(x, y - k);
+            return [[(a[0] - b[0]) / (2 * h), (c[0] - d[0]) / (2 * k)], [(a[1] - b[1]) / (2 * h), (c[1] - d[1]) / (2 * k)]];
+        }
+        // how near 0 each must be there: to 9 digits of how fast it changes, as far out as x and y are
+        function holds(x, y, f, J) {
+            var far = Math.max(1, Math.abs(x), Math.abs(y));
+            return Math.abs(f[0]) <= 1e-9 * Math.max(1, (Math.abs(J[0][0]) + Math.abs(J[0][1])) * far) &&
+                Math.abs(f[1]) <= 1e-9 * Math.max(1, (Math.abs(J[1][0]) + Math.abs(J[1][1])) * far);
+        }
+        function walk(x, y) {
+            var f = F(x, y), e = f[0] * f[0] + f[1] * f[1], lambda = 1e-3, J, a, b, c, g0, g1, det, dx, dy, t, te, n, tries, moved;
+            if (!isFinite(e)) return null;
+            for (n = 0; n < 100 && e > 0; n++) {
+                J = jacobian(x, y);
+                if (!J[0].concat(J[1]).every(isFinite)) return null;
+                a = J[0][0] * J[0][0] + J[1][0] * J[1][0]; // JᵀJ and Jᵀf
+                b = J[0][0] * J[0][1] + J[1][0] * J[1][1];
+                c = J[0][1] * J[0][1] + J[1][1] * J[1][1];
+                g0 = J[0][0] * f[0] + J[1][0] * f[1];
+                g1 = J[0][1] * f[0] + J[1][1] * f[1];
+                for (tries = 0, moved = false; tries < 30 && !moved; tries++) {
+                    det = (a * (1 + lambda) + 1e-300) * (c * (1 + lambda) + 1e-300) - b * b;
+                    dx = -((c * (1 + lambda)) * g0 - b * g1) / det;
+                    dy = -((a * (1 + lambda)) * g1 - b * g0) / det;
+                    if (!isFinite(dx) || !isFinite(dy)) return null;
+                    t = F(x + dx, y + dy);
+                    te = t[0] * t[0] + t[1] * t[1];
+                    if (te < e) {
+                        moved = true;
+                        x += dx;
+                        y += dy;
+                        f = t;
+                        e = te;
+                        lambda = Math.max(lambda / 4, 1e-12);
+                    } else {
+                        lambda *= 5;
+                    }
+                }
+                if (!moved || Math.abs(dx) + Math.abs(dy) <= 1e-15 * Math.max(1, Math.abs(x) + Math.abs(y))) break;
+            }
+            J = jacobian(x, y);
+            if (!(Math.abs(x) <= SEARCH && Math.abs(y) <= SEARCH) || !holds(x, y, f, J)) return null;
+            det = J[0][0] * J[1][1] - J[0][1] * J[1][0];
+            return { x: x, y: y, e: e, flat: Math.abs(det) <= 1e-6 * (J[0][0] * J[0][0] + J[0][1] * J[0][1] + J[1][0] * J[1][0] + J[1][1] * J[1][1]) }; // they touch there
+        }
+        steps = steps.slice(1).map(function (s) { return -s; }).reverse().concat(steps);
+        for (i = 0; i < steps.length; i++) {
+            for (j = 0; j < steps.length; j++) starts.push([steps[i] + 0.137, steps[j] - 0.071]); // not on a line of symmetry
+        }
+        starts.sort(function (p, q) { return Math.abs(p[0]) + Math.abs(p[1]) - Math.abs(q[0]) - Math.abs(q[1]); });
+        for (i = 0; i < starts.length && (i < 25 || Date.now() - start < 200); i++) {
+            p = walk(starts[i][0], starts[i][1]);
+            if (!p) continue;
+            j = found.findIndex(function (q) { // where the curves touch, a point is only as near as 6 digits, or 3
+                return Math.abs(p.x - q.x) + Math.abs(p.y - q.y) <= (p.flat || q.flat ? 1e-3 : 1e-6) * Math.max(1, Math.abs(p.x) + Math.abs(p.y));
+            });
+            if (j < 0) {
+                found.push(p);
+                if (p.flat) flat++;
+            } else if (p.e < found[j].e) {
+                found[j] = p;
+            }
+        }
+        if (found.length > 2 * ROOTS_MAX && flat > found.length / 2) return { points: [], many: true, more: false };
+        more = found.length > ROOTS_MAX;
+        if (more) found = found.sort(function (p, q) { return Math.hypot(p.x, p.y) - Math.hypot(q.x, q.y); }).slice(0, ROOTS_MAX);
+        found = found.map(function (p) { // x and y as short as they can be while both hold as well: together, then each
+            var tol = (p.flat ? 1e-6 : 1e-10), best = Math.max(Math.abs(F(p.x, p.y)[0]), Math.abs(F(p.x, p.y)[1])), J = jacobian(p.x, p.y),
+                tx = tol * Math.max(1, Math.abs(p.x)), ty = tol * Math.max(1, Math.abs(p.y)), x, y, k;
+            function good(x, y) {
+                var f = F(x, y);
+                return Math.max(Math.abs(f[0]), Math.abs(f[1])) <= best || holds(x, y, f, J) && Math.max(Math.abs(f[0]), Math.abs(f[1])) <= 1e-13 * Math.max(1, Math.abs(x) + Math.abs(y));
+            }
+            function cut(v, t, digits) { // 0 as well, not 7e-9
+                return Math.abs(v) <= t ? 0 : +v.toPrecision(digits);
+            }
+            for (k = 1; k <= 16 && x === undefined; k++) {
+                if (Math.abs(cut(p.x, tx, k) - p.x) <= tx && Math.abs(cut(p.y, ty, k) - p.y) <= ty && good(cut(p.x, tx, k), cut(p.y, ty, k))) {
+                    x = cut(p.x, tx, k);
+                    y = cut(p.y, ty, k);
+                }
+            }
+            if (x === undefined) {
+                x = Math.abs(p.x) <= tx && good(0, p.y) ? 0 : tidy(p.x, tx, function (q) { return good(q, p.y); });
+                y = Math.abs(p.y) <= ty && good(x, 0) ? 0 : tidy(p.y, ty, function (q) { return good(x, q); });
+            }
+            return {
+                x: round(x),
+                y: round(y),
+                exact: exact ? [x, y].map(function (v, k) {
+                    return exactOf(v, p.flat ? 1e-6 : 1e-12, p.flat, deg, function (w) {
+                        var at = k ? F(x, w) : F(w, y);
+                        return holds(k ? x : w, k ? w : y, at, J);
+                    });
+                }) : undefined
+            };
+        });
+        found.sort(function (p, q) { return p.x - q.x || p.y - q.y; });
+        return { points: found, more: more, many: false };
+    }
+
+    // ---------- turning points ---------- //
+
+    // Where a function of x turns: highest or lowest near by, as x^3 - 3x at -1 and 1. From
+    // samples, as solve takes them, each found by the golden section, then where its slope is 0,
+    // by halving, where it has one there; not where it only jumps, as 1/x at 0, nor along a flat
+    // stretch. Between from and to, the highest and lowest of all as well, the ends among them.
+    // { points: [{ x, y, max }] by x, more: there were more than these, the ones nearest 0, top
+    // and bottom: { x, y } between from and to only } or { error: 'function' | 'letters' }
+    function extrema(text, comma, deg, from, to) {
+        var c = String(text).trim() && Engine.graph(text, comma, {}), ends = isFinite(from) && isFinite(to) && from < to, n = 6000,
+            xs = [], fs = [], found = [], k, u, more, all, top, bottom;
+        if (!c) return { error: 'function' };
+        if (c.letters.length) return { error: 'letters' };
+        function f(x) {
+            return c.at(x, deg);
+        }
+        function slope(x) { // by four values about x, as near 0 as they tell, where the engine's slope is 0 already
+            var h = 1e-3 * Math.max(1, Math.abs(x));
+            return (f(x - 2 * h) - 8 * f(x - h) + 8 * f(x + h) - f(x + 2 * h)) / (12 * h);
+        }
+        for (k = 0; k <= n; k++) {
+            u = Math.asinh(SEARCH) * (2 * k / n - 1);
+            xs.push(ends ? from + (to - from) * k / n : k === n / 2 ? 0 : Math.sinh(u));
+            fs.push(f(xs[k]));
+        }
+        for (k = 1; k < n; k++) {
+            if (!isFinite(fs[k - 1]) || !isFinite(fs[k]) || !isFinite(fs[k + 1])) continue;
+            if (fs[k] >= fs[k - 1] && fs[k] >= fs[k + 1] && (fs[k] > fs[k - 1] || fs[k] > fs[k + 1])) turn(xs[k - 1], xs[k + 1], 1);
+            if (fs[k] <= fs[k - 1] && fs[k] <= fs[k + 1] && (fs[k] < fs[k - 1] || fs[k] < fs[k + 1])) turn(xs[k - 1], xs[k + 1], -1);
+        }
+        // the turn between a and b, highest (way 1) or lowest (-1): kept where it is one
+        function turn(a, b, way) {
+            var g = function (x) { return way * f(x); }, r = lowest(g, a, b), h = 1e-6 * Math.max(1, Math.abs(r)), d = 1e-3 * Math.max(1, Math.abs(r)),
+                s0 = slope(r - h), s1 = slope(r + h), y, near, q, bend, digits;
+            if (way * s0 > 0 && way * s1 < 0) { // where the slope is 0, as near as a number goes
+                q = halve(slope, r - h, r + h, s0);
+                if (q !== null) r = q;
+            }
+            y = f(r);
+            near = [r - h, r + h, r - d, r + d].map(f);
+            if (!isFinite(y) || !near.every(isFinite)) return;
+            if (near.some(function (v) { return way * v > way * y; })) return;
+            if (near.slice(0, 2).some(function (v) { return Math.abs(v - y) > 1e-2 * Math.max(1, Math.abs(y)); })) return; // a jump, as 1/x at 0
+            if (near[2] === y || near[3] === y) return; // flat to one side, as floor(x) or e^-x where it is too small to tell
+            // x to as many digits as its values tell, from 10 down to 4: fewer where they are large
+            // beside how much it bends, as x^2 - 6x + 1e6, whose slope is only as near as they are
+            bend = Math.abs(near[2] - 2 * y + near[3]) / (d * d);
+            digits = Math.max(4, Math.min(10, Math.floor(Math.log10(Math.max(1, Math.abs(r)) * bend * 1e-3 / (1e-15 * Math.max(1, Math.abs(y))))) - 1));
+            found.push({ x: +tidy(r, 1e-10 * Math.max(1, Math.abs(r)), function () { return true; }).toPrecision(isNaN(digits) ? 10 : digits) + 0, y: round(y), max: way > 0 });
+        }
+        found.sort(function (p, q) { return p.x - q.x; });
+        found = found.filter(function (p, i) { return !i || Math.abs(p.x - found[i - 1].x) > 1e-7 * Math.max(1, Math.abs(p.x)) || p.max !== found[i - 1].max; });
+        more = found.length > ROOTS_MAX;
+        if (ends) {
+            all = found.concat([from, to].filter(function (x) { return isFinite(f(x)); }).map(function (x) { return { x: x, y: round(f(x)) }; }));
+            all.forEach(function (p) {
+                if (!top || p.y > top.y) top = { x: p.x, y: p.y };
+                if (!bottom || p.y < bottom.y) bottom = { x: p.x, y: p.y };
+            });
+        }
+        if (more) found = found.slice().sort(function (p, q) { return Math.abs(p.x) - Math.abs(q.x) || p.x - q.x; }).slice(0, ROOTS_MAX).sort(function (p, q) { return p.x - q.x; });
+        return { points: found, more: more, top: top, bottom: bottom };
+    }
+
     // ---------- complex numbers, as [re, im] ---------- //
 
     function cmul(a, b) {
@@ -433,6 +637,317 @@
         if (rank < n) return { many: true };
         for (i = 0; i < n; i++) x[where[i]] = round(a[i][n] / a[i][where[i]]);
         return { x: x };
+    }
+
+    // ---------- polynomials typed ---------- //
+
+    // the sum, or with minus the difference, and the product of two polynomials, the lowest power first
+    function padd(a, b, minus) {
+        var out = [], k;
+        for (k = 0; k < Math.max(a.length, b.length); k++) out.push((a[k] || 0) + (minus ? -(b[k] || 0) : b[k] || 0));
+        return out;
+    }
+
+    function pmul(a, b) {
+        var out = [], j, k;
+        for (k = 0; k < a.length + b.length - 1; k++) out.push(0);
+        for (j = 0; j < a.length; j++) {
+            for (k = 0; k < b.length; k++) out[j + k] += a[j] * b[k];
+        }
+        return out;
+    }
+
+    // A polynomial of x typed, as x^5 - 3x + 1, (x - 1)(x + 2)^2 or x^3 = 2x + 1, multiplied out;
+    // or its coefficients, the highest power first: 1, 0, -2, 1 (1; 0; -2; 1 with the comma).
+    // { c: its coefficients, the highest power first, each to 12 digits } or { error: 'polynomial'
+    // | 'letters' | 'power' }: not one, as 1/x or sin(x); letters besides x; a power above POWER_MAX
+    function polynomial(text, comma, deg) {
+        var s = String(text).trim(), parts = s.split(comma ? /\s*;\s*|\s+/ : /\s*[,;]\s*|\s+/), sides, trees, nums, big = false, letters = false, c, top;
+        if (!s) return { error: 'polynomial' };
+        if (parts.length > 1 && !/x/i.test(s)) {
+            nums = parts.map(function (p) { return number(p, comma, deg); });
+            if (nums.every(isFinite)) {
+                while (nums.length > 1 && nums[0] === 0) nums.shift();
+                return nums.length - 1 > POWER_MAX ? { error: 'power' } : { c: nums };
+            }
+        }
+        sides = s.split('=');
+        if (sides.length > 2 || sides.some(function (side) { return !side.trim(); })) return { error: 'polynomial' };
+        trees = sides.map(function (side) { return Engine.tree(side, comma); });
+        if (!trees.every(Boolean)) return { error: 'polynomial' };
+        function hasX(n) { // each part looked at, for its letters
+            var a, b, r;
+            if (!n) return false;
+            if (n.t === 'const' && n.p) letters = true;
+            a = hasX(n.arg);
+            b = hasX(n.l);
+            r = hasX(n.r);
+            return n.t === 'const' && n.v === 'x' || a || b || r;
+        }
+        // the coefficients of a part, the lowest power first; null where it is not a polynomial
+        function expand(n) {
+            var a, b, out, k;
+            if (!hasX(n)) {
+                a = cvalue(n, deg);
+                return isFinite(a[0]) && !a[1] ? [a[0]] : null;
+            }
+            switch (n.t) {
+                case 'const': return [0, 1];
+                case 'group': return expand(n.arg);
+                case 'neg':
+                    a = expand(n.arg);
+                    return a && a.map(function (v) { return -v; });
+                case 'fn':
+                case 'post':
+                    a = expand(n.arg);
+                    if (!a) return null;
+                    if (n.key === 'x2') return pmul(a, a);
+                    if (n.key === 'x3') return pmul(pmul(a, a), a);
+                    return n.key === '%' ? a.map(function (v) { return v / 100; }) : null;
+                case 'bin':
+                    a = expand(n.l);
+                    b = expand(n.r);
+                    if (!a || !b) return null;
+                    if (n.op === '+' || n.op === '–') return padd(a, b, n.op === '–');
+                    if (n.op === '×') return a.length + b.length - 2 > POWER_MAX ? (big = true) && null : pmul(a, b);
+                    if (n.op === '÷') return b.length === 1 && b[0] ? a.map(function (v) { return v / b[0]; }) : null;
+                    if (n.op === 'yx' && b.length === 1 && b[0] >= 0 && b[0] === Math.floor(b[0])) {
+                        if ((a.length - 1) * b[0] > POWER_MAX) return (big = true) && null;
+                        for (out = [1], k = 0; k < b[0]; k++) out = pmul(out, a);
+                        return out;
+                    }
+            }
+            return null;
+        }
+        trees.forEach(hasX);
+        if (letters) return { error: 'letters' };
+        c = trees.map(expand);
+        if (big) return { error: 'power' };
+        if (!c.every(Boolean)) return { error: 'polynomial' };
+        c = c.length === 2 ? padd(c[0], c[1], true) : c[0];
+        top = Math.max.apply(null, c.map(Math.abs));
+        c = c.map(function (v) { return Math.abs(v) <= 1e-14 * top ? 0 : round(v); }).reverse(); // x^2 - x^2 is no power of 2
+        while (c.length > 1 && c[0] === 0) c.shift();
+        return c.length - 1 > POWER_MAX ? { error: 'power' } : { c: c };
+    }
+
+    // ---------- exact forms ---------- //
+
+    function gcd(a, b) {
+        var t;
+        a = Math.abs(a);
+        b = Math.abs(b);
+        while (b) {
+            t = a % b;
+            a = b;
+            b = t;
+        }
+        return a;
+    }
+
+    // x as a fraction [p, q], q at most max and within tol of x: the first of its continued
+    // fraction that is, as 1/3 for 0.333333333333; null where none is
+    function ratio(x, max, tol) {
+        var a = Math.abs(x), y = a, h = 1, h0 = 0, k = 0, k0 = 1, f, t, i;
+        if (!isFinite(x)) return null;
+        for (i = 0; i < 40; i++) {
+            f = Math.floor(y);
+            t = f * h + h0;
+            h0 = h;
+            h = t;
+            t = f * k + k0;
+            k0 = k;
+            k = t;
+            if (k > max || h > 1e15) return null;
+            if (Math.abs(h / k - a) <= tol) return [x < 0 ? -h : h, k];
+            if (y === f) return null;
+            y = 1 / (y - f);
+        }
+        return null;
+    }
+
+    // a whole number n as k²m, m with no square in it: [k, m]. Its prime factors up to its cube
+    // root tried; what is left has at most two others, so is a square or has none
+    function surd(n) {
+        var k = 1, m = 1, top = Math.cbrt(n) + 1, d, e, r;
+        for (d = 2; d <= top && n > 1; d++) {
+            for (e = 0; n % d === 0; e++) n /= d;
+            k *= Math.pow(d, e >> 1);
+            if (e & 1) m *= d;
+        }
+        r = Math.round(Math.sqrt(n));
+        if (n > 1 && r * r === n) k *= r;
+        else m *= n;
+        return [k, m];
+    }
+
+    // the texts of exact forms, the minus a hyphen: 1/3, 5π/6, ln 2, and (a + k√m)/d, with k i √m
+    // for k√m where imag: –1 + √2, (1 – √5)/2, √6/3, (–1 + i√3)/2
+    function fracText(p, q) {
+        return q === 1 ? String(p) : p + '/' + q;
+    }
+
+    function piText(p, q) {
+        return (p === 1 ? '' : p === -1 ? '-' : p) + 'π' + (q === 1 ? '' : '/' + q);
+    }
+
+    function lnText(p, q) {
+        return p === 1 ? '-ln ' + q : 'ln ' + (q === 1 ? p : '(' + p + '/' + q + ')');
+    }
+
+    function surdText(a, k, m, d, imag) {
+        var term = (Math.abs(k) === 1 && (m > 1 || imag) ? '' : String(Math.abs(k))) + (imag ? 'i' : '') + (m > 1 ? '√' + m : ''),
+            top = a ? a + (k < 0 ? ' - ' : ' + ') + term : (k < 0 ? '-' : '') + term;
+        return d === 1 ? top : a ? '(' + top + ')/' + d : top + '/' + d;
+    }
+
+    var SQUARE_FREE = []; // 2, 3, 5, 6, 7, 10 … to 99, the m of (a + b√m)/c looked for
+    (function () {
+        for (var m = 2; m < 100; m++) if (surd(m)[0] === 1) SQUARE_FREE.push(m);
+    })();
+
+    // x in an exact form, where within tol of it, as part of x, ok(the value of the form) telling
+    // as well: a fraction, 1/3; a part of π, 5π/6, while angles are in radians (deg 0); the root
+    // of a fraction, √2, √6/3; (a + b√m)/c, (1 + √5)/2, each of a, b and c up to 12, a to 1000;
+    // or the logarithm of a fraction, ln 2. Rough, for an x as near as 9 digits, only the first
+    // three, of fractions to 100. A text, or null for a whole number or none of these
+    function exactOf(x, tol, rough, deg, ok) {
+        var t = tol * Math.max(1, Math.abs(x)), r, s, j, a, b, c, k, m, sign, v;
+        if (!isFinite(x) || x === Math.round(x)) return null;
+        r = ratio(x, rough ? 100 : 1000, t);
+        if (r && ok(r[0] / r[1])) return fracText(r[0], r[1]);
+        if (!deg) {
+            r = ratio(x / PI, 24, t / PI);
+            if (r && ok(r[0] * PI / r[1])) return piText(r[0], r[1]);
+        }
+        r = ratio(x * x, rough ? 100 : 10000, 2.5 * t * Math.abs(x)); // √(p/q) = √(pq)/q
+        if (r && r[0] > 0) {
+            s = surd(r[0] * r[1]);
+            j = gcd(s[0], r[1]);
+            v = (x < 0 ? -1 : 1) * Math.sqrt(r[0] / r[1]);
+            if (s[1] > 1 && ok(v)) return surdText(0, (x < 0 ? -1 : 1) * s[0] / j, s[1], r[1] / j, false);
+        }
+        if (rough) return null;
+        for (c = 1; c <= 12; c++) {
+            for (j = 0; j < SQUARE_FREE.length; j++) {
+                m = Math.sqrt(SQUARE_FREE[j]);
+                for (b = 1; b <= 12; b++) {
+                    for (sign = -1; sign <= 1; sign += 2) {
+                        a = c * x - sign * b * m;
+                        k = Math.round(a);
+                        if (k && Math.abs(k) <= 1000 && Math.abs(a - k) <= c * t && gcd(gcd(k, b), c) === 1 && ok((k + sign * b * m) / c)) {
+                            return surdText(k, sign * b, SQUARE_FREE[j], c, false);
+                        }
+                    }
+                }
+            }
+        }
+        if (Math.abs(x) >= 1e-3 && Math.abs(x) <= 30) {
+            r = ratio(Math.exp(x), 1000, t * Math.exp(x));
+            if (r && r[0] > 0 && ok(Math.log(r[0] / r[1]))) return lnText(r[0], r[1]);
+        }
+        return null;
+    }
+
+    // P, whole numbers the highest power first, divided by D, where it goes into it: the
+    // quotient, whole numbers as well where D has no common factor; null where it does not
+    function divides(P, D) {
+        var r = P.slice(), q = [], j, k, f;
+        for (k = 0; k + D.length <= r.length; k++) {
+            if (r[k] % D[0]) return null;
+            f = r[k] / D[0];
+            q.push(f);
+            for (j = 0; j < D.length; j++) r[k + j] -= f * D[j];
+        }
+        for (k = Math.max(0, r.length - D.length + 1); k < r.length; k++) if (r[k]) return null;
+        return q;
+    }
+
+    // whole numbers with no common factor, the first above 0
+    function primitive(D) {
+        var g = D.reduce(function (g, a) { return gcdBig(g, a); }, BIG.zero);
+        if (D[0] < BIG.zero) g = -g;
+        return g ? D.map(function (a) { return a / g; }) : D;
+    }
+
+    // the roots of a x² + b x + c, whole numbers, in exact form: [{ text, re, im }] for the two;
+    // null where they are too large to tell
+    function quadratic(D) {
+        var a = Number(D[0]), b = Number(D[1]), disc = D[1] * D[1] - BIG.two * BIG.two * D[0] * D[2], d = Math.abs(Number(disc)), s, top, den, k, g, imag;
+        if (!Number.isSafeInteger(d) || !Number.isSafeInteger(2 * a) || !Number.isSafeInteger(b)) return null;
+        s = surd(d);
+        imag = disc < BIG.zero;
+        if (s[1] === 1 && !imag) {
+            return [1, -1].map(function (sign) {
+                var p = -b + sign * s[0], q = 2 * a, g = gcd(p, q) * (q < 0 ? -1 : 1);
+                return { text: fracText(p / g, q / g), re: p / q, im: 0 };
+            });
+        }
+        top = -b;
+        den = 2 * a;
+        k = s[0];
+        g = gcd(gcd(top, k), den) * (den < 0 ? -1 : 1);
+        top /= g;
+        den /= g;
+        k = Math.abs(k / g);
+        return [1, -1].map(function (sign) {
+            var part = sign * k * Math.sqrt(s[1]) / den;
+            return { text: surdText(top, sign * k, s[1], den, imag), re: top / den + (imag ? 0 : part), im: imag ? part : 0 };
+        });
+    }
+
+    // The roots of a polynomial in exact form, where its coefficients c, the highest power first,
+    // are fractions: each root of poly's, roots, that is a fraction, 1/3, as checked with whole
+    // numbers; and each two that are the roots of a quadratic factor of whole numbers, (1 ± √5)/2
+    // or –1 ± i√2. A text for each root, in their order, or null for one that is not; null where
+    // a coefficient is not a fraction
+    function exactRoots(c, roots) {
+        var fr = c.map(function (x) { return ratio(x, 1e6, 1e-15 * Math.abs(x)); }), L = BIG.one, P, out = roots.map(function () { return null; }), left = [], i, j;
+        if (!fr.every(Boolean)) return null;
+        fr.forEach(function (f) {
+            var d = BigInt(f[1]);
+            L = L / gcdBig(L, d) * d;
+        });
+        P = fr.map(function (f) { return BigInt(f[0]) * (L / BigInt(f[1])); });
+        while (P.length && !P[0]) P.shift();
+        if (P.length < 2) return null;
+        P = primitive(P);
+        roots.forEach(function (z, i) {
+            var Q = null, r;
+            [1e-11, 1e-5].forEach(function (tol) { // as near as a root goes, then as near as one found twice over
+                if (Q || z.im) return;
+                r = ratio(z.re, 1e6, tol * Math.max(1, Math.abs(z.re)));
+                Q = r && divides(P, [BigInt(r[1]), BigInt(-r[0])]);
+            });
+            if (Q) {
+                P = Q;
+                out[i] = fracText(r[0], r[1]);
+            } else {
+                left.push(i);
+            }
+        });
+        function pair(i, j) {
+            var a = [roots[i].re, roots[i].im], b = [roots[j].re, roots[j].im], s = add(a, b), p = cmul(a, b), S, R, D, Q, two;
+            if (Math.abs(s[1]) > 1e-9 * Math.max(1, cabs(s)) || Math.abs(p[1]) > 1e-9 * Math.max(1, cabs(p))) return false;
+            S = ratio(s[0], 1e6, 1e-9 * Math.max(1, Math.abs(s[0])));
+            R = ratio(p[0], 1e6, 1e-9 * Math.max(1, Math.abs(p[0])));
+            if (!S || !R) return false;
+            D = primitive([BigInt(S[1]) * BigInt(R[1]), -BigInt(S[0]) * BigInt(R[1]), BigInt(R[0]) * BigInt(S[1])]); // x² – s x + p
+            Q = divides(P, D);
+            two = Q && quadratic(D);
+            if (!two) return false;
+            P = Q;
+            if (cabs(sub(a, [two[0].re, two[0].im])) > cabs(sub(a, [two[1].re, two[1].im]))) two.reverse();
+            out[i] = two[0].text;
+            out[j] = two[1].text;
+            return true;
+        }
+        for (i = 0; i < left.length; i++) {
+            for (j = i + 1; j < left.length && out[left[i]] === null; j++) {
+                if (out[left[j]] === null) pair(left[i], left[j]);
+            }
+        }
+        return out;
     }
 
     // ---------- calculus ---------- //
@@ -1518,6 +2033,10 @@
         inequality: inequality,
         poly: poly,
         linear: linear,
+        system2: system2,
+        extrema: extrema,
+        polynomial: polynomial,
+        exactRoots: exactRoots,
         integral: integral,
         slopes: slopes,
         series: series,

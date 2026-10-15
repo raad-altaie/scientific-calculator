@@ -3679,7 +3679,8 @@
     // key k, a label l, a placeholder ph, and fn for a function, text for words read as they
     // are, def for the number of an empty one, inf where ∞ is a number; cols the columns of the
     // boxes; run(numbers, typed) its results: { rows: [{ l, v: a number, text, m: a matrix,
-    // wide }], note, warn, bad: the keys of the boxes that are not what they should be }
+    // wide }], note, warn, bad: the keys of the boxes that are not what they should be, cols: the
+    // columns of the tiles, where not three }
     var MEAN = { k: 'mu', l: 'μ', ph: '0', def: 0 }, // the boxes of a normal distribution
         SPREAD = { k: 'sigma', l: 'σ', ph: '1', def: 1 },
         SOLVE_TOOLS = {
@@ -3690,16 +3691,23 @@
             { id: 'inequality', t: 'Inequality', f: 'x<sup>2</sup> – 4 &gt; 0', d: 'Every x where it holds, as x &lt; –2 or x &gt; 2 and in intervals: with &lt;, &gt;, &lt;= or &gt;=, or two the same way, 1 &lt; x^2 &lt; 4. From and to where to look, if you like.',
                 fields: [{ k: 'eq', ph: 'x^2 - 4 > 0', fn: true }, { k: 'from', l: 'From', ph: 'optional' }, { k: 'to', l: 'To', ph: 'optional' }], cols: 2,
                 run: runInequality },
+            { id: 'extrema', t: 'Turning points', f: 'max and min of f(x)', d: 'Where a function is highest or lowest near by, x^3 – 3x at –1 and 1: each x and its value. With From and To, its highest and lowest between them as well, the ends among them.',
+                fields: [{ k: 'f', ph: 'x^3 - 3x', fn: true }, { k: 'from', l: 'From', ph: 'optional' }, { k: 'to', l: 'To', ph: 'optional' }], cols: 2,
+                run: runExtrema },
             { id: 'quadratic', t: 'Quadratic', f: 'ax<sup>2</sup> + bx + c = 0', d: 'Its two roots, real or a ± bi, the discriminant b² – 4ac and the vertex of its parabola.',
                 fields: coefficients('abc'), cols: 3, run: function (n) { return runPoly([n.a, n.b, n.c]); } },
             { id: 'cubic', t: 'Cubic', f: 'ax<sup>3</sup> + bx<sup>2</sup> + cx + d = 0', d: 'Its three roots, real or a ± bi.',
                 fields: coefficients('abcd'), cols: 4, run: function (n) { return runPoly([n.a, n.b, n.c, n.d]); } },
             { id: 'quartic', t: 'Quartic', f: 'ax<sup>4</sup> + bx<sup>3</sup> + cx<sup>2</sup> + dx + e = 0', d: 'Its four roots, real or a ± bi.',
                 fields: coefficients('abcde'), cols: 5, run: function (n) { return runPoly([n.a, n.b, n.c, n.d, n.e]); } },
+            { id: 'polynomial', t: 'Polynomial', f: 'a<sub>n</sub>x<sup>n</sup> + … + a<sub>0</sub> = 0', d: 'Every root of a polynomial of any power up to 30, real or a ± bi, and it multiplied out: typed, x^5 – 3x + 1 or (x – 1)(x + 2)^2, or its coefficients from the highest power, 1, 0, -2, 1.',
+                fields: [{ k: 'p', ph: 'x^5 - 3x + 1', fn: true }], run: runPolynomial },
             { id: 'system2', t: 'Two equations', f: 'a<sub>1</sub>x + b<sub>1</sub>y = c<sub>1</sub>', d: 'x and y of two linear equations: a₁x + b₁y = c₁ and a₂x + b₂y = c₂.',
                 fields: system(2), cols: 3, run: function (n) { return runSystem(n, 2); } },
             { id: 'system3', t: 'Three equations', f: 'a<sub>1</sub>x + b<sub>1</sub>y + c<sub>1</sub>z = d<sub>1</sub>', d: 'x, y and z of three linear equations, each a row: a, b, c and what it equals, d.',
-                fields: system(3), cols: 4, run: function (n) { return runSystem(n, 3); } }
+                fields: system(3), cols: 4, run: function (n) { return runSystem(n, 3); } },
+            { id: 'curves', t: 'Two curves', f: 'x<sup>2</sup> + y<sup>2</sup> = 25, x + y = 7', d: 'Every x and y where two equations of them hold together, not only lines: where the circle x^2 + y^2 = 25 and the line x + y = 7 cross, or y = x^2 and x + y = 1.',
+                fields: [{ k: 'e1', ph: 'x^2 + y^2 = 25', fn: true, aria: 'First equation' }, { k: 'e2', ph: 'x + y = 7', fn: true, aria: 'Second equation' }], run: runCurves }
         ],
         calculus: [
             { id: 'integral', t: 'Integral', f: '∫<sub>a</sub><sup>b</sup> f(x) dx', d: 'The integral of a function from a to b, the area under it; an end may be ∞, typed inf.',
@@ -3793,9 +3801,21 @@
             { l: 'Mean', v: known ? CalcMaths.round(mean) : NaN }, { l: 'σ', v: known ? CalcMaths.round(sd) : NaN }];
     }
 
-    // x₁, x₂ …, or x alone
-    function rootName(i, n) {
-        return n > 1 ? 'x<sub>' + (i + 1) + '</sub>' : 'x';
+    // x₁, x₂ …, or x alone; of another letter, y₁ …
+    function rootName(i, n, letter) {
+        return (letter || 'x') + (n > 1 ? '<sub>' + (i + 1) + '</sub>' : '');
+    }
+
+    // an exact form as it is shown: (1 – √5)/2, –1 + i√2
+    function exactHtml(e) {
+        return e.replace(/-/g, '–').replace(/√/g, '<span class="calc-sq">√</span>').replace(/i/g, '<i>i</i>');
+    }
+
+    // The exact forms of the roots that have one beyond a whole number, [name, form] each, as a
+    // tile: x₁ = (1 – √5)/2, x₂ = (1 + √5)/2; none where none has
+    function exactTile(forms) {
+        var parts = forms.filter(function (f) { return f[1] && /[\/√π]|ln/.test(f[1]); });
+        return parts.length ? [{ l: 'Exact', text: parts.map(function (f) { return f[0] + ' = ' + exactHtml(f[1]); }).join(engine.comma ? '; ' : ', '), wide: true, wrap: true }] : [];
     }
 
     // -1 + 2i, 2i, -1, as a number is shown
@@ -3820,12 +3840,14 @@
     }
 
     function runEquation(n, raw) {
-        var none = [{ l: 'x', v: NaN }], found = lookFor(n, raw, CalcMaths.solve, none, 'Not an equation of x yet: x^2 = 2x + 3, or one side alone, which is 0.'),
+        var none = [{ l: 'x', v: NaN }], found = lookFor(n, raw, function (text, comma, deg, from, to) { return CalcMaths.solve(text, comma, deg, from, to, true); }, none,
+                'Not an equation of x yet: x^2 = 2x + 3, or one side alone, which is 0.'),
             r = found.r, ends = found.ends;
         if (found.out) return found.out;
         if (!r.roots.length) return { rows: none, note: ends ? 'No root between ' + local(String(n.from)) + ' and ' + local(String(n.to)) + '.' : 'No root found.' };
         return {
-            rows: r.roots.map(function (x, i) { return { l: rootName(i, r.roots.length), v: x }; }),
+            rows: r.roots.map(function (x, i) { return { l: rootName(i, r.roots.length), v: x }; })
+                .concat(exactTile(r.exact.map(function (e, i) { return [rootName(i, r.roots.length), e]; }))),
             note: r.more ? 'Of its many roots, the ' + r.roots.length + ' nearest 0: give From and To for others.' : ''
         };
     }
@@ -3895,11 +3917,80 @@
             return { rows: rows, note: c.every(isFinite) ? 'No x left: its coefficients of x are all 0.' : '', warn: c.every(isFinite) };
         }
         rows = z.map(function (r, i) { return r.im ? { l: rootName(i, z.length), text: complexText(r) } : { l: rootName(i, z.length), v: r.re }; });
+        rows = rows.concat(exactTile((CalcMaths.exactRoots(c, z) || []).map(function (e, i) { return [rootName(i, z.length), e]; })));
         if (size === 2 && c[0]) {
             rows.push({ l: 'Discriminant', v: CalcMaths.round(c[1] * c[1] - 4 * c[0] * c[2]) },
                 { l: 'Vertex x', v: CalcMaths.round(-c[1] / (2 * c[0])) }, { l: 'Vertex y', v: CalcMaths.round(c[2] - c[1] * c[1] / (4 * c[0])) });
         }
         return { rows: rows, note: z.length < size ? 'With a of 0, it is of a lower power.' : '' };
+    }
+
+    // a polynomial written out from its coefficients, the highest power first: x³ – 2x + 1
+    function polyHtml(c) {
+        var n = c.length - 1, out = '';
+        c.forEach(function (a, k) {
+            var p = n - k, size = Math.abs(a);
+            if (!a) return;
+            out += (out ? (a < 0 ? ' – ' : ' + ') : a < 0 ? '–' : '') + (size === 1 && p ? '' : local(String(size))) + (p ? 'x' + (p > 1 ? '<sup>' + p + '</sup>' : '') : '');
+        });
+        return out || '0';
+    }
+
+    function runPolynomial(n, raw) {
+        var none = [{ l: 'x', v: NaN }], r = raw.p ? CalcMaths.polynomial(raw.p, engine.comma, deg) : null, out, why;
+        if (!r) return { rows: none };
+        why = {
+            polynomial: 'Not a polynomial of x yet: x^5 - 3x + 1, (x - 1)(x + 2)^2, or its coefficients from the highest power, 1, 0, -2, 1.',
+            letters: 'Only x has a value here: write the other letters as numbers.',
+            power: 'Up to the power 30.'
+        }[r.error];
+        if (why) return { rows: none, bad: ['p'], warn: true, note: why };
+        if (r.c.length < 2) return { rows: none, note: 'No x left: its coefficients of x are all 0.', warn: true };
+        out = runPoly(r.c);
+        out.rows.unshift({ l: 'Multiplied out', text: polyHtml(r.c), wide: true, wrap: true });
+        return out;
+    }
+
+    // where two curves meet: an x and a y for each point, side by side
+    function runCurves(n, raw) {
+        var none = [{ l: 'x', v: NaN }, { l: 'y', v: NaN }], r, rows = [], forms = [];
+        if (!raw.e1 || !raw.e2) return { rows: none, cols: 2 };
+        r = CalcMaths.system2([raw.e1, raw.e2], engine.comma, deg, true);
+        if (r.error) {
+            return { rows: none, cols: 2, bad: [['e1', 'e2'][r.which]], warn: true,
+                note: r.error === 'letters' ? 'Only x and y have values here: write the other letters as numbers.' : 'Not an equation of x and y yet: x^2 + y^2 = 25, y = 2x + 1.' };
+        }
+        if (r.many) return { rows: none, cols: 2, note: 'Many answers: the two hold together all along a curve, as one line written twice.' };
+        r.points.forEach(function (p, i) {
+            var x = rootName(i, r.points.length), y = rootName(i, r.points.length, 'y');
+            rows.push({ l: x, v: p.x }, { l: y, v: p.y });
+            forms.push([x, p.exact[0]], [y, p.exact[1]]);
+        });
+        return {
+            rows: rows.length ? rows.concat(exactTile(forms)) : none, cols: 2,
+            note: !rows.length ? 'No point found where both hold.' : r.more ? 'Of its many points, the ' + r.points.length + ' nearest 0.' : ''
+        };
+    }
+
+    // the turning points, an x and its value side by side; between From and To the highest and lowest as well
+    function runExtrema(n, raw) {
+        var none = [{ l: 'x', v: NaN }, { l: 'y', v: NaN }], ends = isFinite(n.from) && isFinite(n.to), r, rows = [];
+        if (!raw.f) return { rows: none, cols: 2 };
+        if (ends && n.from >= n.to) return { rows: none, cols: 2, note: 'From is less than To.', warn: true };
+        r = CalcMaths.extrema(raw.f, engine.comma, deg, ends ? n.from : NaN, ends ? n.to : NaN);
+        if (r.error) {
+            return { rows: none, cols: 2, bad: ['f'], warn: true,
+                note: r.error === 'letters' ? 'Only x has a value here: write the other letters as numbers.' : 'Not a function of x yet: x^3 - 3x, x e^(-x).' };
+        }
+        r.points.forEach(function (p) {
+            rows.push({ l: (p.max ? 'Max' : 'Min') + ' x', v: p.x }, { l: (p.max ? 'Max' : 'Min') + ' y', v: p.y });
+        });
+        if (r.top) rows.push({ l: 'Highest x', v: r.top.x }, { l: 'Highest y', v: r.top.y }, { l: 'Lowest x', v: r.bottom.x }, { l: 'Lowest y', v: r.bottom.y });
+        return {
+            rows: rows.length ? rows : none, cols: 2,
+            note: !r.points.length ? 'No turning point ' + (ends ? 'between ' + shown(n.from) + ' and ' + shown(n.to) : 'found') + '.' :
+                r.more ? 'Of its many turning points, the ' + r.points.length + ' nearest 0: give From and To for others.' : ''
+        };
     }
 
     function runSystem(n, size) {
@@ -4344,6 +4435,7 @@
                 if (fields.some(function (f) { return f.k === box.dataset.k && (f.fn || f.text); })) box.classList.toggle('calc-bad', (out.bad || []).indexOf(box.dataset.k) > -1);
             });
             now = out.rows;
+            item.querySelector('.calc-sv-grid').style.gridTemplateColumns = out.cols ? 'repeat(' + out.cols + ', 1fr)' : ''; // two, for an x and a y side by side
             item.querySelector('.calc-sv-grid').innerHTML = out.rows.map(tile).join('');
             [].forEach.call(item.querySelectorAll('.calc-sv-value, .calc-sv-cell'), function (shown) {
                 var size = shown.classList.contains('calc-sv-cell') ? 15 : 17;
