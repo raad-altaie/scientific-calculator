@@ -1971,10 +1971,14 @@
     display: none;
 }
 
-/* why the values give no answer */
+/* why the values give no answer: a red outline as wide as the card, the words in the middle */
 #calculator .calc-fx-note.calc-fx-warn,
 #calculator .calc-sv-note.calc-sv-warn {
-    color: #a8323e;
+    box-sizing: border-box;
+    padding: 5px 10px;
+    border: 1px solid #d04554; /* the red of a wrong box, a little darker */
+    border-radius: 6px;
+    color: #d04554;
     font-size: 12px;
     line-height: 14px;
 }
@@ -2062,6 +2066,35 @@
 
 #calculator .calc-sv-form .calc-sv-note {
     margin: 2px 0 6px;
+}
+
+#calculator .calc-sv-form .calc-sv-note.calc-sv-warn {
+    margin: 6px 0; /* as much room above as below */
+}
+
+/* Results on a line, between what is typed and what it gives */
+#calculator .calc-sv-results {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0 6px;
+    color: #33443b;
+    font-size: 11px;
+    line-height: 13px;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+#calculator .calc-sv-results::before,
+#calculator .calc-sv-results::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #8eab9b;
+}
+
+#calculator .calc-sv-results[hidden] {
+    display: none;
 }
 
 /* the results inside the card: a little darker than it, as its boxes are */
@@ -2395,8 +2428,8 @@
 }
 
 #calculator .calc-sv-bitat {
-    flex: 0 0 18px;
-    margin-right: 5px;
+    flex: 0 0 15px;
+    margin-right: 4px;
     color: #33443b;
     font-size: 11px;
     text-align: right;
@@ -2405,11 +2438,11 @@
 #calculator .calc-sv-bit {
     flex: 1 1 0;
     min-width: 0;
-    max-width: 18px;
-    margin: 1px; /* the ones apart, each its own; the row as tall as before */
-    border-radius: 5px;
+    max-width: 24px; /* as wide as the row has room for: a 1 a little fat */
+    margin: 1px 0.5px; /* the ones apart, each its own */
+    border-radius: 4px;
     font-size: 14px;
-    line-height: 19px;
+    line-height: 17px;
     text-align: center;
     cursor: pointer;
     -webkit-user-select: none;
@@ -2417,7 +2450,7 @@
 }
 
 #calculator .calc-sv-bit.calc-sv-nib {
-    margin-left: 4px; /* 5px from the bit before, with its 1px */
+    margin-left: 3.5px; /* 4px from the bit before, with its 0.5px */
 }
 
 #calculator .calc-sv-bit:hover {
@@ -2450,6 +2483,11 @@
 
 #calculator .calc-sv-again:hover {
     background: #46677f;
+}
+
+/* Example, once something is typed */
+#calculator .calc-sv-example[hidden] {
+    display: none;
 }
 
 /* ---------- converter ---------- */

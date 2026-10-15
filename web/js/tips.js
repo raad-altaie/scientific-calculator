@@ -138,11 +138,9 @@
         // the solver
         'solve': {
             t: 'Solve',
-            d: 'Equations and inequalities solved for x, in exact form as well; turning points; polynomials, linear equations and ' +
-                'two curves; integrals, slopes, sums, products, ' +
-                'limits, Taylor series, areas between curves, arc lengths and differential equations; the normal, t, χ², F, binomial, ' +
-                'Poisson and other distributions, and confidence intervals; and money over time, NPV and IRR, loans and savings, APR and APY, bonds, depreciation, ' +
-                'break-even, inflation and percentage change. Click a result to put it in.',
+            d: 'Equations and inequalities solved for x, in exact form as well, as (1 + √5)/2; polynomials, linear equations and where ' +
+                'two curves meet; integrals, slopes, sums, limits and Taylor series; the normal, binomial and other distributions, and ' +
+                'confidence intervals; and loans, savings, bonds, NPV and IRR. Click a result to put it in.',
             k: ''
         },
         'solve close': {
@@ -235,10 +233,9 @@
         // the graph
         'graph': {
             t: 'Graph',
-            d: 'Draws up to seven functions of x, with a slider for any other letter, as a in a x^2 + b: x^2 – 3, 2sin(x), 1/x, sequences, a(n) = a(n – 1) + 2 {a(1) = 1}, and marks their roots, highs, lows and ' +
-                'crossings; and slope fields, dy/dx = x – y {y(0) = 1}, with the solution through each start, a click off the curves adding one. ' +
-                'Drag to move, scroll or pinch to zoom; point at a curve or a dot for its values. ' +
-                'Click one for the slope there and its tangent. The Table tab lists their values.',
+            d: 'Draws up to seven functions of x, with a slider for any other letter, as a in a x^2 + b: x^2 – 3, 2sin(x); sequences, a(n) = a(n – 1) + 2 {a(1) = 1}; ' +
+                'and slope fields, dy/dx = x – y {y(0) = 1}, a click adding a solution. Marks roots, highs, lows and crossings. ' +
+                'Drag to move, scroll or pinch to zoom; point at a curve for its values, click for its tangent. The Table tab lists them.',
             k: ''
         },
         'graph close': {

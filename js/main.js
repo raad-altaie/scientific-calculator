@@ -1007,19 +1007,27 @@
         engine.reset(); // the equation too; the history stays
         hold.textContent = '';
         keyBoard['AC'].children[0].firstChild.data = 'AC';
-        // what is typed in the panels: the list of the statistics, the search and a formula open,
-        // the value to convert and the dates, the graph, and the boxes of the solver and the numbers
+        // what is typed in the panels, and each on its first tab with no card open: the list of the
+        // statistics, the search and a formula open, the value to convert and the dates, the graph
+        // and its examples, and the boxes of the solver and the numbers
         statsInput.value = '';
         statsTexts = { list: '', pairs: '' };
+        statsTab = 'list';
+        statsTiles();
         setStatsBy(0);
         renderStats();
         fxSearch.value = '';
+        fxTab = 'formulas';
+        store('fxTab', fxTab);
         renderFx();
         convInput.value = '1';
-        renderConv();
-        saveConv();
         dates.clear();
+        convTab = 'units';
+        convTabs();
+        saveConv();
         clearGraph();
+        graphSearch.value = '';
+        showGraphTab('graph');
         toolPanels.forEach(function (p) { p.clear(); });
         refresh();
         saveState();
@@ -4212,6 +4220,17 @@
         item.scrollIntoView({ block: 'nearest' });
     }
 
+    // the note of a formula naming the letters of the boxes marked: empty, or, typed, not a number
+    function badNote(note, inputs, typed) {
+        var names = inputs.filter(function (input) { return input.classList.contains('calc-bad'); }).map(function (input) {
+            return input.parentNode.querySelector('.calc-fx-sym').innerHTML;
+        });
+        if (!names.length) return;
+        note.classList.add('calc-fx-warn');
+        note.innerHTML = names.length > 2 ? names.length + (typed ? ' boxes are not numbers.' : ' boxes are empty.') :
+            names.join(' and ') + (names.length > 1 ? (typed ? ' are not numbers.' : ' are empty.') : (typed ? ' is not a number.' : ' is empty.'));
+    }
+
     // The formula with its letters filled in goes into the display as an
     // equation; into one being typed or edited it goes in brackets, as one part.
     // It is worked out first on its own: values with no answer (the root of a
@@ -4243,6 +4262,7 @@
             s = null;
         }
         if (s === null) {
+            badNote(note, inputs, !read);
             focusBox(item.querySelector('.calc-bad') || inputs[0]);
             return;
         }
@@ -4336,7 +4356,7 @@
                 fields: [{ k: 'f', ph: 'n', fn: true }, { k: 'a', l: 'From', ph: '1', def: 1 }, { k: 'b', l: 'To', ph: '5', def: 5, inf: true }], cols: 2,
                 run: function (n, raw) { return runSeries(n, raw, true); } },
             { id: 'limit', t: 'Limit', f: 'lim<sub>x→a</sub> f(x)', d: 'What a function comes to as x comes to a, from below, from above and both, or ∞ where it grows without end: sin(x)/x as x comes to 0. a may be ∞, typed inf.',
-                fields: [{ k: 'f', ph: 'sin(x)/x', fn: true }, { k: 'a', l: 'x →', ph: '0', def: 0, inf: true }], cols: 1, run: runLimit },
+                fields: [{ k: 'f', ph: 'sin(x)/x', fn: true }, { k: 'a', l: 'x →', ph: '0', def: 0, inf: true, name: 'The point x goes to' }], cols: 1, run: runLimit },
             { id: 'taylor', t: 'Taylor series', f: 'f(a) + f′(a)(x – a) + …', d: 'A function as a polynomial about a, to the power you give, up to 12: sin x is x – x³/6 + x⁵/120 – …, and each coefficient, f⁽ᵏ⁾(a)/k!.',
                 fields: [{ k: 'f', ph: 'sin(x)', fn: true }, { k: 'a', l: 'a', ph: '0', def: 0 }, { k: 'n', l: 'Power', ph: '7', def: 7 }], cols: 2, run: runTaylor },
             { id: 'between', t: 'Area between', f: '∫<sub>a</sub><sup>b</sup> |f(x) – g(x)| dx', d: 'The area between two curves from a to b, the parts where g is above as well, the integral of f – g, and where they cross on the way.',
@@ -4445,6 +4465,17 @@
             { id: 'rates', t: 'Interest rates', f: 'APR ↔ APY', d: 'A nominal rate a year, its APR, as the effective one, its APY, of interest m times a year, and back: type one, ' +
                 'and the other is worked out. m may be ∞, typed inf, for interest all the time.',
                 fields: [{ k: 'apr', l: 'APR %', ph: '' }, { k: 'apy', l: 'APY %', ph: '' }, { k: 'm', l: 'm', ph: '12', def: 12, inf: true, aria: 'Periods a year' }], cols: 3, run: runRates },
+            { id: 'breakeven', t: 'Break-even', f: 'Fixed ÷ (Price – Cost)', d: 'How many must be sold to cover the fixed costs, and a profit if you like, at a price and a cost of each one: ' +
+                'the units, what they sell for, and what each one leaves.',
+                fields: [{ k: 'fixed', l: 'Fixed costs', ph: '' }, { k: 'price', l: 'Price', ph: '' }, { k: 'cost', l: 'Cost each', ph: '' }, { k: 'profit', l: 'Profit', ph: '0', def: 0 }], cols: 2,
+                run: runBreakEven },
+            { id: 'inflation', t: 'Inflation', f: 'A(1 + r)<sup>t</sup>', d: 'An amount at inflation of a rate a year for years: what it costs then, what it was worth in money of today, ' +
+                'how many times prices grow, and how much of what money buys is lost.',
+                fields: [{ k: 'amount', l: 'Amount', ph: '' }, { k: 'rate', l: 'Rate %', ph: '' }, { k: 'years', l: 'Years', ph: '' }], cols: 3, run: runInflation },
+            { id: 'depreciation', t: 'Depreciation', f: 'Straight line, declining balance', d: 'What an asset loses each year of its life, down to what it is worth at the end, its salvage value: the same each year by the straight line, ' +
+                'or twice the straight line\'s rate of what is left by the double declining balance, then the straight line once that loses more. A table of each year; Copy table copies it for a spreadsheet.',
+                fields: [{ k: 'cost', l: 'Cost', ph: '' }, { k: 'salvage', l: 'Salvage', ph: '0', def: 0 }, { k: 'life', l: 'Years', ph: '' },
+                    { k: 'way', l: 'Way', choice: ['Straight line', 'Declining balance'] }], cols: 3, run: runDepreciation },
             { id: 'tvm', t: 'Time value of money', f: 'N, I/Y, PV, PMT, FV', d: 'Money over time, as a BA II Plus or an HP 12C works it out: leave one of N, I/Y, PV, PMT and FV empty, and it is worked out. ' +
                 'N payments of PMT, at I/Y, a percentage a year, of P/Y payments a year, bring PV at the start to FV at the end; each payment at the end of its period, or at its start. ' +
                 'Money received is above 0 and money paid below 0: a loan of 200000 is PV = 200000, its PMT below 0. With all the money paid, and the interest.',
@@ -4460,17 +4491,6 @@
                 'the price is then without the interest earned since the last one, the accrued interest, and the dirty price with it. With the current yield and the duration.',
                 fields: [{ k: 'face', l: 'Face', ph: '100', def: 100 }, { k: 'coupon', l: 'Coupon %', ph: '' }, { k: 'years', l: 'Years', ph: '' }, { k: 'freq', l: 'A year', ph: '2', def: 2, aria: 'Coupons a year' },
                     { k: 'price', l: 'Price', ph: '' }, { k: 'yld', l: 'Yield %', ph: '' }], cols: 2, run: runBond },
-            { id: 'depreciation', t: 'Depreciation', f: 'Straight line, declining balance', d: 'What an asset loses each year of its life, down to what it is worth at the end, its salvage value: the same each year by the straight line, ' +
-                'or twice the straight line\'s rate of what is left by the double declining balance, then the straight line once that loses more. A table of each year; Copy table copies it for a spreadsheet.',
-                fields: [{ k: 'cost', l: 'Cost', ph: '' }, { k: 'salvage', l: 'Salvage', ph: '0', def: 0 }, { k: 'life', l: 'Years', ph: '' },
-                    { k: 'way', l: 'Way', choice: ['Straight line', 'Declining balance'] }], cols: 3, run: runDepreciation },
-            { id: 'breakeven', t: 'Break-even', f: 'Fixed ÷ (Price – Cost)', d: 'How many must be sold to cover the fixed costs, and a profit if you like, at a price and a cost of each one: ' +
-                'the units, what they sell for, and what each one leaves.',
-                fields: [{ k: 'fixed', l: 'Fixed costs', ph: '' }, { k: 'price', l: 'Price', ph: '' }, { k: 'cost', l: 'Cost each', ph: '' }, { k: 'profit', l: 'Profit', ph: '0', def: 0 }], cols: 2,
-                run: runBreakEven },
-            { id: 'inflation', t: 'Inflation', f: 'A(1 + r)<sup>t</sup>', d: 'An amount at inflation of a rate a year for years: what it costs then, what it was worth in money of today, ' +
-                'how many times prices grow, and how much of what money buys is lost.',
-                fields: [{ k: 'amount', l: 'Amount', ph: '' }, { k: 'rate', l: 'Rate %', ph: '' }, { k: 'years', l: 'Years', ph: '' }], cols: 3, run: runInflation },
             { id: 'change', t: 'Percentage change', f: '(b – a) ÷ a', d: 'The change from one number to another, and as a percentage of the first; of a cost and its price, the first is the markup and the margin ' +
                 'the profit as a percentage of the price.',
                 fields: [{ k: 'a', l: 'From', ph: '' }, { k: 'b', l: 'To', ph: '' }], cols: 2, run: runChange }
@@ -5093,9 +5113,9 @@
         ],
         base: [
             { id: 'bits', t: 'Bases', f: '0xFF AND 0b1010', d: 'Whole numbers as a computer keeps them, in 8, 16, 32 or 64 bits: decimal, 0x hexadecimal, 0b binary or 0o octal, with + – × ÷ mod AND OR XOR NOT NAND NOR XNOR, &lt;&lt; &gt;&gt; and ROL ROR, which turn the bits round. Each result in every base.',
-                fields: [{ k: 'e', ph: '0xFF AND 0b1010', fn: true }, { k: 'bits', l: 'Bits', ph: '32', def: 32 }], run: runBits },
+                fields: [{ k: 'e', ph: '0xFF AND 0b1010', fn: true }, { k: 'bits', l: 'Bits', choice: ['8', '16', '32', '64'], at: 2 }], run: runBits },
             { id: 'bitview', t: 'Bits', f: 'b<sub>7</sub> … b<sub>1</sub> b<sub>0</sub>', d: 'The bits of a whole number, each turned over with a click; how many are 1, the 0s before and after them, and the highest and lowest bit that is 1. Empty, it is 0, to click a number together.',
-                fields: [{ k: 'e', ph: '0', fn: true }, { k: 'bits', l: 'Bits', ph: '32', def: 32 }], run: runBitView },
+                fields: [{ k: 'e', ph: '0', fn: true }, { k: 'bits', l: 'Bits', choice: ['8', '16', '32', '64'], at: 2 }], run: runBitView },
             { id: 'float', t: 'IEEE 754', f: '0.1 = 0x3FB999999999999A', d: 'A number as a computer keeps it: a double of 64 bits and a float of 32, in hexadecimal; its sign, exponent and fraction; the number it is, to its last digit, and the gap to the next. Or the bits, 0x3FB999999999999A, for the number.',
                 fields: [{ k: 'x', ph: '0.1', fn: true }], run: runFloat },
             { id: 'anybase', t: 'Any base', f: 'FF.8<sub>16</sub> = 11111111.1<sub>2</sub>', d: 'A number in any base from 2 to 36 written in another, the digits after its point as well: 0.1 in base 10 is 0.0(0011) in base 2, the part in brackets coming again and again. A part in brackets may be typed too.',
@@ -5927,7 +5947,7 @@
             form.className = 'calc-sv-form';
             form.innerHTML = '<div class="calc-sv-boxes"></div><div class="calc-sv-note"></div>' + (tool.again ? '<span class="calc-sv-again">Again</span>' : '') +
                 (tool.example ? '<span class="calc-sv-again calc-sv-example" role="button">Example</span>' : '') +
-                '<div class="calc-sv-grid"></div>';
+                '<div class="calc-sv-results">Results</div><div class="calc-sv-grid"></div>';
             item.classList.add('calc-on');
             boxes(tool, item);
             run();
@@ -5937,16 +5957,22 @@
             item.scrollIntoView({ block: 'nearest' });
         }
 
+        // the way of a choice kept, a number of its ways, else the one it has at first
+        function chosen(f, kept) {
+            var i = +kept;
+            return kept !== '' && kept !== undefined && i === Math.floor(i) && i >= 0 && i < f.choice.length ? i : f.at || 0;
+        }
+
         // The boxes of a tool, in columns, a head before each group of them, filled as they were typed.
         // A date has a button for its calendar, and is today while nothing is typed
         function boxes(tool, item) {
             closeCalendar();
             var kept = values[tool.id] || {}, cols = tool.cols || 1, html = '<div class="calc-sv-fields" style="--cols: ' + cols + '">';
             fieldsOf(tool, rawOf(tool)).forEach(function (f) {
-                if (f.choice) { // one of two ways, each a button, as the tabs are: the first while none is chosen
+                if (f.choice) { // one of a few ways, each a button, as the tabs are: its way at first (at), or the first, while none is chosen
                     html += '<div class="calc-sv-var calc-sv-wide"><span class="calc-sv-sym">' + f.l + '</span><span class="calc-sv-choice" role="radiogroup" aria-label="' +
                         f.l + '" data-k="' + f.k + '">' + f.choice.map(function (c, i) {
-                            return '<span class="calc-sv-opt' + (String(kept[f.k] || 0) === String(i) ? ' calc-on' : '') + '" role="radio" tabindex="0" data-c="' + i + '">' + c + '</span>';
+                            return '<span class="calc-sv-opt' + (chosen(f, kept[f.k]) === i ? ' calc-on' : '') + '" role="radio" tabindex="0" data-c="' + i + '">' + c + '</span>';
                         }).join('') + '</span></div>';
                     return;
                 }
@@ -5974,9 +6000,9 @@
         }
 
         // What the open tool gives from its boxes now: each number read, or its default while
-        // empty, a box that is not one marked; then its tiles, and its note
+        // empty, a box that is not one marked and named in the note; then its tiles, and its note
         function run() {
-            var item = list.querySelector('.calc-sv-item.calc-on'), tool, raw, n = {}, out, inputs, fields;
+            var item = list.querySelector('.calc-sv-item.calc-on'), tool, raw, n = {}, out, inputs, fields, bad = [];
             if (!item) return;
             tool = tools[tab][+item.dataset.i];
             raw = rawOf(tool);
@@ -5986,16 +6012,35 @@
                 var text = raw[f.k] || '', v, box = inputs.filter(function (b) { return b.dataset.k === f.k; })[0];
                 if (f.head) return;
                 raw[f.k] = text;
-                if (f.fn || f.text || f.date || f.choice || f.area) return;
+                if (f.choice) { // the way chosen; of numbers, as 8 | 16 | 32 | 64, its number too
+                    raw[f.k] = String(chosen(f, text));
+                    n[f.k] = +f.choice[raw[f.k]];
+                    return;
+                }
+                if (f.fn || f.text || f.date || f.area) return;
                 v = text ? CalcMaths.number(text, engine.comma, deg, f.inf) : f.def !== undefined ? f.def : NaN;
                 if (box) box.classList.toggle('calc-bad', !!text && isNaN(v));
+                if (box && text && isNaN(v)) bad.push(f.name || f.aria || (f.l || '').replace(/<[^>]*>/g, '')); // name: for a label that does not read in a note
                 n[f.k] = v;
             });
             out = tool.run(n, raw);
+            if (item.querySelector('.calc-sv-example')) { // Example while the boxes are empty: it would type over what is in them
+                item.querySelector('.calc-sv-example').hidden = fields.some(function (f) { return !f.head && !f.choice && raw[f.k]; });
+            }
+            if (out.warn && !(out.bad || []).length && !fields.some(function (f) { return !f.head && !f.choice && !f.shape && raw[f.k]; })) {
+                out.warn = false; // nothing typed yet, only the boxes' defaults, as a matrix of 0s: no error until something is
+                out.note = '';
+            }
+            if (bad.length) { // what is wrong first: the box, or boxes, that are not numbers
+                out.note = bad.length > 2 ? bad.length + ' boxes are not numbers.' :
+                    bad.length === 2 ? bad[0] + ' and ' + bad[1] + ' are not numbers.' : bad[0] + ' is not a number.';
+                out.warn = true;
+            }
             inputs.forEach(function (box) {
                 if (fields.some(function (f) { return f.k === box.dataset.k && (f.fn || f.text || f.date || f.area); })) box.classList.toggle('calc-bad', (out.bad || []).indexOf(box.dataset.k) > -1);
             });
             rows = out.rows;
+            item.querySelector('.calc-sv-results').hidden = !out.rows.length;
             item.querySelector('.calc-sv-grid').style.gridTemplateColumns = out.cols ? 'repeat(' + out.cols + ', 1fr)' : ''; // two, for an x and a y side by side
             item.querySelector('.calc-sv-grid').innerHTML = out.rows.map(tile).join('');
             [].forEach.call(item.querySelectorAll('.calc-sv-tile'), function (el) {
@@ -6068,9 +6113,11 @@
             store(key, { tab: tab, open: openId, v: values });
         }
 
-        // nothing typed in any tool; the tab and the card open stay
+        // nothing typed in any tool, the first tab, and no card open
         function clear() {
             values = {};
+            tab = Object.keys(tools)[0];
+            openId = '';
             if (now.open()) render();
             keep();
         }
@@ -6294,7 +6341,10 @@
         return {
             show: show,
             load: cards.load,
-            clear: cards.clear,
+            clear: function () {
+                cards.clear();
+                tabs();
+            },
             open: function () { return panel.classList.contains('calc-open'); },
             tip: function (el) {
                 if (el.classList.contains('calc-solve-tab')) return CalcTips[tip + ' tab ' + el.dataset.tab] || null;

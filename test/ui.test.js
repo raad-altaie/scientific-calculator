@@ -1145,7 +1145,7 @@ async function solver(page, at) {
     await set(0, '1/x');
     check(await page.calc(tiles) === 'Limit=– | From below=–∞ | From above=∞' && /^No limit/.test(await page.calc(note)), t + '1/x goes to –∞ and ∞', await page.calc(tiles));
     await set(1, 'abc');
-    check(await page.calc(note) === '', t + 'a limit at what is not a number blames not the function', await page.calc(note));
+    check(await page.calc(note) === 'The point x goes to is not a number.', t + 'a limit at what is not a number blames not the function, but the point', await page.calc(note));
     await set(0, '(1+1/x)^x');
     await set(1, 'inf');
     check(await page.calc(tiles) === 'Limit=2.71828182846', t + '(1 + 1/x)^x comes to e at ∞, one side only', await page.calc(tiles));
@@ -1228,14 +1228,16 @@ async function numbersPanel(page, at) {
     check(await page.calc(tiles) === 'Decimal=10 | Unsigned=10 | Hexadecimal=A | Octal=12 | Binary=0000 0000 0000 0000 0000 0000 0000 1010',
         t + '0xFF AND 0b1010 in every base', await page.calc(tiles));
     await set(0, '-1');
-    await set(1, '8');
+    check(await page.calc('[].map.call(document.querySelectorAll("' + on + ' .calc-sv-opt"), function (o) { return o.textContent; }).join()') === '8,16,32,64' &&
+        await page.calc('document.querySelector("' + on + ' .calc-sv-opt.calc-on").textContent') === '32', t + 'Bits: 8, 16, 32 or 64, a button each, 32 at first');
+    await page.click(on + ' .calc-sv-opt[data-c="0"]');
     check(await page.calc(tiles) === 'Decimal=-1 | Unsigned=255 | Hexadecimal=FF | Octal=377 | Binary=1111 1111', t + '-1 in 8 bits', await page.calc(tiles));
     await set(0, '0x81 rol 1');
     check((await page.calc(tiles)).indexOf('Decimal=3 | ') === 0, t + 'ROL turns the bits round', await page.calc(tiles));
     await set(0, '0x81 rol');
     check(/ROL ROR\.$/.test(await page.calc(note)), t + 'what is not one says ROL and ROR as well', await page.calc(note));
     await card('Bits');
-    await set(1, '8');
+    await page.click(on + ' .calc-sv-opt[data-c="0"]');
     check(await page.calc('document.querySelectorAll("' + on + ' .calc-sv-bit").length') === 8 && await page.calc('document.querySelectorAll("' + on + ' .calc-sv-bit.calc-on").length') === 0,
         t + 'bits: empty is 0, eight bits to click');
     await page.click(on + ' .calc-sv-bit[data-b="7"]');
@@ -1504,18 +1506,29 @@ async function matrixPaste(page, at) {
     check(await paste(1, '[[2,5; 0]; [0; 4]]') && await boxes() === '|2,5|0|0|4', t + 'decimal comma: [[2,5; 0]; [0; 4]]', await boxes());
     check(await paste(1, '[1/3 0; 0 1]') && await boxes() === '|0,3333333333333333|0|0|1', t + 'one worked out goes in as its value', await boxes());
 
-    // each card's Example: its boxes typed, and what they give
+    // each card's Example: only while its boxes are empty, as it types over them; its boxes typed, and what they give
+    var example = 'document.querySelector("' + on + ' .calc-sv-example").hidden';
+    function empty() { // every box of the card open emptied, as typed, one at a time: a size emptied makes its boxes again
+        return page.calc('(function () { var b; while ((b = [].filter.call(document.querySelectorAll("' + on + ' .calc-sv-boxes input"), function (x) { return x.value; })[0])) {' +
+            ' b.value = ""; b.dispatchEvent(new Event("input", { bubbles: true })); } })()');
+    }
+    check(await page.calc(example), t + 'no Example once something is typed');
+    await empty();
+    check(!await page.calc(example), t + 'Example again with the boxes empty');
     await page.click(on + ' .calc-sv-example');
     check(await boxes() === '3×3|2|-1|0|-1|2|-1|0|-1|2' && /^λ1=0,58578643762\d* \| λ2=2 \| λ3=3,41421356237/.test(await tiles()), t + 'Example of eigenvalues', await tiles());
+    check(await page.calc(example), t + 'no Example once it has typed its own');
     await card('A x = b');
+    await empty();
     await page.click(on + ' .calc-sv-example');
     check(/^x1=5 \| x2=3 \| x3=-2/.test(await tiles()), t + 'Example of A x = b: three equations, their answers', await tiles());
     await card('Two matrices');
-    await page.click(on + ' .calc-sv-example');
-    check(/A × B=5864139154/.test(await tiles()), t + 'Example of two matrices: A × B of a 2×3 and a 3×2', await tiles());
+    await empty();
     await page.hover(on + ' .calc-sv-example');
     check(await page.until('!document.querySelector(".calc-tip").hidden', 2500) && /^Example/.test(await page.calc('document.querySelector(".calc-tip").textContent')),
         t + 'Example has a tip', await page.calc('document.querySelector(".calc-tip").textContent'));
+    await page.click(on + ' .calc-sv-example');
+    check(/A × B=5864139154/.test(await tiles()), t + 'Example of two matrices: A × B of a 2×3 and a 3×2', await tiles());
 }
 
 // The Finance tab of the solver: money over time as a BA II Plus works it out, NPV and IRR, a
@@ -1542,7 +1555,7 @@ async function finance(page, at) {
     await page.click('.calc-solve-btn');
     await page.click('.calc-solve .calc-solve-tab[data-tab="finance"]');
     check(await page.calc('[].map.call(document.querySelectorAll(".calc-solve .calc-sv-name"), function (n) { return n.textContent; }).join()') ===
-        'Loan calculator,Savings growth,Interest rates,Time value of money,NPV and IRR,Bond price and yield,Depreciation,Break-even,Inflation,Percentage change',
+        'Loan calculator,Savings growth,Interest rates,Break-even,Inflation,Depreciation,Time value of money,NPV and IRR,Bond price and yield,Percentage change',
         t + 'ten cards, the loan calculator and savings first');
 
     // time value of money: the one left empty is found; received above 0, paid below
@@ -2842,11 +2855,13 @@ async function convDates(page, at) {
     await page.key('Escape', 27);
     check(!await open(page, '.calc-conv'), t + 'Esc closes it');
 
-    // Reset all empties the dates, which are today again
+    // Reset all empties the dates, which are today again, no card open
     await page.rightClick('.calc-display');
     await pick(page, 'Reset all');
     await page.click('.calc-conv-btn');
+    check(await page.calc('document.querySelector(".calc-conv .calc-solve-tab.calc-on").dataset.tab') === 'units', t + 'Reset all shows Units again');
     await page.click('.calc-conv .calc-solve-tab[data-tab="dates"]');
+    check(!await page.calc('document.querySelector(".calc-conv .calc-sv-item.calc-on")'), t + 'Reset all closes the card of the dates open');
     await page.click('.calc-conv .calc-sv-item:nth-child(1) .calc-sv-row');
     check(/ \| Days=0 \| /.test(await page.calc(tiles)), t + 'Reset all puts the dates back to today', await page.calc(tiles));
     await page.key('Escape', 27);
