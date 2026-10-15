@@ -1,12 +1,14 @@
 // The maths of the Solve panel: equations and inequalities solved for x, the roots of a
 // polynomial, typed or of its coefficients, and their exact forms, (1 + √5)/2; linear equations,
 // and two equations of x and y, which may be curves; where a function turns; integrals, slopes,
-// sums, products, limits and differential equations; and the normal, binomial and Poisson
-// distributions. And of the Numbers panel: complex numbers, whole numbers in bits and their
-// bases, numbers as a computer keeps them, by IEEE 754, and matrices, their eigenvalues and
-// linear equations of them; and whole numbers: their prime factors, divisors, greatest common
-// divisor and least common multiple, and numbers rounded. Functions are read as the graph reads
-// them, by the engine.
+// sums and products, on to ∞ as well, limits, Taylor series, areas between curves, lengths of
+// them and differential equations; and the normal, Student's t, χ², F, binomial, Poisson,
+// geometric, hypergeometric, exponential and uniform distributions, and confidence intervals.
+// And of the Numbers panel: complex numbers, whole numbers in bits and their bases, numbers as
+// a computer keeps them, by IEEE 754, and matrices, their eigenvalues and linear equations of
+// them; and whole numbers: their prime factors, divisors, greatest common divisor and least
+// common multiple, and numbers rounded. Functions are read as the graph reads them, by the
+// engine.
 // It works on its own in Node as well, for the tests
 (function (root) {
     'use strict';
@@ -18,6 +20,7 @@
         ROOTS_MAX = 12, // more roots than these: the ones nearest 0
         POWER_MAX = 30, // a polynomial typed of a higher power is not solved
         TERMS_MAX = 1e6, // a sum or a product of more terms is not worked out
+        TAYLOR_MAX = 12, // a Taylor series is found to this power at most
         LANCZOS = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313,
             -176.61502916214059, 12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
 
@@ -787,12 +790,13 @@
         return q === 1 ? String(p) : p + '/' + q;
     }
 
-    function piText(p, q) {
-        return (p === 1 ? '' : p === -1 ? '-' : p) + 'π' + (q === 1 ? '' : '/' + q);
+    function piText(p, q, of) {
+        if (of === '/π') return p + '/' + (q === 1 ? '' : q) + 'π'; // 2/π
+        return (p === 1 ? '' : p === -1 ? '-' : p) + (of || 'π') + (q === 1 ? '' : '/' + q);
     }
 
     function lnText(p, q) {
-        return p === 1 ? '-ln ' + q : 'ln ' + (q === 1 ? p : '(' + p + '/' + q + ')');
+        return p === 1 ? '-ln ' + q : q === 1 ? 'ln ' + p : 'ln(' + p + '/' + q + ')';
     }
 
     function surdText(a, k, m, d, imag) {
@@ -809,8 +813,10 @@
     // x in an exact form, where within tol of it, as part of x, ok(the value of the form) telling
     // as well: a fraction, 1/3; a part of π, 5π/6, while angles are in radians (deg 0); the root
     // of a fraction, √2, √6/3; (a + b√m)/c, (1 + √5)/2, each of a, b and c up to 12, a to 1000;
-    // or the logarithm of a fraction, ln 2. Rough, for an x as near as 9 digits, only the first
-    // three, of fractions to 100. A text, or null for a whole number or none of these
+    // the logarithm of a fraction, ln 2; or, while in radians, a part of π², e or √π: π²/6, e,
+    // √π/2. Rough, for an x as near as 9 digits, only the first three, of fractions to 100, and
+    // with rough 'constants' the last as well, for an integral, as near as 10. A text, or null
+    // for a whole number or none of these
     function exactOf(x, tol, rough, deg, ok) {
         var t = tol * Math.max(1, Math.abs(x)), r, s, j, a, b, c, k, m, sign, v;
         if (!isFinite(x) || x === Math.round(x)) return null;
@@ -821,13 +827,13 @@
             if (r && ok(r[0] * PI / r[1])) return piText(r[0], r[1]);
         }
         r = ratio(x * x, rough ? 100 : 10000, 2.5 * t * Math.abs(x)); // √(p/q) = √(pq)/q
-        if (r && r[0] > 0) {
+        if (r && r[0] > 0 && r[0] <= 10000) {
             s = surd(r[0] * r[1]);
             j = gcd(s[0], r[1]);
             v = (x < 0 ? -1 : 1) * Math.sqrt(r[0] / r[1]);
             if (s[1] > 1 && ok(v)) return surdText(0, (x < 0 ? -1 : 1) * s[0] / j, s[1], r[1] / j, false);
         }
-        if (rough) return null;
+        if (rough) return rough === 'constants' ? constant() : null;
         for (c = 1; c <= 12; c++) {
             for (j = 0; j < SQUARE_FREE.length; j++) {
                 m = Math.sqrt(SQUARE_FREE[j]);
@@ -844,10 +850,19 @@
         }
         if (Math.abs(x) >= 1e-3 && Math.abs(x) <= 30) {
             r = ratio(Math.exp(x), 1000, t * Math.exp(x));
-            if (r && r[0] > 0 && ok(Math.log(r[0] / r[1]))) return lnText(r[0], r[1]);
+            if (r && r[0] > 0 && r[0] <= 1000 && ok(Math.log(r[0] / r[1]))) return lnText(r[0], r[1]);
         }
-        return null;
+        return constant();
+        function constant() {
+            for (j = 0; j < CONSTANTS.length && !deg; j++) {
+                r = ratio(x / CONSTANTS[j][0], 100, t / CONSTANTS[j][0]);
+                if (r && ok(r[0] * CONSTANTS[j][0] / r[1])) return piText(r[0], r[1], CONSTANTS[j][1]);
+            }
+            return null;
+        }
     }
+
+    var CONSTANTS = [[PI * PI, 'π²'], [Math.pow(PI, 4), 'π⁴'], [1 / PI, '/π'], [Math.E, 'e'], [Math.E * Math.E, 'e²'], [Math.sqrt(PI), '√π']]; // as sums and integrals come to them
 
     // P, whole numbers the highest power first, divided by D, where it goes into it: the
     // quotient, whole numbers as well where D has no common factor; null where it does not
@@ -985,20 +1000,29 @@
     }
 
     // The sum, or with product the product, of a function typed for each whole number from
-    // from to to: of n, k, i or j, or of x if it has none of them: n^2, 1/k!. { value } or
-    // { error: 'function' | 'letters' | 'ends' | 'many' }: not a function; letters of its own;
-    // ends that are not whole numbers in order; more than a million terms
+    // from to to, which may be ∞: of n, k, i or j, or of x if it has none of them: n^2, 1/k!.
+    // { value, exact: on to ∞, its exact form or null } or { error: 'function' | 'letters' |
+    // 'ends' | 'many' }: not a function; letters of its own; ends that are not whole numbers in
+    // order; more than a million terms
     function series(text, comma, deg, from, to, product) {
-        var vars = {}, c = String(text).trim() && Engine.graph(text, comma, vars), key, total = product ? 1 : 0, fix = 0, k, v, y, t;
+        var vars = {}, c = String(text).trim() && Engine.graph(text, comma, vars), key, total = product ? 1 : 0, fix = 0, k, v, y, t, out;
         if (!c) return { error: 'function' };
         if (c.letters.length > 1 || (c.letters.length === 1 && !/^[nkij]$/.test(c.letters[0]))) return { error: 'letters' };
         key = c.letters[0];
         if (key && isNaN(c.at(NaN, deg)) && !isNaN(c.at(0, deg))) return { error: 'letters' }; // x as well as n
-        if (!isFinite(from) || !isFinite(to) || from !== Math.floor(from) || to !== Math.floor(to) || from > to) return { error: 'ends' };
+        if (!isFinite(from) || !(isFinite(to) || to === Infinity) || from !== Math.floor(from) || (isFinite(to) && to !== Math.floor(to)) || from > to) return { error: 'ends' };
+        function term(k) {
+            if (key) vars[key] = k;
+            return key ? c.at(0, deg) : c.at(k, deg);
+        }
+        if (to === Infinity) {
+            out = { value: product ? endlessProduct(term, from) : endlessSum(term, from) };
+            out.exact = isFinite(out.value) ? exactOf(out.value, 1e-11, false, 0, function () { return true; }) : null;
+            return out;
+        }
         if (to - from + 1 > TERMS_MAX) return { error: 'many' };
         for (k = from; k <= to; k++) {
-            if (key) vars[key] = k;
-            v = key ? c.at(0, deg) : c.at(k, deg);
+            v = term(k);
             if (!isFinite(v)) return { value: NaN };
             if (product) {
                 total *= v;
@@ -1010,6 +1034,225 @@
             }
         }
         return { value: round(total) };
+    }
+
+    // The sum of term(n) for each whole n from a on without end: Infinity or -Infinity where it
+    // grows without end, NaN where it has no value or does not settle. Summed while the terms
+    // matter; else by Wynn's ε of its partial sums, which settles for one whose terms change
+    // sign or shrink by a part each time, as (-1)^n/n or 1/2^n; else by Euler and Maclaurin's
+    // sum of what is left, its integral and the ends of it, as 1/n^2, where the terms are of a
+    // smooth function of n, the integral of x from N on as of s, x = N e^s, so a slow one, as
+    // 1/n^1.5, is smooth to ∞; else by Richardson's extrapolation of the partial sums of 250,
+    // 500 … 8000 terms, which settles where they come to it by powers of 1/N, as the logarithms
+    // of 1 – 1/n^2 do. Each to one digit fewer than two ways of it agree to
+    function endlessSum(term, a) {
+        var sums = [], terms = [], s = 0, fix = 0, k, v, signs = 0, big = 0, far, settled, at1, at2, edge;
+        function add(k) { // Kahan's sum, as for a finite one
+            var v = term(a + k), y, t;
+            terms.push(v);
+            y = v - fix;
+            t = s + y;
+            fix = t - s - y;
+            s = t;
+            sums.push(s);
+            return v;
+        }
+        for (k = 0; k < 2000; k++) {
+            v = add(k);
+            if (!isFinite(v)) return NaN;
+            big = Math.max(big, Math.abs(v));
+            if (k && (v < 0) !== (terms[k - 1] < 0) && v && terms[k - 1]) signs++;
+            if (k >= 20 && terms.slice(-10).every(function (u) { return Math.abs(u) <= 1e-17 * Math.abs(s); })) return round(s); // the rest no longer counts
+        }
+        // terms that do not come to 0: it grows, or goes back and forth, without end
+        far = [1e4, 1e6, 1e9].map(function (n) { return term(a + n); });
+        if (!far.every(isFinite) || Math.abs(far[2]) > 1e-9 * Math.max(big, 1e-300) && Math.abs(far[2]) >= 0.5 * Math.abs(far[0])) {
+            if (far.every(isFinite) && terms.slice(-100).every(function (u) { return u > 0; }) && far.every(function (u) { return u > 0; })) return Infinity;
+            if (far.every(isFinite) && terms.slice(-100).every(function (u) { return u < 0; }) && far.every(function (u) { return u < 0; })) return -Infinity;
+            return NaN;
+        }
+        settled = wynn(sums.slice(0, 60));
+        if (settled !== null) return settled;
+        if (signs > 100) {
+            settled = wynn(sums.slice(1000, 1060));
+            if (settled !== null) return settled;
+        }
+        function maclaurin(n) { // the first n terms summed, and what is left as Euler and Maclaurin have it
+            var h = 0.01 * n, f = function (x) { return term(x); },
+                tail = integral({ at: function (u) { // none past 1e100 where a term is too small to be one, as 1/n^1.5 at 1e250
+                    var x = (a + n) * Math.exp(u), y = isFinite(x) ? f(x) : 0;
+                    return y === 0 || isNaN(y) && x > 1e100 ? 0 : y * x;
+                } }, 0, Infinity, 0),
+                d1 = (f(a + n - 2 * h) - 8 * f(a + n - h) + 8 * f(a + n + h) - f(a + n + 2 * h)) / (12 * h),
+                d3 = (f(a + n + 2 * h) - 2 * f(a + n + h) + 2 * f(a + n - h) - f(a + n - 2 * h)) / (2 * h * h * h);
+            if (Math.abs(edge) > 1e-13 * Math.abs(tail)) return NaN; // what is left past 1e300 still counts, as of 1/(n ln(n)^2)
+            return sums[n - 1] + tail + terms[n] / 2 - d1 / 12 + d3 / 720;
+        }
+        edge = term(1e300);
+        edge = isNaN(edge) ? 0 : edge * 1e300; // how much of the integral is still to come where numbers end
+        at1 = a + 1000 > 0 ? maclaurin(1000) : NaN;
+        at2 = a + 1000 > 0 ? maclaurin(1998) : NaN;
+        if (isFinite(at1) && isFinite(at2) && Math.abs(at1 - at2) <= 1e-9 * Math.max(1, Math.abs(at2))) return digits(at2, at1);
+        settled = richardson();
+        if (settled !== null) return settled;
+        // what is left grows without end where n times a term does not come to 0: 1/n
+        return terms.slice(-100).every(function (u) { return u > 0; }) && Math.abs(far[2]) * 1e9 >= 0.5 * Math.abs(far[0]) * 1e4 ? Infinity : NaN;
+        function richardson() {
+            var R = [], j, m, n, est = [];
+            for (j = 0, n = 250; n <= 8000; j++, n *= 2) {
+                while (sums.length < n) if (!isFinite(add(sums.length))) return null;
+                R.push([sums[n - 1]]);
+                for (m = 1; m <= j; m++) R[j][m] = R[j][m - 1] + (R[j][m - 1] - R[j - 1][m - 1]) / (Math.pow(2, m) - 1);
+                est.push(R[j][j]);
+            }
+            j = est.length - 1;
+            return Math.abs(est[j] - est[j - 1]) <= 1e-10 * Math.max(1, Math.abs(est[j])) ? digits(est[j], est[j - 1]) : null;
+        }
+        function digits(v, other) { // one fewer than two ways agree to, from 8 to 12
+            return +v.toPrecision(Math.max(8, Math.min(12, Math.floor(-Math.log10(Math.max(1e-16, Math.abs(v - other) / Math.max(1, Math.abs(v))))) - 1))) + 0;
+        }
+    }
+
+    // Wynn's ε of a list of partial sums: the value two of its estimates agree on to 12 digits,
+    // the last of them, or null
+    function wynn(list) {
+        var e = [list.slice()], prev = [], k, j, d, row, best = null, gap = Infinity, est = [];
+        for (k = 0; k < list.length; k++) prev.push(0);
+        e.unshift(prev);
+        for (k = 1; k < list.length; k++) {
+            row = [];
+            for (j = 0; j + k < list.length; j++) {
+                d = e[k][j + 1] - e[k][j];
+                row.push(e[k - 1][j + 1] + 1 / d); // ∞ where two are alike, which the next column takes back
+            }
+            e.push(row);
+            if (k % 2 === 0 && row.length) est.push(row[row.length - 1]); // the even columns are estimates
+        }
+        for (k = 1; k < est.length; k++) {
+            if (!isFinite(est[k]) || !isFinite(est[k - 1])) continue;
+            d = Math.abs(est[k] - est[k - 1]);
+            if (d < gap) {
+                gap = d;
+                best = est[k];
+            }
+        }
+        return best !== null && gap <= 1e-12 * Math.max(1, Math.abs(best)) ? round(best) : null;
+    }
+
+    // The product of term(n) for each whole n from a on without end: 0 where a term is 0; else of
+    // terms above 0 by the sum of their logarithms; else as its partial products settle, by
+    // Wynn's ε, or NaN
+    function endlessProduct(term, a) {
+        var p = 1, list = [], k, v, logs = true, s;
+        for (k = 0; k < 200; k++) {
+            v = term(a + k);
+            if (v === 0) return 0;
+            if (!isFinite(v)) return NaN;
+            if (!(v > 0)) logs = false;
+            p *= v;
+            list.push(p);
+        }
+        if (logs && [1e4, 1e6, 1e9].every(function (n) { return term(a + n) > 0; })) {
+            s = endlessSum(function (n) { return Math.log(term(n)); }, a);
+            return s === -Infinity ? 0 : isFinite(s) ? +Math.exp(s).toPrecision(10) + 0 : s === Infinity ? Infinity : NaN; // the exponential of a sum to 12 digits, to 10
+        }
+        s = wynn(list.slice(-60));
+        return s === null ? NaN : s;
+    }
+
+    // ---------- Taylor series, areas and lengths ---------- //
+
+    // A function of x typed, as the graph reads it, y = or f(x) = before it as well: its tree, to
+    // be worked out at a complex x, and how the graph reads it; or { error: 'function' | 'letters' }
+    function treeOf(text, comma) {
+        var s = String(text).trim().replace(/^(y|f\s*\(\s*x\s*\))\s*=\s*/i, ''), c = s && Engine.graph(s, comma, {}), t = s && Engine.tree(s, comma);
+        if (!c || !t) return { error: 'function' };
+        return c.letters.length ? { error: 'letters' } : { tree: t, c: c };
+    }
+
+    // The Taylor series of a function about a, to the power order: its coefficients, f⁽ᵏ⁾(a)/k!,
+    // the lowest power first. Each from its values on a circle about a in the complex numbers,
+    // Cauchy's integral, as the fast Fourier transform has it: on the largest circle, from 8 down,
+    // that tells the same as one half as large, so a coefficient keeps its digits and the circle
+    // does not reach where it has no value, as 1/(1 – x) at 1. To 10 digits, or a fraction of a
+    // small top where it is one, 1/6. { coefs } or { error: 'function' | 'letters' | 'none': no series about a,
+    // as sqrt(x) at 0 or abs(x), which has no complex sense }
+    function taylor(text, comma, deg, a, order) {
+        var f = treeOf(text, comma), r, at = [], k, ok, want, near, out, y, slope;
+        if (f.error) return f;
+        if (!isFinite(a) || !(order >= 0 && order <= TAYLOR_MAX && order === Math.floor(order))) return { coefs: null };
+        function coefs(r, n) { // and how near each is, from how large its values are
+            var values = [], c = [], big = 0, k, j, re, im, th;
+            for (j = 0; j < n; j++) {
+                th = 2 * PI * j / n;
+                values.push(cvalue(f.tree, deg, [a + r * Math.cos(th), r * Math.sin(th)]));
+                if (!isFinite(values[j][0]) || !isFinite(values[j][1])) return null;
+                big = Math.max(big, cabs(values[j]));
+            }
+            for (k = 0; k <= order; k++) {
+                re = 0;
+                im = 0;
+                for (j = 0; j < n; j++) {
+                    th = -2 * PI * j * k / n;
+                    re += values[j][0] * Math.cos(th) - values[j][1] * Math.sin(th);
+                    im += values[j][0] * Math.sin(th) + values[j][1] * Math.cos(th);
+                }
+                c.push({ v: re / (n * Math.pow(r, k)), im: im / (n * Math.pow(r, k)), err: 1e-14 * big / Math.pow(r, k) });
+            }
+            return c;
+        }
+        for (r = 8, want = 2 * order + 32; r >= 1e-4; r /= 2) at.push({ r: r, c: coefs(r, Math.max(128, 2 * want)) });
+        // a circle about a pole as well tells the same as one half as large, but not the value at
+        // a, nor its slope, as the graph has them: 1/(1 – x) at 0 is 0 on a circle of 2 or more
+        y = f.c.at(a, deg);
+        slope = Engine.slope(f.c, a, deg);
+        for (k = 0; k < at.length - 1 && !ok; k++) {
+            if (!at[k].c || !at[k + 1].c) continue;
+            near = at[k].c.every(function (c, i) {
+                var d = at[k + 1].c[i], tol = 1e-10 * Math.max(Math.abs(c.v), 1e-300) + 100 * (c.err + d.err);
+                c.off = Math.abs(c.v - d.v); // how near it is, at most
+                return c.off <= tol && Math.abs(c.im) <= tol;
+            });
+            if (near && Math.abs(at[k].c[0].v - y) <= 1e-8 * Math.max(1, Math.abs(y)) &&
+                    (!isFinite(slope) || !at[k].c[1] || Math.abs(at[k].c[1].v - slope) <= 1e-6 * Math.max(1, Math.abs(slope)))) ok = at[k];
+        }
+        if (!ok) return { error: 'none' };
+        out = ok.c.map(function (c) {
+            var tol = Math.max(10 * c.off, 1e-14 * Math.abs(c.v)), q;
+            if (Math.abs(c.v) <= 100 * c.err && Math.abs(c.v) <= 100 * c.off + 1e-300) return 0;
+            // a fraction of a small top where it is one as far as its digits tell, to 11 at least: 1/5040, not e/5040
+            q = tol <= 1e-11 * Math.abs(c.v) ? ratio(c.v, 1e7, tol) : null;
+            return q && Math.abs(q[0]) <= 100 ? q[0] / q[1] : +c.v.toPrecision(10);
+        });
+        return { coefs: out };
+    }
+
+    // Between two functions f and g from a to b: { net: ∫(f – g), area: ∫|f – g|, each from the
+    // places between where they cross, crossings: those places } or { error: 'function' |
+    // 'letters', which: 0 for f, 1 for g }
+    function between(texts, comma, deg, a, b) {
+        var fs = texts.map(function (t) { return treeOf(t, comma); }), d, cuts, net = 0, area = 0, k, v, i;
+        for (i = 0; i < 2; i++) if (fs[i].error) return { error: fs[i].error, which: i };
+        if (!isFinite(a) || !isFinite(b)) return { net: NaN, area: NaN, crossings: [] };
+        d = { at: function (x, deg) { return fs[0].c.at(x, deg) - fs[1].c.at(x, deg); } };
+        cuts = (solve('(' + texts[0].replace(/^\s*(y|f\s*\(\s*x\s*\))\s*=/i, '') + ') - (' + texts[1].replace(/^\s*(y|g\s*\(\s*x\s*\))\s*=/i, '') + ')',
+            comma, deg, Math.min(a, b), Math.max(a, b)).roots || []).filter(function (x) { return x > Math.min(a, b) && x < Math.max(a, b); });
+        [Math.min(a, b)].concat(cuts).forEach(function (x, k, list) {
+            var to = k < list.length - 1 ? list[k + 1] : Math.max(a, b);
+            v = integral(d, x, to, deg);
+            net += v;
+            area += Math.abs(v);
+        });
+        k = a <= b ? 1 : -1;
+        return { net: round(k * net), area: round(area), crossings: cuts };
+    }
+
+    // The length of the curve of a function from a to b: ∫√(1 + f′(x)²) dx, its slopes as the
+    // engine has them; NaN where it has none on the way, as at a corner
+    function arcLength(text, comma, deg, a, b) {
+        var f = treeOf(text, comma);
+        if (f.error) return f;
+        return { length: isFinite(a) && isFinite(b) ? Math.abs(integral({ at: function (x) { var m = Engine.slope(f.c, x, deg); return Math.sqrt(1 + m * m); } }, a, b, deg)) : NaN };
     }
 
     // The limit of c as x comes to a: { left, right, value }, the value where the two agree, or
@@ -1242,6 +1485,191 @@
         return round(mu + sigma * z);
     }
 
+    // The regularized incomplete beta function I_x(a, b), by its continued fraction from the
+    // nearer end, Lentz's way: { lo: I_x(a, b), hi: 1 – it }, the smaller of them worked out, so it
+    // keeps its digits
+    function betaInc(x, a, b) {
+        var front;
+        if (!(a > 0) || !(b > 0) || isNaN(x)) return { lo: NaN, hi: NaN };
+        if (x <= 0) return { lo: 0, hi: 1 };
+        if (x >= 1) return { lo: 1, hi: 0 };
+        front = Math.exp(lnGamma(a + b) - lnGamma(a) - lnGamma(b) + a * Math.log(x) + b * Math.log1p(-x));
+        if (x < (a + 1) / (a + b + 2)) {
+            x = front * fraction(x, a, b) / a;
+            return { lo: x, hi: 1 - x };
+        }
+        x = front * fraction(1 - x, b, a) / b;
+        return { lo: 1 - x, hi: x };
+        function fraction(x, a, b) {
+            var c = 1, d = 1 - (a + b) * x / (a + 1), h, m, n, del;
+            d = 1 / (Math.abs(d) < 1e-300 ? 1e-300 : d);
+            h = d;
+            for (m = 1; m <= 500; m++) {
+                n = m * (b - m) * x / ((a + 2 * m - 1) * (a + 2 * m));
+                d = 1 + n * d;
+                c = 1 + n / c;
+                d = 1 / (Math.abs(d) < 1e-300 ? 1e-300 : d);
+                h *= d * (Math.abs(c) < 1e-300 ? 1e-300 : c);
+                n = -(a + m) * (a + b + m) * x / ((a + 2 * m) * (a + 2 * m + 1));
+                d = 1 + n * d;
+                c = 1 + n / c;
+                d = 1 / (Math.abs(d) < 1e-300 ? 1e-300 : d);
+                del = d * (Math.abs(c) < 1e-300 ? 1e-300 : c);
+                h *= del;
+                if (Math.abs(del - 1) < 1e-16) break;
+            }
+            return h;
+        }
+    }
+
+    // The regularized incomplete gamma functions: { lo: P(a, x), hi: Q(a, x) }, by the series
+    // below a + 1, else the continued fraction, the smaller of them worked out
+    function gammaInc(a, x) {
+        var front, sum, del, n, b, c, d, h, an, i;
+        if (!(a > 0) || isNaN(x)) return { lo: NaN, hi: NaN };
+        if (x <= 0) return { lo: 0, hi: 1 };
+        if (x === Infinity) return { lo: 1, hi: 0 };
+        front = Math.exp(-x + a * Math.log(x) - lnGamma(a));
+        if (x < a + 1) {
+            for (sum = del = 1 / a, n = a; Math.abs(del) > 1e-17 * Math.abs(sum); ) {
+                n++;
+                del *= x / n;
+                sum += del;
+            }
+            return { lo: sum * front, hi: 1 - sum * front };
+        }
+        b = x + 1 - a;
+        c = 1e300;
+        d = 1 / b;
+        h = d;
+        for (i = 1; i <= 500; i++) {
+            an = -i * (i - a);
+            b += 2;
+            d = an * d + b;
+            d = 1 / (Math.abs(d) < 1e-300 ? 1e-300 : d);
+            c = b + an / c;
+            if (Math.abs(c) < 1e-300) c = 1e-300;
+            h *= d * c;
+            if (Math.abs(d * c - 1) < 1e-16) break;
+        }
+        return { lo: 1 - front * h, hi: front * h };
+    }
+
+    // The chances of Student's t of nu degrees of freedom: { lo: P(T ≤ t), hi: P(T ≥ t), two:
+    // P(|T| ≥ |t|) }
+    function tDist(t, nu) {
+        var i, tail;
+        if (!(nu > 0) || isNaN(t)) return { lo: NaN, hi: NaN, two: NaN };
+        if (!isFinite(t)) return t > 0 ? { lo: 1, hi: 0, two: 0 } : { lo: 0, hi: 1, two: 0 };
+        // P(|T| ≥ |t|), as I of ν/(ν + t²), or near 0, where that is 1 to as many digits, 1 less I of t²/(ν + t²)
+        i = t * t < nu ? betaInc(t * t / (nu + t * t), 0.5, nu / 2).hi : betaInc(nu / (nu + t * t), nu / 2, 0.5).lo;
+        i = { lo: i };
+        tail = i.lo / 2;
+        return { lo: round(t >= 0 ? 1 - tail : tail), hi: round(t >= 0 ? tail : 1 - tail), two: round(Math.min(1, i.lo)) };
+    }
+
+    // of χ² of k degrees of freedom: { lo: P(X ≤ x), hi: P(X ≥ x) }
+    function chiDist(x, k) {
+        var g = k > 0 ? gammaInc(k / 2, x / 2) : { lo: NaN, hi: NaN };
+        return { lo: round(g.lo), hi: round(g.hi) };
+    }
+
+    // of F of d1 and d2 degrees of freedom: { lo: P(X ≤ x), hi: P(X ≥ x) }
+    function fDist(x, d1, d2) {
+        var i;
+        if (!(d1 > 0) || !(d2 > 0) || isNaN(x)) return { lo: NaN, hi: NaN };
+        if (x <= 0) return { lo: 0, hi: 1 };
+        i = x === Infinity ? { lo: 1, hi: 0 } : betaInc(d1 * x / (d1 * x + d2), d1 / 2, d2 / 2);
+        return { lo: round(i.lo), hi: round(i.hi) };
+    }
+
+    // The x that a value of dist is below with the chance p: halving, from the tail of the side
+    // p is on so a small chance keeps its digits; from 0 where it has no values below 0. To 10
+    // digits; NaN where p is not between 0 and 1
+    function quantile(dist, p, positive) {
+        var lo = positive ? 0 : -1, hi = 1, m, k;
+        function below(x) { // P(X ≤ x) < p, from the nearer tail
+            var d = dist(x);
+            return p <= 0.5 ? d.lo < p : d.hi > 1 - p;
+        }
+        if (!(p > 0 && p < 1) || isNaN(dist(1).lo)) return NaN;
+        while (below(hi) && hi < 1e300) hi *= 2;
+        while (!positive && !below(lo) && lo > -1e300) lo *= 2;
+        for (k = 0; k < 2000; k++) {
+            m = lo / 2 + hi / 2;
+            if (m <= lo || m >= hi) break;
+            if (below(m)) lo = m;
+            else hi = m;
+        }
+        return !positive && Math.abs(hi) < 1e-9 ? 0 : +hi.toPrecision(10) + 0; // the middle of t, 0 as far as its chances, to 12 digits, tell
+    }
+
+    // the chances of the first success on try k, each with the chance p: { eq, le, ge }
+    function geometric(p, k) {
+        var miss;
+        if (!(p > 0 && p <= 1) || !isFinite(k)) return { eq: NaN, le: NaN, ge: NaN };
+        k = Math.floor(k);
+        if (k < 1) return { eq: 0, le: 0, ge: 1 };
+        miss = function (n) { return p === 1 ? (n ? 0 : 1) : Math.exp(n * Math.log1p(-p)); }; // (1 – p)^n
+        return { eq: round(miss(k - 1) * p), le: round(-(p === 1 ? -1 : Math.expm1(k * Math.log1p(-p)))), ge: round(miss(k - 1)) };
+    }
+
+    // ln of n choose k
+    function lnChoose(n, k) {
+        return lnGamma(n + 1) - lnGamma(k + 1) - lnGamma(n - k + 1);
+    }
+
+    // the chances of k of n drawn, without putting back, from N of which K count: { eq, le, ge }
+    function hypergeometric(N, K, n, k) {
+        var low, top;
+        if (![N, K, n].every(isWhole) || N < 1 || K < 0 || K > N || n < 0 || n > N || !isFinite(k) || Math.min(n, K) > TERMS_MAX) return { eq: NaN, le: NaN, ge: NaN };
+        low = Math.max(0, n - (N - K));
+        top = Math.min(n, K);
+        return counts(function (j) {
+            return j < low || j > top || j !== Math.floor(j) ? 0 : Math.exp(lnChoose(K, j) + lnChoose(N - K, n - j) - lnChoose(N, n));
+        }, k, top);
+    }
+
+    // the chances of an exponential value of rate lambda below and above x, and its density there:
+    // { lo, hi, density }
+    function exponential(lambda, x) {
+        if (!(lambda > 0) || !isFinite(lambda) || isNaN(x)) return { lo: NaN, hi: NaN, density: NaN };
+        if (x <= 0) return { lo: 0, hi: 1, density: x < 0 ? 0 : lambda };
+        return { lo: round(-Math.expm1(-lambda * x)), hi: round(Math.exp(-lambda * x)), density: round(lambda * Math.exp(-lambda * x)) };
+    }
+
+    // of a value spread evenly from a to b: { lo, hi, density }
+    function uniform(a, b, x) {
+        var lo;
+        if (!(a < b) || !isFinite(a) || !isFinite(b) || isNaN(x)) return { lo: NaN, hi: NaN, density: NaN };
+        lo = Math.min(1, Math.max(0, (x - a) / (b - a)));
+        return { lo: round(lo), hi: round(1 - lo), density: x >= a && x <= b ? round(1 / (b - a)) : 0 };
+    }
+
+    // The interval that holds the mean with the chance level, from a sample of n of mean m and
+    // standard deviation s, by Student's t of n – 1: { from, to, margin, t }
+    function meanInterval(m, s, n, level) {
+        var t, margin;
+        if (!isFinite(m) || !(s >= 0) || !isWhole(n) || n < 2 || !(level > 0 && level < 1)) return { from: NaN, to: NaN, margin: NaN, t: NaN };
+        t = quantile(function (x) { return tDist(x, n - 1); }, 1 - (1 - level) / 2);
+        margin = t * s / Math.sqrt(n);
+        return { from: round(m - margin), to: round(m + margin), margin: round(margin), t: t };
+    }
+
+    // The interval that holds a chance with the chance level, from x of n: about x/n, by the
+    // normal distribution (Wald's), and Wilson's, which keeps between 0 and 1 and holds as it
+    // says better for a small n. { p, from, to, margin, z, wilson: [from, to] }
+    function proportionInterval(x, n, level) {
+        var p, z, margin, mid, half;
+        if (!isWhole(x) || !isWhole(n) || n < 1 || x < 0 || x > n || !(level > 0 && level < 1)) return { p: NaN, from: NaN, to: NaN, margin: NaN, z: NaN, wilson: [NaN, NaN] };
+        p = x / n;
+        z = normalInverse(1 - (1 - level) / 2, 0, 1);
+        margin = z * Math.sqrt(p * (1 - p) / n);
+        mid = (p + z * z / (2 * n)) / (1 + z * z / n);
+        half = z / (1 + z * z / n) * Math.sqrt(p * (1 - p) / n + z * z / (4 * n * n));
+        return { p: round(p), from: round(p - margin), to: round(p + margin), margin: round(margin), z: z, wilson: [round(mid - half), round(mid + half)] };
+    }
+
     // the chance of k of n, each with the chance p: of exactly k, by logarithms so n may be large
     function binomial(n, p, k) {
         if (!isWhole(n) || n < 0 || !(p >= 0 && p <= 1) || !isFinite(k)) return NaN;
@@ -1372,10 +1800,11 @@
         return Math.exp(lnGamma(x));
     }
 
-    // The value of a complex expression, as the engine reads it, i its imaginary unit: [re, im].
-    // Functions of an angle take it in the unit deg, as the calculator does, and their inverses
-    // give one; what has no complex sense here, as 5! of a complex number, is none (NaN)
-    function cvalue(n, deg) {
+    // The value of a complex expression, as the engine reads it, i its imaginary unit: [re, im];
+    // of x as well where x, a complex number, is given. Functions of an angle take it in the unit
+    // deg, as the calculator does, and their inverses give one; what has no complex sense here,
+    // as 5! of a complex number, is none (NaN)
+    function cvalue(n, deg, x) {
         var a, b, toRad = [1, PI / 180, PI / 200][deg || 0], k;
         function real(f) { // a function of real numbers only
             return !a[1] ? [f(a[0]), 0] : [NaN, NaN];
@@ -1387,14 +1816,15 @@
             case 'num': return [+n.v, 0];
             case 'const':
                 if (n.v === 'i' && n.p) return [0, 1];
+                if (n.v === 'x' && x) return x;
                 return n.v === 'π' ? [PI, 0] : n.v === 'e' ? [Math.E, 0] : [NaN, NaN];
-            case 'group': return cvalue(n.arg, deg);
+            case 'group': return cvalue(n.arg, deg, x);
             case 'neg':
-                a = cvalue(n.arg, deg);
+                a = cvalue(n.arg, deg, x);
                 return [0 - a[0], 0 - a[1]]; // not -0, whose angle is the other way: ln(-1) is iπ
             case 'fn':
             case 'post':
-                a = cvalue(n.arg, deg);
+                a = cvalue(n.arg, deg, x);
                 k = n.deg === undefined ? toRad : PI / 180; // sin(30°) in degrees whatever the unit
                 switch (n.key) {
                     case '%': return [a[0] / 100, a[1] / 100];
@@ -1428,8 +1858,8 @@
                 }
                 return [NaN, NaN];
             case 'bin':
-                a = cvalue(n.l, deg);
-                b = cvalue(n.r, deg);
+                a = cvalue(n.l, deg, x);
+                b = cvalue(n.r, deg, x);
                 switch (n.op) {
                     case '+': return add(a, b);
                     case '–': return sub(a, b);
@@ -2037,6 +2467,22 @@
         extrema: extrema,
         polynomial: polynomial,
         exactRoots: exactRoots,
+        exactOf: exactOf,
+        taylor: taylor,
+        between: between,
+        arcLength: arcLength,
+        tDist: tDist,
+        chiDist: chiDist,
+        fDist: fDist,
+        tInverse: function (p, nu) { return quantile(function (t) { return tDist(t, nu); }, p); },
+        chiInverse: function (p, k) { return quantile(function (x) { return chiDist(x, k); }, p, true); },
+        fInverse: function (p, d1, d2) { return quantile(function (x) { return fDist(x, d1, d2); }, p, true); },
+        geometric: geometric,
+        hypergeometric: hypergeometric,
+        exponential: exponential,
+        uniform: uniform,
+        meanInterval: meanInterval,
+        proportionInterval: proportionInterval,
         integral: integral,
         slopes: slopes,
         series: series,

@@ -139,7 +139,8 @@
             t: 'Solve',
             d: 'Equations and inequalities solved for x, in exact form as well; turning points; polynomials, linear equations and ' +
                 'two curves; integrals, slopes, sums, products, ' +
-                'limits and differential equations; and the normal, binomial and Poisson distributions. Click a result to put it in.',
+                'limits, Taylor series, areas between curves, arc lengths and differential equations; the normal, t, χ², F, binomial, ' +
+                'Poisson and other distributions, and confidence intervals. Click a result to put it in.',
             k: ''
         },
         'solve close': {

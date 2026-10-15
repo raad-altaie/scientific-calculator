@@ -207,6 +207,30 @@ check(JSON.stringify(M.poisson(3, 2)) === '{"eq":0.224041807655,"le":0.423190081
 check(M.randomWhole(1, 6, function () { return 0; }) === 1 && M.randomWhole(1, 6, function () { return 0.9999; }) === 6 && isNaN(M.randomWhole(1.5, 6)),
     'randomWhole: from 1 to 6, both in; whole ends only');
 
+// Student's t, χ² and F: chances, p-values and the values of a chance, as tables have them
+check(JSON.stringify(M.tDist(2.228, 10)) === '{"lo":0.974994114091,"hi":0.0250058859086,"two":0.0500117718171}' &&
+    M.tDist(-1, 5).lo === 0.181608733825 && M.tDist(0, 3).two === 1 && M.tDist(40, 3).hi === 0.0000171903403946 && isNaN(M.tDist(1, 0).lo),
+    't: the chances of t, a small tail keeping its digits; ν above 0');
+check(M.tInverse(0.975, 10) === 2.228138852 && M.tInverse(0.995, 1) === 63.65674116 && M.tInverse(0.05, 20) === -1.724718243 &&
+    M.tInverse(0.5, 7) === 0 && isNaN(M.tInverse(1.5, 5)), 't: the t of a chance');
+check(M.chiDist(100, 10).hi === 5.44970198292e-17 && M.chiInverse(0.95, 1) === 3.841458821 && M.chiInverse(0.95, 10) === 18.30703805 &&
+    M.chiInverse(0.01, 2) === 0.02010067171, 'chi: its chances and the x of a chance');
+check(M.fInverse(0.95, 5, 10) === 3.32583453 && Math.abs(M.fDist(3.32583453, 5, 10).hi - 0.05) < 1e-10 && M.fDist(-1, 5, 10).lo === 0,
+    'F: the x of a chance, and back');
+
+// geometric, hypergeometric, exponential and uniform
+check(JSON.stringify(M.geometric(0.2, 3)) === '{"eq":0.128,"le":0.488,"ge":0.64}' && JSON.stringify(M.geometric(1, 1)) === '{"eq":1,"le":1,"ge":1}' &&
+    isNaN(M.geometric(0, 2).eq), 'geometric: the first success on try 3; p above 0');
+check(M.hypergeometric(50, 5, 10, 1).eq === 0.431337197229 && isNaN(M.hypergeometric(50, 60, 10, 1).eq), 'hypergeometric: 1 of 10 drawn; K no more than N');
+check(JSON.stringify(M.exponential(0.5, 2)) === '{"lo":0.632120558829,"hi":0.367879441171,"density":0.183939720586}' &&
+    JSON.stringify(M.uniform(0, 4, 1)) === '{"lo":0.25,"hi":0.75,"density":0.25}' && isNaN(M.uniform(1, 1, 0).lo), 'exponential and uniform');
+
+// confidence intervals
+check(JSON.stringify(M.meanInterval(50, 10, 25, 0.95)) === '{"from":45.872202876,"to":54.127797124,"margin":4.127797124,"t":2.063898562}' &&
+    isNaN(M.meanInterval(50, 10, 1, 0.95).from), 'meanInterval: by t of 24 degrees; n of 2 at least');
+check(JSON.stringify(M.proportionInterval(40, 100, 0.95).wilson) === '[0.309401286432,0.497997413209]' && M.proportionInterval(40, 100, 0.95).from === 0.303981766473 &&
+    isNaN(M.proportionInterval(5, 4, 0.95).p), 'proportionInterval: Wald and Wilson; x no more than n');
+
 // complex numbers
 function z(text, deg) {
     var c = M.complex(text, false, deg || 0);
@@ -324,6 +348,69 @@ check(roots('x^2 = 1e-20') === '-1e-10 1e-10', 'solve: two roots nearer than 1e-
 check(/ …$/.test(holds('sin(x) > 0')) && M.inequality('sin(x) > 0', false, 0).ends.length === 12, 'inequality: of very many ends, the twelve nearest 0');
 check(holds('x^2 = 4') === 'inequality' && holds('x <') === 'inequality' && holds('1 < x > 2') === 'inequality' && holds('a x > 1') === 'letters',
     'inequality: an equation, half of one, two ways at once, a letter of its own');
+
+// sums and products on to ∞, and their exact forms
+function endless(text, from, product) {
+    var r = M.series(text, false, 0, from, Infinity, product);
+    return r.value + (r.exact ? ' ' + r.exact : '');
+}
+[
+    ['1/n^2', 1, '1.64493406685 π²/6', 'Basel'],
+    ['1/n^4', 1, '1.08232323371 π⁴/90', 'of the fourth powers'],
+    ['(-1)^(n+1)/n', 1, '0.69314718056 ln 2', 'that changes sign'],
+    ['(-1)^n/(2n+1)', 0, '0.785398163397 π/4', 'Leibniz'],
+    ['1/n!', 0, '2.71828182846 e', 'e'],
+    ['1/2^n', 0, '2', 'a geometric one'],
+    ['1/(4n^2-1)', 1, '0.5 1/2', 'that telescopes'],
+    ['1/n^3', 1, '1.20205690316', 'with no exact form'],
+    ['1/n^1.5', 1, '2.61237534868', 'a slow one'],
+    ['sin(n)/n^2', 1, '1.01395913236', 'that wavers'],
+    ['1/n', 1, 'Infinity', 'that grows without end'],
+    ['-1', 1, '-Infinity', 'down without end'],
+    ['(-1)^n', 1, 'NaN', 'back and forth'],
+    ['1/(n ln(n)^2)', 2, 'NaN', 'too slow to tell']
+].forEach(function (c) {
+    check(endless(c[0], c[1]) === c[2], 'series: to ∞, ' + c[0] + ': ' + c[3], endless(c[0], c[1]));
+});
+[
+    ['1-1/n^2', 2, '0.5 1/2', 'to a half'],
+    ['1-1/(4n^2)', 1, '0.636619772368 2/π', 'Wallis'],
+    ['n', 1, 'Infinity', 'that grows without end'],
+    ['1/2', 1, '0', 'to 0']
+].forEach(function (c) {
+    check(endless(c[0], c[1], true) === c[2], 'series: a product to ∞, ' + c[0] + ': ' + c[3], endless(c[0], c[1], true));
+});
+
+// Taylor series
+function series(text, a, n, deg) {
+    var r = M.taylor(text, false, deg || 0, a, n);
+    return r.error || r.coefs.join(' ');
+}
+[
+    ['sin(x)', 0, 7, '0 1 0 -0.16666666666666666 0 0.008333333333333333 0 -0.0001984126984126984', 'sin x'],
+    ['1/(1-x)', 0, 4, '1 1 1 1 1', 'not past its pole at 1'],
+    ['ln(x)', 1, 4, '0 1 -0.5 0.3333333333333333 -0.25', 'ln x about 1'],
+    ['1/x', 0.01, 3, '100 -10000 1000000 -100000000', 'near its pole'],
+    ['e^x', 1, 2, '2.718281828 2.718281828 1.359140914', 'e^x about 1'],
+    ['x^3', 2, 4, '8 12 6 1 0', 'a polynomial'],
+    ['y = x^2 + 1', 0, 3, '1 0 1 0', 'written y = …'],
+    ['sqrt(x)', 0, 3, 'none', 'none where it is not smooth'],
+    ['abs(x)', 1, 3, 'none', 'none of no complex sense'],
+    ['a x', 0, 3, 'letters', 'a letter of its own']
+].forEach(function (c) {
+    check(series(c[0], c[1], c[2]) === c[3], 'taylor: ' + c[4], series(c[0], c[1], c[2]));
+});
+check(series('cos(x)', 0, 2, 1) === '1 0 -0.0001523087099', 'taylor: in degrees', series('cos(x)', 0, 2, 1));
+check(M.taylor('sin(x)', false, 0, 0, 13).coefs === null, 'taylor: up to the power 12');
+
+// between two curves, and the length of one
+check(JSON.stringify(M.between(['x^2', 'x'], false, 0, 0, 1)) === '{"net":-0.1666666667,"area":0.1666666667,"crossings":[]}' &&
+    JSON.stringify(M.between(['sin(x)', '0'], false, 0, 0, 2 * Math.PI)) === '{"net":0,"area":4,"crossings":[3.141592653589793]}' &&
+    JSON.stringify(M.between(['x^2', 'x+'], false, 0, 0, 1)) === '{"error":"function","which":1}', 'between: net and whole, across a crossing');
+check(M.arcLength('x', false, 0, 0, 1).length === 1.414213562 && M.arcLength('x^2', false, 0, 0, 1).length === 1.478942858 &&
+    isNaN(M.arcLength('sqrt(1-x^2)', false, 0, -1, 1).length), 'arcLength: a line, a parabola; none where it stands upright');
+check(M.exactOf(1.772453851, 1e-9, 'constants', 0, function () { return true; }) === '√π' &&
+    M.exactOf(1.234567891, 1e-9, 'constants', 0, function () { return true; }) === null, 'exactOf: an integral\'s, of fractions and constants only');
 
 // limits
 function lim(text, a, deg) {

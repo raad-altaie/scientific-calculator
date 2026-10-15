@@ -3683,6 +3683,8 @@
     // columns of the tiles, where not three }
     var MEAN = { k: 'mu', l: 'μ', ph: '0', def: 0 }, // the boxes of a normal distribution
         SPREAD = { k: 'sigma', l: 'σ', ph: '1', def: 1 },
+        PROBABILITY = { k: 'p', l: 'p', ph: '0.95', def: 0.95 }, // a chance to find the value of
+        LEVEL = { k: 'level', l: 'Level', ph: '0.95', def: 0.95 }, // of a confidence interval
         SOLVE_TOOLS = {
         solve: [
             { id: 'equation', t: 'Equation', f: 'x<sup>3</sup> = 2x + 1', d: 'Every x where its two sides are equal, or where one side alone is 0; from and to where to look, if you like.',
@@ -3710,19 +3712,26 @@
                 fields: [{ k: 'e1', ph: 'x^2 + y^2 = 25', fn: true, aria: 'First equation' }, { k: 'e2', ph: 'x + y = 7', fn: true, aria: 'Second equation' }], run: runCurves }
         ],
         calculus: [
-            { id: 'integral', t: 'Integral', f: '∫<sub>a</sub><sup>b</sup> f(x) dx', d: 'The integral of a function from a to b, the area under it; an end may be ∞, typed inf.',
+            { id: 'integral', t: 'Integral', f: '∫<sub>a</sub><sup>b</sup> f(x) dx', d: 'The integral of a function from a to b, the area under it, its exact form where it has one, √π or 1/3, and the average value of the function there; an end may be ∞, typed inf.',
                 fields: [{ k: 'f', ph: 'x^2', fn: true }, { k: 'a', l: 'From', ph: '0', def: 0, inf: true }, { k: 'b', l: 'To', ph: '1', def: 1, inf: true }], cols: 2,
                 run: runIntegral },
-            { id: 'derivative', t: 'Derivative', f: 'f′(x), f″(x)', d: 'The value of a function at x, its slope there and the slope of that.',
+            { id: 'derivative', t: 'Derivative', f: 'f′(x), f″(x)', d: 'The value of a function at x, its slope there and the slope of that, and the line that touches it there.',
                 fields: [{ k: 'f', ph: 'x^3', fn: true }, { k: 'x', l: 'x', ph: '2' }], cols: 1, run: runDerivative },
-            { id: 'sum', t: 'Sum', f: 'Σ f(n)', d: 'The sum of a function of n, k, i or j, or of x, for each whole number from a to b.',
-                fields: [{ k: 'f', ph: 'n^2', fn: true }, { k: 'a', l: 'From', ph: '1', def: 1 }, { k: 'b', l: 'To', ph: '10', def: 10 }], cols: 2,
+            { id: 'sum', t: 'Sum', f: 'Σ f(n)', d: 'The sum of a function of n, k, i or j, or of x, for each whole number from a to b. b may be ∞, typed inf: 1/n^2 from 1 on is π²/6.',
+                fields: [{ k: 'f', ph: 'n^2', fn: true }, { k: 'a', l: 'From', ph: '1', def: 1 }, { k: 'b', l: 'To', ph: '10', def: 10, inf: true }], cols: 2,
                 run: function (n, raw) { return runSeries(n, raw, false); } },
-            { id: 'product', t: 'Product', f: 'Π f(n)', d: 'The product of a function of n, k, i or j, or of x, for each whole number from a to b.',
-                fields: [{ k: 'f', ph: 'n', fn: true }, { k: 'a', l: 'From', ph: '1', def: 1 }, { k: 'b', l: 'To', ph: '5', def: 5 }], cols: 2,
+            { id: 'product', t: 'Product', f: 'Π f(n)', d: 'The product of a function of n, k, i or j, or of x, for each whole number from a to b. b may be ∞, typed inf: 1 – 1/n^2 from 2 on is 1/2.',
+                fields: [{ k: 'f', ph: 'n', fn: true }, { k: 'a', l: 'From', ph: '1', def: 1 }, { k: 'b', l: 'To', ph: '5', def: 5, inf: true }], cols: 2,
                 run: function (n, raw) { return runSeries(n, raw, true); } },
             { id: 'limit', t: 'Limit', f: 'lim<sub>x→a</sub> f(x)', d: 'What a function comes to as x comes to a, from below, from above and both, or ∞ where it grows without end: sin(x)/x as x comes to 0. a may be ∞, typed inf.',
                 fields: [{ k: 'f', ph: 'sin(x)/x', fn: true }, { k: 'a', l: 'x →', ph: '0', def: 0, inf: true }], cols: 1, run: runLimit },
+            { id: 'taylor', t: 'Taylor series', f: 'f(a) + f′(a)(x – a) + …', d: 'A function as a polynomial about a, to the power you give, up to 12: sin x is x – x³/6 + x⁵/120 – …, and each coefficient, f⁽ᵏ⁾(a)/k!.',
+                fields: [{ k: 'f', ph: 'sin(x)', fn: true }, { k: 'a', l: 'a', ph: '0', def: 0 }, { k: 'n', l: 'Power', ph: '7', def: 7 }], cols: 2, run: runTaylor },
+            { id: 'between', t: 'Area between', f: '∫<sub>a</sub><sup>b</sup> |f(x) – g(x)| dx', d: 'The area between two curves from a to b, the parts where g is above as well, the integral of f – g, and where they cross on the way.',
+                fields: [{ k: 'f', ph: 'x', fn: true, aria: 'f(x)' }, { k: 'g', ph: 'x^2', fn: true, aria: 'g(x)' }, { k: 'a', l: 'From', ph: '0', def: 0 }, { k: 'b', l: 'To', ph: '1', def: 1 }], cols: 2,
+                run: runBetween },
+            { id: 'arc', t: 'Arc length', f: '∫<sub>a</sub><sup>b</sup> √(1 + f′(x)²) dx', d: 'How long the curve of a function is from a to b, as a string laid along it.',
+                fields: [{ k: 'f', ph: 'x^2', fn: true }, { k: 'a', l: 'From', ph: '0', def: 0 }, { k: 'b', l: 'To', ph: '1', def: 1 }], cols: 2, run: runArc },
             { id: 'ode', t: 'Differential equation', f: 'y′ = f(x, y)', d: 'y at x, where its slope y′ is a function of x and y and it starts at y₀ at x₀: y′ = x + y with y(0) = 1, by the steps of Runge and Kutta.',
                 fields: [{ k: 'f', l: 'y′ =', ph: 'x + y', fn: true }, { k: 'x0', l: 'x<sub>0</sub>', ph: '0', def: 0 }, { k: 'y0', l: 'y<sub>0</sub>', ph: '1', def: 1 }, { k: 'x', l: 'x', ph: '1', def: 1 }],
                 cols: 3, run: runOde }
@@ -3747,6 +3756,12 @@
                         note: !isNaN(n.p) && !(n.p > 0 && n.p < 1) ? 'p is a chance between 0 and 1.' : sigmaNote(n), warn: !isNaN(n.p) && !(n.p > 0 && n.p < 1)
                     };
                 } },
+            { id: 'student', t: 'Student\'s t', f: 'P(T ≤ t), ν degrees', d: 'The chances of Student\'s t of ν degrees of freedom below and above t, and of a t as far from 0 either way, the two-sided p; and the t it is below with the chance p, and the ±t it is between with it.',
+                fields: [{ k: 't', l: 't', ph: '2' }, { k: 'nu', l: 'ν', ph: '10', def: 10 }, PROBABILITY], cols: 3, run: runStudent },
+            { id: 'chi', t: 'Chi-squared', f: 'P(χ² ≤ x), k degrees', d: 'The chances of χ² of k degrees of freedom below and above x, the x it is below with the chance p, its mean and σ.',
+                fields: [{ k: 'x', l: 'x', ph: '3.84' }, { k: 'k', l: 'k', ph: '1', def: 1 }, PROBABILITY], cols: 3, run: runChi },
+            { id: 'fisher', t: 'F', f: 'P(F ≤ x), d₁ and d₂', d: 'The chances of F of d₁ and d₂ degrees of freedom below and above x, and the x it is below with the chance p.',
+                fields: [{ k: 'x', l: 'x', ph: '3.33' }, { k: 'd1', l: 'd<sub>1</sub>', ph: '5', def: 5 }, { k: 'd2', l: 'd<sub>2</sub>', ph: '10', def: 10 }, PROBABILITY], cols: 4, run: runF },
             { id: 'binomial', t: 'Binomial', f: 'P(X = k), n tries', d: 'The chance of k of n tries, each with the chance p: exactly k, k or fewer and k or more.',
                 fields: [{ k: 'n', l: 'n', ph: '10' }, { k: 'p', l: 'p', ph: '0.5' }, { k: 'k', l: 'k', ph: '5' }], cols: 3,
                 run: function (n) {
@@ -3758,6 +3773,45 @@
                 run: function (n) {
                     var c = CalcMaths.poisson(n.lambda, n.k), bad = !isNaN(n.lambda) && !(n.lambda > 0);
                     return { rows: chances(c, n.lambda, Math.sqrt(n.lambda), !isNaN(c.eq)), note: bad ? 'λ is above 0.' : '', warn: bad };
+                } },
+            { id: 'geometric', t: 'Geometric', f: 'P(X = k), first success', d: 'The chance that the first success is on try k, each with the chance p: exactly then, by then and not before.',
+                fields: [{ k: 'p', l: 'p', ph: '0.2' }, { k: 'k', l: 'k', ph: '3' }], cols: 2,
+                run: function (n) {
+                    var c = CalcMaths.geometric(n.p, n.k), bad = !isNaN(n.p) && !(n.p > 0 && n.p <= 1);
+                    return { rows: chances(c, 1 / n.p, Math.sqrt(1 - n.p) / n.p, !isNaN(c.eq)), note: bad ? 'p is a chance above 0, up to 1.' : '', warn: bad };
+                } },
+            { id: 'hypergeometric', t: 'Hypergeometric', f: 'P(X = k), drawn without putting back', d: 'The chance of k of n drawn, without putting back, from N of which K count, as cards from a pack: exactly k, k or fewer and k or more.',
+                fields: [{ k: 'N', l: 'N', ph: '52' }, { k: 'K', l: 'K', ph: '13' }, { k: 'n', l: 'n', ph: '5' }, { k: 'k', l: 'k', ph: '2' }], cols: 4,
+                run: function (n) {
+                    var c = CalcMaths.hypergeometric(n.N, n.K, n.n, n.k), known = !isNaN(c.eq), bad = [n.N, n.K, n.n, n.k].every(isFinite) && !known;
+                    return { rows: chances(c, n.n * n.K / n.N, Math.sqrt(n.n * n.K / n.N * (n.N - n.K) / n.N * (n.N - n.n) / (n.N - 1)), known),
+                        note: bad ? 'Whole numbers, K and n no more than N.' : '', warn: bad };
+                } },
+            { id: 'exponential', t: 'Exponential', f: 'P(X ≤ x), rate λ', d: 'The chance that the wait for an event that comes at random at a rate of λ is shorter than x, or longer, and its density there.',
+                fields: [{ k: 'lambda', l: 'λ', ph: '0.5' }, { k: 'x', l: 'x', ph: '2' }], cols: 2,
+                run: function (n) {
+                    var c = CalcMaths.exponential(n.lambda, n.x), bad = !isNaN(n.lambda) && !(n.lambda > 0);
+                    return { rows: spread(c, 1 / n.lambda, 1 / n.lambda, !bad && isFinite(n.lambda)), note: bad ? 'λ is above 0.' : '', warn: bad };
+                } },
+            { id: 'uniform', t: 'Uniform', f: 'P(X ≤ x), from a to b', d: 'The chance that a value spread evenly from a to b is below x, or above, and its density there.',
+                fields: [{ k: 'a', l: 'From', ph: '0', def: 0 }, { k: 'b', l: 'To', ph: '1', def: 1 }, { k: 'x', l: 'x', ph: '0.25' }], cols: 3,
+                run: function (n) {
+                    var c = CalcMaths.uniform(n.a, n.b, n.x), bad = isFinite(n.a) && isFinite(n.b) && !(n.a < n.b);
+                    return { rows: spread(c, (n.a + n.b) / 2, (n.b - n.a) / Math.sqrt(12), !bad && isFinite(n.a) && isFinite(n.b)), note: bad ? 'From is less than To.' : '', warn: bad };
+                } },
+            { id: 'meanci', t: 'Confidence interval of a mean', f: 'x̄ ± t s/√n', d: 'Where the mean is, with the chance you give, from a sample of n of mean x̄ and standard deviation s, by Student\'s t.',
+                fields: [{ k: 'mean', l: 'x̄', ph: '50' }, { k: 's', l: 's', ph: '10' }, { k: 'n', l: 'n', ph: '25' }, LEVEL], cols: 4,
+                run: function (n) {
+                    var r = CalcMaths.meanInterval(n.mean, n.s, n.n, n.level), bad = [n.mean, n.s, n.n].every(isFinite) && isNaN(r.from);
+                    return { rows: [{ l: 'From', v: r.from }, { l: 'To', v: r.to }, { l: '±', v: r.margin }, { l: 't', v: r.t }],
+                        note: bad ? 'n is a whole number of 2 or more, s 0 or more, the level a chance between 0 and 1.' : '', warn: bad };
+                } },
+            { id: 'propci', t: 'Confidence interval of a proportion', f: 'p̂ ± z √(p̂(1 – p̂)/n)', d: 'Where a chance is, with the chance you give, from x of n: about x/n by the normal distribution, and by Wilson\'s way, which stays between 0 and 1 and is nearer for a small n.',
+                fields: [{ k: 'x', l: 'x', ph: '40' }, { k: 'n', l: 'n', ph: '100' }, LEVEL], cols: 3,
+                run: function (n) {
+                    var r = CalcMaths.proportionInterval(n.x, n.n, n.level), bad = [n.x, n.n].every(isFinite) && isNaN(r.p);
+                    return { rows: [{ l: 'p̂', v: r.p }, { l: 'From', v: r.from }, { l: 'To', v: r.to }, { l: '±', v: r.margin }, { l: 'Wilson from', v: r.wilson[0] }, { l: 'Wilson to', v: r.wilson[1] }],
+                        note: bad ? 'x and n are whole numbers, x no more than n; the level a chance between 0 and 1.' : '', warn: bad };
                 } },
             { id: 'random', t: 'Random whole numbers', f: 'from a to b', d: 'Five whole numbers at random, each from a to b, both in, as dice give them. Again for five more.',
                 fields: [{ k: 'a', l: 'From', ph: '1', def: 1 }, { k: 'b', l: 'To', ph: '6', def: 6 }], cols: 2, again: true,
@@ -3814,7 +3868,7 @@
     // The exact forms of the roots that have one beyond a whole number, [name, form] each, as a
     // tile: x₁ = (1 – √5)/2, x₂ = (1 + √5)/2; none where none has
     function exactTile(forms) {
-        var parts = forms.filter(function (f) { return f[1] && /[\/√π]|ln/.test(f[1]); });
+        var parts = forms.filter(function (f) { return f[1] && /[\/√πe]|ln/.test(f[1]); });
         return parts.length ? [{ l: 'Exact', text: parts.map(function (f) { return f[0] + ' = ' + exactHtml(f[1]); }).join(engine.comma ? '; ' : ', '), wide: true, wrap: true }] : [];
     }
 
@@ -4014,26 +4068,128 @@
         return { c: c, bad: raw.f && !c ? ['f'] : [], note: raw.f && !c ? 'Not a function of x yet: write x^2 for x², 2x for 2 × x; no letters but x.' : '' };
     }
 
+    // An integral, with its exact form, as near as its 10 digits, and the average value of the
+    // function between ends that are numbers
     function runIntegral(n, raw) {
-        var f = toolFunction(raw), v = f.c ? CalcMaths.integral(f.c, n.a, n.b, deg) : NaN;
-        return { rows: [{ l: '∫', v: v }], bad: f.bad, warn: !!f.note || (f.c && isNaN(v) && !isNaN(n.a) && !isNaN(n.b)),
+        var f = toolFunction(raw), v = f.c ? CalcMaths.integral(f.c, n.a, n.b, deg) : NaN, ends = isFinite(n.a) && isFinite(n.b) && n.a !== n.b;
+        return { rows: [{ l: '∫', v: v }, { l: 'Average', v: ends ? CalcMaths.round(v / (n.b - n.a)) : NaN }]
+                .concat(exactTile([['∫', CalcMaths.exactOf(v, 1e-9, 'constants', 0, function () { return true; })]])),
+            bad: f.bad, warn: !!f.note || (f.c && isNaN(v) && !isNaN(n.a) && !isNaN(n.b)),
             note: f.note || (f.c && isNaN(v) && !isNaN(n.a) && !isNaN(n.b) ? 'No value: the function has none on the way, or it does not settle.' : '') };
     }
 
+    // y = m x + b, a line as it is shown, its numbers to 10 digits
+    function lineText(m, b) {
+        var num = function (v) { return local(String(+Math.abs(v).toPrecision(10))); };
+        m = +m.toPrecision(10) + 0;
+        b = +b.toPrecision(10) + 0;
+        if (!m) return 'y = ' + (b < 0 ? '–' : '') + num(b);
+        return 'y = ' + (m < 0 ? '–' : '') + (Math.abs(m) === 1 ? '' : num(m)) + 'x' + (b ? (b < 0 ? ' – ' : ' + ') + num(b) : '');
+    }
+
     function runDerivative(n, raw) {
-        var f = toolFunction(raw), s = f.c && isFinite(n.x) ? CalcMaths.slopes(f.c, n.x, deg) : [NaN, NaN];
-        return { rows: [{ l: 'f(x)', v: f.c && isFinite(n.x) ? f.c.at(n.x, deg, true) : NaN }, { l: 'f′(x)', v: s[0] }, { l: 'f″(x)', v: s[1] }],
+        var f = toolFunction(raw), s = f.c && isFinite(n.x) ? CalcMaths.slopes(f.c, n.x, deg) : [NaN, NaN], y = f.c && isFinite(n.x) ? f.c.at(n.x, deg, true) : NaN;
+        return { rows: [{ l: 'f(x)', v: y }, { l: 'f′(x)', v: s[0] }, { l: 'f″(x)', v: s[1] },
+                { l: 'Tangent', text: isFinite(y) && isFinite(s[0]) ? lineText(s[0], y - s[0] * n.x) : '–', wide: true }],
             bad: f.bad, note: f.note, warn: !!f.note };
     }
 
+    // a Taylor series written out: x – x³/6 + x⁵/120, of (x – a) about a, each coefficient a
+    // fraction where it is one
+    function seriesHtml(coefs, a) {
+        var base = a ? '(x ' + (a > 0 ? '– ' : '+ ') + local(String(Math.abs(a))) + ')' : 'x', out = '';
+        coefs.forEach(function (c, k) {
+            var f = CalcEngine.fraction(c), top = f ? Math.abs(f[0]) : Math.abs(c), power = k ? base + (k > 1 ? '<sup>' + k + '</sup>' : '') : '';
+            if (!c) return;
+            out += (out ? (c < 0 ? ' – ' : ' + ') : c < 0 ? '–' : '') + (top === 1 && k ? '' : local(String(top))) + power + (f ? '/' + f[1] : '');
+        });
+        return out || '0';
+    }
+
+    function runTaylor(n, raw) {
+        var none = [{ l: 'Series', text: '–', wide: true }], r, why, rows;
+        if (!raw.f) return { rows: none };
+        r = CalcMaths.taylor(raw.f, engine.comma, deg, n.a, n.n);
+        why = {
+            'function': 'Not a function of x yet: sin(x), e^x, 1/(1 - x).',
+            letters: 'Only x has a value here: write the other letters as numbers.',
+            none: 'No series about a: it is not smooth there, as sqrt(x) at 0, or has no complex values, as abs(x) or floor(x).'
+        }[r.error];
+        if (why) return { rows: none, bad: r.error === 'none' ? [] : ['f'], warn: true, note: why };
+        if (!r.coefs) return { rows: none, note: isFinite(n.a) ? 'The power is a whole number from 0 to 12.' : '', warn: isFinite(n.a) };
+        rows = [{ l: 'Series', text: seriesHtml(r.coefs, n.a), wide: true, wrap: true }];
+        r.coefs.forEach(function (c, k) { rows.push({ l: 'c<sub>' + k + '</sub>', v: c }); });
+        return { rows: rows };
+    }
+
+    function runBetween(n, raw) {
+        var none = [{ l: 'Area', v: NaN }, { l: '∫(f – g)', v: NaN }], r;
+        if (!raw.f || !raw.g) return { rows: none };
+        r = CalcMaths.between([raw.f, raw.g], engine.comma, deg, n.a, n.b);
+        if (r.error) {
+            return { rows: none, bad: [['f', 'g'][r.which]], warn: true,
+                note: r.error === 'letters' ? 'Only x has a value here: write the other letters as numbers.' : 'Not a function of x yet: x^2, sin(x).' };
+        }
+        return {
+            rows: [{ l: 'Area', v: r.area }, { l: '∫(f – g)', v: r.net }].concat(r.crossings.map(function (x, i) { return { l: 'Crossing ' + (i + 1), v: x }; })),
+            warn: isNaN(r.area) && isFinite(n.a) && isFinite(n.b),
+            note: isNaN(r.area) && isFinite(n.a) && isFinite(n.b) ? 'No value: a function has none on the way, or it does not settle.' : ''
+        };
+    }
+
+    function runArc(n, raw) {
+        var r = raw.f ? CalcMaths.arcLength(raw.f, engine.comma, deg, n.a, n.b) : { length: NaN }, why = {
+            'function': 'Not a function of x yet: x^2, sin(x).',
+            letters: 'Only x has a value here: write the other letters as numbers.'
+        }[r.error];
+        if (why) return { rows: [{ l: 'Length', v: NaN }], bad: ['f'], warn: true, note: why };
+        return { rows: [{ l: 'Length', v: r.length }], warn: raw.f && isNaN(r.length) && isFinite(n.a) && isFinite(n.b),
+            note: raw.f && isNaN(r.length) && isFinite(n.a) && isFinite(n.b) ? 'No value: it stands upright, or has a corner or no value, on the way.' : '' };
+    }
+
+    // the chances of a value below and above x, its density there, mean and standard deviation
+    function spread(c, mean, sd, known) {
+        return [{ l: 'P(X ≤ x)', v: c.lo }, { l: 'P(X ≥ x)', v: c.hi }, { l: 'f(x)', v: c.density },
+            { l: 'Mean', v: known ? CalcMaths.round(mean) : NaN }, { l: 'σ', v: known ? CalcMaths.round(sd) : NaN }];
+    }
+
+    // what is wrong with degrees of freedom and a chance p, or ''
+    function freedomNote(dfs, p) {
+        if (dfs.some(function (d) { return !isNaN(d) && !(d > 0); })) return 'Degrees of freedom are above 0.';
+        return !isNaN(p) && !(p > 0 && p < 1) ? 'p is a chance between 0 and 1.' : '';
+    }
+
+    function runStudent(n) {
+        var c = CalcMaths.tDist(n.t, n.nu), why = freedomNote([n.nu], n.p);
+        return { rows: [{ l: 'P(T ≤ t)', v: c.lo }, { l: 'P(T ≥ t)', v: c.hi }, { l: 'P(|T| ≥ |t|)', v: c.two },
+            { l: 't for p', v: CalcMaths.tInverse(n.p, n.nu) }, { l: '±t for p', v: CalcMaths.tInverse(1 - (1 - n.p) / 2, n.nu) }], note: why, warn: !!why };
+    }
+
+    function runChi(n) {
+        var c = CalcMaths.chiDist(n.x, n.k), why = freedomNote([n.k], n.p), known = n.k > 0;
+        return { rows: [{ l: 'P(X ≤ x)', v: c.lo }, { l: 'P(X ≥ x)', v: c.hi }, { l: 'x for p', v: CalcMaths.chiInverse(n.p, n.k) },
+            { l: 'Mean', v: known ? n.k : NaN }, { l: 'σ', v: known ? CalcMaths.round(Math.sqrt(2 * n.k)) : NaN }], note: why, warn: !!why };
+    }
+
+    function runF(n) {
+        var c = CalcMaths.fDist(n.x, n.d1, n.d2), why = freedomNote([n.d1, n.d2], n.p);
+        return { rows: [{ l: 'P(X ≤ x)', v: c.lo }, { l: 'P(X ≥ x)', v: c.hi }, { l: 'x for p', v: CalcMaths.fInverse(n.p, n.d1, n.d2) }], note: why, warn: !!why };
+    }
+
+    // A sum or a product, on to ∞ as well, with its exact form, π²/6, and what it does where it
+    // has no value
     function runSeries(n, raw, product) {
-        var r = raw.f ? CalcMaths.series(raw.f, engine.comma, deg, n.a, n.b, product) : { value: NaN }, why = {
+        var r = raw.f ? CalcMaths.series(raw.f, engine.comma, deg, n.a, n.b, product) : { value: NaN }, name = product ? 'Π' : 'Σ', why = {
             'function': 'Not a function yet: write n^2 for n², 1/k! for 1 ÷ k!.',
             letters: 'Of one letter: n, k, i or j, or x.',
-            ends: 'From and To are whole numbers, From the smaller.',
-            many: 'Up to a million terms.'
-        }[r.error];
-        return { rows: [{ l: product ? 'Π' : 'Σ', v: r.error ? NaN : r.value }], bad: r.error === 'function' || r.error === 'letters' ? ['f'] : [], note: why || '', warn: !!why };
+            ends: 'From and To are whole numbers, From the smaller; To may be inf.',
+            many: 'Up to a million terms, or To inf.'
+        }[r.error], endless = n.b === Infinity && raw.f && !r.error;
+        if (endless && !isFinite(r.value)) {
+            why = isNaN(r.value) ? 'No value: it does not settle, as its terms go on back and forth or shrink too slowly to tell.' : 'It grows without end.';
+        }
+        return { rows: [limitTile(name, r.error ? NaN : r.value)].concat(exactTile([[name, r.exact]])),
+            bad: r.error === 'function' || r.error === 'letters' ? ['f'] : [], note: why || '', warn: !!why && !(endless && Math.abs(r.value) === Infinity) };
     }
 
     // ---------------- numbers ---------------- //
