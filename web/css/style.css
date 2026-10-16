@@ -3667,10 +3667,7 @@
        foot keep their size, the arm stretches with the root, and the bar
        stretches along it at its own thickness */
     -webkit-mask-box-image: var(--calc-root-whole) 30 10 10 62 / 0.3em 0 0.1em 0.62em stretch;
-}
-
-#calculator .calc-hide {
-    display: none;
+    pointer-events: none; /* only drawn: a click goes to what is under it, as a box of a template */
 }
 
 /* fraction mode: a division drawn as a fraction, one part over the other */
@@ -3780,6 +3777,34 @@
 }
 
 /* the cursor while the equation is edited; it takes no room of its own */
+/* a box of a template being filled in, dotted as any part still to be entered; the one in
+   focus takes what is typed, the others are lighter. An empty one can be clicked to go there */
+#calculator .calc-box {
+    cursor: pointer;
+}
+
+#calculator .calc-box:not(.calc-focus)::before {
+    border-color: color-mix(in srgb, currentColor 40%, transparent);
+}
+
+/* what a function or a box of a template holds while it is typed: a dotted frame round it
+   shows where it ends, as a bracket would; lighter where typing does not go now */
+#calculator .calc-frame {
+    display: inline-block;
+    padding: 0 0.08em;
+    border: 1px dotted currentColor;
+    line-height: 1.15;
+}
+
+#calculator .calc-frame:not(.calc-focus) {
+    border-color: color-mix(in srgb, currentColor 40%, transparent);
+}
+
+/* the box after a key of two numbers, 5 nCr □, a space from it */
+#calculator .calc-next {
+    margin-left: 0.25em;
+}
+
 #calculator .calc-cursor {
     display: inline-block;
     width: 2px;

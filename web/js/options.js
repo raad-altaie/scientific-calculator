@@ -86,36 +86,6 @@ const choose = (group, value) => {
     group.querySelector(`input[value="${value}"]`).checked = true;
 };
 
-// The order of the function keys: √ 9, or 9 √. Without a choice yet it is the
-// one the calculator starts with: √ 9, or 9 √ for who used it before the option came
-const fnOrder = document.getElementById('fn-order');
-const orderIcon = document.getElementById('order-icon');
-
-const readOrder = () => {
-    try {
-        const order = JSON.parse(localStorage.getItem('fnOrder'));
-        return order === 'first' || order === 'after' ? order : localStorage.getItem('calc') ? 'after' : 'first';
-    } catch (e) {
-        return 'first';
-    }
-};
-
-// the icon shows the order chosen, its √ drawn as the calculator draws it
-const showOrder = () => {
-    const root = '<span class="root-sign">√</span>';
-
-    orderIcon.innerHTML = chosen(fnOrder) === 'first' ? root + '9' : '9' + root;
-};
-
-choose(fnOrder, readOrder());
-showOrder();
-fnOrder.addEventListener('change', () => {
-    showOrder();
-    try {
-        localStorage.setItem('fnOrder', JSON.stringify(chosen(fnOrder)));
-    } catch (e) { }
-});
-
 // The formulas, the converter, the statistics, the graph, the solver and the numbers: a button on the display for each
 // while it is turned on. All of them start on; an open calculator gets the change as a
 // storage event

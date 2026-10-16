@@ -26,7 +26,7 @@ A scientific calculator for your browser: light, fast and it works offline. It r
 - Angle units: Deg, Rad and Grad. `°′″` shows results as degrees, minutes and seconds, and `12°30′15″` can be pasted.
 - Fraction mode (`a/b`) draws each division as a fraction and shows results like 0.75 as 3/4.
 - Number format: Fix, Sci or Eng notation, Auto or 0 to 9 decimal places, and thousands separators with the decimal mark of your country: `1,234.5`, `1 234.5`, `1.234,5` or `1 234,5`.
-- Function keys can go before the number (`√ 9`) or after it (`9 √`).
+- Function keys go before the number (`√ 9`); x², x³, x!, 1/x and % go after it or before it (`5 x²`, `x² 5`). A two-number key pressed first, as nCr, takes the last result.
 
 **Panels** (each can be turned on or off in the options)
 - **Formulas and constants** (`fx`): search well-known formulas of algebra, geometry, trigonometry, physics, electricity, chemistry, statistics, money and everyday life, fill in the letters and the equation goes into the display. Constants of math and science (CODATA 2022) go in with a click.
@@ -39,6 +39,7 @@ A scientific calculator for your browser: light, fast and it works offline. It r
 **Keyboard, copy and paste**
 - Rest the pointer on a result of Solve, Numbers, the dates or the statistics to see it in full, cut short in its tile as a long one is, with what it is where it has a tip, and Insert and Copy.
 - Full keyboard support for every button; a `h` hold key gives the second function (`h`, `s` = `sinh`).
+- Ctrl+Z (⌘Z) undoes the last change to the equation, and Ctrl+Shift+Z or Ctrl+Y redoes it.
 - Ctrl+C / Ctrl+V and a right-click menu per area; the display's has **Reset all**, which clears the equation, the memory, the modes and what is typed in every panel, the history staying. You can paste a whole equation such as `2 + 3 × sin(30)` or `sqrt(16) + 2^3`; `1,234.5`, `1.234,5` and `1 234,5` are all read as 1234.5, and a currency is left out: `$1,200` or `5 USD` is the number alone.
 
 **The extension**

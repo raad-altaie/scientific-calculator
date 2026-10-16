@@ -123,7 +123,7 @@
         tools = Calc.querySelector('.calc-tools'), // the buttons at the top left of the display
         pressedKey,
         sliding, // long line being slid: its element and where the slide started
-        opened = -1e9, // when the line above a result was last clicked: twice in a row opens it
+        picked = null, // the piece of the line above a result its click was on, for a second click to select its number
         picking, // long line whose text is being selected: its element, and where the selection started
         holdTimer, // runs while a long line is pressed, until it is held long enough to slide instead, or select
         secondActive = false, // 2nd key active?
@@ -249,6 +249,11 @@
             }
             return;
         }
+        if ((e.ctrlKey || e.metaKey) && (e.which === 90 || e.which === 89)) { // Ctrl+Z undoes, Ctrl+Shift+Z and Ctrl+Y redo
+            undo(e.which === 89 || e.shiftKey);
+            e.preventDefault();
+            return;
+        }
         if (onKeyDown(e.which, e.shiftKey)) e.preventDefault();
     }, false);
 
@@ -270,6 +275,16 @@
             keyMatchHold = ('sin|sinh|cos|cosh|tan|tanh|m-|Rand|Deg|Rand|sin-1|sinh-1|cos-1|cosh-1|tan-1|tanh-1|' +
                 '1|1/x|2|x2|3|x3|x√y|√|ln|log2|ex|2x|log|10x|π|e|yx|logy|a/b|°′″').split('|');
 
+        // Enter while a template is open or the line is edited: to the next empty box, or out of
+        // the boxes so the line shows what will be worked out; from there, = works it out
+        if (key === 13 && (engine.edit || engine.opened()) && engine.enter(deg)) {
+            refresh();
+            saveState();
+            return;
+        }
+        // Enter after a result leaves it: one press too many must not repeat the last operation,
+        // as = does on purpose, 100 × 1.05 = = =
+        if (key === 13 && (engine.done || engine.error) && !engine.edit) return; // nor clear an error, which stays to be fixed
         if (key === 13) key = 61;
         key = key === 124 ? 'abs' : String.fromCharCode(key); // | is the separator of the list above
         for (var n = 0, m = keyMatch.length; n < m; n = n + 2)
@@ -323,6 +338,13 @@
             return true;
         }
         if (key >= 37 && key <= 40 && graphTrace(key, shiftKey)) return true; // or the point clicked on the graph
+        if (key === 9 && engine.edit) { // Tab while the line is edited: from box to box
+            if (engine.tab(shiftKey)) {
+                refresh();
+                saveState();
+            }
+            return true;
+        }
         if (key === 37 || key === 39) { // the arrow keys move the cursor
             if (engine.move(key === 37 ? 'left' : 'right', deg)) {
                 refresh();
@@ -445,7 +467,7 @@
     // a key goes in place of: [from, to] in characters from its start, [] for all
     // of it. Null if none is, or the display has a result, which they replace anyway
     function selectedSpan() {
-        var sel = window.getSelection(), all = document.createRange(), range, from, to;
+        var sel = window.getSelection(), all = document.createRange(), range, from, to, box;
 
         function chars(node, offset) { // of the equation before this place of the page
             var part = all.cloneRange(), where = all.comparePoint(node, offset);
@@ -457,6 +479,7 @@
         if (!sel.rangeCount || sel.isCollapsed) return null;
         if (!engine.edit && (engine.error || engine.done || (engine.plain() && engine.entry !== 'typing'))) return null;
         range = sel.getRangeAt(0);
+        if ((box = boxSpan(range))) return box;
         all.selectNodeContents(display);
         from = chars(range.startContainer, range.startOffset);
         to = chars(range.endContainer, range.endOffset);
@@ -464,6 +487,52 @@
         if (!from && to === chars(all.endContainer, all.endOffset)) return [];
         // a drawn fraction is not written as the equation is typed: only all of it can be told
         return engine.edit || !display.querySelector('.calc-fr') ? [from, to] : null;
+    }
+
+    // all of a row of the equation selected: of a box, by its key, or of the line itself ('')
+    function selectRow(key) {
+        var pieces = [].filter.call(display.querySelectorAll('[data-e]'), function (p) { return p.getAttribute('data-e').split('|')[0] === key; }),
+            first = pieces.length && texts(pieces[0])[0], last = pieces.length && texts(pieces[pieces.length - 1]).pop(),
+            range = document.createRange(), sel = window.getSelection();
+        if (!first || !last) return;
+        range.setStart(first, 0);
+        range.setEnd(last, last.length);
+        sel.removeAllRanges();
+        sel.addRange(range);
+    }
+
+    function texts(el) {
+        var walk = document.createTreeWalker(el, NodeFilter.SHOW_TEXT), out = [], node;
+        while ((node = walk.nextNode())) if (node.data.length) out.push(node);
+        return out;
+    }
+
+    // a selection of the equation by its pieces: from and to, each the row of a box and a place in it,
+    // as the engine takes them. Inside one box, its pieces; across boxes, the whole templates they
+    // are in, in the row both are in: from the root of ³√8 to the 8 is all of ³√8. Null if either end
+    // is not on a piece
+    function boxSpan(range) {
+        var a = pieceAt(range.startContainer, range.startOffset, false), b = pieceAt(range.endContainer, range.endOffset, true),
+            pa, pb, n;
+        if (!a || !b) return null;
+        pa = a.r ? a.r.split('/') : [];
+        pb = b.r ? b.r.split('/') : [];
+        for (n = 0; n < pa.length && n < pb.length && pa[n] === pb[n]; n++);
+        if (n < pa.length) a = { r: pa.slice(0, n).join('/'), i: +pa[n].split(':')[0] };
+        if (n < pb.length) b = { r: pb.slice(0, n).join('/'), i: +pb[n].split(':')[0] + 1 };
+        return a.i < b.i ? [a, b] : null;
+    }
+
+    // the place in its row of a place of the page: before the piece it is in, or after it if at
+    // its end; end: the place a selection ends, after the piece unless at its start
+    function pieceAt(node, offset, end) {
+        var el = node.nodeType === 3 ? node.parentNode : node, key, at;
+        el = el && el.closest && el.closest('[data-e]');
+        if (!el || !display.contains(el)) return null;
+        key = el.getAttribute('data-e').split('|');
+        at = +key[1];
+        if (node.nodeType === 3 ? (end ? offset > 0 : offset >= node.length) : end) at++;
+        return { r: key[0], i: at };
     }
 
     // once a key or a paste has changed the display nothing of it is selected, as in
@@ -586,7 +655,7 @@
 
     function showTip() {
         tipTimer = 0;
-        var name = tipKey.textContent.replace(/\s*/g, ''), info = tipOf(tipKey, name), calc = tip.parentNode,
+        var name = tipKey.textContent.replace(/\s*/g, ''), info = tipFor(tipKey, name), calc = tip.parentNode,
             cam = tipKey.closest('.calc-graph-export') && tipKey.querySelector('svg'), // the camera has no box: from the camera itself
             at = inside((cam || tipKey).getBoundingClientRect()), left, top, below,
             gap = cam ? 6 : tipKey.matches('.calc-sv-row, .calc-fx-row, .calc-gx-row') ? 6 : 10; // a card of a list: its arrow on the card, not in the gap above it
@@ -771,13 +840,6 @@
         }
         tile.click();
     }, false);
-
-    // the tip of a key, or of a mark in the display; a function key and the unit say
-    // how they are used now, tan 45 or 45 tan
-    function tipOf(el, name) {
-        var info = tipFor(el, name);
-        return info && info.first && engine.fnFirst ? { t: info.t, d: info.first, k: info.k, second: info.second } : info;
-    }
 
     // the memory and the number format say what they hold now
     function tipFor(el, name) {
@@ -4293,7 +4355,6 @@
         inputs.forEach(function (input) {
             input.classList.toggle('calc-bad', !input.value.trim());
         });
-        trial.fnFirst = engine.fnFirst;
         if (s !== null && trial.paste(s, deg) && (trial.error || (trial.press('=', deg), trial.error))) {
             note.classList.add('calc-fx-warn');
             note.innerHTML = CalcFormulas.why(f, inputs.map(boxValue));
@@ -6956,7 +7017,6 @@
             x = +text;
         } else if (text) { // an equation: worked out as the calculator would
             trial = new CalcEngine();
-            trial.fnFirst = engine.fnFirst;
             x = trial.paste(text, deg, true) && !trial.error && (trial.press('=', deg), !trial.error) ? +trial.value : NaN;
             // 36°52′ is in degrees: for another angle, as 180° for radians, it is turned into that one
             if (group.c === 'Angle' && CalcEngine.angleAlone(text)) x = CalcUnits.convert(convAt.g, 0, from, x);
@@ -7245,19 +7305,58 @@
         }, false);
 
         el.addEventListener('click', function (e) {
-            var again, edge = edgeAt(el, e.clientX);
+            var edge = edgeAt(el, e.clientX), spot, rect, placed;
 
             if (edge) return goEdge(el, edge);
+            // a drag that selected in one box ends in a click on that box: the selection stays
+            if (el === display && e.detail < 2 && !window.getSelection().isCollapsed) return;
+            if (el === display && engine.edit && !slid && (spot = e.target.closest('[data-e],[data-r]'))) { // the cursor where it is clicked
+                if (spot.hasAttribute('data-e')) {
+                    rect = spot.getBoundingClientRect();
+                    placed = engine.place(spot.getAttribute('data-e'), e.clientX > rect.left + rect.width / 2);
+                } else {
+                    placed = engine.place(spot.getAttribute('data-r'));
+                }
+                if (placed) {
+                    refresh();
+                    saveState();
+                }
+                // the second click of two: the number under it selected, or all of a box when on its frame;
+                // the third of three: all of the box it is in, or of the line
+                if (e.detail >= 3 || (e.detail === 2 && !spot.hasAttribute('data-e'))) {
+                    selectRow(spot.hasAttribute('data-e') ? spot.getAttribute('data-e').split('|')[0] : spot.getAttribute('data-r'));
+                } else if (e.detail === 2) {
+                    pickValue(el, e.clientX, e.clientY);
+                }
+                return;
+            }
             // the second click of two: the first one put the cursor in, and wrote the line again
             if (e.detail === 2 && !slid && el === display) return pickValue(el, e.clientX, e.clientY);
             if (slid || (el === display && !window.getSelection().isCollapsed)) return; // a slide or a selection, not a click
-            if (el === logline) { // the second click of two, or tap, opens it
-                again = e.detail === 2 || e.timeStamp - opened < 400;
-                opened = e.timeStamp;
-                if (!again) return;
+            if (el === logline) { // the equation above a result: a click opens it, the cursor where it is clicked
+                if (engine.edit && e.detail === 2) { // the second click of two: the number it was on selected, in the line now edited
+                    e.stopPropagation();
+                    spot = picked && display.querySelector('[data-e="' + picked + '"]');
+                    if (spot) {
+                        rect = spot.getBoundingClientRect();
+                        pickValue(display, rect.left + rect.width / 2, rect.top + rect.height / 2);
+                    }
+                    return;
+                }
+                if (engine.edit || !(engine.done || engine.error)) return; // empty: a click on the screen
+                e.stopPropagation(); // the screen's click would send the cursor to the end
             }
-            if (el === logline ? engine.edit || !(engine.done || engine.error) :
-                !engine.edit && (engine.done || engine.error)) return; // a result: nothing to put a cursor in
+            if (el === display && !engine.edit && (engine.done || engine.error)) return; // a result: nothing to put a cursor in
+            spot = !engine.edit && e.target.closest('[data-e],[data-r]'); // drawn as the editor draws it: the cursor goes where it is clicked
+            picked = spot && spot.getAttribute('data-e');
+            if (spot && engine.startEdit()) {
+                rect = spot.getBoundingClientRect();
+                engine.place(spot.getAttribute(spot.hasAttribute('data-e') ? 'data-e' : 'data-r'), e.clientX > rect.left + rect.width / 2);
+                unselect();
+                refresh();
+                saveState();
+                return;
+            }
             if (engine.point(textAt(el, e.clientX).n, deg)) {
                 unselect(); // of the result, as the equation takes its place
                 refresh();
@@ -7265,6 +7364,24 @@
             }
         }, false);
     });
+
+    // a click anywhere on the screen but the equation, the line above it as well: the line to
+    // edit, the cursor at its end. After a result, only a click on its equation above it does that.
+    // Not on what has a click of its own there: the buttons, the unit, the modes
+    function editLine() {
+        if (engine.edit ? !engine.move('end') : !engine.startEdit()) return;
+        unselect();
+        refresh();
+        saveState();
+    }
+
+    display.parentNode.addEventListener('click', function (e) {
+        var path = e.composedPath(); // as clicked: the equation may be drawn again since, its pieces gone from the page
+        if (e.button || slid || !window.getSelection().isCollapsed || path.indexOf(display) > -1 ||
+            (!engine.edit && (engine.done || engine.error) && path.indexOf(logline) < 0) || // a result stays: its equation above it is clicked to edit it
+            e.target.closest('.calc-tools, .calc-rad, .calc-frac, .calc-fmt, .calc-mem, .notification, .calc-past')) return;
+        editLine();
+    }, false);
 
     // A double click selects the value under it, the whole number between its
     // operators, with the cursor in it or not, as it selects a word in a text;
@@ -7463,13 +7580,9 @@
         var s = {};
 
         // all read first: the keys pressed below must not save over what is still to be read
-        ['secondActive', 'deg', 'stat', 'statPairs', 'statTab', 'statBy', 'statsOn', 'fxOn', 'fxTab', 'convOn', 'conv', 'dates', 'graphOn', 'graph', 'solveOn', 'solve', 'numbersOn', 'numbers', 'fraction', 'dms', 'format', 'fnOrder', 'memory', 'calc'].forEach(function (key) {
+        ['secondActive', 'deg', 'stat', 'statPairs', 'statTab', 'statBy', 'statsOn', 'fxOn', 'fxTab', 'convOn', 'conv', 'dates', 'graphOn', 'graph', 'solveOn', 'solve', 'numbersOn', 'numbers', 'fraction', 'dms', 'format', 'memory', 'calc'].forEach(function (key) {
             s[key] = stored(key);
         });
-        // functions go before their number, tan 45; who used the calculator before this
-        // option came keeps 45 tan, until it is changed on the options page
-        if (s.fnOrder !== 'first' && s.fnOrder !== 'after') store('fnOrder', s.fnOrder = s.calc ? 'after' : 'first');
-        engine.fnFirst = s.fnOrder === 'first';
         if (s.secondActive) {
             keyDown(false, keyBoard['2nd']);
             doKey('2nd', true);
@@ -7502,7 +7615,7 @@
         refresh();
     }
 
-    // The number format, the order of the function keys or the panels were changed on the options page, or by an administrator.
+    // The number format or the panels were changed on the options page, or by an administrator.
     // The graph, the calculation and the angle unit follow another page of the calculator: the graph's
     // own window and the popup or the detached window show the same ones. Not what this page saved
     window.addEventListener('storage', function (e) {
@@ -7526,7 +7639,6 @@
         }
         if (/^(statsOn|fxOn|convOn|graphOn|solveOn|numbersOn|policy)$/.test(e.key)) return readPanels();
         if (e.key === 'format') setFormat(stored('format'));
-        else if (e.key === 'fnOrder') engine.fnFirst = stored('fnOrder') !== 'after';
         else return;
         refresh();
     });
@@ -7645,7 +7757,8 @@
     // while it is typed, and a result is shown as a fraction when it is one.
     // A number with no such fraction (π, √2) stays a decimal
     function toggleFraction() {
-        fracMode = engine.fraction = !fracMode;
+        fracMode = !fracMode;
+        engine.setFraction(fracMode); // the line being edited takes the look of the mode
         if (fracMode) dmsMode = engine.dms = false; // one or the other
         refresh();
     }
@@ -7660,7 +7773,7 @@
     // for it stays a decimal. Not with fraction mode
     function toggleDms() {
         dmsMode = engine.dms = !dmsMode;
-        if (dmsMode) fracMode = engine.fraction = false;
+        if (dmsMode && fracMode) engine.setFraction(fracMode = false);
         refresh();
     }
 
@@ -7741,8 +7854,48 @@
 
     // shows the engine's state: the equation in the display while it is typed,
     // then the result with the finished equation on the small line above
+    // Ctrl+Z: the line as it was before each change, a key, DEL, a paste, an edit or a mode, to go
+    // back to, and forward again. A move of the cursor alone is no change: it is kept with the line
+    var undos = [], redos = [], lineNow = null;
+
+    function lineState() {
+        var snap = engine.snapshot(), s = JSON.parse(snap);
+        if (s.edit) s.edit = s.edit.list; // the same line with the cursor elsewhere
+        return { snap: snap, f: fracMode, d: dmsMode, same: JSON.stringify([s, fracMode, dmsMode]) };
+    }
+
+    function remember() {
+        var now = lineState();
+        if (lineNow && lineNow.same !== now.same) {
+            undos.push(lineNow);
+            if (undos.length > 200) undos.shift();
+            redos = [];
+        }
+        lineNow = now;
+    }
+
+    function undo(redo) {
+        var to = (redo ? redos : undos).pop();
+        if (!to) return;
+        (redo ? undos : redos).push(lineState());
+        try {
+            engine.restore(to.snap);
+        } catch (e) {
+            return;
+        }
+        engine.history = []; // DEL starts again from here
+        fracMode = engine.fraction = to.f;
+        dmsMode = engine.dms = to.d;
+        lineNow = to;
+        keyBoard['AC'].children[0].firstChild.data = empty() ? 'AC' : 'C';
+        refresh();
+        saveState();
+    }
+
     function refresh() {
         var eq = engine.equation(fracMode), view;
+
+        remember();
 
         graphRender(); // a curve of sin x follows the unit, and the plot's and the table's numbers the format
 
@@ -7750,9 +7903,7 @@
         if (engine.edit) { // the equation with the cursor in it
             view = engine.editView();
             resBuffer = engine.value;
-            display.innerHTML = view.parts.map(function (part, i) {
-                return (i === view.at ? CURSOR : '') + '<span>' + CalcEngine.decimal(part, fmt.group) + '</span>';
-            }).join('') + (view.at === view.parts.length ? CURSOR : '');
+            display.innerHTML = CalcEngine.decimal(view.html, fmt.group);
             fit(display.querySelector('.calc-cursor'));
             eq = '';
         } else if (engine.error) {

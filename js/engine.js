@@ -51,9 +51,7 @@
         }).join('|') + ')', 'i'),
         ZERO = BigInt(0), ONE = BigInt(1), TEN = BigInt(10), // whole numbers of any size, for exact arithmetic
         BAD = {}, // thrown when pasted text is not an expression
-        plainText = false, // printing for the clipboard: no tags
         marks = null, // printing for editing: computed numbers are put here whole, a mark stands in for each
-        stacking = false, // printing for fraction mode: a division is drawn as a fraction, one part over the other
         MARK = /^\uE000(\d+)\uE001/,
         HEAD = /^(y|[a-df-wz]\s*\(\s*x\s*\))\s*=\s*/i, // before a function of x: y =, f(x) =
         // an angle in degrees, minutes and seconds: 12°30′15″, 12°30'15", 51°30′26″N
@@ -368,6 +366,28 @@
         return !!UNARY[key] && (UNARY[key].t === 'fn' || UNARY[key].t === 'pow');
     }
 
+    // 1/x, x², x³ and x! with no number of their own yet go first as well: 1/x 4 is 1/(4,
+    // x² 4 is 4², rather than work on the 0 shown
+    function leads(key, entry) {
+        return opens(key) || (/^(1\/x|x[23!]|%)$/.test(key) && entry === 'fresh');
+    }
+
+    // a percent of an operand. After + or – it is a share of the number before, top:
+    // 200 + 10% adds 20. Anywhere else it is a hundredth: 500 × 8% is 500 × 0.08
+    function percent(arg, top) {
+        var cur = arith('÷', arg.val, 100),
+            val = top && RANK[top.op] === 1 ? arith('÷', arith('×', top.val, arg.val), 100) : cur,
+            node = bounded({ t: 'post', op: '%', arg: arg.node }, val);
+        if (node.t === 'post' && val !== cur) node.share = true; // not a hundredth
+        return { val: val, node: node };
+    }
+
+    // a function that went before its number worked out as its bracket closes; outer is the
+    // stack the bracket is in, for a % that is a share of the number before it
+    function closed(lvl, arg, deg, outer) {
+        return lvl.fn === '%' ? percent(arg, outer[outer.length - 1]) : applied(lvl.fn, arg, deg);
+    }
+
     // a function key worked out on an operand, its value and node; the functions of
     // an angle remember the unit, for the history. Of an error it is an error, as
     // when = closes tan(ln(0 and sin of degrees would make 0 of it
@@ -447,32 +467,20 @@
         return isAtom(n) ? show(n) : '(' + show(n) + ')';
     }
 
-    // for the clipboard, superscript characters stand in for the tags
+    // superscript characters stand in for the tags: the line is printed as text
     function tags(s) {
-        return !plainText ? s : s.replace(/<sub>2<\/sub>/g, '₂').replace(/<sup>(-?\d+)<\/sup>/g, function (m, d) {
+        return s.replace(/<sub>2<\/sub>/g, '₂').replace(/<sup>(-?\d+)<\/sup>/g, function (m, d) {
             return d.replace(/./g, function (c) { return SUPER.charAt('0123456789-'.indexOf(c)); });
         });
-    }
-
-    // a root drawn with a bar over what is under it, which needs no brackets
-    // then. The √ and the brackets of the line as text stay in it, hidden, so a
-    // copy and a click in the line count the same characters
-    function rooted(inner, brackets) {
-        return '<span class="calc-root"><span class="calc-hide">√' + (brackets ? '(' : '') + '</span>' + inner +
-            (brackets ? '<span class="calc-hide">)</span>' : '') + '</span>';
     }
 
     function radical(n) {
         var index = n.r ? show(n.r) : 'x',
             root = n.l.t === 'fn' && n.l.name === '√' || n.l.op === 'x√y', // a root of a root: ⁸⁶√(√(99)), not ⁸⁶√√(99)
             under = root ? '(' + show(n.l) + ')' : wrap(n.l);
-        if (!plainText) {
-            return '<sup>' + index + '</sup>' + rooted(show(n.l.t === 'group' ? n.l.arg : n.l),
-                root || n.l.t === 'group' || !isAtom(n.l));
-        }
         if (!n.r) return 'ˣ√' + under;
         return /^-?\d+$/.test(index) ? tags('<sup>' + index + '</sup>') + '√' + under :
-            wrap(n.l) + '^(1/' + wrap(n.r) + ')';
+            wrap(n.l) + '^(1/' + (n.r.t === 'group' ? show(n.r) : wrap(n.r)) + ')';
     }
 
     // a logarithm to any base, its base below: log₂(8). As text, a whole base is
@@ -480,7 +488,6 @@
     // the number as the key is pressed: 8 logᵧ 2.5, so the text reads back in
     function logarithm(n) {
         var arg = n.l.t === 'group' ? n.l.arg : n.l, base;
-        if (!plainText) return 'log<sub>' + (n.r ? show(n.r) : 'y') + '</sub>(' + show(arg) + ')';
         base = n.r && n.r.t === 'num' && (n.r.typed || !marks) ? text(n.r) : '';
         if (/^\d+$/.test(base)) {
             return 'log' + base.replace(/\d/g, function (d) { return SUB.charAt(d); }) + '(' + show(arg) + ')';
@@ -499,26 +506,29 @@
     function opener(key) {
         var u = UNARY[key];
         if (u.t === 'pow') return u.base + '^';
-        if (key === '√') return plainText ? '√' : '<span class="calc-sq">√</span>'; // drawn, as in the edited line
+        if (key === '1/x') return '1/';
         return tags(NAME[key] || key);
     }
 
+    // a calculation as text, as it would be typed or pasted: tan(45), ³√8, 2^10, log₂(8). The
+    // editor reads it as its tree and draws it; the clipboard takes it as it is
     function show(n) {
         var l, r;
-        if (stacking && n.t === 'inv') return stack('1', show(n.arg));
-        if (stacking && n.t === 'bin' && n.op === '÷') return stack(show(n.l), n.r ? show(n.r) : '');
         switch (n.t) {
             case 'num': return text(n);
             case 'const': return n.name;
             case 'neg': return '-' + (n.arg.t === 'post' ? show(n.arg) : wrap(n.arg));
             case 'fn':
-                if (n.name === '√' && !plainText) return rooted(show(n.arg.t === 'group' ? n.arg.arg : n.arg), true);
                 return tags(NAME[n.name] || n.name) + '(' + show(n.arg.t === 'group' ? n.arg.arg : n.arg) + ')';
             case 'post': return wrap(n.arg) + tags(SYMBOL[n.op]);
             case 'inv': return '1/' + wrap(n.arg);
             case 'pow': return n.base + '^' + wrap(n.arg);
             case 'group': return '(' + show(n.arg) + ')';
-            case 'open': return (n.fn ? opener(n.fn) : '') + '(' + (n.arg ? show(n.arg) : ''); // bracket still open
+            case 'open': // bracket still open
+                if (n.fn && (n.fn === '%' || UNARY[n.fn].t === 'post')) { // (4 + 1)², or ( while empty
+                    return '(' + (n.arg ? show(n.arg) + ')' + tags(SYMBOL[n.fn]) : '');
+                }
+                return (n.fn ? opener(n.fn) : '') + '(' + (n.arg ? show(n.arg) : '');
         }
         // binary; n.r is missing while the second operand is still awaited
         if (n.op === 'x√y') return radical(n);
@@ -534,7 +544,6 @@
     // how tightly a node holds together when it stands next to an operator;
     // 1/x reads as a division, so 8 ÷ (1/2) keeps its brackets
     function rank(n) {
-        if (stacking && (n.t === 'inv' || (n.t === 'bin' && n.op === '÷'))) return 9; // a drawn fraction holds together
         return n.t === 'bin' ? RANK[n.op] : n.t === 'inv' ? RANK['÷'] : 9;
     }
 
@@ -808,10 +817,17 @@
             var n = combo(), op;
             for (;;) {
                 if (is('×') || is('÷') || is('mod')) op = toks[i++].v;
-                else if (!end() && (is('(') || is('√') || /^(fn|const|sup)$/.test(toks[i].t))) op = '×'; // 2π, 2(3 + 4)
+                else if (!end() && (is('(') || is('√') || /^(fn|const|sup)$/.test(toks[i].t) || numberAfter())) op = '×'; // 2π, 2(3 + 4), π2, (3)4
                 else return n;
                 n = { t: 'bin', op: op, l: need(n), r: end() ? null : combo() };
             }
+        }
+
+        // a number straight after π, e or a ), as π2 or (3)4, is times it; not after a number,
+        // 12 50, nor after x, as x2 may mean x²
+        function numberAfter() {
+            var p = toks[i - 1];
+            return toks[i].t === 'num' && (p.t === 'const' && /^(π|e)$/.test(p.v) || (p.t === 'op' && p.v === ')'));
         }
 
         function sum() {
@@ -2162,12 +2178,7 @@
 
     // the text of what show prints, without tags: superscript characters stand in for them
     function asPlain(print) {
-        plainText = true;
-        try {
-            return print().replace(/<[^>]+>/g, '');
-        } finally {
-            plainText = false;
-        }
+        return print().replace(/<[^>]+>/g, '');
     }
 
     // an expression node in the shape parse gives, so type can enter it again
@@ -2208,8 +2219,9 @@
         return /^(\+|×|÷|nCr|nPr|mod|gcd|lcm)$/.test(t.v) ? ' ' + t.v + ' ' : t.v;
     }
 
+    // a plain piece as it is shown; a template as it is drawn
     function html(piece) {
-        return piece.p.map(look).join('');
+        return piece.s ? drawPiece(piece, [], 0, null) : piece.p.map(look).join('');
     }
 
     // the shown text of a piece: the superscripts as characters
@@ -2221,34 +2233,316 @@
         }).replace(/<[^>]+>/g, '');
     }
 
-    // tokens as pieces: digits one by one, a function with its bracket as one
-    function pieces(toks) {
-        var out = [], i = 0, t, p, next;
-        while (i < toks.length) {
-            t = toks[i++];
-            if (t.t === 'num' && !t.whole) {
-                t.v.split('').forEach(function (c) {
-                    out.push({ p: [{ t: 'num', v: c, d: 1 }] });
-                });
-                continue;
-            }
-            p = [t];
-            next = toks[i];
-            if (t.t === 'fn' && /^(sin|cos|tan)h?$/.test(t.v) && next && next.t === 'sup' && next.v === '-1') {
-                p = [{ t: 'fn', v: t.v + '-1' }];
-                next = toks[++i];
-            }
-            if ((t.t === 'fn' || (t.t === 'op' && t.v === '√')) && next && next.t === 'op' && next.v === '(') {
-                p.push(next);
-                i++;
-            }
-            out.push({ p: p });
+    // ---------- the line as a tree, while it is edited ---------- //
+
+    // A row is a list of pieces. A plain piece holds the tokens parse reads (p): a digit, an
+    // operator, a computed number. A template holds its boxes (b), each a row of its own:
+    //   s 'fn'    k sin, ln, abs and the like: b [its number]
+    //   s 'root'  k '√': b [under it]; k 'x√y': b [the root, under it]
+    //   s 'pow'   b [the power] of what is before it
+    //   s 'logb'  b [base, number]
+    //   s 'tpl'   k nCr, nPr, mod, gcd, lcm or EE, pressed with no number before: b [left, right]
+    //   s 'box'   b [a number still to be entered], as of x² or 1/x pressed first
+    //   s 'frac'  b [top, bottom]: a division in fraction mode, drawn one over the other
+    // The cursor is at e.at in the row e.path leads to: the template and box of each row on the way
+    var TEMPLATE_OPS = /^(nCr|nPr|mod|gcd|lcm|EE)$/, CARET = '<span class="calc-cursor"></span>';
+
+    function tok(v, c) {
+        return { t: 'op', v: v, c: c || v };
+    }
+
+    function digitPieces(s) {
+        return s.split('').map(function (c) { return { p: [{ t: 'num', v: c, d: 1 }] }; });
+    }
+
+    function digitPiece(p) {
+        return !p.s && p.p.length === 1 && !!p.p[0].d;
+    }
+
+    function opPiece(p, re) {
+        return !p.s && p.p.length === 1 && p.p[0].t === 'op' && re.test(p.p[0].v);
+    }
+
+    // the number of pieces in a row, those in its templates as well
+    function rowSize(row) {
+        return row.reduce(function (n, p) { return n + 1 + (p.s ? p.b.reduce(function (m, r) { return m + rowSize(r); }, 0) : 0); }, 0);
+    }
+
+    function rowIn(list, path) {
+        var row = list, i;
+        for (i = 0; i < path.length; i++) row = row[path[i].i].b[path[i].k];
+        return row;
+    }
+
+    function pathKey(path) {
+        return path.map(function (s) { return s.i + ':' + s.k; }).join('/');
+    }
+
+    // a path from its key, if it leads to a box of the list
+    function pathOf(list, key) {
+        var path = [], row = list, ok = true;
+        if (key) {
+            key.split('/').forEach(function (part) {
+                var m = /^(\d+):(\d+)$/.exec(part), p = m && row[+m[1]];
+                if (!ok || !p || !p.s || !p.b[+m[2]]) {
+                    ok = false;
+                    return;
+                }
+                path.push({ i: +m[1], k: +m[2] });
+                row = p.b[+m[2]];
+            });
         }
+        return ok ? path : null;
+    }
+
+    // true if the cursor's path goes through the box at path
+    function goesThrough(cur, path) {
+        var a = pathKey(cur), b = pathKey(path);
+        return a === b || (b !== '' && a.indexOf(b + '/') === 0) || (b === '' && a !== '');
+    }
+
+    // the digits of a row that is a whole number and nothing else, typed or computed, else null
+    function digitsOf(row) {
+        var d = '';
+        if (row.length === 1 && !row[0].s && row[0].p.length === 1 && row[0].p[0].t === 'num') d = row[0].p[0].v;
+        else if (!row.every(function (p) { return digitPiece(p) && (d += p.p[0].v); })) return null;
+        return /^\d+$/.test(d) ? d : null;
+    }
+
+    function bracketed(row) {
+        return [tok('(')].concat(unpiece(row), [tok(')')]);
+    }
+
+    // a box in a function's own brackets: sin(30), and sin(30) again for one with its brackets typed
+    function enclosed(row) {
+        return row.length > 1 && bare(row) !== row ? unpiece(row) : bracketed(row);
+    }
+
+    // a row that holds one number alone, which needs no brackets: 25, π, sin(30), ³√8
+    function atomic(row) {
+        var p = row[0];
+        if (!row.length) return false;
+        if (row.every(digitPiece)) return true;
+        if (row.length !== 1) return false;
+        return p.s ? !/^(pow|tpl|box|frac)$/.test(p.s) : p.p.length === 1 && (p.p[0].t === 'const' || p.p[0].t === 'num');
+    }
+
+    // a box as it is written next to an operator or under a root: in brackets if more than a
+    // number, and not in brackets already
+    function grouped(row) {
+        return atomic(row) || (row.length > 1 && bare(row) !== row) ? unpiece(row) : bracketed(row);
+    }
+
+    // the tokens parse reads; digits next to each other are one number, and a template
+    // is written as its text: sin(30), ³√(8), (8)^(1/(2.5)), ^(3), log₂(8), (5) nCr (2)
+    function unpiece(list) {
+        var out = [];
+        list.forEach(function (piece, n) {
+            var b = piece.b, d, toks, next = list[n + 1], prev = list[n - 1];
+            if (!piece.s) toks = piece.p;
+            else if (piece.s === 'frac') { // ¾ next to ÷, or under a power, is one number: 6 ÷ (3/4), (3/4)²
+                toks = grouped(b[0]).concat([tok('÷', '/')], grouped(b[1]));
+                if ((prev && opPiece(prev, /^÷$/)) || (next && (next.s === 'pow' || opPiece(next, /^[!%]$/)))) toks = [tok('(')].concat(toks, [tok(')')]);
+            }
+            else if (piece.s === 'fn') toks = [{ t: 'fn', v: piece.k }].concat(enclosed(b[0]));
+            else if (piece.s === 'root' && piece.k === '√') toks = [tok('√')].concat(enclosed(b[0]));
+            else if (piece.s === 'root') {
+                toks = (d = digitsOf(b[0])) !== null ? [{ t: 'sup', v: d }, tok('√')].concat(grouped(b[1])) :
+                    grouped(b[1]).concat([tok('^'), tok('('), { t: 'num', v: '1' }, tok('÷', '/')], grouped(b[0]), [tok(')')]);
+            } else if (piece.s === 'pow') { // a power of (1 ÷ 2) as typed: ^((1 ÷ 2)), as ^(1/2) reads as the root
+                toks = grouped(b[0]);
+                if (toks.length > 3 && toks[0].v === '(' && toks[1].t === 'num' && toks[1].v === '1' && toks[2].v === '÷') toks = bracketed([{ p: toks }]);
+                toks = [tok('^')].concat(toks);
+            }
+            else if (piece.s === 'logb') {
+                toks = (d = digitsOf(b[0])) !== null ? [{ t: 'fn', v: 'logy', b: d }].concat(enclosed(b[1])) :
+                    enclosed(b[1]).concat([tok('logy', 'logᵧ')], enclosed(b[0]));
+            } else if (piece.s === 'tpl') toks = grouped(b[0]).concat([piece.k === 'EE' ? tok('EE', 'E') : tok(piece.k)], grouped(b[1]));
+            else toks = grouped(b[0]);
+            // a number straight after a template is times it, ³√3 8 as 2π is: not one number with its last digits
+            // and so is one after a number put in whole, Ans 5
+            if ((piece.s ? piece.s !== 'box' : piece.p.length === 1 && piece.p[0].t === 'num' && !piece.p[0].d) &&
+                next && !next.s && next.p.length === 1 && /^(num|const)$/.test(next.p[0].t)) toks = toks.concat([tok('×')]);
+            toks.forEach(function (t) {
+                var last = out[out.length - 1];
+                if (t.d && last && last.d) last.v += t.v;
+                else out.push(t.d ? { t: 'num', v: t.v, d: 1 } : t);
+            });
+        });
         return out;
     }
 
+    // the text of tokens, as it would be pasted
+    function tokText(toks) {
+        return untag(toks.map(look).join('')).replace(/\s+/g, ' ').trim();
+    }
+
+    // tokens as a row: digits one by one, a function, a root, a power and a logarithm as
+    // templates with their boxes. One whose bracket is not closed yet is marked open
+    // a part of a fraction: the brackets round all of it go, as the line draws it
+    function bare(row) {
+        var depth = 0, k;
+        if (row.length < 2 || !opPiece(row[0], /^\($/) || !opPiece(row[row.length - 1], /^\)$/)) return row;
+        for (k = 0; k < row.length - 1; k++) {
+            if (opPiece(row[k], /^\($/)) depth++;
+            else if (opPiece(row[k], /^\)$/) && !--depth) return row;
+        }
+        return row.slice(1, -1);
+    }
+
+    function structure(toks, fractions) {
+        var i = 0;
+
+        function atom() { // a number or a constant alone, as under ³√8 or in 2^3
+            var t = toks[i];
+            if (!t || (t.t !== 'num' && t.t !== 'const')) return [];
+            i++;
+            return t.t === 'num' && !t.whole ? digitPieces(t.v) : [{ p: [t] }];
+        }
+
+        function supRow(v) {
+            return v === 'x' ? [] : v.split('').map(function (c) {
+                return c === '-' ? { p: [tok('-', '-')] } : { p: [{ t: 'num', v: c, d: 1 }] };
+            });
+        }
+
+        // true if the ^ before i is followed by (1 ÷ x), all of the group: the text of a root
+        // whose root is no whole number, as parse reads it back
+        function rootGroup() {
+            var k, depth = 0, u;
+            if (!(toks[i] && toks[i].t === 'op' && toks[i].v === '(' && toks[i + 1] && toks[i + 1].t === 'num' &&
+                toks[i + 1].v === '1' && toks[i + 2] && toks[i + 2].t === 'op' && toks[i + 2].v === '÷')) return false;
+            for (k = i + 3; k < toks.length; k++) {
+                u = toks[k];
+                if (u.t !== 'op') continue;
+                if (u.v === '(') depth++;
+                else if (u.v === ')' && !depth--) return k > i + 3;
+                else if (!depth && (/^(\+|×|÷)$/.test(u.v) || u.v === '-' && u.c !== '-')) return false;
+            }
+            return false;
+        }
+
+        function boxed(made) { // a template whose box runs to the ) that closes it
+            var r = row(true);
+            made.b.push(r.row);
+            if (!r.closed) made.open = true;
+            return made;
+        }
+
+        // the operand a power or a base takes after its sign: a number, or a function, a root or
+        // a group whole, as in 10^log(1000)
+        function operand() {
+            var t = toks[i];
+            if (!t) return [];
+            if (t.t === 'num' || t.t === 'const') return atom();
+            if (t.t === 'fn' || t.t === 'sup' || (t.t === 'op' && /^[√(]$/.test(t.v))) return bare(row(false, true).row);
+            return [];
+        }
+
+        // close: the row ends at its ) as a box does; one: it ends after one operand
+        function row(close, one) {
+            var out = [], depth = 0, t, next, last, key, inner, fracs = [];
+
+            function endFracs(d) { // what came after a ÷ is the bottom of its fraction, up to an operator or a bracket
+                var f;
+                while (fracs.length && fracs[fracs.length - 1].depth >= d) {
+                    f = fracs.pop();
+                    f.p.b[1] = bare(out.splice(f.start));
+                }
+            }
+
+            while (i < toks.length) {
+                t = toks[i++];
+                next = toks[i];
+                if (t.t === 'op' && t.v === ')') endFracs(depth); // the bracket a fraction is in ends it
+                else if (t.t === 'op' && (/^(\+|×|÷)$/.test(t.v) || (t.v === '-' && t.c !== '-'))) endFracs(depth); // not nCr: it holds tighter
+                if (t.t === 'op' && t.v === ')' && !depth && close) return { row: out, closed: true };
+                if (fractions && t.t === 'op' && t.v === '÷') { // a division, drawn as a fraction
+                    inner = { s: 'frac', b: [bare(out.splice(fracStart(out, out.length))), []] };
+                    out.push(inner);
+                    fracs.push({ p: inner, start: out.length, depth: depth });
+                    continue;
+                }
+                if (t.t === 'num' && !t.whole) {
+                    out.push.apply(out, digitPieces(t.v));
+                } else if (t.t === 'fn' && t.v !== 'logy') {
+                    key = t.v;
+                    if (/^(sin|cos|tan)h?$/.test(key) && next && next.t === 'sup' && next.v === '-1') {
+                        key += '-1';
+                        next = toks[++i];
+                    }
+                    if (next && next.t === 'op' && next.v === '(') {
+                        i++;
+                        out.push(boxed({ s: 'fn', k: key, b: [] }));
+                    } else {
+                        out.push({ s: 'fn', k: key, b: [atom()] });
+                    }
+                } else if (t.t === 'fn') { // logᵧ, its base as written: log₅(8)
+                    inner = { s: 'logb', b: [t.b ? digitPieces(String(t.b)) : []] };
+                    if (next && next.t === 'op' && next.v === '(') {
+                        i++;
+                        out.push(boxed(inner));
+                    } else {
+                        inner.b.push(atom());
+                        out.push(inner);
+                    }
+                } else if (t.t === 'op' && t.v === '√') {
+                    last = out[out.length - 1];
+                    inner = last && !last.s && last.p.length === 1 && last.p[0].t === 'sup' ? // ³√: the root before it
+                        { s: 'root', k: 'x√y', b: [supRow(out.pop().p[0].v)] } : { s: 'root', k: '√', b: [] };
+                    if (next && next.t === 'op' && next.v === '(') {
+                        i++;
+                        out.push(boxed(inner));
+                    } else {
+                        inner.b.push(atom());
+                        out.push(inner);
+                    }
+                } else if (t.t === 'sup' && !(next && next.t === 'op' && next.v === '√')) {
+                    out.push({ s: 'pow', b: [supRow(t.v)] }); // x², as a power to edit
+                } else if (t.t === 'op' && t.v === '^') {
+                    if (rootGroup()) { // 6^(1/58.35) is the root its text stands for, ⁵⁸·³⁵√6
+                        i += 3;
+                        inner = { s: 'root', k: 'x√y', b: [bare(row(true).row), bare(out.splice(operandStart(out, out.length)))] };
+                        out.push(inner);
+                    } else if (next && next.t === 'op' && next.v === '(') {
+                        i++;
+                        out.push(boxed({ s: 'pow', b: [] }));
+                    } else {
+                        out.push({ s: 'pow', b: [operand()], open: !next });
+                    }
+                } else if (t.t === 'op' && t.v === 'logy') { // 8 logᵧ 2.5: log₂.₅(8), its number before it
+                    inner = { s: 'logb', b: [[], bare(out.splice(operandStart(out, out.length)))] };
+                    if (next && next.t === 'op' && next.v === '(') {
+                        i++;
+                        inner.b[0] = row(true).row;
+                    } else {
+                        inner.b[0] = operand();
+                    }
+                    out.push(inner);
+                } else {
+                    if (t.t === 'op' && t.v === '(') depth++;
+                    if (t.t === 'op' && t.v === ')') depth--;
+                    // a fraction alone in brackets, (1/5), needs none drawn: but after ÷, or raised, they say which part
+                    if (fractions && t.t === 'op' && t.v === ')' && out.length > 1 && out[out.length - 1].s === 'frac' &&
+                        opPiece(out[out.length - 2], /^\($/) && !(out.length > 2 && opPiece(out[out.length - 3], /^÷$/)) &&
+                        !(next && (next.t === 'sup' || (next.t === 'op' && /^[!%^]$/.test(next.v))))) {
+                        out.splice(out.length - 2, 1);
+                    } else {
+                        out.push({ p: [t] });
+                    }
+                }
+                // one operand taken: done, unless a root's ³ waits for its √
+                if (one && !depth && out.length && !(t.t === 'sup' && toks[i] && toks[i].t === 'op' && toks[i].v === '√')) break;
+            }
+            endFracs(0);
+            return { row: out, closed: false };
+        }
+
+        return row(false).row;
+    }
+
     // the pieces of an expression node
-    function piecesOf(node) {
+    function piecesOf(node, fractions) {
         var table = [], s;
         marks = table;
         try {
@@ -2256,20 +2550,283 @@
         } finally {
             marks = null;
         }
-        return pieces(tokens(s, table) || []);
+        return structure(tokens(s, table) || [], fractions);
     }
 
-    // the tokens parse reads; digits next to each other are one number
-    function unpiece(list) {
-        var out = [];
-        list.forEach(function (piece) {
-            piece.p.forEach(function (t) {
-                var last = out[out.length - 1];
-                if (t.d && last && last.d) last.v += t.v;
-                else out.push(t.d ? { t: 'num', v: t.v, d: 1 } : t);
+    // the cursor at the end of what is still open in a row, as in tan(45 or ³√(8; the marks go
+    function openCursor(e) {
+        var row = e.list, p;
+        e.path = [];
+        while (row.length && (p = row[row.length - 1]).s && p.open) {
+            e.path.push({ i: row.length - 1, k: p.b.length - 1 });
+            row = p.b[p.b.length - 1];
+        }
+        e.at = row.length;
+        (function clean(r) {
+            r.forEach(function (q) {
+                if (q.s) {
+                    delete q.open;
+                    q.b.forEach(clean);
+                }
             });
+        })(e.list);
+    }
+
+    // a saved edit with a path that still leads somewhere, and its place in that row
+    function fixEdit(e) {
+        var path = Array.isArray(e.path) ? pathOf(e.list, pathKey(e.path.filter(function (s) { return s && s.i >= 0; }))) : [];
+        e.path = path || [];
+        e.at = Math.max(0, Math.min(rowIn(e.list, e.path).length, e.at | 0));
+    }
+
+    // the cursor one place on: into a template's first box, on to its next box, out after it
+    function stepRight(e) {
+        var row = rowIn(e.list, e.path), p = row[e.at], up;
+        if (e.at < row.length) {
+            if (p.s) {
+                e.path.push({ i: e.at, k: 0 });
+                e.at = 0;
+            } else {
+                e.at++;
+            }
+            return true;
+        }
+        if (!e.path.length) return false;
+        up = e.path.pop();
+        p = rowIn(e.list, e.path)[up.i];
+        if (up.k + 1 < p.b.length) {
+            e.path.push({ i: up.i, k: up.k + 1 });
+            e.at = 0;
+        } else {
+            e.at = up.i + 1;
+        }
+        return true;
+    }
+
+    // and back: into a template's last box, from the end
+    function stepLeft(e) {
+        var row = rowIn(e.list, e.path), p = row[e.at - 1], up;
+        if (e.at > 0) {
+            if (p.s) {
+                e.path.push({ i: e.at - 1, k: p.b.length - 1 });
+                e.at = p.b[p.b.length - 1].length;
+            } else {
+                e.at--;
+            }
+            return true;
+        }
+        if (!e.path.length) return false;
+        up = e.path.pop();
+        p = rowIn(e.list, e.path)[up.i];
+        if (up.k > 0) {
+            e.path.push({ i: up.i, k: up.k - 1 });
+            e.at = p.b[up.k - 1].length;
+        } else {
+            e.at = up.i;
+        }
+        return true;
+    }
+
+    // where the number before the place at in a row starts: 25, π, sin(30), (2 + 3), with its
+    // powers and marks, 4², 5!. at if there is none
+    function operandStart(row, at) {
+        var i = at, p, depth;
+        while (i > 0 && (row[i - 1].s === 'pow' || opPiece(row[i - 1], /^[!%]$/))) i--;
+        p = row[i - 1];
+        if (!p) return at;
+        if (digitPiece(p)) {
+            while (i > 0 && digitPiece(row[i - 1])) i--;
+            return i;
+        }
+        if (p.s) return i - 1;
+        if (p.p.length === 1 && (p.p[0].t === 'const' || p.p[0].t === 'num')) return i - 1;
+        if (opPiece(p, /^\)$/)) {
+            for (depth = 0, i--; i >= 0; i--) {
+                if (opPiece(row[i], /^\)$/)) depth++;
+                else if (opPiece(row[i], /^\($/) && !--depth) return i;
+            }
+        }
+        return at;
+    }
+
+    // where the number after the place j of a row ends: 4, -4, π, sin(30), (2 + 3), with its
+    // powers and marks
+    function operandEnd(row, j) {
+        var p, depth;
+        if (row[j] && opPiece(row[j], /^-$/)) j++; // a sign
+        p = row[j];
+        if (!p) return j;
+        if (digitPiece(p)) {
+            while (row[j] && digitPiece(row[j])) j++;
+        } else if (opPiece(p, /^\($/)) {
+            for (depth = 0; j < row.length; j++) {
+                if (opPiece(row[j], /^\($/)) depth++;
+                else if (opPiece(row[j], /^\)$/) && !--depth) {
+                    j++;
+                    break;
+                }
+            }
+        } else if (p.s || (p.p.length === 1 && (p.p[0].t === 'const' || p.p[0].t === 'num'))) {
+            j++;
+        } else {
+            return j;
+        }
+        while (row[j] && (row[j].s === 'pow' || opPiece(row[j], /^[!%]$/))) j++;
+        return j;
+    }
+
+    // the operators that hold tighter than ÷, so a fraction takes their numbers whole: 5 nCr 2 ÷ 3
+    // is (5 nCr 2) over 3, 3 ÷ 5 nCr 2 is 3 over (5 nCr 2)
+    var TIGHT = /^(nCr|nPr|mod|gcd|lcm|EE|logy)$/;
+
+    function fracStart(row, at) {
+        var s = operandStart(row, at), t;
+        while (s > 0 && opPiece(row[s - 1], TIGHT) && (t = operandStart(row, s - 1)) < s - 1) s = t;
+        return s;
+    }
+
+    function fracEnd(row, j) {
+        var e = operandEnd(row, j), f;
+        while (row[e] && opPiece(row[e], TIGHT) && (f = operandEnd(row, e + 1)) > e + 1) e = f;
+        return e;
+    }
+
+    // each division of a row and its boxes a fraction, the number before it on top and the one
+    // after it below, as it reads: 2 ÷ 3 × 4 is ⅔ × 4. A ÷ the cursor was next to leaves it
+    // by the part of the fraction it was at
+    function toFracs(row) {
+        var i, s, e, f, at;
+        row.forEach(function (p) {
+            if (p.s) p.b = p.b.map(toFracs);
+        });
+        for (i = 0; i < row.length; i++) {
+            if (!opPiece(row[i], /^÷$/)) continue;
+            s = fracStart(row, i);
+            e = fracEnd(row, i + 1);
+            f = { s: 'frac', b: [bare(row.slice(s, i)), bare(row.slice(i + 1, e))] };
+            at = row[i].cur;
+            if (at === 'before') {
+                if (f.b[0].length) f.b[0][f.b[0].length - 1].cur = 'after';
+                else f.curBox = 0;
+            } else if (at === 'after') {
+                if (f.b[1].length) f.b[1][0].cur = 'before';
+                else f.curBox = 1;
+            }
+            f.b = f.b.map(toFracs); // a division in a part of it, as 6 ÷ (3 ÷ 4)
+            row.splice(s, e - s, f);
+            i = s;
+        }
+        return row;
+    }
+
+    // a row with a + or a – of its own, which a division before or after it would split: 5 + 1
+    function summed(row) {
+        var depth = 0;
+        return row.some(function (p) {
+            if (opPiece(p, /^\($/)) depth++;
+            else if (opPiece(p, /^\)$/)) depth--;
+            return !depth && opPiece(p, /^(\+|-)$/) && !(p.p[0].v === '-' && p.p[0].c === '-');
+        });
+    }
+
+    // and back: each fraction a division, in brackets where the line needs them: (5 + 1) ÷ 2,
+    // 6 ÷ (3 ÷ 4), (3 ÷ 4)²
+    function fromFracs(row) {
+        var out = [];
+        row.forEach(function (p, n) {
+            var next = row[n + 1], prev = out[out.length - 1], all, made, div;
+            if (p.s) p.b = p.b.map(fromFracs);
+            if (p.s !== 'frac') return out.push(p);
+            all = (prev && opPiece(prev, /^÷$/)) || (next && (next.s === 'pow' || opPiece(next, /^[!%]$/)));
+            div = { p: [tok('÷')] };
+            made = [].concat(all ? [{ p: [tok('(')] }] : [], // the top in brackets only for a + or a –, the bottom for any operator
+                summed(p.b[0]) ? [{ p: [tok('(')] }].concat(p.b[0], [{ p: [tok(')')] }]) : p.b[0], [div],
+                compound(p.b[1]) ? [{ p: [tok('(')] }].concat(p.b[1], [{ p: [tok(')')] }]) : p.b[1],
+                all ? [{ p: [tok(')')] }] : []);
+            if (p.curBox === 0) div.cur = 'before';
+            if (p.curBox === 1) div.cur = 'after';
+            if (p.cur === 'before') made[0].cur = 'before';
+            if (p.cur === 'after') made[made.length - 1].cur = 'after';
+            out.push.apply(out, made);
         });
         return out;
+    }
+
+    // the first empty box of the line, from the left, or null
+    function firstEmpty(list) {
+        var found = null;
+        (function look(row, path) {
+            row.forEach(function (p, i) {
+                if (found || !p.s) return;
+                p.b.forEach(function (box, k) {
+                    if (found) return;
+                    if (!box.length) found = path.concat([{ i: i, k: k }]);
+                    else look(box, path.concat([{ i: i, k: k }]));
+                });
+            });
+        })(list, []);
+        return found;
+    }
+
+    // a row holding more than one number, as 5 + 1, which brackets keep together next to another
+    function compound(row) {
+        var depth = 0;
+        return row.some(function (p) {
+            if (opPiece(p, /^\($/)) depth++;
+            else if (opPiece(p, /^\)$/)) depth--;
+            return !depth && !p.s && p.p.length === 1 && p.p[0].t === 'op' && /^(\+|-|×|÷|nCr|nPr|mod|gcd|lcm|EE|logy)$/.test(p.p[0].v) &&
+                !(p.p[0].v === '-' && p.p[0].c === '-');
+        });
+    }
+
+    // a calculation drawn as the editor draws it, the same templates whether it is edited or not
+    function drawnNode(node, stacked) {
+        return drawRow(piecesOf(node, stacked), [], null);
+    }
+
+    // the line as it is edited: each piece in a span a click finds (data-e: its row and place),
+    // each box in one (data-r: its row). The box with the cursor is framed, dark; one it is in,
+    // lighter; an empty one dotted. A function has its brackets around its box: tan(□), tan(3 + 6)
+    function drawRow(row, path, e) {
+        var here = !!e && pathKey(e.path) === pathKey(path), out = '', i;
+        for (i = 0; i <= row.length; i++) {
+            if (here && e.at === i) out += CARET;
+            if (i < row.length) out += drawPiece(row[i], path, i, e);
+        }
+        return out;
+    }
+
+    function drawBox(p, path, i, k, e) {
+        var sub = path.concat([{ i: i, k: k }]), key = pathKey(sub), here = !!e && pathKey(e.path) === key,
+            inside = !!e && goesThrough(e.path, sub);
+        if (!p.b[k].length) return '<span class="calc-fr-empty calc-box' + (here ? ' calc-focus' : '') + '" data-r="' + key + '"></span>';
+        return '<span' + (inside ? ' class="calc-frame' + (here ? ' calc-focus' : '') + '"' : '') + ' data-r="' + key + '">' +
+            drawRow(p.b[k], sub, e) + '</span>';
+    }
+
+    function drawPiece(p, path, i, e) {
+        var body;
+        function box(k) {
+            return drawBox(p, path, i, k, e);
+        }
+        function open(k) { // in it, or empty: its box alone
+            return !!e && goesThrough(e.path, path.concat([{ i: i, k: k }])) || !p.b[k].length;
+        }
+        function paren(k) { // a function's number, in its brackets: sin(□), sin(30)
+            return '(' + box(k) + ')';
+        }
+        function kept(k) { // a number next to an operator: in brackets if it is more than one
+            return !open(k) && compound(p.b[k]) ? '(' + box(k) + ')' : box(k);
+        }
+        if (!p.s) body = p.p.map(look).join('');
+        else if (p.s === 'fn') body = (NAME[p.k] || p.k) + paren(0);
+        else if (p.s === 'root') body = (p.k === 'x√y' ? '<sup>' + box(0) + '</sup>' : '') + '<span class="calc-root">' + box(p.b.length - 1) + '</span>';
+        else if (p.s === 'pow') body = '<sup>' + box(0) + '</sup>';
+        else if (p.s === 'logb') body = 'log<sub>' + box(0) + '</sub>' + paren(1);
+        else if (p.s === 'tpl') body = kept(0) + (p.k === 'EE' ? 'E' : ' ' + p.k + ' ') + kept(1);
+        else if (p.s === 'frac') body = '<span class="calc-fr"><span>' + box(0) + '</span><span>' + box(1) + '</span></span>';
+        else body = kept(0);
+        return '<span data-e="' + pathKey(path) + '|' + i + '">' + body + '</span>';
     }
 
     // the piece a key writes at the cursor; null for a key that writes nothing
@@ -2333,13 +2890,27 @@
     // how 'space', thin spaces: 1 234 567.891. With 'dot' and 'spacecomma' the
     // decimal mark is a comma: 1.234.567,891 and 1 234 567,891
     function group(s, how) {
-        return numerals(s, how === 'dot' ? '.' : how === 'space' || how === 'spacecomma' ? '\u2009' : ',', comma(how) ? ',' : '.');
+        var sep = how === 'dot' ? '.' : how === 'space' || how === 'spacecomma' ? '\u2009' : ',', point = comma(how) ? ',' : '.';
+        // a number of the drawn line is a digit to a piece: each third one from its decimal mark has
+        // the mark of the thousands before it, in the piece itself, so a click still finds the pieces
+        s = s.replace(/(?:<span data-e="[^"]*">[\d.]<\/span>)+/g, function (run) {
+            var parts = run.match(/<span data-e="[^"]*">[\d.]<\/span>/g),
+                chars = parts.map(function (p) { return p.charAt(p.length - 8); }),
+                whole = chars.indexOf('.') < 0 ? chars.length : chars.indexOf('.');
+            return parts.map(function (p, k) {
+                var c = chars[k] === '.' ? point : (k && k < whole && !((whole - k) % 3) ? sep : '') + chars[k];
+                return p.slice(0, p.length - 8) + c + '</span>';
+            }).join('');
+        });
+        return numerals(s, sep, point);
     }
 
     // the decimal mark alone, as how writes it: where the thousands are not apart,
     // in an equation with the cursor in it, a key of it at a time, and in what is copied
     function decimal(s, how) {
-        return !comma(how) ? s : s === '.' ? ',' : numerals(s, '', ',');
+        if (!comma(how)) return s;
+        if (s === '.') return ',';
+        return numerals(s.replace(/(<span data-e="[^"]*">)\.(<\/span>)/g, '$1,$2'), '', ','); // the point of a drawn line is a piece of its own
     }
 
     // a number in degrees, minutes and seconds, the seconds to two places:
@@ -2527,7 +3098,7 @@
         this.past = []; // finished calculations, oldest first: { node, value, frac: 1 if done in fraction mode, dms: 1 in °′″ }
         this.fraction = false; // fraction mode is on: set by the display, kept with each calculation in the history
         this.dms = false; // results are shown in degrees, minutes and seconds: the same
-        this.fnFirst = false; // function keys go before their number, tan 45, not 45 tan: set by the display
+        this.fnFirst = true; // function keys go before their number, tan 45; off only while pasted text is typed in
         this.comma = false; // the decimal mark shown is a comma, so a pasted 1.234 is 1234: the same
         this.reset();
     }
@@ -2555,7 +3126,7 @@
     Engine.prototype.restore = function (snap) {
         var s = JSON.parse(snap);
         if (!s || !Array.isArray(s.levels) || !s.levels.length || typeof s.value !== 'string' ||
-            !s.levels.every(function (lvl) { return lvl && Array.isArray(lvl.stack) && (!lvl.fn || opens(lvl.fn)); })) {
+            !s.levels.every(function (lvl) { return lvl && Array.isArray(lvl.stack) && (!lvl.fn || leads(lvl.fn, 'fresh')); })) {
             throw new Error('bad calculator state');
         }
         this.levels = s.levels;
@@ -2566,7 +3137,7 @@
         this.error = s.error;
         this.failed = s.failed;
         this.edit = s.edit && Array.isArray(s.edit.list) && s.edit.list.length ? s.edit : null;
-        if (this.edit) this.edit.at = Math.max(0, Math.min(this.edit.list.length, this.edit.at | 0));
+        if (this.edit) fixEdit(this.edit);
         this.failedEdit = Array.isArray(s.failedEdit) ? s.failedEdit : null;
     };
 
@@ -2627,15 +3198,9 @@
     // text, the result, and the units its angles were in ('Deg', 'Grad', 'Rad',
     // 'Deg Rad' … or '')
     Engine.prototype.pastLine = function (i, stacked) {
-        var p = this.past[i], line;
-        stacking = !!stacked;
-        try {
-            line = show(p.node) + ' =';
-        } finally {
-            stacking = false;
-        }
+        var p = this.past[i];
         return {
-            line: line,
+            line: drawnNode(p.node, stacked) + ' =',
             text: asPlain(function () { return show(p.node); }) + ' =',
             result: short(p.value),
             unit: Object.keys(units(p.node)).sort().join(' ')
@@ -2737,12 +3302,7 @@
     // operator, a function or a bracket. Never returns to an earlier calculation
     Engine.prototype.del = function () {
         var line = this.equation(), snap, old, e = this.edit;
-        if (e) { // while editing: the piece before the cursor
-            if (!e.at) return false;
-            e.list.splice(--e.at, 1);
-            if (!e.list.length) this.reset();
-            return true;
-        }
+        if (e) return this.delEdit();
         while (this.history.length) {
             snap = this.history.pop();
             old = lineOf(snap);
@@ -2794,6 +3354,26 @@
         this.done = null;
     };
 
+    // Enter while the line is edited, or a function is open in it: everything closes at once,
+    // so the line shows what will be worked out, tan(45). Another Enter, or =, works it out
+    Engine.prototype.enter = function (deg) {
+        var snap = this.snapshot();
+        if (this.edit) return this.enterEdit();
+        if (!this.opened()) return false;
+        while (this.levels.length > 1) {
+            if (!this.apply(')', deg)) return this.restore(snap), false;
+        }
+        if (!isFinite(+this.value)) this.fail();
+        this.track(snap, '(');
+        return true;
+    };
+
+    // true while a function or template is open anywhere in the line, a bracket inside it or
+    // not: Enter closes one at a time, and works the line out only once none is
+    Engine.prototype.opened = function () {
+        return !this.edit && !this.done && !this.error && this.levels.some(function (l) { return !!l.fn; });
+    };
+
     Engine.prototype.equals = function (deg) {
         var lvl = this.levels[0], top, d;
         if (this.done && lvl.rep && lvl.rep.val !== null) { // repeating '='
@@ -2811,7 +3391,7 @@
                     lvl.stack = [];
                 }
                 if (d && lvl.fn) {
-                    top = applied(lvl.fn, top, deg);
+                    top = closed(lvl, top, deg, this.levels[d - 1].stack);
                     if (!isFinite(top.val)) top.val = NaN; // an error, as the key itself would give
                 } else if (d) {
                     top = { val: top.val, node: { t: 'group', arg: top.node, auto: 1 } }; // closed by '='
@@ -2827,7 +3407,8 @@
 
     // returns false if the key is not accepted in the current state
     Engine.prototype.apply = function (key, deg) {
-        var lvl = this.levels[this.levels.length - 1], st = lvl.stack, cur, arg, top;
+        var lvl = this.levels[this.levels.length - 1], st = lvl.stack, cur, arg, top,
+            first = this.fnFirst && leads(key, this.entry);
 
         this.error = false;
         this.failed = '';
@@ -2836,8 +3417,19 @@
         // keys that would take the number shown before the function wait for one of its own
         if (lvl.fn && this.entry === 'fresh' && !st.length) {
             if (key === '–') key = '+/–';
-            else if (RANK[key] !== undefined || key === '%' || (UNARY[key] && !(this.fnFirst && opens(key)))) return false;
+            else if (RANK[key] !== undefined || ((key === '%' || UNARY[key]) && !first)) return false;
         }
+
+        // × or ÷ with no number before it takes the last result: × 2 after 5 = is 5 × 2. With
+        // none yet it waits for a number rather than take the 0 shown; + and – still take it,
+        // as 0 + 4, – starting a negative number. % waits for its number as x² does
+        if (this.entry === 'fresh' && !st.length && RANK[key] && key !== '+' && key !== '–') {
+            if (!this.past.length) return false;
+            this.value = String(this.ans);
+            this.entry = 'result';
+            this.node = null;
+        }
+        if (key === '%' && this.entry === 'fresh' && !first) return false;
 
         if (/^[\d.]$/.test(key)) {
             cur = this.entry === 'typing' ? this.value : '0';
@@ -2861,18 +3453,13 @@
             this.done = null;
         } else if (RANK[key]) {
             this.operator(key);
-        } else if (key === '%') {
-            arg = this.part();
-            top = st[st.length - 1];
-            cur = arith('÷', arg.val, 100);
-            // after + or – it is a share of the number before: 200 + 10% adds 20.
-            // Anywhere else it is a hundredth: 500 × 8% is 500 × 0.08
-            this.value = String(top && RANK[top.op] === 1 ? arith('÷', arith('×', top.val, arg.val), 100) : cur);
+        } else if (key === '%' && !first) {
+            top = percent(this.part(), st[st.length - 1]);
+            this.value = String(top.val);
             this.entry = 'result';
-            this.node = bounded({ t: 'post', op: '%', arg: arg.node }, +this.value);
-            if (this.node.t === 'post' && +this.value !== cur) this.node.share = true; // not a hundredth
+            this.node = top.node;
             this.done = null;
-        } else if (UNARY[key] && !(this.fnFirst && opens(key))) {
+        } else if (UNARY[key] && !first) {
             top = applied(key, this.part(), deg);
             this.value = String(top.val);
             this.entry = 'result';
@@ -2882,9 +3469,10 @@
             this.value = String(key === 'π' ? PI : key === 'e' ? Math.E : key === 'Rand' ? Math.random() :
                 key === 'mr' ? this.memory : this.ans);
             this.entry = 'result';
-            this.node = null; // a constant shows its digits, like any computed number
+            // π and e stay as they are written; a random number, the memory and Ans show their digits
+            this.node = key === 'π' || key === 'e' ? { t: 'const', name: key } : null;
             this.done = null;
-        } else if (key === '(' || UNARY[key]) { // a bracket, or a function before its number: tan(
+        } else if (key === '(' || key === '%' || UNARY[key]) { // a bracket, or a function before its number: tan(
             if (this.levels.length >= MAX_LEVELS) return false;
             if (!this.done && this.entry !== 'fresh') this.operator('×'); // 5 ( means 5 × (, 5 tan 5 × tan(
             if (isFinite(+this.value)) {
@@ -2897,7 +3485,8 @@
             if (this.levels.length < 2 || (this.entry === 'fresh' && !st.length)) return false;
             arg = this.operand();
             top = st.length ? reduce(st, '=', arg.val, arg.node) : arg;
-            top = lvl.fn ? applied(lvl.fn, top, deg) : { val: top.val, node: { t: 'group', arg: top.node } };
+            top = lvl.fn ? closed(lvl, top, deg, this.levels[this.levels.length - 2].stack) :
+                { val: top.val, node: { t: 'group', arg: top.node } };
             this.levels.pop();
             this.value = String(top.val);
             this.entry = 'result';
@@ -2917,7 +3506,7 @@
 
     Engine.prototype.fail = function () {
         var line = this.equation(), node = this.done || this.tree(),
-            list = this.edit ? this.edit.list : node ? piecesOf(node) : [];
+            list = this.edit ? this.edit.list : node ? piecesOf(node, this.fraction) : [];
         this.edit = null;
         this.failedEdit = list; // so the cursor can go into it and fix it
         this.levels = [newLevel()];
@@ -2930,12 +3519,19 @@
     };
 
     Engine.prototype.press = function (key, deg) {
-        var snap;
+        var snap, first;
         if (key === 'AC' || (this.edit && key === 'C')) {
             this.reset();
             return true;
         }
+        // a key that makes a template, sin□, ˣ√□, □^□, starts the line as a tree to edit
+        if (!this.edit && !this.typing && this.fnFirst && structural(key, this.entry)) this.liveEdit(key);
         if (this.edit) { // keys write at the cursor; '=' and the memory work out the equation first
+            if (key === '=' && firstEmpty(this.edit.list)) { // a box still empty: there first
+                this.edit.path = firstEmpty(this.edit.list);
+                this.edit.at = 0;
+                return true;
+            }
             if (key === '=' || key === 'm+' || key === 'm-') {
                 if (!this.commit(deg)) {
                     if (key !== '=') return false;
@@ -2955,13 +3551,14 @@
             return true;
         }
         snap = this.snapshot();
+        first = this.fnFirst && leads(key, this.entry);
         if (!this.apply(key, deg)) {
             this.restore(snap);
             return false;
         }
         if (!isFinite(+this.value)) this.fail();
-        else if (key === '=') this.keep();
-        this.track(snap, this.fnFirst && opens(key) ? '(' : key); // tan( is taken back as a bracket is
+        else if (key === '=' && this.done) this.keep(); // not when Enter only went on to a root's next box
+        this.track(snap, first ? '(' : key); // tan( is taken back as a bracket is
         return true;
     };
 
@@ -2969,12 +3566,14 @@
     // A function goes after its operand, as it does without tan-first, so it is
     // worked out the same; only one whose bracket is still open goes first
     Engine.prototype.type = function (tree, deg) {
-        var first = this.fnFirst;
+        var first = this.fnFirst, typing = this.typing;
         this.fnFirst = false;
+        this.typing = true; // its keys go on as keys, never into a tree to edit
         try {
             return this.typeIn(tree, deg, first);
         } finally {
             this.fnFirst = first;
+            this.typing = typing;
         }
     };
 
@@ -3065,9 +3664,9 @@
             s = s.replace(/^=\s*/, '').replace(/=[^]*$/, '');
             add = s.length <= MAX_PASTE && tokens(s);
             if (!add || !add.length) return false;
-            add = pieces(add);
-            if (e.list.length + add.length > MAX_EDIT) return false;
-            e.list.splice.apply(e.list, [e.at, 0].concat(add));
+            add = structure(add);
+            if (rowSize(e.list) + rowSize(add) > MAX_EDIT) return false;
+            Array.prototype.splice.apply(rowIn(e.list, e.path), [e.at, 0].concat(add));
             e.at += add.length;
             return true;
         }
@@ -3083,6 +3682,8 @@
                 if (this.entry !== 'fresh') this.press('C');
                 if (this.type(tree, deg)) {
                     if (equals && !this.error) this.press('=', deg);
+                    // an unfinished function, tan(45: in the editor, the cursor in its box
+                    else if (!this.error && this.levels.some(function (l) { return !!l.fn; })) this.startEdit();
                     return true;
                 }
                 this.restore(snap);
@@ -3122,53 +3723,83 @@
             for (i = st.length - 1; i >= 0; i--) {
                 node = { t: 'bin', op: st[i].op, l: st[i].node, r: node };
             }
-            if (d) node = this.levels[d].fn ? { t: 'open', fn: this.levels[d].fn, arg: node } : { t: 'open', arg: node };
+            if (d) node = this.levels[d].fn ? { t: 'open', fn: this.levels[d].fn, arg: node, top: d === this.levels.length - 1 } :
+                { t: 'open', arg: node };
         }
         return node;
     };
 
-    // true while there is only a number, no expression yet
+    // true while there is only a number, no expression yet: π or e alone shows its value too
     Engine.prototype.plain = function () {
         var node = this.tree();
-        return !node || node.t === 'num';
+        return !node || node.t === 'num' || node.t === 'const';
     };
 
-    // the equation, as text with <sup>/<sub> tags; stacked: each division
-    // drawn as a fraction, for fraction mode
+    // the equation, drawn as the editor draws it; stacked: each division drawn as a fraction,
+    // for fraction mode. After a key of two numbers, the box of the number it waits for: 5 nCr □
     Engine.prototype.equation = function (stacked) {
-        var node;
-        if (this.edit) return this.edit.list.map(html).join('');
+        var node, list;
+        if (this.edit) return drawRow(this.edit.list, [], null);
         if (this.error) return this.failed;
-        stacking = !!stacked;
-        try {
-            if (this.done) return this.done.t === 'num' ? '' : show(this.done) + ' ='; // "9 =" says nothing
-            node = this.tree();
-            return node ? show(node) : '';
-        } finally {
-            stacking = false;
-        }
+        if (this.done) return this.done.t === 'num' ? '' : drawnNode(this.done, stacked) + ' ='; // "9 =" says nothing
+        if (!(node = this.tree())) return '';
+        list = piecesOf(node, stacked);
+        return drawRow(list, [], null) + (list.length && opPiece(list[list.length - 1], /^(nCr|nPr|mod|gcd|lcm|EE)$/) ?
+            '<span class="calc-fr-empty calc-focus calc-next"></span>' : '');
     };
 
     Engine.stack = stack;
 
     // the equation as plain text, for the clipboard
     Engine.prototype.text = function () {
-        return this.edit ? untag(this.equation()) : asPlain(this.equation.bind(this));
+        if (this.edit) return tokText(unpiece(this.edit.list));
+        // a line that failed is kept drawn: its pieces give it as text, ²√(-16), not 2√(-16)
+        if (this.error && this.failedEdit && this.failedEdit.length) {
+            return tokText(unpiece(this.failedEdit)) + (/ =$/.test(this.failed) ? ' =' : '');
+        }
+        if (this.done) return this.done.t === 'num' ? '' : asPlain(function () { return show(this.done); }.bind(this)) + ' =';
+        return this.tree() ? asPlain(function () { return show(this.tree()); }.bind(this)) : '';
     };
 
     // ---------- the cursor ---------- //
 
     // puts the cursor at the end of what the display shows: the equation being
-    // entered, the finished one after '=', or the one that failed. False if
-    // there is nothing to change, as with a result alone
+    // entered, the finished one after '=', or the one that failed; inside what is
+    // still open of it, as tan(45. False if there is nothing to change, as with a result alone
     Engine.prototype.startEdit = function () {
         var node, list;
         if (this.edit) return true;
-        if (this.error) list = (this.failedEdit || []).slice();
-        else list = (node = this.done || this.tree()) ? piecesOf(node) : [];
-        if (!list.length || (list.length === 1 && list[0].p[0].whole)) return false;
-        this.edit = { list: list, at: list.length };
+        if (this.error) list = JSON.parse(JSON.stringify(this.failedEdit || []));
+        else list = (node = this.done || this.tree()) ? piecesOf(node, this.fraction) : [];
+        if (!list.length || (list.length === 1 && !list[0].s && list[0].p[0].whole)) return false;
+        this.edit = { list: list, path: [], at: list.length };
+        openCursor(this.edit);
         return true;
+    };
+
+    // a key that makes a template: a function, a root, a power, a logarithm; a key of two
+    // numbers, or x², x!, % and 1/x, with no number before it. ÷ is not one: typed straight on,
+    // 1 + 2 ÷ 3 × 4 is worked out as it reads, and drawn with its fraction in fraction mode;
+    // only in the line being edited does it make one, its bottom a box of its own
+    function structural(key, entry) {
+        return opens(key) || /^(x√y|yx|logy)$/.test(key) ||
+            (entry === 'fresh' && (TEMPLATE_OPS.test(key) || /^(x[23!]|%|1\/x)$/.test(key)));
+    }
+
+    // the line as it is entered so far, as a tree to edit, for a key that makes a template.
+    // After a result a new line starts; x√y, yˣ and logᵧ take the result as their number
+    Engine.prototype.liveEdit = function (key) {
+        var node, list = [];
+        if (!this.error) {
+            if (this.done) {
+                if (/^(x√y|yx|logy)$/.test(key)) list = [{ p: [{ t: 'num', v: this.value, whole: true }] }];
+            } else if ((node = this.tree())) {
+                list = piecesOf(node, this.fraction);
+            }
+        }
+        this.reset();
+        this.edit = { list: list, path: [], at: list.length };
+        openCursor(this.edit);
     };
 
     // enters the edited equation the way the keys would, in place of the
@@ -3183,30 +3814,54 @@
         return false;
     };
 
-    // moves the cursor. At the end the equation is worked out again and the
-    // keys work as they always do; if it cannot be yet, the cursor stays
-    Engine.prototype.cursor = function (at, deg) {
+    // the cursor to a place of the line, outside any template
+    Engine.prototype.cursor = function (at) {
         var e = this.edit;
         if (!e) return false;
+        e.path = [];
         e.at = Math.max(0, Math.min(e.list.length, at));
-        if (e.at === e.list.length) this.commit(deg);
         return true;
     };
 
-    // the arrow keys: 'left', 'right', 'home' or 'end'. After '=' or an error,
-    // ◀ enters the equation again and ▶ puts the cursor at its start
-    Engine.prototype.move = function (how, deg) {
-        var e = this.edit, finished = !!(this.done || this.error);
+    // the arrow keys: 'left', 'right', 'home' or 'end'. Into a template's boxes and out of
+    // them, through the whole line. ◀ from the end of the line goes into it
+    Engine.prototype.move = function (how) {
+        var e = this.edit;
         if (!e) {
-            if (!finished && (how === 'right' || how === 'end')) return false; // the cursor is at the end already
+            if (!this.done && !this.error && (how === 'right' || how === 'end')) return false; // the cursor is at the end already
             if (!this.startEdit()) return false;
             e = this.edit;
-            if (how === 'home' || how === 'right') e.at = 0;
-            else if (finished) this.commit(deg);
-            else e.at--;
+            if (how === 'home' || how === 'right') return this.cursor(0);
+            if (!this.done && !this.error) stepLeft(e);
             return true;
         }
-        return this.cursor(how === 'home' ? 0 : how === 'end' ? e.list.length : e.at + (how === 'left' ? -1 : 1), deg);
+        if (how === 'home' || how === 'end') return this.cursor(how === 'home' ? 0 : e.list.length);
+        return how === 'left' ? stepLeft(e) : stepRight(e);
+    };
+
+    // Tab: to the start of the next box, back: to the end of the one before; past the last,
+    // out of them, to the end of the line
+    Engine.prototype.tab = function (back) {
+        var e = this.edit, from, n;
+        if (!e) return false;
+        from = pathKey(e.path) + '|' + e.at;
+        for (n = 0; n < 4 * MAX_EDIT && (back ? stepLeft(e) : stepRight(e));) {
+            n++;
+            if (e.path.length && e.at === (back ? rowIn(e.list, e.path).length : 0) && pathKey(e.path) + '|' + e.at !== from) return true;
+        }
+        this.cursor(back ? 0 : e.list.length);
+        return pathKey(e.path) + '|' + e.at !== from;
+    };
+
+    // a click on a piece (its row and place: 'row|i', the cursor after it if after) or on
+    // a box (its row: the cursor at its end)
+    Engine.prototype.place = function (spec, after) {
+        var e = this.edit, parts = String(spec).split('|'), path, row;
+        if (!e || !(path = pathOf(e.list, parts[0]))) return false;
+        row = rowIn(e.list, path);
+        e.path = path;
+        e.at = parts.length > 1 ? Math.max(0, Math.min(row.length, (+parts[1] | 0) + (after ? 1 : 0))) : row.length;
+        return true;
     };
 
     // the place between two pieces nearest to chars characters from the start of the equation
@@ -3233,15 +3888,29 @@
             this.edit = null; // the end of the equation being entered: where it was
             return false;
         }
-        return this.cursor(best, deg);
+        return this.cursor(best);
     };
 
     // takes what is selected out of the shown equation, from and to characters from
-    // its start, and leaves the cursor in its place. Neither given: all of it, and
+    // its start, or each { r: the key of a box's row, i: a place in it }, and leaves the cursor in its place. Neither given: all of it, and
     // the display is cleared. False if there is nothing of an equation to take
     function take(e, from, to) {
-        var was = e.edit, list, i, j;
+        var was = e.edit, list, i, j, path, row;
         if (!e.startEdit()) return false; // a result alone: the keys and a paste replace it as it is
+        if (from && typeof from === 'object') { // in a box: its row, and the places in it
+            path = pathOf(e.edit.list, from.r);
+            row = path && rowIn(e.edit.list, path);
+            if (!row || from.i >= Math.min(to.i, row.length)) {
+                e.edit = was;
+                return false;
+            }
+            row.splice(from.i, Math.min(to.i, row.length) - from.i);
+            e.edit.path = path;
+            e.edit.at = from.i;
+            if (!e.edit.list.length) e.reset(); // all of it: the display cleared
+            return true;
+        }
+        e.edit.path = []; // a selection is of the line, its templates whole
         list = e.edit.list;
         i = from === undefined ? 0 : placeAt(list, from);
         j = to === undefined ? list.length : placeAt(list, to);
@@ -3270,7 +3939,6 @@
             e.history = hist;
             return false;
         }
-        if (e.edit) e.cursor(e.edit.at, deg);
         return true;
     }
 
@@ -3287,7 +3955,7 @@
         var self = this;
         if (/^(AC|C|=|m[c+-])$/.test(key)) return this.press(key, deg); // these write nothing
         if (from === undefined && !/^([\d.π(]|e|Ans|mr|Rand)$/.test(key)) {
-            if (this.edit) this.cursor(this.edit.list.length, deg);
+            if (this.edit) this.cursor(this.edit.list.length);
             return this.press(key, deg);
         }
         return over(this, from, to, deg, function () { return self.press(key, deg); });
@@ -3298,22 +3966,215 @@
         return over(this, from, to, deg);
     };
 
+    // a key at the cursor. A function, a root, a power or a logarithm comes as its template,
+    // the cursor in its first empty box; x√y, yˣ, logᵧ and 1/x take the number before them
+    // into it, 3 x√y is ³√□; a key of two numbers, x², x!, % and 1/x with none before come
+    // with a box for it. After a number a function means times it: 5 sin is 5 × sin□
     Engine.prototype.insert = function (key) {
-        var piece = written(key, this);
-        return !!piece && this.insertPiece(piece);
-    };
+        var e = this.edit, row = rowIn(e.list, e.path), at = e.at, s = operandStart(row, at), has = s < at,
+            add = [], enter = null, take = false, after = 0, made;
 
-    Engine.prototype.insertPiece = function (piece) {
-        var e = this.edit;
-        if (e.list.length >= MAX_EDIT) return false;
-        e.list.splice(e.at++, 0, piece);
+        function inside() { // a function's box takes the number after the cursor: sin before 2 is sin(2)
+            var end = operandEnd(row, at);
+            after = end - at;
+            return row.slice(at, end);
+        }
+
+        function times() {
+            if (has) add.push({ p: [tok('×')] });
+            has = false;
+        }
+
+        // ) in a box with no ( of its own before the cursor closes the box: a function's, as
+        // its bracket; a fraction's, a power's or a root's, the ) then going on after it
+        if (key === ')' && e.path.length && !unclosed(row, at)) {
+            made = e.path.pop();
+            row = rowIn(e.list, e.path);
+            e.at = made.i + 1;
+            if (row[made.i].s === 'fn' || row[made.i].k === '√' || (row[made.i].s === 'logb' && made.k === 1)) return true;
+            return this.insert(')');
+        }
+        if (key === ')' && !unclosed(row, at)) return false; // nothing for it to close
+
+        if (UNARY[key] && UNARY[key].t === 'fn' && key !== '√') {
+            times();
+            add.push({ s: 'fn', k: key, b: [inside()] });
+            enter = [add.length - 1, 0];
+        } else if (key === '√') {
+            times();
+            add.push({ s: 'root', k: '√', b: [inside()] });
+            enter = [add.length - 1, 0];
+        } else if (key === 'x√y') {
+            add.push({ s: 'root', k: 'x√y', b: [has ? row.slice(s, at) : [], []] });
+            take = has;
+            enter = [0, has ? 1 : 0];
+        } else if (key === 'logy') {
+            add.push({ s: 'logb', b: [[], has ? row.slice(s, at) : []] });
+            take = has;
+            enter = [0, 0];
+        } else if (key === 'yx') {
+            if (!has) add.push({ s: 'box', b: [[]] });
+            add.push({ s: 'pow', b: [[]] });
+            enter = [0, 0];
+        } else if (key === 'ex' || key === '2x' || key === '10x') {
+            times();
+            add = add.concat(key === 'ex' ? [{ p: [{ t: 'const', v: 'e' }] }] : digitPieces(key.slice(0, -1)));
+            add.push({ s: 'pow', b: [[]] });
+            enter = [add.length - 1, 0];
+        } else if (key === '+/–' && has) { // the sign of the number before the cursor: -4 for 4, 4 again for -4
+            if (s > 0 && opPiece(row[s - 1], /^-$/) && row[s - 1].p[0].c === '-') {
+                row.splice(s - 1, 1);
+                e.at--;
+            } else {
+                if (rowSize(e.list) >= MAX_EDIT) return false;
+                row.splice(s, 0, { p: [tok('-', '-')] });
+                e.at++;
+            }
+            return true;
+        } else if (TEMPLATE_OPS.test(key) && !has) {
+            add.push({ s: 'tpl', k: key, b: [[], []] });
+            enter = [0, 0];
+        } else if (key === 'x2' || key === 'x3') {
+            if (!has) {
+                add.push({ s: 'box', b: [[]] });
+                enter = [0, 0];
+            }
+            add.push({ s: 'pow', b: [digitPieces(key.charAt(1))] });
+        } else if ((key === 'x!' || key === '%') && !has) {
+            add.push({ s: 'box', b: [[]] }, { p: [tok(key === 'x!' ? '!' : '%')] });
+            enter = [0, 0];
+        } else if (key === '1/x' && this.fraction) { // 1 over it
+            add.push({ s: 'frac', b: [digitPieces('1'), has ? bare(row.slice(s, at)) : []] });
+            take = has;
+            if (!has) enter = [0, 1];
+        } else if (key === '÷' && this.fraction) { // the number before it on top, the cursor below
+            add.push({ s: 'frac', b: [has ? bare(row.slice(s, at)) : [], []] });
+            take = has;
+            enter = [0, has ? 1 : 0];
+        } else if (key === '1/x') {
+            add = digitPieces('1').concat([{ p: [tok('÷', '/')] }, { s: 'box', b: [has ? row.slice(s, at) : []] }]);
+            take = has;
+            if (!has) enter = [2, 0];
+        } else {
+            made = written(key, this);
+            if (!made) return false;
+            add.push(made);
+        }
+        if (rowSize(e.list) + rowSize(add) - (take ? rowSize(row.slice(s, at)) : 0) - rowSize(row.slice(at, at + after)) > MAX_EDIT) return false;
+        if (e.path.length >= MAX_LEVELS - 1 && add.some(function (p) { return p.s; })) return false; // as deep as brackets go
+        if (take) {
+            row.splice(s, at - s);
+            at = s;
+        }
+        Array.prototype.splice.apply(row, [at, after].concat(add));
+        if (enter) {
+            e.path.push({ i: at + enter[0], k: enter[1] });
+            e.at = 0;
+        } else {
+            e.at = at + add.length;
+        }
         return true;
     };
 
-    // the equation while editing: the HTML of each piece, and the cursor
-    // (before the piece at that index)
+    // true if a ( before at in the row is still open
+    function unclosed(row, at) {
+        var depth = 0, k;
+        for (k = 0; k < at; k++) {
+            if (opPiece(row[k], /^\($/)) depth++;
+            else if (opPiece(row[k], /^\)$/) && depth) depth--;
+        }
+        return depth > 0;
+    }
+
+    Engine.prototype.insertPiece = function (piece) {
+        var e = this.edit;
+        if (rowSize(e.list) >= MAX_EDIT) return false;
+        rowIn(e.list, e.path).splice(e.at++, 0, piece);
+        return true;
+    };
+
+    // DEL while editing: the piece before the cursor, as the line typed out would lose it. Of a
+    // template before it, the last of its last box; an empty one goes whole
+    Engine.prototype.delEdit = function () {
+        var e = this.edit, row = rowIn(e.list, e.path), p, up, parent;
+        function empty(q) {
+            return !!q.s && q.b.every(function (r) { return !r.length; });
+        }
+        if (e.at > 0) {
+            p = row[e.at - 1];
+            if (p.s && !empty(p)) { // as typed out: the last of it goes, 8 of ³√8, 4 of 12/34
+                stepLeft(e);
+                return this.delEdit();
+            }
+            row.splice(--e.at, 1);
+        } else if (e.path.length) {
+            // at the start of a box, as the same line typed out: what comes before it goes. That
+            // is the template itself (the bar of 12/34, the nCr of 5 nCr 2, the sin( of sin(30)),
+            // what is in its boxes staying in its place, unless the box is the first operand of
+            // a fraction, nCr or root, with the template's own sign after it: what is before
+            // the template goes then
+            up = e.path[e.path.length - 1];
+            parent = rowIn(e.list, e.path.slice(0, -1));
+            p = parent[up.i];
+            e.path.pop();
+            if (row.length && !up.k && (p.s === 'frac' || p.s === 'tpl' || p.k === 'x√y')) {
+                e.at = up.i;
+                return e.at > 0 ? this.delEdit() : true;
+            }
+            parent.splice.apply(parent, [up.i, 1].concat([].concat.apply([], p.b)));
+            e.at = up.i + p.b.slice(0, up.k).reduce(function (n, r) { return n + r.length; }, 0);
+        } else {
+            return false;
+        }
+        if (!e.list.length) this.reset();
+        return true;
+    };
+
+    // Enter while editing: to the first empty box; with none, out of the boxes to the end
+    // of the line, which then shows what will be worked out. False there: = works it out
+    Engine.prototype.enterEdit = function () {
+        var e = this.edit, empty = firstEmpty(e.list);
+        if (empty) {
+            e.path = empty;
+            e.at = 0;
+            return true;
+        }
+        if (!e.path.length) return false;
+        return this.cursor(e.list.length);
+    };
+
+    // fraction mode turned on or off: the line being edited has its divisions as fractions, or
+    // its fractions as divisions, as the line is drawn in that mode. The cursor stays by the
+    // piece it was next to, or in the box it was in
+    Engine.prototype.setFraction = function (on) {
+        var e = this.edit, row, found = null;
+        this.fraction = !!on;
+        if (!e) return;
+        row = rowIn(e.list, e.path);
+        if (e.at > 0) row[e.at - 1].cur = 'after';
+        else if (row.length) row[0].cur = 'before';
+        else if (e.path.length) rowIn(e.list, e.path.slice(0, -1))[e.path[e.path.length - 1].i].curBox = e.path[e.path.length - 1].k;
+        e.list = on ? toFracs(e.list) : fromFracs(e.list);
+        (function look(r, path) {
+            r.forEach(function (p, i) {
+                if (!found && p.cur) found = { path: path, at: p.cur === 'after' ? i + 1 : i };
+                if (!found && p.curBox !== undefined && p.b && p.b[p.curBox]) found = { path: path.concat([{ i: i, k: p.curBox }]), at: 0 };
+                delete p.cur;
+                delete p.curBox;
+                if (p.s) {
+                    p.b.forEach(function (box, k) {
+                        look(box, path.concat([{ i: i, k: k }]));
+                    });
+                }
+            });
+        })(e.list, []);
+        e.path = found ? found.path : [];
+        e.at = found ? found.at : e.list.length;
+    };
+
+    // the equation while editing, the cursor in it
     Engine.prototype.editView = function () {
-        return { parts: this.edit.list.map(html), at: this.edit.at };
+        return { html: drawRow(this.edit.list, [], this.edit) };
     };
 
     Engine.stats = stats;

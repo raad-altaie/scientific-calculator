@@ -323,7 +323,7 @@ async function calculator(page, at) {
     check(await page.calc('document.activeElement.value') === '5', t + 'the first box starts with the result, 5');
     await page.type('\r');
     check(!await open(page, '.calc-fx'), t + 'Insert closes the panel');
-    check(/^3\.14159265359 × 52$/.test(await shown(page)), t + 'the equation of the circle is in the display', await shown(page));
+    check(/^π × 52$/.test(await shown(page)), t + 'the equation of the circle is in the display, π as π', await shown(page));
     await page.type('\r');
     check(near(await value(page), 78.53981633974), t + 'and = gives 78.5398…', await shown(page));
 
@@ -332,7 +332,8 @@ async function calculator(page, at) {
     await page.type('2*');
     await page.click('.calc-fx-btn');
     await page.type('pythag\r3\r4\r');
-    check(await shown(page) === '2 × (√(32 + 42))', t + 'into 2 × it goes in brackets', await shown(page));
+    check(await shown(page) === '2 × (32 + 42)' && await page.calc('!!document.querySelector("#box .calc-root")'),
+        t + 'into 2 × it goes in brackets, its root drawn with its bar', await shown(page));
     await page.type('\r');
     check(await shown(page) === '10', t + '2 × √(3² + 4²) = 10', await shown(page));
 
@@ -2492,13 +2493,14 @@ async function modeKey(page, at) {
     check(await page.calc(raw) === '1\u2009234\u2009567', t + 'separators: thin spaces', await page.calc(raw));
     await page.type('\x1b1234567+89');
     check(await page.calc(raw) === '1\u2009234\u2009567 + 89', t + 'in the equation as it is typed too', await page.calc(raw));
-    // a part selected in it is where a key writes: the spaces between the thousands are not counted
+    // a part selected in it is where a key writes: the spaces between the thousands are not counted.
+    // Each digit is a piece of its own: the 89 is the last two
     await page.calc('(function () { var box = document.getElementById("box"), walk = document.createTreeWalker(box, NodeFilter.SHOW_TEXT), ' +
-        'last, node, range = document.createRange(); while ((node = walk.nextNode())) if (/\\d/.test(node.data)) last = node; ' +
-        'range.setStart(last, last.data.length - 2); range.setEnd(last, last.data.length); ' +
+        'digits = [], node, range = document.createRange(); while ((node = walk.nextNode())) if (/\\d/.test(node.data)) digits.push(node); ' +
+        'range.setStart(digits[digits.length - 2], 0); range.setEnd(digits[digits.length - 1], digits[digits.length - 1].data.length); ' +
         'getSelection().removeAllRanges(); getSelection().addRange(range); })()');
     await page.type('5');
-    check(await page.calc(raw) === '1\u2009234\u2009567 + 5', t + 'a key over the selected 89 replaces it', await page.calc(raw));
+    check(await page.calc(raw) === '1234567 + 5', t + 'a key over the selected 89 replaces it, the line then edited: the thousands together', await page.calc(raw));
 
     // a comma as the decimal mark, with dots between the thousands: typed, shown, edited, copied and pasted so
     var pointKey = '[].filter.call(document.querySelectorAll(".calc-right > *"), function (k) { return /^[.,]$/.test(k.textContent.trim()); })[0]',
@@ -2576,20 +2578,22 @@ async function secondKeys(page, at) {
         await label(LOG) + ' ' + await label(PI) + ' ' + await label(YX));
     await page.click(LOG);
     await page.type('3\r');
-    check(await shown(page) === '1000', t + 'a click on 10ˣ, then 3 = is 1000', await shown(page));
+    check(await shown(page) === '103', t + 'a click on 10ˣ, then 3 and Enter closes its box: 10³', await shown(page));
+    await page.type('\r');
+    check(await shown(page) === '1000', t + 'and Enter again is 1000', await shown(page));
     await page.click(PI);
     check(near(await value(page), Math.E), t + 'a click on e puts it in', await shown(page));
     await page.type('8');
     await page.click(YX);
-    await page.type('2\r');
+    await page.type('2\r\r');
     check(await shown(page) === '3', t + '8 logᵧ 2 = 3', await shown(page));
     await page.click(KEYS + '1)');
     check(await label(LOG) === 'log' && await label(PI) === 'π' && await label(YX) === 'yx', t + '2nd again turns them back',
         await label(LOG) + ' ' + await label(PI) + ' ' + await label(YX));
 
-    await page.type('hL2\r');
+    await page.type('hL2\r\r');
     check(await shown(page) === '100', t + 'h, Shift+L is 10ˣ', await shown(page));
-    await page.type('81h^3\r');
+    await page.type('81h^3\r\r');
     check(await shown(page) === '4', t + 'h, ^ is logᵧ', await shown(page));
     await page.type('hp');
     check(near(await value(page), Math.E), t + 'h, p is e', await shown(page));
@@ -2601,7 +2605,7 @@ async function secondKeys(page, at) {
         t + '2nd turns abs, x! and Rand into floor, ceil and round', await label(KEYS + '25)') + ' ' + await label(KEYS + '26)') + ' ' + await label(KEYS + '30)'));
     for (const [key, want] of [['25', 3], ['26', 4], ['30', 4]]) {
         await page.click(KEYS + key + ')');
-        await page.type('7/2\r');
+        await page.type('7/2\r\r');
         check(await value(page) === want, t + '7/2 ' + await label(KEYS + key + ')') + ' = ' + want, await shown(page));
     }
 }
@@ -2692,7 +2696,7 @@ async function angleUnits(page, at) {
     check(await units() === 'Deg 360° Grad', t + 'then Deg, the key names Grad', await units());
     await page.click('#rad');
     check(await units() === 'Grad 400g Rad', t + 'then Grad, 400 to a full turn', await units());
-    await page.type('s100\r');
+    await page.type('s100\r\r');
     check(await shown(page) === '1', t + 'sin 100 = 1 in Grad', await shown(page));
     await page.go(page.base + at);
     check(await units() === 'Grad 400g Rad', t + 'Grad after a reload', await units());
@@ -3416,16 +3420,18 @@ async function menus(page, at) {
         await page.calc('document.querySelector(".calc-log").scrollLeft') + ' ' + await selected());
     await sleep(500);
     await press('.calc-log', 0);
-    check(await above() !== '' && !await page.calc('!!document.querySelector("#box .calc-cursor")'), t + 'one click does not open it');
-    await sleep(500);
-    await press('.calc-log', 0, 2);
     check(await above() === '' && await page.calc('!!document.querySelector("#box .calc-cursor")') &&
         (await shown(page)).replace(/\s/g, '') === '123456789+123456789+123456789+123456789+123456789' && await selected() === '',
-        t + 'a double click on it opens the equation in the display, with the cursor in it', await shown(page) + ' | ' + await selected());
+        t + 'one click on it opens the equation in the display, with the cursor in it', await shown(page) + ' | ' + await selected());
+    await page.type('\r');
+    await sleep(500);
+    await press('.calc-log', 0, 2);
+    check(await above() === '' && await page.calc('!!document.querySelector("#box .calc-cursor")') && await selected() === '123456789',
+        t + 'a double click opens it with the number under it selected', await shown(page) + ' | ' + await selected());
     await page.type('\r1+2\r');
     await page.calc('document.getSelection().selectAllChildren(document.getElementById("box"))');
     await press('.calc-log', 0, 2);
-    check(await above() === '' && await shown(page) === '1 + 2' && await selected() === '', t + 'with the result selected as well',
+    check(await above() === '' && await shown(page) === '1 + 2' && await selected() !== '3', t + 'with the result selected as well',
         await shown(page) + ' | ' + await selected());
 }
 
