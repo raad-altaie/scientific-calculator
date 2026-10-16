@@ -877,7 +877,7 @@ dels.forEach(function (c) {
     check(!e.pressOver('2nd', false, 0, 2) && !e.pressOver('Deg', false, 0, 2) && e.snapshot() + e.history.length === before,
         'a key that writes nothing leaves what is selected');
 
-    // all of it selected, as with a result: a number starts again, an operator or a function goes on
+    // all of it selected, as with a result: a number starts again, an operator goes on, a function of a number alone works on it
     run(e, 'AC 1 2 3');
     check(e.pressOver('5') && state(e) === '5 | 5', 'a digit over all of a typed number starts a new one', state(e));
     run(e, 'AC 1 2 + 3 4');
@@ -891,6 +891,70 @@ dels.forEach(function (c) {
     check(e.pressOver('+') && e.text() === '12 + 34 +' && e.edit.at === 6, 'with the cursor in it, from its end', e.text());
     run(e, 'AC 1 2 + 3 4');
     check(e.pressOver('=') && state(e) === '46 | 12 + 34 =', '= works it out as it is', state(e));
+
+    // a function key takes what is selected as its number, digits and operators still writing over it
+    run(e, 'AC 1 2 + 3 0');
+    check(e.pressOver('sin', true, 5, 7) && e.text() === '12 + sin(30)' && !e.edit.path.length, 'sin over 30 is sin(30), the cursor after it', e.text());
+    run(e, '=', true);
+    check(same(e.value, 12.5), 'which = works out', e.value);
+    run(e, 'AC 2 + 7');
+    check(e.pressOver('√') && e.text() === '√(2 + 7)', '√ over all of an equation is of all of it', e.text());
+    run(e, '=');
+    check(same(e.value, 3), 'and is 3', e.value);
+    run(e, 'AC 2 × 2 + 3');
+    check(e.pressOver('x2', false, 4, 9) && e.text() === '2 × (2 + 3)^2', 'x² over 2 + 3 is (2 + 3)²', e.text());
+    run(e, '=');
+    check(same(e.value, 50), 'and 2 × 25 is 50', e.value);
+    run(e, 'AC 1 2 + 3 4');
+    check(e.pressOver('x2', false, 5, 7) && e.text() === '12 + 34^2', 'one number goes without brackets', e.text());
+    run(e, 'AC 2 + 3');
+    check(e.pressOver('ex', false, 4, 5) && e.text() === '2 + e^3', 'eˣ over 3 is e³', e.text());
+    run(e, 'AC 2 + 6 4');
+    check(e.pressOver('x√y', false, 4, 5) && e.edit.path.length === 1, 'x√y over 6 takes it as the index, the cursor in the box after', e.text());
+
+    // a function key pressed again straight after goes round what the one before made
+    run(e, 'AC 2 + 6');
+    check(e.pressOver('log') && (run(e, 'log log'), e.text()) === 'log(log(log(2 + 6)))', 'log, log, log over 2 + 6 is log(log(log(2 + 6)))', e.text());
+    run(e, 'AC 1 2 + 6 9');
+    e.pressOver('logy', true);
+    run(e, 'logy logy 5 = 2 = 3');
+    check(e.textOf() === 'log₅(log₂(log₃(12 + 69)))', 'logᵧ three times, each base then typed: one inside the other', e.textOf());
+    run(e, '=');
+    check(same(e.value, Math.log(Math.log(Math.log(81) / Math.log(3)) / Math.log(2)) / Math.log(5)), 'and worked out so', e.value);
+    run(e, 'AC 2 + 6');
+    e.pressOver('sin', true, 4, 5);
+    run(e, '√ x2');
+    check(e.text() === '2 + √(sin(6))^2', 'sin, √ and x² over the 6 of 2 + 6', e.text());
+    run(e, 'AC 2 + 6');
+    e.pressOver('sin', true, 4, 5);
+    run(e, '+ log');
+    check(e.text() === '2 + sin(6) + log()', 'a key between: the next function is at the cursor, as typed', e.text());
+    run(e, 'AC 2 + 6');
+    e.pressOver('logy', true);
+    run(e, '5 logy');
+    check(e.text() === '(2 + 6) logᵧ ((5) logᵧ ())', 'a base typed: logᵧ then is of it, in the base', e.text());
+
+    // what is selected, copied as text, pastes back to the same equation: every kind of piece
+    [
+        '√ 0 . 5', 'log 0 . 5', 'ln 0 . 5', 'log2 0 . 5', 'sin 0 . 5', 'cos 0 . 5', 'tan 0 . 5', 'sin-1 0 . 5', 'cos-1 0 . 5',
+        'tan-1 0 . 5', 'sinh 0 . 5', 'cosh 0 . 5', 'tanh 0 . 5', 'sinh-1 0 . 5', 'tanh-1 0 . 5', 'abs 0 . 5', 'round 0 . 5',
+        'floor 0 . 5', 'ceil 0 . 5', 'trunc 0 . 5', '3 x√y 8', '( 2 + 1 ) x√y 8', '2 yx 5', '2 yx tan 5 ) x3',
+        '( 8 8 8 ) yx tan 5 ) x3 ) × sin tanh 5 5', 'x3 8 8 8', '2 x2', '5 x!', '5 0 %', '4 1/x', '1/x 4', 'ex 2', '2x 3',
+        '10x 2', 'ex 2 + 1', '8 logy 2', '5 nCr 2', '5 nPr 2', '7 mod 3', '1 2 gcd 8', '4 lcm 6', '2 EE 3', 'π × 2', 'e × 2',
+        '2 π', '#A + #B', '2 #A', '3 +/–', '2 × 3 +/–', '( 2 + 3 ) × ( 4 – 1 )', '√ 2 yx 3', 'sin √ 4 ) x2',
+        '1 2 + 3 0 × √ 6 6 ) + 5 x√y 6', '1 2 3 4 5 6 7 . 8 9'
+    ].forEach(function (keys) {
+        var a = new Engine(), b = new Engine(), text, whole;
+        run(a, 'AC ' + keys, true);
+        a.startEdit();
+        text = a.textOf();
+        whole = a.text();
+        run(a, '=', true);
+        check(text === whole && b.paste(text, true) && (run(b, '=', true), same(b.value, a.value)),
+            'copied and pasted back: ' + keys, text + ' is ' + b.value + ', not ' + a.value);
+    });
+    run(e, 'AC 1 2 + 3 4');
+    check(e.textOf(5, 7) === '34' && e.textOf(0, 2) === '12' && e.textOf(3, 3) === '' && !e.edit, 'a part of it as text, the line left as it was', e.textOf(5, 7));
 
     // DEL takes out what is selected
     run(e, 'AC 1 2 + 3 4');

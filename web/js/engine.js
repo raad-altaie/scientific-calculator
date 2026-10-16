@@ -3655,8 +3655,10 @@
     };
 
     Engine.prototype.press = function (key, deg) {
-        var snap, first, hist;
+        var snap, first, hist, made = this.made;
         this.to = ''; // a result stored says so only till the next key
+        this.made = null;
+        if (made && wraps(key) && made.line === JSON.stringify(this.edit) && wrapOver(this, key, made.from, made.to)) return true;
         if (key === 'AC' || (this.edit && key === 'C')) {
             this.reset();
             return true;
@@ -4048,40 +4050,79 @@
         return this.cursor(best);
     };
 
-    // takes what is selected out of the shown equation, from and to characters from
-    // its start, or each { r: the key of a box's row, i: a place in it }, and leaves the cursor in its place. Neither given: all of it, and
-    // the display is cleared. False if there is nothing of an equation to take
-    function take(e, from, to) {
-        var was = e.edit, list, i, j, path, row;
-        if (!e.startEdit()) return false; // a result alone: the keys and a paste replace it as it is
+    // what is selected of the shown equation, from and to characters from its start, or each
+    // { r: the key of a box's row, i: a place in it }; neither given: all of the line. The row it
+    // is in, its path and the places it goes from and to; null if nothing of it is selected
+    function spanIn(e, from, to) {
+        var list = e.edit.list, path = [], row = list, i, j;
         if (from && typeof from === 'object') { // in a box: its row, and the places in it
-            path = pathOf(e.edit.list, from.r);
-            row = path && rowIn(e.edit.list, path);
-            if (!row || from.i >= Math.min(to.i, row.length)) {
-                e.edit = was;
-                return false;
-            }
-            row.splice(from.i, Math.min(to.i, row.length) - from.i);
-            e.edit.path = path;
-            e.edit.at = from.i;
-            if (!e.edit.list.length) e.reset(); // all of it: the display cleared
-            return true;
+            path = pathOf(list, from.r);
+            row = path && rowIn(list, path);
+            if (!row) return null;
+            i = from.i;
+            j = Math.min(to.i, row.length);
+        } else { // a selection is of the line, its templates whole
+            i = from === undefined ? 0 : placeAt(list, from);
+            j = to === undefined ? list.length : placeAt(list, to);
         }
-        e.edit.path = []; // a selection is of the line, its templates whole
-        list = e.edit.list;
-        i = from === undefined ? 0 : placeAt(list, from);
-        j = to === undefined ? list.length : placeAt(list, to);
-        if (i >= j) {
+        return i < j ? { path: path, row: row, i: i, j: j } : null;
+    }
+
+    // takes what is selected out of the shown equation and leaves the cursor in its place; all
+    // of it, and the display is cleared. False if there is nothing of an equation to take
+    function take(e, from, to) {
+        var was = e.edit, span;
+        if (!e.startEdit()) return false; // a result alone: the keys and a paste replace it as it is
+        if (!(span = spanIn(e, from, to))) {
             e.edit = was;
             return false;
         }
-        if (!i && j === list.length) {
-            e.reset();
-        } else {
-            list.splice(i, j - i);
-            e.edit.at = i;
-        }
+        span.row.splice(span.i, span.j - span.i);
+        e.edit.path = span.path;
+        e.edit.at = span.i;
+        if (!e.edit.list.length) e.reset(); // all of it: the display cleared
         return true;
+    }
+
+    // a function key over what is selected takes it as its number, as if it were typed in brackets:
+    // sin over 30 is sin(30), √ over 2 + 7 is √(2 + 7), x² over 2 + 3 is (2 + 3)², ˣ√y over 3 is
+    // ³√□. The cursor goes after it, or into the box still empty. False, and nothing changes, if it cannot
+    function wrapOver(e, key, from, to) {
+        var snap = e.snapshot(), hist = e.history.slice(), span, part, size, r;
+        if (!e.startEdit()) return false; // a result alone: the key works on it as it does
+        if (!(span = spanIn(e, from, to))) {
+            e.restore(snap);
+            return false;
+        }
+        size = span.row.length;
+        r = pathKey(span.path); // the row it is in, before the cursor goes into a box of what is made
+        e.to = '';
+        part = span.row.splice(span.i, span.j - span.i);
+        e.edit.path = span.path.slice();
+        e.edit.at = span.i;
+        if (!opens(key)) { // a key after its number: the part put back before it, in brackets unless it is one number
+            Array.prototype.splice.apply(span.row, [span.i, 0].concat(part));
+            e.edit.at = span.i + part.length;
+            if (operandStart(span.row, e.edit.at) !== span.i || operandEnd(span.row, span.i) !== e.edit.at) {
+                span.row.splice(e.edit.at, 0, { p: [tok(')')] });
+                span.row.splice(span.i, 0, { p: [tok('(')] });
+                e.edit.at += 2;
+            }
+        }
+        if (!(opens(key) ? e.insert(key, bare(part)) : e.insert(key))) {
+            e.restore(snap);
+            e.history = hist;
+            return false;
+        }
+        // what it made, which a function key pressed next, with nothing else done, takes in turn:
+        // log, log, log over 8 is log(log(log(8))), not a log in the box of the one before
+        e.made = { from: { r: r, i: span.i }, to: { r: r, i: span.j + span.row.length - size }, line: JSON.stringify(e.edit) };
+        return true;
+    }
+
+    // a function key, which takes what is selected as its number
+    function wraps(key) {
+        return opens(key) || /^(x[23!]|%|1\/x|x√y|yx|logy)$/.test(key);
     }
 
     // what is selected in the shown equation is replaced, as in a box of text: by
@@ -4105,17 +4146,31 @@
         return over(this, from, to, deg, function () { return self.paste(str, deg); });
     };
 
-    // a key pressed while a part of the equation is selected writes in its place.
-    // With all of it selected, as with a result: a key that starts a number does
-    // so in its place, and an operator or a function goes on from the equation
+    // a key pressed while a part of the equation is selected writes in its place, and a
+    // function key takes it as its number. With all of it selected, as with a result: a key
+    // that starts a number does so in its place, a function is of all of it, and an operator
+    // goes on from the equation
     Engine.prototype.pressOver = function (key, deg, from, to) {
         var self = this;
         if (/^(AC|C|=|m[c+-])$/.test(key)) return this.press(key, deg); // these write nothing
+        // a number alone already is what a function works on: √ over 9 is 3 at once, as it always was
+        if (wraps(key) && !(from === undefined && !this.edit && this.plain()) &&
+            wrapOver(this, key, from, to)) return true;
         if (from === undefined && !/^([\d.π(]|e|Ans|mr|Rand|#[A-J])$/.test(key)) {
             if (this.edit) this.cursor(this.edit.list.length);
             return this.press(key, deg);
         }
         return over(this, from, to, deg, function () { return self.press(key, deg); });
+    };
+
+    // what is selected of the shown equation as text, written as text() writes all of it, so that it
+    // pastes back as it was: √(2 + 7), ^(tan(5)³), log₂(8). '' if nothing of an equation is selected
+    Engine.prototype.textOf = function (from, to) {
+        var was = this.edit, span, text = '';
+        if (!this.startEdit()) return '';
+        if ((span = spanIn(this, from, to))) text = tokText(unpiece(span.row.slice(span.i, span.j)));
+        this.edit = was;
+        return text;
     };
 
     // DEL takes out what is selected; false if nothing of the equation is
@@ -4126,8 +4181,9 @@
     // a key at the cursor. A function, a root, a power or a logarithm comes as its template,
     // the cursor in its first empty box; x√y, yˣ, logᵧ and 1/x take the number before them
     // into it, 3 x√y is ³√□; a key of two numbers, x², x!, % and 1/x with none before come
-    // with a box for it. After a number a function means times it: 5 sin is 5 × sin□
-    Engine.prototype.insert = function (key) {
+    // with a box for it. After a number a function means times it: 5 sin is 5 × sin□. Given
+    // pieces, a function, a root or a power of e, 2 or 10 has them in its box, the cursor after it
+    Engine.prototype.insert = function (key, given) {
         var e = this.edit, row = rowIn(e.list, e.path), at = e.at, s = operandStart(row, at), has = s < at,
             add = [], enter = null, take = false, after = 0, made, prev, tail = 0;
 
@@ -4159,11 +4215,11 @@
 
         if (UNARY[key] && UNARY[key].t === 'fn' && key !== '√') {
             times();
-            add.push({ s: 'fn', k: key, b: [inside()] });
+            add.push({ s: 'fn', k: key, b: [given || inside()] });
             enter = [add.length - 1, 0];
         } else if (key === '√') {
             times();
-            add.push({ s: 'root', k: '√', b: [inside()] });
+            add.push({ s: 'root', k: '√', b: [given || inside()] });
             enter = [add.length - 1, 0];
         } else if (key === 'x√y') {
             add.push({ s: 'root', k: 'x√y', b: [has ? row.slice(s, at) : [], []] });
@@ -4180,7 +4236,7 @@
         } else if (key === 'ex' || key === '2x' || key === '10x') {
             times();
             add = add.concat(key === 'ex' ? [{ p: [{ t: 'const', v: 'e' }] }] : digitPieces(key.slice(0, -1)));
-            add.push({ s: 'pow', b: [[]] });
+            add.push({ s: 'pow', b: [given || []] });
             enter = [add.length - 1, 0];
         } else if (key === '+/–' && has) { // the sign of the number before the cursor: -4 for 4, 4 again for -4
             if (s > 0 && opPiece(row[s - 1], /^-$/) && row[s - 1].p[0].c === '-') {
@@ -4265,7 +4321,7 @@
             at = s;
         }
         Array.prototype.splice.apply(row, [at, after].concat(add));
-        if (enter) {
+        if (enter && !given) {
             e.path.push({ i: at + enter[0], k: enter[1] });
             e.at = 0;
         } else {

@@ -193,6 +193,28 @@
         <h2 class="logo title">What can be turned off</h2>
         <div class="options">
             <div class="option">
+                <span class="option-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                        <path d="M15 3h6v6M10 14L21 3"></path>
+                    </svg>
+                </span>
+                <div class="option-text">
+                    <h3>Detached Mode</h3>
+                    <p>The calculator in a window of its own.</p>
+                    <p class="option-note">Turns off the calculator on every page too, which opens this window.</p>
+                </div>
+                <code class="setting">detachedMode</code>
+            </div>
+            <div class="option">
+                <span class="option-icon page-button"><img src="imgs/icon128.png" alt=""></span>
+                <div class="option-text">
+                    <h3>Calculator on every page</h3>
+                    <p>The calculator button on the side of every page.</p>
+                </div>
+                <code class="setting">pageButton</code>
+            </div>
+            <div class="option">
                 <span class="option-icon screen-icon">
                     <svg viewBox="0 0 16 16" aria-hidden="true">
                         <path d="M8.5 2.3c-1.5-.4-2.6.3-2.9 1.9L4.3 11.8c-.3 1.6-1.2 2.2-2.6 1.9" stroke-width="1.6"></path>
@@ -271,28 +293,6 @@
                 </div>
                 <code class="setting">numbers</code>
             </div>
-            <div class="option">
-                <span class="option-icon">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                        <path d="M15 3h6v6M10 14L21 3"></path>
-                    </svg>
-                </span>
-                <div class="option-text">
-                    <h3>Detached Mode</h3>
-                    <p>The calculator in a window of its own.</p>
-                    <p class="option-note">Turns off the calculator on every page too, which opens this window.</p>
-                </div>
-                <code class="setting">detachedMode</code>
-            </div>
-            <div class="option">
-                <span class="option-icon page-button"><img src="imgs/icon128.png" alt=""></span>
-                <div class="option-text">
-                    <h3>Calculator on every page</h3>
-                    <p>The calculator button on the side of every page.</p>
-                </div>
-                <code class="setting">pageButton</code>
-            </div>
         </div>
 
         <h2 class="logo title">In the Google Admin Console</h2>
@@ -338,14 +338,14 @@
                             </button>
                         </div>
                         <pre id="json">{
+    "detachedMode": { "Value": false },
+    "pageButton": { "Value": false },
     "formulas": { "Value": true },
     "converter": { "Value": false },
     "graph": { "Value": false },
     "solve": { "Value": false },
     "statistics": { "Value": false },
-    "numbers": { "Value": false },
-    "detachedMode": { "Value": false },
-    "pageButton": { "Value": false }
+    "numbers": { "Value": false }
 }</pre>
                     </div>
                     <p class="option-note">The browsers take it within minutes, or at once after a restart. To turn a

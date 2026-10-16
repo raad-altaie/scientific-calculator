@@ -13,7 +13,7 @@ A scientific calculator for your browser: light, fast and it works offline. It r
 - The display shows the whole equation while you type it; after `=` it shows the result with the finished equation on a small line above.
 - Parentheses nested up to 29 levels deep; no need to close them before `=`.
 - `DEL` (or Backspace) takes back the last key; `C` clears the number; the cursor keys or a click fix a number or operator in the middle of an equation.
-- Select part of an equation, then type or paste to replace it, or `DEL` to remove it.
+- Select part of an equation, then type or paste to replace it, or `DEL` to remove it. A function key takes what is selected as its number instead: `sin` over `30` is `sin(30)`, `x²` over `2 + 3` is `(2 + 3)²`, and pressed again it goes round that: `log`, `log` is `log(log(8))`. Copy writes what is selected as it pastes back: `√(2 + 7)`, `2^(tan(5)^3)`, `log₅(8)`.
 - History of past calculations: insert or copy the equation or the result, or delete one. Export, beside Clear, copies the whole history as text (`1 + 2 = 3`, a line each) or saves it as `calculator-history-YYYY-MM-DD.csv`, for a spreadsheet, or `.txt`.
 - Memory keys (`mc`, `m+`, `m-`, `mr`) and `Ans` for the last answer.
 - Everything is remembered when you close it, including the equation, memory and settings.

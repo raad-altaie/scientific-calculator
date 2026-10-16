@@ -425,6 +425,9 @@
             }
             return true;
         }
+        // a result stays a result: the arrows, Home and End do not open the equation it came from, which
+        // the history or a double click on the line above it does. An error's line is still there to fix
+        if (key >= 35 && key <= 39 && key !== 38 && engine.done && !engine.edit && !engine.error) return true;
         if (key === 37 || key === 39) { // the arrow keys move the cursor
             if (engine.move(key === 37 ? 'left' : 'right', deg)) {
                 refresh();
@@ -514,18 +517,36 @@
     // the part of the display that is selected, as text: raised numbers as ²,
     // a drawn fraction as 3/4; '' if none is
     function selectedText() {
-        var sel = window.getSelection(), range, box, where;
+        var sel = window.getSelection(), range, box, where, index, inner, span;
         if (!sel.rangeCount || sel.isCollapsed) return '';
         range = sel.getRangeAt(0);
         where = range.commonAncestorContainer;
         if (!display.contains(where)) return '';
+        // the pieces of the equation selected, as the engine writes them, which paste reads back;
+        // what is drawn alone leaves out what is not written, as the sign of a root
+        if ((span = selectedSpan()) && (inner = engine.textOf(span[0], span[1]))) return local(inner);
         box = document.createElement('div');
         box.appendChild(range.cloneContents());
-        [].slice.call(box.querySelectorAll('.calc-fr')).reverse().forEach(function (fr) { // the innermost first
-            fr.replaceWith([].slice.call(fr.children).map(function (part) {
-                var t = part.textContent.trim();
-                return /[ +–×÷/]/.test(t) ? '(' + t + ')' : t;
-            }).join('/'));
+        [].slice.call(box.querySelectorAll('.calc-fr, .calc-root')).reverse().forEach(function (el) { // the innermost first
+            var span;
+            if (el.classList.contains('calc-fr')) {
+                return el.replaceWith([].slice.call(el.children).map(function (part) {
+                    var t = part.textContent.trim();
+                    return /[ +–×÷/]/.test(t) ? '(' + t + ')' : t;
+                }).join('/'));
+            }
+            // a root's sign is drawn, not written: √ before it, a number of more than one in brackets;
+            // with a root of more than digits, ˣ√y as the engine writes it, y^(1/x)
+            span = document.createElement('span');
+            index = el.previousElementSibling && el.previousElementSibling.tagName === 'SUP' && el.previousElementSibling;
+            inner = /[ +–×÷/]/.test(el.textContent.trim()) ? '(' + el.innerHTML + ')' : el.innerHTML;
+            if (index && !/^\d*$/.test(index.textContent.trim())) {
+                span.innerHTML = inner + '^(1/(' + index.innerHTML + '))';
+                index.remove();
+            } else {
+                span.innerHTML = '√' + inner;
+            }
+            el.replaceWith(span);
         });
         return plain(box);
     }
@@ -639,18 +660,25 @@
         return box.innerHTML;
     }
 
-    // what is drawn, HTML or an element, as text: raised and lowered numbers as ² and ₂
+    // what is drawn, HTML or an element, as text: raised and lowered numbers and letters as ² and ₂,
+    // rⁿᵗ; what has no such character as ^(t/T) and _b, as a raised part would read on as the line
+    var RAISED = ['0123456789-−–+=()abcdefghijklmnoprstuvwxyzABDEGHIJKLMNOPRTUVW',
+            '⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁻⁻⁺⁼⁽⁾ᵃᵇᶜᵈᵉᶠᵍʰⁱʲᵏˡᵐⁿᵒᵖʳˢᵗᵘᵛʷˣʸᶻᴬᴮᴰᴱᴳᴴᴵᴶᴷᴸᴹᴺᴼᴾᴿᵀᵁⱽᵂ'],
+        LOWERED = ['0123456789-−–+=()aehijklmnoprstuvxy', '₀₁₂₃₄₅₆₇₈₉₋₋₋₊₌₍₎ₐₑₕᵢⱼₖₗₘₙₒₚᵣₛₜᵤᵥₓᵧ'];
+
     function plain(what) {
         var box = what;
         if (typeof what === 'string') {
             box = document.createElement('div');
             box.innerHTML = what;
         }
-        [].slice.call(box.querySelectorAll('sup, sub')).forEach(function (s) {
-            var chars = s.tagName === 'SUP' ? '⁰¹²³⁴⁵⁶⁷⁸⁹⁻ˣʸ' : '₀₁₂₃₄₅₆₇₈₉₋ₓᵧ';
-            s.replaceWith(s.textContent.replace(/[\d\-xy]/g, function (c) {
-                return chars.charAt('0123456789-xy'.indexOf(c));
-            }));
+        [].slice.call(box.querySelectorAll('sup, sub')).reverse().forEach(function (s) { // the innermost first
+            var map = s.tagName === 'SUP' ? RAISED : LOWERED, t = s.textContent.trim(), mark = s.tagName === 'SUP' ? '^' : '_';
+            if ([].every.call(t, function (c) { return map[0].indexOf(c) > -1; })) {
+                s.replaceWith([].map.call(t, function (c) { return map[1].charAt(map[0].indexOf(c)); }).join(''));
+            } else {
+                s.replaceWith(mark + (/^\w$/.test(t) ? t : '(' + t + ')'));
+            }
         });
         return box.textContent.trim();
     }
@@ -8088,9 +8116,11 @@
         }
         if (focus) { // while it is in view, clear of the dots, the line stays: a click must not move it under the pointer
             left = display.scrollLeft;
-            at = focus.offsetLeft - left;
-            if (at < (left > 1 ? 24 : 2) || at > display.clientWidth - (left < display.scrollWidth - display.clientWidth - 1 ? 24 : 2)) {
-                left = focus.offsetLeft - display.clientWidth / 2;
+            // where it is in the line as shown, measured on the screen: inside a root or a power its
+            // offsetLeft is of that, not of the line
+            at = focus.getBoundingClientRect().left - display.getBoundingClientRect().left - display.clientLeft;
+            if (at < (left > 1 ? 24 : 2) || at + focus.offsetWidth > display.clientWidth - (left < display.scrollWidth - display.clientWidth - 1 ? 24 : 2)) {
+                left += at - display.clientWidth / 2;
             }
         }
         slide(display, focus ? left : display.scrollWidth);
@@ -8207,6 +8237,7 @@
         var span = selectedSpan(), ok; // a key writes in place of what is selected of the equation, and DEL takes it out
 
         if (sto.textContent) arm(false); // a key that is no letter lets STO→ go, and does what it does
+        if (key === '2nd') return; // only the keys change: the display is not drawn again, and what is selected in it stays
         if (key === 'a/b') return toggleFraction();
         if (key === '°′″') return toggleDms();
         if (key === 'MODE') return nextFormat();
@@ -8278,7 +8309,7 @@
             view = engine.editView();
             resBuffer = engine.value;
             display.innerHTML = CalcEngine.decimal(view.html, fmt.group);
-            fit(display.querySelector('.calc-cursor'));
+            fit(display.querySelector('.calc-cursor, .calc-fr-empty.calc-focus')); // the cursor, or the empty box it is in
             eq = '';
         } else if (engine.error) {
             render('Error');

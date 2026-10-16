@@ -2417,6 +2417,55 @@ async function modeKey(page, at) {
         return page.calc('document.body.dispatchEvent(Object.assign(new Event("paste", { bubbles: true }), ' +
             '{ clipboardData: { getData: function () { return ' + JSON.stringify(text) + '; } } }))');
     }
+    // a root's sign is drawn in the line being edited, not written: a copy of it has √ again
+    await page.fresh(at, {});
+    await pasted('12+30×√66+⁵√6+√(2+7)');
+    await page.key('ArrowLeft', 37);
+    await page.calc('getSelection().selectAllChildren(document.getElementById("box"))');
+    check(await page.calc(copied) === '12 + 30 × √(66) + ⁵√6 + √(2 + 7)', t + 'roots copied with their √', await page.calc(copied));
+    // and a power of more than a number as ^(…), so that it pastes back
+    await page.fresh(at, {});
+    await pasted('√(12+30)×66+⁵√6+(888)^(tan(5)^3)×sin(tanh(55))+2^(-1)+8^(1/(2+1))');
+    await page.key('ArrowLeft', 37);
+    await page.calc('getSelection().selectAllChildren(document.getElementById("box"))');
+    check(await page.calc(copied) === '√(12 + 30) × 66 + ⁵√6 + (888)^(tan(5)^3) × sin(tanh(55)) + 2^(-1) + 8^(1/(2 + 1))',
+        t + 'powers copied as they paste back', await page.calc(copied));
+    // the arrows, Home and End leave a result as it is; on an error the line is opened to fix
+    await page.fresh(at, {});
+    await page.type('2+3\r');
+    for (var arrow of [['ArrowLeft', 37], ['ArrowRight', 39], ['Home', 36], ['End', 35]]) {
+        await page.key(arrow[0], arrow[1]);
+        check(!await page.calc('!!document.querySelector("#box .calc-cursor")') && await page.calc('document.getElementById("box").textContent.trim()') === '5',
+            t + arrow[0] + ' on a result leaves it', await page.calc('document.getElementById("box").innerHTML'));
+    }
+    await page.type('\x1b5/0\r');
+    await page.key('ArrowLeft', 37);
+    check(await page.calc('!!document.querySelector("#box .calc-cursor")'), t + 'ArrowLeft on an error opens its line to fix', await page.calc('document.getElementById("box").innerHTML'));
+
+    // a long line: after a function key over all of it the cursor, at its end, is in view, not hidden past the dots
+    var cursorSeen = '(function () { var d = document.getElementById("box"), c = d.querySelector(".calc-cursor, .calc-fr-empty.calc-focus"), a = d.getBoundingClientRect(), b = c && c.getBoundingClientRect();' +
+        ' return !!b && b.left >= a.left + 2 && b.right <= a.right - 2 && (!d.classList.contains("calc-more-right") || b.right <= a.right - 24); })()';
+    for (var key of ['s', 'l', 'r', 'L', 'h^']) {
+        await page.fresh(at, {});
+        await pasted('log₅(log₅(log₅(√(12+30)×66+⁵√6+(888)^(tan(5)^3)×sin(tanh(55)))))+123456789+987654321');
+        await page.calc('getSelection().selectAllChildren(document.getElementById("box"))');
+        await page.type(key);
+        await sleep(400); // the slide
+        check(await page.calc(cursorSeen), t + 'the cursor in view after [' + key + '] over all of a long line',
+            await page.calc('(function (d) { return d.scrollLeft + " of " + (d.scrollWidth - d.clientWidth) + ", cursor at " + (d.querySelector(".calc-cursor, .calc-fr-empty.calc-focus") || {}).offsetLeft; })(document.getElementById("box"))'));
+    }
+
+    // all of it selected, a function key takes all of it as its number
+    await page.fresh(at, {});
+    await pasted('log₅(log₅(√(12+30)×66+⁵√6))');
+    await page.calc('getSelection().selectAllChildren(document.getElementById("box"))');
+    await page.type('s');
+    check(await page.calc(copied) === 'sin(log₅(log₅(√(12 + 30) × 66 + ⁵√6)))', t + 'sin over all of an equation', await page.calc(copied));
+    await page.calc('getSelection().selectAllChildren(document.getElementById("box"))');
+    await page.type('lll');
+    check(await page.calc(copied) === 'ln(ln(ln(sin(log₅(log₅(√(12 + 30) × 66 + ⁵√6))))))', t + 'and ln pressed again and again goes round it each time',
+        await page.calc(copied));
+
     await page.fresh(at, {});
     check(await page.calc(pointKey + '.textContent.trim()') === '.', t + 'the point key is a point');
     await page.fresh(at, { format: { notation: 'norm', places: 'auto', group: 'dot' } });
@@ -3278,7 +3327,7 @@ async function pick(page, name) {
 
 // the menu of a right click: on the display, in the boxes and on the values of the panels
 async function menus(page, at) {
-    var t = at + ': ', box = 'document.querySelector(".calc-conv-value")';
+    var t = at + ": ", k, box = 'document.querySelector(".calc-conv-value")';
 
     await page.fresh(at, {});
     await page.rightClick('#box');
@@ -3345,6 +3394,16 @@ async function menus(page, at) {
     await pick(page, 'Copy');
     check(await page.calc('window.copied') === 'x = (−b + √(b² − 4ac)) ÷ 2a', t + 'Copy takes the formula as text',
         await page.calc('window.copied'));
+    // a power or a lowered part of letters is copied raised or lowered still, or as ^(…) and _b where no character is
+    for (k of [['Compound interest', 'A = P(1 + r ÷ n)ⁿᵗ'], ['Half-life decay', 'N = N₀ × ½^(t/T)'],
+        ['Logarithm to any base', 'log_b x = (ln x) ÷ (ln b)'], ['Thin lens', 'dᵢ = 1 ÷ (1 ÷ f − 1 ÷ dₒ)']]) {
+        await page.calc('[].filter.call(document.querySelectorAll(".calc-fx-item"), function (it) { return it.querySelector(".calc-fx-name").textContent === ' +
+            JSON.stringify(k[0]) + '; })[0].querySelector(".calc-fx-row").id = "copy-me"');
+        await page.rightClick('#copy-me');
+        await pick(page, 'Copy');
+        check(await page.calc('window.copied') === k[1], t + 'Copy of ' + k[0], await page.calc('window.copied'));
+        await page.calc('document.getElementById("copy-me").removeAttribute("id")');
+    }
     await page.rightClick('.calc-fx-row');
     await pick(page, 'Open');
     check(await page.calc('!!document.querySelector(".calc-fx-item.calc-on input")'), t + 'Open opens its letters');
