@@ -3557,7 +3557,8 @@
                 if (!isFinite(+this.value)) return true; // what it worked out, 0 ÷ 0 ×, is an error
             }
             cur = this.entry === 'typing' ? this.value : '0';
-            if (key === '.' ? cur.indexOf('.') > -1 : cur.replace(/\D/g, '').length >= 15) return false;
+            // 15 digits in all; a point after the 15th is ignored too, as no digit could follow it
+            if (key === '.' && cur.indexOf('.') > -1 || cur.replace(/\D/g, '').length >= 15) return false;
             this.value = (cur + key).replace(/^(-?)0(\d)$/, '$1$2');
             this.entry = 'typing';
             this.node = null;

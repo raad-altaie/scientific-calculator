@@ -411,7 +411,10 @@ cases.forEach(function (c) {
     check(!e.press('2nd') && !e.press('Deg'), 'non calculation keys are ignored');
     run(e, 'AC 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5');
     check(!e.press('6'), 'a 16th digit is ignored');
+    check(!e.press('.') && e.value === '123456789012345', 'a point after the 15th digit is ignored', e.value);
+    run(e, 'AC 1 2 3 4 5 6 7 8 9 0 1 2 3 4');
     check(e.press('.') && !e.press('.'), 'a second point is ignored');
+    check(e.press('5') && !e.press('6') && e.value === '12345678901234.5', 'after the 14th digit, a point and one more', e.value);
     run(e, 'AC 5 ÷ 0 =');
     check(!e.press('Deg') && e.error, 'an ignored key keeps the error');
 })();
