@@ -3,6 +3,12 @@
     src: url('../fonts/Play-Regular.ttf');
 }
 
+/* the real bold of Play, for the name of a card open: a bold made from the regular is too faint */
+@font-face {
+    font-family: 'Play Bold';
+    src: url('../fonts/Play-Bold.ttf');
+}
+
 #calculator {
     width: 376px;
     height: 576px;
@@ -1762,6 +1768,18 @@
     background: #a3bdaf;
 }
 
+/* the card open: its header a shade darker, with a line under it, and its name in bold */
+#calculator .calc-fx-item.calc-on .calc-fx-row,
+#calculator .calc-sv-item.calc-on .calc-sv-row {
+    background: #98b3a5;
+    box-shadow: inset 0 -1px 0 rgba(58, 88, 114, 0.35);
+}
+
+#calculator .calc-fx-item.calc-on .calc-fx-name,
+#calculator .calc-sv-item.calc-on .calc-sv-name {
+    font-family: 'Play Bold', 'Play', sans-serif;
+}
+
 /* its name, and the formula as it is written or the constant with its value */
 #calculator .calc-fx-col,
 #calculator .calc-gx-col,
@@ -1814,7 +1832,7 @@
     position: absolute;
     left: 9px;
     top: 3px;
-    max-width: calc(100% - 18px);
+    max-width: calc(100% - 34px); /* clear of the arrow at the right */
 }
 
 #calculator .calc-fx-eq,
@@ -1835,6 +1853,17 @@
 #calculator .calc-sv-val {
     height: 23px;
     padding: 17px 0 4px;
+}
+
+/* a formula 1px more room over it */
+#calculator .calc-fx-eq:not(.calc-fx-val) {
+    padding-top: 9px;
+}
+
+/* the badges of a tool a little more room over and under them */
+#calculator .calc-sv-val {
+    padding-top: 19px;
+    padding-bottom: 7px;
 }
 
 #calculator .calc-fx-eq > span,
@@ -2028,6 +2057,31 @@
 
 #calculator .calc-fx-insert:active {
     background: #31495e;
+}
+
+/* a faint arrow in the top right corner of a card that opens: down while it is closed, up while
+   it is open. Placed over the card, so the name and the formula do not move for it */
+#calculator .calc-item-collapse {
+    position: absolute;
+    top: 3px;
+    right: 5px;
+    display: flex;
+    color: #33443b;
+    opacity: 0.75;
+    transition: transform 0.15s, opacity 0.15s;
+    pointer-events: none; /* a click is on the header, which opens or closes the card */
+}
+
+#calculator .calc-fx-row:hover .calc-item-collapse,
+#calculator .calc-sv-row:hover .calc-item-collapse {
+    opacity: 0.95;
+}
+
+#calculator .calc-fx-item.calc-on .calc-item-collapse,
+#calculator .calc-sv-item.calc-on .calc-item-collapse {
+    color: #3a5872;
+    opacity: 1;
+    transform: rotate(180deg);
 }
 
 /* insert of a constant, drawn as insert in the history, a little bigger and lighter and

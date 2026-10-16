@@ -4219,7 +4219,10 @@
                 '</span>' +
                 // a constant has insert at the right of its value, while the pointer is over it
                 (fxTab === 'constants' ? '<span class="calc-fx-put">' + insertIcon() + '</span>' : '') +
-                '</span></span></div></div>';
+                '</span></span>' +
+                // a formula has the arrow that says whether it is open
+                (fxTab === 'formulas' ? collapseButton() : '') +
+                '</div></div>';
         });
         fxList.innerHTML = html || '<div class="calc-fx-none">Nothing found</div>';
         fxList.scrollTop = 0;
@@ -6197,7 +6200,7 @@
                 if (tool.id === openId) open = i;
                 return '<div class="calc-sv-item" data-i="' + i + '"><div class="calc-sv-row"><span class="calc-sv-col">' +
                     '<span class="calc-sv-name">' + tool.t + '</span><span class="calc-sv-f calc-sv-eq calc-sv-val"><span>' +
-                    pills(tool.f) + '</span></span></span></div></div>'; // each in a badge, one alone as well
+                    pills(tool.f) + '</span></span></span>' + collapseButton() + '</div></div>'; // each in a badge, one alone as well
             }).join('');
             list.scrollTop = 0;
             if (open === undefined && tools[tab].length === 1) open = 0;
@@ -7106,6 +7109,12 @@
     // the number format the history is shown in, to know when to show it again
     function shownMode() {
         return JSON.stringify(fmt);
+    }
+
+    // the arrow of a card that opens, on its header: down while it is closed, turned up while it is open
+    function collapseButton() {
+        return '<span class="calc-item-collapse" aria-hidden="true"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" ' +
+            'stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4" /></svg></span>';
     }
 
     // the arrow of insert: up into the display; the Insert of the formulas shows it too

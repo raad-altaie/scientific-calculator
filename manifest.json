@@ -1,9 +1,9 @@
 {
     "manifest_version": 3,
     "name": "Scientific Calculator",
-    "version": "2.5.2",
+    "version": "2.5.3",
     "author": "Raad Altaie",
-    "description": "Awesome Scientific Calculator for your browser",
+    "description": "Scientific calculator with graphing, equation solver, statistics and unit converter.",
     "action": {
         "default_title": "Calculator",
         "default_popup": "popup.html",
