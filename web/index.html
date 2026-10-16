@@ -18,27 +18,27 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/options.css">
     <link rel="stylesheet" href="css/site.css">
-    <title>Scientific Calculator Online Free: Trig, Log, Fractions, Formulas</title>
-    <meta name="description" content="A free scientific calculator that works offline: fractions, trigonometry, logarithms, statistics, unit converter, formulas and constants, and a history of past calculations. Nothing leaves your browser.">
+    <title>Scientific Calculator Online Free: Fractions, Graph, Solver, Formulas</title>
+    <meta name="description" content="A free scientific calculator with real fractions, a graph, an equation solver, matrices, statistics, finance, 100+ formulas and a unit converter. Works offline, and nothing leaves your browser.">
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
     <meta name="author" content="Raad Altaie">
-    <meta name="keywords" content="scientific calculator, online calculator, offline calculator, fraction calculator, statistics calculator, unit converter, trigonometry, logarithm, standard deviation">
+    <meta name="keywords" content="scientific calculator, online calculator, offline calculator, fraction calculator, graphing calculator, equation solver, matrix calculator, statistics calculator, loan calculator, finance calculator, unit converter, formulas, trigonometry, logarithm, standard deviation, complex numbers, hex calculator">
     <link rel="canonical" href="https://raad.dev/calculator/">
     <link rel="alternate" type="text/plain" href="https://raad.dev/calculator/llms.txt" title="Summary for AI agents">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Scientific Calculator">
     <meta property="og:url" content="https://raad.dev/calculator/">
     <meta property="og:locale" content="en_US">
-    <meta property="og:title" content="Scientific Calculator: free, with fractions and statistics">
-    <meta property="og:description" content="A free scientific calculator that works offline: fractions, trigonometry, logarithms, statistics, unit converter, formulas and constants, and a history of past calculations. Nothing leaves your browser.">
-    <meta property="og:image" content="https://raad.dev/calculator/imgs/og-image.png">
+    <meta property="og:title" content="Scientific Calculator: free, with fractions, graph and solver">
+    <meta property="og:description" content="A free scientific calculator with real fractions, a graph, an equation solver, matrices, statistics, finance, 100+ formulas and a unit converter. Works offline, and nothing leaves your browser.">
+    <meta property="og:image" content="http://127.0.0.1:5500/web/imgs/og-image.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
-    <meta property="og:image:alt" content="Scientific Calculator icon">
+    <meta property="og:image:alt" content="Scientific Calculator with a fraction calculation">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Scientific Calculator: free, with fractions and statistics">
-    <meta name="twitter:description" content="A free scientific calculator that works offline: fractions, trigonometry, logarithms, statistics, unit converter, formulas and constants, and a history of past calculations. Nothing leaves your browser.">
-    <meta name="twitter:image" content="https://raad.dev/calculator/imgs/og-image.png">
+    <meta name="twitter:title" content="Scientific Calculator: free, with fractions, graph and solver">
+    <meta name="twitter:description" content="A free scientific calculator with real fractions, a graph, an equation solver, matrices, statistics, finance, 100+ formulas and a unit converter. Works offline, and nothing leaves your browser.">
+    <meta name="twitter:image" content="http://127.0.0.1:5500/web/imgs/og-image.png">
     <script type="application/ld+json">
 {
     "@context": "https://schema.org",
@@ -61,7 +61,7 @@
             "url": "https://raad.dev/calculator/",
             "name": "Scientific Calculator",
             "alternateName": "Calculator",
-            "description": "A free scientific calculator that works offline: fractions, trigonometry, logarithms, statistics, unit converter, formulas and constants, and a history of past calculations. Nothing leaves your browser.",
+            "description": "A free scientific calculator with real fractions, a graph, an equation solver, matrices, statistics, finance, 100+ formulas and a unit converter. Works offline, and nothing leaves your browser.",
             "applicationCategory": "UtilitiesApplication",
             "applicationSubCategory": "Calculator",
             "operatingSystem": "Any",
@@ -70,7 +70,7 @@
             "image": "https://raad.dev/calculator/imgs/og-image.png",
             "screenshot": "https://raad.dev/calculator/imgs/og-image.png",
             "inLanguage": "en",
-            "softwareVersion": "2.5.0",
+            "softwareVersion": "2.5.6",
             "author": {
                 "@type": "Person",
                 "name": "Raad Altaie"
@@ -82,14 +82,27 @@
             },
             "featureList": [
                 "Order of operations (PEMDAS) with nested parentheses",
-                "Trigonometry in degrees, radians and gradians",
-                "Logarithms, powers, roots, factorials",
-                "Fraction mode",
+                "Equations shown as written, editable with the arrow keys",
+                "Real fractions while you type, with exact fraction results",
+                "Trigonometry in degrees, radians and gradians, inverse and hyperbolic functions",
+                "Logarithms, powers, roots, factorials, nCr, nPr, mod, gcd and lcm",
+                "Degrees, minutes and seconds",
                 "Fix, Sci and Eng number formats with thousands separators",
-                "Statistics: mean, median, standard deviation",
-                "Unit converter",
-                "Formulas and constants (CODATA 2022)",
-                "History and memory keys",
+                "History of 50 calculations, exported as text or CSV",
+                "Variables A to J, memory keys, Ans, undo and redo",
+                "Graph of up to seven functions with roots, extremes, crossings, slope and tangent",
+                "Sliders, areas, derivatives, inequalities, polar and parametric curves, sequences and best fits",
+                "Equation solver with exact roots, inequalities, polynomials and linear systems",
+                "Calculus: integrals, derivatives, limits, sums, Taylor series and differential equations",
+                "Finance: loans, savings, time value of money, NPV, IRR, APR, bonds and depreciation",
+                "Statistics: mean, median, standard deviation, quartiles, histogram, box plot and regression",
+                "Probability distributions with p-values and confidence intervals",
+                "Matrices up to 10 x 10: determinant, inverse, eigenvalues, LU and QR",
+                "Vectors and complex numbers",
+                "Bases, bits, Base64, hashes, UUIDs and IP subnets",
+                "Prime factors, exact big numbers and repeating decimals",
+                "102 formulas and 59 constants (CODATA 2022)",
+                "Unit converter, date calculations and Unix timestamps",
                 "Works offline as an installable app"
             ]
         }
@@ -107,8 +120,8 @@
 <body>
     <noscript>
         <h1>Scientific Calculator</h1>
-        <p>A free scientific calculator with fractions, trigonometry, logarithms, statistics, a unit converter and a
-            formula list. It needs JavaScript to run; nothing you type leaves your browser.</p>
+        <p>A free scientific calculator with real fractions, a graph, an equation solver, matrices, statistics,
+            finance, 100+ formulas and a unit converter. It needs JavaScript to run; nothing you type leaves your browser.</p>
     </noscript>
     <div class="app">
         <!-- left: the calculator, scaled to fit its pane -->

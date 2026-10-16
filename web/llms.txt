@@ -1,6 +1,6 @@
 # Scientific Calculator
 
-> A free scientific calculator that works offline: fractions, trigonometry, logarithms, formulas and constants, a unit converter, a graph, a solver, statistics, matrices and complex numbers, and a history of past calculations, exported as text or CSV. Nothing leaves your browser.
+> A free scientific calculator that works offline: fractions, trigonometry, logarithms, 102 formulas and 59 constants, a unit converter, a graph, a solver, finance, statistics, matrices and complex numbers, and a history of past calculations, exported as text or CSV. Nothing leaves your browser.
 
 A static web app (no account, no server, no tracking): everything is calculated in the browser. Installable as an app on iOS, Android and desktop. Also available as a Chrome extension.
 

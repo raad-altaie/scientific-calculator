@@ -1,7 +1,7 @@
 {
     "name": "Scientific Calculator",
     "short_name": "Calculator",
-    "description": "A fast scientific calculator with history, fractions, statistics and number formats. Works offline.",
+    "description": "A free scientific calculator with fractions, a graph, an equation solver, matrices, statistics, finance and 100+ formulas. Works offline.",
     "id": "./",
     "start_url": "./",
     "scope": "./",
