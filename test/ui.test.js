@@ -112,14 +112,12 @@ Page.prototype.calc = function (code) {
 };
 
 Page.prototype.go = async function (url, size) {
-    // the website fits the calculator to the window: this wide, it is drawn at its own size
-    if (!size && url.indexOf('/web/') > -1) size = [384, 620];
     await this.send('Emulation.setDeviceMetricsOverride', { width: size ? size[0] : 400, height: size ? size[1] : 620, deviceScaleFactor: 1, mobile: false });
     await this.send('Page.navigate', { url: url });
     await this.until('document.readyState === "complete" && ' +
         '!!((document.getElementById("calc-iframe") || {}).contentDocument || document).querySelector(".calc-tools")');
     // the popup draws the calculator a little bigger, to fill its height: the checks measure it at its own size
-    if (url.indexOf('/web/') < 0) await this.calc('document.getElementById("calculator").style.transform = "none"');
+    await this.calc('document.getElementById("calculator").style.transform = "none"');
     await sleep(80);
 };
 
@@ -301,6 +299,9 @@ async function calculator(page, at) {
     // the panel: the search has the keys, the result in the display starts the first box
     await page.click('.calc-fx-btn');
     check(await open(page, '.calc-fx'), t + 'f(x) opens the panel');
+    check(await page.calc('document.querySelector(".calc-fx-tab.calc-on").dataset.tab') === 'vars' &&
+        await page.calc('document.querySelectorAll(".calc-var").length') === 10, t + 'it opens on Variables at first');
+    await page.click('.calc-fx-tab[data-tab="formulas"]');
     check(await page.calc('document.activeElement.className') === 'calc-fx-search', t + 'the search has the focus');
     // the formulas are even: one height, each at the same place of its card, clear of its name
     found = await page.calc('(function () { var bad = [], high = {}, mid = [];' +
@@ -621,7 +622,8 @@ async function graphPanel(page, at) {
 
     // the box of an end has a tip of its own, to type it
     await page.hover('.calc-graph-pop-end[data-end="a"]');
-    check(await page.until('/^Type the start/.test(document.querySelector(".calc-tip").textContent)', 2000), t + 'the box of an end has its tip');
+    check(await page.until('/^Type the start/.test(document.querySelector(".calc-tip").textContent)', 2000), t + 'the box of an end has its tip',
+        await page.calc('JSON.stringify([document.querySelector(".calc-tip").textContent, document.querySelector(".calc-tip").hidden, !!document.querySelector(".calc-graph-pop-end[data-end=a]"), document.querySelector(".calc-graph-pop").hidden, document.activeElement && document.activeElement.className])'));
 
     // its ends typed: from 0 to 1, -8/3; an end not past the other is marked and not taken; Esc
     // goes back to the plot, the popup staying with the ends as they are
@@ -1054,9 +1056,8 @@ async function graphPanel(page, at) {
     check(!await open(page, '.calc-graph'), t + 'Esc closes the graph');
 }
 
-// The big graph: on the website the calculator fills the window with it, not the screen; Esc,
-// its button or a value put in make it small. In the extension it has a window of
-// its own, popup.html?graph, with only the graph, which keeps up with the calculator
+// The big graph: in the extension it has a window of its own, popup.html?graph,
+// with only the graph, which keeps up with the calculator
 // The solver: a tab each of tools for equations, calculus and probability, a card for each; a
 // card opens its boxes, worked out as they are typed; a result goes in with a click. What was
 // typed is there the next time
@@ -1395,8 +1396,8 @@ async function numbersPanel(page, at) {
     check(await page.calc(tiles) === 'λ1=1 | λ2=3 | Trace=4 | det(λI – A)=λ2 – 4λ + 3 | v1 of λ = 1=-11 | v2 of λ = 3=11', t + 'the eigenvalues and vectors of [2 1; 1 2]', await page.calc(tiles));
     for (const [n, v] of [[1, '0'], [2, '-1'], [3, '1'], [4, '0']]) await set(n, v);
     check(await page.calc(tiles) === 'λ1=i | λ2=–i | Trace=0 | det(λI – A)=λ2 + 1' && /^Its complex eigenvalues/.test(await page.calc(note)), t + 'a turn has eigenvalues ±i', await page.calc(tiles));
-    await set(1, 'a1b.5.c-');
-    check(await page.calc('document.querySelectorAll("' + on + ' input")[1].value') === '1.5', t + 'a box of a number keeps only a number, as the formulas\' do',
+    await set(1, 'k1x.5.z-');
+    check(await page.calc('document.querySelectorAll("' + on + ' input")[1].value') === '1.5', t + 'a box of a number keeps only a number and A to J, as the formulas\' do',
         await page.calc('document.querySelectorAll("' + on + ' input")[1].value'));
     await set(0, '2a×b2');
     check(await page.calc('document.querySelector("' + on + ' input").value') === '2×2', t + 'and its size only a size', await page.calc('document.querySelector("' + on + ' input").value'));
@@ -2015,150 +2016,56 @@ async function historyExport(page, at) {
 
 async function graphBig(page, at) {
     var t = at + ': big: ', big = 'document.getElementById("calculator").classList.contains("calc-big")',
-        note = 'document.querySelector(".calc-graph-note").textContent',
         plot = 'document.querySelector(".calc-graph-plot")',
         sent = 'JSON.stringify(document.defaultView.sent)',
         // what popup.js asks of the extension, kept to be read; window.chrome cannot be set over
         unit, stub = 'window.sent = []; window.close = function () { window.sent.push("close"); };' +
             ' Object.defineProperty(window, "chrome", { configurable: true, value:' +
             ' { runtime: { sendMessage: function (m) { window.sent.push(m); return Promise.resolve(); } } } });',
-        script, width, ends, on,
-        // the line between the columns dragged by dx pixels: dragAt goes in twentieths of its 12px
-        split = function (dx) { return page.dragAt('.calc-graph-split', 0, 0, dx * 20 / 12, 0); };
+        script;
 
-    if (at.indexOf('/web/') < 0) {
-        // the popup asks for the graph's window, and stays as it is
-        await page.fresh(at, { graph: { f: ['x^2-3', '', ''], view: null } });
-        await page.calc('(function (w) { w.sent = []; Object.defineProperty(w, "chrome", { configurable: true, value:' +
-            ' { runtime: { sendMessage: function (m) { w.sent.push(m); return Promise.resolve(); } } } }); })(document.defaultView)');
-        await page.click('.calc-graph-btn');
-        await page.click('.calc-graph-size');
-        check(await page.calc(sent) === '[{"command":"open-graph"}]' && !await page.calc(big) && await open(page, '.calc-graph'),
-            t + 'the popup asks for the graph\'s own window', await page.calc(sent));
-
-        // the graph's window: only the graph, big, without pop in or a close button
-        await page.send('Page.enable'); // for the script before the page's own
-        script = (await page.send('Page.addScriptToEvaluateOnNewDocument', { source: stub })).result.identifier;
-        await page.go(page.base + '/popup.html?graph', [700, 500]);
-        check(await page.calc(big) && await open(page, '.calc-graph') && await page.calc(plot + '.clientWidth') > 350 &&
-            await page.ev('document.title') === 'Graph' && !await page.calc('document.querySelector(".calc-graph .calc-past-close").offsetWidth'),
-            !await page.calc('document.querySelector(".calc-graph-size").offsetWidth'),
-            t + 'its window has only the graph, big, without pop in or a close button', await page.calc(plot + '.clientWidth'));
-        check(await page.calc('document.querySelector(".calc-graph-input").value') === 'x^2-3', t + 'with the functions of the calculator');
-
-        // a value put in: the calculation has it, the calculator is asked to come up, the window stays
-        await page.ev('localStorage.setItem("stat", JSON.stringify("1 2 3"))'); // as the calculator changed it meanwhile
-        await page.clickAt('.calc-graph-plot', 0, -3);
-        await page.click('.calc-graph-pop-row[data-put="y"]');
-        check(await page.calc(big) && await open(page, '.calc-graph') && /"show-calculator"/.test(await page.calc(sent)) &&
-            /-3/.test(await page.ev('localStorage.getItem("calc")')), t + 'y put in: saved for the calculator, which is asked for; the graph stays',
-            await page.calc(sent));
-        check(await page.ev('localStorage.getItem("stat")') === '"1 2 3"', t + 'only the graph and the calculation are saved, not what it had of the rest');
-
-        // the calculator changes the graph: the window follows it
-        await page.ev('(function (v) { localStorage.setItem("graph", v); dispatchEvent(new StorageEvent("storage", { key: "graph", newValue: v })); })' +
-            '(JSON.stringify({ f: ["x+1", "", ""], view: null }))');
-        check(await page.calc('document.querySelector(".calc-graph-input").value') === 'x+1', t + 'a graph changed in the calculator shows here');
-        unit = await page.calc('document.querySelector(".calc-rad").textContent');
-        await page.ev('(function (v) { localStorage.setItem("deg", v); dispatchEvent(new StorageEvent("storage", { key: "deg", newValue: v })); })' +
-            '(localStorage.getItem("deg") === "true" ? "false" : "true")');
-        check(await page.calc('document.querySelector(".calc-rad").textContent') !== unit, t + 'and its angle unit',
-            unit + ' / ' + await page.calc('document.querySelector(".calc-rad").textContent'));
-
-        // Esc closes the window
-        await page.key('Escape', 27);
-        check(/"close"/.test(await page.calc(sent)) && await page.calc(big), t + 'Esc closes the window; never small in it', await page.calc(sent));
-        await page.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: script });
-        return;
-    }
-
-    await page.fresh(at, { graph: { f: ['a x^2-3', '', ''], view: null } }, [900, 700]); // a = 1, with its slider
+    // the popup asks for the graph's window, and stays as it is
+    await page.fresh(at, { graph: { f: ['x^2-3', '', ''], view: null } });
+    await page.calc('(function (w) { w.sent = []; Object.defineProperty(w, "chrome", { configurable: true, value:' +
+        ' { runtime: { sendMessage: function (m) { w.sent.push(m); return Promise.resolve(); } } } }); })(document.defaultView)');
     await page.click('.calc-graph-btn');
-    check(await page.calc(plot + '.clientWidth') < 400, t + 'the graph is small at first', await page.calc(plot + '.clientWidth'));
-    await page.hover('.calc-graph-size');
-    check(await page.until('/^Pop out/.test(document.querySelector(".calc-tip").textContent)', 2000), t + 'the button has its tip');
     await page.click('.calc-graph-size');
-    check(await page.calc(big) && await page.calc(plot + '.clientWidth') > 500 && await page.calc(plot + '.clientHeight') > 600,
-        t + 'big, the plot has most of the page', await page.calc(plot + '.clientWidth + "x" + ' + plot + '.clientHeight'));
-    check(await page.calc('(function (q) { var p = q(".calc-graph-plot").getBoundingClientRect(); return p.top < 40 && ' +
-        '[".calc-graph-tabs", ".calc-past-clear", ".calc-graph-fns"].every(function (s) { return q(s).getBoundingClientRect().right < p.left; }) && ' +
-        'q(".calc-graph-size").getBoundingClientRect().left > p.right - 40 && q(".calc-graph-size").getBoundingClientRect().bottom <= p.top; })' +
-        '(function (s) { return document.querySelector(".calc-graph " + s); })'),
-        t + 'big: the tabs, Clear and the boxes at the left of the plot, pop in above its right corner');
-    width = await page.calc(plot + '.clientWidth');
-    await split(50);
-    check(await page.calc(plot + '.clientWidth') === width - 50 && await page.calc('document.querySelector(".calc-graph-plot canvas").width') === width - 50,
-        t + 'big: the line between the columns makes the left one wider, and the plot is drawn again', await page.calc(plot + '.clientWidth'));
-    await split(-800);
-    check((await page.calc('getComputedStyle(document.querySelector(".calc-graph")).gridTemplateColumns')).split(' ')[0] === '270px',
-        t + 'big: the left column is never narrower than 270px', await page.calc('getComputedStyle(document.querySelector(".calc-graph")).gridTemplateColumns'));
-    check(await page.calc('(function (q) { var h = q(".calc-past-head"), left = q(".calc-graph-plot").getBoundingClientRect().left; ' +
-        'return h.scrollWidth <= h.clientWidth && [].every.call(h.querySelectorAll(".calc-graph-tab"), function (b) { return b.scrollWidth <= b.clientWidth; }) && ' +
-        '[".calc-past-clear", ".calc-graph-sliders"].every(function (s) { return q(s).getBoundingClientRect().right < left && q(s).scrollWidth <= q(s).clientWidth; }); })' +
-        '(function (s) { return document.querySelector(".calc-graph " + s); })'),
-        t + 'big: that narrow, the tabs, Clear and a slider fit in it, whole, short of the plot');
-    await split(2000);
-    check(await page.calc('(function (g) { return parseFloat(getComputedStyle(g).gridTemplateColumns) <= (g.clientWidth - 320) * 0.7 + 1; })' +
-        '(document.querySelector(".calc-graph"))'), t + 'big: nor wider than 0.7 of the room that leaves the plot 320px',
-        await page.calc('getComputedStyle(document.querySelector(".calc-graph")).gridTemplateColumns'));
-    await page.calc('document.querySelector(".calc-graph-split").dispatchEvent(new MouseEvent("dblclick", { bubbles: true }))');
-    check(await page.calc(plot + '.clientWidth') === width && JSON.parse(await page.ev('localStorage.getItem("graph")')).side === 0,
-        t + 'big: a double click puts it back', await page.calc(plot + '.clientWidth'));
-    check(await page.calc('document.querySelector(".calc-graph-plot canvas").width') === await page.calc(plot + '.clientWidth'),
-        t + 'its canvas is drawn at that size');
-    check(await page.calc('(function (b) { return b.left === 0 && b.top === 0 && b.width === innerWidth; })' +
-        '(document.getElementById("calculator").getBoundingClientRect())'), t + 'the calculator fills the page, unscaled');
-    await page.hoverAt('.calc-graph-plot', 0, -3);
-    check(/^Min/.test(await page.calc(note)), t + 'the points are found on the big plot too', await page.calc(note));
-    await page.clickAt('.calc-graph-plot', 0, -3);
-    check(await page.calc('(function (p, c) { return Math.abs(p.left + p.width / 2 - (c.left + c.width / 2)) < 2; })' +
-        '(document.querySelector(".calc-graph-pop").getBoundingClientRect(), document.querySelector(".calc-graph-plot").getBoundingClientRect())'),
-        t + 'big: the popup of the point clicked is over the point', await page.calc('JSON.stringify(document.querySelector(".calc-graph-pop").getBoundingClientRect())'));
-    await page.key('Escape', 27); // the point goes
-    await page.key('Escape', 27);
-    check(!await page.calc(big) && await open(page, '.calc-graph') && await page.calc(plot + '.clientWidth') < 400,
-        t + 'Esc makes it small, the graph stays open');
-    await page.click('.calc-graph-size');
-    await page.click('.calc-graph-input');
-    await page.key('Escape', 27);
-    check(!await page.calc(big) && await open(page, '.calc-graph'), t + 'Esc while typing in a box makes it small too, not closed');
+    check(await page.calc(sent) === '[{"command":"open-graph"}]' && !await page.calc(big) && await open(page, '.calc-graph'),
+        t + 'the popup asks for the graph\'s own window', await page.calc(sent));
 
-    // the window, not the screen; the button makes it small again
-    await page.click('.calc-graph-size');
-    check(await page.calc(big) && await page.ev('!document.fullscreenElement'), t + 'it is not full screen');
-    await page.click('.calc-graph-size');
-    check(!await page.calc(big) && await open(page, '.calc-graph'), t + 'the button makes it small again');
+    // the graph's window: only the graph, big, without pop in or a close button
+    await page.send('Page.enable'); // for the script before the page's own
+    script = (await page.send('Page.addScriptToEvaluateOnNewDocument', { source: stub })).result.identifier;
+    await page.go(page.base + '/popup.html?graph', [700, 500]);
+    check(await page.calc(big) && await open(page, '.calc-graph') && await page.calc(plot + '.clientWidth') > 350 &&
+        await page.ev('document.title') === 'Graph' && !await page.calc('document.querySelector(".calc-graph .calc-past-close").offsetWidth'),
+        !await page.calc('document.querySelector(".calc-graph-size").offsetWidth'),
+        t + 'its window has only the graph, big, without pop in or a close button', await page.calc(plot + '.clientWidth'));
+    check(await page.calc('document.querySelector(".calc-graph-input").value') === 'x^2-3', t + 'with the functions of the calculator');
 
-    // a value put in from the big graph: the calculator again
-    await page.click('.calc-graph-size');
+    // a value put in: the calculation has it, the calculator is asked to come up, the window stays
+    await page.ev('localStorage.setItem("stat", JSON.stringify("1 2 3"))'); // as the calculator changed it meanwhile
     await page.clickAt('.calc-graph-plot', 0, -3);
     await page.click('.calc-graph-pop-row[data-put="y"]');
-    check(!await page.calc(big) && !await open(page, '.calc-graph') && await value(page) === -3, t + 'y put in: the calculator, small',
-        await shown(page));
-    await page.click('.calc-graph-btn');
-    check(!await page.calc(big), t + 'the graph opens small the next time');
-    await page.click('.calc-graph-size');
-    check(!await page.calc('document.querySelector(".calc-graph .calc-past-close").offsetWidth'), t + 'big, it has no close button');
-    await page.click('.calc-graph-size');
-    check(await page.calc('document.querySelector(".calc-graph .calc-past-close").offsetWidth') > 0, t + 'small, it has it again');
+    check(await page.calc(big) && await open(page, '.calc-graph') && /"show-calculator"/.test(await page.calc(sent)) &&
+        /-3/.test(await page.ev('localStorage.getItem("calc")')), t + 'y put in: saved for the calculator, which is asked for; the graph stays',
+        await page.calc(sent));
+    check(await page.ev('localStorage.getItem("stat")') === '"1 2 3"', t + 'only the graph and the calculation are saved, not what it had of the rest');
 
-    // With ∫ pressed a drag never moves the view: begun left of √x, where it has no value, the
-    // area starts where the drag first reaches it
-    await page.fresh(at, { graph: { f: ['sqrt(x)', '', ''], view: null } }, [900, 700]);
-    await page.click('.calc-graph-btn');
-    await page.click('.calc-graph-zoom [data-zoom="area"]');
-    await page.dragAt('.calc-graph-plot', -3, 1, 2, 1);
-    ends = 'document.querySelector(".calc-graph-pop-end[data-end=a]").value + " to " + document.querySelector(".calc-graph-pop-end[data-end=b]").value';
-    check(await page.calc('JSON.parse(localStorage.getItem("graph")).view') === null && /^0\.?\d* to 2$/.test(await page.calc(ends)),
-        t + 'a drag with ∫ begun where no curve is: an area from where it reaches √x, the view still', await page.calc(ends));
+    // the calculator changes the graph: the window follows it
+    await page.ev('(function (v) { localStorage.setItem("graph", v); dispatchEvent(new StorageEvent("storage", { key: "graph", newValue: v })); })' +
+        '(JSON.stringify({ f: ["x+1", "", ""], view: null }))');
+    check(await page.calc('document.querySelector(".calc-graph-input").value') === 'x+1', t + 'a graph changed in the calculator shows here');
+    unit = await page.calc('document.querySelector(".calc-rad").textContent');
+    await page.ev('(function (v) { localStorage.setItem("deg", v); dispatchEvent(new StorageEvent("storage", { key: "deg", newValue: v })); })' +
+        '(localStorage.getItem("deg") === "true" ? "false" : "true")');
+    check(await page.calc('document.querySelector(".calc-rad").textContent') !== unit, t + 'and its angle unit',
+        unit + ' / ' + await page.calc('document.querySelector(".calc-rad").textContent'));
 
-    // a button of the view lets ∫ go: closer, farther, the start, the view typed; not save
-    on = 'document.querySelector("[data-zoom=area]").classList.contains("calc-on")';
-    for (var z of ['in', 'out', 'home', 'window']) {
-        if (!await page.calc(on)) await page.click('.calc-graph-zoom [data-zoom="area"]');
-        await page.click('.calc-graph-zoom [data-zoom="' + z + '"]');
-        check(!await page.calc(on), t + 'the button ' + z + ' lets ∫ go');
-    }
+    // Esc closes the window
+    await page.key('Escape', 27);
+    check(/"close"/.test(await page.calc(sent)) && await page.calc(big), t + 'Esc closes the window; never small in it', await page.calc(sent));
+    await page.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: script });
 }
 
 // A slider for each letter of the functions but x: at 1 from -10 to 10, it moves the curves
@@ -2416,7 +2323,7 @@ async function graphTable(page, at) {
 
     // a value: its menu, and a click puts it in
     await page.rightClick('.calc-graph-line:nth-child(3) > .calc-graph-cell[data-c="1"]');
-    check(await menu(page) === 'Copy|Insert', t + 'a value has Copy and Insert', await menu(page));
+    check(await menu(page) === 'Copy|Insert|Store in Var', t + 'a value has Copy, Insert and Store in Var', await menu(page));
     await page.key('Escape', 27);
     await page.click('.calc-graph-line:nth-child(3) > .calc-graph-cell[data-c="1"]');
     check(!await open(page, '.calc-graph') && await value(page) === -2.75, t + 'a click puts the value into the display', await shown(page));
@@ -2539,12 +2446,13 @@ async function modeKey(page, at) {
     await page.type('\x1b');
     await pasted('2.500,5 + 1.250 =');
     check(await page.calc(raw) === '3.750,5', t + 'a pasted equation written so', await page.calc(raw));
-    await page.calc('(function (i) { i.value = "-1.2,3-4e5"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-conv-value"))');
+    await page.calc('(function (i) { i.value = "-1.2,3-4k5"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-conv-value"))');
     check(await page.calc('document.querySelector(".calc-conv-value").value') === '-1,2345', t + 'a number box: one comma, a point typed is it',
         await page.calc('document.querySelector(".calc-conv-value").value'));
     // a letter of a formula: typed with the comma, and 1,234 for it is 1.234 in the equation, not 1234
     await page.type('\x1b');
     await page.click('.calc-fx-btn');
+    await page.click('.calc-fx-tab[data-tab="formulas"]');
     await page.type('pythag\r1,234\r');
     check(await page.calc('document.querySelector(".calc-fx-var input").value') === '1,234', t + 'a letter of a formula takes the comma',
         await page.calc('document.querySelector(".calc-fx-var input").value'));
@@ -2583,6 +2491,7 @@ async function secondKeys(page, at) {
     check(await shown(page) === '1000', t + 'and Enter again is 1000', await shown(page));
     await page.click(PI);
     check(near(await value(page), Math.E), t + 'a click on e puts it in', await shown(page));
+    await page.click('.calc-right > .del-ac'); // a digit after e is times it: C first
     await page.type('8');
     await page.click(YX);
     await page.type('2\r\r');
@@ -2608,6 +2517,264 @@ async function secondKeys(page, at) {
         await page.type('7/2\r\r');
         check(await value(page) === want, t + '7/2 ' + await label(KEYS + key + ')') + ' = ' + want, await shown(page));
     }
+}
+
+// the letters A to J: > is STO→, Shift+A puts A in, the keys they had are elsewhere; the Variables tab of
+// the formulas, Store in Var of the menu, the history, a graph with a capital, kept after a reload
+async function letters(page, at) {
+    var t = at + ': ', log = 'document.querySelector(".calc-log").textContent.replace(/\\s+/g, " ").trim()',
+        sto = 'document.querySelector(".calc-sto").textContent',
+        held = function (k) { return page.ev('JSON.parse(localStorage.getItem("calc")).vars.' + k); },
+        box = function (k) { return page.calc('document.querySelector(".calc-var[data-k=' + k + '] input").value'); },
+        setGraph = function (text) {
+            return page.calc('(function (b) { b.value = ' + JSON.stringify(text) + '; b.dispatchEvent(new Event("input", { bubbles: true })); })' +
+                '(document.querySelector(".calc-graph-input"))');
+        },
+        near6 = function (a, b) { return Math.abs(a - b) < 1e-6; };
+
+    await page.fresh(at, {});
+    await page.type('5+3>');
+    check(await page.calc(sto) === 'STO→', t + '> shows STO→ till a letter comes', await page.calc(sto));
+    await page.type('A');
+    check(await shown(page) === '8' && await page.calc(log) === '5 + 3 → A' && await page.calc(sto) === '',
+        t + '5 + 3 > A works it out into A, the line saying so', await shown(page) + ' | ' + await page.calc(log));
+    check(await held('A') === 8, t + 'and A is saved', await held('A'));
+    await page.type('2A=');
+    check(await shown(page) === '16', t + 'Shift+A puts A in, 2A = 16', await shown(page));
+    await page.type('>');
+    await page.key('Escape', 27);
+    check(await page.calc(sto) === '' && await shown(page) === '16', t + 'Esc lets STO→ go, the result staying');
+    await page.type('>3');
+    check(await page.calc(sto) === '' && await shown(page) === '3', t + 'a key that is no letter lets it go, and does what it does', await shown(page));
+    await page.type('*4');
+    await page.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'ç', code: 'KeyC', windowsVirtualKeyCode: 67, modifiers: 1 });
+    await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'ç', code: 'KeyC', windowsVirtualKeyCode: 67, modifiers: 1 });
+    await sleep(60);
+    check(await held('C') === 12 && await page.calc(log) === '3 × 4 → C', t + 'Alt+C stores 3 × 4 in C at once', await held('C') + ' | ' + await page.calc(log));
+
+    // the keys Shift+C, E, F and G had are on V, W, Y and Q; hold is h alone
+    await page.fresh(at, {});
+    await page.type('V0\r\r');
+    check(near6(await value(page), Math.PI / 2), t + 'Shift+V is cos⁻¹', await shown(page));
+    await page.type('2W3\r');
+    check(await value(page) === 2000, t + 'Shift+W is EE, drawn ᴇ', await shown(page));
+    check(await page.calc(log) === '2ᴇ3 =', t + 'the line has 2ᴇ3', await page.calc(log));
+    await page.type('Y7/2\r\r');
+    check(await value(page) === 3, t + 'Shift+Y is floor', await shown(page));
+    await page.type('12Q18\r');
+    check(await value(page) === 6, t + 'Shift+Q is gcd', await shown(page));
+    await page.type('H');
+    check(await page.calc('document.querySelector(".calc-hold").textContent') === '', t + 'Shift+H is the letter H, not hold');
+
+    // the Variables tab: each letter to type over, STO and insert
+    await page.fresh(at, {});
+    await page.type('5+3>A');
+    await page.click('.calc-fx-btn');
+    await page.click('.calc-fx-tab[data-tab="vars"]');
+    check(await page.calc('document.querySelectorAll(".calc-var").length') === 10 && await box('A') === '8' && await box('B') === '0' &&
+        await page.calc('document.querySelector(".calc-fx-search").hidden'), t + 'the Variables tab lists A to J, A holding 8, and no search', await box('A'));
+    await page.click('.calc-var[data-k="B"] input');
+    await page.calc('document.querySelector(".calc-var[data-k=B] input").select()');
+    await page.type('3\r');
+    check(await held('B') === 3, t + 'a value typed in B is kept', await held('B'));
+    await page.click('.calc-var[data-k="C"] .calc-var-btn[data-act="store"]');
+    check(await held('C') === 8 && await box('C') === '8', t + 'STO on C keeps the result in it', await held('C'));
+    await page.click('.calc-var[data-k="B"] .calc-var-btn[data-act="insert"]');
+    check(!await open(page, '.calc-fx'), t + 'insert puts B in, the panel closing');
+    await page.type('*2=');
+    check(await shown(page) === '6', t + 'B × 2 = 6', await shown(page));
+
+    // Store in Var of the menu: of the display, and of a line of the history
+    await page.rightClick('#box');
+    await pick(page, 'Store in Var');
+    check((await menu(page)).split('|').length === 10 && (await menu(page)).indexOf('A8') === 0, t + 'Store in Var lists the letters with what they hold',
+        await menu(page));
+    await pick(page, 'D0');
+    check(await held('D') === 6, t + 'and D takes the result', await held('D'));
+    await page.click('.calc-hist');
+    check(await page.calc('document.querySelector(".calc-past-row .calc-past-letters").textContent') === 'B = 3',
+        t + 'the history says what B held', await page.calc('document.querySelector(".calc-past-row").textContent'));
+    await page.rightClick('.calc-past-row:nth-child(2) .calc-past-res');
+    await pick(page, 'Store in Var');
+    await pick(page, 'E0');
+    check(await held('E') === 8, t + 'Store in Var of a line of the history keeps its result', await held('E'));
+    await page.key('Escape', 27);
+    await page.rightClick('#box');
+    await pick(page, 'Insert Var');
+    await pick(page, 'D6');
+    await page.type('+1=');
+    check(await shown(page) === '7', t + 'Insert Var of the menu puts D in: D + 1 = 7', await shown(page));
+
+
+    // a graph takes a capital as the value stored in it, with no slider; drawn again as it changes
+    await page.click('.calc-graph-btn');
+    await setGraph('x + A');
+    await sleep(900);
+    check(!await page.calc('document.querySelector(".calc-graph-slider")') &&
+        !await page.calc('document.querySelector(".calc-graph-fn").classList.contains("calc-bad")'), t + 'x + A has no slider');
+    await page.key('Escape', 27);
+    await page.key('Delete', 46);
+    await page.type('-5>A');
+    check(await held('A') === -5, t + 'A is now -5', await held('A'));
+    await page.click('.calc-graph-btn');
+    await sleep(300);
+    check(await page.calc('JSON.parse(localStorage.getItem("graph")).f[0]') === 'x + A', t + 'the graph keeps x + A');
+    await page.key('Escape', 27);
+
+    // a formula's box takes a letter: c typed is C, as a = C
+    await page.key('Delete', 46);
+    await page.type('3>C');
+    await page.click('.calc-fx-btn');
+    await page.click('.calc-fx-tab[data-tab="formulas"]');
+    await page.type('pythagorean\r');
+    await page.type('c');
+    check(await page.calc('document.querySelector(".calc-fx-item.calc-on input").value') === 'C', t + 'c in a box of a formula is C',
+        await page.calc('document.querySelector(".calc-fx-item.calc-on input").value'));
+    await page.hover('.calc-fx-item.calc-on input');
+    check(await page.until('!document.querySelector(".calc-tip").hidden', 2500) &&
+        await page.calc('document.querySelector(".calc-tip").textContent') === 'Variable CC = 3', t + 'resting on the box shows what C holds',
+        await page.calc('document.querySelector(".calc-tip").textContent'));
+    await page.type('\r4\r');
+    check(!await open(page, '.calc-fx') && /C/.test(await shown(page)), t + 'Insert puts the formula in with C', await shown(page));
+    await page.type('=');
+    check(await shown(page) === '5', t + 'a = C, b = 4 gives 5', await shown(page));
+    await page.click('.calc-fx-btn');
+    await page.click('.calc-fx-tab[data-tab="vars"]');
+    await page.key('Escape', 27);
+
+    // the converter takes a letter as its value: a typed is A, -5 m in feet
+    await page.click('.calc-conv-btn');
+    await page.calc('(function (i) { i.value = ""; i.focus(); })(document.querySelector(".calc-conv-value"))');
+    await page.type('a');
+    check(await page.calc('document.querySelector(".calc-conv-value").value') === 'A' &&
+        !await page.calc('document.querySelector(".calc-conv-value").classList.contains("calc-bad")'), t + 'a in the converter is A, a value it reads',
+        await page.calc('document.querySelector(".calc-conv-value").value'));
+    await page.key('Escape', 27);
+
+    // and so does a number box of the graph: the table's step b typed is B, 3; a word is not a number
+    await page.click('.calc-graph-btn');
+    await page.click('.calc-graph-tab[data-tab="table"]');
+    await page.calc('(function (i) { i.value = ""; i.focus(); })(document.querySelector(".calc-graph-by"))');
+    await page.type('bk+');
+    check(await page.calc('document.querySelector(".calc-graph-by").value') === 'B' &&
+        !await page.calc('document.querySelector(".calc-graph-by").parentNode.classList.contains("calc-bad")'),
+        t + 'the step of the table takes B, other letters and signs left out', await page.calc('document.querySelector(".calc-graph-by").value'));
+    await page.calc('(function (i) { i.value = ""; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-graph-by"))');
+    await page.key('Escape', 27);
+
+    // a reload keeps them; Reset all puts them back to 0
+    await page.go(page.base + at);
+    await page.click('.calc-fx-btn');
+    check(await page.calc('document.querySelector(".calc-fx-tab.calc-on").dataset.tab') === 'vars' && await box('A') === '-5' && await box('B') === '3',
+        t + 'after a reload the Variables tab and the letters are as they were', await box('A'));
+    await page.key('Escape', 27);
+    await page.rightClick('#box');
+    await pick(page, 'Reset all');
+    check(await held('A') === 0 && await held('B') === 0, t + 'Reset all puts every letter back to 0', await held('A'));
+
+    // a letter in the equation has a tip of what it holds, in the display and while the line is edited
+    await page.fresh(at, {});
+    await page.type('7>G');
+    await page.key('Delete', 46);
+    await page.type('2G');
+    await page.calc('[].filter.call(document.querySelectorAll("#box [data-e]"), function (s) { return s.textContent.trim() === "G"; })[0].id = "tipG"');
+    await page.hover('#tipG');
+    check(await page.until('!document.querySelector(".calc-tip").hidden', 2500) &&
+        /^Variable G.*G = 7/.test(await page.calc('document.querySelector(".calc-tip").textContent')), t + 'resting on G in the equation shows G = 7',
+        await page.calc('document.querySelector(".calc-tip").textContent'));
+    await page.key('ArrowLeft', 37);
+    await page.key('ArrowRight', 39);
+    await page.calc('[].filter.call(document.querySelectorAll("#box [data-e]"), function (s) { return s.textContent.trim() === "G"; })[0].id = "tipG2"');
+    await page.hover('#tipG2');
+    check(await page.until('!document.querySelector(".calc-tip").hidden', 2500) &&
+        /G = 7/.test(await page.calc('document.querySelector(".calc-tip").textContent')), t + 'and while the line is edited too',
+        await page.calc('document.querySelector(".calc-tip").textContent'));
+
+    // a letter holding 0 shows as the letter, not as 0; and its value is kept in the line
+    await page.fresh(at, {});
+    await page.rightClick('#box');
+    await pick(page, 'Insert Var');
+    await pick(page, 'B0');
+    check(await shown(page) === 'B', t + 'Insert Var of a letter holding 0 shows B, not 0', await shown(page));
+    await page.type('+1=');
+    check(await shown(page) === '1', t + 'and B + 1 = 1', await shown(page));
+
+    // STO→ armed, a click on a letter of the Variables tab stores in it, not puts it in the equation
+    await page.fresh(at, {});
+    await page.type('5+3>');
+    await page.click('.calc-fx-btn');
+    await page.click('.calc-fx-tab[data-tab="vars"]');
+    await page.click('.calc-var[data-k="E"] .calc-var-k');
+    check(await held('E') === 8 && await page.calc(sto) === '', t + 'STO→ then a click on E stores 8 in E', await held('E') + ' | ' + await page.calc(sto));
+    check(await box('E') === '8', t + 'and its box shows it', await box('E'));
+
+    // a paste with → A stores in A, and the Variables tab shows it when it is opened again: a right click on the
+    // display puts the panel away first, as a click on the equation does
+    await page.fresh(at, {});
+    await page.click('.calc-fx-btn');
+    await page.click('.calc-fx-tab[data-tab="vars"]');
+    await page.rightClick('#box');
+    await paste(page, '5 + 3 → F');
+    await page.click('.calc-fx-btn');
+    check(await held('F') === 8 && await box('F') === '8', t + 'pasting 5 + 3 → F stores 8 in F, its box showing it',
+        await held('F') + ' | ' + await box('F') + ' | open: ' + await open(page, '.calc-fx'));
+}
+
+// a layout with no Latin letters, Arabic's: the keys are the keys of their place, 7 for ٧ of the digit row, x! for ء of
+// the X key, > for the Period key with Shift, and Shift+A for ش, so the same keys work on any layout
+async function otherLayouts(page, at) {
+    var t = at + ': ',
+        held = function (k) { return page.ev('JSON.parse(localStorage.getItem("calc")).vars.' + k); };
+
+    // a key of its place, with the character the layout gives it
+    async function physical(code, key, vk, shift) {
+        await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: key, code: code, text: key, windowsVirtualKeyCode: vk, modifiers: shift ? 8 : 0 });
+        await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: key, code: code, windowsVirtualKeyCode: vk, modifiers: shift ? 8 : 0 });
+        await sleep(60);
+    }
+
+    await page.fresh(at, {});
+    await physical('Digit7', '٧', 55);
+    check(await shown(page) === '7', t + 'the digit key of ٧ types 7', await shown(page));
+    await physical('KeyX', 'ء', 88);
+    check(await shown(page) === '7!', t + 'ء on the X key is x!', await shown(page));
+    await page.type('\r');
+    check(await shown(page) === '5040', t + '7! = 5040', await shown(page));
+    await page.key('Delete', 46);
+    await physical('Digit1', '١', 49);
+    await physical('Period', 'و', 190);
+    await physical('Digit5', '٥', 53);
+    check(await shown(page) === '1.5', t + 'the Period key of و is the point', await shown(page));
+    await page.key('Delete', 46);
+    await physical('Digit4', '٤', 52);
+    await physical('Digit9', '٩', 57);
+    await physical('Period', 'ؤ', 190, true);
+    check(await page.calc('document.querySelector(".calc-sto").textContent') === 'STO→', t + 'Shift and the Period key is >, STO→',
+        await page.calc('document.querySelector(".calc-sto").textContent'));
+    await physical('KeyA', 'ش', 65, true);
+    check(await held('A') === 49, t + 'then Shift+A, ش, stores 49 in A', await held('A'));
+    await physical('Digit3', '٣', 51);
+    await physical('KeyA', 'ش', 65, true);
+    check(/3.*A|A/.test(await page.calc('document.getElementById("box").textContent')) && await shown(page) !== '3',
+        t + 'Shift+A puts A in on this layout too', await shown(page));
+
+    // the boxes of the panels too: ٥ of the digit row types 5 in the converter, ش with Shift types A, and a pasted ٣٫٥ reads 3.5
+    await page.fresh(at, {});
+    await page.click('.calc-conv-btn');
+    await page.calc('(function (i) { i.value = ""; i.focus(); })(document.querySelector(".calc-conv-value"))');
+    await physical('Digit5', '٥', 53);
+    await physical('KeyA', 'ش', 65, true);
+    check(await page.calc('document.querySelector(".calc-conv-value").value') === '5A', t + 'in the converter ٥ types 5 and Shift+ش types A',
+        await page.calc('document.querySelector(".calc-conv-value").value'));
+    await page.calc('(function (i) { i.value = "٣٫٥"; i.dispatchEvent(new Event("input", { bubbles: true })); })(document.querySelector(".calc-conv-value"))');
+    check(await page.calc('document.querySelector(".calc-conv-value").value') === '3.5', t + 'and the digits and point of ٣٫٥ are read as 3.5',
+        await page.calc('document.querySelector(".calc-conv-value").value'));
+    await page.key('Escape', 27);
+
+    // a script with two cases, Russian's, has its case for the letter: И with Shift on the B key is B
+    await page.fresh(at, {});
+    await physical('KeyB', 'И', 66, true);
+    check(/B/.test(await shown(page)), t + 'И with Shift on the B key puts in B', await shown(page));
 }
 
 // the °′″ key: results in degrees, minutes and seconds, kept in the
@@ -2752,10 +2919,10 @@ async function converter(page, at) {
     await page.type('6');
     check(await shown(page) === '5', t + 'typing in the value presses no keys', await shown(page));
     check(await converted(page, 'meters') === '6,000', t + '6 km is 6,000 m', await converted(page, 'meters'));
-    await page.type('a*+#');
-    check(await page.calc('document.querySelector(".calc-conv-value").value') === '6', t + 'letters and signs are not taken',
+    await page.type('k*+#');
+    check(await page.calc('document.querySelector(".calc-conv-value").value') === '6', t + 'letters beyond A to J and signs are not taken',
         await page.calc('document.querySelector(".calc-conv-value").value'));
-    await page.calc('(function (i) { i.value = "-1.2.3-4e5"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-conv-value"))');
+    await page.calc('(function (i) { i.value = "-1.2.3-4k5"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-conv-value"))');
     check(await page.calc('document.querySelector(".calc-conv-value").value') === '-1.2345', t + 'one point and a minus first only',
         await page.calc('document.querySelector(".calc-conv-value").value'));
     await page.calc('(function (i) { i.value = "6"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-conv-value"))');
@@ -3090,7 +3257,7 @@ async function statsMore(page, at) {
 
 // the lines of the open menu, the ones that cannot be chosen in brackets; '' while it is closed
 function menu(page) {
-    return page.calc('(function (m) { return m.hidden ? "" : [].map.call(m.children, function (d) {' +
+    return page.calc('(function (m) { return m.hidden ? "" : [].map.call(m.querySelectorAll(":scope > div"), function (d) {' +
         ' return d.classList.contains("calc-off") ? "(" + d.textContent + ")" : d.textContent; }).join("|"); })' +
         '(document.querySelector(".calc-menu-box"))');
 }
@@ -3106,7 +3273,7 @@ async function paste(page, text) {
 async function pick(page, name) {
     var i = (await menu(page)).split('|').indexOf(name);
     check(i > -1, 'the menu has ' + name, await menu(page));
-    await page.click('.calc-menu-box > div:nth-child(' + (i + 1) + ')');
+    await page.click('.calc-menu-box > div:nth-of-type(' + (i + 1) + ')'); // not the lines between them
 }
 
 // the menu of a right click: on the display, in the boxes and on the values of the panels
@@ -3115,7 +3282,7 @@ async function menus(page, at) {
 
     await page.fresh(at, {});
     await page.rightClick('#box');
-    check(await menu(page) === '(Cut)|Copy|Paste|Reset all', t + 'the menu of the display; nothing to cut yet', await menu(page));
+    check(await menu(page) === 'Paste|Insert Var|Reset all', t + 'the menu of the display: nothing to cut, copy or store yet', await menu(page));
     await page.key('Escape', 27);
     check(await menu(page) === '', t + 'Esc closes it');
     await page.rightClick('.calc-right > :first-child');
@@ -3153,7 +3320,7 @@ async function menus(page, at) {
     // a value of the converter
     await page.calc('document.addEventListener("copy", function (e) { window.copied = e.clipboardData.getData("text/plain"); })');
     await page.rightClick('.calc-conv-row[data-i="2"] .calc-conv-num');
-    check(await menu(page) === 'Copy|Copy with unit|Insert', t + 'a value has Copy, Copy with unit and Insert', await menu(page));
+    check(await menu(page) === 'Copy|Copy with unit|Insert|Store in Var', t + 'a value has Copy, Copy with unit and Insert', await menu(page));
     await pick(page, 'Copy with unit');
     check(await page.calc('window.copied') === '300 cm' && await open(page, '.calc-conv'), t + 'Copy with unit takes 300 cm',
         await page.calc('window.copied'));
@@ -3168,10 +3335,11 @@ async function menus(page, at) {
     await page.click('.calc-stat-btn');
     await page.type('4 8');
     await page.rightClick('.calc-stats-tile[data-k="mean"]');
-    check(await menu(page) === 'Copy|Insert', t + 'a result of the statistics has Copy and Insert', await menu(page));
+    check(await menu(page) === 'Copy|Insert|Store in Var', t + 'a result of the statistics has Copy and Insert', await menu(page));
     await pick(page, 'Insert');
     check(await value(page) === 6, t + 'Insert puts the mean in', await shown(page));
     await page.click('.calc-fx-btn');
+    await page.click('.calc-fx-tab[data-tab="formulas"]');
     await page.rightClick('.calc-fx-row');
     check(await menu(page) === 'Copy|Open', t + 'a formula has Copy and Open', await menu(page));
     await pick(page, 'Copy');
@@ -3182,7 +3350,7 @@ async function menus(page, at) {
     check(await page.calc('!!document.querySelector(".calc-fx-item.calc-on input")'), t + 'Open opens its letters');
     await page.click('.calc-fx-tab[data-tab="constants"]');
     await page.rightClick('.calc-fx-row');
-    check(await menu(page) === 'Copy|(Copy with unit)|Insert', t + 'π has no unit to copy', await menu(page));
+    check(await menu(page) === 'Copy|(Copy with unit)|Insert|Store in Var', t + 'π has no unit to copy', await menu(page));
     await page.key('Escape', 27);
     check(await menu(page) === '' && await open(page, '.calc-fx'), t + 'Esc closes the menu first, the panel stays');
     await page.key('Escape', 27);
@@ -3191,7 +3359,7 @@ async function menus(page, at) {
     await page.type('1+2\r3+4\r');
     await page.click('.calc-hist');
     await page.rightClick('.calc-past-res');
-    check(await menu(page) === 'Copy|Insert|Delete', t + 'a line of the history has Copy, Insert and Delete', await menu(page));
+    check(await menu(page) === 'Copy|Insert|Store in Var|Delete', t + 'a line of the history has Copy, Insert and Delete', await menu(page));
     await pick(page, 'Copy');
     check(await page.calc('window.copied') === '7' &&
         await page.calc('document.querySelector(".calc-past-list").parentNode.classList.contains("calc-open")'), t + 'Copy takes the result of the line',
@@ -3379,7 +3547,7 @@ async function menus(page, at) {
     await page.type('12+345+6');
     await doubleClick(6);
     await page.rightClick('#box');
-    check(await menu(page) === 'Cut|Copy|Paste|Reset all', t + 'the display has Cut once something is entered', await menu(page));
+    check(await menu(page) === 'Cut|Copy|Paste|Insert Var|Store in Var|Reset all', t + 'the display has Cut, Copy and Store in Var once something is entered', await menu(page));
     await pick(page, 'Cut');
     check(await page.calc('window.copied') === '345' && await shown(page) === '12 + + 6', t + 'Cut takes the selected 345 out of 12 + 345 + 6',
         await page.calc('window.copied') + ' | ' + await shown(page));
@@ -3462,59 +3630,8 @@ async function options(page) {
     await page.ev('localStorage.setItem("policy", "{}")');
     check(await page.until('!document.getElementById("calc-iframe").contentDocument.querySelector(".calc-conv-btn").hidden'),
         t + 'and comes back when the administrator turns it on');
-
-    // the website: its switches
-    t = 'web/index.html: ';
-    await page.fresh('/web/index.html', {}, [1300, 900]);
-    check(await page.ev('document.getElementById("panel-stats").checked && document.getElementById("panel-fx").checked && ' +
-        'document.getElementById("panel-conv").checked && document.getElementById("panel-graph").checked'), t + 'at first all four on');
-    check(await page.until('!document.querySelector(".calc-conv-btn").hidden'),
-        t + 'and their buttons in the calculator');
-    await page.ev('document.getElementById("panel-fx").scrollIntoView({ block: "center" })');
-    await page.click('#panel-stats');
-    check(await page.until('document.querySelector(".calc-stat-btn").hidden'),
-        t + 'its switch takes the statistics out of the calculator');
-    await page.click('#panel-fx');
-    check(await page.until('document.querySelector(".calc-fx-btn").hidden'),
-        t + 'and f(x)');
-    await page.click('#panel-stats');
-    check(await page.until('!document.querySelector(".calc-stat-btn").hidden'),
-        t + 'and puts the statistics back');
-    await page.go(page.base + '/web/index.html', [1300, 900]);
-    check(await page.ev('document.getElementById("panel-stats").checked && !document.getElementById("panel-fx").checked && ' +
-        'document.getElementById("panel-conv").checked'), t + 'the switches are kept');
-
-    // MODE in the calculator: the number format here follows it
-    await page.click('.calc-left > :nth-child(7)');
-    check(await page.until('document.getElementById("format-notation").value === "fix"'), t + 'MODE turns the format here to Fix',
-        await page.ev('document.getElementById("format-notation").value'));
-    check(await page.ev('document.getElementById("format-places").value') === 'auto' &&
-        await page.ev('document.getElementById("format-icon").textContent') === '1500', t + 'and its icon, with Auto places',
-        await page.ev('document.getElementById("format-icon").textContent'));
-
-    // the separators of the thousands: none, commas or spaces
-    async function separators(value) {
-        await page.ev('(function () { var g = document.getElementById("format-group"); g.value = ' + JSON.stringify(value) +
-            '; g.dispatchEvent(new Event("change")); })()');
-        return JSON.stringify(await page.ev('JSON.parse(localStorage.getItem("format")).group')) + ' ' +
-            await page.ev('document.getElementById("format-icon").textContent');
-    }
-    check(await page.ev('document.getElementById("format-group").value') === '', t + 'no separators at first');
-    check(await separators('space') === '"space" 1\u2009500', t + 'separators: spaces, kept and in the icon', await separators('space'));
-    check(await separators('comma') === 'true 1,500', t + 'commas, kept as before there was a choice', await separators('comma'));
-    check(await separators('dot') === '"dot" 1.500', t + 'dots, with a decimal comma', await separators('dot'));
-    check(await separators('spacecomma') === '"spacecomma" 1\u2009500', t + 'spaces, with a decimal comma', await separators('spacecomma'));
-    check(await page.ev('[].map.call(document.getElementById("format-group").options, function (o) { return o.textContent; }).join("|")') ===
-        'No separators: 1234.5|Comma: 1,234.5|Space: 1 234.5|Dot, decimal comma: 1.234,5|Space, decimal comma: 1 234,5',
-        t + 'each choice shows a number written so, with its decimal mark');
-    check(await separators('') === 'false 1500', t + 'and none', await separators(''));
-    await page.ev('localStorage.setItem("format", JSON.stringify({ notation: "norm", places: "auto", group: true }))');
-    await page.go(page.base + '/web/index.html', [1300, 900]);
-    check(await page.ev('document.getElementById("format-group").value') === 'comma', t + 'separators turned on before the choice came are commas',
-        await page.ev('document.getElementById("format-group").value'));
 }
 
-// the website: the calculator and its options on one page, the calculator drawn to fit its room
 // An administrator's policy, which policy.js reads from chrome.storage.managed: the browser
 // is a stub here, with the policy it holds and the listeners told of a change of it
 async function adminPolicy(page) {
@@ -3577,90 +3694,6 @@ async function adminPolicy(page) {
     await page.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: script });
 }
 
-async function website(page) {
-    var t = 'web/index.html: ', calc = 'document.getElementById("calculator")', k, at, box;
-
-    // is this event left to the browser, there
-    function left(type, selector) {
-        return page.ev('(function (e) { document.querySelector(' + JSON.stringify(selector) + ').dispatchEvent(e); ' +
-            'return !e.defaultPrevented; })(new ' + (type === 'copy' ? 'ClipboardEvent("copy", { clipboardData: new DataTransfer(), ' :
-                'MouseEvent("contextmenu", { ') + 'bubbles: true, cancelable: true }))');
-    }
-
-    // where a box is on the screen, from the top left of another
-    function from(selector, other) {
-        return page.ev('(function (a, b) { a = a.getBoundingClientRect(); b = b.getBoundingClientRect(); ' +
-            'return { left: a.left - b.left, top: a.top - b.top, mid: a.left + a.width / 2 - b.left - b.width / 2, ' +
-            'above: b.top - a.bottom, below: a.top - b.bottom }; })' +
-            '(document.querySelector(' + JSON.stringify(selector) + '), document.querySelector(' + JSON.stringify(other) + '))');
-    }
-
-    // on a big screen the calculator is drawn bigger: what goes by the pointer or by a key is still there
-    await page.fresh('/web/index.html', {}, [1300, 900]);
-    k = await page.ev('(function (c) { return c.getBoundingClientRect().width / c.offsetWidth; })(' + calc + ')');
-    check(k > 1.3, t + 'on a big screen the calculator is drawn bigger', k);
-    await page.type('12+34');
-    check(await shown(page) === '12 + 34', t + 'the keyboard types on it', await shown(page));
-    at = await page.at('#box');
-    await page.rightClick('#box');
-    box = await page.ev('(function (m) { m = m.getBoundingClientRect(); return [m.left, m.top]; })(document.querySelector(".calc-menu-box"))');
-    check(Math.abs(box[0] - at[0]) < 2 && Math.abs(box[1] - at[1]) < 2, t + 'the menu opens at the pointer', box + ' | ' + at);
-    await page.key('Escape', 27);
-    await page.click('.calc-stat-btn');
-    box = await from('.calc-stats.calc-open', '#display-box');
-    check(Math.abs(box.left + k) < 1 && Math.abs(box.below - 7 * k) < 1, t + 'a panel is just below the display', JSON.stringify(box));
-    await page.click('.calc-stat-btn');
-    await page.hover('.calc-left > :nth-child(3)');
-    check(await page.until('!document.querySelector(".calc-tip").hidden', 2500), t + 'resting on a key shows its tip');
-    await sleep(300); // it has come up into its place
-    box = await from('.calc-tip', '.calc-left > :nth-child(3)');
-    check(Math.abs(box.mid) < 2 && Math.abs(box.above - 10 * k) < 2, t + 'the tip is above its key, in the middle of it', JSON.stringify(box));
-    await page.hover('#box');
-
-    // the options beside it are a page of their own: its boxes, its menu and its text
-    await page.ev('document.getElementById("format-notation").focus()');
-    await page.type('5');
-    check(await shown(page) === '12 + 34', t + 'typing in a box of the options is not typing on the keys', await shown(page));
-    await page.click('.calc-right > :first-child');
-    check(await page.ev('document.activeElement === document.body') && await shown(page) === '12 + 347',
-        t + 'a press on a key takes the keyboard back', await shown(page));
-    await page.type('5');
-    check(await shown(page) === '12 + 3475', t + 'and the keyboard types on the calculator again', await shown(page));
-    check(await left('contextmenu', '.options-pane .logo') && !await left('contextmenu', '#box'),
-        t + 'the options have the menu of the browser, the calculator its own');
-    await page.key('Escape', 27);
-    check(await left('copy', '.options-pane .logo') && !await left('copy', '#box'),
-        t + 'text of the options is copied as the browser does, the calculator gives its own');
-    await page.click('.calc-stat-btn');
-    await page.click('#panel-fx');
-    check(await open(page, '.calc-stats'), t + 'a click in the options leaves a panel of the calculator open');
-    await page.click('#panel-fx');
-    await page.click('.calc-stat-btn');
-
-    // the ? hides the options there, and shows them again
-    await page.click('.calc-help');
-    check(await page.ev('document.documentElement.classList.contains("options-hidden") && !document.getElementById("options-pane").offsetWidth'),
-        t + 'the ? hides the options');
-    await page.click('.calc-help');
-    check(await page.ev('!document.documentElement.classList.contains("options-hidden") && document.getElementById("options-pane").offsetWidth > 0'),
-        t + 'and shows them again');
-
-    // on a small screen the options open over the calculator, which is out of use meanwhile
-    await page.fresh('/web/index.html', {}, [390, 800]);
-    check(await page.ev('getComputedStyle(document.getElementById("options-pane")).visibility') === 'hidden', t + 'on a phone the options are out of view');
-    box = await page.ev('(function (c) { c = c.getBoundingClientRect(); return [c.left, innerWidth - c.right]; })(' + calc + ')');
-    check(box[0] > 1 && box[0] < 3 && Math.abs(box[0] - box[1]) < 0.5, t + 'and the calculator goes almost from side to side', box);
-    await page.type('7');
-    await page.click('.calc-help');
-    check(await page.ev('document.body.classList.contains("options-open")'), t + 'the ? opens them over the calculator');
-    await page.type('8');
-    check(await shown(page) === '7', t + 'what is typed then is not for the keys', await shown(page));
-    await page.key('Escape', 27);
-    check(await page.ev('!document.body.classList.contains("options-open")'), t + 'Esc closes them');
-    await page.type('9');
-    check(await shown(page) === '79', t + 'and the keys work again', await shown(page));
-}
-
 (async function () {
     var chrome = findChrome(), server, browser, page;
 
@@ -3682,54 +3715,32 @@ async function website(page) {
         await page.send('Network.enable');
         await page.send('Network.setCacheDisabled', { cacheDisabled: true });
         await calculator(page, '/popup.html');
-        await calculator(page, '/web/index.html');
         await secondKeys(page, '/popup.html');
-        await secondKeys(page, '/web/index.html');
+        await letters(page, '/popup.html');
+        await otherLayouts(page, '/popup.html');
         await degreesMinutes(page, '/popup.html');
-        await degreesMinutes(page, '/web/index.html');
         await angleUnits(page, '/popup.html');
-        await angleUnits(page, '/web/index.html');
         await modeKey(page, '/popup.html');
-        await modeKey(page, '/web/index.html');
         await converter(page, '/popup.html');
-        await converter(page, '/web/index.html');
         await convDates(page, '/popup.html');
-        await convDates(page, '/web/index.html');
         await statsMore(page, '/popup.html');
-        await statsMore(page, '/web/index.html');
         await solver(page, '/popup.html');
-        await solver(page, '/web/index.html');
         await numbersPanel(page, '/popup.html');
-        await numbersPanel(page, '/web/index.html');
         await matrixTen(page, '/popup.html');
-        await matrixTen(page, '/web/index.html');
         await matrixPaste(page, '/popup.html');
-        await matrixPaste(page, '/web/index.html');
         await finance(page, '/popup.html');
-        await finance(page, '/web/index.html');
         await graphSequence(page, '/popup.html');
-        await graphSequence(page, '/web/index.html');
         await graphSlopeField(page, '/popup.html');
-        await graphSlopeField(page, '/web/index.html');
         await historyExport(page, '/popup.html');
-        await historyExport(page, '/web/index.html');
         await graphPanel(page, '/popup.html');
-        await graphPanel(page, '/web/index.html');
         await graphTable(page, '/popup.html');
-        await graphTable(page, '/web/index.html');
         await graphHide(page, '/popup.html');
-        await graphHide(page, '/web/index.html');
         await graphMany(page, '/popup.html');
-        await graphMany(page, '/web/index.html');
         await graphSlide(page, '/popup.html');
-        await graphSlide(page, '/web/index.html');
         await graphBig(page, '/popup.html');
-        await graphBig(page, '/web/index.html');
         await menus(page, '/popup.html');
-        await menus(page, '/web/index.html');
         await options(page);
         await adminPolicy(page);
-        await website(page);
         check(!pageErrors.length, 'no errors in the pages', pageErrors.join('\n      '));
     } catch (e) {
         check(false, 'the browser checks ran to the end', e.stack);

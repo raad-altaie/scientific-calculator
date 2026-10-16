@@ -97,6 +97,22 @@ document.addEventListener('calc-options', () => {
     }
 });
 
+// whether the clipboard holds text, for the menu to show Paste: read only where the browser
+// allows it already; asked for nothing, it cannot tell, and the calculator shows Paste
+document.addEventListener('calc-clipboard', (event) => {
+    const { text } = event.detail;
+
+    event.preventDefault(); // it answers
+    if (!navigator.permissions || !navigator.clipboard || !navigator.clipboard.readText) {
+        text(null);
+        return;
+    }
+    navigator.permissions.query({ name: 'clipboard-read' }).then((state) => {
+        if (state.state !== 'granted') text(null);
+        else navigator.clipboard.readText().then(text, () => text(null));
+    }, () => text(null)); // a browser with no such permission
+});
+
 // the menu's Paste: the browser may ask once for permission to read the clipboard
 document.addEventListener('calc-paste', (event) => {
     const { text, refused } = event.detail;

@@ -10,10 +10,13 @@
         radDeg = Calc.querySelector('.calc-rad'), // the unit: its text, then a full turn in it, 2π, 360° or 400g
         fullTurn = radDeg.querySelector('.sign'),
         hold = Calc.querySelector('.calc-hold'),
+        sto = Calc.querySelector('.calc-sto'), // STO→ while the next letter, A to J, is to take the result
         fmtMark = Calc.querySelector('.calc-fmt'), // FIX 2, SCI 3 or ENG while that notation is on; no number for Auto places
         fracMark = Calc.querySelector('.calc-frac'), // FRAC while fraction mode is on, DMS while °′″ is
         secondKeySet, // the keys the 2nd key changes, found by their names below
-        CURSOR = '<span class="calc-cursor"></span>',
+        // the arrow of a line of the menu that opens another: Store in Var, Insert Var
+        MORE = '<svg class="calc-menu-more" viewBox="0 0 10 10" width="9" height="9" fill="none" stroke="currentColor" ' +
+            'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 1.5L7 5l-3.5 3.5" /></svg>',
         fmt = { notation: 'norm', places: 'auto', group: false }, // set on the options page; group: true for 1,234.5, 'space', 'dot' 1.234,5, 'spacecomma'
         fracMode = false, // a/b: divisions drawn as fractions, and results shown as fractions when they are one
         dmsMode = false, // °′″, the 2nd of a/b: results shown in degrees, minutes and seconds
@@ -69,7 +72,7 @@
         fxButton = root.querySelector('.calc-fx-btn'),
         fxSearch = fx.querySelector('.calc-fx-search'),
         fxList = fx.querySelector('.calc-fx-list'),
-        fxTab = 'formulas', // the list shown: formulas or constants
+        fxTab = 'vars', // the list shown: vars, formulas or constants; Variables at first, then the last one used
         fxItems = {}, // the entries of each list, with the text a search looks in
         conv = root.querySelector('.calc-conv'), // the converter of units, over the keys
         convButton = root.querySelector('.calc-conv-btn'),
@@ -223,12 +226,54 @@
     }
 
     document.addEventListener('keypress', function (e) {
-        if (!elsewhere(e.target) && !field(e.target)) onKeyPress(e.which);
+        if (!elsewhere(e.target) && !field(e.target)) onKeyPress(latinKey(e));
     }, false);
 
+    // where a key of another script goes, by its place: a digit as ٧, a sign as ،, a letter on a sign's place,
+    // Russian's ю, is the digit or sign a US keyboard has there, unshifted and shifted. The keys of the
+    // number block too
+    var PLACE = { Minus: '-_', Equal: '=+', Slash: '/?', Period: '.>', Comma: ',<', Quote: '\'"', Backslash: '\\|', Semicolon: ';:',
+        NumpadAdd: '++', NumpadSubtract: '--', NumpadMultiply: '**', NumpadDivide: '//', NumpadDecimal: '..' };
+
+    // The key typed, as the character of its place on a US keyboard, '' for a key that types what it says.
+    // A letter of a layout with no Latin ones, Russian's ф, Greek's α, is the Latin letter of the key's place,
+    // in its case: s is sin, Shift+A puts in A, on any layout; and a digit or a sign of such a layout is the
+    // one of its place, so the keys are the same on every layout
+    function placeChar(e) {
+        var k = e.key, m, sign;
+        if (k && k.length === 1 && /\p{L}/u.test(k) && !/[a-z]/i.test(k) && /^Key[A-Z]$/.test(e.code)) {
+            // in its case; a script with no case, Arabic's ش, Hebrew's ש, has Shift for it
+            return (k.toLowerCase() === k.toUpperCase() ? e.shiftKey : k !== k.toLowerCase()) ?
+                e.code.charAt(3) : e.code.charAt(3).toLowerCase();
+        }
+        if (!k || k.length !== 1 || k.charCodeAt(0) < 0x250) return ''; // a Latin layout keeps what it types
+        if ((m = /^(Digit|Numpad)(\d)$/.exec(e.code))) return m[1] === 'Digit' && e.shiftKey ? ')!@#$%^&*('.charAt(+m[2]) : m[2];
+        sign = PLACE[e.code];
+        return sign ? sign.charAt(e.shiftKey ? 1 : 0) : '';
+    }
+
+    // the key typed, as its char code
+    function latinKey(e) {
+        var c = placeChar(e);
+        return c ? c.charCodeAt(0) : e.which;
+    }
+
+    // a box that takes a number or a letter A to J: what is typed in it is the key of its place as well, so a
+    // box of a panel can be typed in on any layout, ٥ or ش
+    function numberBox(el) {
+        return el.tagName === 'INPUT' && (!!el.dataset.num || el === convInput || graphEnds.indexOf(el) > -1 || el === graphFrom ||
+            el === graphBy || !!el.closest('.calc-fx-var, .calc-var, .calc-graph-pair, .calc-graph-slider, .calc-graph-pop-end'));
+    }
+
     document.addEventListener('keydown', function (e) {
+        var k;
         if (elsewhere(e.target)) return;
         if (field(e.target)) {
+            if (!e.ctrlKey && !e.metaKey && !e.altKey && (k = placeChar(e)) && numberBox(e.target)) { // ٥ types 5, ش types A
+                typeInto(e.target, k);
+                e.preventDefault();
+                return;
+            }
             if (e.which === 27 && !menu.hidden) { // Esc closes the menu first
                 showMenu(false);
                 e.preventDefault();
@@ -249,13 +294,33 @@
             }
             return;
         }
-        if ((e.ctrlKey || e.metaKey) && (e.which === 90 || e.which === 89)) { // Ctrl+Z undoes, Ctrl+Shift+Z and Ctrl+Y redo
-            undo(e.which === 89 || e.shiftKey);
+        if ((e.ctrlKey || e.metaKey) && e.which === 90) { // Ctrl+Z undoes, Ctrl+Shift+Z redoes
+            undo(e.shiftKey);
+            e.preventDefault();
+            return;
+        }
+        // Alt+A to J (Option on a Mac) stores the result in the letter, as > then the letter does. By
+        // the key itself: the character Option types with it, å, ∫, is not taken as typed
+        if (e.altKey && !e.ctrlKey && !e.metaKey && (k = altLetter(e.code))) {
+            hold.textContent = '';
+            storeIn(k);
             e.preventDefault();
             return;
         }
         if (onKeyDown(e.which, e.shiftKey)) e.preventDefault();
     }, false);
+
+    // the letter A to J of a key under Alt, as the keyboard's layout names it: AZERTY's A is where
+    // QWERTY has Q. Where the browser cannot tell, or the layout has no Latin letters, as Russian's ф,
+    // the letter of the key's place
+    var layout = null;
+    if (navigator.keyboard && navigator.keyboard.getLayoutMap) navigator.keyboard.getLayoutMap().then(function (map) { layout = map; }, function () { });
+    function altLetter(code) {
+        var c = /^Key[A-Z]$/.test(code) && layout && layout.get(code);
+        if (!/^[a-z]$/i.test(c)) c = /^Key[A-Z]$/.test(code) ? code.charAt(3) : '';
+        c = c.toUpperCase();
+        return /^[A-J]$/.test(c) ? c : null;
+    }
 
     document.addEventListener('keyup', function (e) {
         if (!elsewhere(e.target) && !field(e.target)) onKeyUp();
@@ -269,12 +334,20 @@
 
     function onKeyPress(key) {
         var holdKey = hold.textContent,
-            keyMatch = (',|.|-|–|/|÷|*|×|#|+/–|x|x!|E|EE|e|ex| |2nd|r|x√y|R|√|p|π|^|yx|\'|yx|"|yx|m|mr|v|mc|b|m+|n|m-|a|Ans|' +
-                's|sin|c|cos|t|tan|S|sin-1|C|cos-1|T|tan-1|d|Deg|°|Deg|l|ln|L|log|\\|1/x|X|2x|N|nCr|P|nPr|f|a/b|M|mod|G|gcd|K|lcm|' +
-                'F|floor|U|ceil|O|round|o|MODE').split('|'),
+            // Shift+A to J are the letters: what they had went to a key beside them, cos⁻¹ to V, EE to W, floor to Y
+            // by ceil's U and round's O, gcd to Q
+            keyMatch = (',|.|-|–|/|÷|*|×|#|+/–|x|x!|W|EE|e|ex| |2nd|r|x√y|R|√|p|π|^|yx|\'|yx|"|yx|m|mr|v|mc|b|m+|n|m-|a|Ans|' +
+                's|sin|c|cos|t|tan|S|sin-1|V|cos-1|T|tan-1|d|Deg|°|Deg|l|ln|L|log|\\|1/x|X|2x|N|nCr|P|nPr|f|a/b|M|mod|Q|gcd|K|lcm|' +
+                'Y|floor|U|ceil|O|round|o|MODE').split('|'),
             keyMatchHold = ('sin|sinh|cos|cosh|tan|tanh|m-|Rand|Deg|Rand|sin-1|sinh-1|cos-1|cosh-1|tan-1|tanh-1|' +
                 '1|1/x|2|x2|3|x3|x√y|√|ln|log2|ex|2x|log|10x|π|e|yx|logy|a/b|°′″').split('|');
 
+        // > is STO→, and a letter, Shift+A to J, is put in, or after STO→ takes the result; Alt+A does both at once
+        if (key === 62) return arm(!sto.textContent);
+        if (/^[A-J]$/.test(String.fromCharCode(key))) {
+            hold.textContent = '';
+            return sto.textContent ? storeIn(String.fromCharCode(key)) : putLetter(String.fromCharCode(key));
+        }
         // Enter while a template is open or the line is edited: to the next empty box, or out of
         // the boxes so the line shows what will be worked out; from there, = works it out
         if (key === 13 && (engine.edit || engine.opened()) && engine.enter(deg)) {
@@ -300,7 +373,10 @@
                 }
             hold.textContent = '';
         }
-        if ((key === 'h' || key === 'H') && !holdKey) hold.textContent = 'hold';
+        if (key === 'h' && !holdKey) {
+            hold.textContent = 'hold';
+            arm(false); // one mark at a time in its place
+        }
         if (!keyBoard[key]) return;
         if ((key.match(/-1$|log2$|2x$|^(mod|gcd|lcm|10x|e|logy|floor|ceil|round)$/) && !secondActive) ||
             (key.match(/h$|n$|cos$|ex$|^(%|nCr|nPr|log|π|yx|abs|x!|Rand)$/) && secondActive)) {
@@ -312,6 +388,10 @@
     }
 
     function onKeyDown(key, shiftKey) { // true if the key was handled here
+        if (key === 27 && sto.textContent) { // Esc lets STO→ go first
+            arm(false);
+            return true;
+        }
         if (key === 27 && !menu.hidden) { // Esc closes the menu
             showMenu(false);
             return true;
@@ -383,6 +463,8 @@
         keyBoard['AC'].children[0].firstChild.data = 'C';
         refresh();
         notify('Paste');
+        saveState();
+        if (engine.to) lettersChanged(); // 5 + 3 → A stored it in A
     }
 
     // what copy takes: the main line, an equation as plain text, with the decimal mark in use
@@ -479,12 +561,12 @@
         if (!sel.rangeCount || sel.isCollapsed) return null;
         if (!engine.edit && (engine.error || engine.done || (engine.plain() && engine.entry !== 'typing'))) return null;
         range = sel.getRangeAt(0);
-        if ((box = boxSpan(range))) return box;
         all.selectNodeContents(display);
         from = chars(range.startContainer, range.startOffset);
         to = chars(range.endContainer, range.endOffset);
+        if (!from && to && to === chars(all.endContainer, all.endOffset)) return []; // all of it, before the pieces of a box are asked
+        if ((box = boxSpan(range))) return box;
         if (from >= to) return null;
-        if (!from && to === chars(all.endContainer, all.endOffset)) return [];
         // a drawn fraction is not written as the equation is typed: only all of it can be told
         return engine.edit || !display.querySelector('.calc-fr') ? [from, to] : null;
     }
@@ -600,13 +682,20 @@
     }, false);
 
     // the pointer on target: the tip of its key, after a second of rest; quick, at once from a tip just gone
+    // a letter A to J of the equation, in the display or on the line above a result, which has the tip of what it holds
+    function letterIn(target) {
+        var piece = target.closest('[data-e]');
+        return piece && (display.contains(piece) || logline.contains(piece)) && /^[A-J]$/.test(piece.textContent.trim()) ? piece : null;
+    }
+
     function onKey(target, quick) {
         var key = target.closest('.calc-left > *, .calc-right > .del-ac, .calc-rad, .calc-mem, .calc-frac, .calc-fmt, .calc-hold, ' +
             '.calc-stat-btn, .calc-fx-btn, .calc-fx-row, .calc-gx-row, .calc-conv-btn, .calc-solve-btn, .calc-numbers-btn, .calc-sv-row, ' +
             '.calc-graph-btn, .calc-graph-size, .calc-graph-add, .calc-graph-del, .calc-graph-diff, .calc-graph-points, .calc-graph-zoom > span, .calc-graph-pop-end, .calc-graph-pop-row, .calc-graph-play, ' +
             '.calc-graph-fn > .calc-graph-swatch, ' +
+            '.calc-sto, .calc-var-btn, .calc-var-clear, input, textarea, ' +
             '.calc-stats-chart, .calc-hist, .calc-past-export, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit, .calc-help, ' +
-            '.calc-solve .calc-solve-tab, .calc-sv-opt, .calc-sv-copy, .calc-sv-example');
+            '.calc-solve .calc-solve-tab, .calc-sv-opt, .calc-sv-copy, .calc-sv-example') || letterIn(target);
         if (key === tipKey) return;
         hideTip();
         tipKey = key;
@@ -658,7 +747,8 @@
         var name = tipKey.textContent.replace(/\s*/g, ''), info = tipFor(tipKey, name), calc = tip.parentNode,
             cam = tipKey.closest('.calc-graph-export') && tipKey.querySelector('svg'), // the camera has no box: from the camera itself
             at = inside((cam || tipKey).getBoundingClientRect()), left, top, below,
-            gap = cam ? 6 : tipKey.matches('.calc-sv-row, .calc-fx-row, .calc-gx-row') ? 6 : 10; // a card of a list: its arrow on the card, not in the gap above it
+            // a card of a list: its arrow on it, not in the gap above it; a box a little over it
+            gap = cam ? 6 : tipKey.matches('input, textarea') ? 9 : tipKey.matches('.calc-sv-row, .calc-fx-row, .calc-gx-row') ? 6 : 10;
 
         if (!info) {
             tipEmpty = true;
@@ -845,6 +935,11 @@
     function tipFor(el, name) {
         var places = fmt.places === 'auto' ? 'as many digits as each one needs' :
             fmt.places + (fmt.places === 1 ? ' decimal place' : ' decimal places'), info, value;
+        if (el.hasAttribute('data-e')) { // a letter of the equation: what it holds now
+            value = el.textContent.trim();
+            return { t: 'Variable ' + value, d: value + ' = ' + letterValue(value), k: 'Shift+' + value };
+        }
+        if (/^(INPUT|TEXTAREA)$/.test(el.tagName) && (info = lettersTip(el))) return info; // a box with letters in it; any other has the tip of its own below
         if (el.classList.contains('calc-help')) return CalcTips['help'];
         if (el === radDeg) return CalcTips['unit ' + radDeg.firstChild.data];
         if (el === fxButton) return CalcTips[fx.classList.contains('calc-open') ? 'formulas close' : 'formulas'];
@@ -897,6 +992,7 @@
         }
         if (el === fracMark) return CalcTips[dmsMode ? 'DMS' : 'FRAC'];
         if (el === hold) return CalcTips['hold'];
+        if (el === sto) return CalcTips['STO'];
         if (el === mem) {
             return {
                 t: 'Memory',
@@ -946,22 +1042,51 @@
     }, false);
 
     document.addEventListener('contextmenu', function (e) {
-        var items;
+        var items, at;
         if (!root.contains(e.target)) return; // the rest of the page has the menu of the browser
-        items = menuItems(e.target);
+        at = menu.at = inside({ left: e.clientX, top: e.clientY }); // where Store in Var opens the letters
+        items = menuItems(e.target); // taken now, while what is selected is still selected
         e.preventDefault(); // in the calculator the menu of the browser is never shown
-        if (items) openMenu(items, inside({ left: e.clientX, top: e.clientY }), null);
+        if (!items) return;
+        if (!items.some(function (item) { return item && item.clip; })) return openMenu(items, at, null);
+        clipboardHas(function (has) { // Paste is left out while the clipboard is known to be empty
+            openMenu(has ? items : items.filter(function (item) { return !item || !item.clip; }), at, null);
+        });
     }, false);
 
+    // whether the clipboard holds text, for Paste of the menu. The page reads it only where the
+    // browser allows that already, and asks for nothing; where it cannot tell, it may hold some
+    function clipboardHas(done) {
+        var answered = false, timer;
+        function answer(text) {
+            if (answered) return;
+            answered = true;
+            clearTimeout(timer);
+            done(typeof text !== 'string' || !!text.trim());
+        }
+        if (ask('clipboard', { text: answer })) return answer(null); // no page that reads it
+        timer = setTimeout(answer, 300, null); // nor one that answers soon
+    }
+
     // The menu of these items, at the place at of the calculator, within it, or with at.alignRight its
-    // right edge there; by: the button it opened from, whose press shuts it again, or null
-    function openMenu(items, at, by) {
+    // right edge there; by: the button it opened from, whose press shuts it again, or null. An item
+    // null is a line between them, left out at either end and where two meet, its items left out
+    function openMenu(items, at, by, kind) {
         var calc = menu.parentNode;
+        items = items.filter(function (item, i) {
+            return item || (i && items[i - 1]);
+        });
+        if (items.length && !items[items.length - 1]) items.pop();
+        if (items.length && !items[0]) items.shift();
         menu.items = items;
         menu.by = by;
+        menu.at = at;
+        menu.className = 'calc-menu-box' + (kind ? ' ' + kind : '');
         menu.innerHTML = items.map(function (item, i) {
+            if (!item) return '<hr>';
             return '<div data-i="' + i + '"' + (item[2] === false ? ' class="calc-off"' : '') + '>' + item[0] + '</div>';
         }).join('');
+        menu.style.left = menu.style.top = '0'; // measured where it has all the room, not where it was last: there it may wrap
         showMenu(true);
         menu.style.left = Math.max(4, Math.min(at.alignRight ? at.left - menu.offsetWidth : at.left, calc.clientWidth - menu.offsetWidth - 4)) + 'px';
         menu.style.top = Math.min(at.top, calc.clientHeight - menu.offsetHeight - 4) + 'px';
@@ -987,17 +1112,25 @@
     // the lines of the menu for where it opens: [name, what it does, false while it cannot be done];
     // nothing where there is no menu
     function menuItems(el) {
-        var box = el.closest('textarea, input'), panel = el.closest('.calc-past'), text, span, row, part, i, unit, k;
+        var box = el.closest('textarea, input'), panel = el.closest('.calc-past'), text, span, row, part, i, unit, k, paste;
 
+        // the display has only what can be done: Cut and Copy with something in it, Store in Var with
+        // a value, Paste with something in the clipboard
         if (el.closest('.calc-display')) {
             text = selectedText(); // taken now, as it is selected
             span = selectedSpan();
+            paste = ['Paste', function () { askPaste(null); }];
+            paste.clip = true;
             return [
-                ['Cut', function () { copy(text || copyText()); cutOut(span); }, !empty()],
-                ['Copy', function () { copy(text || copyText()); }],
-                ['Paste', function () { askPaste(null); }],
+                !empty() && ['Cut', function () { copy(text || copyText()); cutOut(span); }],
+                !empty() && ['Copy', function () { copy(text || copyText()); }],
+                paste,
+                null,
+                insertItem(),
+                !empty() && !engine.error && storeItem(storeIn),
+                null,
                 ['Reset all', resetAll]
-            ];
+            ].filter(function (item) { return item !== false; });
         }
         if (!panel) return null; // the keys
         if (box) return boxItems(box);
@@ -1008,14 +1141,28 @@
             return [
                 ['Copy', function () { copy(text || local(+convNow[i].toPrecision(15))); }],
                 ['Copy with unit', function () { copy(text || local(+convNow[i].toPrecision(15)) + ' ' + plain(unit.s)); }],
-                ['Insert', function () { row.click(); }]
+                ['Insert', function () { row.click(); }],
+                null,
+                storeItem(function (k) { setLetter(k, +convNow[i].toPrecision(15)); })
             ];
         }
         if (panel === stats && (row = el.closest('.calc-stats-tile')) && statsNow.n && isFinite(statsNow[row.dataset.k])) {
             text = local(statsValue(statsNow[row.dataset.k]).text);
+            k = statsNow[row.dataset.k];
             return [
                 ['Copy', function () { copy(text); }],
-                ['Insert', function () { row.click(); }]
+                ['Insert', function () { row.click(); }],
+                null,
+                storeItem(function (letter) { setLetter(letter, k); })
+            ];
+        }
+        if (panel === fx && (row = el.closest('.calc-var'))) {
+            k = row.dataset.k;
+            return [
+                ['Insert', function () { putLetter(k); }],
+                ['Copy', function () { copy(letterText(k)); }],
+                ['Store result', function () { storeIn(k); }, !engine.error],
+                ['Clear', function () { setLetter(k, 0); }, !!engine.vars[k]]
             ];
         }
         if (panel === fx && (row = el.closest('.calc-fx-item'))) {
@@ -1024,7 +1171,9 @@
                 return [
                     ['Copy', function () { copy(local(k.v)); }],
                     ['Copy with unit', function () { copy(local(k.v) + ' ' + plain(k.u)); }, !!k.u],
-                    ['Insert', function () { putConstant(k); }]
+                    ['Insert', function () { putConstant(k); }],
+                    null,
+                    storeItem(function (letter) { setLetter(letter, k.v); })
                 ];
             }
             return [
@@ -1038,15 +1187,19 @@
             if (!row) return [['Clear history', function () { past.querySelector('.calc-past-clear').click(); }]];
             // on the equation, the equation; anywhere else on the line, its result
             part = el.closest('.calc-past-eq') || row.querySelector('.calc-past-res');
+            k = engine.past[+row.dataset.i];
             return ['copy', 'insert'].map(function (act) {
                 return [act === 'copy' ? 'Copy' : 'Insert', function () { part.querySelector('[data-act="' + act + '"]').click(); }];
-            }).concat([['Delete', function () { row.querySelector('.calc-past-del').click(); }]]);
+            }).concat([null, storeItem(function (letter) { setLetter(letter, +k.value); }), null,
+                ['Delete', function () { row.querySelector('.calc-past-del').click(); }]]);
         }
         if (panel === graph && (row = el.closest('.calc-graph-cell')) && isFinite(k = graphValues[row.dataset.r][row.dataset.c])) {
             text = local(+row.dataset.c ? statsValue(k).text : String(k));
             return [
                 ['Copy', function () { copy(text); }],
-                ['Insert', function () { row.click(); }]
+                ['Insert', function () { row.click(); }],
+                null,
+                storeItem(function (letter) { setLetter(letter, k); })
             ];
         }
         if (panel === graph && el.closest('.calc-graph-plot') && !el.closest('.calc-graph-pop')) {
@@ -1059,7 +1212,9 @@
             k = graphPinned[row.dataset.put];
             return [
                 ['Copy', function () { copy(local(graphPinned.spot ? k : statsValue(k).text)); }],
-                ['Insert', function () { row.click(); }]
+                ['Insert', function () { row.click(); }],
+                null,
+                storeItem(function (letter) { setLetter(letter, +k); }, isFinite(+k))
             ];
         }
         return boxItems(panel === stats ? statsInput : panel === fx ? fxSearch : panel === graph ? graphInputs[0] : convInput);
@@ -1111,8 +1266,10 @@
         if (fracMode) toggleFraction();
         if (dmsMode) toggleDms();
         engine.memory = 0;
+        engine.letters(true); // A to J back to 0, as the memory
         engine.reset(); // the equation too; the history stays
         hold.textContent = '';
+        arm(false);
         keyBoard['AC'].children[0].firstChild.data = 'AC';
         // what is typed in the panels, and each on its first tab with no card open: the list of the
         // statistics, the search and a formula open, the value to convert and the dates, the graph
@@ -1124,7 +1281,7 @@
         setStatsBy(0);
         renderStats();
         fxSearch.value = '';
-        fxTab = 'formulas';
+        fxTab = 'vars';
         store('fxTab', fxTab);
         renderFx();
         convInput.value = '1';
@@ -1133,6 +1290,7 @@
         convTabs();
         saveConv();
         clearGraph();
+        lettersChanged();
         graphSearch.value = '';
         showGraphTab('graph');
         toolPanels.forEach(function (p) { p.clear(); });
@@ -1160,6 +1318,100 @@
     hold.addEventListener('click', function () {
         hold.textContent = '';
     }, false);
+
+    // ---------------- the letters A to J ---------------- //
+
+    // A value is kept in each of A to J, as on a TI or a Casio: STO→, the > key, then a letter
+    // works the line out and keeps its result there, 5 + 3 → A. Shift+A to J put the letter in
+    // the equation, where it stays a letter, A × 2, and is worked out with what it holds. The
+    // Variables tab of the formulas lists them, and a value of a panel is stored by its menu
+    function arm(on) {
+        sto.textContent = on ? 'STO→' : '';
+        if (on) hold.textContent = '';
+    }
+
+    sto.addEventListener('click', function () {
+        arm(false);
+    }, false);
+
+    // the line worked out into a letter; an error shows as = would give it
+    function storeIn(k) {
+        arm(false);
+        if (engine.store(k, deg)) notify('→ ' + k);
+        unselect();
+        refresh();
+        saveState();
+        lettersChanged();
+    }
+
+    // a letter at the cursor, or in place of what is selected, as π is; after STO→ it takes the
+    // result instead, chosen with the mouse as with Shift+A
+    function putLetter(k) {
+        var span = selectedSpan();
+        if (sto.textContent) return storeIn(k);
+        if (!(span ? engine.pressOver('#' + k, deg, span[0], span[1]) : engine.press('#' + k, deg))) return;
+        unselect();
+        keyBoard['AC'].children[0].firstChild.data = 'C';
+        refresh();
+        saveState();
+    }
+
+    // a number of a panel kept in a letter
+    function setLetter(k, n) {
+        if (!engine.setLetter(k, n)) return;
+        notify('→ ' + k);
+        saveState();
+        lettersChanged();
+    }
+
+    // what the letters hold changed: their list shows it, and a graph with a letter is drawn again
+    function lettersChanged() {
+        if (fx.classList.contains('calc-open') && fxTab === 'vars') showLetters();
+        if (graphInputs.some(function (box, i) { return i < graphCount && /[A-J]/.test(box.value); })) readGraph();
+        if (/[A-J]/.test(convInput.value)) renderConv(); // a value of A, converted again
+    }
+
+    // Store in Var: a menu of the letters, each with what it holds, in place of the menu it was chosen in
+    function storeItem(store, can) {
+        var at = menu.at;
+        return ['Store in Var' + MORE, function () { lettersMenu(store, at); }, can !== false];
+    }
+
+    // Insert Var: the same menu of the letters, the one chosen put in at the cursor, as Shift+A does
+    function insertItem() {
+        var at = menu.at;
+        return ['Insert Var' + MORE, function () { lettersMenu(putLetter, at); }];
+    }
+
+    function lettersMenu(pick, at) {
+        openMenu(CalcEngine.LETTERS.split('').map(function (k) {
+            return [k + '<span class="calc-menu-val">' + letterValue(k) + '</span>', function () { pick(k); }];
+        }), at, null, 'calc-menu-letters');
+    }
+
+    // the tip of a box that uses letters, of a formula, of Solve or of the graph: what each holds now,
+    // A = 200000; none for a box without one, nor where A to F are digits, as in the Numbers panel
+    function lettersTip(box) {
+        var used = (fx.contains(box) && !box.closest('.calc-var')) || solvePanel.contains(box) || graph.contains(box) || box === convInput ||
+            (numbersPanel.contains(box) && box.dataset.num) ?
+            CalcEngine.lettersOf(box.value) : [];
+        if (!used.length) return null;
+        return {
+            t: used.length > 1 ? 'Variables' : 'Variable ' + used[0],
+            d: used.map(function (k) { return k + ' = ' + letterValue(k); }).join('<br>'),
+            k: ''
+        };
+    }
+
+    // what a letter holds, as the display would show it, cut short for the menu
+    function letterValue(k) {
+        return local(+(+engine.vars[k]).toPrecision(10));
+    }
+
+    // and all of it, for its box of the Variables tab and Copy: 0.3, not 0.30000000000000004
+    function letterText(k) {
+        return local(String(+(+engine.vars[k]).toPrecision(15)));
+    }
 
     // shows a short notice in the display, then fades it out
     function notify(text) {
@@ -1690,7 +1942,7 @@
 
     // a row of the table, with its x and y
     function addCell(x, y) {
-        var row = document.createElement('div'), box = ' type="text" inputmode="decimal" spellcheck="false" autocomplete="off" maxlength="20"';
+        var row = document.createElement('div'), box = ' type="text" spellcheck="false" autocomplete="off" maxlength="20"';
         row.className = 'calc-graph-pair';
         row.innerHTML = '<input' + box + ' data-c="x" aria-label="x"><input' + box + ' data-c="y" aria-label="y">';
         row.children[0].value = x;
@@ -1706,7 +1958,7 @@
         if (e.target.tagName !== 'INPUT' || !box) return;
         onlyNumber(e.target);
         box.value = rows.map(function (row) {
-            var x = +boxValue(row.children[0]), y = +boxValue(row.children[1]);
+            var x = boxNumber(row.children[0]), y = boxNumber(row.children[1]);
             if (!row.children[0].value.trim() || !row.children[1].value.trim() || !isFinite(x) || !isFinite(y)) return '';
             return '(' + local(String(x)) + (engine.comma ? '; ' : ', ') + local(String(y)) + ')';
         }).filter(Boolean).join(engine.comma ? '; ' : ', ');
@@ -2065,7 +2317,7 @@
                 if (letters.indexOf(k) < 0) delete graphPlay[k]; // its slider goes, as it played
             });
             graphSliders.innerHTML = letters.map(function (k) {
-                var box = ' type="text" inputmode="decimal" spellcheck="false" autocomplete="off" maxlength="16"';
+                var box = ' type="text" spellcheck="false" autocomplete="off" maxlength="16"';
                 return '<div class="calc-graph-slider" data-k="' + k + '">' +
                     '<span class="calc-graph-play" role="button" aria-label="Play ' + k + '"><svg viewBox="0 0 16 16" width="11" height="11">' +
                     '<path class="calc-graph-go" d="M4.5 2.8v10.4L13 8z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" />' +
@@ -2131,7 +2383,7 @@
             setSlider(row);
         } else {
             onlyNumber(el);
-            n = +boxValue(el);
+            n = boxNumber(el);
             if (/^-?[.,]?$/.test(el.value)) { // empty, or a number only begun: -, -. — waited for, not marked
                 (el.classList.contains('calc-graph-end') ? el : el.parentNode).classList.remove('calc-bad');
                 return;
@@ -3592,7 +3844,7 @@
         var box = e.target, p = graphPinned, n, a, b;
         if (!box.classList.contains('calc-graph-pop-end') || !p || !p.area) return;
         onlyNumber(box);
-        n = box.value.trim() === '' ? NaN : +boxValue(box);
+        n = boxNumber(box);
         a = box.dataset.end === 'a' ? n : p.a;
         b = box.dataset.end === 'b' ? n : p.b;
         box.classList.toggle('calc-bad', !(isFinite(n) && a < b));
@@ -3853,7 +4105,7 @@
         box.addEventListener('input', function () {
             var w = graphPlot.clientWidth, h = graphPlot.clientHeight, v = viewNow(), n, x, y;
             onlyNumber(box);
-            n = graphEnds.map(function (b) { return b.value.trim() === '' ? NaN : +boxValue(b); });
+            n = graphEnds.map(boxNumber);
             x = n[0] < n[1] && (n[1] - n[0]) / w > 1e-12 && (n[1] - n[0]) / w < 1e12;
             y = n[2] < n[3] && (n[3] - n[2]) / h > 1e-12 && (n[3] - n[2]) / h < 1e12;
             graphEnds[0].parentNode.classList.toggle('calc-bad', !x);
@@ -4046,13 +4298,13 @@
             seqs = tableSeqs(), from, typed;
         by = seqs ? 1 : +by.toPrecision(12);
         graphBy.placeholder = local(String(by));
-        typed = +boxValue(graphBy);
+        typed = boxNumber(graphBy);
         graphBy.parentNode.classList.toggle('calc-bad', !!graphBy.value && !(typed > 0 && isFinite(typed)));
         if (graphBy.value && typed > 0 && isFinite(typed)) by = typed;
         from = seqs ? Math.min.apply(null, seqs.map(function (i) { return graphPlanes[i].range(deg)[0]; })) :
             +(Math.ceil((v.x - w / 2 * v.ux) / by) * by).toPrecision(12);
         graphFrom.placeholder = local(String(from));
-        typed = +boxValue(graphFrom);
+        typed = boxNumber(graphFrom);
         graphFrom.parentNode.classList.toggle('calc-bad', !!graphFrom.value && !isFinite(typed));
         if (graphFrom.value && isFinite(typed)) from = typed;
         return { from: from, by: by };
@@ -4176,9 +4428,25 @@
 
     fxSearch.addEventListener('input', renderFx, false);
 
-    // a formula opens its letters, or closes them; a constant is put in
+    // a formula opens its letters, or closes them; a constant is put in; a letter is put in, or
+    // takes the result by its STO
     fxList.addEventListener('click', function (e) {
-        var row = e.target.closest('.calc-fx-row'), item = row && row.parentNode;
+        var row = e.target.closest('.calc-fx-row'), item = row && row.parentNode, letter = e.target.closest('.calc-var'),
+            act = e.target.closest('.calc-var-btn');
+        if (e.target.closest('.calc-var-clear')) {
+            engine.letters(true);
+            notify('Cleared');
+            saveState();
+            return lettersChanged();
+        }
+        if (letter) {
+            if (act && act.dataset.act === 'store') storeIn(letter.dataset.k);
+            else if (!e.target.closest('input')) {
+                putLetter(letter.dataset.k);
+                showFx(false);
+            }
+            return;
+        }
         if (!item) {
             if (e.target.closest('.calc-fx-insert')) insertFormula(e.target.closest('.calc-fx-item'));
             return;
@@ -4187,14 +4455,19 @@
         else openFormula(item.classList.contains('calc-on') ? null : item);
     }, false);
 
-    // a number box keeps only what a number is made of: digits, one point, a minus first;
-    // marks: the °′″ of an angle. The point is a comma while that is the decimal mark, whichever is typed
-    function onlyNumber(input, marks) {
-        var v = input.value, at = input.selectionStart, clean = '', point = false, mark = engine.comma ? ',' : '.', n, c;
+    // a number box keeps only what a number is made of: digits, one point, a minus first, and the
+    // variables A to J, 2A, a small letter typed as its capital; bare: the digits alone, as a variable's
+    // own value. marks: the °′″ of an angle. The point is a comma while that is the decimal mark, whichever is typed
+    function onlyNumber(input, marks, bare) {
+        var letters = !bare, v = input.value, at = input.selectionStart, clean = '', point = false, mark = engine.comma ? ',' : '.', n, c;
         for (n = 0; n < v.length; n++) {
             c = v.charAt(n);
+            if (/[٠-٩۰-۹]/.test(c)) c = String(c.charCodeAt(0) - (c.charCodeAt(0) >= 0x6F0 ? 0x6F0 : 0x660)); // ٥ is 5
+            else if (c === '٫') c = '.';
             if (engine.comma && c === '.') c = ',';
-            if (/\d/.test(c) || (marks && /[°′″]/.test(c)) || (c === '-' && !clean) || (c === mark && !point && (point = true))) clean += c;
+            if (letters && /[a-j]/.test(c)) c = c.toUpperCase();
+            if (/\d/.test(c) || (marks && /[°′″]/.test(c)) || (letters && /[A-J]/.test(c)) || (c === '-' && !clean) ||
+                (c === mark && !point && (point = true))) clean += c;
             else if (n < at) at--;
         }
         if (clean !== v) {
@@ -4213,20 +4486,38 @@
         input.setSelectionRange(at, at);
     }
 
+    // what a number box holds: its number, or one worked out of A to J, 2A; NaN while empty or not one
+    function boxNumber(input) {
+        var text = boxValue(input).trim();
+        if (!text) return NaN;
+        return /[A-J]/.test(text) ? CalcMaths.number(text, false, deg) : +text;
+    }
+
     fxList.addEventListener('input', function (e) {
-        onlyNumber(e.target);
+        onlyNumber(e.target, false, !!e.target.closest('.calc-var')); // a formula's letter may be one of A to J: a = A; a variable's value, digits
+        if (e.target.closest('.calc-var')) return; // a letter's value: kept once it is left, or Enter
         var note = e.target.closest('.calc-fx-form').querySelector('.calc-fx-note');
         e.target.classList.remove('calc-bad');
         note.classList.remove('calc-fx-warn'); // a value changed: the usual note again
         note.innerHTML = note.dataset.usual;
     }, false);
 
+    // a letter's value typed in its box, kept as it is left; a box made empty is 0, and what is no
+    // number shows what the letter holds again
+    fxList.addEventListener('change', function (e) {
+        var letter = e.target.closest('.calc-var'), text = letter && boxValue(e.target).trim();
+        if (!letter) return;
+        if (!engine.setLetter(letter.dataset.k, text === '' ? 0 : +text)) e.target.value = letterText(letter.dataset.k);
+        else setLetter(letter.dataset.k, engine.vars[letter.dataset.k]);
+    }, false);
+
     // Enter in the search takes the first one found; in a letter it goes on
-    // to the next empty one, and puts the formula in once all are filled
+    // to the next empty one, and puts the formula in once all are filled; in the box of A to J it keeps the value
     fx.addEventListener('keydown', function (e) {
         var item = e.target.closest('.calc-fx-item'), inputs, empty;
         if (e.which !== 13) return;
         e.preventDefault();
+        if (e.target.closest('.calc-var')) return e.target.blur();
         if (e.target === fxSearch) {
             item = fxList.querySelector('.calc-fx-item');
             if (item && fxTab === 'constants') putConstant(fxItems.constants[+item.dataset.i].item);
@@ -4266,6 +4557,8 @@
         [].forEach.call(fx.querySelectorAll('.calc-fx-tab'), function (tab) {
             tab.classList.toggle('calc-on', tab.dataset.tab === fxTab);
         });
+        fxSearch.hidden = fxTab === 'vars'; // ten letters, nothing to search
+        if (fxTab === 'vars') return showLetters();
         fxSearch.placeholder = fxTab === 'formulas' ? 'Search formulas' : 'Search constants';
         fxItems[fxTab].forEach(function (entry, i) {
             var it = entry.item;
@@ -4289,6 +4582,47 @@
         fxList.innerHTML = html || '<div class="calc-fx-none">Nothing found</div>';
         fxList.scrollTop = 0;
         hideTip();
+    }
+
+    // The Variables tab: a card for each letter, its value in a box to type over, then STO, which keeps
+    // the result of the line in it, and insert; a click on the card puts the letter in as well.
+    // Built once while the tab is shown; after that only the values change, not a box being typed in
+    function showLetters() {
+        var typing = fxList.contains(document.activeElement) ? document.activeElement : null;
+        if (!fxList.querySelector('.calc-var')) {
+            fxList.innerHTML = '<div class="calc-var-head"><span><kbd>Shift</kbd>+<kbd>A</kbd> puts A in, <kbd>Alt</kbd>+<kbd>A</kbd> stores in it</span>' +
+                '<span class="calc-var-clear">Clear all</span></div>' +
+                CalcEngine.LETTERS.split('').map(function (k) {
+                    return '<div class="calc-fx-item calc-var" data-k="' + k + '"><div class="calc-fx-row calc-var-row">' +
+                        '<span class="calc-var-k">' + k + '</span>' +
+                        '<input type="text" inputmode="decimal" spellcheck="false" autocomplete="off" maxlength="24" aria-label="' + k + '">' +
+                        '<span class="calc-var-btn" data-act="store">STO</span>' +
+                        '<span class="calc-var-btn" data-act="insert">' + insertIcon(true) + '</span></div></div>';
+                }).join('');
+            fxList.scrollTop = 0;
+            hideTip();
+        }
+        [].forEach.call(fxList.querySelectorAll('.calc-var'), function (card) {
+            var input = card.querySelector('input'), v = engine.vars[card.dataset.k];
+            if (input !== typing) input.value = letterText(card.dataset.k);
+            card.classList.toggle('calc-var-set', v !== 0);
+        });
+        fxList.querySelector('.calc-var-clear').classList.toggle('calc-off', CalcEngine.LETTERS.split('').every(function (k) {
+            return !engine.vars[k];
+        }));
+    }
+
+    // the tip of a letter's card and its buttons: what it holds, and the keys for it
+    function letterTip(el) {
+        var k = el.closest('.calc-var').dataset.k;
+        if (el.dataset.act === 'store') {
+            return { t: 'Store in ' + k, d: 'Works out the line in the display, as = does, and keeps its result in ' + k + ': 5 + 3 → ' + k + '. After a result, that result.', k: 'Alt+' + k };
+        }
+        if (el.dataset.act === 'insert') return { t: 'Insert ' + k, d: 'Puts ' + k + ' in the equation: 2' + k + ' is 2 × ' + k + '.', k: 'Shift+' + k };
+        return {
+            t: 'Variable ' + k, k: 'Shift+' + k,
+            d: k + ' holds ' + letterValue(k) + '. Click to put ' + k + ' in the equation, where it stays ' + k + ' and is worked out with what it holds then. Type in the box to change it.'
+        };
     }
 
     // 6.6743 × 10⁻¹¹ m³/(kg·s²); a value of a usual size written out, and a whole
@@ -4315,7 +4649,8 @@
         form.className = 'calc-fx-form';
         form.innerHTML = '<div class="calc-fx-fields">' + f.v.map(function (v) {
             return '<label class="calc-fx-var"><span class="calc-fx-sym">' + v[1] + '</span>' +
-                '<input type="text" inputmode="decimal" pattern="-?[0-9]*[.,]?[0-9]*" spellcheck="false" autocomplete="off" maxlength="40" placeholder="' +
+                // a keyboard with letters, for A to J as well as numbers
+                '<input type="text" autocapitalize="characters" spellcheck="false" autocomplete="off" maxlength="40" placeholder="' +
                 v[2] + '"></label>';
         }).join('') + '</div><div class="calc-fx-actions"><span class="calc-fx-note">' +
             (f.deg ? 'Angles in ' + ['radians', 'degrees', 'gradians'][deg] + ', the unit in use' : '') +
@@ -4393,6 +4728,8 @@
     function fxTip(el) {
         var item = el.parentNode, it;
         if (el.classList.contains('calc-past-close')) return CalcTips['formulas close'];
+        if (el.classList.contains('calc-var-clear')) return CalcTips['letters clear'];
+        if (el.closest('.calc-var')) return letterTip(el);
         if (!el.classList.contains('calc-fx-row')) return null;
         it = fxItems[fxTab][+item.dataset.i].item;
         if (fxTab === 'constants') return null;
@@ -6327,7 +6664,7 @@
                 }
                 html += '<label class="calc-sv-var' + (f.fn ? ' calc-sv-wide' : '') + (f.date ? ' calc-sv-wide calc-sv-dated' : '') + (f.cls ? ' ' + f.cls : '') + '">' + (f.l ? '<span class="calc-sv-sym">' + f.l + '</span>' : '') +
                     (f.date ? '<span class="calc-sv-date">' : '') +
-                    '<input type="text"' + (f.fn || f.text || f.date ? '' : ' inputmode="decimal"') + ' spellcheck="false" autocomplete="off" maxlength="' + (f.fn ? 200 : 40) +
+                    '<input type="text"' + (f.fn || f.text || f.date ? '' : ' data-num="1"') + ' spellcheck="false" autocomplete="off" maxlength="' + (f.fn ? 200 : 40) +
                     '" placeholder="' + (f.date ? 'Today' : f.ph) + '" data-k="' + f.k + '" aria-label="' + (f.aria || (f.fn ? tool.t : f.l.replace(/<[^>]*>/g, ''))) + '">' +
                     (f.date ? '<span class="calc-sv-cal" title="Calendar">' + CALENDAR_ICON + '</span></span>' : '') + '</label>';
             });
@@ -6753,8 +7090,7 @@
                 '<span class="calc-gx-col"><span class="calc-gx-name">' + entry.ex.t + '</span>' +
                 '<span class="calc-gx-f calc-gx-eq calc-gx-val"><span>' + entry.ex.f.map(function (text) {
                     return exampleText(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                }).join('<span class="calc-graph-ex-gap"></span>') + '</span>' +
-                '<span class="calc-gx-put">' + insertIcon() + '</span></span></span></div></div>';
+                }).join('<span class="calc-graph-ex-gap"></span>') + '</span></span></span></div></div>';
         });
         graphExList.innerHTML = html || '<div class="calc-gx-none">Nothing found</div>';
         graphExList.scrollTop = 0;
@@ -7117,7 +7453,7 @@
 
     // newest first
     function renderPast() {
-        var n = engine.past.length, i, p, row, eq, line, res, unit, del;
+        var n = engine.past.length, i, p, row, eq, line, res, unit, del, held;
 
         pastShown = { list: engine.past, n: n, last: engine.past[n - 1], mode: shownMode() };
         pastList.textContent = '';
@@ -7135,6 +7471,12 @@
                 unit = line.insertBefore(document.createElement('span'), line.firstChild);
                 unit.className = 'calc-past-unit';
                 unit.textContent = p.unit;
+            }
+            if (p.letters) { // what its letters held then: A = 8
+                held = row.appendChild(document.createElement('div'));
+                held.className = 'calc-past-letters';
+                // with a comma for the decimal mark, a semicolon between them: A = 2,5; B = 3
+                held.textContent = engine.comma ? local(p.letters.replace(/, (?=[A-J] =)/g, '; ')) : p.letters;
             }
             res = row.appendChild(document.createElement('div'));
             res.className = 'calc-past-res';
@@ -7177,10 +7519,14 @@
             'stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4" /></svg></span>';
     }
 
-    // the arrow of insert: up into the display; the Insert of the formulas shows it too
-    function insertIcon() {
+    // The arrow of insert: up into the display. Drawn from the right, as the lines of the history have it;
+    // the style mirrors it where it is wanted from the left, as on the Insert of a formula. fromLeft: drawn
+    // from the left already, for what the style does not mirror, the cards of the Variables
+    function insertIcon(fromLeft) {
         return '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" ' +
-            'stroke-linecap="round" stroke-linejoin="round"><path d="M13 13h-5a2 2 0 0 1-2-2V3" /><path d="M9 6l-3-3-3 3" /></svg>';
+            'stroke-linecap="round" stroke-linejoin="round">' + (fromLeft ?
+                '<path d="M3 13h5a2 2 0 0 0 2-2V3" /><path d="M7 6l3-3 3 3" />' :
+                '<path d="M13 13h-5a2 2 0 0 1-2-2V3" /><path d="M9 6l-3-3-3 3" />') + '</svg>';
     }
 
     // insert and copy, on the left of a line; shown while the pointer is over it
@@ -7599,7 +7945,7 @@
         loadGraph(s.graph);
         solver.load(s.solve);
         numbers.load(s.numbers);
-        if (s.fxTab === 'constants') fxTab = s.fxTab;
+        if (/^(vars|formulas|constants)$/.test(s.fxTab)) fxTab = s.fxTab;
         loadConv(s.conv);
         dates.load(s.dates);
         fracMode = engine.fraction = !!s.fraction;
@@ -7631,6 +7977,7 @@
                 engine.load(stored('calc'));
             } catch (err) { }
             keyBoard['AC'].children[0].firstChild.data = empty() ? 'AC' : 'C';
+            lettersChanged(); // as the other page stored them
             return refresh();
         }
         if (e.key === 'deg') {
@@ -7833,6 +8180,7 @@
     function evalKey(key) {
         var span = selectedSpan(), ok; // a key writes in place of what is selected of the equation, and DEL takes it out
 
+        if (sto.textContent) arm(false); // a key that is no letter lets STO→ go, and does what it does
         if (key === 'a/b') return toggleFraction();
         if (key === '°′″') return toggleDms();
         if (key === 'MODE') return nextFormat();

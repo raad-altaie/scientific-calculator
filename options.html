@@ -86,10 +86,11 @@
                     </svg>
                 </span>
                 <div class="option-text">
-                    <h3>Formulas and constants</h3>
-                    <p>A button at the top left of the display with well-known formulas of geometry, physics, money
-                        and more, and constants of math and science, all searchable. Fill in a formula's letters to
-                        put it into the display, where you can still change it.</p>
+                    <h3>Variables, formulas and constants</h3>
+                    <p>A button at the top left of the display. It opens on Variables, the ten variables A to J and what
+                        each holds, then well-known formulas of geometry, physics, money and more, and constants of
+                        math and science, all searchable. Fill in a formula's letters to put it into the display,
+                        where you can still change it.</p>
                 </div>
                 <label class="switch" title="Formulas and constants">
                     <input type="checkbox" id="panel-fx">
@@ -206,8 +207,8 @@
                 <li><kbd class="k k-red">DEL</kbd> button (or Backspace) to take back the last key you pressed, one key at a time.</li>
                 <li>Cursor: click into the equation, or use the arrow keys, to fix a number or an
                     operator in the middle of it. Back at the end, the calculator goes on as before.</li>
-                <li>Formulas and constants: some hundred formulas to fill in and sixty constants of math and science.
-                    See the "Formulas and Constants" section below.</li>
+                <li>Variables, formulas and constants: the variables A to J, some hundred formulas to fill in and sixty
+                    constants of math and science. See the "Variables, Formulas and Constants" section below.</li>
                 <li>Converter: units of length, area, volume, mass, temperature and more, and dates. See the
                     "Converter" section below.</li>
                 <li>Graph: functions, equations, inequalities, sequences, slope fields and points drawn, with their roots, highs, lows and
@@ -241,7 +242,13 @@
                     Copy or Paste.
                     You can paste a whole equation, such as 2 + 3 × sin(30), not only a number.</li>
                 <li>Ctrl+Z (⌘Z on a Mac) undoes the last change to the equation: a key, DEL, a paste or a mode.
-                    Ctrl+Shift+Z or Ctrl+Y redoes it.</li>
+                    Ctrl+Shift+Z redoes it.</li>
+                <li>Ten letters, A to J, each keep a value, as on a TI or a Casio. Alt+A (Option+A on a Mac) is
+                    STO→ A: type 5 + 3, press Alt+A, and 8 is kept in A; <kbd class="k">&gt;</kbd> then Shift+A does the same. Shift+A to Shift+J put a letter
+                    in the equation, 2A + B, worked out with what it holds. The Variables tab, the first tab of the formulas and the one it opens on, lists them, and a
+                    right-click on the display, a value of a panel or the history has Store in Var; on the display, Insert Var puts one in. They work in pasted text,
+                    the graph, the solver, and every box that takes a number: a formula's, the converter's, the graph's and the
+                    numbers'; hover a box to see what its variables hold. EE shows as ᴇ, 5ᴇ3, so 2E is 2 × E.</li>
                 <li>Dynamic font-size in display to keep numbers as readable as possible. An equation that is still
                     too long can be dragged left and right.</li>
                 <li>Real sci-calc-style calculations, so 1+2*3=7 (... not 9 like with others),<br>
@@ -257,11 +264,19 @@
         </div>
 
         <div class="features" data-tab="guide">
-            <h2 class="logo title sub">Formulas and Constants</h2>
-            <p>Click <i>f</i>x at the top left of the display. It has two tabs, Formulas and Constants, each with a
-                search: type a few words, area circle or interest, and only what has them all is listed. Enter in
-                the search opens the first one found.</p>
+            <h2 class="logo title sub">Variables, Formulas and Constants</h2>
+            <p>Click <i>f</i>x at the top left of the display. It has three tabs, Variables, Formulas and Constants. It
+                opens on Variables the first time, then on the tab you used last; Reset all puts it back on Variables. Formulas
+                and Constants each have a search: type a few words, area circle or interest, and only what has them
+                all is listed. Enter in the search opens the first one found.</p>
             <ul>
+                <li>Variables has a card for each of the ten variables, A to J, as the keys of a TI or a Casio have. Type a
+                    value in its box, press STO to keep the result of the line in it, or its arrow to put it in the
+                    equation, where it stays A and is worked out with what A holds then. Clear all sets every one back
+                    to 0. The keys are Alt+A (Option+A on a Mac) to store and Shift+A to put in, and a right-click has
+                    Store in Var and Insert Var.</li>
+                <li>Any box that takes a number takes A to J as well, a formula's, the converter's, the graph's and
+                    the numbers': 2A is 2 × A. Rest the pointer on one to see what its variables hold.</li>
                 <li>Some hundred formulas, by group: algebra, geometry, trigonometry, motion and forces, matter and
                     energy, waves and light, electricity, chemistry, statistics, money and everyday ones. The
                     quadratic formula, the volume of a sphere, the law of cosines, Newton's second law, Ohm's law,
@@ -383,8 +398,9 @@
                     calculator in the extension.</li>
                 <li>The Table tab lists x and the y of each curve, and of a sequence its terms, n by 1 where there are only sequences, from a start by a step; left empty, they follow
                     the view of the graph. Click a value to put it into your calculation.</li>
-                <li>The Examples tab has graphs to try, by group as the constants are: fun pictures that move,
-                    functions, sliders, equations, inequalities, polar and parametric curves, sequences, slope fields, pieces, functions named and points. Click
+                <li>The Examples tab has graphs to try, by group as the constants are: functions, sliders,
+                    equations, inequalities, polar and parametric curves, sequences, slope fields, pieces, functions named and points, then, last,
+                    fun pictures that move. Click
                     one, or search and press Enter, and it is drawn in place of your curves.</li>
                 <li>Functions of an angle follow Deg, Rad or Grad.</li>
             </ul>
@@ -512,6 +528,11 @@
                 <p>There is full keyboard support for each button on the calculator.</p>
                 <ul>
                     <li>The numbers and + – × ÷ , . = keys can also be input on number block.</li>
+                    <li>The keys are the same on a keyboard with no Latin letters, Arabic, Hebrew, Russian, Greek: a
+                        key gives what the key of its place gives on a US keyboard, so [s] is sin on the key of س and
+                        Shift+A, <kbd class="k">&gt;</kbd> and the digits work as they do on any other. A box of a panel,
+                        the converter's, a formula's, the graph's, takes them the same way: ٥ types 5 and Shift+ش types
+                        A, and a number pasted with ٣٫٥ is read as 3.5.</li>
                     <li>See below the keyboard shortcuts of each calculator button in [brackets].</li>
                     <li>Use the [Backspace] key or the <kbd class="k k-red">DEL</kbd> button to take back the last key you pressed: a digit, an
                         operator, a bracket or a function. A finished result stays.</li>
@@ -825,7 +846,7 @@
             <div class="info">
                 <div class="trigo-keys">
                     cos<sup>-1</sup>
-                </div><span class="des">[Shift+C] Calculates the arc cosine of a value. (Available when the <kbd class="k">2nd</kbd>
+                </div><span class="des">[Shift+V] Calculates the arc cosine of a value. (Available when the <kbd class="k">2nd</kbd>
                     button
                     is clicked).</span>
             </div>
@@ -882,7 +903,7 @@
             <div class="info">
                 <div class="trigo-keys">
                     cosh<sup>-1</sup>
-                </div><span class="des">[h, Shift+C] Calculates the inverse hyperbolic cosine of a value. (Available
+                </div><span class="des">[h, Shift+V] Calculates the inverse hyperbolic cosine of a value. (Available
                     when the <kbd class="k">2nd</kbd> button is clicked).</span>
             </div>
 
@@ -930,7 +951,7 @@
             <div class="info">
                 <div class="trigo-keys">
                     EE
-                </div><span class="des">[Shift+E] An operator that multiplies the currently displayed value by 10 to
+                </div><span class="des">[Shift+W] An operator that multiplies the currently displayed value by 10 to
                     the
                     power of the next value you enter.</span>
             </div>
@@ -1004,7 +1025,7 @@
             <div class="info">
                 <div class="trigo-keys">
                     gcd
-                </div><span class="des">[Shift+G] On the <kbd class="k">2nd</kbd> layer of <kbd class="k"><sup>n</sup>C<sub>r</sub></kbd>. The greatest common divisor of two whole
+                </div><span class="des">[Shift+Q] On the <kbd class="k">2nd</kbd> layer of <kbd class="k"><sup>n</sup>C<sub>r</sub></kbd>. The greatest common divisor of two whole
                     numbers: 12 gcd 18 = 6.</span>
             </div>
 
@@ -1030,7 +1051,7 @@
             <div class="info">
                 <div class="trigo-keys">
                     floor
-                </div><span class="des">[Shift+F] On the <kbd class="k">2nd</kbd> layer of <kbd class="k">abs</kbd>. The whole number at or below: floor(2.7) is 2, floor(-2.7) is -3.</span>
+                </div><span class="des">[Shift+Y] On the <kbd class="k">2nd</kbd> layer of <kbd class="k">abs</kbd>. The whole number at or below: floor(2.7) is 2, floor(-2.7) is -3.</span>
             </div>
 
             <div class="info">

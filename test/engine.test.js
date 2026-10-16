@@ -136,10 +136,10 @@ var cases = [
     ['2 yx 2 +/– =', '0.25', '2<sup>-2</sup> ='],
     ['8 x√y', '8', '<sup></sup>√8'],
     ['8 x√y 3 =', '2', '<sup>3</sup>√8 ='],
-    ['5 EE', '5', '5E'],
-    ['5 EE 3 =', '5000', '5E3 ='],
-    ['5 EE 3 +/– =', 0.005, '5E-3 ='],
-    ['5 EE 3 yx 2 =', '25000000', '(5E3)<sup>2</sup> ='],
+    ['5 EE', '5', '5ᴇ'],
+    ['5 EE 3 =', '5000', '5ᴇ3 ='],
+    ['5 EE 3 +/– =', 0.005, '5ᴇ-3 ='],
+    ['5 EE 3 yx 2 =', '25000000', '(5ᴇ3)<sup>2</sup> ='],
 
     // percent
     ['5 0 %', '0.5', '50%'],
@@ -250,11 +250,14 @@ var cases = [
     ['2 × π', String(Math.PI), '2 × π'],
     ['2 × π =', 2 * Math.PI, '2 × π ='],
     ['π', String(Math.PI), 'π'],
-    ['π 5', '5', '5'],
+    ['π 5', '5', 'π × 5'],
+    ['π 5 =', 5 * Math.PI, 'π × 5 ='],
+    ['2 π =', 2 * Math.PI, '2 × π ='],
     ['e', String(Math.E), 'e'],
     ['2 × e =', 2 * Math.E, '2 × e ='],
     ['e ln', '1', 'ln(e)'],
-    ['e 5', '5', '5'],
+    ['e 5', '5', 'e × 5'],
+    ['2 e =', 2 * Math.E, '2 × e ='],
 
     // sign
     ['5 +/–', '-5', '-5'],
@@ -307,11 +310,15 @@ var cases = [
     ['2 + =', '4', '2 + 2 ='],
     ['2 + 3 = =', '8', '5 + 3 ='],
     ['2 + 3 = = =', '11', '8 + 3 ='],
+    // a repeat that changes nothing is not done again: 0 × 0 stays as it is
+    ['3 × 0 = =', '0', '3 × 0 ='],
+    ['0 × 0 = =', '0', '0 × 0 ='],
+    ['5 ÷ 1 = =', '5', '5 ÷ 1 ='],
     ['2 × ( 3 + 4 = =', '98', '14 × 7 ='],
     ['2 + 3 = 7 =', '7', ''],
     ['2 + 3 = 7 = =', '10', '7 + 3 ='],
     ['2 yx 3 = =', '512', '8<sup>3</sup> ='],
-    ['5 EE 2 = =', '50000', '500E2 ='],
+    ['5 EE 2 = =', '50000', '500ᴇ2 ='],
     ['2 + 3 = + 4', '4', '5 + 4'],
     ['2 + 3 = × 4 =', '20', '5 × 4 ='],
     ['2 + 3 = sin', Math.sin(5), 'sin(5)'],
@@ -343,7 +350,7 @@ var cases = [
     ['4 +/– √', 'Error', '√-4'],
     ['2 sin-1', 'Error', 'sin<sup>-1</sup>(2)'],
     ['2 × ( 1 ÷ 0 )', 'Error', '2 × (1 ÷ 0)'],
-    ['1 EE 9 9 9 =', 'Error', '1E999 ='],
+    ['1 EE 9 9 9 =', 'Error', '1ᴇ999 ='],
     ['9 x√y 0 =', 'Error', '<sup>0</sup>√9 ='],
     ['5 ÷ 0 = 2 + 1 =', '3', '2 + 1 ='],
     ['0 1/x + 4 =', '4', '0 + 4 =']
@@ -370,6 +377,23 @@ cases.forEach(function (c) {
     check(!e.plain(), 'not plain with an operator');
     run(e, 'AC 9 √');
     check(!e.plain(), 'not plain with a function');
+    run(e, 'AC π');
+    check(e.plain(), 'plain with π alone, shown as its value');
+    run(e, 'AC #B');
+    check(!e.plain() && e.equation().replace(/<[^>]*>/g, '').trim() === 'B', 'a letter alone shows as the letter, though it holds 0', e.equation());
+    e.vars.A = 5;
+    run(e, 'AC +/– #A =');
+    check(e.value === '-5', '+/– then A is -A, not -0 × A', e.value);
+    run(e, 'AC +/– π =');
+    check(e.value === String(-Math.PI), 'and +/– then π is -π', e.value);
+    e.vars.A = 0;
+    check(e.paste('12 GCD 18 =') && e.value === '6', 'GCD pasted in capitals is gcd, not G × C × D', e.value);
+    e.vars.A = 5;
+    run(e, 'AC #A + 1 =');
+    e.store('A', false);
+    e.store('B', false);
+    check(e.past[e.past.length - 1].vars.A === 5, 'stored again, the history keeps the A the line was worked out with', JSON.stringify(e.past[e.past.length - 1]));
+    e.vars.A = 0;
     run(e, 'AC (');
     check(!e.plain(), 'not plain with an open bracket');
     run(e, 'AC 7 m+ AC mr');
@@ -403,7 +427,7 @@ var dels = [
     ['+/– 5', ['-0 | -0', '0 | ']],
     ['5 +/– +', ['-5 | -5', '5 | 5', '0 | ']],
     ['2 × 3 + 4', ['6 | 2 × 3 +', '3 | 2 × 3', '2 | 2 ×', '2 | 2', '0 | ']],
-    ['1 EE 5', ['1 | 1E', '1 | 1', '0 | ']],
+    ['1 EE 5', ['1 | 1ᴇ', '1 | 1', '0 | ']],
     ['9 x√y 2', ['9 | <sup></sup>√9', '9 | 9', '0 | ']],
 
     // functions and brackets
@@ -421,11 +445,12 @@ var dels = [
     ['2 + 3 0 sin C', ['2 | 2', '0 | ']],
     ['2 + 3 0 sin 7', ['2 | 2 +', '2 | 2', '0 | ']],
     ['2 × ( 3 + 4 ) 9', ['2 | 2 ×', '2 | 2', '0 | ']],
-    ['2 + 3 π', ['2 | 2 +', '2 | 2', '0 | ']],
-    ['5 ( 2 ) π', ['5 | 5 ×', '5 | 5', '0 | ']],
     ['5 ( 2 ) 3', ['5 | 5 ×', '5 | 5', '0 | ']],
-    ['1 + 5 ( 2 ) π', ['5 | 1 + 5 ×', '5 | 1 + 5', '1 | 1 +', '1 | 1', '0 | ']],
-    ['2 × ( 5 ( 2 ) π', ['5 | 2 × (5 ×', '5 | 2 × (5', '2 | 2 × (', '2 | 2 ×', '2 | 2', '0 | ']],
+    // π after a number is times it, 3π: DEL takes it back, and the keys before one by one
+    ['2 + 3 π', ['3 | 2 + 3', '2 | 2 +', '2 | 2', '0 | ']],
+    ['5 ( 2 ) π', ['2 | 5 × (2)', '2 | 5 × (2', '5 | 5 × (', '5 | 5', '0 | ']],
+    ['1 + 5 ( 2 ) π', ['2 | 1 + 5 × (2)', '2 | 1 + 5 × (2', '5 | 1 + 5 × (', '5 | 1 + 5', '1 | 1 +', '1 | 1', '0 | ']],
+    ['2 × ( 5 ( 2 ) π', ['2 | 2 × (5 × (2)', '2 | 2 × (5 × (2', '5 | 2 × (5 × (', '5 | 2 × (5', '2 | 2 × (', '2 | 2 ×', '2 | 2', '0 | ']],
     ['7 m+ 8', ['0 | ']],
 
     // never back into a finished calculation
@@ -602,7 +627,7 @@ dels.forEach(function (c) {
             ['8 x√y ( 1 + 2 )', '8^(1/(1 + 2))'],
             ['0 . 5 sin-1', 'sin⁻¹(0.5)', true],
             ['8 log2 +', 'log₂(8) +'],
-            ['5 EE 3 +/–', '5E-3'],
+            ['5 EE 3 +/–', '5ᴇ-3'],
             ['2 yx 3 yx 2', '(2^3)^2'],
             ['2 +/– yx 2', '(-2)^2'],
             ['5 +/– x2', '(-5)²'],
@@ -653,8 +678,8 @@ dels.forEach(function (c) {
             ['³√8=', '2', '<sup>3</sup>√8 ='],
             ['∛27=', '3', '<sup>3</sup>√27 ='],
             ['ˣ√8', '8', '<sup></sup>√8'],
-            ['5E3=', '5000', '5E3 ='],
-            ['1.5e-7 + 1', '1', '1.5E-7 + 1'],
+            ['5E3=', '5000', '5ᴇ3 ='],
+            ['1.5e-7 + 1', '1', '1.5ᴇ-7 + 1'],
             ['1,234.5 + 1', '1', '1234.5 + 1'],
             ['1.234,5 + 1', '1', '1234.5 + 1'],
             ['1 234,5 + 1', '1', '1234.5 + 1'],
@@ -735,9 +760,10 @@ dels.forEach(function (c) {
             ['1E2', '100', '100'],
             ['3E+2', '300', '300'],
             ['1.5E-7', '1.5e-7', '1.5e-7'],
-            // E right after a number is always "times ten to the power", e is Euler's number
-            ['2E(3)=', '2000', '2E(3) ='],
-            ['2Esin(0)=', '2', '2Esin(0) ='],
+            // E right after a number and before one is "times ten to the power", ᴇ before anything; e is Euler's number, E the letter
+            ['2ᴇ(3)=', '2000', '2ᴇ(3) ='],
+            ['2E(3)=', '0', '2 × E × (3) ='],
+            ['2ᴇsin(0)=', '2', '2ᴇsin(0) ='],
             ['2e', Math.E, '2 × e'],
             ['1,234', '1234', '1234'],
             ['42abc', '42', '42'],
@@ -786,8 +812,8 @@ dels.forEach(function (c) {
     e.paste('4*5');
     check(state(e) === '5 | 4 × 5', 'an equation starts again after a result', state(e));
     // after a waiting power, root or EE the pasted text stays in one piece
-    [['2 yx', '1E2', '2<sup>100</sup> ='], ['2 yx', '1e2', '2<sup>100</sup> ='], ['2 yx', '1E2+5', '2<sup>1E2</sup> + 5 ='],
-        ['2 yx', '2^3', '2<sup>2<sup>3</sup></sup> ='], ['2 yx', '3+1', '2<sup>3</sup> + 1 ='], ['5 EE', '2^3', '5E(2<sup>3</sup>) ='],
+    [['2 yx', '1E2', '2<sup>100</sup> ='], ['2 yx', '1e2', '2<sup>100</sup> ='], ['2 yx', '1E2+5', '2<sup>1ᴇ2</sup> + 5 ='],
+        ['2 yx', '2^3', '2<sup>2<sup>3</sup></sup> ='], ['2 yx', '3+1', '2<sup>3</sup> + 1 ='], ['5 EE', '2^3', '5ᴇ(2<sup>3</sup>) ='],
         ['8 x√y', '3', '<sup>3</sup>√8 ='], ['2 yx', '(1+2', '2<sup>1 + 2</sup> ='], ['5 ×', '2+3', '5 × 2 + 3 =']
     ].forEach(function (c) {
         var a = new Engine();
@@ -1738,6 +1764,119 @@ dels.forEach(function (c) {
     e.press('sin');
     check(ed(e) === '3 × (2 × sin(□)', 'a function after a number is times it', ed(e));
 
+    // one point a number while editing, before the cursor or after it, as typed straight on
+    e = new Real();
+    keys(e, 'cos . . . 5');
+    check(ed(e) === 'cos(0.5|)', 'a second point in a function\'s box is refused', ed(e));
+    e = new Real();
+    keys(e, '1 2 . 3 + 4');
+    e.move('home');
+    e.move('right');
+    check(!e.insert('.') && ed(e) === '1|2.3 + 4', 'nor before the point a number has', ed(e));
+    e.move('end');
+    e.press('.');
+    check(ed(e) === '12.3 + 4.|', 'the next number has one of its own', ed(e));
+
+    // the guards of the keys while editing: an operator again takes the old one's place, × with
+    // nothing before it is refused, – there is a sign, .9 is 0.9, and ( ) has nothing to close
+    [['÷ ÷ ÷ 5', '1 + 2 ÷ 5|', 'an operator typed again takes the place of the one before'],
+        ['+ × 3', '1 + 2 × 3|', '× after + takes its place'],
+        ['( × 5', '1 + 2(5|', '× with nothing before it is refused'],
+        ['( – 5', '1 + 2( – 5|', '– with nothing before it is a sign'],
+        ['× +/– 3', '1 + 2 × -3|', 'a sign after × is kept'],
+        ['× +/– +', '1 + 2 × -|', 'and an operator after the sign refused'],
+        ['× +/– +/– +/– 9', '1 + 2 × -9|', '+/– again takes the sign back, as the key does'],
+        ['( – +/– 9', '1 + 2(9|', 'the sign of – as well'],
+        ['× . 9', '1 + 2 × 0.9|', 'a point with no digit before it is 0.'],
+        ['( )', '1 + 2(|', ') right after ( is refused'],
+        ['( 5 + )', '1 + 2(5 + |', 'and right after an operator']].forEach(function (c) {
+        e = new Real();
+        keys(e, '1 + 2 =');
+        e.move('left');
+        keys(e, c[0]);
+        check(ed(e) === c[1], 'editing: ' + c[2] + ': ' + c[0], ed(e));
+    });
+    e = new Real();
+    keys(e, '5 ÷ 3');
+    e.move('left');
+    e.move('left');
+    e.press('×');
+    check(ed(e) === '5 × |3', 'an operator before another takes its place', ed(e));
+
+    // a number that would run into the one beside it has × between them
+    e = new Real();
+    keys(e, '1 + 2 =');
+    e.move('left');
+    e.ans = 3;
+    keys(e, '5 Ans');
+    check(ed(e) === '1 + 25 × 3|', 'Ans after digits is not more digits of them', ed(e));
+    keys(e, '4');
+    check(ed(e) === '1 + 25 × 3 × 4|', 'nor a digit after Ans', ed(e));
+    e = new Real();
+    keys(e, '1 + 2 =');
+    e.move('left');
+    keys(e, 'x! 5');
+    check(ed(e) === '1 + 2! × 5|', 'a digit after 2! is times it', ed(e));
+    e.press('=');
+    check(st(e) === '11 | 1 + 2! × 5 =', 'and is worked out so', st(e));
+    e = new Real();
+    keys(e, '1 + 2 =');
+    e.move('right');
+    e.press('5');
+    e.press('x!');
+    check(ed(e) === '5!| × 1 + 2', '! between two digits keeps them apart', ed(e));
+    e = new Real();
+    keys(e, '1 + 2 x!');
+    e.move('left');
+    e.move('end');
+    check(e.paste('3') && ed(e) === '1 + 2! × 3|', 'a pasted number after 2! is times it', ed(e));
+
+    // – after × or ᴇ is a sign, after + it takes its place; a refused key changes nothing
+    [['2 × – 3', '1 + 22 ×  – 3|', '– after × is a sign'],
+        ['5 EE – 3', '1 + 25ᴇ – 3|', 'and after ᴇ'],
+        ['2 + – 3', '1 + 22 – 3|', '– after + takes its place']].forEach(function (c) {
+        e = new Real();
+        keys(e, '1 + 2 =');
+        e.move('left');
+        keys(e, c[0]);
+        check(ed(e) === c[1], 'editing: ' + c[2] + ': ' + c[0], ed(e));
+        e.press('=');
+        check(!e.error, 'and it is read: ' + c[0], st(e));
+    });
+    e = new Real();
+    keys(e, '2 yx 3');
+    check(!e.insert(')') && ed(e) === '2<sup>3|</sup>', ') with nothing to close leaves the cursor in the power', ed(e));
+
+    // a function before a subtraction takes no minus; one before a sign takes it
+    e = new Real();
+    keys(e, '5 – 3 =');
+    e.move('right');
+    e.move('right');
+    e.press('sin');
+    check(ed(e) === '5 × sin(□) – 3', 'sin before – 3 leaves the subtraction', ed(e));
+
+    // brackets where the line would be read otherwise than drawn
+    e = new Real();
+    keys(e, 'sin 3 0');
+    e.move('end');
+    keys(e, '+ 8 ÷ 2 1/x');
+    check(e.text() === 'sin(30) + 8 ÷ (1/2)', '1/x after ÷ is in brackets: 8 ÷ (1/2)', e.text());
+    e = new Real();
+    keys(e, 'nCr 5');
+    e.move('right');
+    keys(e, '2');
+    e.move('end');
+    e.press('x2');
+    check(e.text() === '(5 nCr 2)^2', 'a power after 5 nCr 2 is of all of it', e.text());
+    e = new Real();
+    e.setFraction(true);
+    keys(e, '1 + 3 ÷ 4');
+    e.move('home');
+    e.move('right');
+    e.move('right');
+    e.del();
+    check(e.text() === '1 × 3/4', 'a number before a fraction is times it, not more digits of it', e.text());
+
     // computed numbers keep all their digits through an edit, and π stays π
     e = new Real();
     keys(e, 'π × 2');
@@ -1747,11 +1886,12 @@ dels.forEach(function (c) {
     e.press('=');
     check(e.value === String(1 + Math.PI * 2) && st(e) === e.value + ' | 1 + π × 2 =', 'π is not rounded by an edit', st(e));
 
-    // a line that cannot be read stays to be edited, and = shows Error
+    // a line that cannot be read stays to be edited, and = shows Error. A key refuses to make
+    // one, × after +; pasted text is taken as it is
     e = new Real();
     keys(e, '2 + 3');
     e.move('left');
-    e.press('×');
+    e.paste('×', true);
     e.move('end');
     check(ed(e) === '2 +  × 3|', 'a line that cannot be read keeps the cursor', ed(e));
     e.press('=');
@@ -1797,8 +1937,8 @@ dels.forEach(function (c) {
     check(e.paste('4×') && ed(e) === '2 + 4 × |3', 'paste goes in at the cursor', ed(e));
     e.ans = 7;
     e.press('Ans');
-    check(ed(e) === '2 + 4 × 7|3', 'Ans is written as a number', ed(e));
-    check(e.put(1.5) && ed(e) === '2 + 4 × 71.5|3', 'a result from the history too', ed(e));
+    check(ed(e) === '2 + 4 × 7| × 3', 'Ans is written as a number, × the number after it', ed(e));
+    check(e.put(1.5) && ed(e) === '2 + 4 × 7 × 1.5| × 3', 'a result from the history too', ed(e));
     check(e.text() === '2 + 4 × 7 × 1.5 × 3', 'numbers put in whole are times each other and the next', e.text());
     saved = JSON.parse(JSON.stringify(e.save()));
     f = new Real();
@@ -2114,8 +2254,8 @@ dels.forEach(function (c) {
         // – after the function starts a negative number; keys that take a number wait for one
         ['tan – 4 5 =', '-1', 'tan(-45) =', true],
         ['tan +/– 4 5 =', '-1', 'tan(-45) =', true],
-        ['tan +', null, 'tan( + )', true],
-        ['tan ×', null, 'tan( × )', true],
+        ['tan +', null, 'tan(□)', true],
+        ['tan ×', null, 'tan(□)', true],
         ['tan =', null, 'tan(□)', true],
         ['tan )', null, 'tan(□)', true],
         ['tan %', null, 'tan(□%)', true],
@@ -2129,7 +2269,7 @@ dels.forEach(function (c) {
         ['2 + 1/x 4 =', '2.25', '2 + 1 ÷ 4 =', true],
         ['5 × 1/x 2 =', '2.5', '5 × 1 ÷ 2 =', true],
         ['4 1/x', '0.25', '1/4', true], // after its number it stays after it
-        ['5 + tan ÷', null, '5 + tan( ÷ )'],
+        ['5 + tan ÷', null, '5 + tan(□)'],
         ['tan 4 5 C', '0', '', true],
         ['tan 4 5 C =', '0', '', true],
         ['tan 4 5 C 6 0 =', '60', '', true],
@@ -2170,7 +2310,7 @@ dels.forEach(function (c) {
         ['tan 4 5 x2 =', '1', 'tan(45<sup>2</sup>) =', true],
         ['8 x√y 3 =', '1.147202690439877', '<sup>8</sup>√[3] ='],
         ['2 yx tan 4 5 =', '2', '2<sup>tan(45)</sup> =', true],
-        ['tan 4 EE 1 =', String(Math.tan(40)), 'tan(4E1) ='],
+        ['tan 4 EE 1 =', String(Math.tan(40)), 'tan(4ᴇ1) ='],
         // errors are found when the bracket closes
         ['tan 9 0 =', 'Error', 'tan(90)', true],
         ['tan 9 0 )', null, 'tan(90)', true],
@@ -2429,7 +2569,7 @@ dels.forEach(function (c) {
         vars.a = 2;
         vars.b = -1;
         check(g.at(3, 0, true) === 17 && g.at(3, 0, false) === 17, 'graph: a x² + b with a = 2, b = -1 at 3 is 17');
-        check(h && h.letters.join() === 'r,a,k', 'graph: letters run together, A is a; π and sin are not letters of their own',
+        check(h && h.letters.join() === 'r,k', 'graph: letters run together, A is the value stored in A; π and sin are not letters of their own',
             h && h.letters.join());
         check(Engine.graph('e^x + x').letters.length === 0 && Engine.graph('abs(x)').letters.length === 0 &&
             Engine.graph('sin(x)').letters.length === 0, 'graph: e, x and the names of functions are not letters of their own');
@@ -2745,6 +2885,86 @@ dels.forEach(function (c) {
         e.paste('2x3 =', 0);
         check(e.value === '6', 'x is still × in a pasted equation', e.value);
     })(new Engine());
+
+    // a number straight after ! % or a raised number is times it, as after a ): (6 + 9)!6 is 15! × 6
+    [['6 × (6 + 9)!6 + 353', 47076277248353, '6 × (6 + 9)! × 6 + 353 ='], ['(6+9)!6', 7846046208000, '(6 + 9)! × 6 ='],
+        ['5!6', 720, '5! × 6 ='], ['5%6', 0.3, '5% × 6 ='], ['4²3', 48, '4² × 3 ='], ['(2+3)²6', 150, '(2 + 3)² × 6 =']].forEach(function (c) {
+        var e = new Engine();
+        check(e.paste(c[0], 0) && (e.press('=', 0), !e.error) && same(e.value, c[1]) && e.text() === c[2],
+            'a number after ! % or a power is times it: ' + c[0], e.value + ' ' + e.text());
+    });
+    // and in the editor: the ! put between ) and a 6 that is there already
+    (function () {
+        var e = new Real();
+        ['6', '×', '(', '6', '+', '9', ')', '+', '3', '5', '3'].forEach(function (k) { e.press(k, 0); });
+        for (var i = 0; i < 4; i++) e.move('left');
+        e.paste('!6', 0);
+        e.press('=', 0);
+        check(!e.error && e.value === '47076277248353', 'editing (6 + 9)!6 + 353 in the line works it out, not an error', e.value + ' ' + e.error);
+    })();
+
+    // the letters A to J: a value stored in each, as STO→ of a TI, and put in by its key or typed
+    (function () {
+        var e = new Real(), p, data;
+        e.letters(true);
+        ['5', '+', '3'].forEach(function (k) { e.press(k, 0); });
+        check(e.store('A', 0) && e.vars.A === 8, 'letters: 5 + 3 → A stores 8', e.vars.A);
+        check(e.equation() === '5 + 3 → A', 'letters: the line says where the result went', e.equation());
+        p = e.past[e.past.length - 1];
+        check(p.to === 'A' && e.pastLine(e.past.length - 1).line === '5 + 3 → A' && e.past.length === 1,
+            'letters: the history keeps 5 + 3 → A once, in place of 5 + 3 =', e.past.length + ' ' + e.pastLine(e.past.length - 1).line);
+        ['#A', '×', '2', '='].forEach(function (k) { e.press(k, 0); });
+        check(e.value === '16' && e.equation() === 'A × 2 =', 'letters: A × 2 = 16, A written as A', e.value + ' ' + e.equation());
+        ['2', '#A', '#A', '+', '1', '='].forEach(function (k) { e.press(k, 0); });
+        check(e.value === '129' && e.equation() === '2 × A × A + 1 =', 'letters: a letter after a number is times it, 2AA + 1', e.value + ' ' + e.equation());
+        ['#A', '9', '='].forEach(function (k) { e.press(k, 0); });
+        check(e.value === '72' && e.equation() === 'A × 9 =', 'letters: a digit after a letter is times it, A9 as 9A', e.value + ' ' + e.equation());
+        ['0', '÷', '0', '#A'].forEach(function (k) { e.press(k, 0); });
+        check(e.error, 'letters: 0 ÷ 0 A is an error, not lost under A');
+        ['2', '#A'].forEach(function (k) { e.press(k, 0); });
+        e.del();
+        e.press('=', 0);
+        check(e.value === '2', 'letters: DEL takes the letter back, and its ×', e.value + ' ' + e.equation());
+        check(e.pastLine(1).letters === 'A = 8', 'letters: the history says what A held', e.pastLine(1).letters);
+        ['#A', '×', '2', '='].forEach(function (k) { e.press(k, 0); });
+        p = e.past.length;
+        check(e.store('B', 0) && e.vars.B === 16 && e.past.length === p && e.past[p - 1].to === 'B',
+            'letters: a result shown is stored as it is, its line given the letter', e.vars.B + ' ' + e.past.length);
+        e.setLetter('A', 3);
+        check(e.recall(p - 1, 0) && e.press('=', 0) && e.value === '6', 'letters: a line of the history is worked out with what A holds now', e.value);
+        check(!e.setLetter('A', 'x') && !e.setLetter('K', 1) && e.vars.A === 3, 'letters: only a number, in A to J');
+
+        e = new Engine();
+        e.letters(true);
+        e.setLetter('A', 8);
+        e.setLetter('B', 3);
+        e.setLetter('E', 2);
+        [['2A+B=', '19'], ['AB=', '24'], ['A2=', '16'], ['3E=', '6'], ['3E2=', '300'], ['2ᴇ2=', '200'], ['2e=', String(2 * Math.E)],
+            ['sqrt(A+1)=', '3'], ['abs(-A)=', '8']].forEach(function (c) {
+            e.press('AC', 0);
+            check(e.paste(c[0], 0) && same(e.value, +c[1]), 'letters: paste ' + c[0] + ' is ' + c[1], e.value);
+        });
+        check(Engine.graph('A x + E').at(2, 0, true) === 18 && !Engine.graph('A x + E').letters.length,
+            'letters: a graph takes A and E as stored, no sliders for them');
+        check(Engine.graph('a x').letters.join() === 'a', 'letters: a small letter is still a slider');
+        check(Engine.lettersOf('Ax^2 + B = abs(x) + A').join() === 'A,B' && Engine.lettersOf('2C').join() === 'C' &&
+            !Engine.lettersOf('Abs(x) + 5').length && !Engine.lettersOf('').length,
+            'letters: the letters a box uses, Ax is A × x, Abs a word', Engine.lettersOf('Ax^2 + B = abs(x) + A').join());
+        e.press('AC', 0);
+        check(e.paste('2 × 4 → C', 0) && e.vars.C === 8 && e.text() === '2 × 4 → C', 'letters: a line of the history pasted, 2 × 4 → C, stores again', e.vars.C + ' ' + e.text());
+
+        e = new Real();
+        e.setLetter('A', 16);
+        ['√', '#A', '='].forEach(function (k) { e.press(k, 0); });
+        check(e.value === '4', 'letters: in a template, √A with A 16 is 4', e.value);
+
+        data = e.save();
+        e.letters(true);
+        check(e.vars.A === 0, 'letters: cleared to 0');
+        e.load(data);
+        check(e.vars.A === 16 && e.vars.E === 2, 'letters: saved and read back', JSON.stringify(e.letters()));
+        e.letters(true);
+    })();
 })();
 
 console.log(failures ? failures + ' of ' + checks + ' checks failed' : 'all ' + checks + ' checks passed');

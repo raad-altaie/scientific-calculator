@@ -98,9 +98,20 @@
 
         // the formulas and constants
         'formulas': {
-            t: 'Formulas and constants',
-            d: 'Well-known formulas: fill in their letters to put the equation into the display, where you can ' +
+            t: 'Vars, formulas and constants',
+            d: 'The letters A to J, each holding a value to use in the equation. Well-known formulas: fill in their letters to put the equation into the display, where you can ' +
                 'still change it before =. And constants of math and science, to put in as a number. Search to find one.',
+            k: ''
+        },
+        'STO': {
+            t: 'Store',
+            d: 'A letter, A to J, now takes the result: the line is worked out as = does, 5 + 3 → A. ' +
+                'Alt+A does it in one. Any other key, or a click here, lets it go.',
+            k: 'Esc'
+        },
+        'letters clear': {
+            t: 'Clear all',
+            d: 'Every letter, A to J, back to 0.',
             k: ''
         },
         'formulas close': {
@@ -791,7 +802,7 @@
         'EE': {
             t: 'Exponent',
             d: 'Times ten to the power of the next number: 5 EE 3 = 5000, 5 × 10<sup>3</sup>. Pressed first, it comes as two boxes to fill: Enter goes to the next one, the arrows and Tab go between them, or click one.',
-            k: 'Shift+E'
+            k: 'Shift+W'
         },
         'sin': {
             t: 'Sine',
@@ -837,7 +848,7 @@
         'cos-1': {
             t: 'Inverse cosine',
             d: 'The angle with this cosine: cos<sup>-1</sup> 0.5 = 60 in Deg.',
-            k: 'Shift+C'
+            k: 'Shift+V'
         },
         'tan-1': {
             t: 'Inverse tangent',
@@ -852,7 +863,7 @@
         'cosh-1': {
             t: 'Inverse hyperbolic cosine',
             d: 'For numbers from 1 up: cosh<sup>-1</sup> 2 = 1.316957896925.',
-            k: 'h, Shift+C'
+            k: 'h, Shift+V'
         },
         'tanh-1': {
             t: 'Inverse hyperbolic tangent',
@@ -861,13 +872,13 @@
         },
         'π': {
             t: 'Pi',
-            d: '3.14159265359…, the half turn in radians: 2 × π.',
+            d: '3.14159265359…, the half turn in radians. After a number it is times it: 2 π = 6.28318530718.',
             k: 'p',
             second: 'e'
         },
         'e': {
             t: 'Euler\'s number',
-            d: '2.718281828459…, the base of the natural logarithm: ln e = 1.',
+            d: '2.718281828459…, the base of the natural logarithm: ln e = 1. After a number it is times it: 2 e = 5.43656365692.',
             k: 'h, p'
         },
         'log': {
@@ -917,7 +928,7 @@
         'floor': {
             t: 'Floor',
             d: 'The whole number at or below the number: floor 2.7 = 2, and of -2.7, -3.',
-            k: 'Shift+F'
+            k: 'Shift+Y'
         },
         'ceil': {
             t: 'Ceiling',
@@ -945,7 +956,7 @@
         'gcd': {
             t: 'Greatest common divisor',
             d: 'The largest whole number that divides both: 12 gcd 18 = 6. Whole numbers only. Pressed first, it comes as two boxes to fill: Enter goes to the next one, the arrows and Tab go between them, or click one.',
-            k: 'Shift+G'
+            k: 'Shift+Q'
         },
         'lcm': {
             t: 'Least common multiple',

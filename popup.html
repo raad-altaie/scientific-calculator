@@ -77,6 +77,7 @@
                     <div class="notification"></div>
                     <div class="calc-log"></div>
                     <div class="calc-hold"></div>
+                    <div class="calc-sto"></div>
                     <div class="calc-fmt"></div>
                     <div class="calc-frac"></div>
                     <!-- at the top left: the history, and the panels turned on in the options, in their order there -->
@@ -398,8 +399,8 @@
                 <div class="calc-graph-pop" hidden></div>
                 <!-- the view typed: x from and to, y from and to -->
                 <div class="calc-graph-window" hidden>
-                    <label><i>x</i><input class="calc-graph-x0" type="text" inputmode="decimal" spellcheck="false" autocomplete="off" maxlength="20" aria-label="x from"><span>to</span><input class="calc-graph-x1" type="text" inputmode="decimal" spellcheck="false" autocomplete="off" maxlength="20" aria-label="x to"></label>
-                    <label><i>y</i><input class="calc-graph-y0" type="text" inputmode="decimal" spellcheck="false" autocomplete="off" maxlength="20" aria-label="y from"><span>to</span><input class="calc-graph-y1" type="text" inputmode="decimal" spellcheck="false" autocomplete="off" maxlength="20" aria-label="y to"></label>
+                    <label><i>x</i><input class="calc-graph-x0" type="text" spellcheck="false" autocomplete="off" maxlength="20" aria-label="x from"><span>to</span><input class="calc-graph-x1" type="text" spellcheck="false" autocomplete="off" maxlength="20" aria-label="x to"></label>
+                    <label><i>y</i><input class="calc-graph-y0" type="text" spellcheck="false" autocomplete="off" maxlength="20" aria-label="y from"><span>to</span><input class="calc-graph-y1" type="text" spellcheck="false" autocomplete="off" maxlength="20" aria-label="y to"></label>
                 </div>
                 <!-- the view: closer, farther, back to the start and typed; and the area under a curve -->
                 <div class="calc-graph-zoom">
@@ -417,9 +418,9 @@
             <!-- the table: x from a start by a step, and y of each curve; empty boxes follow the view of the graph -->
             <div class="calc-graph-table" hidden>
                 <div class="calc-graph-step">
-                    <label><span>Start</span><input class="calc-graph-from" type="text" inputmode="decimal" spellcheck="false"
+                    <label><span>Start</span><input class="calc-graph-from" type="text" spellcheck="false"
                         autocomplete="off" maxlength="20" aria-label="The first x"></label>
-                    <label><span>Step</span><input class="calc-graph-by" type="text" inputmode="decimal" spellcheck="false"
+                    <label><span>Step</span><input class="calc-graph-by" type="text" spellcheck="false"
                         autocomplete="off" maxlength="20" aria-label="From one x to the next"></label>
                 </div>
                 <div class="calc-graph-list"></div>
@@ -460,10 +461,11 @@
             <div class="calc-sv-list"></div>
         </div>
 
-        <!-- formulas and constants, over the keys like the history -->
+        <!-- vars, formulas and constants, over the keys like the history -->
         <div class="calc-past calc-fx">
             <div class="calc-past-head">
                 <span class="calc-fx-tabs">
+                    <span class="calc-fx-tab" data-tab="vars">Variables</span>
                     <span class="calc-fx-tab" data-tab="formulas">Formulas</span>
                     <span class="calc-fx-tab" data-tab="constants">Constants</span>
                 </span>
@@ -489,7 +491,7 @@
                 <div class="calc-conv-menu" role="listbox" hidden></div>
             </div>
             <div class="calc-conv-from">
-                <input class="calc-conv-value" type="text" inputmode="decimal" pattern="-?[0-9°′″]*[.,]?[0-9°′″]*" spellcheck="false" autocomplete="off"
+                <input class="calc-conv-value" type="text" autocapitalize="characters" spellcheck="false" autocomplete="off"
                     maxlength="40" aria-label="Value">
                 <div class="calc-conv-pick calc-conv-unit" tabindex="0" role="combobox" aria-haspopup="listbox"
                     aria-expanded="false" aria-label="From">

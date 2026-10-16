@@ -2086,8 +2086,7 @@
 
 /* insert of a constant, drawn as insert in the history, a little bigger and lighter and
    with no hover of its own: at the right of its card, while the pointer is over it */
-#calculator .calc-fx-row .calc-fx-put,
-#calculator .calc-gx-row .calc-gx-put {
+#calculator .calc-fx-row .calc-fx-put {
     position: absolute;
     right: 6px;
     top: 12px; /* a little under the middle */
@@ -2100,15 +2099,13 @@
 }
 
 /* mirrored: the line starts at the left and turns up at the right; the converter has it too */
-#calculator .calc-fx-put svg,
-#calculator .calc-gx-put svg {
+#calculator .calc-fx-put svg {
     width: 13px;
     height: 13px;
     transform: scaleX(-1);
 }
 
-#calculator .calc-fx-row:hover .calc-fx-put,
-#calculator .calc-gx-row:hover .calc-gx-put {
+#calculator .calc-fx-row:hover .calc-fx-put {
     display: flex;
 }
 
@@ -3033,6 +3030,123 @@
     visibility: visible;
 }
 
+/* ---------- the letters A to J, the Variables tab of the formulas ---------- */
+
+#calculator .calc-fx-search[hidden] {
+    display: none;
+}
+
+/* the keys for them, over the cards, and Clear all */
+#calculator .calc-var-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 9px 2px 7px;
+    color: #acb4c1;
+    font-size: 11px;
+}
+
+#calculator .calc-var-head kbd {
+    padding: 0 4px;
+    border: 1px solid #6c8297;
+    border-bottom-width: 2px;
+    border-radius: 3px;
+    color: #d3d9e2;
+    font: 10px/14px 'Play', 'Russo One', sans-serif;
+}
+
+#calculator .calc-var-clear {
+    flex: none;
+    padding: 2px 7px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#calculator .calc-var-clear:hover {
+    background: #52687d;
+    color: #fff;
+}
+
+#calculator .calc-var-clear.calc-off {
+    opacity: 0.45;
+    pointer-events: none;
+}
+
+/* a card a letter: the letter, its value to type over, STO and insert; close together, so
+   the ten fit in the panel without a scrollbar, with less room under the last of them */
+#calculator .calc-fx:has(.calc-var) {
+    padding-bottom: 6px;
+}
+
+#calculator .calc-var {
+    margin-bottom: 5px;
+}
+
+#calculator .calc-var:last-child {
+    margin-bottom: 0;
+}
+
+#calculator .calc-var-row {
+    gap: 4px;
+    padding: 3.5px 4px 3.5px 10px;
+}
+
+#calculator .calc-var-k {
+    flex: none;
+    width: 16px;
+    color: #4f6659;
+    font: 17px/22px 'Play Bold', 'Play', sans-serif;
+}
+
+#calculator .calc-var-set .calc-var-k {
+    color: #1f3a52;
+}
+
+#calculator .calc-var-row input {
+    flex: 1;
+    min-width: 0;
+    padding: 2px 7px;
+    border: 1px solid #8eab9b;
+    border-radius: 4px;
+    outline: none;
+    background: #a9c4b5;
+    color: #000;
+    font: 14px/18px 'Play', 'Russo One', sans-serif;
+    text-align: right;
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+#calculator .calc-var-row input:focus {
+    border-color: #3a5872;
+    background: #b3cdbf;
+}
+
+#calculator .calc-var-btn {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 26px;
+    height: 24px;
+    padding: 0 4px;
+    box-sizing: border-box;
+    border-radius: 4px;
+    color: #33443b;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+#calculator .calc-var-btn:hover {
+    background: #8fac9c;
+    color: #000;
+}
+
+#calculator .calc-var-btn:active {
+    background: #84a091;
+}
+
 /* ---------- history ---------- */
 
 /* as wide as the display, with each calculation on a piece of display;
@@ -3186,6 +3300,17 @@
     text-align: right;
 }
 
+/* what the letters of a line held as it was worked out: A = 8 */
+#calculator .calc-past-letters {
+    overflow: hidden;
+    color: #4f6659;
+    font-size: 11px;
+    line-height: 14px;
+    text-align: right;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
 #calculator .calc-past-eq:hover,
 #calculator .calc-past-res:hover {
     background: #a3bdaf;
@@ -3220,8 +3345,7 @@
 
 /* and insert of a constant, drawn the same */
 #calculator .calc-past-btn,
-#calculator .calc-fx-put,
-#calculator .calc-gx-put {
+#calculator .calc-fx-put {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -3553,7 +3677,8 @@
 #calculator .calc-mem:hover,
 #calculator .calc-frac:hover,
 #calculator .calc-fmt:hover,
-#calculator .calc-hold:hover {
+#calculator .calc-hold:hover,
+#calculator .calc-sto:hover {
     background: #a3bdaf;
 }
 
@@ -3561,7 +3686,8 @@
 #calculator .calc-mem:active,
 #calculator .calc-frac:active,
 #calculator .calc-fmt:active,
-#calculator .calc-hold:active {
+#calculator .calc-hold:active,
+#calculator .calc-sto:active {
     background: #98b3a5;
 }
 
@@ -3569,7 +3695,8 @@
 #calculator .calc-mem,
 #calculator .calc-frac,
 #calculator .calc-fmt,
-#calculator .calc-hold {
+#calculator .calc-hold,
+#calculator .calc-sto {
     margin: -1px -4px;
     padding: 1px 4px;
     border-radius: 3px;
@@ -3821,13 +3948,19 @@
     }
 }
 
-#calculator .calc-hold {
+#calculator .calc-hold,
+#calculator .calc-sto {
     position: absolute;
     z-index: 1;
     right: 8px;
     top: 80px;
     font-size: 12px;
     font-family: 'Play', 'Russo One', sans-serif;
+}
+
+/* STO→ waits for its letter: it blinks as the cursor does */
+#calculator .calc-sto:not(:empty) {
+    animation: calc-blink 1s steps(1) infinite;
 }
 
 #calculator .calc-top {
@@ -4265,6 +4398,54 @@
 
 #calculator .calc-menu-box > .calc-off:hover {
     background: none;
+    color: inherit;
+}
+
+/* a line between the lines of the menu: Insert Var and Store in Var set apart */
+#calculator .calc-menu-box > hr {
+    height: 1px;
+    margin: 4px 6px;
+    border: 0;
+    background: #6c8297;
+    opacity: 0.6;
+}
+
+/* the arrow of a line that opens the letters, at its right */
+#calculator .calc-menu-box > div:has(.calc-menu-more) {
+    display: flex;
+    align-items: center;
+}
+
+#calculator .calc-menu-more {
+    flex: none;
+    margin: 0 -2px 0 auto;
+    padding-left: 16px;
+    opacity: 0.7;
+}
+
+/* Store in Var: the letters two by two, each with what it holds */
+#calculator .calc-menu-box.calc-menu-letters {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px 2px;
+}
+
+#calculator .calc-menu-box.calc-menu-letters[hidden] {
+    display: none;
+}
+
+#calculator .calc-menu-val {
+    display: inline-block;
+    max-width: 72px;
+    margin-left: 8px;
+    overflow: hidden;
+    color: #aab6c4;
+    font-size: 12px;
+    vertical-align: bottom;
+    text-overflow: ellipsis;
+}
+
+#calculator .calc-menu-box > div:hover .calc-menu-val {
     color: inherit;
 }
 

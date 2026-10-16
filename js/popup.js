@@ -145,6 +145,22 @@ const readClipboard = () => navigator.clipboard.readText().catch(() => {
     return pasted ? text : Promise.reject();
 });
 
+// whether the clipboard holds text, for the menu to show Paste: read only where the permission
+// is given already, never asked for here, as a right click is no request to read it
+document.addEventListener('calc-clipboard', (event) => {
+    const { text } = event.detail;
+
+    event.preventDefault(); // it answers
+    try {
+        chrome.permissions.contains({ permissions: ['clipboardRead'] }, (has) => {
+            if (chrome.runtime.lastError || !has) text(null);
+            else navigator.clipboard.readText().then(text, () => text(null));
+        });
+    } catch (e) {
+        text(null);
+    }
+});
+
 document.addEventListener('calc-paste', (event) => {
     const { text, refused } = event.detail;
 
