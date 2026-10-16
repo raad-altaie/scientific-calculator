@@ -5580,12 +5580,14 @@
                 fields: [{ k: 't', l: 'Text', ph: 'Hé', fn: true }, { k: 'c', l: 'Codes', ph: 'U+0048 U+00E9', fn: true }], spaces: ['t'], run: runCodes },
             { id: 'subnet', t: 'IP subnet', f: ['192.168.1.0/24', '2001:db8::/32'], d: 'The network of an IPv4 address with its prefix, 192.168.1.10/24, or its mask, 192.168.1.10 255.255.255.0: its network and broadcast addresses, its mask, the first and last host and how many hosts it has. Or of an IPv6 address, 2001:db8::1/48: its network, the address in full and written short, its first and last address, how many addresses and /64 networks, its kind and its name for reverse DNS.',
                 fields: [{ k: 'ip', ph: '192.168.1.10/24 or 2001:db8::1/48', fn: true }], run: runSubnet },
+            { id: 'uuid', t: 'UUID', f: ['Version 4', 'Version 7'], d: 'Five new UUIDs, of RFC 9562: of version 4, all random, or of version 7, the time now and then random, so they sort as they were made. Again for five more; Copy copies one. ' +
+                'Or one typed, with hyphens or none, in braces or after urn:uuid: if you like: its version and variant, the time it was made, of versions 1, 6 and 7, and it in hexadecimal, Base64 and as a whole number.',
+                fields: [{ k: 'ver', l: 'New', choice: ['Version 4', 'Version 7'] }, { k: 'u', l: 'Read', ph: 'f81d4fae-7dec-11d0-a765-00a0c91e6bf6', fn: true }], again: true, run: runUuid },
             { id: 'base64', t: 'Base32, 58, 64 and 85', f: 'Hé = SMOp', d: 'A text\'s bytes of UTF-8 written in letters: Base32, of A–Z and 2–7, as the secrets of two-step sign-in are; Base58, as Bitcoin addresses are, no 0, O, I or l; Base64, and that of web addresses and file names, with - and _ and no =; or Base85, Ascii85 as in PDF. Or the text, and the bytes, of what is so written.',
                 fields: [{ k: 't', l: 'Text', ph: 'Hé', fn: true }, { k: 'b', l: 'Encoded', ph: 'SMOp', fn: true }, { k: 'enc', l: 'In', choice: ['Base32', 'Base58', 'Base64', 'Base85'], at: 2 }],
                 spaces: ['t'], run: runBase64 },
-            { id: 'uuid', t: 'UUID', f: ['Version 4', 'Version 7'], d: 'Five new UUIDs, of RFC 9562: of version 4, all random, or of version 7, the time now and then random, so they sort as they were made. Again for five more; Copy copies one. ' +
-                'Or one typed, with hyphens or none, in braces or after urn:uuid: if you like: its version and variant, the time it was made, of versions 1, 6 and 7, and it in hexadecimal, Base64 and as a whole number.',
-                fields: [{ k: 'ver', l: 'New', choice: ['Version 4', 'Version 7'] }, { k: 'u', l: 'Read', ph: 'f81d4fae-7dec-11d0-a765-00a0c91e6bf6', fn: true }], again: true, run: runUuid }
+            { id: 'hash', t: 'Hashes', f: 'abc = ba7816bf…', d: 'The hashes of a text\'s bytes of UTF-8, as a download\'s checksum is given: MD5, SHA-1, SHA-256 and SHA-512 in hexadecimal, SHA-256 in Base64 as the integrity of a script on a web page has it, and CRC-32, as zip and PNG have it. A hash pasted to check is matched against them. MD5 and SHA-1 are broken: for checking a file alone, never for passwords.',
+                fields: [{ k: 't', l: 'Text', ph: 'abc', fn: true }, { k: 'h', l: 'Check', ph: 'ba7816bf…', fn: true }], spaces: ['t'], run: runHash }
         ],
         whole: [
             { id: 'factors', t: 'Prime factors', f: '360 = 2<sup>3</sup> × 3<sup>2</sup> × 5', d: 'A whole number of up to 20 digits in its prime factors, whether it is prime, and its divisors: how many, their sum, each of them, and how many numbers up to it have none of its factors.',
@@ -6055,6 +6057,30 @@
                 [{ l: 'Bytes of UTF-8', text: hex || '–', wide: true, wrap: true }, { l: 'Bytes', v: bytes.length }, { l: 'Letters of ' + how.name, v: encoded.length }]) :
                 [{ l: 'Text', text: text === null ? '–' : escaped(text) || '–', wide: true, wrap: true }, { l: 'Bytes', text: hex || '–', wide: true, wrap: true }, { l: 'Bytes', v: bytes.length }],
             note: raw.t && raw.b ? 'Of the text: the box of what is encoded is read while the text is empty.' : text === null && !raw.t ? 'Not text of UTF-8: its bytes alone.' : ''
+        };
+    }
+
+    // The hashes of a text's bytes of UTF-8, each to copy; a hash typed in hexadecimal or Base64 matched against them
+    function runHash(n, raw) {
+        var none = [{ l: 'SHA-256', text: '–', wide: true }], bytes, rows, want, match;
+        if (!raw.t) return { rows: none, note: raw.h ? 'Of a text: type it to check the hash against.' : '' };
+        bytes = Array.from(new TextEncoder().encode(raw.t));
+        rows = [['MD5', CalcMaths.md5(bytes)], ['SHA-1', CalcMaths.sha1(bytes)], ['SHA-256', CalcMaths.sha256(bytes)], ['SHA-512', CalcMaths.sha512(bytes)]].map(function (h) {
+            return { l: h[0], text: CalcMaths.hexOfBytes(h[1]), copy: CalcMaths.hexOfBytes(h[1]), wide: true, wrap: true, b: h[1] };
+        });
+        rows.push({ l: 'SHA-256 for integrity', text: 'sha256-' + CalcMaths.toBase64(rows[2].b), copy: 'sha256-' + CalcMaths.toBase64(rows[2].b), wide: true, wrap: true, b: rows[2].b });
+        rows.push({ l: 'CRC-32', text: CalcMaths.crc32(bytes).toString(16).padStart(8, '0'), copy: CalcMaths.crc32(bytes).toString(16).padStart(8, '0'), wide: true });
+        rows.push({ l: 'Bytes', v: bytes.length });
+        if (raw.h) {
+            want = raw.h.trim().replace(/^sha\d+-/i, '');
+            match = rows.filter(function (r) {
+                return r.text && (/^[0-9a-f\s:]+$/i.test(want) ? want.replace(/[\s:]/g, '').toLowerCase() === r.text : r.b && CalcMaths.toBase64(r.b).replace(/=+$/, '') === want.replace(/=+$/, ''));
+            })[0];
+        }
+        rows.forEach(function (r) { delete r.b; });
+        return {
+            rows: rows, bad: raw.h && !match ? ['h'] : undefined, warn: !!(raw.h && !match),
+            note: !raw.h ? 'MD5 and SHA-1 are broken: for checking a download alone, never for passwords.' : match ? 'It matches the ' + match.l + '.' : 'It matches none of them.'
         };
     }
 

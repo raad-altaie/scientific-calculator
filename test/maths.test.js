@@ -848,6 +848,21 @@ check(M.hexOfBytes([10, 255, 0]) === '0aff00' && M.hexOfBytes([10, 255, 0], ' ')
         M.fromBase85('s8W-"') === null && M.fromBase85('9jqo^B') === null && M.fromBase85('9jqo{') === null, 'Base85: Ascii85, z for four 0s, between <~ and ~> as well');
 })();
 (function () {
+    var utf8 = function (s) { return Array.from(new TextEncoder().encode(s)); }, crypto = require('crypto'), wrong = [], n, b;
+    check(M.hexOfBytes(M.md5(utf8('abc'))) === '900150983cd24fb0d6963f7d28e17f72' && M.hexOfBytes(M.md5([])) === 'd41d8cd98f00b204e9800998ecf8427e' &&
+        M.hexOfBytes(M.sha1(utf8('abc'))) === 'a9993e364706816aba3e25717850c26c9cd0d89d' &&
+        M.hexOfBytes(M.sha256(utf8('abc'))) === 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad' &&
+        M.hexOfBytes(M.sha512(utf8('abc'))) === 'ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f' &&
+        M.crc32(utf8('123456789')) === 0xCBF43926 && M.crc32([]) === 0, 'hashes: the test values of their standards, CRC-32 its check value');
+    for (n = 0; n < 300; n++) {
+        b = Array.from(crypto.randomBytes(n));
+        ['md5', 'sha1', 'sha256', 'sha512'].forEach(function (a) {
+            if (M.hexOfBytes(M[a](b)) !== crypto.createHash(a).update(Buffer.from(b)).digest('hex')) wrong.push(a + ' of ' + n);
+        });
+    }
+    check(!wrong.length, 'hashes: as Node has them, of every length to 299 bytes, across the ends of blocks', wrong.join());
+})();
+(function () {
     var r = M.readUuid('{C232AB00-9414-11EC-B3C8-9F6BDECED846}'), ones = [], k;
     check(r.text === 'c232ab00-9414-11ec-b3c8-9f6bdeced846' && r.version === 1 && r.variant === 'RFC' && new Date(r.time).toISOString() === '2022-02-22T19:22:22.000Z',
         'UUID: of version 1, in braces, made at the time of RFC 9562\'s example', JSON.stringify(r));

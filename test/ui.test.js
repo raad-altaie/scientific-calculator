@@ -1253,7 +1253,7 @@ async function numbersPanel(page, at) {
     check(/^R is not a value/.test(await page.calc(note)), t + 'and 4,7 is no value, not 4.7', await page.calc(note));
 
     await page.click('.calc-numbers .calc-solve-tab[data-tab="computer"]');
-    check(await page.calc('document.querySelectorAll(".calc-numbers .calc-sv-item").length') === 8, t + 'eight cards of bases');
+    check(await page.calc('document.querySelectorAll(".calc-numbers .calc-sv-item").length') === 9, t + 'nine cards of bases');
     await card('Bases');
     await set(0, '0xFF AND 0b1010');
     check(await page.calc(tiles) === 'Decimal=10 | Unsigned=10 | Hexadecimal=A | Octal=12 | Binary=0000 0000 0000 0000 0000 0000 0000 1010 | ' +

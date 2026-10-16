@@ -3222,6 +3222,174 @@
         return out;
     }
 
+    // ---------- Hashes ---------- //
+
+    // bytes made up to a whole number of blocks of 64 bytes, or 128: a 1 bit, 0s, and the
+    // length in bits in the last 8 or 16 bytes, big-endian, or little-endian as MD5 has it
+    function padded(bytes, block, little) {
+        var b = Array.from(bytes), bits = bytes.length * 8, size = [], k;
+        b.push(0x80);
+        while ((b.length + block / 8) % block) b.push(0);
+        for (k = 7; k >= 0; k--) size.push(Math.floor(bits / Math.pow(2, 8 * k)) % 256);
+        if (little) size.reverse();
+        return b.concat(new Array(block / 8 - 8).fill(0), size);
+    }
+
+    // 32-bit words as bytes, big-endian or little-endian
+    function wordBytes(words, little) {
+        var out = [];
+        words.forEach(function (w) {
+            for (var k = 0; k < 4; k++) out.push((w >>> (little ? 8 * k : 24 - 8 * k)) & 255);
+        });
+        return out;
+    }
+
+    var MD5_K = [], MD5_S = [7, 12, 17, 22, 5, 9, 14, 20, 4, 11, 16, 23, 6, 10, 15, 21];
+    for (var md5i = 0; md5i < 64; md5i++) MD5_K.push(Math.floor(Math.abs(Math.sin(md5i + 1)) * 4294967296) | 0);
+
+    // The MD5 of bytes, 16 bytes, of RFC 1321: broken, for checking a download alone
+    function md5(bytes) {
+        var b = padded(bytes, 64, true), h = [0x67452301, 0xEFCDAB89 | 0, 0x98BADCFE | 0, 0x10325476], i, j, w = [], a, bb, c, d, f, g, t;
+        for (i = 0; i < b.length; i += 64) {
+            for (j = 0; j < 16; j++) w[j] = b[i + 4 * j] | (b[i + 4 * j + 1] << 8) | (b[i + 4 * j + 2] << 16) | (b[i + 4 * j + 3] << 24);
+            a = h[0]; bb = h[1]; c = h[2]; d = h[3];
+            for (j = 0; j < 64; j++) {
+                if (j < 16) { f = (bb & c) | (~bb & d); g = j; }
+                else if (j < 32) { f = (d & bb) | (~d & c); g = (5 * j + 1) % 16; }
+                else if (j < 48) { f = bb ^ c ^ d; g = (3 * j + 5) % 16; }
+                else { f = c ^ (bb | ~d); g = (7 * j) % 16; }
+                t = d; d = c; c = bb;
+                f = (a + f + MD5_K[j] + w[g]) | 0;
+                bb = (bb + ((f << MD5_S[(j >> 4) * 4 + j % 4]) | (f >>> (32 - MD5_S[(j >> 4) * 4 + j % 4])))) | 0;
+                a = t;
+            }
+            h = [(h[0] + a) | 0, (h[1] + bb) | 0, (h[2] + c) | 0, (h[3] + d) | 0];
+        }
+        return wordBytes(h, true);
+    }
+
+    // The SHA-1 of bytes, 20 bytes, of FIPS 180-4: broken, for checking a download alone
+    function sha1(bytes) {
+        var b = padded(bytes, 64), h = [0x67452301, 0xEFCDAB89 | 0, 0x98BADCFE | 0, 0x10325476, 0xC3D2E1F0 | 0], i, j, w = [], v, f, k, t;
+        for (i = 0; i < b.length; i += 64) {
+            for (j = 0; j < 80; j++) {
+                if (j < 16) w[j] = (b[i + 4 * j] << 24) | (b[i + 4 * j + 1] << 16) | (b[i + 4 * j + 2] << 8) | b[i + 4 * j + 3];
+                else { t = w[j - 3] ^ w[j - 8] ^ w[j - 14] ^ w[j - 16]; w[j] = (t << 1) | (t >>> 31); }
+            }
+            v = h.slice();
+            for (j = 0; j < 80; j++) {
+                if (j < 20) { f = (v[1] & v[2]) | (~v[1] & v[3]); k = 0x5A827999; }
+                else if (j < 40) { f = v[1] ^ v[2] ^ v[3]; k = 0x6ED9EBA1; }
+                else if (j < 60) { f = (v[1] & v[2]) | (v[1] & v[3]) | (v[2] & v[3]); k = 0x8F1BBCDC | 0; }
+                else { f = v[1] ^ v[2] ^ v[3]; k = 0xCA62C1D6 | 0; }
+                t = (((v[0] << 5) | (v[0] >>> 27)) + f + v[4] + k + w[j]) | 0;
+                v = [t, v[0], (v[1] << 30) | (v[1] >>> 2), v[2], v[3]];
+            }
+            for (j = 0; j < 5; j++) h[j] = (h[j] + v[j]) | 0;
+        }
+        return wordBytes(h);
+    }
+
+    var SHA256_K = [
+        0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+        0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+        0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+        0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+        0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+        0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2];
+
+    // The SHA-256 of bytes, 32 bytes, of FIPS 180-4
+    function sha256(bytes) {
+        var b = padded(bytes, 64), h = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19],
+            rot = function (x, n) { return (x >>> n) | (x << (32 - n)); }, i, j, w = [], v, s0, s1, t1, t2;
+        for (i = 0; i < b.length; i += 64) {
+            for (j = 0; j < 64; j++) {
+                if (j < 16) w[j] = (b[i + 4 * j] << 24) | (b[i + 4 * j + 1] << 16) | (b[i + 4 * j + 2] << 8) | b[i + 4 * j + 3];
+                else {
+                    s0 = rot(w[j - 15], 7) ^ rot(w[j - 15], 18) ^ (w[j - 15] >>> 3);
+                    s1 = rot(w[j - 2], 17) ^ rot(w[j - 2], 19) ^ (w[j - 2] >>> 10);
+                    w[j] = (w[j - 16] + s0 + w[j - 7] + s1) | 0;
+                }
+            }
+            v = h.slice();
+            for (j = 0; j < 64; j++) {
+                t1 = (v[7] + (rot(v[4], 6) ^ rot(v[4], 11) ^ rot(v[4], 25)) + ((v[4] & v[5]) ^ (~v[4] & v[6])) + SHA256_K[j] + w[j]) | 0;
+                t2 = ((rot(v[0], 2) ^ rot(v[0], 13) ^ rot(v[0], 22)) + ((v[0] & v[1]) ^ (v[0] & v[2]) ^ (v[1] & v[2]))) | 0;
+                v = [(t1 + t2) | 0, v[0], v[1], v[2], (v[3] + t1) | 0, v[4], v[5], v[6]];
+            }
+            for (j = 0; j < 8; j++) h[j] = (h[j] + v[j]) | 0;
+        }
+        return wordBytes(h);
+    }
+
+    // the 64-bit constants of SHA-512, made when first wanted: the fractions of the square roots
+    // of the first 8 primes and the cube roots of the first 80, to 64 bits, in BigInt
+    var SHA512_K = null, SHA512_H = null;
+    function sha512Constants() {
+        var primes = [], n = 2, root = function (p, k) { // the first 64 bits of the fraction of p^(1/k)
+            var x = BigInt(Math.floor(Math.pow(p, 1 / k) * Math.pow(2, 32))), big = BigInt(p) << BigInt(64 * k), i;
+            x <<= BigInt(32); // p^(1/k) × 2^64, then made exact by Newton's way
+            for (i = 0; i < 8; i++) x = (BigInt(k - 1) * x + big / (x ** BigInt(k - 1))) / BigInt(k);
+            while (x ** BigInt(k) > big) x--;
+            while ((x + BigInt(1)) ** BigInt(k) <= big) x++;
+            return BigInt.asUintN(64, x);
+        };
+        while (primes.length < 80) {
+            if (primes.every(function (p) { return n % p; })) primes.push(n);
+            n++;
+        }
+        SHA512_K = primes.map(function (p) { return root(p, 3); });
+        SHA512_H = primes.slice(0, 8).map(function (p) { return root(p, 2); });
+    }
+
+    // The SHA-512 of bytes, 64 bytes, of FIPS 180-4
+    function sha512(bytes) {
+        var b = padded(bytes, 128), M = BigInt.asUintN, i, j, k, w = [], v, h, s0, s1, t1, t2, out = [],
+            rot = function (x, n) { return M(64, (x >> BigInt(n)) | (x << BigInt(64 - n))); };
+        if (!SHA512_K) sha512Constants();
+        h = SHA512_H.slice();
+        for (i = 0; i < b.length; i += 128) {
+            for (j = 0; j < 80; j++) {
+                if (j < 16) {
+                    w[j] = BigInt(0);
+                    for (k = 0; k < 8; k++) w[j] = (w[j] << BigInt(8)) | BigInt(b[i + 8 * j + k]);
+                } else {
+                    s0 = rot(w[j - 15], 1) ^ rot(w[j - 15], 8) ^ (w[j - 15] >> BigInt(7));
+                    s1 = rot(w[j - 2], 19) ^ rot(w[j - 2], 61) ^ (w[j - 2] >> BigInt(6));
+                    w[j] = M(64, w[j - 16] + s0 + w[j - 7] + s1);
+                }
+            }
+            v = h.slice();
+            for (j = 0; j < 80; j++) {
+                t1 = M(64, v[7] + (rot(v[4], 14) ^ rot(v[4], 18) ^ rot(v[4], 41)) + ((v[4] & v[5]) ^ (M(64, ~v[4]) & v[6])) + SHA512_K[j] + w[j]);
+                t2 = M(64, (rot(v[0], 28) ^ rot(v[0], 34) ^ rot(v[0], 39)) + ((v[0] & v[1]) ^ (v[0] & v[2]) ^ (v[1] & v[2])));
+                v = [M(64, t1 + t2), v[0], v[1], v[2], M(64, v[3] + t1), v[4], v[5], v[6]];
+            }
+            for (j = 0; j < 8; j++) h[j] = M(64, h[j] + v[j]);
+        }
+        h.forEach(function (x) {
+            for (k = 7; k >= 0; k--) out.push(Number((x >> BigInt(8 * k)) & BigInt(255)));
+        });
+        return out;
+    }
+
+    var CRC_TABLE = null;
+
+    // The CRC-32 of bytes, as zip and PNG have it, a whole number below 2^32
+    function crc32(bytes) {
+        var c = -1, i, k, n;
+        if (!CRC_TABLE) {
+            CRC_TABLE = [];
+            for (n = 0; n < 256; n++) {
+                for (c = n, k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1;
+                CRC_TABLE.push(c);
+            }
+            c = -1;
+        }
+        for (i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 255] ^ (c >>> 8);
+        return (c ^ -1) >>> 0;
+    }
+
     // ---------- UUIDs ---------- //
 
     // 16 bytes as a UUID is written: 8-4-4-4-12 hexadecimal digits, small letters
@@ -4372,6 +4540,11 @@
         fromBase58: fromBase58,
         toBase85: toBase85,
         fromBase85: fromBase85,
+        md5: md5,
+        sha1: sha1,
+        sha256: sha256,
+        sha512: sha512,
+        crc32: crc32,
         uuidText: uuidText,
         makeUuid: makeUuid,
         readUuid: readUuid,
