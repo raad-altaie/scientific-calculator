@@ -1,20 +1,21 @@
-let popupWidth = 387;
-let popupHeight = 613;
+let popupWidth = 379;
+let popupHeight = 600;
 
 // The detached window is this much bigger than the sizes above: x at the left
 // and right, y at the top and bottom. It opens with the calculator as big as
-// the popup draws it, 594 for its 580px, and 2px around it on every side;
-// popup.js keeps that room when the window is resized
+// the popup draws it, its own 580px, and 2px around it on every side, a pixel
+// over so popup.js keeps it at that size, not scaled; popup.js keeps that room
+// when the window is resized
 const detachedMargin = { x: 2.5, y: 6.5 };
 
 chrome.runtime.getPlatformInfo(function (info) {
     // Output might be 'win', 'mac', 'linux', etc.
     if (info.os === 'win') {
-        popupWidth = 402;
-        popupHeight = 625;
+        popupWidth = 394;
+        popupHeight = 612;
     } else if (info.os === 'cros') {
-        popupWidth = 388;
-        popupHeight = 621;
+        popupWidth = 380;
+        popupHeight = 608;
     }
 });
 
@@ -49,8 +50,9 @@ function readDetachedBounds(key, done) {
     }, done);
 }
 
-// The window is moved or resized: its new place is remembered
-chrome.windows.onBoundsChanged.addListener((win) => {
+// The window is moved or resized: its new place is remembered. Firefox does not tell of
+// that, so there the window tells it itself, in popup.js
+function rememberBounds(win) {
     if (win.type !== "popup" || win.state !== "normal") return; // not maximised or full screen
 
     chrome.tabs.query({ windowId: win.id }, (tabs) => {
@@ -62,12 +64,24 @@ chrome.windows.onBoundsChanged.addListener((win) => {
                 tab.url.startsWith(graphUrl) ? "graphBounds" : "bounds");
         });
     });
-});
+}
+
+if (chrome.windows.onBoundsChanged) chrome.windows.onBoundsChanged.addListener(rememberBounds);
+
+// The screens and the room on them. Firefox has no chrome.system.display: there it is
+// the screen the background page sees, the main one
+function getDisplays(done) {
+    if (chrome.system?.display) {
+        chrome.system.display.getInfo(done);
+        return;
+    }
+    done([{ workArea: { left: screen.availLeft || 0, top: screen.availTop || 0, width: screen.availWidth, height: screen.availHeight } }]);
+}
 
 // The detached window, or with graph the graph's own window, which at first is most of
 // the screen
 function createPopupWindow(graph) {
-    chrome.system.display.getInfo((displayInfo) => {
+    getDisplays((displayInfo) => {
         readDetachedBounds(graph ? "graphBounds" : "bounds", (saved) => {
             const displayWidth = displayInfo[0].workArea.width;
             const displayHeight = displayInfo[0].workArea.height;
@@ -390,7 +404,7 @@ function unlessOff(key, open) {
     policyOff(key).then((off) => off || open());
 }
 
-chrome.runtime.onMessage.addListener((message) => {
+chrome.runtime.onMessage.addListener((message, sender) => {
     if (message?.command === "open-detached") {
         unlessOff("detachedMode", openCalculatorInDetachedMode);
     } else if (message?.command === "launch") {
@@ -404,6 +418,9 @@ chrome.runtime.onMessage.addListener((message) => {
         unlessOff("detachedMode", openCalculatorInDetachedMode);
     } else if (message?.command === "turn-off-page-icon") {
         removePageIcon();
+    } else if (message?.command === "window-moved" && sender.tab) {
+        // Firefox: the detached or the graph's window was moved or resized
+        chrome.windows.get(sender.tab.windowId, rememberBounds);
     }
 });
 

@@ -47,15 +47,13 @@ html:has(.options-open),
 }
 
 /* The calculator, as style.css draws it in the popup, scaled by app.js from the corner
-   of the stage. The browser's popup draws it at a smaller base font than a web page
-   does; every size in style.css is in em, so this brings the web page to the same look */
+   of the stage */
 #calculator {
     position: absolute;
     left: 0;
     top: 0;
     margin: 3px 4px;
     transform-origin: -4px -3px;
-    font-size: 12px;
 }
 
 /* ---- the options ---- */

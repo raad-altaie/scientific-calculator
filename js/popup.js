@@ -104,6 +104,20 @@ if (params.has('detached')) {
     keepShape();
 }
 
+// Firefox does not tell the extension when a window is moved or resized: the detached
+// window and the graph's tell it themselves, for the place to be remembered
+if ((params.has('detached') || params.has('graph')) && !chrome.windows.onBoundsChanged) {
+    let place = '';
+
+    setInterval(() => {
+        const now = [window.screenX, window.screenY, window.outerWidth, window.outerHeight].join();
+
+        if (now === place) return;
+        place = now;
+        chrome.runtime.sendMessage({ command: 'window-moved' }).catch(() => { });
+    }, 1000);
+}
+
 // The graph's own window, popup.html?graph: only the graph, as big as the window. Its close
 // button and Esc close the window; a value put in brings the calculator up, which has it
 // through the storage

@@ -9,7 +9,10 @@
     src: url('../fonts/Play-Bold.ttf');
 }
 
+/* Every size in here is in em, from this font: set, and not the browser's, which is not the
+   same in Chrome's popup, Firefox's and a web page, so the calculator looks the same in each */
 #calculator {
+    font-size: 12px;
     width: 376px;
     height: 576px;
     margin: auto;
