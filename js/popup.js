@@ -105,8 +105,9 @@ if (params.has('detached')) {
 }
 
 // Firefox does not tell the extension when a window is moved or resized: the detached
-// window and the graph's tell it themselves, for the place to be remembered
-if ((params.has('detached') || params.has('graph')) && !chrome.windows.onBoundsChanged) {
+// window and the graph's tell it themselves, for the place to be remembered. Not where
+// there are no windows to move, as the page opened outside the extension in the tests
+if ((params.has('detached') || params.has('graph')) && chrome.windows && !chrome.windows.onBoundsChanged) {
     let place = '';
 
     setInterval(() => {
