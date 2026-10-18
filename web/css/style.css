@@ -3801,6 +3801,21 @@
     pointer-events: none; /* only drawn: a click goes to what is under it, as a box of a template */
 }
 
+/* Firefox has no mask-box-image, nor mask-border: without it the sign was a block of the text's
+   colour. The same nine pieces of the drawing, as four layers of a mask: the corner, the arm that
+   stretches with the root, the foot, and the bar that stretches along it */
+@supports not (-webkit-mask-box-image: none) {
+    #calculator .calc-root::before {
+        mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 62 30' preserveAspectRatio='none'%3E%3Cpath d='M7 80 L20 70 L33.6 126 L50.6 20' fill='none' stroke='black' stroke-width='5.6' stroke-linejoin='round' stroke-linecap='round'/%3E%3Cpath d='M46.16 30 L49.36 10 Q50.96 0 54.5 0 L72 0 L72 5.6 L59 5.6 Q55.74 5.6 55.34 8.1 L51.84 30 Z' fill='black'/%3E%3C/svg%3E"),
+            url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 30 62 90' preserveAspectRatio='none'%3E%3Cpath d='M7 80 L20 70 L33.6 126 L50.6 20' fill='none' stroke='black' stroke-width='5.6' stroke-linejoin='round' stroke-linecap='round'/%3E%3Cpath d='M46.16 30 L49.36 10 Q50.96 0 54.5 0 L72 0 L72 5.6 L59 5.6 Q55.74 5.6 55.34 8.1 L51.84 30 Z' fill='black'/%3E%3C/svg%3E"),
+            url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 120 62 10' preserveAspectRatio='none'%3E%3Cpath d='M7 80 L20 70 L33.6 126 L50.6 20' fill='none' stroke='black' stroke-width='5.6' stroke-linejoin='round' stroke-linecap='round'/%3E%3Cpath d='M46.16 30 L49.36 10 Q50.96 0 54.5 0 L72 0 L72 5.6 L59 5.6 Q55.74 5.6 55.34 8.1 L51.84 30 Z' fill='black'/%3E%3C/svg%3E"),
+            url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='62 0 10 30' preserveAspectRatio='none'%3E%3Cpath d='M7 80 L20 70 L33.6 126 L50.6 20' fill='none' stroke='black' stroke-width='5.6' stroke-linejoin='round' stroke-linecap='round'/%3E%3Cpath d='M46.16 30 L49.36 10 Q50.96 0 54.5 0 L72 0 L72 5.6 L59 5.6 Q55.74 5.6 55.34 8.1 L51.84 30 Z' fill='black'/%3E%3C/svg%3E");
+        mask-size: 0.62em 0.3em, 0.62em calc(100% - 0.4em), 0.62em 0.1em, calc(100% - 0.62em) 0.3em;
+        mask-position: 0 0, 0 0.3em, 0 100%, 0.62em 0;
+        mask-repeat: no-repeat;
+    }
+}
+
 /* fraction mode: a division drawn as a fraction, one part over the other */
 #calculator .calc-fr {
     display: inline-flex;
