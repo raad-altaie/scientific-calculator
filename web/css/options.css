@@ -6,6 +6,7 @@
 html, body {
     background: #39576f;
     margin: 0;
+    -webkit-tap-highlight-color: transparent; /* no box flashed over a button touched */
     }
 
 /* text picked out with the mouse in grey, not the system's blue; on the options and
@@ -553,6 +554,18 @@ html, body {
 
 .choice:disabled span {
     cursor: not-allowed;
+}
+
+/* tablets: the page keeps a wider gap from the screen edges */
+@media (min-width: 601px) and (max-width: 1100px) {
+    .wrapper,
+    .footer {
+        padding: 0 48px;
+    }
+
+    .page .footer {
+        padding: 3em 48px 2em;
+    }
 }
 
 /* phones: less space around the page, and the options stack where they don't fit */

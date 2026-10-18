@@ -685,11 +685,13 @@
 
     // the browser only runs a copy asked for by a script while something is
     // selected, so the hidden box is selected for a moment; the copy listener
-    // above supplies the text: the given one, else the main line's
+    // above supplies the text: the given one, else the main line's. The box is read only,
+    // so a touch screen brings up no keyboard for it, and iOS selects it by its range
     function copy(text) {
         copying = text === undefined ? null : text;
         hiddenCopy.value = copying !== null ? copying : copyText();
         hiddenCopy.select();
+        hiddenCopy.setSelectionRange(0, hiddenCopy.value.length);
         try {
             document.execCommand('copy');
         } finally {
@@ -912,7 +914,7 @@
             }
             return;
         }
-        if (!el || window.matchMedia('(hover: none)').matches) return leavePeek();
+        if (!el || touchScreen()) return leavePeek();
         clearTimeout(peekTimer);
         if (!peek.hidden) {
             peekTimer = setTimeout(function () {
@@ -1604,11 +1606,24 @@
         panel.style.width = shown.width + 2 + 'px';
     }
 
+    // A touch screen: a phone or tablet, which cannot hover or is pointed with a finger, an
+    // iPad that calls itself a Mac, or the last press a finger. Tesla's browser says it can
+    // hover, and its touches may come as a mouse, so it is known by its name
+    var lastTouch = false;
+    document.addEventListener('pointerdown', function (e) { lastTouch = e.pointerType === 'touch'; }, true);
+    function touchScreen() {
+        return lastTouch || window.matchMedia('(hover: none), (pointer: coarse)').matches ||
+            (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform)) || /\bTesla\//.test(navigator.userAgent);
+    }
+
     // A box of a panel gets the focus, to type in. A touch screen brings its keyboard
-    // up over the panel at that, so there the box is left until it is touched,
-    // unless the keyboard is up already for another box
+    // up over the panel at that, so there the box is left until it is touched, unless
+    // a box of the same panel is being typed in, the keyboard up already, as Enter goes on
     function focusBox(box) {
-        if (window.matchMedia('(hover: none)').matches && !/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) return false;
+        var at = document.activeElement;
+        if (touchScreen() && !(/^(INPUT|TEXTAREA)$/.test(at.tagName) && [stats, fx, conv, graph, solvePanel, numbersPanel].some(function (p) {
+            return p.contains(at) && p.contains(box);
+        }))) return false;
         box.focus();
         return true;
     }
@@ -1965,7 +1980,7 @@
         graphCells.innerHTML = '<div class="calc-graph-cells-head"><i>x</i><i>y</i></div>';
         pts.forEach(function (p) { addCell(local(String(p.x)), local(String(p.y))); });
         addCell('', '');
-        graphCells.querySelector('input').focus();
+        focusBox(graphCells.querySelector('input'));
     }
 
     // a row of the table, with its x and y
@@ -2041,7 +2056,7 @@
         freeHues();
         readGraph();
         saveState();
-        box.focus();
+        focusBox(box);
         graphRows[graphCount - 1].scrollIntoView({ block: 'nearest' });
     }
 
@@ -4116,8 +4131,7 @@
         }
         graphEnds.forEach(function (box) { box.parentNode.classList.remove('calc-bad'); });
         drawGraph();
-        graphEnds[0].focus();
-        graphEnds[0].select();
+        if (focusBox(graphEnds[0])) graphEnds[0].select();
     }
 
     // the boxes as the view is, unless one is being typed in

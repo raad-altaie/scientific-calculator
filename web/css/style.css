@@ -27,6 +27,7 @@
     position: relative; /* the history is placed over the keys */
     -webkit-user-select: none;
     user-select: none; /* only the display can be selected */
+    -webkit-tap-highlight-color: transparent; /* no box flashed over a key touched, as Tesla's browser does */
 }
 
 /* the strip above the display: the name and the ? box */

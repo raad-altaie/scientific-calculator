@@ -213,3 +213,25 @@ html:has(.options-open),
         display: none;
     }
 }
+
+/* the options keep off the pane's edges at every width; the max-width grows by the padding,
+   so a wide screen still has the 768px of text it had */
+.options-pane .wrapper {
+    max-width: 864px;
+    padding-left: 48px;
+    padding-right: 48px;
+}
+
+.options-pane .footer {
+    padding-left: 48px;
+    padding-right: 48px;
+}
+
+/* a phone: the narrow screen needs the room for the text */
+@media (max-width: 600px) {
+    .options-pane .wrapper,
+    .options-pane .footer {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+}
