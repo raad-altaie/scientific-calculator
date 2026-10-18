@@ -5,7 +5,7 @@
 // It is kept in localStorage too, as "policy": the calculator reads it there as it opens,
 // before the browser has answered, and the other open pages hear a change as a storage event
 const CalcPolicy = (() => {
-    const keys = ['formulas', 'converter', 'graph', 'statistics', 'solve', 'numbers', 'detachedMode', 'pageButton'];
+    const keys = ['formulas', 'converter', 'graph', 'statistics', 'solve', 'numbers', 'detachedMode', 'pageButton', 'pageMaths'];
     const listeners = [];
 
     const read = () => {
@@ -22,8 +22,12 @@ const CalcPolicy = (() => {
         keys.forEach((key) => {
             if (managed[key] === false) policy[key] = false;
         });
-        // the button on every page opens Detached Mode: without it the button has nothing to open
-        if (policy.detachedMode === false) policy.pageButton = false;
+        // the button on every page and the icons after the maths of the pages open Detached Mode:
+        // without it they have nothing to open
+        if (policy.detachedMode === false) {
+            policy.pageButton = false;
+            policy.pageMaths = false;
+        }
         try {
             if (localStorage.getItem('policy') !== JSON.stringify(policy)) localStorage.setItem('policy', JSON.stringify(policy));
         } catch (e) { }

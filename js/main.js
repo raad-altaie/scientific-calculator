@@ -4694,6 +4694,32 @@
         return shown.replace(/-/g, '−') + (k.u ? '<span class="calc-fx-unit">' + k.u + '</span>' : '');
     }
 
+    // A function of a web page drawn alone: the graph cleared first, as Clear does, its sliders stopped,
+    // and the function in the first box, the view as at first
+    function drawPageCurve(f) {
+        stopSliders();
+        clearGraph();
+        if (graphTab === 'examples') showGraphTab('graph');
+        graphInputs[0].value = f;
+        showGraph(true);
+        saveState();
+    }
+
+    // The formulas panel on one formula or constant, by its name, found by a search for it: a formula
+    // open with a box for each of its letters, a constant to put in
+    function showFxItem(tab, name) {
+        var i = fxItems[tab].map(function (entry) { return entry.item.t; }).indexOf(name), item;
+        if (i < 0) return;
+        fxTab = tab;
+        store('fxTab', fxTab);
+        fxSearch.value = name.toLowerCase();
+        showFx(true);
+        item = fxList.querySelector('.calc-fx-item[data-i="' + i + '"]');
+        if (!item) return;
+        if (tab === 'formulas') openFormula(item);
+        item.scrollIntoView({ block: 'nearest' });
+    }
+
     // A box for each letter of the formula, and Insert. A result in the display
     // is put in the first one, to start from; a formula with angles says their unit
     function openFormula(item) {
@@ -7044,6 +7070,20 @@
                 render();
                 keep();
             },
+            // a tool's card, on its tab, to open with these in its boxes, as { eq: 'x^2 = 4' }: it opens as the panel renders.
+            // False with no such tool
+            put: function (id, kept) {
+                var t, found = Object.keys(tools).filter(function (k) {
+                    return tools[k].some(function (tool) { return tool.id === id; });
+                });
+                if (!found.length) return false;
+                values[id] = {};
+                for (t in kept) values[id][t] = String(kept[t]);
+                tab = found[0];
+                openId = id;
+                keep();
+                return true;
+            },
             // the first box of the card open, to type in
             focus: function () {
                 var box = list.querySelector('.calc-sv-item.calc-on input');
@@ -7111,6 +7151,10 @@
         return {
             show: show,
             load: cards.load,
+            // the panel opens on a tool's card, with these in its boxes, and what they give
+            put: function (id, kept) {
+                if (cards.put(id, kept)) show(true);
+            },
             clear: function () {
                 cards.clear();
                 tabs();
@@ -7134,6 +7178,94 @@
     function showNumbers(open) {
         numbers.show(open);
     }
+
+    // What else of a web page a card works out (page/picks.js in the extension), in its panel: a card of the
+    // solver, of the numbers or of the dates with its boxes filled; a quantity in the converter, its group,
+    // unit and value; a list of numbers in the statistics. Its numbers are written with points: with the
+    // comma as the decimal mark, a box of a number has a comma, and ; between
+    function pageCard(panel, card, fields) {
+        var kept = {}, words = { u: 1, t: 1, b: 1, enc: 1, bits: 1, convert: 1, ts: 1, d: 1, g: 1, to: 1 }; // names and codes, as they are
+        Object.keys(fields).forEach(function (k) {
+            var v = String(fields[k]);
+            if (k === 'panel' || k === 'card') return;
+            kept[k] = engine.comma && !words[k] && panel !== 'dates' ? v.replace(/,/g, ';').replace(/\./g, ',') : v;
+        });
+        if (panel === 'solve' || panel === 'numbers') {
+            if (!(panel === 'solve' ? solveButton : numbersButton).hidden) (panel === 'solve' ? solver : numbers).put(card, kept);
+        } else if (panel === 'dates') {
+            if (convButton.hidden || !dates.put(card, kept)) return;
+            convTab = 'dates';
+            showConv(true);
+            saveConv();
+        } else if (panel === 'units') {
+            var g = CalcUnits.units.map(function (group) { return group.c; }).indexOf(kept.g);
+            if (convButton.hidden || g < 0) return;
+            convTab = 'units';
+            convAt.g = g;
+            convAt.u[kept.g] = kept.u;
+            showConv(true); // which puts in a result of the display: the page's value, after it
+            convInput.value = kept.v;
+            renderConv(true);
+            saveConv();
+        } else if (panel === 'stats') {
+            if (statsButton.hidden) return;
+            if (statsTab !== 'list') {
+                statsTexts[statsTab] = statsInput.value;
+                statsTab = 'list';
+                statsTiles();
+            }
+            statsInput.value = statsTexts.list = String(fields.list || '').replace(/\./g, engine.comma ? ',' : '.');
+            showStats(true);
+            saveState();
+        }
+    }
+
+    // A sum or an equation of a web page, its icon clicked (page/answers.js in the extension): a sum is
+    // worked out in the display, from the start; an equation or an inequality of x opens in its card
+    // of the solver, as an integral, a sum or a product of terms and a limit in theirs, with their ends;
+    // an IP network in its card of the numbers; a formula and a constant in the formulas panel, while
+    // they are on. It is written with points, whatever the decimal mark shown
+    root.addEventListener('calc-equation', function (e) {
+        var d = e.detail || {}, text = String(d.text || ''), fields = d.fields || {}, read,
+            cards = { integral: 'integral', series: 'sum', product: 'product', limit: 'limit', derivative: 'derivative', taylor: 'taylor', ode: 'ode' };
+        if (d.kind === 'card') {
+            pageCard(String(fields.panel || ''), String(fields.card || ''), fields);
+            return;
+        }
+        if (!text) return;
+        if (d.kind === 'equation' || d.kind === 'inequality') {
+            if (!solveButton.hidden) solver.put(d.kind, { eq: text });
+            return;
+        }
+        if (cards[d.kind]) {
+            if (!solveButton.hidden) solver.put(cards[d.kind], fields);
+            return;
+        }
+        if (d.kind === 'subnet' || d.kind === 'matrix') { // a matrix: its size and numbers, as Matrix takes them
+            if (!numbersButton.hidden) numbers.put(d.kind, d.kind === 'subnet' ? { ip: text } : fields);
+            return;
+        }
+        if (d.kind === 'graph') {
+            if (!graphButton.hidden && fields.f) drawPageCurve(String(fields.f));
+            return;
+        }
+        if (d.kind === 'formula' || d.kind === 'constant') {
+            if (!fxButton.hidden) showFxItem(d.kind === 'formula' ? 'formulas' : 'constants', String(fields.name || ''));
+            return;
+        }
+        closePanels();
+        unselect();
+        if (engine.edit) engine.reset(); // not into the equation being edited, at its cursor
+        // a/b as the tip had it: on for a sum written in fractions, its result one; off for one of decimals
+        if (fields.frac === '1' ? !fracMode : fields.frac === '0' && fracMode) toggleFraction();
+        engine.comma = false;
+        read = engine.paste(text + ' =', deg);
+        engine.comma = CalcEngine.comma(fmt.group);
+        if (!read) return;
+        keyBoard['AC'].children[0].firstChild.data = 'C';
+        refresh();
+        saveState();
+    }, false);
 
 
     // ---------------- examples of the graph ---------------- //
@@ -7740,7 +7872,10 @@
         el.addEventListener('click', function (e) {
             var edge = edgeAt(el, e.clientX), spot, rect, placed;
 
-            if (edge) return goEdge(el, edge);
+            if (edge) { // the dots slide the line, and open nothing
+                e.stopPropagation();
+                return goEdge(el, edge);
+            }
             // a drag that selected in one box ends in a click on that box: the selection stays
             if (el === display && e.detail < 2 && !window.getSelection().isCollapsed) return;
             if (el === display && engine.edit && !slid && (spot = e.target.closest('[data-e],[data-r]'))) { // the cursor where it is clicked
@@ -7766,18 +7901,10 @@
             // the second click of two: the first one put the cursor in, and wrote the line again
             if (e.detail === 2 && !slid && el === display) return pickValue(el, e.clientX, e.clientY);
             if (slid || (el === display && !window.getSelection().isCollapsed)) return; // a slide or a selection, not a click
-            if (el === logline) { // the equation above a result: a click opens it, the cursor where it is clicked
-                if (engine.edit && e.detail === 2) { // the second click of two: the number it was on selected, in the line now edited
-                    e.stopPropagation();
-                    spot = picked && display.querySelector('[data-e="' + picked + '"]');
-                    if (spot) {
-                        rect = spot.getBoundingClientRect();
-                        pickValue(display, rect.left + rect.width / 2, rect.top + rect.height / 2);
-                    }
-                    return;
-                }
+            if (el === logline) { // the equation above a result: a double click opens it, the cursor where it is clicked
                 if (engine.edit || !(engine.done || engine.error)) return; // empty: a click on the screen
-                e.stopPropagation(); // the screen's click would send the cursor to the end
+                e.stopPropagation(); // the screen's click would open it, the cursor at the end
+                if (e.detail !== 2) return; // one click leaves the result as it is
             }
             if (el === display && !engine.edit && (engine.done || engine.error)) return; // a result: nothing to put a cursor in
             spot = !engine.edit && e.target.closest('[data-e],[data-r]'); // drawn as the editor draws it: the cursor goes where it is clicked
@@ -7788,6 +7915,11 @@
                 unselect();
                 refresh();
                 saveState();
+                spot = el === logline && picked && display.querySelector('[data-e="' + picked + '"]');
+                if (spot) { // opened by a double click: the number it was on selected, in the line now edited
+                    rect = spot.getBoundingClientRect();
+                    pickValue(display, rect.left + rect.width / 2, rect.top + rect.height / 2);
+                }
                 return;
             }
             if (engine.point(textAt(el, e.clientX).n, deg)) {
@@ -7799,7 +7931,7 @@
     });
 
     // a click anywhere on the screen but the equation, the line above it as well: the line to
-    // edit, the cursor at its end. After a result, only a click on its equation above it does that.
+    // edit, the cursor at its end. After a result, only a double click on its equation above it does that.
     // Not on what has a click of its own there: the buttons, the unit, the modes
     function editLine() {
         if (engine.edit ? !engine.move('end') : !engine.startEdit()) return;
@@ -8255,6 +8387,7 @@
             radDeg.firstChild.data = UNITS[deg];
             key.children[0].firstChild.data = UNITS[(deg + 1) % 3];
             fullTurn.innerHTML = ['2<span class="sign-pi">π</span>', '360°', '400g'][deg];
+            ask('unit', { deg: deg }); // the extension works out the sums of the pages in it
         } else if (text.match(/^mr$/) && engine.memory) {
             keyBoard['AC'].children[0].firstChild.data = 'C';
         }

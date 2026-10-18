@@ -46,8 +46,9 @@ A scientific calculator for your browser: light, fast and it works offline. It r
 **The extension**
 - Opens from the toolbar icon or `Alt+S`.
 - **Detached Mode**: the calculator in its own window that stays open and resizes with it.
-- **Open mode**: the toolbar icon and Alt+S open the popup (Fixed, the default) or the detached window. With Fixed, Detached Mode is still in the menu of the toolbar icon and on the calculator button on every page.
-- **Calculator on every page** (optional): a small button on the side of every page that opens Detached Mode. It asks for website access only when turned on, and reads nothing from the pages.
+- **Open mode**: the toolbar icon and Alt+S open the popup (Fixed, the default) or the detached window. With Fixed, Detached Mode is still in the menu of the toolbar icon and on the calculator button on every website.
+- **Calculator button on every website** (optional): a small button on the side of every page that opens Detached Mode. It asks for website access only when turned on, and reads nothing from the pages.
+- **Instant answers on every website** (optional, off by default): a small icon in the line after each sum, equation and inequality of x on the pages, or of one other letter in maths drawn as maths; each function to draw, y = x² − 4x + 3, its tip a small graph; each matrix, with its determinant, rank and inverse; each integral, sum and limit; each IP network, 192.168.0.1/24; each formula and constant, E = mc² or the speed of light; each derivative, Taylor series and differential equation, d/dx x³ at x = 2 or y′ = x + y with y(0) = 1; two or three equations together, 2x + y = 5, x − y = 1; each choice, 52 choose 5; each complex number, (3 + 4i)(1 − 2i); each conversion, 5 km in miles; each time between dates or date some time on, from March 3, 2024 to June 1, 2026 or 90 days after 1 May 2026; and each loan, change of a price and rate compounded, a $250,000 mortgage at 6.5% for 30 years. In the text, and in the maths drawn by Wikipedia, KaTeX and MathJax, read from its MathML or TeX. Hover it for the result, or what a formula or a constant is; click it to open it in the calculator: a sum in the display, an equation, an integral, a sum or a limit in its card of the solver, a function in the graph, a matrix in Matrix, a network in IP subnet, a formula or a constant in the formulas panel, a conversion in the converter, dates in theirs, and the others in their cards. Text selected that the calculator reads gets the icon at its end: a number, with its prime factors, bases and fraction; a list of numbers or a column of a table, with its statistics; 0xFF, a UUID, Base64 and a Unix time; a quantity, 5 km, in every unit of its group; and a date, from today, and a right click on any selection has Calculate “…”. It asks for website access only when turned on, and can be turned off on one website: right-click its page and uncheck Instant answers on this site; the options page lists those websites to turn it on again. The text of the pages is read on your computer to find the maths, and nothing is sent anywhere.
 - No permission is needed to read your browser data.
 
 **For schools and organizations**: an administrator can turn features off for everyone they manage, for a class during a test for example. A feature turned off goes from the calculator at once, its option on the options page is locked off with "Turned off by your administrator", and an open window of it closes. Each one is on unless its policy is `false`:
@@ -60,8 +61,9 @@ A scientific calculator for your browser: light, fast and it works offline. It r
 | `solve` | Solve: equations, calculus and probability |
 | `statistics` | The statistics |
 | `numbers` | Numbers: matrices, vectors, complex numbers, bases, text codes, prime factors, modular arithmetic, primes, exact numbers, fractions and rounding |
-| `detachedMode` | Detached Mode, and with it the calculator on every page, which opens it |
-| `pageButton` | The calculator on every page |
+| `detachedMode` | Detached Mode, and with it the calculator button on every website and the instant answers, which open it |
+| `pageButton` | The calculator button on every website |
+| `pageMaths` | Instant answers on every website: the icons after the maths of the pages, and Calculate in the menu of a selection |
 
 In the Google Admin Console: **Devices › Chrome › Apps & extensions › Users & browsers**, choose the organizational unit, add the extension by its ID (shown on `chrome://extensions`) and paste into **Policy for extensions**:
 

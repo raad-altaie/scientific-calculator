@@ -3659,10 +3659,8 @@ async function menus(page, at) {
         await page.calc('document.querySelector(".calc-log").scrollLeft') + ' ' + await selected());
     await sleep(500);
     await press('.calc-log', 0);
-    check(await above() === '' && await page.calc('!!document.querySelector("#box .calc-cursor")') &&
-        (await shown(page)).replace(/\s/g, '') === '123456789+123456789+123456789+123456789+123456789' && await selected() === '',
-        t + 'one click on it opens the equation in the display, with the cursor in it', await shown(page) + ' | ' + await selected());
-    await page.type('\r');
+    check(await above() !== '' && !await page.calc('!!document.querySelector("#box .calc-cursor")'),
+        t + 'one click on it leaves the result as it is', await shown(page) + ' | ' + await above());
     await sleep(500);
     await press('.calc-log', 0, 2);
     check(await above() === '' && await page.calc('!!document.querySelector("#box .calc-cursor")') && await selected() === '123456789',
@@ -3732,8 +3730,8 @@ async function adminPolicy(page) {
     await page.fresh('/popup.html', {});
     check(await page.until('document.querySelector(".calc-graph-btn").hidden'), t + 'the graph turned off goes from the popup');
     check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-solve-btn calc-stat-btn calc-numbers-btn', t + 'the rest stays', await buttons(page));
-    check(await page.ev('localStorage.getItem("policy")') === '{"graph":false,"detachedMode":false,"pageButton":false}',
-        t + 'kept, with the button on the pages, which opens Detached Mode', await page.ev('localStorage.getItem("policy")'));
+    check(await page.ev('localStorage.getItem("policy")') === '{"graph":false,"detachedMode":false,"pageButton":false,"pageMaths":false}',
+        t + 'kept, with the button and the maths on the pages, which open Detached Mode', await page.ev('localStorage.getItem("policy")'));
     await change({});
     check(await page.until('!document.querySelector(".calc-graph-btn").hidden'), t + 'turned on again, it comes back');
 
@@ -3750,8 +3748,9 @@ async function adminPolicy(page) {
         /administrator/.test(await page.ev('document.getElementById("panel-graph").closest(".option").textContent')),
         t + 'the graph\'s switch is off and locked, and says it is the administrator\'s');
     check(await page.ev('document.getElementById("open-mode").disabled && document.querySelector("#open-mode input[value=fixed]").checked && ' +
-        '!document.getElementById("launch-detached").disabled && document.getElementById("page-icon").disabled'),
-        t + 'Detached cannot be chosen, Launch opens the popup, and the button on the pages cannot be turned on');
+        '!document.getElementById("launch-detached").disabled && document.getElementById("page-icon").disabled && ' +
+        'document.getElementById("page-maths").disabled && !document.getElementById("page-maths").checked'),
+        t + 'Detached cannot be chosen, Launch opens the popup, and the button and the maths on the pages cannot be turned on');
     check(await page.ev('!document.getElementById("panel-fx").disabled && document.getElementById("panel-fx").checked && ' +
         '!document.querySelector("#panel-fx").closest(".option").querySelector(".managed-note")'), t + 'f(x) is as it was');
     await change({ solve: false, numbers: false });

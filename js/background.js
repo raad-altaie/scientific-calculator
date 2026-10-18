@@ -218,79 +218,145 @@ function openCalculatorInDetachedMode() {
 
 
 
-// The icon on every page is an option, off until it is turned on on the options
-// page. The option is on while the extension holds this access, which the browser
-// asks the user for at that moment and not at install
-const pageIconSites = ["http://*/*", "https://*/*"];
-const pageIconAccess = { permissions: ["scripting"], origins: pageIconSites };
-const pageIconScript = { id: "page-icon", js: ["js/page-icon.js"], matches: pageIconSites };
+// The button on every page and the icons after the maths of the pages are two options, each off
+// until it is turned on on the options page. Both need access to the websites, which the browser asks
+// the user for when the first is turned on, and not at install; it is given back once both are off.
+// Which is on is kept by options.js: pageButtonOn, on unless false, as the button was on while
+// the access alone said so, before the icons came; and pageMathsOn, off unless true
+const pageSites = ["http://*/*", "https://*/*"];
+const pageAccess = { permissions: ["scripting"], origins: pageSites };
+const pageOptions = {
+    pageButton: {
+        script: { id: "page-icon", js: ["js/page/icon.js"], matches: pageSites },
+        off: "remove-page-icon",
+        on: (kept) => kept.pageButtonOn !== false,
+    },
+    pageMaths: {
+        // formulas.js: the formulas and constants to find; units.js, the units of quantities; picks.js, what else the cards work out
+        script: { id: "page-maths", js: ["js/formulas.js", "js/units.js", "js/page/picks.js", "js/page/answers.js"], matches: pageSites },
+        off: "remove-page-maths",
+        on: (kept) => kept.pageMathsOn === true,
+    },
+};
 
-// pages that are already open get the icon without a reload
-function addPageIconToOpenPages() {
+// pages that are already open get it without a reload
+function addToOpenPages(files) {
     chrome.tabs.query({ discarded: false }, (tabs) => {
         tabs.forEach((tab) => {
-            chrome.scripting.executeScript({ target: { tabId: tab.id }, files: pageIconScript.js })
+            chrome.scripting.executeScript({ target: { tabId: tab.id }, files: files })
                 .catch(() => { }); // The browser keeps extensions out of some pages
         });
     });
 }
 
-// Puts the icon on the pages, if the option is on and an administrator did not turn
-// it off. The browser forgets the registered script when the extension is updated, so
-// this also runs then
-function showPageIcon() {
-    chrome.permissions.contains(pageIconAccess, async (granted) => {
-        if (!granted) return;
-        if (await policyOff("pageButton")) {
-            removePageIcon();
-            return;
+// the open pages take it out at once
+function tellOpenPages(command) {
+    chrome.tabs.query({}, (tabs) => {
+        tabs.forEach((tab) => {
+            chrome.tabs.sendMessage(tab.id, { command: command })
+                .catch(() => { }); // a page without it
+        });
+    });
+}
+
+// Each of the two on the pages while it is on and an administrator did not turn it off, and the
+// access given back with neither. The browser forgets the registered scripts when the extension is
+// updated, so this also runs then. One run at a time, as the options page changes the choice and the
+// access together
+let pageRun = Promise.resolve();
+
+function followPageOptions() {
+    pageRun = pageRun.then(async () => {
+        const menu = (visible) => {
+            ["calc-selection", "calc-site"].forEach((item) => chrome.contextMenus.update(item, { visible: visible }, () => chrome.runtime.lastError));
+            if (visible) followFrontTab();
+        };
+        if (!await chrome.permissions.contains(pageAccess)) return menu(false);
+        const kept = await chrome.storage.local.get(["pageButtonOn", "pageMathsOn"]).catch(() => ({}));
+        const registered = (await chrome.scripting.getRegisteredContentScripts().catch(() => [])).map((script) => script.id);
+        let any = false;
+
+        for (const [key, option] of Object.entries(pageOptions)) {
+            const on = option.on(kept) && !await policyOff(key);
+            const was = registered.includes(option.script.id);
+
+            any = any || on;
+            if (key === "pageMaths") menu(on); // Calculate "…" goes with the icons
+            if (on && !was) {
+                await chrome.scripting.registerContentScripts([option.script])
+                    .then(() => addToOpenPages(option.script.js))
+                    .catch((error) => console.log("Failed to put " + key + " on the pages:", error));
+            } else if (on) {
+                await chrome.scripting.updateContentScripts([option.script]).catch(() => { }); // its files, as this version has them
+            } else if (was) {
+                await chrome.scripting.unregisterContentScripts({ ids: [option.script.id] }).catch(() => { });
+                tellOpenPages(option.off);
+            }
         }
+        if (!any) await chrome.permissions.remove(pageAccess);
+    }).catch(() => { });
+}
 
-        chrome.scripting.getRegisteredContentScripts({ ids: [pageIconScript.id] })
-            .then((scripts) => scripts.length || chrome.scripting.registerContentScripts([pageIconScript]))
-            .then(addPageIconToOpenPages)
-            .catch((error) => {
-                console.log("Failed to show the page icon:", error);
-            });
+chrome.permissions.onAdded.addListener(followPageOptions);
+
+// Instant answers on this site, a check in the menu of a right click on a page: unchecked, the icons
+// go from that website, kept in pageMathsOff, which page/answers.js reads; the options page lists those
+// websites to turn them on again. The browser does not tell when its menu opens, so the check follows
+// the tab in front. Each website by its name without www., as in page/answers.js
+function siteOf(url) {
+    try {
+        const page = new URL(url);
+        return /^https?:$/.test(page.protocol) ? page.hostname.toLowerCase().replace(/^www\./, "") : "";
+    } catch (e) {
+        return ""; // no address: the access to the website was not given
+    }
+}
+
+function followSite(tab) {
+    const site = siteOf(tab?.url);
+    if (!site) return;
+    chrome.storage.local.get("pageMathsOff").catch(() => ({})).then(({ pageMathsOff }) => {
+        const on = !(Array.isArray(pageMathsOff) && pageMathsOff.includes(site));
+        chrome.contextMenus.update("calc-site", { checked: on }, () => chrome.runtime.lastError);
     });
 }
 
-// Takes the icon off the pages and gives the access back to the browser
-function removePageIcon() {
-    chrome.permissions.contains(pageIconAccess, (granted) => {
-        if (!granted) return;
+function followFrontTab() {
+    chrome.tabs.query({ active: true, lastFocusedWindow: true })
+        .then(([tab]) => followSite(tab))
+        .catch(() => { });
+}
 
-        chrome.scripting.unregisterContentScripts({ ids: [pageIconScript.id] })
-            .catch(() => { }) // it was not registered
-            .then(() => {
-                chrome.tabs.query({}, (tabs) => {
-                    tabs.forEach((tab) => {
-                        chrome.tabs.sendMessage(tab.id, { command: "remove-page-icon" })
-                            .catch(() => { }); // a page without the icon
-                    });
-                });
-                chrome.permissions.remove(pageIconAccess);
-            });
+function keepSite(site, on) {
+    chrome.storage.local.get("pageMathsOff").catch(() => ({})).then(({ pageMathsOff }) => {
+        const off = (Array.isArray(pageMathsOff) ? pageMathsOff : []).filter((name) => name !== site);
+        if (!on) off.push(site);
+        chrome.storage.local.set({ pageMathsOff: off.sort() });
     });
 }
 
-chrome.permissions.onAdded.addListener(showPageIcon);
+chrome.tabs.onActivated.addListener(followFrontTab);
+chrome.windows.onFocusChanged.addListener(followFrontTab);
+chrome.tabs.onUpdated.addListener((tabId, change, tab) => {
+    if (change.url && tab.active) followSite(tab);
+});
 
 
 // What the administrator of a school or a company turned off for everyone they manage,
 // as managed_schema.json describes; the pages read it through policy.js. Each feature is
-// on unless its policy is false. The button on every page opens Detached Mode, so it goes with it
+// on unless its policy is false. The button on every page and the icons after the maths of the pages
+// open Detached Mode, so they go with it
 function policyOff(key) {
     return chrome.storage.managed.get(null)
         .catch(() => ({})) // no policy can be read: nothing is turned off
-        .then((policy) => policy[key] === false || (key === "pageButton" && policy.detachedMode === false));
+        .then((policy) => policy[key] === false || ((key === "pageButton" || key === "pageMaths") && policy.detachedMode === false));
 }
 
-// The menu of the toolbar icon has Detached Mode while it is allowed, and the button on
-// the pages goes when it is not. The open windows close themselves, in popup.js
+// The menu of the toolbar icon has Detached Mode while it is allowed, and the button and the icons
+// on the pages go when they are not. The open windows close themselves, in popup.js
 async function followPolicy() {
     chrome.contextMenus.update("open-popup", { visible: !await policyOff("detachedMode") }, () => chrome.runtime.lastError);
-    if (await policyOff("pageButton")) removePageIcon();
+    followPageOptions();
 }
 
 chrome.storage.onChanged.addListener((changes, area) => {
@@ -299,6 +365,10 @@ chrome.storage.onChanged.addListener((changes, area) => {
         followOpenMode();
     } else if (area === "local" && changes.openMode) {
         followOpenMode();
+    } else if (area === "local" && (changes.pageButtonOn || changes.pageMathsOn)) {
+        followPageOptions(); // chosen on the options page
+    } else if (area === "local" && changes.pageMathsOff) {
+        followFrontTab(); // a website turned on again on the options page
     }
 });
 
@@ -383,17 +453,44 @@ chrome.runtime.onInstalled.addListener((details) => {
             title: "Detached Mode",
             contexts: ["action"] // This will make it appear when clicking the extension icon
         }, followPolicy);
+        // text selected on a page, into the calculator: shown while the instant answers are on
+        chrome.contextMenus.create({
+            id: "calc-selection",
+            title: "Calculate \u201c%s\u201d",
+            contexts: ["selection"],
+            documentUrlPatterns: pageSites,
+            visible: false
+        }, followPageOptions);
+        chrome.contextMenus.create({
+            id: "calc-site",
+            title: "Instant answers on this site",
+            type: "checkbox",
+            checked: true,
+            contexts: ["page"],
+            documentUrlPatterns: pageSites,
+            visible: false
+        }, followPageOptions);
     });
 
-    showPageIcon();
+    followPageOptions();
     followOpenMode();
 });
 
 
 // Listen for clicks on the context menu items
-chrome.contextMenus.onClicked.addListener((info) => {
+chrome.contextMenus.onClicked.addListener((info, tab) => {
     if (info.menuItemId === "open-popup") {
         unlessOff("detachedMode", openCalculatorInDetachedMode);
+    } else if (info.menuItemId === "calc-selection" && info.selectionText) {
+        // the page reads what it is, as its icons do; a frame without page/answers.js has it put in as it is
+        const asItIs = () => openPageMaths({ text: info.selectionText, kind: "sum" });
+        if (!tab) return asItIs();
+        chrome.tabs.sendMessage(tab.id, { command: "page-maths-selection", text: info.selectionText }, { frameId: info.frameId || 0 })
+            .then((read) => read || asItIs())
+            .catch(asItIs);
+    } else if (info.menuItemId === "calc-site") {
+        const site = siteOf(info.pageUrl || tab?.url);
+        if (site) keepSite(site, info.checked);
     }
 });
 
@@ -404,8 +501,43 @@ function unlessOff(key, open) {
     policyOff(key).then((off) => off || open());
 }
 
-chrome.runtime.onMessage.addListener((message, sender) => {
-    if (message?.command === "open-detached") {
+// The engine of the calculator, and with maths its solver, put into a page that has maths on it, for
+// page/answers.js to work it out: only then, as they are large. It answers once they are in
+function addEngineToPage(tab, frameId, maths, done) {
+    chrome.scripting.executeScript({
+        target: { tabId: tab.id, frameIds: [frameId] },
+        files: maths ? ["js/engine.js", "js/maths.js"] : ["js/engine.js"],
+    })
+        .then(() => done(true))
+        .catch(() => done(false));
+}
+
+// The icon after a sum or an equation of a page was clicked: it is kept for the calculator, which
+// takes it as it opens, or at once if it is open (popup.js). Detached Mode opens, as from the button
+function openPageMaths(message) {
+    const kinds = ["sum", "equation", "inequality", "subnet", "integral", "series", "product", "limit", "formula", "constant", "graph", "matrix",
+        "derivative", "taylor", "ode", "card"];
+    // the boxes of a card: f, a and b of the solver's, a function to draw, a matrix's size and numbers, a11 to
+    // a1010; or the name of a formula or a constant; frac: a sum written in fractions, shown in them. Of a card
+    // of picks.js, its panel and card and their boxes, and of the statistics a list of numbers, which is long
+    const boxes = /^(f|a|b|name|size|a\d{2,4}|frac|panel|card|x|n|x0|y0|e|e1|e2|z|u|t|enc|bits|ts|convert|d|y|m|days|loan|rate|years|py|apr|[abcd][1-3]|g|v|to|list)$/;
+    const fields = {};
+
+    if (typeof message.text !== "string" || !kinds.includes(message.kind)) return;
+    Object.keys(message.fields || {}).slice(0, 110).forEach((key) => {
+        if (boxes.test(key) && typeof message.fields[key] === "string") fields[key] = message.fields[key].slice(0, key === "list" ? 100000 : 200);
+    });
+    chrome.storage.local.set({ pageMaths: { text: message.text.slice(0, 500), kind: message.kind, fields: fields, at: Date.now() } })
+        .then(() => unlessOff("detachedMode", openCalculatorInDetachedMode));
+}
+
+chrome.runtime.onMessage.addListener((message, sender, answer) => {
+    if (message?.command === "page-maths-engine" && sender.tab) {
+        addEngineToPage(sender.tab, sender.frameId, !!message.maths, answer);
+        return true; // it answers later
+    } else if (message?.command === "open-page-maths") {
+        openPageMaths(message);
+    } else if (message?.command === "open-detached") {
         unlessOff("detachedMode", openCalculatorInDetachedMode);
     } else if (message?.command === "launch") {
         launchOpenMode();
@@ -416,8 +548,6 @@ chrome.runtime.onMessage.addListener((message, sender) => {
     } else if (message?.command === "open-calculator") {
         // the button on a page opens the detached window
         unlessOff("detachedMode", openCalculatorInDetachedMode);
-    } else if (message?.command === "turn-off-page-icon") {
-        removePageIcon();
     } else if (message?.command === "window-moved" && sender.tab) {
         // Firefox: the detached or the graph's window was moved or resized
         chrome.windows.get(sender.tab.windowId, rememberBounds);

@@ -141,6 +141,41 @@ if (params.has('graph')) {
 // as it was kept last, until the browser answers
 followPolicy();
 
+// The maths of the pages (page/answers.js): its results are worked out in the calculator's unit of
+// angles, which the pages cannot read here, so it is kept where they can. And a sum or an equation
+// whose icon was clicked comes into Detached Mode, which background.js opened for it: as the window
+// opens, or at once if it was open. It is taken once; one older than a minute is of a window that
+// never opened. Not where the page is opened outside the extension, as in the tests
+const pageStore = typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local;
+
+if (pageStore) {
+    const shareUnit = (deg) => {
+        pageStore.get('angleUnit')
+            .then(({ angleUnit }) => angleUnit === deg || pageStore.set({ angleUnit: deg }))
+            .catch(() => { });
+    };
+    let kept = null;
+
+    try {
+        kept = JSON.parse(localStorage.getItem('deg'));
+    } catch (e) { }
+    shareUnit(kept === true ? 1 : kept === 'grad' ? 2 : 0); // as main.js reads it
+    document.addEventListener('calc-unit', (event) => shareUnit(event.detail.deg));
+}
+
+if (pageStore && params.has('detached')) {
+    const takePageMaths = (maths) => {
+        if (!maths || !(Date.now() - maths.at < 60000)) return;
+        pageStore.remove('pageMaths').catch(() => { });
+        calculator.dispatchEvent(new CustomEvent('calc-equation', { detail: { text: maths.text, kind: maths.kind, fields: maths.fields } }));
+    };
+
+    pageStore.get('pageMaths').then(({ pageMaths }) => takePageMaths(pageMaths)).catch(() => { });
+    chrome.storage.onChanged.addListener((changes, area) => {
+        if (area === 'local' && changes.pageMaths) takePageMaths(changes.pageMaths.newValue);
+    });
+}
+
 // the name, the ? and the FIX mark of the calculator open the options page
 document.addEventListener('calc-options', () => {
     chrome.runtime.openOptionsPage();

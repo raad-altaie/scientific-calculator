@@ -44,46 +44,100 @@ openMode.addEventListener('change', () => {
 });
 showOpenMode();
 
-// The button on every page is on while the extension holds this access, as in
-// background.js. The browser asks for it when the switch is turned on; background.js then
-// puts the button on the pages, and gives the access back when the switch is turned off
+// The button on every page and the icons after the maths of the pages, two options: each is on while
+// the extension holds this access and it is chosen, as background.js reads them. The browser asks for
+// the access when the first is turned on; background.js then puts it on the pages, and gives the
+// access back once both are off. The button is on unless kept off, as it was on with the access alone
+// before the icons came; the icons are off until they are turned on
 const pageIcon = document.getElementById('page-icon');
-const pageIconAccess = { permissions: ['scripting'], origins: ['http://*/*', 'https://*/*'] };
+const pageMaths = document.getElementById('page-maths');
+const pageAccess = { permissions: ['scripting'], origins: ['http://*/*', 'https://*/*'] };
 
 // The browser does not put the button on its own pages, so this page adds it itself
-const pageIconId = 'scientific-calculator-page-icon'; // as in page-icon.js
+const pageIconId = 'scientific-calculator-page-icon'; // as in page/icon.js
 
-const showPageIconOption = () => {
-    chrome.permissions.contains(pageIconAccess, (granted) => {
+const showPageOptions = () => {
+    const show = (kept) => {
         const button = document.getElementById(pageIconId);
+        const buttonOn = !!kept && kept.pageButtonOn !== false && !CalcPolicy.off('pageButton');
 
-        granted = granted && !CalcPolicy.off('pageButton'); // background.js gives the access back
-        pageIcon.checked = granted;
-        if (granted && !button) {
+        pageIcon.checked = buttonOn;
+        pageMaths.checked = !!kept && kept.pageMathsOn === true && !CalcPolicy.off('pageMaths');
+        showSites();
+        if (buttonOn && !button) {
             const script = document.createElement('script');
 
-            script.src = 'js/page-icon.js';
+            script.src = 'js/page/icon.js';
             script.addEventListener('load', () => script.remove());
             document.body.appendChild(script);
-        } else if (!granted && button) {
+        } else if (!buttonOn && button) {
             button.remove();
         }
+    };
+
+    // without the access both are off, whatever was chosen
+    chrome.permissions.contains(pageAccess, (granted) => {
+        if (granted) chrome.storage.local.get(['pageButtonOn', 'pageMathsOn'], (kept) => show(kept || {}));
+        else show(null);
     });
 };
 
-pageIcon.addEventListener('change', () => {
-    if (pageIcon.checked) {
-        // the answer can be no: the switch then shows that
-        chrome.permissions.request(pageIconAccess, showPageIconOption);
-    } else {
-        chrome.runtime.sendMessage({ command: 'turn-off-page-icon' });
+// The websites the instant answers are turned off on, with the menu of a right click on a page
+// (background.js): listed under the option while it is on, each with a button that turns them on again
+const siteList = document.getElementById('page-maths-sites');
+const siteItems = document.getElementById('page-maths-off');
+
+function showSites() {
+    if (!pageMaths.checked) {
+        siteList.hidden = true;
+        return;
     }
+    chrome.storage.local.get('pageMathsOff', (kept) => {
+        const sites = Array.isArray(kept?.pageMathsOff) ? kept.pageMathsOff : [];
+
+        siteItems.replaceChildren(...sites.map((site) => {
+            const item = document.createElement('li');
+            const name = document.createElement('span');
+            const on = document.createElement('button');
+
+            name.textContent = site;
+            on.type = 'button';
+            on.textContent = 'Turn on';
+            on.title = 'Instant answers on ' + site;
+            on.addEventListener('click', () => chrome.storage.local.set({ pageMathsOff: sites.filter((other) => other !== site) }));
+            item.append(name, on);
+            return item;
+        }));
+        siteList.hidden = !pageMaths.checked || !sites.length;
+    });
+}
+
+// both as the switches show them, for background.js
+const keepPageOptions = () => chrome.storage.local.set({ pageButtonOn: pageIcon.checked, pageMathsOn: pageMaths.checked });
+
+[pageIcon, pageMaths].forEach((box) => {
+    box.addEventListener('change', () => {
+        keepPageOptions();
+        if (!box.checked) return showPageOptions();
+        // the answer can be no: the switch then shows that
+        chrome.permissions.request(pageAccess, (granted) => {
+            if (!granted) {
+                box.checked = false;
+                keepPageOptions();
+            }
+            showPageOptions();
+        });
+    });
 });
 
-// the access can also be changed in the settings of the browser
-chrome.permissions.onAdded.addListener(showPageIconOption);
-chrome.permissions.onRemoved.addListener(showPageIconOption);
-showPageIconOption();
+// the access can also be changed in the settings of the browser, and the choice on another options page
+chrome.permissions.onAdded.addListener(showPageOptions);
+chrome.permissions.onRemoved.addListener(showPageOptions);
+chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && (changes.pageButtonOn || changes.pageMathsOn)) showPageOptions();
+    else if (area === 'local' && changes.pageMathsOff) showSites();
+});
+showPageOptions();
 
 // The number format of the results. It is kept where the calculator reads it
 // when it opens; an open calculator gets the change as a storage event
@@ -171,7 +225,7 @@ window.addEventListener('storage', (e) => {
 // says why. Turned on again, the switch shows the choice that was kept
 const managed = [['panel-fx', 'formulas', 'fxOn'], ['panel-conv', 'converter', 'convOn'], ['panel-graph', 'graph', 'graphOn'],
     ['panel-stats', 'statistics', 'statsOn'], ['panel-solve', 'solve', 'solveOn'], ['panel-numbers', 'numbers', 'numbersOn'],
-    ['open-mode', 'detachedMode'], ['page-icon', 'pageButton']];
+    ['open-mode', 'detachedMode'], ['page-icon', 'pageButton'], ['page-maths', 'pageMaths']];
 
 const showPolicy = () => {
     managed.forEach(([id, key, kept]) => {
@@ -190,8 +244,8 @@ const showPolicy = () => {
         } else {
             option.querySelector('.managed-note').remove();
         }
-        if (id === 'page-icon') {
-            showPageIconOption();
+        if (id === 'page-icon' || id === 'page-maths') {
+            showPageOptions();
         } else if (id === 'open-mode') {
             showOpenMode();
         } else if (kept) {

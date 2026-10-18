@@ -33,12 +33,17 @@
         },
         "detachedMode": {
             "title": "Detached Mode",
-            "description": "false turns off the calculator in a window of its own, and with it the calculator button on every page, which opens that window.",
+            "description": "false turns off the calculator in a window of its own, and with it the calculator button on every website and the instant answers on every website, which open that window.",
             "type": "boolean"
         },
         "pageButton": {
-            "title": "Calculator on every page",
+            "title": "Calculator button on every website",
             "description": "false turns off the calculator button on the side of every page, and its option cannot turn it on.",
+            "type": "boolean"
+        },
+        "pageMaths": {
+            "title": "Instant answers on every website",
+            "description": "false turns off the icons after the sums and equations of the pages, which show their results and open them in the calculator, and its option cannot turn it on.",
             "type": "boolean"
         }
     }

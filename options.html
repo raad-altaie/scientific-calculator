@@ -43,14 +43,35 @@
             <div class="option">
                 <span class="option-icon page-button"><img src="imgs/icon128.png" alt=""></span>
                 <div class="option-text">
-                    <h3>Calculator on every page</h3>
+                    <h3>Calculator button on every website</h3>
                     <p>A small calculator button on the side of every page that opens Detached Mode. Drag it to
                         any side; it keeps its place in all windows.</p>
                     <p class="option-note">The browser asks for access to websites when you turn it on. Only the button
                         is added; nothing is read from the pages.</p>
                 </div>
-                <label class="switch" title="Calculator on every page">
+                <label class="switch" title="Calculator button on every website">
                     <input type="checkbox" id="page-icon">
+                    <span></span>
+                </label>
+            </div>
+            <div class="option">
+                <span class="option-icon page-maths" aria-hidden="true">2+3<img src="imgs/icon128.png" alt=""></span>
+                <div class="option-text">
+                    <h3>Instant answers on every website</h3>
+                    <p>Hover the small calculator icon after any maths on a web page to see its answer; click it to open
+                        it in the calculator. Sums, equations, graphs, matrices, integrals, derivatives, formulas, constants,
+                        unit conversions, dates, loans and IP networks, in plain text or drawn by Wikipedia, KaTeX or MathJax.
+                        Or select any text, a number, a list of numbers or a code, or right-click it, to calculate it.</p>
+                    <p class="option-note">The browser asks for access to websites when you turn it on. Pages are read on
+                        your computer; nothing is sent. To turn them off on one website, right-click its page and uncheck
+                        Instant answers on this site.</p>
+                    <div class="site-list" id="page-maths-sites" hidden>
+                        <p class="option-note">Turned off on:</p>
+                        <ul id="page-maths-off"></ul>
+                    </div>
+                </div>
+                <label class="switch" title="Instant answers on every website">
+                    <input type="checkbox" id="page-maths">
                     <span></span>
                 </label>
             </div>
@@ -255,9 +276,12 @@
                     and 1*(2+3)=5=25 (... not 8 like with other calculators).</li>
                 <li>Parentheses can be nested up to 29 levels deep.</li>
                 <li>No need to close parentheses if equation sign follows anyhow.</li>
-                <li>Calculator on every page: an optional button on every page that opens the calculator. See the Options tab.</li>
+                <li>Calculator button on every website: an optional button that opens the calculator. See the Options tab.</li>
+                <li>Instant answers on every website: an optional icon after each sum and equation of a page, with its result, that
+                    opens it in the calculator. See the Options tab.</li>
                 <li>It requires no permissions to read any data in your browser. Only the optional button on every
-                    page needs access to websites, and only after you turn it on.</li>
+                    page and the instant answers need access to websites, and only after you turn them on. The instant
+                    answers read the pages' text on your computer to find the maths, and send nothing anywhere.</li>
             </ul>
 
 
@@ -1095,7 +1119,7 @@
             <h2 class="logo title">For Schools and Organizations</h2>
             <p>Administrators can disable specific calculator features that students are not permitted to use or during exams,
                 including formulas, the unit converter, graphing, statistics, the solver, the numbers, Detached Mode,
-                and the option to display the calculator on every page. These settings can be configured centrally for all managed students
+                and the option to display the calculator button on every website. These settings can be configured centrally for all managed students
                 through the Google Admin Console or Chrome policies.</p>
             <p>Once a feature is disabled, it is immediately removed from the calculator, and students cannot
                 re-enable it. The setting is locked and displays the message “Turned off by your administrator.”

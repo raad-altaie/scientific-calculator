@@ -3,7 +3,7 @@
     "private": true,
     "license": "AGPL-3.0-only",
     "scripts": {
-        "test": "node test/engine.test.js && node test/formulas.test.js && node test/units.test.js && node test/maths.test.js && node test/ui.test.js",
+        "test": "node test/engine.test.js && node test/formulas.test.js && node test/units.test.js && node test/maths.test.js && node test/page-answers.test.js && node test/page-picks.test.js && node test/ui.test.js",
         "zip": "npm test && sh scripts/zip.sh && rsync -a --exclude .DS_Store web/ ../raad.dev/calculator/"
     }
 }
