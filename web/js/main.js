@@ -235,13 +235,28 @@
     var PLACE = { Minus: '-_', Equal: '=+', Slash: '/?', Period: '.>', Comma: ',<', Quote: '\'"', Backslash: '\\|', Semicolon: ';:',
         NumpadAdd: '++', NumpadSubtract: '--', NumpadMultiply: '**', NumpadDivide: '//', NumpadDecimal: '..' };
 
+    // a character of a script other than Latin's: Arabic's ش, its marks as ِ and its لأ, Russian's ф; not Turkish's ı or ğ
+    function script(k) {
+        return !!k && (k.length === 1 || /^[^\x00-\x7f]+$/.test(k)) && k.charCodeAt(0) >= 0x250;
+    }
+
+    // Whether the layout has no Latin letters, as its letters typed without Shift tell. On such a layout a
+    // letter key is the Latin letter of its place whatever it types with Shift: Arabic's types ] on D, [ on F,
+    // so Shift+D and Shift+F would not put in D and F
+    var noLatin = false;
+    function learnLayout(e) {
+        var k = e.key;
+        if (e.shiftKey || e.ctrlKey || e.metaKey || e.altKey || !/^Key[A-Z]$/.test(e.code) || !k || k.length !== 1 || !/\p{L}/u.test(k)) return;
+        noLatin = script(k);
+    }
+
     // The key typed, as the character of its place on a US keyboard, '' for a key that types what it says.
     // A letter of a layout with no Latin ones, Russian's ф, Greek's α, is the Latin letter of the key's place,
     // in its case: s is sin, Shift+A puts in A, on any layout; and a digit or a sign of such a layout is the
     // one of its place, so the keys are the same on every layout
     function placeChar(e) {
         var k = e.key, m, sign;
-        if (k && k.length === 1 && /\p{L}/u.test(k) && !/[a-z]/i.test(k) && /^Key[A-Z]$/.test(e.code)) {
+        if (/^Key[A-Z]$/.test(e.code) && (script(k) || (noLatin && !e.altKey && !e.ctrlKey && !e.metaKey && !!k && k.length === 1))) {
             // in its case; a script with no case, Arabic's ش, Hebrew's ש, has Shift for it
             return (k.toLowerCase() === k.toUpperCase() ? e.shiftKey : k !== k.toLowerCase()) ?
                 e.code.charAt(3) : e.code.charAt(3).toLowerCase();
@@ -267,6 +282,7 @@
 
     document.addEventListener('keydown', function (e) {
         var k;
+        learnLayout(e);
         if (elsewhere(e.target)) return;
         if (field(e.target)) {
             if (!e.ctrlKey && !e.metaKey && !e.altKey && (k = placeChar(e)) && numberBox(e.target)) { // ٥ types 5, ش types A
@@ -294,7 +310,7 @@
             }
             return;
         }
-        if ((e.ctrlKey || e.metaKey) && e.which === 90) { // Ctrl+Z undoes, Ctrl+Shift+Z redoes
+        if ((e.ctrlKey || e.metaKey) && (e.which === 90 || (noLatin && e.code === 'KeyZ'))) { // Ctrl+Z undoes, Ctrl+Shift+Z redoes
             undo(e.shiftKey);
             e.preventDefault();
             return;
@@ -314,9 +330,12 @@
     // QWERTY has Q. Where the browser cannot tell, or the layout has no Latin letters, as Russian's ф,
     // the letter of the key's place
     var layout = null;
-    if (navigator.keyboard && navigator.keyboard.getLayoutMap) navigator.keyboard.getLayoutMap().then(function (map) { layout = map; }, function () { });
+    if (navigator.keyboard && navigator.keyboard.getLayoutMap) navigator.keyboard.getLayoutMap().then(function (map) {
+        layout = map;
+        if (script(map.get('KeyA'))) noLatin = true; // known before a letter is typed
+    }, function () { });
     function altLetter(code) {
-        var c = /^Key[A-Z]$/.test(code) && layout && layout.get(code);
+        var c = /^Key[A-Z]$/.test(code) && layout && !noLatin && layout.get(code);
         if (!/^[a-z]$/i.test(c)) c = /^Key[A-Z]$/.test(code) ? code.charAt(3) : '';
         c = c.toUpperCase();
         return /^[A-J]$/.test(c) ? c : null;

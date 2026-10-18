@@ -2824,6 +2824,18 @@ async function otherLayouts(page, at) {
     await page.fresh(at, {});
     await physical('KeyB', 'И', 66, true);
     check(/B/.test(await shown(page)), t + 'И with Shift on the B key puts in B', await shown(page));
+
+    // what Arabic's letter keys type with Shift, ] on D, ِ on A, is the letter of their place too, once a letter
+    // typed without Shift has shown the layout has no Latin ones
+    await page.fresh(at, {});
+    await physical('KeyS', 'س', 83);
+    check(/sin/.test(await page.calc('document.getElementById("box").textContent')), t + 'س on the S key is sin',
+        await page.calc('document.getElementById("box").textContent'));
+    await page.key('Delete', 46);
+    await physical('KeyD', ']', 68, true);
+    await physical('KeyA', 'ِ', 65, true);
+    check(/D.*A/.test(await page.calc('document.getElementById("box").textContent')), t + '] with Shift on D and ِ on A put in D and A',
+        await page.calc('document.getElementById("box").textContent'));
 }
 
 // the °′″ key: results in degrees, minutes and seconds, kept in the
