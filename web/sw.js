@@ -1,6 +1,6 @@
 // Offline support: the whole calculator is cached on the first visit.
 // Raise CACHE when the files change, so the old copies are dropped.
-const CACHE = 'calculator-v76';
+const CACHE = 'calculator-v77';
 const FILES = [
     './', 'index.html', 'manifest.webmanifest',
     'css/style.css', 'css/options.css', 'css/site.css',
