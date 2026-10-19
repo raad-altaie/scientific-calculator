@@ -5449,6 +5449,23 @@
     #calculator .calc-pt-new .calc-pt-tiles .calc-sv-tile {
         animation: calc-pt-rise 0.28s calc(0.08s + var(--i) * 0.02s) ease-out both;
     }
+
+    /* the electrons always going round the nucleus, all the same way as Bohr drew them: each shell slower
+       than the one inside it */
+    #calculator .calc-pt-spin {
+        transform-box: view-box;
+        transform-origin: 50% 50%;
+        animation: calc-pt-spin calc(8s + var(--i) * 4s) linear infinite;
+    }
+
+    /* pointed at, they stand still, for its shells to be counted */
+    #calculator .calc-pt-atom:hover .calc-pt-spin {
+        animation-play-state: paused;
+    }
+}
+
+@keyframes calc-pt-spin {
+    to { transform: rotate(360deg); }
 }
 
 #calculator .calc-pt-tiles .calc-sv-label i {

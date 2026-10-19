@@ -7972,14 +7972,14 @@
     function chemAtom(e) {
         var size = 150, mid = size / 2, rings = e.shells.length, gap = (mid - 20) / Math.max(rings, 1), svg, n = Math.round(e.mass) - e.z;
         svg = '<svg class="calc-pt-atom" data-pt="atom" data-full="' + e.z + ' protons, ' + n + ' neutrons; electrons ' + e.shells.join(', ') + '" viewBox="0 0 ' + size + ' ' + size + '" role="img" aria-label="' + e.name + ': ' + e.z + ' protons, ' + n + ' neutrons, electrons in shells of ' + e.shells.join(', ') + '">';
-        e.shells.forEach(function (count, i) { // each shell with its electrons, which come in one after the other from the middle
+        e.shells.forEach(function (count, i) { // each shell with its electrons, which come in one after the other from the middle, then go round
             var r = 18 + gap * (i + 0.75), j, a;
-            svg += '<g class="calc-pt-shell" style="--i: ' + i + '"><circle class="calc-pt-ring" cx="' + mid + '" cy="' + mid + '" r="' + r.toFixed(1) + '"/>';
+            svg += '<g class="calc-pt-shell" style="--i: ' + i + '"><circle class="calc-pt-ring" cx="' + mid + '" cy="' + mid + '" r="' + r.toFixed(1) + '"/><g class="calc-pt-spin">';
             for (j = 0; j < count; j++) {
                 a = 2 * Math.PI * j / count - Math.PI / 2 + i * 0.4;
-                svg += '<circle class="calc-pt-e" cx="' + (mid + r * Math.cos(a)).toFixed(1) + '" cy="' + (mid + r * Math.sin(a)).toFixed(1) + '" r="' + (count > 18 ? 1.6 : 2.3) + '"/>';
+                svg += '<circle class="calc-pt-e" cx="' + (mid + r * Math.cos(a)).toFixed(1) + '" cy="' + (mid + r * Math.sin(a)).toFixed(1) + '" r="2.3"/>';
             }
-            svg += '</g>';
+            svg += '</g></g>';
         });
         return svg + '<g class="calc-pt-core"><circle class="calc-pt-nucleus" cx="' + mid + '" cy="' + mid + '" r="14"/><text x="' + mid + '" y="' + (mid - 1.5) + '">' + e.z + 'p</text><text x="' + mid + '" y="' + (mid + 7) + '">' + n + 'n</text></g></svg>';
     }
