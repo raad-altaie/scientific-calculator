@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "Scientific Calculator",
-    "version": "2.5.10",
+    "version": "2.5.11",
     "author": "Raad Altaie",
     "description": "A complete scientific calculator: graphing, equation solver, calculus, statistics, matrices, units, finance and 100+ formulas.",
     "action": {

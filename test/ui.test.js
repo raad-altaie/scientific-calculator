@@ -3686,6 +3686,8 @@ async function chemistry(page, at) {
     check(await page.calc('document.querySelector(".calc-pt").scrollTop') === 0, t + 'chosen, the table stays where it is');
     await page.click('.calc-pt-el[data-z="26"]');
     check(await page.until('document.querySelector(".calc-pt").scrollTop > 100', 2000), t + 'clicked again, its details below are scrolled to');
+    // its smooth scroll over before the table goes back to its top: going on, it moves the tiles under the click below
+    await page.calc('new Promise(function (r) { var s = document.querySelector(".calc-pt"), a = -1; (function f() { if (s.scrollTop === a) return r(); a = s.scrollTop; setTimeout(f, 100); })(); })');
     await page.calc('document.querySelector(".calc-pt").scrollTop = 0');
     await page.calc('(function (i) { i.value = "gold"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-pt-search"))');
     check(await page.calc('document.querySelector(".calc-pt-info .calc-pt-title").textContent') === 'Gold' &&
