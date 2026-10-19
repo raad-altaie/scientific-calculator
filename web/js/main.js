@@ -7761,7 +7761,7 @@
         // the dark letters: electronegativity blue to red, ionization energy green to purple, the melting
         // point cold blue to hot red, density pale sand to brown
         CHEM_HEAT = {
-            en: { of: function (e) { return e.en; }, lo: 0.7, hi: 4, ends: [0.7, 3.98], fixed: 2,
+            en: { of: function (e) { return e.en; }, lo: 0.7, hi: 4, label: 'Pauling', ends: [0.7, 3.98], fixed: 2,
                 colours: [[212, 70, 76], [168, 48, 68], [50, 78, 70], [14, 70, 63]] },
             ie: { of: function (e) { return e.ie; }, lo: 375, hi: 2373, unit: 'e', ends: [375.7, 2372.3],
                 colours: [[130, 45, 76], [185, 50, 70], [225, 58, 75], [275, 45, 71]] },
@@ -8500,6 +8500,11 @@
             hideTip();
             chemCard(false);
             saveChem();
+            return;
+        }
+        // popped in, its head, the tile and the name, and its atom scroll the card up to the top of the table
+        if (e.target.closest('.calc-pt-head, .calc-pt-atom') && !root.classList.contains('calc-chem-big')) {
+            chemToInfo();
             return;
         }
         // its unit, the next one: for every number of its kind, in the table and under it

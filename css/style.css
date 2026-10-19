@@ -5359,6 +5359,12 @@
     box-shadow: none;
 }
 
+/* popped in, its head and its atom scroll the card up */
+#calculator:not(.calc-chem-big) .calc-pt-head > *,
+#calculator:not(.calc-chem-big) .calc-pt-atom {
+    cursor: pointer;
+}
+
 #calculator .calc-pt-head .calc-pt-about {
     font-size: 11px;
     line-height: 15px;
@@ -5546,9 +5552,10 @@
     margin: 0 0 10px; /* as wide as the table under it */
 }
 
-/* the search on a line of its own, the selector under it */
+/* the search and the selector on one line where there is room, the search taking what the selector leaves;
+   where there is not, the search on a line of its own, the selector under it */
 #calculator.calc-chem-big .calc-pt-bar .calc-pt-find {
-    flex-basis: 100%;
+    flex-basis: 220px;
 }
 
 #calculator.calc-chem-big .calc-pt-search {
@@ -5767,6 +5774,28 @@
     line-height: 24px;
     gap: 4px;
     margin-bottom: 12px;
+}
+
+/* every scale's line as long as the others, a number's and the temperature's, shorter only where there is
+   no room; the temperature's on the line of the keys of the states, as a number's is beside Not known */
+#calculator.calc-chem-big .calc-pt-temp {
+    flex: 0 1 auto;
+    max-width: 100%;
+    margin: 0 6px;
+}
+
+#calculator.calc-chem-big .calc-pt-range {
+    flex: 0 1 auto;
+    width: 220px; /* a width, not a flex-basis: the row around it sizes itself by its width */
+}
+
+#calculator.calc-chem-big .calc-pt-break {
+    display: none;
+}
+
+/* the temperature's first, at the left of the keys of the states */
+#calculator.calc-chem-big .calc-pt-temp:not(.calc-pt-heat) {
+    order: -1;
 }
 
 #calculator.calc-chem-big .calc-pt-key {
