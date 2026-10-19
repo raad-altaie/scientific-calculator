@@ -322,6 +322,11 @@
             d: 'The periodic table as big as the page, each element with its number, name and mass; in the extension, in a window of its own.',
             k: ''
         },
+        'chem card close': {
+            t: 'Close the card',
+            d: 'The table the whole width. Click an element to open it again.',
+            k: ''
+        },
         'chem small': {
             t: 'Pop in',
             d: 'The table back in the calculator.',
@@ -339,17 +344,17 @@
         },
         'chem tab reactions': {
             t: 'Reactions',
-            d: 'An equation balanced, with its kind; the amounts of a reaction, its limiting reactant and percent yield; heat, q = mcΔT; and half-life.',
+            d: 'An equation balanced, with its kind and what it oxidizes and reduces; the amounts of a reaction, its limiting reactant and percent yield; a worksheet; heat, q = mcΔT; and half-life.',
             k: ''
         },
         'chem tab solutions': {
             t: 'Solutions',
-            d: 'Molarity, dilution, pH, pOH, [H⁺] and [OH⁻], weak acids and bases, and buffers.',
+            d: 'Molarity, dilution, the freezing and boiling point of a solution, pH, pOH, [H⁺] and [OH⁻], weak acids and bases, buffers, and what dissolves in water.',
             k: ''
         },
         'chem tab ions': {
             t: 'Ions',
-            d: 'The common ions, monatomic and polyatomic: the charge and molar mass of each, its colour in water and in a flame.',
+            d: 'The common ions, monatomic and polyatomic: the charge and molar mass of each, its colour in water and in a flame; the name of a formula and the formula of a name; and oxidation numbers.',
             k: ''
         },
         'chem tab gases': {

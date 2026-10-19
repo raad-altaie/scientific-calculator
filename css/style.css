@@ -5015,7 +5015,7 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 3px 8px;
+    gap: 0 3px;
     margin: 0 2px 7px;
     color: #d3d9e2;
     font-size: 10.5px;
@@ -5026,16 +5026,29 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    padding: 0 4px 0 2px;
-    border-radius: 3px;
+    padding: 0 4px 0 3px;
+    border-radius: 5px;
     background: none !important;
     cursor: pointer;
 }
 
-#calculator .calc-pt-key:hover,
-#calculator .calc-pt-key.calc-on {
+#calculator .calc-pt-key:hover {
     background: #52687d !important;
     color: #fff;
+}
+
+/* the one lit, light, the dark letters on it; the others faint while it is */
+#calculator .calc-pt-key.calc-on {
+    background: #eceff2 !important;
+    color: #1d2a35;
+}
+
+#calculator .calc-pt-key.calc-on i {
+    box-shadow: 0 0 0 1px rgba(29, 42, 53, 0.35);
+}
+
+#calculator .calc-pt-legend:has(.calc-on) .calc-pt-key:not(.calc-on):not(:hover) {
+    opacity: 0.55;
 }
 
 /* its swatch has the colour of its class: the key itself is not coloured */
@@ -5317,24 +5330,27 @@
 }
 
 /* all of the element chosen: its tile, its name, and its atom drawn; then a tile of each number */
-/* a faint line between the table and the element chosen */
+/* a faint line between the table and the element chosen. Its head (the tile and name) and its body (the
+   atom and the tiles) one grid: the tile, the name and the atom along their tops, the tiles under them */
 #calculator .calc-pt-info {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: start;
+    column-gap: 8px;
     margin: 9px 2px 0;
     padding-top: 12px;
     border-top: 1px solid rgba(211, 217, 226, 0.14);
 }
 
-/* its tile, its name and its atom, along their tops */
-#calculator .calc-pt-head {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-    margin: 0 6px;
+#calculator .calc-pt-head,
+#calculator .calc-pt-body {
+    display: contents;
 }
 
 #calculator .calc-pt-head .calc-pt-big {
     height: 62px;
     max-height: none;
+    margin-left: 6px;
 }
 
 /* the tile of the details is only shown: no light when pointed at, as the table's tiles have */
@@ -5344,7 +5360,6 @@
 }
 
 #calculator .calc-pt-head .calc-pt-about {
-    flex: 1;
     font-size: 11px;
     line-height: 15px;
 }
@@ -5359,7 +5374,7 @@
     flex: none;
     width: 104px;
     height: 104px;
-    margin: -11px 0 -4px; /* the drawing has room of its own above and below */
+    margin: -11px 6px -4px 0; /* the drawing has room of its own above and below */
 }
 
 #calculator .calc-pt-ring {
@@ -5383,6 +5398,7 @@
 }
 
 #calculator .calc-pt-tiles {
+    grid-column: 1 / -1;
     margin: 6px 0 0; /* the line above is 2px in from each side */
 }
 
@@ -5568,9 +5584,10 @@
     gap: 3px;
 }
 
+/* a little shorter than popped in: square */
 #calculator.calc-chem-big .calc-pt-el {
     border-radius: 7px;
-    aspect-ratio: 1 / 1.12;
+    aspect-ratio: 1 / 1;
 }
 
 #calculator.calc-chem-big .calc-pt-el b {
@@ -5602,14 +5619,17 @@
     font-size: 1.5cqw;
 }
 
+/* tighter, and a little above the transition metals */
 #calculator.calc-chem-big .calc-pt-gap {
-    gap: 2cqw;
-    padding: 0 2cqw;
+    gap: 1.2cqw;
+    margin: 0 0.4cqw 0.8cqw;
+    padding: 0.6cqw 1cqw;
 }
 
 #calculator.calc-chem-big .calc-pt-gap .calc-pt-big {
     max-height: none;
-    height: 92%;
+    height: 96%; /* square, as the table's */
+    aspect-ratio: 1 / 1;
 }
 
 #calculator.calc-chem-big .calc-pt-gap .calc-pt-big b {
@@ -5677,8 +5697,15 @@
     display: none;
 }
 
+/* as high as the tile beside it: the name at its top, the last of the facts at its foot */
 #calculator.calc-chem-big .calc-pt-gap .calc-pt-about {
     flex: 1 1 0;
+    height: 96%;
+    line-height: 1.2;
+}
+
+#calculator.calc-chem-big .calc-pt-gap .calc-pt-about .calc-pt-title {
+    line-height: 1.1;
 }
 
 #calculator.calc-chem-big .calc-pt-gap .calc-pt-cfg {
@@ -5688,8 +5715,8 @@
 #calculator.calc-chem-big .calc-pt-gap .calc-pt-facts {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0.7cqw 1.2cqw;
-    margin: 0.9cqw 0 0;
+    gap: 0.3cqw 1.2cqw;
+    margin: auto 0 0;
 }
 
 #calculator.calc-chem-big .calc-pt-facts div {
@@ -5706,7 +5733,7 @@
 #calculator.calc-chem-big .calc-pt-facts dt {
     color: #aebacb;
     font-size: 0.95cqw;
-    line-height: 1.3;
+    line-height: 1.15;
 }
 
 #calculator.calc-chem-big .calc-pt-facts dt i {
@@ -5718,7 +5745,7 @@
     color: #fff;
     font-size: 1.25cqw;
     font-weight: 600;
-    line-height: 1.3;
+    line-height: 1.15;
 }
 
 #calculator.calc-chem-big .calc-pt-about {
@@ -5738,14 +5765,14 @@
     align-content: center;
     font-size: 15px;
     line-height: 24px;
-    gap: 6px 10px;
+    gap: 4px;
     margin-bottom: 12px;
 }
 
 #calculator.calc-chem-big .calc-pt-key {
     gap: 7px;
-    padding: 1px 8px 1px 5px;
-    border-radius: 5px;
+    padding: 1px 8px 1px 6px;
+    border-radius: 8px;
 }
 
 #calculator.calc-chem-big .calc-pt-key i {
@@ -5758,12 +5785,12 @@
 @media (max-width: 1179px) {
     #calculator.calc-chem-big .calc-pt-legend {
         font-size: 13px;
-        gap: 6px;
+        gap: 4px 3px;
     }
 
     #calculator.calc-chem-big .calc-pt-key {
         gap: 5px;
-        padding: 1px 5px 1px 4px;
+        padding: 1px 5px 1px 5px;
     }
 }
 
@@ -5801,8 +5828,17 @@
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
 }
 
-#calculator.calc-chem-big .calc-pt-head {
-    margin: 0 2px;
+#calculator.calc-chem-big .calc-pt-head .calc-pt-big {
+    margin-left: 2px;
+}
+
+#calculator.calc-chem-big .calc-pt-atom {
+    margin-right: 2px;
+}
+
+/* its ×, beside the table alone (wide, below) */
+#calculator .calc-pt-hide {
+    display: none;
 }
 
 /* wide: the element chosen in a column of its own at the right, its atom bigger */
@@ -5818,32 +5854,93 @@
         grid-column: 1;
     }
 
-    /* the card scrolls on its own, the table staying where it is */
+    /* the card on its own, the table staying where it is: its head always there, its body, from the atom
+       down, scrolling under it */
     #calculator.calc-chem-big .calc-pt-info {
         grid-column: 2;
         grid-row: 1 / 5;
+        position: relative; /* for its × */
+        display: flex;
+        flex-direction: column;
         align-self: start;
         box-sizing: border-box;
         max-height: calc(100% - 6px);
         margin: 0;
-        overflow-y: auto;
+        overflow: hidden;
     }
 
-    #calculator.calc-chem-big .calc-pt-info::-webkit-scrollbar {
+    #calculator.calc-chem-big .calc-pt-body {
+        display: block;
+        min-height: 0;
+        margin: 8px -12px 0; /* its scrollbar out by the card's edge, kept room for: the atom in the middle */
+        padding: 0 6px 0 12px;
+        overflow-y: auto;
+        scrollbar-gutter: stable;
+    }
+
+    #calculator.calc-chem-big .calc-pt-hide {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 5px;
+        color: #fff;
+        cursor: pointer;
+        opacity: 0.7;
+    }
+
+    #calculator.calc-chem-big .calc-pt-hide svg {
+        width: 15px;
+        height: 15px;
+    }
+
+    #calculator.calc-chem-big .calc-pt-hide:hover {
+        opacity: 1;
+        background: #52687d;
+    }
+
+    /* closed: the table the whole width, until an element is clicked */
+    #calculator.calc-chem-big .calc-pt.calc-pt-shut:not([hidden]) {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    #calculator.calc-chem-big .calc-pt-shut .calc-pt-info {
+        display: none;
+    }
+
+    #calculator.calc-chem-big .calc-pt-body::-webkit-scrollbar {
         width: 6px;
     }
 
-    #calculator.calc-chem-big .calc-pt-info::-webkit-scrollbar-thumb {
+    #calculator.calc-chem-big .calc-pt-body::-webkit-scrollbar-thumb {
         background: #6b8196;
         border-radius: 3px;
     }
 
     #calculator.calc-chem-big .calc-pt-head {
-        flex-wrap: wrap;
+        display: flex;
+        flex: none;
+        align-items: flex-start;
+        gap: 8px;
+        margin: 0 2px;
+        padding-right: 26px; /* clear of its × */
     }
 
-    #calculator.calc-chem-big .calc-pt-head .calc-pt-atom {
-        order: 3;
+    #calculator.calc-chem-big .calc-pt-head .calc-pt-big {
+        margin-left: 0;
+    }
+
+    #calculator.calc-chem-big .calc-pt-head .calc-pt-about {
+        flex: 1;
+        min-width: 0;
+    }
+
+    #calculator.calc-chem-big .calc-pt-body .calc-pt-atom {
+        display: block;
         width: 100%;
         height: 200px;
         margin: 0;

@@ -7257,6 +7257,9 @@
     // solver has. A formula is typed as it is written, CuSO4·5H2O, Ca(OH)2, Fe^3+; an equation with = or →
     var CHEM_PH = ['[H<sup>+</sup>]', '[OH<sup>–</sup>]', 'pH', 'pOH'],
         GAS_R = [0.082057366080960, 8.314462618, 62.363598221529, 0.08314462618], // L·unit/(mol·K): atm, kPa, mmHg, bar
+        // of each solvent of the freezing and boiling point, its formula on its button: Kf and Kb in °C·kg/mol, the points
+        // it freezes and boils at, °C, and its name
+        SOLVENTS = [[1.86, 0.512, 0, 100, 'Water'], [5.12, 2.53, 5.5, 80.1, 'Benzene'], [20.0, 2.79, 6.6, 80.7, 'Cyclohexane']],
         CHEM_TOOLS = {
             mass: [
                 { id: 'molar', t: 'Molar mass', f: ['M', '% by mass'], d: 'The molar mass of a formula, in g/mol, and how much of it each element is: CuSO4·5H2O, Ca(OH)2, (NH4)2SO4, K4[Fe(CN)6]. An ion\'s charge after ^, Fe^3+.',
@@ -7294,6 +7297,13 @@
                 { id: 'dilution', t: 'Dilution', f: 'C<sub>1</sub>V<sub>1</sub> = C<sub>2</sub>V<sub>2</sub>', d: 'A solution made weaker with water: leave one of the four empty and it is worked out. The same units on both sides.',
                     fields: [{ k: 'c1', l: 'C<sub>1</sub>', name: 'C₁', ph: 'or' }, { k: 'v1', l: 'V<sub>1</sub>', name: 'V₁', ph: 'or' }, { k: 'c2', l: 'C<sub>2</sub>', name: 'C₂', ph: 'or' }, { k: 'v2', l: 'V<sub>2</sub>', name: 'V₂', ph: 'or' }], cols: 2,
                     run: runDilution, example: { c1: '2', v1: '50', c2: '0.5' } },
+                { id: 'colligative', t: 'Freezing and boiling point', f: 'ΔT = i K m', d: 'How far a solute lowers the freezing point of a solvent and raises its boiling point: from the molality, ' +
+                    'or the grams of solute, its formula and the kg of solvent; or back from ΔT<sub>f</sub> or ΔT<sub>b</sub>, with the grams and kg, to the solute\'s molar mass. i is the particles of each formula unit, from the formula, NaCl 2.',
+                    fields: function (raw) {
+                        return [{ k: 's', l: 'Solvent', choice: ['H<sub>2</sub>O', 'C<sub>6</sub>H<sub>6</sub>', 'C<sub>6</sub>H<sub>12</sub>', 'Other'] }].concat(raw.s === '3' ? [{ k: 'kf', l: 'K<sub>f</sub>', name: 'Kf', ph: '1.86' }, { k: 'kb', l: 'K<sub>b</sub>', name: 'Kb', ph: '0.512' }] : [],
+                            [{ k: 'f', l: 'Solute', ph: 'NaCl, optional', fn: true }, { k: 'g', l: 'Solute, g', ph: 'or' }, { k: 'kg', l: 'Solvent, kg', ph: '0.5' },
+                                { k: 'm', l: 'm, mol/kg', name: 'm', ph: 'or' }, { k: 'i', l: 'i', ph: 'auto' }, { k: 'tf', l: 'ΔT<sub>f</sub>, °C', name: 'ΔTf', ph: 'or' }, { k: 'tb', l: 'ΔT<sub>b</sub>, °C', name: 'ΔTb', ph: 'or' }]);
+                    }, cols: 2, run: runColligative, example: { f: 'NaCl', g: '10', kg: '0.5' } },
                 { id: 'ph', t: 'pH', f: CHEM_PH, d: 'pH, pOH, [H⁺] and [OH⁻] from any one of them, in water at 25 °C, where pH + pOH = 14.',
                     fields: [{ k: 'x', l: 'Value', ph: '0.001' }, { k: 'of', l: 'Of', choice: CHEM_PH }], run: runPh },
                 { id: 'weak', t: 'Weak acid or base', f: ['K<sub>a</sub>', 'K<sub>b</sub>'], d: 'The pH of a weak acid or base from its K<sub>a</sub> or K<sub>b</sub> and its concentration, by the quadratic, not the ½ log approximation; and how much of it ionizes.',
@@ -7309,7 +7319,13 @@
             ions: [
                 { id: 'ion', t: 'Ions', f: ['NH<sub>4</sub><sup>+</sup>', 'SO<sub>4</sub><sup>2−</sup>', 'Fe<sup>3+</sup>'], d: 'A common ion by its formula or its name, sulfate, ferric, bicarbonate: its charge and molar mass, ' +
                     'its colour in water and the colour it gives a flame. Empty, all of them.',
-                    fields: [{ k: 'f', l: 'Ion', ph: 'SO4^2- or sulfate', fn: true }], run: runIon, example: { f: 'MnO4^-' } }
+                    fields: [{ k: 'f', l: 'Ion', ph: 'SO4^2- or sulfate', fn: true }], run: runIon, example: { f: 'MnO4^-' } },
+                { id: 'names', t: 'Names and formulas', f: ['Fe<sub>2</sub>O<sub>3</sub>', 'iron(III) oxide'], d: 'The name of a formula, or the formula of a name: salts, a metal of more than one charge ' +
+                    'with it in Roman numerals; acids; two nonmetals with Greek prefixes, dinitrogen tetroxide; hydrates, ions, the elements and common names, water, ammonia.',
+                    fields: [{ k: 'f', l: 'Formula or name', ph: 'CuSO4·5H2O or sodium carbonate', fn: true }], run: runNames, example: { f: 'Fe2(SO4)3' } },
+                { id: 'oxidation', t: 'Oxidation numbers', f: ['KMnO<sub>4</sub>', 'Mn +7'], d: 'The oxidation number of each element of a formula or an ion, by the rules: an element alone 0; F −1; ' +
+                    'groups 1 and 2 +1 and +2; H +1, −1 with metals; O −2, −1 in a peroxide; and the rest so they add up to the charge.',
+                    fields: [{ k: 'f', l: 'Formula', ph: 'K2Cr2O7 or SO4^2-', fn: true }], run: runOxidation, example: { f: 'K2Cr2O7' } }
             ],
             gases: [
                 { id: 'gas', t: 'Ideal gas', f: 'PV = nRT', d: 'A gas as the ideal gas law has it: leave one of P, V, n and T empty and it is worked out. V in litres; with a formula, the mass and density as well.',
@@ -7394,6 +7410,11 @@
         if (r.error) return { rows: none, bad: ['eq'], warn: true, note: equationWhy(r) };
         rows = [{ l: 'Balanced', text: r.html, copy: r.text, wide: true }];
         if (r.kind) rows.push({ l: 'Kind', text: r.kind, wide: true });
+        if (r.redox) { // each element whose oxidation number goes up, then down: Cl −1 → 0
+            [['oxidized', 'Oxidized'], ['reduced', 'Reduced']].forEach(function (way) {
+                if (r.redox[way[0]].length) rows.push({ l: way[1], text: r.redox[way[0]].map(function (x) { return x.s + ' ' + x.from + ' → ' + x.to; }).join(', '), wide: true });
+            });
+        }
         return { rows: rows.concat(r.left.concat(r.right).map(function (x) { return { l: CalcChem.html(x.t), v: x.k }; }),
             [{ l: 'Reactants, g', v: CalcMaths.round(mass(r.left)) }, { l: 'Products, g', v: CalcMaths.round(mass(r.right)) }]),
             note: r.many ? 'It balances in more than one way: this is one, the sum of the others.' : 'The numbers of each formula, then the mass of each side, which are the same.' };
@@ -7504,6 +7525,29 @@
             note: (pka !== n.pka ? 'K' + 'a was typed: its pKa is taken. ' : '') + (Math.abs(ph - pka) > 1 ? 'More than 1 from pKa: a weak buffer.' : 'Within 1 of pKa: a good buffer.') };
     }
 
+    // The freezing point lowered and the boiling point raised, ΔT = i K m: the molality from one of the molality, the
+    // grams of a formula in the kg of solvent, ΔTf and ΔTb; and from a ΔT, with the grams and kg, the solute's molar mass
+    function runColligative(n, raw) {
+        var other = raw.s === '3', sv = other ? [n.kf, n.kb, NaN, NaN] : SOLVENTS[+raw.s || 0], none = [{ l: 'mol/kg', v: NaN }],
+            M = raw.f ? massOf(raw, 'f') : {}, made = raw.f && !M.why ? CalcChem.particles(raw.f) : { i: 1 }, i = raw.i ? n.i : made.i,
+            fromMass = !!(raw.g && raw.kg && M.M), given = [raw.m, raw.tf, raw.tb].filter(Boolean).length + (fromMass ? 1 : 0), m, tf, tb, rows;
+        if (M.why) return { rows: none, bad: M.bad ? ['f'] : [], warn: true, note: M.why };
+        if (other && (!raw.kf || !raw.kb)) return { rows: none, note: 'Type the Kf and Kb of the solvent, in °C·kg/mol.' };
+        if (!given) return { rows: none, note: 'Type the molality; or the grams of solute, its formula and the kg of solvent; or ΔTf or ΔTb.' };
+        if (given > 1) return { rows: none, warn: true, note: 'Type one of the molality, the grams of solute, ΔTf and ΔTb: the others are worked out.' };
+        if (!(i > 0)) return { rows: none, warn: true, note: 'i above 0.' };
+        m = raw.m ? n.m : fromMass ? n.g / M.M / n.kg : raw.tf ? n.tf / (i * sv[0]) : n.tb / (i * sv[1]);
+        tf = i * sv[0] * m;
+        tb = i * sv[1] * m;
+        rows = [{ l: 'mol/kg', v: m }, { l: 'i', v: i }, { l: 'ΔT<sub>f</sub>, °C', v: tf }, { l: 'ΔT<sub>b</sub>, °C', v: tb }];
+        if (!other) rows.push({ l: 'Freezes at, °C', v: CalcMaths.round(sv[2] - tf) }, { l: 'Boils at, °C', v: CalcMaths.round(sv[3] + tb) });
+        if (!fromMass && raw.kg && M.M) rows.push({ l: 'Solute, g', v: m * n.kg * M.M });
+        if (!fromMass && raw.kg && raw.g && !raw.f) rows.push({ l: 'Solute, g/mol', v: n.g / (m * n.kg) }); // its molar mass, from how far the point moved
+        return { rows: rows, cols: 2, warn: !isFinite(m),
+            note: !isFinite(m) ? 'None: a box it is divided by is 0.' : raw.f && !raw.i && made.i > 1 ? 'i = ' + made.i + ': ' + CalcChem.plain(raw.f) + ' gives ' + made.i + ' ions, ideally; the real i is a little less.' :
+                (other ? '' : sv[4] + ': ') + 'Kf ' + local(String(sv[0])) + ', Kb ' + local(String(sv[1])) + ' °C·kg/mol.' };
+    }
+
     // The table of solubility, each cell its letter in its colour, the salt typed outlined; its key under it
     function solubleTable(ci, ai) {
         var t = CalcChem.solubilityTable();
@@ -7534,7 +7578,7 @@
         };
     }
 
-    // The equations of the worksheet, at each level: each balances, and of each but the redox ones its kind is known
+    // The equations of the worksheet, at each level: each balances, and has its kind, the redox ones Redox
     var WORKSHEET = [
         ['H2 + O2 = H2O', 'N2 + H2 = NH3', 'Na + Cl2 = NaCl', 'Mg + O2 = MgO', 'H2O2 = H2O + O2', 'Zn + HCl = ZnCl2 + H2', 'Ca + H2O = Ca(OH)2 + H2',
             'KClO3 = KCl + O2', 'CH4 + O2 = CO2 + H2O', 'HgO = Hg + O2', 'Li + O2 = Li2O', 'Cu + O2 = CuO', 'NaOH + HCl = NaCl + H2O', 'CaCO3 = CaO + CO2',
@@ -7619,6 +7663,48 @@
         };
     }
 
+    // a formula's name, or a name's formula; of a salt its ions, of an acid its name in water
+    function runNames(n, raw) {
+        var r, none = [{ l: 'Name', v: NaN, wide: true }], rows, s;
+        if (!raw.f) return { rows: none, note: 'Type a formula for its name, Fe2(SO4)3, or a name for its formula, iron(III) sulfate.' };
+        r = CalcChem.names(raw.f);
+        if (r.error === 'numeral') {
+            return { rows: none, bad: ['f'], warn: true, note: r.element.name + ' has more than one charge: write it in Roman numerals, ' +
+                r.element.ox.split(' ').filter(function (x) { return x.charAt(0) === '+'; }).map(function (x) { return r.element.name.toLowerCase() + '(' + ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'][+x.slice(1)] + ')'; }).join(' or ') + '.' };
+        }
+        if (r.error === 'unknown') return { rows: none, warn: true, note: 'Not one it names: salts, acids, ions, two nonmetals, the elements and some common compounds are.' };
+        if (r.error) return { rows: none, bad: ['f'], warn: r.error !== 'empty', note: formulaWhy(r) };
+        rows = [{ l: 'Name', text: r.name + (r.also.length ? ' <i>(' + r.also.join(', ') + ')</i>' : ''), copy: r.name, wide: true },
+            { l: 'Formula', text: CalcChem.html(r.formula), copy: CalcChem.plain(r.formula) }, { l: 'Kind', text: r.kind }];
+        if (r.acid) rows.push({ l: 'In water', text: r.acid });
+        if ((s = r.salt)) rows.push({ l: 'Ions', text: (s.cation.n > 1 ? s.cation.n + ' ' : '') + CalcChem.plain(s.cation.ion) + ' + ' + (s.anion.n > 1 ? s.anion.n + ' ' : '') + CalcChem.plain(s.anion.ion) });
+        rows.push({ l: 'g/mol', v: CalcMaths.round(CalcChem.molarMass(r.formula).mass) });
+        return {
+            rows: rows, cols: 2,
+            note: r.kind === 'Ionic' ? 'The cation, then the anion' + (/\([IVX]+\)/.test(s.cation.name) ? '; a metal of more than one charge has its charge in Roman numerals, as the anions balance it.' : '.') :
+                r.kind === 'Acid' ? (r.acid ? 'As a compound, hydrogen and the anion; in water -ide becomes hydro-…-ic acid.' : 'In water, -ate becomes -ic acid and -ite -ous acid.') :
+                    r.kind === 'Molecular' ? 'Two nonmetals: a Greek prefix for how many atoms of each, mono- left off the first.' : r.kind === 'Common name' ? 'Known by a name of its own.' : ''
+        };
+    }
+
+    // the oxidation number of each element of a formula or an ion, of a salt of two ions sharing one each apart
+    function runOxidation(n, raw) {
+        var r, none = [{ l: 'Oxidation numbers', v: NaN, wide: true }], twice;
+        if (!raw.f) return { rows: none, note: 'Type a formula or an ion: K2Cr2O7, SO4^2-.' };
+        r = CalcChem.oxidation(raw.f);
+        if (r.error === 'electron') return { rows: none, bad: ['f'], warn: true, note: 'An electron has no oxidation number: type a formula or an ion.' };
+        if (r.error === 'none') return { rows: none, warn: true, note: 'No oxidation numbers fit it, by the rules and the usual states of its elements.' };
+        if (r.error) return { rows: none, bad: ['f'], warn: r.error !== 'empty', note: formulaWhy(r) };
+        twice = r.rows.filter(function (x, i) { return r.rows.some(function (y, j) { return j < i && y.s === x.s; }); }).map(function (x) { return x.s; });
+        return {
+            rows: r.rows.map(function (x) { return { l: x.s + (x.in ? ' in ' + x.in : ''), text: x.text }; }), cols: 2,
+            note: r.parts ? 'Each ion on its own, as ' + twice[0] + ' is in both.' :
+                r.average.length ? r.average.join(' and ') + ': an average, as its atoms are not all in one state; Fe3O4 is FeO·Fe2O3.' :
+                    r.guessed ? 'The rules leave more than one element: each is put in one of its usual states, so they add up to the charge.' :
+                        'By the rules; the sum is the charge, ' + (CalcChem.parse(raw.f).charge ? chargeText(CalcChem.parse(raw.f).charge) : '0') + '.'
+        };
+    }
+
     function runGas(n, raw) {
         var e = oneEmpty(raw, ['p', 'v', 'n', 't'], ['P', 'V', 'n', 'T']), R = GAS_R[+raw.pu || 0], c = raw.tu === '1' ? 273.15 : 0, T = n.t + c, v, M, rows, mol;
         if (!e.k) return { rows: [{ l: 'P', v: NaN }], warn: e.warn, note: e.note };
@@ -7664,6 +7750,7 @@
         chemBy = 'cat', // what the colours of the table show: cat, state, block, or a number of CHEM_HEAT
         chemByBig = null, // the colour chosen popped out, kept and saved still while popped in shows Kind, the colours having no buttons there
         chemAt = 1, // the element chosen, by its number: hydrogen each time the panel opens
+        chemShut = false, // popped out on a wide page, its card at the right closed: the table the whole width
         chemHot = '', // a colour of the legend clicked: only its elements bright
         chemAlone = false, // in a window of its own, in the extension
         CHEM_BY = { cat: 'Kind', state: 'State', block: 'Block', en: 'EN', ie: 'IE', mp: 'Melts', density: 'Density',
@@ -7961,13 +8048,24 @@
         return !q || e.s.toLowerCase() === q || String(e.z) === q || e.name.toLowerCase().indexOf(q) > -1 || (q.length < 3 && e.s.toLowerCase().indexOf(q) === 0);
     }
 
+    // An element faint: not of what is searched, not of the colour lit, or cut out by the slider
+    function chemDimmed(e, q) {
+        return !chemMatches(e, q) || (!!chemHot && chemGroupOf(e) !== chemHot) || chemCutOut(e);
+    }
+
+    // the big tile above the table as faint as its element in the table
+    function chemDimBig() {
+        var big = chemGrid.querySelector('.calc-pt-gap .calc-pt-big');
+        if (big) big.classList.toggle('calc-pt-dim', chemDimmed(CalcChem.elements[big.dataset.show - 1], chemSearch.value.trim()));
+    }
+
     function chemDim() {
         var q = chemSearch.value.trim();
         chemClear.hidden = !chemSearch.value;
         [].forEach.call(chemGrid.querySelectorAll('.calc-pt-el[data-z]'), function (t) {
-            var e = CalcChem.elements[t.dataset.z - 1];
-            t.classList.toggle('calc-pt-dim', !chemMatches(e, q) || (!!chemHot && chemGroupOf(e) !== chemHot) || chemCutOut(e));
+            t.classList.toggle('calc-pt-dim', chemDimmed(CalcChem.elements[t.dataset.z - 1], q));
         });
+        chemDimBig();
         [].forEach.call(chemGrid.querySelectorAll('.calc-pt-series'), function (t, i) { // bright while one of its row is
             // and always dimmed in the states and the colours of a number, as their elements have no one of them
             t.classList.toggle('calc-pt-dim', !!CHEM_HEAT[chemBy] || chemBy === 'state' || (!!(q || chemHot) && !chemGrid.querySelector('.calc-pt-el[data-z]:not(.calc-pt-dim)[style*="grid-area: ' + (9 + i) + ' /"]')));
@@ -8011,6 +8109,7 @@
                 var v = f[1] === null || f[1] === undefined ? '–' : typeof f[1] === 'number' ? local(String(f[1])) : f[1];
                 return '<div data-pt="' + f[3] + '" data-full="' + (v === '–' ? '' : v + (f[2] && f[2] !== 'mass number' ? ' ' + f[2] : '')) + '"><dt>' + f[0] + (f[2] ? ' <i>' + f[2] + '</i>' : '') + '</dt><dd>' + v + '</dd></div>';
             }).join('') + '</dl></div>';
+        chemDimBig();
         if (!all) return;
         chemAt = z;
         [].forEach.call(chemGrid.querySelectorAll('.calc-pt-el.calc-on'), function (t) { t.classList.remove('calc-on'); });
@@ -8032,13 +8131,13 @@
         ];
         chemInfo.classList.toggle('calc-pt-new', String(z) !== chemInfo.dataset.z); // its details come in with a move, once for each element
         chemInfo.dataset.z = z;
-        chemInfo.innerHTML = '<div class="calc-pt-head"><div class="calc-pt-big calc-pt-el ' + chemClass(e) + '" style="' + chemHeat(e) + '"><span class="calc-pt-z" data-pt="z">' + e.z + '</span><b data-pt="symbol">' + e.s +
+        chemInfo.innerHTML = '<span class="calc-pt-hide" role="button" aria-label="Close the card"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span><div class="calc-pt-head"><div class="calc-pt-big calc-pt-el ' + chemClass(e) + '" style="' + chemHeat(e) + '"><span class="calc-pt-z" data-pt="z">' + e.z + '</span><b data-pt="symbol">' + e.s +
             '</b>' + chemMassHtml(e) + '</div><div class="calc-pt-about"><span class="calc-pt-title" data-pt="name">' + e.name + '</span><span data-pt="kind" data-kind="' + e.cat + '">' + cat + '</span><span data-pt="config">' + e.config +
-            '</span><span data-pt="shells" data-full="' + e.shells.join(', ') + '">Shells ' + e.shells.join(', ') + '</span></div>' + chemAtom(e) + '</div><div class="calc-sv-grid calc-pt-tiles">' + tiles.map(function (t, i) {
+            '</span><span data-pt="shells" data-full="' + e.shells.join(', ') + '">Shells ' + e.shells.join(', ') + '</span></div></div><div class="calc-pt-body">' + chemAtom(e) + '<div class="calc-sv-grid calc-pt-tiles">' + tiles.map(function (t, i) {
             var num = typeof t[1] === 'number' && !(t[0] === 'Found'), known = t[1] !== null && t[1] !== undefined;
             return '<div class="calc-sv-tile' + (num && known ? '' : ' calc-none') + (t[3] ? ' calc-sv-wide' : '') + (t[5] ? ' calc-pt-text' : '') + '" style="--i: ' + i + '" data-fact="' + CHEM_FACTS[t[0]] + '"' + (num && known ? ' data-v="' + t[1] + '"' : '') + '><span class="calc-sv-label">' + t[0] +
                 (t[2] ? ' <i' + (t[4] ? ' class="calc-pt-unit" data-unit="' + t[4] + '" role="button"' : '') + '>' + t[2] + '</i>' : '') + '</span><span class="calc-sv-value">' + (!known ? '–' : num ? statsValue(t[1]).html : t[1]) + '</span></div>';
-        }).join('') + '</div>';
+        }).join('') + '</div></div>';
     }
 
     function chemTabs() {
@@ -8086,7 +8185,13 @@
     }
 
     function saveChem() {
-        store('chemView', { tab: chemTab, by: chemByBig || chemBy, at: chemAt, units: chemUnit, temp: chemTemp, cut: chemCut });
+        store('chemView', { tab: chemTab, by: chemByBig || chemBy, at: chemAt, units: chemUnit, temp: chemTemp, cut: chemCut, shut: chemShut });
+    }
+
+    // the card of the element chosen, at the right popped out, closed or open again
+    function chemCard(open) {
+        chemShut = !open;
+        chemTable.classList.toggle('calc-pt-shut', chemShut);
     }
 
     function loadChem(saved) {
@@ -8097,6 +8202,7 @@
             chemByBig = null;
         }
         if (saved.at >= 1 && saved.at <= 118 && saved.at === Math.floor(saved.at)) chemAt = saved.at;
+        chemCard(saved.shut !== true);
         if (typeof saved.temp === 'number' && saved.temp >= -273 && saved.temp <= 5727) chemTemp = Math.round(saved.temp);
         if (saved.cut && typeof saved.cut === 'object') {
             Object.keys(CHEM_HEAT).forEach(function (k) {
@@ -8327,6 +8433,7 @@
         } else {
             return;
         }
+        if (chemShut) chemCard(true); // its card open again
         if (again || touchScreen()) chemToInfo();
         saveChem();
     }, false);
@@ -8389,6 +8496,12 @@
     // a number of the element chosen is put in
     chemInfo.addEventListener('click', function (e) {
         var u = e.target.closest('[data-unit]'), t = e.target.closest('.calc-sv-tile[data-v]'), units;
+        if (e.target.closest('.calc-pt-hide')) { // closed: the table the whole width
+            hideTip();
+            chemCard(false);
+            saveChem();
+            return;
+        }
         // its unit, the next one: for every number of its kind, in the table and under it
         if (u) {
             units = Object.keys(CHEM_UNITS[u.dataset.unit]);
@@ -8411,22 +8524,25 @@
         if (el.classList.contains('calc-solve-tab')) return CalcTips['chem tab ' + el.dataset.tab] || null;
         if (el.classList.contains('calc-pt-mode')) return CalcTips['chem by ' + el.dataset.by] || null;
         if (el.classList.contains('calc-pt-unit')) return CalcTips['chem unit'];
+        if (el.classList.contains('calc-pt-hide')) return CalcTips['chem card close'];
         if (el.closest('.calc-pt-temp')) return CalcTips[chemBy === 'state' ? 'chem temp' : 'chem cut'];
         if (el.hasAttribute('data-pt')) return chemPartTip(el);
         if (el === chemClear) return CalcTips['chem search clear'];
         return chemCards.tip(el);
     }
 
-    // What else of a web page a card works out (page/picks.js in the extension), in its panel: a card of the
-    // solver, of the numbers or of the dates with its boxes filled; a quantity in the converter, its group,
-    // unit and value; a list of numbers in the statistics. Its numbers are written with points: with the
-    // comma as the decimal mark, a box of a number has a comma, and ; between
+    // What else of a web page a card works out (the features of the instant answers in the extension, page/solve.js
+    // and the others), in its panel: a card of the solver, of the numbers or of the dates with its boxes filled; a
+    // quantity in the converter, its group, unit and value; a list of numbers in the statistics; of the chemistry
+    // (page/chemistry.js), a card of the Chemistry panel, or the table at an element. Its numbers are written with points: with the comma as the
+    // decimal mark, a box of a number has a comma, and ; between. A formula and a reaction are as they are
     function pageCard(panel, card, fields) {
-        var kept = {}, words = { u: 1, t: 1, b: 1, enc: 1, bits: 1, convert: 1, ts: 1, d: 1, g: 1, to: 1 }; // names and codes, as they are
+        var kept = {}, words = { u: 1, t: 1, b: 1, enc: 1, bits: 1, convert: 1, ts: 1, d: 1, g: 1, to: 1 }, // names and codes, as they are
+            el = panel === 'chem' && card === 'element' ? CalcChem.bySymbol[fields.s] : null;
         Object.keys(fields).forEach(function (k) {
             var v = String(fields[k]);
             if (k === 'panel' || k === 'card') return;
-            kept[k] = engine.comma && !words[k] && panel !== 'dates' ? v.replace(/,/g, ';').replace(/\./g, ',') : v;
+            kept[k] = engine.comma && !words[k] && panel !== 'dates' && (panel !== 'chem' || k === 'c') ? v.replace(/,/g, ';').replace(/\./g, ',') : v;
         });
         if (panel === 'solve' || panel === 'numbers') {
             if (!(panel === 'solve' ? solveButton : numbersButton).hidden) (panel === 'solve' ? solver : numbers).put(card, kept);
@@ -8455,6 +8571,16 @@
             statsInput.value = statsTexts.list = String(fields.list || '').replace(/\./g, engine.comma ? ',' : '.');
             showStats(true);
             saveState();
+        } else if (panel === 'chem') {
+            if (chemButton.hidden || (card === 'element' ? !el : !chemCards.put(card, kept))) return;
+            chemTab = el ? 'table' : chemCards.tab();
+            showChem(true);
+            if (el) { // its card open, at the right popped out
+                chemCard(true);
+                chemAt = el.z;
+                renderChemTable();
+            }
+            saveChem();
         }
     }
 

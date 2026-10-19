@@ -2024,14 +2024,14 @@ async function graphBig(page, at) {
             ' { runtime: { sendMessage: function (m) { window.sent.push(m); return Promise.resolve(); } } } });',
         script;
 
-    // the popup asks for the graph's window, and stays as it is
+    // the popup asks for the graph's window, and closes the graph: it is not here as well
     await page.fresh(at, { graph: { f: ['x^2-3', '', ''], view: null } });
     await page.calc('(function (w) { w.sent = []; Object.defineProperty(w, "chrome", { configurable: true, value:' +
         ' { runtime: { sendMessage: function (m) { w.sent.push(m); return Promise.resolve(); } } } }); })(document.defaultView)');
     await page.click('.calc-graph-btn');
     await page.click('.calc-graph-size');
-    check(await page.calc(sent) === '[{"command":"open-graph"}]' && !await page.calc(big) && await open(page, '.calc-graph'),
-        t + 'the popup asks for the graph\'s own window', await page.calc(sent));
+    check(await page.calc(sent) === '[{"command":"open-graph"}]' && !await page.calc(big) && !await open(page, '.calc-graph'),
+        t + 'the popup asks for the graph\'s own window, and closes the graph', await page.calc(sent));
 
     // the graph's window: only the graph, big, with a close button and no pop in
     await page.send('Page.enable'); // for the script before the page's own
@@ -3720,6 +3720,56 @@ async function chemistry(page, at) {
     await page.key('Escape', 27);
 }
 
+// The chemistry's cards of names, oxidation numbers, redox and the freezing and boiling point: each typed into, its tiles read
+async function chemistryTools(page, at) {
+    var t = at + ': chemistry tools: ', got,
+        type = function (k, text) { // into the box of the card open
+            return page.calc('(function (i) { i.value = ' + JSON.stringify(text) + '; i.dispatchEvent(new Event("input", { bubbles: true })); })' +
+                '(document.querySelector(".calc-chem .calc-sv-item.calc-on input[data-k=\\"' + k + '\\"]"))');
+        },
+        tiles = function () { // each tile of the card open, its label and what it shows
+            return page.calc('[].map.call(document.querySelectorAll(".calc-chem .calc-sv-item.calc-on .calc-sv-tile"), function (el) { ' +
+                'return el.querySelector(".calc-sv-label").textContent + ": " + el.querySelector(".calc-sv-value").textContent; }).join("; ")');
+        },
+        note = function () { return page.calc('document.querySelector(".calc-chem .calc-sv-item.calc-on .calc-sv-note").textContent'); };
+
+    await page.fresh(at, {});
+    await page.click('.calc-chem-btn');
+    await page.click('.calc-chem .calc-solve-tab[data-tab="ions"]');
+    check(await page.calc('document.querySelectorAll(".calc-chem .calc-sv-item").length') === 3, t + 'the ions, names and oxidation numbers');
+    await page.click('.calc-chem .calc-sv-item:nth-child(2) .calc-sv-row');
+    await type('f', 'Fe2(SO4)3');
+    got = await tiles();
+    check(/^Name: Iron\(III\) sulfate; Formula: Fe2\(SO4\)3; Kind: Ionic; Ions: 2 Fe³⁺ \+ 3 SO₄²⁻; g\/mol: 399\.8/.test(got), t + 'Fe2(SO4)3 named', got);
+    await type('f', 'copper(II) sulfate pentahydrate');
+    got = await tiles();
+    check(/^Name: Copper\(II\) sulfate pentahydrate; Formula: CuSO4·5H2O;/.test(got), t + 'the formula of a name', got);
+    await type('f', 'iron oxide');
+    got = await note();
+    check(got === 'Iron has more than one charge: write it in Roman numerals, iron(II) or iron(III).', t + 'a metal of two charges asks which', got);
+    await page.click('.calc-chem .calc-sv-item:nth-child(3) .calc-sv-row');
+    await type('f', 'NH4NO3');
+    got = await tiles();
+    check(got === 'N in NH₄⁺: −3; H in NH₄⁺: +1; N in NO₃⁻: +5; O in NO₃⁻: −2', t + 'the oxidation numbers of NH4NO3, each ion apart', got);
+
+    await page.click('.calc-chem .calc-solve-tab[data-tab="reactions"]');
+    await page.click('.calc-chem .calc-sv-item:first-child .calc-sv-row');
+    await type('eq', 'KMnO4 + HCl = KCl + MnCl2 + H2O + Cl2');
+    got = await tiles();
+    check(/Kind: Redox; Oxidized: Cl −1 → 0; Reduced: Mn \+7 → \+2;/.test(got), t + 'what is oxidized and reduced', got);
+
+    await page.click('.calc-chem .calc-solve-tab[data-tab="solutions"]');
+    await page.click('.calc-chem .calc-sv-item:nth-child(3) .calc-sv-row');
+    await type('f', 'NaCl');
+    await type('g', '10');
+    await type('kg', '0.5');
+    got = await tiles();
+    check(/^mol\/kg: 0\.3422\d*; i: 2; ΔTf, °C: 1\.273\d*; ΔTb, °C: 0\.3504\d*; Freezes at, °C: -1\.27\d*; Boils at, °C: 100\.35\d*$/.test(got), t + '10 g of NaCl in 0.5 kg of water', got);
+    await page.click('.calc-chem .calc-sv-item.calc-on .calc-sv-opt[data-c="3"]');
+    check(await page.calc('!!document.querySelector(".calc-chem .calc-sv-item.calc-on input[data-k=\\"kf\\"]")') && /Kf and Kb/.test(await note()), t + 'another solvent: its Kf and Kb asked');
+    await page.key('Escape', 27);
+}
+
 async function options(page) {
     var t;
 
@@ -3842,6 +3892,7 @@ async function adminPolicy(page) {
         await convDates(page, '/popup.html');
         await statsMore(page, '/popup.html');
         await chemistry(page, '/popup.html');
+        await chemistryTools(page, '/popup.html');
         await solver(page, '/popup.html');
         await numbersPanel(page, '/popup.html');
         await matrixTen(page, '/popup.html');

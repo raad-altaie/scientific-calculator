@@ -1,6 +1,6 @@
 // Run with: node test/chem.test.js
 // The elements and the chemistry of chem.js: molar masses, equations balanced, amounts and the
-// limiting reactant, and empirical formulas
+// limiting reactant, empirical formulas, oxidation numbers and redox, and names
 'use strict';
 
 var Chem = require('../js/chem.js'),
@@ -125,6 +125,55 @@ check(table.letters[table.cations.map(function (c) { return c.ion; }).indexOf('P
 check(Chem.findIon('Cu2+').water === 'Blue' && Chem.findIon('Na+').flame === 'Yellow-orange' && Chem.findIon('MnO4-').kind === 'Polyatomic anion', 'an ion\'s colour in water and in a flame');
 check(Chem.findIon('xyz').error === 'unknown' && Chem.findIon('').error === 'empty', 'no ion of that name; nothing typed');
 check(Chem.ions.every(function (i) { return i.charge !== 0; }), 'every ion has a charge');
+
+// oxidation numbers: by the rules, a rule dropped where it does not add up, an average, a salt's ions apart
+function ox(t) {
+    var r = Chem.oxidation(t);
+    return r.error ? r.error : r.rows.map(function (x) { return x.s + (x.in ? ' in ' + x.in : '') + ' ' + x.text; }).join(', ');
+}
+[['KMnO4', 'K +1, Mn +7, O −2'], ['Cr2O7^2-', 'Cr +6, O −2'], ['Fe2(SO4)3', 'Fe +3, S +6, O −2'], ['H2O2', 'H +1, O −1'], ['OF2', 'O +2, F −1'],
+    ['NaClO', 'Na +1, Cl +1, O −2'], ['LiAlH4', 'Li +1, Al +3, H −1'], ['Fe3O4', 'Fe +8/3, O −2'], ['KO2', 'K +1, O −1/2'], ['ICl', 'I +1, Cl −1'],
+    ['K4[Fe(CN)6]', 'K +1, Fe +2, C +2, N −3'], ['CuSO4·5H2O', 'Cu +2, S +6, O −2, H +1'], ['FeS2', 'Fe +2, S −1'], ['O3', 'O 0'], ['Fe^3+', 'Fe +3'],
+    ['NH4NO3', 'N in NH₄⁺ −3, H in NH₄⁺ +1, N in NO₃⁻ +5, O in NO₃⁻ −2'], ['e-', 'electron'], ['Xy', 'element']
+].forEach(function (c) {
+    check(ox(c[0]) === c[1], 'oxidation numbers of ' + c[0] + ': ' + c[1], ox(c[0]));
+});
+check(Chem.oxidation('Fe3O4').average.join() === 'Fe' && Chem.oxidation('K4[Fe(CN)6]').guessed && !Chem.oxidation('KMnO4').guessed, 'an average; more than one left by the rules');
+
+// redox: what is oxidized and what is reduced, and its kind where it had none
+var redox = Chem.balance('KMnO4 + HCl = KCl + MnCl2 + H2O + Cl2');
+check(redox.kind === 'Redox' && JSON.stringify(redox.redox) === JSON.stringify({ oxidized: [{ s: 'Cl', from: '−1', to: '0' }], reduced: [{ s: 'Mn', from: '+7', to: '+2' }] }),
+    'KMnO4 and HCl: Cl oxidized, Mn reduced', JSON.stringify(redox));
+redox = Chem.balance('Cl2 + NaOH = NaCl + NaClO3 + H2O');
+check(redox.redox.oxidized[0].to === '+5' && redox.redox.reduced[0].to === '−1', 'Cl2 in NaOH: oxidized to +5 and reduced to −1 at once', JSON.stringify(redox.redox));
+check(Chem.balance('Zn + CuSO4 = ZnSO4 + Cu').kind === 'Single replacement' && Chem.balance('Zn + CuSO4 = ZnSO4 + Cu').redox.oxidized[0].s === 'Zn', 'a kind kept, its redox too');
+check(Chem.balance('NaOH + HCl = NaCl + H2O').redox === null && Chem.balance('AgNO3 + NaCl = AgCl + NaNO3').redox === null, 'no redox in a neutralization or a precipitation');
+
+// names: of a formula, and the formula of a name
+[['Fe2(SO4)3', 'Iron(III) sulfate'], ['CuSO4·5H2O', 'Copper(II) sulfate pentahydrate'], ['NaHCO3', 'Sodium hydrogen carbonate'], ['(NH4)2SO4', 'Ammonium sulfate'],
+    ['Hg2Cl2', 'Mercury(I) chloride'], ['MnO2', 'Manganese(IV) oxide'], ['Na2O2', 'Sodium peroxide'], ['SnS2', 'Tin(IV) sulfide'], ['Al2O3', 'Aluminium oxide'],
+    ['H2SO4', 'Sulfuric acid'], ['HNO2', 'Nitrous acid'], ['HCl', 'Hydrogen chloride'], ['CO', 'Carbon monoxide'], ['N2O4', 'Dinitrogen tetroxide'],
+    ['P4O10', 'Tetraphosphorus decoxide'], ['NH3', 'Ammonia'], ['SO4^2-', 'Sulfate ion'], ['Fe^3+', 'Iron(III) ion'], ['Cl^-', 'Chloride ion'], ['O2', 'Oxygen']
+].forEach(function (c) {
+    var r = Chem.names(c[0]);
+    check(r.name === c[1] && r.from === 'formula', c[0] + ' is ' + c[1], JSON.stringify(r));
+});
+check(Chem.names('HCl').acid === 'Hydrochloric acid' && Chem.names('H2S').acid === 'Hydrosulfuric acid', 'the acid of HCl and H2S in water');
+[['iron(III) sulfate', 'Fe2(SO4)3'], ['Iron (II) oxide', 'FeO'], ['copper(II) sulfate pentahydrate', 'CuSO4·5H2O'], ['sodium hydrogen carbonate', 'NaHCO3'],
+    ['ammonium sulfate', '(NH4)2SO4'], ['mercury(I) chloride', 'Hg2Cl2'], ['cupric oxide', 'CuO'], ['iron(3+) chloride', 'FeCl3'], ['aluminum oxide', 'Al2O3'],
+    ['magnesium nitride', 'Mg3N2'], ['sulfuric acid', 'H2SO4'], ['hydrochloric acid', 'HCl'], ['phosphoric acid', 'H3PO4'], ['carbonic acid', 'H2CO3'],
+    ['dinitrogen tetroxide', 'N2O4'], ['carbon monoxide', 'CO'], ['sulfur hexafluoride', 'SF6'], ['Water', 'H2O'], ['chlorine', 'Cl2'], ['sulfate', 'SO4^2-']
+].forEach(function (c) {
+    var r = Chem.names(c[0]);
+    check(r.formula === c[1] && r.from === 'name', c[0] + ' is ' + c[1], JSON.stringify(r));
+});
+check(Chem.names('iron oxide').error === 'numeral' && Chem.names('iron oxide').element.s === 'Fe', 'iron oxide: which charge of iron');
+check(Chem.names('no such thing').error === 'unknown' && Chem.names('C6H5OH').error === 'unknown' && Chem.names('Xx2O').error === 'element', 'not named; no such element');
+
+// the particles in water, i
+[['NaCl', 2], ['CaCl2', 3], ['Al2(SO4)3', 5], ['MgSO4·7H2O', 2], ['HCl', 2], ['H2SO4', 3], ['CH3COOH', 1], ['HF', 1], ['C6H12O6', 1]].forEach(function (c) {
+    check(Chem.particles(c[0]).i === c[1], c[0] + ': i ' + c[1], Chem.particles(c[0]).i);
+});
 
 // what is known of each element in words: its specific heat, who found it, its isotopes
 check(near(Chem.bySymbol.Fe.heat, 0.449) && near(Chem.bySymbol.H.heat, 14.304) && Chem.bySymbol.Og.heat === null, 'specific heat: Fe 0.449, H 14.304 J/(g·K), Og not known');

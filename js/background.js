@@ -298,12 +298,39 @@ const pageOptions = {
         on: (kept) => kept.pageButtonOn !== false,
     },
     pageMaths: {
-        // formulas.js: the formulas and constants to find; units.js, the units of quantities; picks.js, what else the cards work out
-        script: { id: "page-maths", js: ["js/formulas.js", "js/units.js", "js/page/picks.js", "js/page/answers.js"], matches: pageSites },
+        script: { id: "page-maths", js: [], matches: pageSites },
+        files: pageMathsFiles,
         off: "remove-page-maths",
         on: (kept) => kept.pageMathsOn === true,
     },
 };
+
+// The features of the instant answers, each of a panel of the calculator, by the name of its policy: a file of
+// its own, page/*.js, with the data it reads before it, formulas.js the formulas and constants, units.js the
+// units of quantities. In this order, as page/reader.js reads them: the lists, quantities and dates selected
+// before the numbers, 1700000000 a Unix time before a whole number
+const pageFeatures = {
+    statistics: ["js/page/statistics.js"],
+    converter: ["js/units.js", "js/page/converter.js"],
+    numbers: ["js/page/numbers.js"],
+    solve: ["js/page/solve.js"],
+    graph: ["js/page/graph.js"],
+    formulas: ["js/formulas.js", "js/page/formulas.js"],
+    chemistry: ["js/page/chemistry.js"],
+};
+
+// What the pages get of the instant answers: page/reader.js, which reads the sums, then each feature that is
+// on, as options.js keeps them in pageMathsFeatures, each on unless false, and an administrator did not turn its
+// panel off, then page/answers.js, which puts the icons in the page
+async function pageMathsFiles(kept) {
+    const chosen = kept.pageMathsFeatures || {};
+    const files = ["js/page/reader.js"];
+
+    for (const [name, list] of Object.entries(pageFeatures)) {
+        if (chosen[name] !== false && !await policyOff(name)) files.push(...list);
+    }
+    return files.concat("js/page/answers.js");
+}
 
 // pages that are already open get it without a reload
 function addToOpenPages(files) {
@@ -327,8 +354,9 @@ function tellOpenPages(command) {
 
 // Each of the two on the pages while it is on and an administrator did not turn it off, and the
 // access given back with neither. The browser forgets the registered scripts when the extension is
-// updated, so this also runs then. One run at a time, as the options page changes the choice and the
-// access together
+// updated, so this also runs then. The features of the instant answers chosen again, the open pages
+// get them at once, the copy they had giving way to it. One run at a time, as the options page changes
+// the choice and the access together
 let pageRun = Promise.resolve();
 
 function followPageOptions() {
@@ -338,24 +366,26 @@ function followPageOptions() {
             if (visible) followFrontTab();
         };
         if (!await chrome.permissions.contains(pageAccess)) return menu(false);
-        const kept = await chrome.storage.local.get(["pageButtonOn", "pageMathsOn"]).catch(() => ({}));
-        const registered = (await chrome.scripting.getRegisteredContentScripts().catch(() => [])).map((script) => script.id);
+        const kept = await chrome.storage.local.get(["pageButtonOn", "pageMathsOn", "pageMathsFeatures"]).catch(() => ({}));
+        const registered = await chrome.scripting.getRegisteredContentScripts().catch(() => []);
         let any = false;
 
         for (const [key, option] of Object.entries(pageOptions)) {
             const on = option.on(kept) && !await policyOff(key);
-            const was = registered.includes(option.script.id);
+            const script = option.files ? { ...option.script, js: await option.files(kept) } : option.script;
+            const was = registered.find((other) => other.id === script.id);
 
             any = any || on;
             if (key === "pageMaths") menu(on); // Calculate "…" goes with the icons
             if (on && !was) {
-                await chrome.scripting.registerContentScripts([option.script])
-                    .then(() => addToOpenPages(option.script.js))
+                await chrome.scripting.registerContentScripts([script])
+                    .then(() => addToOpenPages(script.js))
                     .catch((error) => console.log("Failed to put " + key + " on the pages:", error));
             } else if (on) {
-                await chrome.scripting.updateContentScripts([option.script]).catch(() => { }); // its files, as this version has them
+                await chrome.scripting.updateContentScripts([script]).catch(() => { }); // its files, as this version has them
+                if (String(was.js) !== String(script.js)) addToOpenPages(script.js);
             } else if (was) {
-                await chrome.scripting.unregisterContentScripts({ ids: [option.script.id] }).catch(() => { });
+                await chrome.scripting.unregisterContentScripts({ ids: [script.id] }).catch(() => { });
                 tellOpenPages(option.off);
             }
         }
@@ -431,7 +461,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
         followOpenMode();
     } else if (area === "local" && changes.openMode) {
         followOpenMode();
-    } else if (area === "local" && (changes.pageButtonOn || changes.pageMathsOn)) {
+    } else if (area === "local" && (changes.pageButtonOn || changes.pageMathsOn || changes.pageMathsFeatures)) {
         followPageOptions(); // chosen on the options page
     } else if (area === "local" && changes.pageMathsOff) {
         followFrontTab(); // a website turned on again on the options page
@@ -568,12 +598,13 @@ function unlessOff(key, open) {
 }
 
 // The engine of the calculator, and with maths its solver, put into a page that has maths on it, for
-// page/answers.js to work it out: only then, as they are large. It answers once they are in
+// page/answers.js to work it out: only then, as they are large. With "chem", chem.js, for the chemistry
+// of a page, unless an administrator turned the chemistry off. It answers once they are in
 function addEngineToPage(tab, frameId, maths, done) {
-    chrome.scripting.executeScript({
+    (maths === "chem" ? policyOff("chemistry") : Promise.resolve(false)).then((off) => off ? Promise.reject() : chrome.scripting.executeScript({
         target: { tabId: tab.id, frameIds: [frameId] },
-        files: maths ? ["js/engine.js", "js/maths.js"] : ["js/engine.js"],
-    })
+        files: maths === "chem" ? ["js/chem.js"] : maths ? ["js/engine.js", "js/maths.js"] : ["js/engine.js"],
+    }))
         .then(() => done(true))
         .catch(() => done(false));
 }
@@ -585,8 +616,9 @@ function openPageMaths(message) {
         "derivative", "taylor", "ode", "card"];
     // the boxes of a card: f, a and b of the solver's, a function to draw, a matrix's size and numbers, a11 to
     // a1010; or the name of a formula or a constant; frac: a sum written in fractions, shown in them. Of a card
-    // of picks.js, its panel and card and their boxes, and of the statistics a list of numbers, which is long
-    const boxes = /^(f|a|b|name|size|a\d{2,4}|frac|panel|card|x|n|x0|y0|e|e1|e2|z|u|t|enc|bits|ts|convert|d|y|m|days|loan|rate|years|py|apr|[abcd][1-3]|g|v|to|list)$/;
+    // of a panel, its panel and card and their boxes, and of the statistics a list of numbers, which is long. Of the
+    // chemistry, page/chemistry.js: a formula or a name f, a reaction eq, a composition c and an element's symbol s
+    const boxes = /^(f|a|b|name|size|a\d{2,4}|frac|panel|card|x|n|x0|y0|e|e1|e2|z|u|t|enc|bits|ts|convert|d|y|m|days|loan|rate|years|py|apr|[abcd][1-3]|g|v|to|list|eq|c|s)$/;
     const fields = {};
 
     if (typeof message.text !== "string" || !kinds.includes(message.kind)) return;
@@ -599,7 +631,7 @@ function openPageMaths(message) {
 
 chrome.runtime.onMessage.addListener((message, sender, answer) => {
     if (message?.command === "page-maths-engine" && sender.tab) {
-        addEngineToPage(sender.tab, sender.frameId, !!message.maths, answer);
+        addEngineToPage(sender.tab, sender.frameId, message.chem ? "chem" : !!message.maths, answer);
         return true; // it answers later
     } else if (message?.command === "open-page-maths") {
         openPageMaths(message);

@@ -152,7 +152,7 @@ function keepAtLeast(min) {
 // button and Esc close the window; a value put in brings the calculator up, which has it
 // through the storage
 if (params.has('graph')) {
-    document.title = 'Graph';
+    document.title = 'Graph | Scientific Calculator';
     calculator.dispatchEvent(new CustomEvent('calc-graph', { detail: { big: true, alone: true } }));
     document.addEventListener('calc-graph-close', () => window.close());
     document.addEventListener('calc-graph-put', () => {
@@ -160,7 +160,7 @@ if (params.has('graph')) {
     });
 } else if (params.has('chem')) {
     // The periodic table's own window, popup.html?chem: only the table, as big as the window, the same way
-    document.title = 'Periodic table';
+    document.title = 'Chemistry | Scientific Calculator';
     calculator.dispatchEvent(new CustomEvent('calc-chem', { detail: { big: true, alone: true } }));
     // no smaller than the room of its 18 columns and of the element chosen beside them, as in background.js
     keepAtLeast({ width: 1000, height: 700 });
@@ -170,7 +170,7 @@ if (params.has('graph')) {
     });
 } else if (panel) {
     // Any other panel's own window, popup.html?panel=solve: only the panel, as big as the window, the same way
-    document.title = PANELS[panel][0];
+    document.title = PANELS[panel][0] + ' | Scientific Calculator';
     calculator.dispatchEvent(new CustomEvent('calc-panel', { detail: { panel } }));
     // no smaller than the room of the list of cards and of the card beside it, as in background.js
     keepAtLeast({ width: 900, height: 640 });

@@ -928,13 +928,13 @@ mjx-c.mjx-c1D447.TEX-I::before {
 </a>
 <div class="top">
     <div class="logo">Scientific Calculator</div>
-    <p class="intro">Instant answers on every website: every kind of maths it finds, each example with the icons it should
+    <p class="intro">Inline Instant answers on every website: every kind of maths and chemistry it finds, each example with the icons it should
         get. Hover an icon for its answer; a click opens it in the calculator.</p>
 </div>
 <article>
     <div id="status"><span class="mark" aria-hidden="true"></span><span><b>Checking…</b><span class="note">A green line: the example has the icons it should; a red one: it has not.</span></span></div>
     <p class="note"><b>How it runs:</b>
-        <span class="only-web">the extension installed does the work: turn on Instant answers on every website in its options, and reload this page.</span>
+        <span class="only-web">the extension installed does the work: turn on Inline Instant answers on every website in its options, and reload this page.</span>
         <span class="only-test">opened from the <code>test</code> folder of the repository, or from its server, the page puts in
         the extension's own scripts from <code>../js</code>, so it tests the code as it is now; a click shows at the bottom what
         it would open. With <code>?extension</code> after its address it leaves them out, for the extension installed to do its work.</span></p>
@@ -1191,6 +1191,81 @@ M834 80h400000v40h-400000z"></path></svg></span></span></span><span class="vlist
         <li data-expect="0">Not: a Raspberry Pi, a bar of soap, e = mc, F = mass</li>
     </ol>
 
+    <h1>Chemistry</h1>
+    <p class="sub">A reaction is balanced; a formula gets its molar mass, name and oxidation numbers; a composition its empirical
+        formula; a compound named its formula; an element its place in the table. A click opens it in the Chemistry panel.</p>
+    <h2>Reactions <span class="tag yes">should work</span></h2>
+    <ol class="ex yes">
+        <li>Water: 2H2 + O2 → 2H2O</li>
+        <li>Rust, to balance: Fe + O2 → Fe2O3</li>
+        <li>Burning propane: C3H8 + O2 = CO2 + H2O</li>
+        <li>With an arrow typed: CH4 + 2O2 -&gt; CO2 + 2H2O</li>
+        <li>The Haber process: N2 + 3H2 ⇌ 2NH3</li>
+        <li>Photosynthesis: 6CO₂ + 6H₂O → C₆H₁₂O₆ + 6O₂</li>
+        <li>As Wikipedia writes it: 2H<sub>2</sub> + O<sub>2</sub> → 2H<sub>2</sub>O</li>
+        <li>Ions and states: Ag<sup>+</sup>(aq) + Cl<sup>−</sup>(aq) → AgCl(s)</li>
+        <li>Ions in plain text: Na+ + Cl- → NaCl</li>
+        <li>Neutralization: HCl + NaOH → NaCl + H2O</li>
+        <li>Redox, to balance: Cl2 + NaOH → NaCl + NaClO3 + H2O</li>
+        <li>A half-reaction: Fe^3+ + e- → Fe^2+</li>
+    </ol>
+
+    <h2>Formulas <span class="tag yes">should work</span></h2>
+    <ol class="ex yes">
+        <li>Battery acid is H2SO4.</li>
+        <li data-expect="2">Table salt, NaCl, and baking soda, NaHCO3</li>
+        <li data-expect="2">Breathe out CO₂, drink H₂O</li>
+        <li>Blue crystals of CuSO4·5H2O</li>
+        <li data-expect="3">With brackets: Ca(OH)2, (NH4)2SO4 and K4[Fe(CN)6]</li>
+        <li>As Wikipedia writes it: Fe<sub>2</sub>O<sub>3</sub>, rust</li>
+        <li data-expect="2">An ion: SO<sub>4</sub><sup>2−</sup>, and typed, MnO4^-</li>
+        <li>Caffeine, C8H10N4O2</li>
+        <li data-expect="2">Silver chloride does not dissolve: AgCl</li>
+        <li data-expect="2">Chalk, CaCO3, and quicklime, CaO</li>
+    </ol>
+
+    <h2>Compositions <span class="tag yes">should work</span></h2>
+    <ol class="ex yes">
+        <li>Glucose is 40% C, 6.7% H and 53.3% O by mass.</li>
+        <li>By name: carbon 40%, hydrogen 6.7%, oxygen 53.3%</li>
+        <li>An oxide of iron: Fe 69.9%, O 30.1%</li>
+        <li>With colons: C: 85.6%, H: 14.4%</li>
+    </ol>
+
+    <h2>Names of compounds <span class="tag yes">should work</span></h2>
+    <ol class="ex yes">
+        <li>A pinch of sodium chloride</li>
+        <li>Concentrated sulfuric acid</li>
+        <li>Rust is iron(III) oxide.</li>
+        <li>Fertilizer: ammonium nitrate</li>
+        <li>Blue copper(II) sulfate pentahydrate</li>
+        <li>A brown gas: dinitrogen tetroxide</li>
+        <li data-expect="2">Carbon monoxide and carbon dioxide</li>
+        <li>Hydrochloric acid in the stomach</li>
+        <li>For cakes: sodium hydrogen carbonate</li>
+    </ol>
+
+    <h2>Elements <span class="tag yes">should work</span></h2>
+    <ol class="ex yes">
+        <li>Iron (Fe) rusts.</li>
+        <li>Na (sodium) reacts with water.</li>
+        <li>The element carbon</li>
+        <li>Gold is element Au.</li>
+        <li data-expect="2">Copper (Cu) and zinc (Zn) make brass.</li>
+    </ol>
+
+    <h2>Chemistry traps <span class="tag trap">should not work</span></h2>
+    <p class="sub">They look like chemistry but are not. A red one here is a false icon.</p>
+    <ol class="ex">
+        <li data-expect="0">Codes: a PS5, the W3C, Y2K, H1N1, an SN2 reaction, HeLa cells, NaN, a PoS terminal, the CoP26</li>
+        <li data-expect="0">Capitals: the CNN, the BBC, the NHS, KOH alone, COVID-19</li>
+        <li data-expect="0">One element: vitamin B12, an N95 mask, a V8 engine, O2 alone</li>
+        <li data-expect="0">Letters and arrows: Home → About, the chords C → G, S → N</li>
+        <li data-expect="0">Words: He is here, In 2024, As we know, No way, the US and UK, a CO2e figure, H2O.com</li>
+        <li data-expect="0">Not compounds: citric acid, the climate, copper sulfate (which copper?), 40% of people and 60% of cats</li>
+        <li data-expect="0">Not elements: Ohm (Ω), Pi (π), the element of surprise</li>
+    </ol>
+
     <h1>Maths drawn as maths</h1>
     <h2>KaTeX, as ChatGPT and Notion draw it <span class="tag yes">should work</span></h2>
     <ol class="ex yes">
@@ -1357,6 +1432,7 @@ M347 1759 V0 H263 V1759 v0 v1759 h84z"></path></svg></span></span></span><span c
         <li data-expect="0">A date, from today: March 3, 2024; a time on: in 90 days</li>
         <li data-expect="1">A sum in a sentence: Twelve dozen is 12 × 12, a gross.</li>
         <li data-expect="0">A letter of its own: 3t + 2 = 11</li>
+        <li data-expect="0">Chemistry alone: Fe, iron, KOH, O2, water</li>
     </ol>
     <p class="sub">A column of a table, its statistics:</p>
     <table class="cells"><tbody><tr><th>Price</th></tr><tr><td>$1,200.50</td></tr><tr><td>$300</td></tr><tr><td>$45.10</td></tr><tr><td>$19.99</td></tr></tbody></table>
@@ -1382,7 +1458,6 @@ M347 1759 V0 H263 V1759 v0 v1759 h84z"></path></svg></span></span></span><span c
         <li data-expect="0">A version: 2.0.1, and Windows 10 to 11</li>
         <li data-expect="0">A score: 21-14</li>
         <li data-expect="0">Coordinates: 40.7128° N, 74.0060° W, and point C(3, 4)</li>
-        <li data-expect="0">Chemistry: 2H2 + O2 → 2H2O</li>
         <li data-expect="0">Speed: x2 playback</li>
         <li data-expect="0">A deal: buy 2 + get 1 free</li>
         <li data-expect="0">A size: a 1920 x 1080 screen, I am 5 ft tall, He is 6 ft 2 in</li>
@@ -1420,7 +1495,7 @@ M347 1759 V0 H263 V1759 v0 v1759 h84z"></path></svg></span></span></span><span c
     });
 
 
-    // On the website the extension installed does the work, with Instant answers on every website turned on. In the
+    // On the website the extension installed does the work, with Inline Instant answers on every website turned on. In the
     // test folder of the repository, or from its server, the page puts in the repository's own scripts, ../js, so
     // it tests the code as it is now; with ?extension after its address it leaves them out, as on the website. A
     // stand-in for the extension then puts the engine and the solver in when they are asked for, as background.js
@@ -1449,7 +1524,9 @@ M347 1759 V0 H263 V1759 v0 v1759 h84z"></path></svg></span></span></span><span c
                 getURL: (path) => root + path,
                 onMessage: { addListener() { } },
                 sendMessage(message, done) {
-                    if (message.command === 'page-maths-engine') {
+                    if (message.command === 'page-maths-engine' && message.chem) { // chem.js, of the chemistry, alone
+                        (window.CalcChem ? Promise.resolve() : add('js/chem.js')).then(() => done && done(true));
+                    } else if (message.command === 'page-maths-engine') {
                         (window.CalcEngine ? Promise.resolve() : add('js/engine.js'))
                             .then(() => (message.maths && !window.CalcMaths ? add('js/maths.js') : null))
                             .then(() => done && done(true));
@@ -1464,7 +1541,8 @@ M347 1759 V0 H263 V1759 v0 v1759 h84z"></path></svg></span></span></span><span c
             }
         };
         // in the order the extension puts them in
-        ['js/formulas.js', 'js/units.js', 'js/page/picks.js', 'js/page/answers.js'].reduce((p, src) => p.then(() => add(src)), Promise.resolve());
+        ['js/page/reader.js', 'js/page/statistics.js', 'js/units.js', 'js/page/converter.js', 'js/page/numbers.js', 'js/page/solve.js', 'js/page/graph.js',
+            'js/formulas.js', 'js/page/formulas.js', 'js/page/chemistry.js', 'js/page/answers.js'].reduce((p, src) => p.then(() => add(src)), Promise.resolve());
     }
 
     // Each example with data-expect has as many icons as it should: 1+ one or more. Green, else red; the row at the
@@ -1496,7 +1574,7 @@ M347 1759 V0 H263 V1759 v0 v1759 h84z"></path></svg></span></span></span><span c
             document.documentElement.dataset.checked = bad.length ? 'bad' : 'ok'; // for a test to read
             document.documentElement.dataset.wrong = bad.map((el) => el.textContent.replace(/\s+/g, ' ').trim().slice(0, 60)).join(' | ');
             if (!icons && !OWN && ++rounds > 2) {
-                say(false, 'No icons on this page yet', 'Install Scientific Calculator, and turn on Instant answers on every website in its options; then reload this page.');
+                say(false, 'No icons on this page yet', 'Install Scientific Calculator, and turn on Inline Instant answers on every website in its options; then reload this page.');
             } else if (bad.length) {
                 say(false, bad.length + ' of ' + all.length + ' not as they should be', 'The red ones: hover one for how many icons it has and wants.');
             } else {
@@ -1509,7 +1587,7 @@ M347 1759 V0 H263 V1759 v0 v1759 h84z"></path></svg></span></span></span><span c
         }, 1500);
     })();
 
-    const extra = ['A dozen boxes of 24: 12 × 24 = ?', 'Compound growth: 1000 × 1.05^10.', 'Solve 3x − 4 = 11 for x.', 'From 5 km in miles to 52 choose 5.'];
+    const extra = ['A dozen boxes of 24: 12 × 24 = ?', 'Compound growth: 1000 × 1.05^10.', 'Solve 3x − 4 = 11 for x.', 'From 5 km in miles to 52 choose 5.', 'Balance Fe + Cl2 → FeCl3.'];
     let n = 0;
     document.getElementById('add').addEventListener('click', () => {
         const p = document.createElement('p');

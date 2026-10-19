@@ -57,20 +57,30 @@
             <div class="option">
                 <span class="option-icon page-maths" aria-hidden="true">2+3<img src="imgs/icon128.png" alt=""></span>
                 <div class="option-text">
-                    <h3>Instant answers on every website</h3>
-                    <p>Hover the small calculator icon after any maths on a web page to see its answer; click it to open
-                        it in the calculator. Sums, equations, graphs, matrices, integrals, derivatives, formulas, constants,
-                        unit conversions, dates, loans and IP networks, in plain text or drawn by Wikipedia, KaTeX or MathJax.
-                        Or select any text, a number, a list of numbers or a code, or right-click it, to calculate it.</p>
-                    <p class="option-note">The browser asks for access to websites when you turn it on. Pages are read on
-                        your computer; nothing is sent. To turn them off on one website, right-click its page and uncheck
-                        Instant answers on this site.</p>
+                    <h3>Inline Instant answers on every website</h3>
+                    <p>A small icon after the maths of any page: hover it for the answer, click it to open it in the
+                        calculator. Select or right-click any text to calculate it too.
+                        <a href="https://raad.dev/calculator/examples" target="_blank" rel="noopener">See examples</a>.</p>
+                    <p class="option-note">To turn it off on one website, right-click its page and uncheck Instant
+                        answers on this site.</p>
+                    <div class="answer-kinds" id="page-maths-kinds" hidden>
+                        <fieldset class="choice" title="What the instant answers are for">
+                            <label title="Sums are always on"><input type="checkbox" class="always" checked disabled><span>Sums</span></label>
+                            <label title="Formulas and constants"><input type="checkbox" value="formulas"><span>Formulas</span></label>
+                            <label title="Units to convert, dates and Unix times"><input type="checkbox" value="converter"><span>Converter</span></label>
+                            <label title="Functions of x, drawn small"><input type="checkbox" value="graph"><span>Graph</span></label>
+                            <label title="Matrices, IP networks, complex numbers, choices, bases, UUIDs and Base64"><input type="checkbox" value="numbers"><span>Numbers</span></label>
+                            <label title="Equations, inequalities, integrals, derivatives, series, limits, loans and equations together"><input type="checkbox" value="solve"><span>Solve</span></label>
+                            <label title="Reactions, chemical formulas, compositions, compounds and elements"><input type="checkbox" value="chemistry"><span>Chemistry</span></label>
+                            <label title="Lists of numbers selected"><input type="checkbox" value="statistics"><span>Statistics</span></label>
+                        </fieldset>
+                    </div>
                     <div class="site-list" id="page-maths-sites" hidden>
                         <p class="option-note">Turned off on:</p>
                         <ul id="page-maths-off"></ul>
                     </div>
                 </div>
-                <label class="switch" title="Instant answers on every website">
+                <label class="switch" title="Inline Instant answers on every website">
                     <input type="checkbox" id="page-maths">
                     <span></span>
                 </label>
@@ -302,7 +312,7 @@
                 <li>Parentheses can be nested up to 29 levels deep.</li>
                 <li>No need to close parentheses if equation sign follows anyhow.</li>
                 <li>Calculator button on every website: an optional button that opens the calculator. See the Options tab.</li>
-                <li>Instant answers on every website: an optional icon after each sum and equation of a page, with its result, that
+                <li>Inline Instant answers on every website: an optional icon after each sum and equation of a page, with its result, that
                     opens it in the calculator. See the Options tab.</li>
                 <li>It requires no permissions to read any data in your browser. Only the optional button on every
                     page and the instant answers need access to websites, and only after you turn them on. The instant

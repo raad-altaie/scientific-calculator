@@ -209,11 +209,10 @@ check(found('round 5 + 3 tables').join() === '' || found('round 5 + 3 tables').j
 
 // text selected: the whole of it as maths, else the one thing in it
 (function () {
-    var index = PageMaths.namedIndex(require('../js/formulas.js'));
     [['12 × 7 + 3', 'sum'], ['the answer to 15% of 80 is twelve', 'sum'], ['192.168.0.1/24', 'subnet'], ['E = mc²', 'formula'],
         ['speed of light', 'constant'], ['\\frac{1}{2}+\\frac{1}{4}', 'sum'], ['3t + 2 = 11', 'equation'], ['y = x^2 - 1', 'graph'],
         ['hello world', null], ['2 + 3 and 4 + 5', null]].forEach(function (c) {
-        var got = PageMaths.selected(c[0], index);
+        var got = PageMaths.selected(c[0]);
         check((got ? got.kind : null) === c[1], 'selected: ' + c[0], got && got.kind);
     });
 })();

@@ -33,7 +33,7 @@
         },
         "chemistry": {
             "title": "Chemistry",
-            "description": "false turns off the periodic table and the chemistry tools for everyone, with the table's own window, and its option cannot turn it on.",
+            "description": "false turns off the periodic table and the chemistry tools for everyone, with the table's own window and the chemistry of the instant answers, and its option cannot turn it on.",
             "type": "boolean"
         },
         "detachedMode": {
@@ -47,8 +47,8 @@
             "type": "boolean"
         },
         "pageMaths": {
-            "title": "Instant answers on every website",
-            "description": "false turns off the icons after the sums and equations of the pages, which show their results and open them in the calculator, and its option cannot turn it on.",
+            "title": "Inline Instant answers on every website",
+            "description": "false turns off the icons after the sums and equations of the pages, which show their results and open them in the calculator, and its option cannot turn it on. Each panel turned off by its own policy goes from them too.",
             "type": "boolean"
         }
     }

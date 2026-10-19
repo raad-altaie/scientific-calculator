@@ -1,6 +1,7 @@
 // The elements of the periodic table, and the chemistry worked out with them: the molar mass of a
-// formula, an equation balanced, amounts of a reaction and its limiting reactant, and the empirical
-// formula of a composition. Of the Chemistry panel; no page is needed, so it runs in the tests too.
+// formula, an equation balanced and what it oxidizes and reduces, amounts of a reaction and its limiting
+// reactant, the empirical formula of a composition, oxidation numbers, and the name of a formula and the
+// formula of a name. Of the Chemistry panel; no page is needed, so it runs in the tests too.
 // An element: [symbol, name, standard atomic weight (IUPAC; of one with no stable isotope, the mass
 // number of its longest-lived), Pauling electronegativity, melting point °C, boiling point °C,
 // density g/cm³ (of a gas at 0 °C and 1 atm), common oxidation states, year found (0 known since
@@ -660,12 +661,14 @@
         if (k.some(function (x) { return x <= 0n; })) return { error: basis.length > 1 ? 'many' : 'sign' };
         list.forEach(function (x, j) { x.k = Number(k[j]); });
         var left = list.filter(function (x) { return x.side > 0; }), right = list.filter(function (x) { return x.side < 0; }),
-            write = function (side, f) { return side.map(function (x) { return (x.k > 1 ? x.k : '') + f(x.t); }).join(' + '); };
+            write = function (side, f) { return side.map(function (x) { return (x.k > 1 ? x.k : '') + f(x.t); }).join(' + '); },
+            redox = redoxOf(left, right), kind = kindOf(left, right);
         return {
             left: left, right: right, many: basis.length > 1,
             text: write(left, plain) + ' → ' + write(right, plain),
             html: write(left, html) + ' → ' + write(right, html),
-            kind: kindOf(left, right)
+            kind: redox && (!kind || kind === 'Ionic') ? 'Redox' : kind,
+            redox: redox
         };
     }
 
@@ -892,7 +895,7 @@
         ['ClO^-', 'Hypochlorite', '', ''], ['ClO2^-', 'Chlorite', '', ''], ['ClO3^-', 'Chlorate', '', ''], ['ClO4^-', 'Perchlorate', '', ''],
         ['SO4^2-', 'Sulfate|sulphate', '', ''], ['SO3^2-', 'Sulfite|sulphite', '', ''], ['CO3^2-', 'Carbonate', '', ''],
         ['HPO4^2-', 'Hydrogen phosphate', '', ''], ['C2O4^2-', 'Oxalate', '', ''], ['S2O3^2-', 'Thiosulfate', '', ''],
-        ['CrO4^2-', 'Chromate', 'Yellow', ''], ['Cr2O7^2-', 'Dichromate', 'Orange', ''], ['O2^2-', 'Peroxide', '', ''],
+        ['CrO4^2-', 'Chromate', 'Yellow', ''], ['Cr2O7^2-', 'Dichromate', 'Orange', ''], ['O2^2-', 'Peroxide', '', ''], ['S2^2-', 'Disulfide', '', ''],
         ['SiO3^2-', 'Silicate', '', ''], ['PO4^3-', 'Phosphate', '', ''], ['BO3^3-', 'Borate', '', '']
     ];
 
@@ -938,10 +941,469 @@
         };
     }
 
+    // ---------------- oxidation numbers ---------------- //
+
+    function gcdOf(a, b) {
+        a = Math.abs(a);
+        b = Math.abs(b);
+        while (b) {
+            var t = a % b;
+            a = b;
+            b = t;
+        }
+        return a || 1;
+    }
+
+    // a number as a fraction [n, d], as small as it goes, d above 0
+    function ratioOf(n, d) {
+        var g = gcdOf(n, d) * (d < 0 ? -1 : 1);
+        return [n / g, d / g];
+    }
+
+    // an oxidation number as chemists write it: +3, −2, 0, +8/3
+    function signed(v) {
+        return (v[0] > 0 ? '+' : v[0] < 0 ? '−' : '') + Math.abs(v[0]) + (v[1] > 1 ? '/' + v[1] : '');
+    }
+
+    // the oxidation states an element is commonly found in, as numbers: −3, 3, 5 of N
+    function statesOf(s) {
+        return String(bySymbol[s].ox || '').replace(/−/g, '-').split(/\s+/).filter(Boolean).map(Number);
+    }
+
+    function isMetal(s) {
+        return ['nonmetal', 'halogen', 'noble', 'metalloid'].indexOf(bySymbol[s].cat) < 0;
+    }
+
+    // one atom of an element, as parse counts them
+    function single(s) {
+        var atoms = {};
+        atoms[s] = 1;
+        return atoms;
+    }
+
+    // The oxidation number of each element of these atoms with this charge, by the rules in their order: an
+    // element alone its charge shared out; F −1; the metals of groups 1 and 2 +1 and +2, Al +3; H +1, −1 with metals
+    // alone; O −2; the most electronegative halogen −1; and the one left, so they add up to the charge. Rules that do
+    // not add up are dropped, the last first: O of a peroxide, Cl of ClO⁻. With more than one left, the most
+    // electronegative first, each in its usual states, till the last comes out one of its own; else, loose, any
+    // { ox: { Fe: [3, 1] }, guessed } or { error: 'none' }
+    function solveOx(atoms, charge) {
+        var els = Object.keys(atoms), fixed = {}, rank = {}, ox = {}, free, total, halogen, found = null, loose;
+        if (els.length === 1) {
+            ox[els[0]] = ratioOf(charge, atoms[els[0]]);
+            return { ox: ox };
+        }
+        halogen = els.filter(function (s) { return bySymbol[s].cat === 'halogen'; }).sort(function (a, b) { return bySymbol[b].en - bySymbol[a].en; })[0];
+        els.forEach(function (s) {
+            var cat = bySymbol[s].cat, rule = s === 'F' ? [-1, 5] : cat === 'alkali' ? [1, 4] : cat === 'alkaline' ? [2, 4] : s === 'Al' ? [3, 4] :
+                s === 'H' ? [els.every(function (t) { return t === 'H' || isMetal(t); }) ? -1 : 1, 3] : s === 'O' ? [-2, 2] : s === halogen ? [-1, 1] : null;
+            if (rule) {
+                fixed[s] = rule[0];
+                rank[s] = rule[1];
+            }
+        });
+        for (;;) {
+            free = els.filter(function (s) { return !fixed.hasOwnProperty(s); });
+            total = els.reduce(function (t, s) { return t + (fixed.hasOwnProperty(s) ? fixed[s] * atoms[s] : 0); }, 0);
+            if (free.length || total === charge) break;
+            delete fixed[Object.keys(fixed).sort(function (a, b) { return rank[a] - rank[b]; })[0]];
+        }
+        Object.keys(fixed).forEach(function (s) { ox[s] = [fixed[s], 1]; });
+        if (!free.length) return { ox: ox };
+        if (free.length === 1) {
+            ox[free[0]] = ratioOf(charge - total, atoms[free[0]]);
+            return { ox: ox };
+        }
+        free.sort(function (a, b) { return (bySymbol[b].en || 0) - (bySymbol[a].en || 0); });
+        // the state of each in turn, and what is left for the last
+        function each(i, left, got) {
+            var s = free[i], states = statesOf(s), v, r;
+            if (i === free.length - 1) {
+                v = left / atoms[s];
+                if (loose ? Math.abs(v) > 8 : states.indexOf(v) < 0) return null;
+                return got.concat([ratioOf(left, atoms[s])]);
+            }
+            for (var k = 0; k < (states.length || 1); k++) {
+                v = states.length ? states[k] : 0;
+                if ((r = each(i + 1, left - v * atoms[s], got.concat([[v, 1]])))) return r;
+            }
+            return null;
+        }
+        for (loose = false; !found; loose = true) {
+            found = each(0, charge - total, []);
+            if (loose) break;
+        }
+        if (!found) return { error: 'none' };
+        free.forEach(function (s, i) { ox[s] = found[i]; });
+        return { ox: ox, guessed: true };
+    }
+
+    // The oxidation number of each element of a formula: Fe2(SO4)3, Cr2O7^2−, NH4NO3. A salt has each of its ions
+    // worked out alone, the water of a hydrate as water; one whose cation and anion share an element shows them
+    // apart, as N is −3 in NH₄⁺ and +5 in NO₃⁻
+    // { rows: [{ s, ox: [n, d], text, in: the ion it is in }], parts, guessed, average: the elements of a fraction } or { error }
+    function oxidation(text) {
+        var f = parse(text), dry, salt, rows = [], got = { ox: {} }, shared, bad = null, guessed = false;
+        if (f.error) return f;
+        if (f.electron) return { error: 'electron' };
+        dry = parse(String(text).replace(/[·•*.]\s*\d*\s*H2O\s*$/, ''));
+        if (!f.charge && !dry.error && (salt = saltOf(dry.atoms))) {
+            shared = salt.cation.poly && Object.keys(salt.cation.atoms).some(function (s) { return salt.anion.atoms[s]; });
+            [salt.cation, salt.anion].forEach(function (p) {
+                var r = solveOx(p.atoms, p.charge);
+                if (r.error) return (bad = r);
+                guessed = guessed || !!r.guessed;
+                Object.keys(p.atoms).forEach(function (s) {
+                    got.ox[s] = r.ox[s];
+                    if (shared) rows.push({ s: s, ox: r.ox[s], text: signed(r.ox[s]), in: plain(p.ion) });
+                });
+            });
+            if (bad) return bad;
+            if (shared) return { rows: rows, parts: true, guessed: guessed, average: [] };
+            if (!got.ox.H && f.atoms.H) got.ox.H = [1, 1]; // the water of a hydrate
+            if (!got.ox.O && f.atoms.O) got.ox.O = [-2, 1];
+        } else {
+            got = solveOx(f.atoms, f.charge);
+            if (got.error) return got;
+            guessed = !!got.guessed;
+        }
+        rows = f.order.map(function (s) { return { s: s, ox: got.ox[s], text: signed(got.ox[s]) }; });
+        return { rows: rows, parts: false, guessed: guessed, average: rows.filter(function (r) { return r.ox[1] > 1; }).map(function (r) { return r.s; }) };
+    }
+
+    // of each element on a side of an equation, the oxidation numbers it has there, each once; null if one is not known
+    function oxSide(side) {
+        var got = {};
+        for (var i = 0; i < side.length; i++) {
+            if (side[i].f.electron) continue;
+            var r = oxidation(side[i].t);
+            if (r.error) return null;
+            r.rows.forEach(function (row) {
+                var list = got[row.s] = got[row.s] || [];
+                if (!list.some(function (x) { return x.text === row.text; })) list.push({ v: row.ox[0] / row.ox[1], text: row.text });
+            });
+        }
+        return got;
+    }
+
+    // What is oxidized and what is reduced in a reaction: each element whose oxidation numbers change, from those it
+    // has only before to those it has only after, up or down: Cl −1 → 0, of HCl to KCl and Cl2; of Cl2 to Cl⁻ and
+    // ClO3⁻, both, 0 → +5 and 0 → −1. { oxidized: [{ s, from, to }], reduced } or null, of none
+    function redoxOf(left, right) {
+        var l = oxSide(left), r = oxSide(right), out = { oxidized: [], reduced: [] },
+            list = function (xs) { return xs.slice().sort(function (a, b) { return a.v - b.v; }).map(function (x) { return x.text; }).join(', '); },
+            only = function (xs, ys) { // those of xs not in ys, else all of xs
+                var o = xs.filter(function (x) { return !ys.some(function (y) { return y.text === x.text; }); });
+                return o.length ? o : xs;
+            },
+            least = function (xs) { return Math.min.apply(null, xs.map(function (x) { return x.v; })); },
+            most = function (xs) { return Math.max.apply(null, xs.map(function (x) { return x.v; })); };
+        if (!l || !r) return null;
+        Object.keys(l).forEach(function (s) {
+            var a = l[s], b = r[s] || [];
+            if (!b.length || (a.length === b.length && a.every(function (x) { return b.some(function (y) { return y.text === x.text; }); }))) return;
+            a = only(l[s], b);
+            b = only(b, l[s]);
+            if (least(a) < most(b)) {
+                out.oxidized.push({ s: s, from: list(a.filter(function (x) { return x.v < most(b); })), to: list(b.filter(function (y) { return y.v > least(a); })) });
+            }
+            if (most(a) > least(b)) {
+                out.reduced.push({ s: s, from: list(a.filter(function (x) { return x.v > least(b); })), to: list(b.filter(function (y) { return y.v < most(a); })) });
+            }
+        });
+        return out.oxidized.length || out.reduced.length ? out : null;
+    }
+
+    // ---------------- names ---------------- //
+
+    var PREFIX = ['', 'mono', 'di', 'tri', 'tetra', 'penta', 'hexa', 'hepta', 'octa', 'nona', 'deca'],
+        ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'],
+        // the anion of an element alone, its name and charge
+        IDE = {
+            H: ['hydride', -1], B: ['boride', -3], C: ['carbide', -4], N: ['nitride', -3], O: ['oxide', -2], F: ['fluoride', -1], Si: ['silicide', -4],
+            P: ['phosphide', -3], S: ['sulfide', -2], Cl: ['chloride', -1], As: ['arsenide', -3], Se: ['selenide', -2], Br: ['bromide', -1],
+            Te: ['telluride', -2], I: ['iodide', -1]
+        },
+        // the anions of an element alone that make an acid with hydrogen: HCl, H2S
+        ACID_IDE = ['F', 'Cl', 'Br', 'I', 'S', 'Se', 'Te'],
+        // the acids that ionize all the way in water
+        STRONG = ['HCl', 'HBr', 'HI', 'HNO3', 'H2SO4', 'HClO4', 'HClO3'],
+        // compounds known by a name of their own, its other names after a |
+        COMMON = [
+            ['H2O', 'Water'], ['H2O2', 'Hydrogen peroxide'], ['NH3', 'Ammonia'], ['CH4', 'Methane'], ['C2H6', 'Ethane'], ['C3H8', 'Propane'],
+            ['C4H10', 'Butane'], ['C8H18', 'Octane'], ['C2H4', 'Ethene|ethylene'], ['C2H2', 'Ethyne|acetylene'], ['C6H6', 'Benzene'],
+            ['CH3OH', 'Methanol|methyl alcohol'], ['C2H5OH', 'Ethanol|ethyl alcohol|alcohol'], ['CH3COOH', 'Acetic acid|ethanoic acid'],
+            ['HCOOH', 'Formic acid|methanoic acid'], ['C6H12O6', 'Glucose'], ['C12H22O11', 'Sucrose|sugar|table sugar'], ['O3', 'Ozone'],
+            ['N2H4', 'Hydrazine'], ['PH3', 'Phosphine'], ['SiH4', 'Silane'], ['Fe3O4', 'Iron(II,III) oxide|magnetite'], ['FeS2', 'Iron(II) disulfide|pyrite'],
+            ['CaC2', 'Calcium carbide']
+        ],
+        DIATOMIC = ['H', 'N', 'O', 'F', 'Cl', 'Br', 'I'];
+
+    function capital(s) {
+        return s.charAt(0).toUpperCase() + s.slice(1);
+    }
+
+    function sameAtoms(a, b) {
+        var ka = Object.keys(a), kb = Object.keys(b);
+        return ka.length === kb.length && ka.every(function (k) { return a[k] === b[k]; });
+    }
+
+    function atomCount(atoms) {
+        return Object.keys(atoms).reduce(function (n, k) { return n + atoms[k]; }, 0);
+    }
+
+    // an ion's formula as the list of ions has it, its charge after ^: SO4^2-
+    function ionText(base, charge) {
+        return base + '^' + (Math.abs(charge) > 1 ? Math.abs(charge) : '') + (charge > 0 ? '+' : '-');
+    }
+
+    // the name of a cation of an element alone: as the list of ions has it, Iron(III), Sodium; else its element's,
+    // its charge in Roman numerals if it has more than one, Tin(IV)
+    function cationName(s, q) {
+        var listed = ions.filter(function (i) { return i.charge === q && sameAtoms(i.atoms, single(s)); })[0], states = statesOf(s).filter(function (x) { return x > 0; });
+        if (listed) return listed.name;
+        return bySymbol[s].name + (states.length === 1 && states[0] === q ? '' : '(' + ROMAN[q] + ')');
+    }
+
+    // A neutral formula as a salt: its cation, a common polyatomic one or an element alone, a metal or hydrogen; its
+    // anion, a common one or an element alone; and how many of each. The anions with the most atoms are tried first,
+    // so NaHCO3 is of hydrogen carbonate, not carbonate; but those of one element, peroxide and disulfide, last, so
+    // SnS2 is tin(IV) sulfide and FeS2 iron(II) disulfide. A metal's charge one of its usual states; else, loose, of a
+    // transition metal any from 1 to 8. { cation: { base, ion, charge, n, name, atoms, poly }, anion } or null
+    function saltOf(atoms) {
+        var cations = ions.filter(function (c) { return c.charge > 0 && atomCount(c.atoms) > 1; }),
+            poly = ions.filter(function (a) { return a.charge < 0 && atomCount(a.atoms) > 1; }).sort(function (a, b) { return atomCount(b.atoms) - atomCount(a.atoms); })
+                .map(function (a) { return { base: a.formula.split('^')[0], ion: a.formula, charge: a.charge, name: a.name.toLowerCase(), atoms: a.atoms, poly: true }; }),
+            alone = function (a) { return Object.keys(a.atoms).length === 1; },
+            anions = poly.filter(function (a) { return !alone(a); }).concat(Object.keys(atoms).filter(function (s) { return IDE[s]; }).map(function (s) {
+                return { base: s, ion: ionText(s, IDE[s][1]), charge: IDE[s][1], name: IDE[s][0], atoms: single(s), poly: false };
+            }), poly.filter(alone)),
+            A, loose, i, k, rest, keys, neg, s, q, m;
+        function less(times) { // the atoms with so many of the anion taken out; null if there are not as many
+            var out = {}, ok = true;
+            Object.keys(atoms).forEach(function (e) {
+                var left = atoms[e] - (A.atoms[e] || 0) * times;
+                if (left < 0) ok = false;
+                else if (left) out[e] = left;
+            });
+            return ok && Object.keys(A.atoms).every(function (e) { return atoms[e]; }) ? out : null;
+        }
+        function salt(cation) {
+            return { cation: cation, anion: { base: A.base, ion: A.ion, charge: A.charge, n: k, name: A.name, atoms: A.atoms, poly: A.poly } };
+        }
+        for (loose = 0; loose < 2; loose++) {
+            for (i = 0; i < anions.length; i++) {
+                A = anions[i];
+                for (k = 1; k <= 12 && (rest = less(k)); k++) {
+                    keys = Object.keys(rest);
+                    if (!keys.length) break;
+                    neg = -k * A.charge;
+                    for (var c = 0; c < cations.length; c++) { // NH4+, H3O+, Hg2^2+: so many of it, with the charge to balance
+                        var P = cations[c], first = Object.keys(P.atoms)[0];
+                        m = rest[first] / P.atoms[first];
+                        if (m === Math.floor(m) && sameAtoms(rest, Object.keys(P.atoms).reduce(function (o, e) { o[e] = P.atoms[e] * m; return o; }, {})) && m * P.charge === neg) {
+                            return salt({ base: P.formula.split('^')[0], ion: P.formula, charge: P.charge, n: m, name: P.name, atoms: P.atoms, poly: true });
+                        }
+                    }
+                    if (keys.length !== 1) continue;
+                    s = keys[0];
+                    q = neg / rest[s];
+                    if (q !== Math.floor(q) || q < 1 || q > 8) continue;
+                    // hydrogen of an acid: HCl, H2SO4; a metal in one of its states, a peroxide of groups 1 and 2 alone
+                    if (s === 'H' ? q === 1 && !A.atoms.H && ['O2', 'S2'].indexOf(A.base) < 0 && (A.poly || ACID_IDE.indexOf(A.base) > -1) :
+                        isMetal(s) && (A.base !== 'O2' || /^alkal/.test(bySymbol[s].cat)) &&
+                        (statesOf(s).indexOf(q) > -1 || (loose && /transition|post|lanthanide|actinide/.test(bySymbol[s].cat)))) {
+                        return salt({ base: s, ion: ionText(s, q), charge: q, n: rest[s], name: s === 'H' ? 'Hydrogen' : cationName(s, q), atoms: single(s), poly: false });
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    // an anion's acid: chloride hydrochloric acid, sulfate sulfuric acid, nitrite nitrous acid
+    function acidName(anion) {
+        var a = anion.toLowerCase(), stem = a.slice(0, -3).replace(/sulf$/, 'sulfur').replace(/phosph$/, 'phosphor');
+        return /ide$/.test(a) ? 'hydro' + stem + 'ic acid' : /ate$/.test(a) ? stem + 'ic acid' : /ite$/.test(a) ? stem + 'ous acid' : null;
+    }
+
+    // so many atoms of what a word names, as a Greek prefix says it: monoxide, tetroxide, not monooxide
+    function counted(n, word, first) {
+        var p = n === 1 && first ? '' : PREFIX[n];
+        if (/^[ao]/.test(word) && /[ao]$/.test(p)) p = p.slice(0, -1);
+        return p + word;
+    }
+
+    // The name of a formula, the water of a hydrate after it: a common name; an element's; an ion's; a salt's, its
+    // cation then its anion, a metal of more than one charge with it in Roman numerals; an acid's; and two
+    // nonmetals', a Greek prefix for how many of each. { name, also, kind, acid, salt, formula } or { error }
+    function nameOf(text) {
+        var t = String(text || '').trim(), water = 0, m, f, keys, out;
+        if ((m = t.match(/[·•*.]\s*(\d*)\s*H2O$/))) {
+            water = +m[1] || 1;
+            t = t.slice(0, m.index).trim();
+        }
+        f = parse(t);
+        if (f.error) return f;
+        if (f.electron) return { error: 'unknown' };
+        keys = f.order;
+        out = (function () {
+            var common = COMMON.filter(function (c) { return !f.charge && sameAtoms(parse(c[0]).atoms, f.atoms); })[0], ion, salt, s;
+            if (common) return { name: common[1].split('|')[0], also: common[1].split('|').slice(1), kind: 'Common name' };
+            if (keys.length === 1 && !f.charge) return { name: bySymbol[keys[0]].name, also: [], kind: 'Element' };
+            if (f.charge) {
+                ion = ions.filter(function (i) { return i.charge === f.charge && sameAtoms(i.atoms, f.atoms); })[0];
+                if (ion) return { name: ion.name + ' ion', also: ion.also, kind: ion.kind };
+                s = keys[0];
+                if (keys.length === 1 && f.atoms[s] === 1) {
+                    if (f.charge > 0 && isMetal(s) && f.charge <= 8) return { name: cationName(s, f.charge) + ' ion', also: [], kind: 'Monatomic cation' };
+                    if (f.charge < 0 && IDE[s] && IDE[s][1] === f.charge) return { name: capital(IDE[s][0]) + ' ion', also: [], kind: 'Monatomic anion' };
+                }
+                return { error: 'unknown' };
+            }
+            if ((salt = saltOf(f.atoms))) {
+                if (salt.cation.base === 'H') { // an oxyacid by its acid name; HCl, HCN and H2S as hydrogen's, their acid in water
+                    return salt.anion.poly && !/ide$/.test(salt.anion.name) ? { name: capital(acidName(salt.anion.name)), also: [], kind: 'Acid', salt: salt } :
+                        { name: 'Hydrogen ' + salt.anion.name, also: [], kind: 'Acid', acid: capital(acidName(salt.anion.name)), salt: salt };
+                }
+                return { name: salt.cation.name + ' ' + salt.anion.name, also: [], kind: 'Ionic', salt: salt };
+            }
+            if (keys.length === 2 && keys.every(function (k) { return !isMetal(k); }) && IDE[keys[1]] && f.atoms[keys[0]] <= 10 && f.atoms[keys[1]] <= 10) {
+                return { name: capital(counted(f.atoms[keys[0]], bySymbol[keys[0]].name.toLowerCase(), true) + ' ' + counted(f.atoms[keys[1]], IDE[keys[1]][0])), also: [], kind: 'Molecular' };
+            }
+            return { error: 'unknown' };
+        })();
+        if (out.error) return out;
+        if (water) out.name += ' ' + (water <= 10 ? PREFIX[water] : water + '-') + 'hydrate';
+        out.formula = t + (water ? '·' + (water > 1 ? water : '') + 'H2O' : '');
+        return out;
+    }
+
+    // what names are read as: the elements, the cations, the anions, the acids and the common names, each by its
+    // names in lower case, other spellings too
+    var NAMED = (function () {
+        var by = { element: {}, cation: {}, anion: {}, acid: {}, common: {} };
+        elements.forEach(function (e) { by.element[e.name.toLowerCase()] = e.s; });
+        by.element.aluminum = 'Al';
+        by.element.cesium = 'Cs';
+        by.element.sulphur = 'S';
+        ions.forEach(function (i) {
+            var to = i.charge > 0 ? by.cation : by.anion, it = { base: i.formula.split('^')[0], charge: Math.abs(i.charge), poly: atomCount(i.atoms) > 1, ion: i.formula };
+            [i.name].concat(i.also).forEach(function (n) { to[n.toLowerCase()] = it; });
+            if (i.charge < 0 && !i.atoms.H && ['O', 'O2', 'S2'].indexOf(it.base) < 0 && (it.poly || ACID_IDE.indexOf(it.base) > -1)) by.acid[acidName(i.name)] = it;
+        });
+        Object.keys(IDE).forEach(function (s) {
+            var it = { base: s, charge: -IDE[s][1], poly: false, ion: ionText(s, IDE[s][1]) };
+            by.anion[IDE[s][0]] = it;
+            if (ACID_IDE.indexOf(s) > -1) by.acid[acidName(IDE[s][0])] = it;
+        });
+        COMMON.forEach(function (c) {
+            c[1].split('|').forEach(function (n) { by.common[n.toLowerCase()] = c[0]; });
+        });
+        return by;
+    })();
+
+    // so many of a part of a formula: (NO3)2, Cl3
+    function times(base, n, poly) {
+        return n > 1 ? (poly ? '(' + base + ')' + n : base + n) : base;
+    }
+
+    // a word with a Greek prefix, dinitrogen, tetroxide: how many, and what the rest of it is in the table
+    function prefixed(word, table) {
+        if (table[word]) return { n: 1, x: table[word] };
+        for (var n = 1; n < PREFIX.length; n++) {
+            var cut = [PREFIX[n], PREFIX[n].slice(0, -1)];
+            for (var j = 0; j < 2; j++) {
+                if (word.indexOf(cut[j]) === 0 && table[word.slice(cut[j].length)]) return { n: n, x: table[word.slice(cut[j].length)] };
+            }
+        }
+        return null;
+    }
+
+    // The formula of a name: iron(III) sulfate, sodium hydrogen carbonate, sulfuric acid, dinitrogen tetroxide,
+    // copper(II) sulfate pentahydrate, ammonia, sulfate. A metal of more than one charge needs it, in Roman numerals.
+    // { formula } or { error, element }
+    function formulaOf(text) {
+        var s = String(text || '').toLowerCase().replace(/[‐-―]/g, '-').trim().replace(/\s+/g, ' ')
+                .replace(/\s*\(\s*([ivx]+|\d)\s*\+?\s*\)/g, function (all, r) { return '(' + (/\d/.test(r) ? ROMAN[+r].toLowerCase() : r) + ')'; })
+                .replace(/ ions?$/, ''),
+            words, water = 0, m, out = null, i, cation, anion, need = null, a, b, g;
+        if (!s) return { error: 'empty' };
+        words = s.split(' ');
+        if (words.length > 1 && (m = words[words.length - 1].match(/^(mono|di|tri|tetra|penta|hexa|hepta|octa|nona|deca)?-?hydrate$/))) {
+            water = m[1] ? PREFIX.indexOf(m[1]) : 1;
+            words.pop();
+            s = words.join(' ');
+        }
+        // a cation by its name: of the list of ions, or an element with its charge in Roman numerals, or a metal of one charge
+        function cationOf(w) {
+            var e, states, r = w.match(/^([a-z]+)\(([ivx]+)\)$/);
+            if (NAMED.cation[w]) return NAMED.cation[w];
+            if (r && NAMED.element[r[1]] && isMetal(NAMED.element[r[1]]) && ROMAN.indexOf(r[2].toUpperCase()) > 0) {
+                return { base: NAMED.element[r[1]], charge: ROMAN.indexOf(r[2].toUpperCase()), poly: false };
+            }
+            e = NAMED.element[w];
+            if (!e || !isMetal(e)) return null;
+            states = statesOf(e).filter(function (x) { return x > 0; });
+            if (states.length === 1) return { base: e, charge: states[0], poly: false };
+            need = need || bySymbol[e];
+            return null;
+        }
+        if (NAMED.common[s]) out = NAMED.common[s];
+        else if (NAMED.acid[s]) out = 'H' + (NAMED.acid[s].charge > 1 ? NAMED.acid[s].charge : '') + NAMED.acid[s].base;
+        else if (NAMED.element[s]) out = NAMED.element[s] + (DIATOMIC.indexOf(NAMED.element[s]) > -1 ? '2' : '');
+        else if (NAMED.anion[s]) out = NAMED.anion[s].ion;
+        else if ((cation = /\(/.test(s) || NAMED.cation[s] ? cationOf(s) : null)) out = cation.ion || ionText(cation.base, cation.charge);
+        for (i = 1; !out && i < words.length; i++) { // a salt: its cation, then its anion
+            anion = NAMED.anion[words.slice(i).join(' ')];
+            if (anion && (cation = cationOf(words.slice(0, i).join(' ')))) {
+                g = gcdOf(cation.charge, anion.charge);
+                out = times(cation.base, anion.charge / g, cation.poly) + times(anion.base, cation.charge / g, anion.poly);
+            }
+        }
+        if (!out && words.length === 2) { // two nonmetals, each with its prefix
+            a = prefixed(words[0], NAMED.element);
+            b = prefixed(words[1], Object.keys(IDE).reduce(function (o, e) { o[IDE[e][0]] = e; return o; }, {}));
+            if (a && b && !isMetal(a.x)) out = a.x + (a.n > 1 ? a.n : '') + b.x + (b.n > 1 ? b.n : '');
+        }
+        if (!out) return need ? { error: 'numeral', element: need } : { error: 'unknown' };
+        return { formula: out + (water ? '·' + (water > 1 ? water : '') + 'H2O' : '') };
+    }
+
+    // A formula's name, or a name's formula, as what is typed reads: what reads as a formula is one
+    // { name, also, kind, acid, salt, formula, from: 'formula' or 'name' } or { error }
+    function names(text) {
+        var t = String(text || '').trim(), f, r;
+        if (!t) return { error: 'empty' };
+        f = parse(t.replace(/[·•*.]\s*\d*\s*H2O$/, ''));
+        if (!f.error) {
+            r = nameOf(t);
+            r.from = 'formula';
+            return r;
+        }
+        r = formulaOf(t);
+        if (r.error) return r.error === 'unknown' && /^[A-Z][a-z]?\d/.test(t) ? f : r; // Xx2O: a formula, of no such element
+        f = nameOf(r.formula);
+        if (f.error) return { error: 'unknown' };
+        f.from = 'name';
+        return f;
+    }
+
+    // The particles a formula makes in water, its van 't Hoff factor at most: of a salt its ions, of a strong
+    // acid its H⁺ and its anion, of anything else 1. { i, salt, strong } or { error }
+    function particles(text) {
+        var f = parse(String(text || '').replace(/[·•*.]\s*\d*\s*H2O\s*$/, '')), salt, strong;
+        if (f.error) return f;
+        if (f.charge || COMMON.some(function (c) { return sameAtoms(parse(c[0]).atoms, f.atoms); }) || !(salt = saltOf(f.atoms))) return { i: 1 };
+        strong = STRONG.some(function (a) { return sameAtoms(parse(a).atoms, f.atoms); });
+        return salt.cation.base === 'H' && !strong ? { i: 1, salt: salt } : { i: salt.cation.n + salt.anion.n, salt: salt, strong: strong };
+    }
+
     root.CalcChem = {
         elements: elements, bySymbol: bySymbol, categories: CATEGORIES, avogadro: AVOGADRO,
         parse: parse, molarMass: molarMass, html: html, plain: plain,
-        balance: balance, amounts: amounts, readAmounts: readAmounts, empirical: empirical, solubility: solubility, solubilityTable: solubilityTable, ions: ions, findIon: findIon
+        balance: balance, amounts: amounts, readAmounts: readAmounts, empirical: empirical, solubility: solubility, solubilityTable: solubilityTable, ions: ions, findIon: findIon,
+        oxidation: oxidation, names: names, particles: particles
     };
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = root.CalcChem;
