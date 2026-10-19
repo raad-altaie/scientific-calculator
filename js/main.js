@@ -8223,7 +8223,7 @@
         if (open) {
             closePanels(chemPanel);
             placePanel(chemPanel);
-            if (!chemPanel.classList.contains('calc-open')) chemAt = 1; // the table opens on hydrogen
+            if (!chemPanel.classList.contains('calc-open') && !chemAlone) chemAt = 1; // the table opens on hydrogen; its own window on the element popped out
         }
         chemPanel.classList.toggle('calc-open', open);
         chemButton.classList.toggle('calc-on', open);
@@ -8296,8 +8296,7 @@
         if (d.alone) {
             chemAlone = true;
             root.classList.add('calc-chem-alone');
-            chemTab = 'table';
-            chemAt = 1; // its own window opens on hydrogen too
+            chemTab = 'table'; // on the element chosen when it was popped out, which chemBig saved for it
         }
         chemBig(!!d.big);
     }, false);
