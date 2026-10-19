@@ -31,7 +31,7 @@
         pressedAt = null, // where a press put the tips away: none again till the pointer moves from there
         scrolledAt = null, // where a scroll put the tips away: none again till the pointer moves from there
         copying = null, // text a history button is copying, in place of the main line
-        past = root.querySelector('.calc-past:not(.calc-stats):not(.calc-fx):not(.calc-conv):not(.calc-graph):not(.calc-solve):not(.calc-numbers)'), // the history, over the keys
+        past = root.querySelector('.calc-past:not(.calc-stats):not(.calc-fx):not(.calc-conv):not(.calc-graph):not(.calc-solve):not(.calc-numbers):not(.calc-chem)'), // the history, over the keys
         pastList = past.querySelector('.calc-past-list'),
         pastButton = root.querySelector('.calc-hist'),
         pastExport = past.querySelector('.calc-past-export'), // the history copied or saved: a menu of how
@@ -303,6 +303,14 @@
                 e.preventDefault();
             } else if (e.which === 27 && graph.contains(e.target) && graphBig(false)) { // then makes the big graph small
                 e.preventDefault();
+            } else if (e.which === 27 && chemPanel.contains(e.target) && chemBig(false)) { // and the big periodic table
+                e.preventDefault();
+            } else if (e.which === 27 && chemAlone) { // its own window closes
+                closeChem();
+                e.preventDefault();
+            } else if (e.which === 27 && bigPanel && bigPanel.contains(e.target)) { // and any panel popped out pops in, or its window closes
+                panelIn();
+                e.preventDefault();
             } else if (e.which === 27) { // Esc closes the panel, as the history
                 closePanels(graph);
                 closeGraph();
@@ -415,6 +423,10 @@
             showMenu(false);
             return true;
         }
+        if (key === 27 && bigPanel) { // a panel popped out pops in first; its own window closes
+            panelIn();
+            return true;
+        }
         if (key === 27 && stats.classList.contains('calc-open')) { // Esc closes the statistics
             showStats(false);
             return true;
@@ -428,6 +440,10 @@
             return true;
         }
         if (key === 27 && toolPanels.some(function (p) { return p.open() && (p.show(false), true); })) return true; // and the solver and the numbers
+        if (key === 27 && chemPanel.classList.contains('calc-open')) { // and the chemistry, after its big table
+            if (!chemBig(false)) closeChem();
+            return true;
+        }
         if (key === 27 && graph.classList.contains('calc-open')) { // and the graph, after the point clicked on it and its big view
             if (!graphUnpin() && !graphBig(false)) closeGraph();
             return true;
@@ -738,13 +754,14 @@
     }
 
     function onKey(target, quick) {
+        if (chemSliding) return; // no tip comes while a knob of the periodic table's slider is dragged
         var key = target.closest('.calc-left > *, .calc-right > .del-ac, .calc-rad, .calc-mem, .calc-frac, .calc-fmt, .calc-hold, ' +
-            '.calc-stat-btn, .calc-fx-btn, .calc-fx-row, .calc-gx-row, .calc-conv-btn, .calc-solve-btn, .calc-numbers-btn, .calc-sv-row, ' +
+            '.calc-stat-btn, .calc-fx-btn, .calc-fx-row, .calc-gx-row, .calc-conv-btn, .calc-solve-btn, .calc-numbers-btn, .calc-chem-btn, .calc-chem-size, .calc-panel-size, .calc-pt-mode, .calc-pt-clear, .calc-pt-unit, .calc-pt-temp-v, .calc-sv-row, ' +
             '.calc-graph-btn, .calc-graph-size, .calc-graph-add, .calc-graph-del, .calc-graph-diff, .calc-graph-points, .calc-graph-zoom > span, .calc-graph-pop-end, .calc-graph-pop-row, .calc-graph-play, ' +
             '.calc-graph-fn > .calc-graph-swatch, ' +
             '.calc-sto, .calc-var-btn, .calc-var-clear, input, textarea, ' +
             '.calc-stats-chart, .calc-hist, .calc-past-export, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit, .calc-help, ' +
-            '.calc-solve .calc-solve-tab, .calc-sv-opt, .calc-sv-copy, .calc-sv-example') || letterIn(target);
+            '.calc-solve .calc-solve-tab, .calc-chem .calc-solve-tab, .calc-chem [data-pt], .calc-sv-opt, .calc-sv-copy, .calc-sv-example') || letterIn(target);
         if (key === tipKey) return;
         hideTip();
         tipKey = key;
@@ -793,6 +810,10 @@
 
     function showTip() {
         tipTimer = 0;
+        if (!document.contains(tipKey)) { // drawn again under the pointer, as the element above the table is: the next move finds what is there now
+            tipKey = null;
+            return;
+        }
         var name = tipKey.textContent.replace(/\s*/g, ''), info = tipFor(tipKey, name), calc = tip.parentNode,
             cam = tipKey.closest('.calc-graph-export') && tipKey.querySelector('svg'), // the camera has no box: from the camera itself
             at = inside((cam || tipKey).getBoundingClientRect()), left, top, below,
@@ -868,6 +889,7 @@
             if (!statsNow.n || !isFinite(value)) return { t: info.t, d: info.d };
             return { t: info.t, d: info.d, html: statsValue(value).html, text: local(statsValue(value).text), put: true };
         }
+        if (el.hasAttribute('data-fact')) return chemFactPeek(el);
         value = el.querySelector('.calc-sv-value');
         if (!row || row.m !== undefined || row.flip || (row.text === undefined && !isFinite(row.v)) || !value || /^–?$/.test(value.textContent.trim())) return null;
         return { t: el.querySelector('.calc-sv-label').innerHTML, html: value.innerHTML,
@@ -924,6 +946,7 @@
     // the pointer on target: its result's tip, or the tip shown kept, or let go
     function peekAt(target) {
         var el = target.closest('.calc-sv-tile, .calc-stats-tile, .calc-conv-row, .calc-fx-row');
+        if (target.closest('.calc-pt-unit')) el = null; // its unit has the tip of a key
         if (el && el.classList.contains('calc-fx-row') && fxTab !== 'constants') el = null; // a formula has the tip of a key
         if (peek.contains(target) || (el && el === peekTile)) {
             clearTimeout(peekHide);
@@ -990,6 +1013,7 @@
         }
         if (/^(INPUT|TEXTAREA)$/.test(el.tagName) && (info = lettersTip(el))) return info; // a box with letters in it; any other has the tip of its own below
         if (el.classList.contains('calc-help')) return CalcTips['help'];
+        if (el.classList.contains('calc-panel-size')) return CalcTips[bigPanel ? 'panel small' : 'panel big'];
         if (el === radDeg) return CalcTips['unit ' + radDeg.firstChild.data];
         if (el === fxButton) return CalcTips[fx.classList.contains('calc-open') ? 'formulas close' : 'formulas'];
         if (fx.contains(el)) return fxTip(el);
@@ -1002,6 +1026,8 @@
         if (solvePanel.contains(el)) return solver.tip(el);
         if (el === numbersButton) return CalcTips[numbersPanel.classList.contains('calc-open') ? 'numbers close' : 'numbers'];
         if (numbersPanel.contains(el)) return numbers.tip(el);
+        if (el === chemButton) return CalcTips[chemPanel.classList.contains('calc-open') ? 'chem close' : 'chem'];
+        if (chemPanel.contains(el)) return chemTip(el);
         if (el === graphButton) return CalcTips[graph.classList.contains('calc-open') ? 'graph close' : 'graph'];
         if (graph.contains(el)) {
             if (el.classList.contains('calc-gx-row')) return exampleTip(el);
@@ -1343,6 +1369,7 @@
         graphSearch.value = '';
         showGraphTab('graph');
         toolPanels.forEach(function (p) { p.clear(); });
+        clearChem();
         refresh();
         saveState();
     }
@@ -1510,6 +1537,9 @@
         if (numbersPanel.classList.contains('calc-open') && !numbersPanel.contains(e.target) && !numbersButton.contains(e.target)) {
             showNumbers(false);
         }
+        if (chemPanel.classList.contains('calc-open') && !chemPanel.contains(e.target) && !chemButton.contains(e.target)) {
+            showChem(false);
+        }
     }, true);
 
     past.querySelector('.calc-past-close').addEventListener('click', function () {
@@ -1602,7 +1632,7 @@
 
     // one panel at a time: every one closed but the one opening
     function closePanels(but) {
-        [[past, showPast], [stats, showStats], [fx, showFx], [conv, showConv], [graph, showGraph], [solvePanel, showSolve], [numbersPanel, showNumbers]]
+        [[past, showPast], [stats, showStats], [fx, showFx], [conv, showConv], [graph, showGraph], [solvePanel, showSolve], [numbersPanel, showNumbers], [chemPanel, showChem]]
             .forEach(function (p) { if (p[0] !== but) p[1](false); });
     }
 
@@ -1640,7 +1670,7 @@
     // a box of the same panel is being typed in, the keyboard up already, as Enter goes on
     function focusBox(box) {
         var at = document.activeElement;
-        if (touchScreen() && !(/^(INPUT|TEXTAREA)$/.test(at.tagName) && [stats, fx, conv, graph, solvePanel, numbersPanel].some(function (p) {
+        if (touchScreen() && !(/^(INPUT|TEXTAREA)$/.test(at.tagName) && [stats, fx, conv, graph, solvePanel, numbersPanel, chemPanel].some(function (p) {
             return p.contains(at) && p.contains(box);
         }))) return false;
         box.focus();
@@ -1730,6 +1760,7 @@
     }, false);
 
     function showStats(open) {
+        if (!open && bigShut(stats)) return;
         if (open) {
             closePanels(stats);
             placePanel(stats);
@@ -1787,7 +1818,7 @@
     // and under it their box plot on the same scale: the box from Q1 to Q3, the median across
     // it, and the whiskers out to min and max
     function histogramChart(s) {
-        var lo = s.min, hi = s.max, k, w, counts = [], most, html = '', i, x = function (v) { return 10 + (v - lo) / (hi - lo) * (CHART_W - 20); };
+        var lo = s.min, hi = s.max, k, w, counts = [], most, html = '', i, lMin, lMax, lMid, xm, x = function (v) { return 10 + (v - lo) / (hi - lo) * (CHART_W - 20); };
         if (lo === hi) {
             lo -= 0.5;
             hi += 0.5;
@@ -1815,9 +1846,15 @@
         } else {
             html += '<circle class="calc-stats-dot" cx="' + x(s.median).toFixed(1) + '" cy="87" r="3"/>';
         }
+        // the median's label only where it clears those of min and max, a digit about 6 wide at 10px
+        lMin = shortNumber(s.min);
+        lMax = shortNumber(s.max);
+        lMid = shortNumber(s.median);
+        xm = x(s.median);
         return '<svg viewBox="0 0 ' + CHART_W + ' ' + CHART_H + '" role="img" aria-label="Histogram and box plot">' + html +
-            chartText(10, 112, shortNumber(s.min), 'start') + (s.n > 1 && s.min !== s.max ? chartText(x(s.median), 112, shortNumber(s.median)) : '') +
-            chartText(CHART_W - 10, 112, shortNumber(s.max), 'end') + '</svg>';
+            chartText(10, 112, lMin, 'start') + (s.n > 1 && s.min !== s.max && xm - lMid.length * 3 > 14 + lMin.length * 6 &&
+                xm + lMid.length * 3 < CHART_W - 14 - lMax.length * 6 ? chartText(xm, 112, lMid) : '') +
+            chartText(CHART_W - 10, 112, lMax, 'end') + '</svg>';
     }
 
     // The pairs as dots, x across and y up, and their line of best fit through them
@@ -2121,7 +2158,7 @@
         showMenu(false);
         if (on) {
             saveState(); // all of it, for the window that opens with it
-            if (!ask('big', { big: true })) return false;
+            if (!ask('big', { big: true })) return showGraph(false), false; // in its own window, and not here as well
             if (!graph.classList.contains('calc-open')) showGraph(true);
         }
         root.classList.toggle('calc-big', on);
@@ -4513,7 +4550,7 @@
             return;
         }
         if (fxTab === 'constants') putConstant(fxItems.constants[+item.dataset.i].item);
-        else openFormula(item.classList.contains('calc-on') ? null : item);
+        else if (!(item.classList.contains('calc-on') && bigSide(fx))) openFormula(item.classList.contains('calc-on') ? null : item); // beside the list it stays open
     }, false);
 
     // a number box keeps only what a number is made of: digits, one point, a minus first, and the
@@ -4596,7 +4633,11 @@
         })[0] || empty[0]).focus();
     }, false);
 
+    // the formula open last: popped out, beside the list, it opens again
+    var fxOpen = -1;
+
     function showFx(open) {
+        if (!open && bigShut(fx)) return;
         if (open) {
             closePanels(fx);
             placePanel(fx);
@@ -4619,6 +4660,7 @@
             tab.classList.toggle('calc-on', tab.dataset.tab === fxTab);
         });
         fxSearch.hidden = fxTab === 'vars'; // ten letters, nothing to search
+        fxList.classList.remove('calc-side');
         if (fxTab === 'vars') return showLetters();
         fxSearch.placeholder = fxTab === 'formulas' ? 'Search formulas' : 'Search constants';
         fxItems[fxTab].forEach(function (entry, i) {
@@ -4642,6 +4684,11 @@
         });
         fxList.innerHTML = html || '<div class="calc-fx-none">Nothing found</div>';
         fxList.scrollTop = 0;
+        fxList.style.setProperty('--rows', fxList.children.length + 1); // beside the list, its first row the room of the search
+        fxList.classList.toggle('calc-side', fxTab === 'formulas' && bigSide(fx));
+        if (fxTab === 'formulas' && bigSide(fx)) { // beside the list, one is always open: the one open last, if found, else the first
+            openFormula(fxList.querySelector('.calc-fx-item[data-i="' + fxOpen + '"]') || fxList.querySelector('.calc-fx-item'), true);
+        }
         hideTip();
     }
 
@@ -4721,20 +4768,24 @@
     }
 
     // A box for each letter of the formula, and Insert. A result in the display
-    // is put in the first one, to start from; a formula with angles says their unit
-    function openFormula(item) {
+    // is put in the first one, to start from; a formula with angles says their unit.
+    // quiet: opened by itself, beside the list, its first box not to type in yet
+    function openFormula(item, quiet) {
         var open = fxList.querySelector('.calc-fx-item.calc-on'), f, form, first;
 
         if (open) {
             open.classList.remove('calc-on');
             open.removeChild(open.querySelector('.calc-fx-form'));
         }
+        fxOpen = item ? +item.dataset.i : -1;
         if (!item) return;
         hideTip();
         f = fxItems.formulas[+item.dataset.i].item;
         form = item.appendChild(document.createElement('div'));
         form.className = 'calc-fx-form';
-        form.innerHTML = '<div class="calc-fx-fields">' + f.v.map(function (v) {
+        form.innerHTML = '<div class="calc-sv-side-head"><span class="calc-sv-side-name">' + f.t + '</span>' + item.querySelector('.calc-fx-f').outerHTML + // beside the list, at its top
+            '<p class="calc-sv-side-d">' + f.d + '</p></div>' +
+            '<div class="calc-fx-fields">' + f.v.map(function (v) {
             return '<label class="calc-fx-var"><span class="calc-fx-sym">' + v[1] + '</span>' +
                 // a keyboard with letters, for A to J as well as numbers
                 '<input type="text" autocapitalize="characters" spellcheck="false" autocomplete="off" maxlength="40" placeholder="' +
@@ -4748,8 +4799,8 @@
         if (!engine.edit && !engine.error && (engine.done || engine.plain()) && +engine.value) {
             first.value = local(+(+engine.value).toPrecision(13));
         }
-        if (focusBox(first)) first.select();
-        item.scrollIntoView({ block: 'nearest' });
+        if (!quiet && focusBox(first)) first.select();
+        item.firstChild.scrollIntoView({ block: 'nearest' }); // its row: beside the list, the card itself is not in it
     }
 
     // the note of a formula naming the letters of the boxes marked: empty, or, typed, not a number
@@ -4820,6 +4871,7 @@
         if (!el.classList.contains('calc-fx-row')) return null;
         it = fxItems[fxTab][+item.dataset.i].item;
         if (fxTab === 'constants') return null;
+        if (item.classList.contains('calc-on') && bigSide(fx)) return null; // beside the list, what it does is at the top of its card
         return {
             t: it.t,
             d: it.d + '<div class="calc-tip-more">' + it.v.map(function (v) {
@@ -6686,6 +6738,9 @@
     // the solver's take a calculation, pi/4. now: { open(), whether its cards are shown,
     // done(), after a value is put in }
     // { render(), load(saved), clear(), keep(), tab(), setTab(tab), focus(), tip(el) }
+    // Again pressed: a card that picks at random picks anew, and keeps what it picked otherwise (the worksheet)
+    var svAgain = false;
+
     function toolCards(list, tools, key, plain, now) {
         var tab = Object.keys(tools)[0], openId = '', values = {}, rows = [], pasted = '';
 
@@ -6714,7 +6769,9 @@
                     pills(tool.f) + '</span></span></span>' + collapseButton() + '</div></div>'; // each in a badge, one alone as well
             }).join('');
             list.scrollTop = 0;
-            if (open === undefined && tools[tab].length === 1) open = 0;
+            list.style.setProperty('--rows', tools[tab].length);
+            list.classList.toggle('calc-side', !!(now.side && now.side())); // beside the list, the card open
+            if (open === undefined && (tools[tab].length === 1 || (now.side && now.side()))) open = 0; // beside the list, a card is always open
             if (open !== undefined) openTool(list.children[open], true);
             hideTip();
         }
@@ -6734,7 +6791,9 @@
             openId = tool.id;
             form = item.appendChild(document.createElement('div'));
             form.className = 'calc-sv-form';
-            form.innerHTML = '<div class="calc-sv-boxes"></div><div class="calc-sv-note"></div>' + (tool.again ? '<span class="calc-sv-again">Again</span>' : '') +
+            form.innerHTML = (now.side && now.side() ? '<div class="calc-sv-side-head"><span class="calc-sv-side-name">' + tool.t + '</span><span class="calc-sv-f calc-sv-val">' + pills(tool.f) +
+                '</span><p class="calc-sv-side-d">' + tool.d + '</p></div>' : '') + // beside the list, its name, formula and what it does at its top
+                '<div class="calc-sv-boxes"></div><div class="calc-sv-note"></div>' + (tool.again ? '<span class="calc-sv-again">Again</span>' : '') +
                 (tool.example ? '<span class="calc-sv-again calc-sv-example" role="button">Example</span>' : '') +
                 '<div class="calc-sv-results">Results</div><div class="calc-sv-grid"></div>';
             item.classList.add('calc-on');
@@ -6923,9 +6982,15 @@
         // number of a matrix, is put in
         list.addEventListener('click', function (e) {
             var row = e.target.closest('.calc-sv-row'), t = e.target.closest('.calc-sv-tile'), cell = e.target.closest('.calc-sv-cell'), bit = e.target.closest('.calc-sv-bit'), r, v;
+            if (row && now.side && now.side() && row.parentNode.classList.contains('calc-on')) return; // beside the list it stays open
             if (row) return openTool(row.parentNode.classList.contains('calc-on') ? null : row.parentNode);
             if (e.target.closest('.calc-sv-example')) return example(e.target.closest('.calc-sv-item'));
-            if (e.target.closest('.calc-sv-again')) return run();
+            if (e.target.closest('.calc-sv-again')) {
+                svAgain = true;
+                run();
+                svAgain = false;
+                return;
+            }
             if (e.target.closest('.calc-sv-opt')) return choose(e.target.closest('.calc-sv-opt'));
             r = t && rows[+t.dataset.r];
             if (e.target.closest('.calc-sv-copy') && r && r.m) return copy(tableText(r));
@@ -7096,6 +7161,7 @@
                 if (el.classList.contains('calc-sv-example')) return CalcTips['card example'];
                 if (el.classList.contains('calc-sv-copy')) return CalcTips[el.classList.contains('calc-sv-copy-t') ? 'text copy' : el.classList.contains('calc-sv-copy-m') ? 'matrix copy' : 'table copy'];
                 if (!el.classList.contains('calc-sv-row')) return null;
+                if (el.parentNode.classList.contains('calc-on') && now.side && now.side()) return null; // beside the list, what it does is at the top of its card
                 tool = tools[tab][+el.parentNode.dataset.i];
                 return { t: tool.t, d: tool.d + (el.parentNode.classList.contains('calc-on') ? ' Click to close it.' : ' Click to open it.'), k: '' };
             }
@@ -7108,7 +7174,8 @@
     function toolPanel(panel, button, tools, key, tip, plain) {
         var cards = toolCards(panel.querySelector('.calc-sv-list'), tools, key, plain, {
             open: function () { return panel.classList.contains('calc-open'); },
-            done: function () { show(false); }
+            done: function () { show(false); },
+            side: function () { return bigSide(panel); }
         });
 
         function tabs() {
@@ -7118,6 +7185,7 @@
         }
 
         function show(open) {
+            if (!open && bigShut(panel)) return;
             if (open) {
                 closePanels(panel);
                 placePanel(panel);
@@ -7151,6 +7219,10 @@
         return {
             show: show,
             load: cards.load,
+            render: function () {
+                tabs();
+                cards.render();
+            },
             // the panel opens on a tool's card, with these in its boxes, and what they give
             put: function (id, kept) {
                 if (cards.put(id, kept)) show(true);
@@ -7177,6 +7249,1172 @@
 
     function showNumbers(open) {
         numbers.show(open);
+    }
+
+    // ---------------- chemistry ---------------- //
+
+    // The periodic table, and the chemistry worked out with it (chem.js), on tabs: a card for each tool, as the
+    // solver has. A formula is typed as it is written, CuSO4·5H2O, Ca(OH)2, Fe^3+; an equation with = or →
+    var CHEM_PH = ['[H<sup>+</sup>]', '[OH<sup>–</sup>]', 'pH', 'pOH'],
+        GAS_R = [0.082057366080960, 8.314462618, 62.363598221529, 0.08314462618], // L·unit/(mol·K): atm, kPa, mmHg, bar
+        CHEM_TOOLS = {
+            mass: [
+                { id: 'molar', t: 'Molar mass', f: ['M', '% by mass'], d: 'The molar mass of a formula, in g/mol, and how much of it each element is: CuSO4·5H2O, Ca(OH)2, (NH4)2SO4, K4[Fe(CN)6]. An ion\'s charge after ^, Fe^3+.',
+                    fields: [{ k: 'f', l: 'Formula', ph: 'CuSO4·5H2O', fn: true }], run: runMolar, example: { f: 'Ca(OH)2' } },
+                { id: 'moles', t: 'Grams and moles', f: ['n = m ÷ M', 'N = n N<sub>A</sub>'], d: 'Mass, moles and particles of a substance: type one, and the others are worked out from its molar mass and the Avogadro constant.',
+                    fields: [{ k: 'f', l: 'Formula', ph: 'H2O', fn: true }, { k: 'm', l: 'Mass, g', ph: 'or' }, { k: 'n', l: 'Moles', ph: 'or' }, { k: 'p', l: 'Particles', ph: 'or' }], cols: 3,
+                    run: runMoles, example: { f: 'H2O', m: '36' } },
+                { id: 'empirical', t: 'Empirical formula', f: ['CH<sub>2</sub>O', 'C<sub>6</sub>H<sub>12</sub>O<sub>6</sub>'], d: 'The simplest formula of a composition, the percent or grams of each element: C 40, H 6.71, O 53.29. With its molar mass, the molecular formula as well.',
+                    fields: [{ k: 'c', l: 'Composition', ph: 'C 40, H 6.71, O 53.29', fn: true }, { k: 'M', l: 'Molar mass', ph: 'optional' }], run: runEmpirical,
+                    example: { c: 'C 40, H 6.71, O 53.29', M: '180.16' } }
+            ],
+            reactions: [
+                { id: 'balance', t: 'Balance an equation', f: 'Fe + O<sub>2</sub> → Fe<sub>2</sub>O<sub>3</sub>', d: 'The smallest whole numbers in front of each formula, so each element and the charge are the same on both sides; and what kind of reaction it is. ' +
+                    'Write = or → between the sides, + between the formulas; ions with their charge, Fe^3+, and e- for an electron.',
+                    fields: [{ k: 'eq', ph: 'Fe + O2 = Fe2O3', fn: true }], run: runBalance, example: { eq: 'C3H8 + O2 = CO2 + H2O' } },
+                { id: 'stoich', t: 'Amounts and limiting reactant', f: ['g ⇄ mol', 'limiting', '% yield'], d: 'From the amount of one formula, all the others of the reaction. Of two reactants or more, the one that runs out first and what is left of the others; ' +
+                    'of a product as well, its percent yield. Amounts in g, or with kg, mg or mol after them: Fe 10, O2 5 g.',
+                    fields: [{ k: 'eq', l: 'Equation', ph: 'Fe + O2 = Fe2O3', fn: true }, { k: 'a', l: 'Amounts', ph: 'Fe 10 g, O2 5 g', fn: true }], run: runStoich,
+                    example: { eq: 'N2 + H2 = NH3', a: 'N2 28 g, H2 10 g, NH3 25 g' } },
+                { id: 'worksheet', t: 'Worksheet', f: ['Practice', 'Answer key'], d: 'Equations to balance, or to name the kind of reaction of, at three levels, with the answers under them to check by. ' +
+                    'Again for new ones; Copy for the questions or the answers, to print.',
+                    fields: [{ k: 'ex', l: 'Exercise', choice: ['Balance', 'Kind', 'Both'] }, { k: 'lv', l: 'Level', choice: ['Easy', 'Medium', 'Hard'] },
+                        { k: 'n', l: 'Questions', choice: ['5', '10', '20'], at: 1 }], again: true, run: runWorksheet },
+                { id: 'heat', t: 'Heat', f: 'q = mcΔT', d: 'The heat that warms or cools a mass, as in a calorimeter: leave one of q, m, c and ΔT empty and it is worked out. c of water is 4.184 J/(g·°C).',
+                    fields: [{ k: 'q', l: 'q, J', ph: 'or' }, { k: 'm', l: 'm, g', ph: 'or' }, { k: 'c', l: 'c, J/(g·°C)', ph: 'or' }, { k: 't', l: 'ΔT, °C', ph: 'or' }], cols: 2,
+                    run: runHeat, example: { m: '100', c: '4.184', t: '25' } },
+                { id: 'decay', t: 'Half-life', f: 'N = N<sub>0</sub>(½)<sup>t ÷ t½</sup>', d: 'What is left of a radioactive substance, or of a first-order reaction, after a time: leave one of N₀, N, t and t½ empty. The same unit of time for t and t½.',
+                    fields: [{ k: 'n0', l: 'N<sub>0</sub>', name: 'N₀', ph: 'or' }, { k: 'n', l: 'N', ph: 'or' }, { k: 't', l: 't', ph: 'or' }, { k: 'h', l: 't½', ph: 'or' }], cols: 2,
+                    run: runDecay, example: { n0: '100', t: '10', h: '5.27' } }
+            ],
+            solutions: [
+                { id: 'molarity', t: 'Molarity', f: 'c = n ÷ V', d: 'The concentration of a solution, in mol/L: leave one of mass, volume and molarity empty. Without a formula, type moles in place of the mass.',
+                    fields: [{ k: 'f', l: 'Formula', ph: 'NaCl', fn: true }, { k: 'm', l: 'Mass, g', ph: 'or' }, { k: 'n', l: 'Moles', ph: 'or' }, { k: 'v', l: 'Volume, L', ph: 'or' }, { k: 'c', l: 'mol/L', ph: 'or' }], cols: 2,
+                    run: runMolarity, example: { f: 'NaCl', m: '5.844', v: '0.25' } },
+                { id: 'dilution', t: 'Dilution', f: 'C<sub>1</sub>V<sub>1</sub> = C<sub>2</sub>V<sub>2</sub>', d: 'A solution made weaker with water: leave one of the four empty and it is worked out. The same units on both sides.',
+                    fields: [{ k: 'c1', l: 'C<sub>1</sub>', name: 'C₁', ph: 'or' }, { k: 'v1', l: 'V<sub>1</sub>', name: 'V₁', ph: 'or' }, { k: 'c2', l: 'C<sub>2</sub>', name: 'C₂', ph: 'or' }, { k: 'v2', l: 'V<sub>2</sub>', name: 'V₂', ph: 'or' }], cols: 2,
+                    run: runDilution, example: { c1: '2', v1: '50', c2: '0.5' } },
+                { id: 'ph', t: 'pH', f: CHEM_PH, d: 'pH, pOH, [H⁺] and [OH⁻] from any one of them, in water at 25 °C, where pH + pOH = 14.',
+                    fields: [{ k: 'x', l: 'Value', ph: '0.001' }, { k: 'of', l: 'Of', choice: CHEM_PH }], run: runPh },
+                { id: 'weak', t: 'Weak acid or base', f: ['K<sub>a</sub>', 'K<sub>b</sub>'], d: 'The pH of a weak acid or base from its K<sub>a</sub> or K<sub>b</sub> and its concentration, by the quadratic, not the ½ log approximation; and how much of it ionizes.',
+                    fields: [{ k: 'k', l: 'K', ph: '1.8e-5' }, { k: 'c', l: 'mol/L', ph: '0.1' }, { k: 'is', l: 'It is', choice: ['An acid, K<sub>a</sub>', 'A base, K<sub>b</sub>'] }], cols: 2,
+                    run: runWeak, example: { k: '1.8e-5', c: '0.1' } },
+                { id: 'buffer', t: 'Buffer', f: 'pH = pK<sub>a</sub> + log([A<sup>–</sup>] ÷ [HA])', d: 'The pH of a buffer, by Henderson–Hasselbalch: its acid HA and its base A⁻. pK<sub>a</sub>, or K<sub>a</sub>, which it takes too.',
+                    fields: [{ k: 'pka', l: 'pK<sub>a</sub>', name: 'pKa', ph: '4.76' }, { k: 'a', l: '[A<sup>–</sup>]', name: '[A⁻]', ph: '0.1' }, { k: 'ha', l: '[HA]', ph: '0.1' }], cols: 3,
+                    run: runBuffer, example: { pka: '4.76', a: '0.15', ha: '0.1' } },
+                { id: 'soluble', t: 'Solubility', f: ['PbI<sub>2</sub>', 'BaSO<sub>4</sub>'], d: 'Whether a salt dissolves in water, by the usual table at 25 °C, and the rule: ' +
+                    'the nitrates, acetates, halides, sulfates, carbonates, phosphates, hydroxides and sulfides of 20 common cations, Li⁺ to Pb²⁺.',
+                    fields: [{ k: 'f', l: 'Salt', ph: 'PbI2', fn: true }], run: runSoluble, example: { f: 'BaSO4' } }
+            ],
+            ions: [
+                { id: 'ion', t: 'Ions', f: ['NH<sub>4</sub><sup>+</sup>', 'SO<sub>4</sub><sup>2−</sup>', 'Fe<sup>3+</sup>'], d: 'A common ion by its formula or its name, sulfate, ferric, bicarbonate: its charge and molar mass, ' +
+                    'its colour in water and the colour it gives a flame. Empty, all of them.',
+                    fields: [{ k: 'f', l: 'Ion', ph: 'SO4^2- or sulfate', fn: true }], run: runIon, example: { f: 'MnO4^-' } }
+            ],
+            gases: [
+                { id: 'gas', t: 'Ideal gas', f: 'PV = nRT', d: 'A gas as the ideal gas law has it: leave one of P, V, n and T empty and it is worked out. V in litres; with a formula, the mass and density as well.',
+                    fields: [{ k: 'p', l: 'P', ph: 'or' }, { k: 'v', l: 'V, L', ph: 'or' }, { k: 'n', l: 'n, mol', ph: 'or' }, { k: 't', l: 'T', ph: 'or' },
+                        { k: 'pu', l: 'P in', choice: ['atm', 'kPa', 'mmHg', 'bar'] }, { k: 'tu', l: 'T in', choice: ['K', '°C'] }, { k: 'f', l: 'Formula', ph: 'optional', fn: true }], cols: 2,
+                    run: runGas, example: { p: '1', n: '1', t: '273.15' } },
+                { id: 'gases', t: 'Combined gas law', f: 'P<sub>1</sub>V<sub>1</sub>/T<sub>1</sub> = P<sub>2</sub>V<sub>2</sub>/T<sub>2</sub>', d: 'A gas whose pressure, volume or temperature changes: leave one of the six empty. Boyle\'s, Charles\'s and Gay-Lussac\'s laws are each of it, the others the same.',
+                    fields: [{ k: 'p1', l: 'P<sub>1</sub>', name: 'P₁', ph: 'or' }, { k: 'v1', l: 'V<sub>1</sub>', name: 'V₁', ph: 'or' }, { k: 't1', l: 'T<sub>1</sub>', name: 'T₁', ph: 'or' },
+                        { k: 'p2', l: 'P<sub>2</sub>', name: 'P₂', ph: 'or' }, { k: 'v2', l: 'V<sub>2</sub>', name: 'V₂', ph: 'or' }, { k: 't2', l: 'T<sub>2</sub>', name: 'T₂', ph: 'or' },
+                        { k: 'tu', l: 'T in', choice: ['K', '°C'] }], cols: 3,
+                    run: runGases, example: { p1: '1', v1: '2', t1: '300', p2: '2', t2: '600' } }
+            ]
+        };
+
+    // a formula in a box: what is wrong with it, to say in the note
+    function formulaWhy(r, box) {
+        return r.error === 'element' ? r.symbol + ' is no element: symbols start with a capital, Co for cobalt, CO for carbon monoxide.' :
+            r.error === 'brackets' ? 'A bracket is not closed, or closed by another kind.' :
+                r.error === 'empty' ? '' : (box || 'The formula') + ' is not a formula yet: CuSO4·5H2O, Ca(OH)2, Fe^3+.';
+    }
+
+    function runMolar(n, raw) {
+        var r, none = [{ l: 'g/mol', v: NaN }];
+        if (!raw.f) return { rows: none };
+        r = CalcChem.molarMass(raw.f);
+        if (r.error) return { rows: none, bad: ['f'], warn: r.error !== 'empty', note: formulaWhy(r) };
+        return {
+            rows: [{ l: 'g/mol', v: CalcMaths.round(r.mass) }, { l: 'Atoms', v: r.parts.reduce(function (s, p) { return s + p.n; }, 0) },
+                { l: 'Formula', text: CalcChem.html(raw.f), copy: CalcChem.plain(raw.f) }].concat(r.parts.map(function (p) {
+                return { l: '% ' + p.s + (p.n > 1 ? ' × ' + p.n : ''), v: +p.percent.toFixed(3) };
+            })),
+            note: (r.electron ? 'An electron\'s mass is left out, as tables of molar mass do. ' : '') + (r.unstable ? 'An element with no stable isotope has the mass number of its longest-lived one.' : '')
+        };
+    }
+
+    // the molar mass of a box's formula, or the note of why there is none
+    function massOf(raw, k) {
+        var r = raw[k] ? CalcChem.molarMass(raw[k]) : { error: 'empty' };
+        return r.error ? { why: formulaWhy(r), bad: r.error !== 'empty' } : { M: r.mass };
+    }
+
+    function runMoles(n, raw) {
+        var M = massOf(raw, 'f'), given = ['m', 'n', 'p'].filter(function (k) { return raw[k]; }), mol;
+        if (M.why !== undefined) return { rows: [{ l: 'g/mol', v: NaN }], bad: M.bad ? ['f'] : [], warn: M.bad, note: M.why || 'Type a formula, then a mass, moles or particles.' };
+        if (given.length > 1) return { rows: [{ l: 'g/mol', v: CalcMaths.round(M.M) }], warn: true, note: 'Type one of mass, moles and particles: the others are worked out.' };
+        mol = given[0] === 'm' ? n.m / M.M : given[0] === 'n' ? n.n : given[0] === 'p' ? n.p / CalcChem.avogadro : NaN;
+        return { rows: [{ l: 'g/mol', v: CalcMaths.round(M.M) }, { l: 'Mass, g', v: mol * M.M }, { l: 'Moles', v: mol }, { l: 'Particles', v: mol * CalcChem.avogadro }],
+            note: given.length ? '' : 'Type a mass, moles or particles.' };
+    }
+
+    function runEmpirical(n, raw) {
+        var r, none = [{ l: 'Empirical', v: NaN }];
+        if (!raw.c) return { rows: none };
+        r = CalcChem.empirical(raw.c, engine.comma, raw.M ? n.M : 0);
+        if (r.error) {
+            return { rows: none, bad: ['c'], warn: true, note: r.error === 'element' ? r.at + ' is no element.' : r.error === 'zero' ? r.at + ' needs an amount above 0.' :
+                'Each element and its percent or grams: C 40' + (engine.comma ? '; ' : ', ') + 'H 6.71' + (engine.comma ? '; ' : ', ') + 'O 53.29.' };
+        }
+        return {
+            rows: [{ l: 'Empirical', text: r.html, copy: r.plain }, { l: 'Its g/mol', v: CalcMaths.round(r.M) }]
+                .concat(r.molecular ? [{ l: 'Molecular', text: r.molecularHtml, copy: r.molecularPlain }, { l: 'Its g/mol', v: CalcMaths.round(r.M * r.n) }, { l: 'Times', v: r.n }] : []),
+            note: r.off ? 'The molar mass is not a whole number of times the empirical formula\'s: the nearest is taken.' : 'Moles of each, divided by the least: ' +
+                r.parts.map(function (p, i) { return p.s + ' ' + local(String(+r.ratio[i].toFixed(2))); }).join(', ') + '.'
+        };
+    }
+
+    // what is wrong with an equation, for the note
+    function equationWhy(r) {
+        return r.error === 'arrow' ? 'Write = or → between its two sides.' : r.error === 'arrows' ? 'One = or → only, between its two sides.' :
+            r.error === 'side' ? 'A formula on each side.' : r.error === 'formula' ? (formulaWhy(r.why, r.formula) || r.formula + ' is not a formula.') :
+                r.error === 'one side' ? r.element + ' is on one side only: it cannot be balanced.' :
+                    r.error === 'many' ? 'It balances in more than one way: it is two reactions or more. Write each of them.' :
+                        'It cannot be balanced as written: a formula may be on the wrong side, or one is missing.';
+    }
+
+    function runBalance(n, raw) {
+        var r, none = [{ l: 'Balanced', v: NaN, wide: true }], rows, mass = function (side) {
+            return side.reduce(function (s, x) { return s + x.k * CalcChem.molarMass(x.t).mass; }, 0);
+        };
+        if (!raw.eq) return { rows: none };
+        r = CalcChem.balance(raw.eq);
+        if (r.error) return { rows: none, bad: ['eq'], warn: true, note: equationWhy(r) };
+        rows = [{ l: 'Balanced', text: r.html, copy: r.text, wide: true }];
+        if (r.kind) rows.push({ l: 'Kind', text: r.kind, wide: true });
+        return { rows: rows.concat(r.left.concat(r.right).map(function (x) { return { l: CalcChem.html(x.t), v: x.k }; }),
+            [{ l: 'Reactants, g', v: CalcMaths.round(mass(r.left)) }, { l: 'Products, g', v: CalcMaths.round(mass(r.right)) }]),
+            note: r.many ? 'It balances in more than one way: this is one, the sum of the others.' : 'The numbers of each formula, then the mass of each side, which are the same.' };
+    }
+
+    function runStoich(n, raw) {
+        var b, read, r, none = [{ l: 'Balanced', v: NaN, wide: true }], rows;
+        if (!raw.eq) return { rows: none };
+        b = CalcChem.balance(raw.eq);
+        if (b.error) return { rows: none, bad: ['eq'], warn: true, note: equationWhy(b) };
+        rows = [{ l: 'Balanced', text: b.html, copy: b.text, wide: true }];
+        if (!raw.a) return { rows: rows, note: 'Type the amount of a formula, or of each reactant: ' + CalcChem.plain(b.left[0].t) + ' 10 g.' };
+        read = CalcChem.readAmounts(raw.a, engine.comma);
+        if (read.error) return { rows: rows, bad: ['a'], warn: true, note: read.error + ' is not a formula and an amount: Fe 10 g, or O2 0.5 mol.' };
+        r = CalcChem.amounts(raw.eq, read.list);
+        if (r.error === 'not in') return { rows: rows, bad: ['a'], warn: true, note: r.t + ' is not in the equation.' };
+        if (r.error) return { rows: rows, note: 'Type the amount of a formula, or of each reactant.' };
+        if (r.limiting) rows.push({ l: 'Limiting reactant', text: CalcChem.html(r.limiting), wide: true });
+        if (r.percent !== undefined) rows.push({ l: '% yield of ' + CalcChem.html(r.yieldOf), v: +r.percent.toFixed(2), wide: true });
+        r.rows.forEach(function (x) {
+            rows.push({ l: CalcChem.html(x.t) + ', g', v: CalcMaths.round(x.g) }, { l: CalcChem.html(x.t) + ', mol', v: CalcMaths.round(x.mol) });
+            if (x.left > 1e-12 * x.given) rows.push({ l: CalcChem.html(x.t) + ' left, g', v: CalcMaths.round(x.left * x.M), wide: true });
+        });
+        return { rows: rows, cols: 2, note: r.limiting ? 'What it takes and makes, until ' + CalcChem.plain(r.limiting) + ' runs out.' : r.percent !== undefined ? 'What the reaction gives, against what was got.' : '' };
+    }
+
+    // the one box of a few that is empty, to work out; a note if not one alone is. names: what each is called
+    function oneEmpty(raw, keys, names) {
+        var empty = keys.filter(function (k) { return !raw[k]; });
+        if (empty.length === 1) return { k: empty[0] };
+        return { note: (empty.length ? 'Leave only one of ' : 'Leave one of ') + names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] + ' empty, the one to work out.', warn: !empty.length };
+    }
+
+    function runHeat(n, raw) {
+        var e = oneEmpty(raw, ['q', 'm', 'c', 't'], ['q', 'm', 'c', 'ΔT']), v;
+        if (!e.k) return { rows: [{ l: 'q, J', v: NaN }], warn: e.warn, note: e.note };
+        v = { q: n.m * n.c * n.t, m: n.q / (n.c * n.t), c: n.q / (n.m * n.t), t: n.q / (n.m * n.c) }[e.k];
+        return { rows: [{ l: { q: 'q, J', m: 'm, g', c: 'c, J/(g·°C)', t: 'ΔT, °C' }[e.k], v: v }].concat(e.k === 'q' ? [{ l: 'q, kJ', v: v / 1000 }] : []),
+            warn: !isFinite(v), note: !isFinite(v) ? 'None: a box it is divided by is 0.' : e.k === 'q' ? (v < 0 ? 'Below 0: heat given out.' : 'Heat taken in.') : '' };
+    }
+
+    function runDecay(n, raw) {
+        var e = oneEmpty(raw, ['n0', 'n', 't', 'h'], ['N₀', 'N', 't', 't½']), v, k, bad;
+        if (!e.k) return { rows: [{ l: 'N', v: NaN }], warn: e.warn, note: e.note };
+        v = { n: n.n0 * Math.pow(0.5, n.t / n.h), n0: n.n / Math.pow(0.5, n.t / n.h), t: n.h * Math.log(n.n0 / n.n) / Math.LN2, h: n.t * Math.LN2 / Math.log(n.n0 / n.n) }[e.k];
+        k = Math.LN2 / (e.k === 'h' ? v : n.h);
+        bad = !isFinite(v) || ((e.k === 't' || e.k === 'h') && v < 0); // N above N₀ would take a negative time
+        return { rows: [{ l: { n: 'N', n0: 'N₀', t: 't', h: 't½' }[e.k], v: v }, { l: 'Decay constant λ', v: k }, { l: '% left', v: CalcMaths.round(100 * (e.k === 'n' ? v / n.n0 : e.k === 'n0' ? n.n / v : n.n / n.n0)) }],
+            warn: bad, note: bad ? 'None: N is less than N₀, both above 0, and t½ above 0.' : '' };
+    }
+
+    function runMolarity(n, raw) {
+        var M = raw.f ? massOf(raw, 'f') : {}, hasMass = !!raw.m, mol, e, v;
+        if (M.why) return { rows: [{ l: 'mol/L', v: NaN }], bad: M.bad ? ['f'] : [], warn: true, note: M.why };
+        if (raw.m && raw.n) return { rows: [{ l: 'mol/L', v: NaN }], warn: true, note: 'Type the mass or the moles, not both.' };
+        if (raw.m && !M.M) return { rows: [{ l: 'mol/L', v: NaN }], warn: true, note: 'A formula to turn the mass into moles, or the moles in place of the mass.' };
+        e = oneEmpty({ a: raw.m || raw.n, v: raw.v, c: raw.c }, ['a', 'v', 'c'], [M.M ? 'mass' : 'moles', 'volume', 'molarity']);
+        if (!e.k) return { rows: [{ l: 'mol/L', v: NaN }], warn: e.warn, note: e.note };
+        mol = hasMass ? n.m / M.M : n.n;
+        if (e.k === 'c') v = mol / n.v;
+        else if (e.k === 'v') v = mol / n.c;
+        else mol = v = n.c * n.v;
+        var rows = [{ l: e.k === 'c' ? 'mol/L' : e.k === 'v' ? 'Volume, L' : 'Moles', v: v }];
+        if (e.k === 'v') rows.push({ l: 'Volume, mL', v: v * 1000 });
+        if (e.k !== 'a') rows.push({ l: 'Moles', v: mol });
+        if (M.M) rows.push({ l: 'Mass, g', v: mol * M.M }, { l: 'g/L', v: (e.k === 'c' ? v : n.c) * M.M });
+        return { rows: rows, warn: !isFinite(v), note: !isFinite(v) ? 'None: a box it is divided by is 0.' : '' };
+    }
+
+    function runDilution(n, raw) {
+        var e = oneEmpty(raw, ['c1', 'v1', 'c2', 'v2'], ['C₁', 'V₁', 'C₂', 'V₂']), v;
+        if (!e.k) return { rows: [{ l: 'C₂', v: NaN }], warn: e.warn, note: e.note };
+        v = { c1: n.c2 * n.v2 / n.v1, v1: n.c2 * n.v2 / n.c1, c2: n.c1 * n.v1 / n.v2, v2: n.c1 * n.v1 / n.c2 }[e.k];
+        return { rows: [{ l: { c1: 'C₁', v1: 'V₁', c2: 'C₂', v2: 'V₂' }[e.k], v: v }].concat(e.k === 'v2' ? [{ l: 'Water to add', v: v - n.v1 }] : e.k === 'v1' ? [{ l: 'Water to add', v: n.v2 - v }] : []),
+            warn: !isFinite(v), note: !isFinite(v) ? 'None: a box it is divided by is 0.' : '' };
+    }
+
+    // pH, pOH, [H⁺] and [OH⁻] of water at 25 °C, and what kind of solution it is
+    function phRows(ph) {
+        var rows = [{ l: 'pH', v: CalcMaths.round(ph) }, { l: 'pOH', v: CalcMaths.round(14 - ph) }, { l: '[H<sup>+</sup>]', v: Math.pow(10, -ph) }, { l: '[OH<sup>–</sup>]', v: Math.pow(10, ph - 14) }];
+        return { rows: rows, cols: 2, note: !isFinite(ph) ? '' : Math.abs(ph - 7) < 1e-9 ? 'Neutral.' : ph < 7 ? 'Acidic: below 7.' : 'Basic: above 7.' };
+    }
+
+    function runPh(n, raw) {
+        var of = +raw.of, ph;
+        if (!raw.x) return phRows(NaN);
+        if (of < 2 && !(n.x > 0)) return { rows: phRows(NaN).rows, cols: 2, bad: [], warn: true, note: 'A concentration above 0.' };
+        ph = of === 0 ? -Math.log10(n.x) : of === 1 ? 14 + Math.log10(n.x) : of === 2 ? n.x : 14 - n.x;
+        return phRows(ph);
+    }
+
+    function runWeak(n, raw) {
+        var x, out, acid = raw.is !== '1';
+        if (!raw.k || !raw.c) return { rows: phRows(NaN).rows, cols: 2, note: 'Type K and the concentration.' };
+        if (!(n.k > 0) || !(n.c > 0)) return { rows: phRows(NaN).rows, cols: 2, warn: true, note: 'K and the concentration above 0.' };
+        x = (-n.k + Math.sqrt(n.k * n.k + 4 * n.k * n.c)) / 2; // of x² ÷ (c − x) = K
+        out = phRows(acid ? -Math.log10(x) : 14 + Math.log10(x));
+        out.rows.push({ l: '% ionized', v: CalcMaths.round(100 * x / n.c) }, { l: acid ? 'pK<sub>a</sub>' : 'pK<sub>b</sub>', v: CalcMaths.round(-Math.log10(n.k)) });
+        return out;
+    }
+
+    function runBuffer(n, raw) {
+        var pka = raw.pka && n.pka > 0 && n.pka < 1e-1 && /e|E|^0[.,]/.test(raw.pka) ? -Math.log10(n.pka) : n.pka, ph; // Ka typed in place of pKa
+        if (!raw.pka || !raw.a || !raw.ha) return { rows: phRows(NaN).rows.slice(0, 2), cols: 2 };
+        if (!(n.a > 0) || !(n.ha > 0)) return { rows: phRows(NaN).rows.slice(0, 2), cols: 2, warn: true, note: '[A⁻] and [HA] above 0.' };
+        ph = pka + Math.log10(n.a / n.ha);
+        return { rows: phRows(ph).rows.concat([{ l: '[A<sup>–</sup>] ÷ [HA]', v: n.a / n.ha }, { l: 'pK<sub>a</sub>', v: CalcMaths.round(pka) }]), cols: 2,
+            note: (pka !== n.pka ? 'K' + 'a was typed: its pKa is taken. ' : '') + (Math.abs(ph - pka) > 1 ? 'More than 1 from pKa: a weak buffer.' : 'Within 1 of pKa: a good buffer.') };
+    }
+
+    // The table of solubility, each cell its letter in its colour, the salt typed outlined; its key under it
+    function solubleTable(ci, ai) {
+        var t = CalcChem.solubilityTable();
+        return '<span class="calc-sol" style="--cols: ' + (t.anions.length + 1) + '"><span></span>' + t.anions.map(function (a) {
+            return '<span class="calc-sol-head" title="' + a.name + '">' + a.ion.replace('CH₃COO', 'CH₃<br>COO') + '</span>'; // on two lines, to fit the popup
+        }).join('') + t.cations.map(function (c, i) {
+            return '<span class="calc-sol-head calc-sol-side" title="' + c.name + '">' + c.ion + '</span>' + t.letters[i].split('').map(function (x, j) {
+                return '<span class="calc-sol-' + (x === 's' ? 'little' : x) + (i === ci && j === ai ? ' calc-on' : '') + '" title="' + c.name + ' ' + t.anions[j].name + ': ' + t.words[x] + '">' + x + '</span>';
+            }).join('');
+        }).join('') + '</span><span class="calc-sol-key">' + ['S', 's', 'I', 'R'].map(function (x) {
+            return '<span><i class="calc-sol-' + (x === 's' ? 'little' : x) + '">' + x + '</i>' + t.words[x] + '</span>';
+        }).join('') + '</span>';
+    }
+
+    function runSoluble(n, raw) {
+        var none = [{ l: 'Solubility in water at 25 °C', text: solubleTable(-1, -1), wide: true }], r, M;
+        if (!raw.f) return { rows: none, note: 'Type a salt, or find it in the table: its cation down the side, its anion across the top.' };
+        r = CalcChem.solubility(raw.f);
+        if (r.error === 'unknown') return { rows: none, warn: true, note: 'Not in the table: a salt of Li⁺, Na⁺, K⁺, NH₄⁺, Mg²⁺, Ca²⁺, Sr²⁺, Ba²⁺, Al³⁺, Cr³⁺, Mn²⁺, Fe²⁺, Fe³⁺, Co²⁺, Ni²⁺, Cu²⁺, Zn²⁺, Ag⁺, Hg²⁺ or Pb²⁺ ' +
+            'with nitrate, acetate, Cl⁻, Br⁻, I⁻, sulfate, carbonate, phosphate, hydroxide or sulfide.' };
+        if (r.error) return { rows: none, bad: ['f'], warn: r.error !== 'empty', note: formulaWhy(r) };
+        M = CalcChem.molarMass(r.formula);
+        return {
+            rows: [{ l: 'In water', text: r.word }, { l: 'Name', text: r.name }, { l: 'Formula', text: CalcChem.html(r.formula), copy: CalcChem.plain(r.formula) },
+                { l: 'Ions', text: (r.nc > 1 ? r.nc + ' ' : '') + r.cation + ' + ' + (r.na > 1 ? r.na + ' ' : '') + r.anion }, { l: 'g/mol', v: CalcMaths.round(M.mass) },
+                { l: 'Solubility in water at 25 °C', text: solubleTable(r.ci, r.ai), wide: true }],
+            note: r.rule + (r.hydrate ? ' The water of the hydrate is left out.' : '')
+        };
+    }
+
+    // The equations of the worksheet, at each level: each balances, and of each but the redox ones its kind is known
+    var WORKSHEET = [
+        ['H2 + O2 = H2O', 'N2 + H2 = NH3', 'Na + Cl2 = NaCl', 'Mg + O2 = MgO', 'H2O2 = H2O + O2', 'Zn + HCl = ZnCl2 + H2', 'Ca + H2O = Ca(OH)2 + H2',
+            'KClO3 = KCl + O2', 'CH4 + O2 = CO2 + H2O', 'HgO = Hg + O2', 'Li + O2 = Li2O', 'Cu + O2 = CuO', 'NaOH + HCl = NaCl + H2O', 'CaCO3 = CaO + CO2',
+            'Mg + HCl = MgCl2 + H2', 'K + H2O = KOH + H2', 'AgNO3 + NaCl = AgCl + NaNO3', 'H2 + Cl2 = HCl', 'SO2 + O2 = SO3', 'Fe + S = FeS'],
+        ['Al + O2 = Al2O3', 'Fe + O2 = Fe2O3', 'C3H8 + O2 = CO2 + H2O', 'Fe2O3 + CO = Fe + CO2', 'Al + HCl = AlCl3 + H2', 'NaOH + H2SO4 = Na2SO4 + H2O',
+            'Ca(OH)2 + HCl = CaCl2 + H2O', 'Pb(NO3)2 + KI = PbI2 + KNO3', 'AgNO3 + CaCl2 = AgCl + Ca(NO3)2', 'Fe + Cl2 = FeCl3', 'NH3 + O2 = NO + H2O',
+            'C2H6 + O2 = CO2 + H2O', 'Na + H2O = NaOH + H2', 'N2O5 = NO2 + O2', 'Al + CuSO4 = Al2(SO4)3 + Cu', 'BaCl2 + Na2SO4 = BaSO4 + NaCl', 'P4 + O2 = P2O5',
+            'Zn + AgNO3 = Zn(NO3)2 + Ag', 'Mg + N2 = Mg3N2', 'Fe2O3 + H2 = Fe + H2O'],
+        ['C6H12O6 + O2 = CO2 + H2O', 'C8H18 + O2 = CO2 + H2O', 'KMnO4 + HCl = KCl + MnCl2 + Cl2 + H2O', 'Cu + HNO3 = Cu(NO3)2 + NO + H2O',
+            'Al2(SO4)3 + Ca(OH)2 = Al(OH)3 + CaSO4', 'FeS2 + O2 = Fe2O3 + SO2', 'C2H5OH + O2 = CO2 + H2O', 'Ca3(PO4)2 + SiO2 + C = CaSiO3 + P4 + CO',
+            'C4H10 + O2 = CO2 + H2O', 'NH3 + CuO = Cu + N2 + H2O', 'Fe3O4 + Al = Al2O3 + Fe', 'Ca3(PO4)2 + H2SO4 = CaSO4 + H3PO4', 'Al + Fe2O3 = Al2O3 + Fe',
+            'C5H12 + O2 = CO2 + H2O', 'K2Cr2O7 + HCl = KCl + CrCl3 + Cl2 + H2O', 'NaHCO3 = Na2CO3 + CO2 + H2O', 'Al4C3 + H2O = Al(OH)3 + CH4',
+            'Cu + H2SO4 = CuSO4 + SO2 + H2O', 'PCl5 + H2O = H3PO4 + HCl', 'Fe2(SO4)3 + KOH = K2SO4 + Fe(OH)3']
+    ], worksheetKept = { key: '', picked: [] };
+
+    // as it is to be balanced: each formula, + between them and → between the sides
+    function unbalanced(eq, html) {
+        return eq.split(' = ').map(function (side) {
+            return side.split(' + ').map(function (f) { return html ? CalcChem.html(f) : CalcChem.plain(f); }).join(' + ');
+        }).join(' → ');
+    }
+
+    // Questions picked at random from the level, kept until Again or the choices change; the kind of reaction
+    // asked only of those that have one. The questions, then the answers, each to copy as text
+    function runWorksheet(n, raw) {
+        var ex = +raw.ex || 0, level = +raw.lv || 0, count = n.n || 10, key = ex + ',' + level + ',' + count, pool, list, q, a;
+        if (svAgain || worksheetKept.key !== key) {
+            pool = WORKSHEET[level].map(function (eq) { return { eq: eq, r: CalcChem.balance(eq) }; }).filter(function (x) { return !x.r.error && (ex !== 1 || x.r.kind); });
+            for (var i = pool.length - 1; i > 0; i--) { // shuffled
+                var j = Math.floor(Math.random() * (i + 1)), t = pool[i];
+                pool[i] = pool[j];
+                pool[j] = t;
+            }
+            worksheetKept = { key: key, picked: pool.slice(0, count) };
+        }
+        list = worksheetKept.picked;
+        q = list.map(function (x) { return ex === 1 ? [x.r.html, x.r.text] : [unbalanced(x.eq, true), unbalanced(x.eq, false)]; });
+        a = list.map(function (x) {
+            var kind = x.r.kind || 'Redox';
+            return ex === 0 ? [x.r.html, x.r.text] : ex === 1 ? [kind, kind] : [x.r.html + ' <i>' + kind + '</i>', x.r.text + '   (' + kind + ')'];
+        });
+        var ol = function (items, i) {
+            return '<ol class="calc-ws">' + items.map(function (x) { return '<li>' + x[i] + '</li>'; }).join('') + '</ol>';
+        }, plainList = function (items) {
+            return items.map(function (x, k) { return (k + 1) + '. ' + x[1]; }).join('\n');
+        };
+        return {
+            rows: [{ l: ['Balance each', 'Name the kind of each reaction', 'Balance each, and name its kind'][ex], text: ol(q, 0), copy: plainList(q), wide: true },
+                { l: 'Answer key', text: ol(a, 0), copy: plainList(a), wide: true }],
+            note: list.length < count ? 'Only ' + list.length + ' at this level have a kind to name.' : 'Again for new questions.'
+        };
+    }
+
+    // An ion's charge as chemists write it: 2−, +
+    function chargeText(c) {
+        return (Math.abs(c) > 1 ? Math.abs(c) : '') + (c > 0 ? '+' : '−');
+    }
+
+    // the ions, cations then anions, each its formula and name
+    function ionList() {
+        var group = function (cat) {
+            return '<span class="calc-ion-list">' + CalcChem.ions.filter(function (i) { return cat ? i.charge > 0 : i.charge < 0; }).map(function (i) {
+                return '<span title="' + i.kind + '"><b>' + CalcChem.html(i.formula) + '</b>' + i.name + '</span>';
+            }).join('') + '</span>';
+        };
+        return [{ l: 'Cations', text: group(true), wide: true }, { l: 'Anions', text: group(false), wide: true }];
+    }
+
+    function runIon(n, raw) {
+        var r, M;
+        if (!raw.f) return { rows: ionList(), note: 'Type an ion by its formula or its name.' };
+        r = CalcChem.findIon(raw.f);
+        if (r.error === 'unknown') return { rows: ionList(), warn: true, note: raw.f + ' is not one of the common ions below.' };
+        if (r.error) return { rows: ionList(), bad: ['f'], warn: true, note: formulaWhy(r) };
+        M = CalcChem.molarMass(r.formula);
+        return {
+            rows: [{ l: 'Name', text: r.name + (r.also.length ? ' <i>(' + r.also.join(', ') + ')</i>' : '') }, { l: 'Formula', text: CalcChem.html(r.formula), copy: CalcChem.plain(r.formula) },
+                { l: 'Charge', text: chargeText(r.charge) }, { l: 'Kind', text: r.kind }, { l: 'g/mol', v: CalcMaths.round(M.mass) },
+                { l: 'In water', text: r.water }].concat(r.charge > 0 ? [{ l: 'Flame test', text: r.flame || 'No colour of its own' }] : []),
+            cols: 2,
+            note: 'The electrons it gained or lost are left out of its mass, as tables of molar mass do.'
+        };
+    }
+
+    function runGas(n, raw) {
+        var e = oneEmpty(raw, ['p', 'v', 'n', 't'], ['P', 'V', 'n', 'T']), R = GAS_R[+raw.pu || 0], c = raw.tu === '1' ? 273.15 : 0, T = n.t + c, v, M, rows, mol;
+        if (!e.k) return { rows: [{ l: 'P', v: NaN }], warn: e.warn, note: e.note };
+        v = { p: n.n * R * T / n.v, v: n.n * R * T / n.p, n: n.p * n.v / (R * T), t: n.p * n.v / (n.n * R) - c }[e.k];
+        rows = [{ l: { p: 'P, ' + ['atm', 'kPa', 'mmHg', 'bar'][+raw.pu || 0], v: 'V, L', n: 'n, mol', t: 'T, ' + (c ? '°C' : 'K') }[e.k], v: v }];
+        if (e.k === 't') rows.push(c ? { l: 'T, K', v: v + c } : { l: 'T, °C', v: v - 273.15 });
+        if (raw.f) {
+            M = massOf(raw, 'f');
+            if (M.why) return { rows: rows, bad: M.bad ? ['f'] : [], warn: true, note: M.why };
+            mol = e.k === 'n' ? v : n.n;
+            rows.push({ l: 'Mass, g', v: mol * M.M }, { l: 'Density, g/L', v: mol * M.M / (e.k === 'v' ? v : n.v) });
+        }
+        return { rows: rows, cols: 2, warn: !isFinite(v) || (e.k !== 't' && T <= 0), note: !isFinite(v) ? 'None: a box it is divided by is 0.' : e.k !== 't' && T <= 0 ? 'T is above absolute zero, 0 K or –273.15 °C.' : 'R = ' + local(String(R)) + ' L·' + ['atm', 'kPa', 'mmHg', 'bar'][+raw.pu || 0] + '/(mol·K).' };
+    }
+
+    function runGases(n, raw) {
+        var keys = ['p1', 'v1', 't1', 'p2', 'v2', 't2'], e = oneEmpty(raw, keys, ['P₁', 'V₁', 'T₁', 'P₂', 'V₂', 'T₂']), c = raw.tu === '1' ? 273.15 : 0, t1 = n.t1 + c, t2 = n.t2 + c, v;
+        if (!e.k) return { rows: [{ l: 'V₂', v: NaN }], warn: e.warn, note: e.note };
+        v = {
+            p1: n.p2 * n.v2 * t1 / (t2 * n.v1), v1: n.p2 * n.v2 * t1 / (t2 * n.p1), t1: n.p1 * n.v1 * t2 / (n.p2 * n.v2) - c,
+            p2: n.p1 * n.v1 * t2 / (t1 * n.v2), v2: n.p1 * n.v1 * t2 / (t1 * n.p2), t2: n.p2 * n.v2 * t1 / (n.p1 * n.v1) - c
+        }[e.k];
+        return { rows: [{ l: { p1: 'P₁', v1: 'V₁', t1: 'T₁', p2: 'P₂', v2: 'V₂', t2: 'T₂' }[e.k], v: v }], warn: !isFinite(v),
+            note: !isFinite(v) ? 'None: a box it is divided by is 0.' : 'The same units of P and of V on both sides' + (c ? '; T in °C, worked out in kelvin.' : '; T in kelvin.') };
+    }
+
+    // The panel: the periodic table on its first tab, the tools on the others. The table is coloured
+    // by the kind of element, its state, its block or its electronegativity; a click on an element
+    // shows all that is known of it, each number of it to put in. Popped out, it is as big as the page,
+    // or in a window of its own in the extension
+    var chemPanel = root.querySelector('.calc-chem'),
+        chemButton = root.querySelector('.calc-chem-btn'),
+        chemTable = chemPanel.querySelector('.calc-pt'),
+        chemGrid = chemPanel.querySelector('.calc-pt-grid'),
+        chemSearch = chemPanel.querySelector('.calc-pt-search'),
+        chemClear = chemPanel.querySelector('.calc-pt-clear'), // its ×, while something is typed
+        chemModes = chemPanel.querySelector('.calc-pt-modes'),
+        chemLegend = chemPanel.querySelector('.calc-pt-legend'),
+        chemInfo = chemPanel.querySelector('.calc-pt-info'),
+        chemSize = chemPanel.querySelector('.calc-chem-size'),
+        chemList = chemPanel.querySelector('.calc-sv-list'),
+        chemTab = 'table', // the tab shown: the table, or one of the tools'
+        chemBy = 'cat', // what the colours of the table show: cat, state, block, or a number of CHEM_HEAT
+        chemByBig = null, // the colour chosen popped out, kept and saved still while popped in shows Kind, the colours having no buttons there
+        chemAt = 1, // the element chosen, by its number: hydrogen each time the panel opens
+        chemHot = '', // a colour of the legend clicked: only its elements bright
+        chemAlone = false, // in a window of its own, in the extension
+        CHEM_BY = { cat: 'Kind', state: 'State', block: 'Block', en: 'EN', ie: 'IE', mp: 'Melts', density: 'Density',
+            bp: 'Boils', radius: 'Atomic radius', affinity: 'Electron affinity', mass: 'Mass', year: 'Discovered' },
+        // the numbers the table can be coloured by, from pale yellow at the least to red at the most: density
+        // by its square root, for the metals not to be all red together
+        // Each its own colours, [hue, saturation, lightness] from its least to its most, all light enough for
+        // the dark letters: electronegativity blue to red, ionization energy green to purple, the melting
+        // point cold blue to hot red, density pale sand to brown
+        CHEM_HEAT = {
+            en: { of: function (e) { return e.en; }, lo: 0.7, hi: 4, ends: [0.7, 3.98], fixed: 2,
+                colours: [[212, 70, 76], [168, 48, 68], [50, 78, 70], [14, 70, 63]] },
+            ie: { of: function (e) { return e.ie; }, lo: 375, hi: 2373, unit: 'e', ends: [375.7, 2372.3],
+                colours: [[130, 45, 76], [185, 50, 70], [225, 58, 75], [275, 45, 71]] },
+            mp: { of: function (e) { return e.mp; }, lo: -260, hi: 3550, unit: 't', ends: [-259.16, 3550],
+                colours: [[205, 75, 74], [50, 85, 78], [26, 85, 66], [2, 72, 60]] },
+            density: { of: function (e) { return e.density === null ? null : Math.sqrt(e.density); }, back: function (v) { return v * v; }, lo: 0, hi: 4.76, unit: 'd', ends: [0, 22.59],
+                colours: [[45, 45, 86], [35, 40, 72], [25, 35, 60]] },
+            // popped out only, in the table's own pastels: the boiling point as the melting point, cold to hot; the
+            // radius aqua to lavender, small to big; the affinity pale yellow to green; the mass peach to coral,
+            // light to heavy; the year found sand to violet, ancient to new, those known since ancient times at its start
+            bp: { of: function (e) { return e.bp; }, lo: -270, hi: 5930, unit: 't', ends: [-268.93, 5930],
+                colours: [[205, 75, 74], [50, 85, 78], [26, 85, 66], [2, 72, 60]] },
+            radius: { of: function (e) { return e.radius; }, lo: 120, hi: 348, label: 'pm', ends: [120, 348], fixed: 0,
+                colours: [[165, 59, 78], [217, 88, 83], [253, 75, 84]] },
+            affinity: { of: function (e) { return e.affinity; }, lo: 0, hi: 349, unit: 'e', ends: [7.6, 349],
+                colours: [[50, 90, 84], [86, 58, 76], [142, 44, 69]] },
+            mass: { of: function (e) { return e.mass; }, lo: 1, hi: 294, label: 'g/mol', ends: [1.008, 294],
+                colours: [[35, 93, 89], [31, 94, 73], [5, 81, 73]] },
+            year: { of: function (e) { return e.year === null ? null : Math.max(e.year, 1600); }, lo: 1600, hi: 2010, ends: [1600, 2010], fixed: 0,
+                show: function (v) { return v <= 1600 ? 'Ancient' : String(Math.round(v)); },
+                colours: [[42, 69, 80], [165, 59, 78], [285, 69, 83]] }
+        },
+        // the units the numbers of an element are shown in, each changed with a click on it: of temperature,
+        // of energy and of density. Each is [its name, from the stored unit, its places]
+        CHEM_UNITS = {
+            t: { C: ['°C', function (v) { return v; }, 2], F: ['°F', function (v) { return v * 9 / 5 + 32; }, 2], K: ['K', function (v) { return v + 273.15; }, 2] },
+            e: { kJ: ['kJ/mol', function (v) { return v; }, 1], eV: ['eV', function (v) { return v / 96.485; }, 3] },
+            d: { g: ['g/cm³', function (v) { return v; }, 8], kg: ['kg/m³', function (v) { return v * 1000; }, 5], lb: ['lb/ft³', function (v) { return v * 62.42796; }, 4] },
+            // the atomic mass in full, or to 3 places
+            m: { full: ['g/mol', function (v) { return v; }, 6], d3: ['g/mol, 3 places', function (v) { return v; }, 3] }
+        },
+        chemUnit = { t: 'C', e: 'kJ', d: 'g', m: 'full' },
+        // the tiles of an element's details, by their labels: the tip of each, 'chem fact …' of tips.js
+        CHEM_FACTS = { 'Atomic number': 'z', 'Atomic mass': 'mass', 'Electronegativity': 'en', 'Ionization energy': 'ie', 'Melting point': 'mp', 'Boiling point': 'bp',
+            'Density': 'density', 'Group': 'group', 'Period': 'period', 'Protons': 'protons', 'Electrons': 'electrons', 'Neutrons': 'neutrons',
+            'Electron configuration': 'config', 'Shells': 'shells', 'Block': 'block', 'Outer-shell electrons': 'outer', 'Unpaired electrons': 'unpaired',
+            'Atomic radius': 'radius', 'Electron affinity': 'affinity', 'Common ions': 'ions', 'Oxidation states': 'ox', 'State at 20 °C': 'state',
+            'Specific heat': 'heat', 'Discovered': 'year', 'Isotopes': 'isotopes', 'Name': 'story', 'History': 'story', 'Uses': 'uses' },
+        chemTemp = 20, // the temperature the table shows the states at, °C: its slider in the State colours
+        chemSliding = false, // a knob of the slider dragged: no tips meanwhile
+        chemCut = {}, // of each number of CHEM_HEAT, its slider: [from, to] on its scale, the elements outside dimmed, null an open end; none, all bright
+        CHEM_STATES = [['solid', 'Solid'], ['liquid', 'Liquid'], ['gas', 'Gas'], ['unknown', 'Unknown']],
+        CHEM_BLOCKS = [['s', 's-block'], ['p', 'p-block'], ['d', 'd-block'], ['f', 'f-block']],
+        chemCards = toolCards(chemList, CHEM_TOOLS, 'chem', false, {
+            open: function () { return chemPanel.classList.contains('calc-open') && chemTab !== 'table'; },
+            done: chemDone,
+            // big on a wide page, the tools are a list at the left and the one chosen opens beside it (style.css)
+            side: function () { return bigSide(chemPanel); }
+        });
+
+    // the class of an element's colour, as the table is coloured now
+    function chemClass(e) {
+        return chemBy === 'cat' ? 'calc-pt-' + e.cat : chemBy === 'state' ? 'calc-pt-' + (chemStateOf(e) || 'unknown') : chemBy === 'block' ? 'calc-pt-' + e.block + 'b' :
+            CHEM_HEAT[chemBy].of(e) === null ? 'calc-pt-unknown' : '';
+    }
+
+    // Solid, liquid or gas at the temperature of the slider, at 1 atm, from its melting and boiling points. With
+    // no melting point it goes from solid straight to gas, as arsenic does, but helium, which is liquid down to 0 K
+    function chemStateOf(e) {
+        if (e.mp === null && e.bp === null) return e.state;
+        if (e.bp !== null && chemTemp >= e.bp) return 'gas';
+        if (e.mp === null) return e.z === 2 ? 'liquid' : 'solid';
+        return chemTemp < e.mp ? 'solid' : 'liquid';
+    }
+
+    // the slider's place, 0 to 1000, and its temperature: kelvin as its square, 0 to 6000 K, for the room
+    // from 0 K to the boiling of the gases to be as wide as from there to tungsten's 5555 °C
+    function chemTempAt(p) {
+        return Math.round(6000 * p * p / 1e6 - 273.15);
+    }
+
+    function chemTempPlace(t) {
+        return Math.round(Math.sqrt((t + 273.15) * 1e6 / 6000));
+    }
+
+    function chemTempText() {
+        return local(String(chemIn('t', chemTemp))).replace('-', '−') + ' ' + chemUnitName('t');
+    }
+
+    // The slider of a number has two ends, the elements between them bright: each end's place 0 to 1000 along
+    // the scale, and back; at the end of the scale an end is open, null, for no element to be left out there
+    function chemCutPlaces() {
+        var h = CHEM_HEAT[chemBy], c = chemCut[chemBy] || [null, null];
+        return c.map(function (v, i) { return v === null ? i * 1000 : Math.round(1000 * (v - h.lo) / (h.hi - h.lo)); });
+    }
+
+    function chemCutAt(p, i) {
+        var h = CHEM_HEAT[chemBy];
+        return p <= 0 && !i || p >= 1000 && i ? null : h.lo + (h.hi - h.lo) * p / 1000;
+    }
+
+    // an end of the slider, in the unit chosen: an open one at the least or the most of any element
+    function chemCutEnd(i) {
+        var h = CHEM_HEAT[chemBy], c = chemCut[chemBy], v = c && c[i] !== null ? (h.back ? h.back(c[i]) : c[i]) : h.ends[i];
+        v = Math.max(h.ends[0], Math.min(h.ends[1], v)); // no further than the least and the most of any element
+        if (h.show) return h.show(v);
+        v = h.unit ? chemIn(h.unit, v) : v;
+        return local(h.fixed !== undefined ? v.toFixed(h.fixed) : String(+v.toPrecision(3))).replace('-', '−') + (chemHeatUnit(h) ? ' ' + chemHeatUnit(h) : '');
+    }
+
+    // the unit of a number's scale: the one chosen for its kind, or its own
+    function chemHeatUnit(h) {
+        return h.unit ? chemUnitName(h.unit) : h.label || '';
+    }
+
+    // an element dimmed by the slider: outside its ends, or its number not known
+    function chemCutOut(e) {
+        var c = CHEM_HEAT[chemBy] && chemCut[chemBy], v;
+        if (!c) return false;
+        v = CHEM_HEAT[chemBy].of(e);
+        return v === null || (c[0] !== null && v < c[0]) || (c[1] !== null && v > c[1]);
+    }
+
+    // The slider under the key: a knob for the temperature of the states; for a number, its scale of
+    // colours with a knob at each end, the number of each end beside it, the colours outside them shaded.
+    // Not the browser's, which has one knob only, and is not where it is drawn when the page is zoomed
+    function chemSliderHtml() {
+        var places = chemSliderPlaces(), heat = chemBy !== 'state', names = heat ? ['From', 'To'] : ['Temperature'];
+        // the first number before the line, against it: of the temperature its only one. Each as wide as the
+        // longest it can say, three figures and a sign with the unit, for the line not to move and no more room
+        var unit = heat ? chemHeatUnit(CHEM_HEAT[chemBy]) : chemUnitName('t'),
+            width = 'width: ' + (0.6 * Math.max(heat ? chemCutEnd(0).length : 0, heat ? chemCutEnd(1).length : 0, 6 + unit.length)).toFixed(1) + 'em';
+        // the temperature's line in the colours of the states, solid to liquid to gas as it warms (style.css), shaded above it
+        return '<span class="calc-pt-temp' + (heat ? ' calc-pt-heat" style="--calc-heat: ' + chemGradient(CHEM_HEAT[chemBy]) + '; ' : '" style="') + '--calc-label: ' + width.slice(7) + '">' +
+            '<span class="calc-pt-temp-v calc-pt-from" role="button"></span>' +
+            '<span class="calc-pt-range"><span class="calc-pt-range-out"></span>' + (heat ? '<span class="calc-pt-range-out"></span>' : '') +
+            places.map(function (p, i) {
+                return '<span class="calc-pt-range-knob" data-i="' + i + '" role="slider" tabindex="0" aria-label="' + names[i] + '" aria-valuemin="0" aria-valuemax="1000"></span>';
+            }).join('') + '</span>' + (heat ? '<span class="calc-pt-temp-v" role="button"></span>' : '') + '</span>';
+    }
+
+    function chemSliderPlaces() {
+        return chemBy === 'state' ? [chemTempPlace(chemTemp)] : chemCutPlaces();
+    }
+
+    // the knobs where they are, the numbers they are at, and the scale shaded outside them
+    function chemSliderDraw(places) {
+        var knobs = chemLegend.querySelectorAll('.calc-pt-range-knob'), texts = chemLegend.querySelectorAll('.calc-pt-temp-v'),
+            out = chemLegend.querySelectorAll('.calc-pt-range-out');
+        if (!knobs.length) return;
+        [].forEach.call(texts, function (t, i) { t.textContent = chemBy === 'state' ? chemTempText() : chemCutEnd(i); });
+        [].forEach.call(knobs, function (k, i) {
+            k.style.left = places[i] / 10 + '%';
+            k.setAttribute('aria-valuenow', places[i]);
+            k.setAttribute('aria-valuetext', texts[texts.length > 1 ? i : 0].textContent);
+        });
+        if (out.length > 1) {
+            out[0].style.cssText = 'left: 0; width: ' + places[0] / 10 + '%';
+            out[1].style.cssText = 'left: ' + places[1] / 10 + '%; right: 0';
+        } else out[0].style.cssText = 'left: ' + places[0] / 10 + '%; right: 0';
+    }
+
+    // a knob moved to a place: the other knob not passed, the table as it says
+    // With both knobs at one place, the one that moves is the one on the side it goes to, for neither to be stuck
+    // against the other at an end. The knob moved, to go on with
+    function chemSliderSet(i, p) {
+        var places = chemSliderPlaces(), knobs;
+        p = Math.round(Math.max(0, Math.min(1000, p)));
+        if (places.length > 1 && places[0] === places[1] && p !== places[0]) {
+            if (i !== (p < places[0] ? 0 : 1)) {
+                i = p < places[0] ? 0 : 1;
+                knobs = chemLegend.querySelectorAll('.calc-pt-range-knob');
+                if (knobs[i]) knobs[i].focus({ preventScroll: true });
+            }
+        }
+        if (places.length > 1) p = i ? Math.max(p, places[0]) : Math.min(p, places[1]);
+        places[i] = p;
+        if (chemBy === 'state') chemTempTo(chemTempAt(p));
+        else {
+            chemCut[chemBy] = places.map(chemCutAt);
+            if (chemCut[chemBy][0] === null && chemCut[chemBy][1] === null) delete chemCut[chemBy];
+            chemDim();
+        }
+        chemSliderDraw(places);
+        return i;
+    }
+
+    // a number of an element in the unit chosen for it: t, e or d; null as it is, not known
+    function chemIn(kind, v) {
+        var u = CHEM_UNITS[kind][chemUnit[kind]], f = Math.pow(10, u[2]);
+        return v === null || v === undefined ? null : Math.round(u[1](v) * f) / f;
+    }
+
+    function chemUnitName(kind) {
+        return CHEM_UNITS[kind][chemUnit[kind]][0];
+    }
+
+    // coloured by a number: from pale yellow at its least to red at its most
+    function chemHeat(e) {
+        var h = CHEM_HEAT[chemBy], v = h && h.of(e);
+        if (!h || v === null) return '';
+        return 'background: ' + chemColour(h, Math.max(0, Math.min(1, (v - h.lo) / (h.hi - h.lo)))) + '; ';
+    }
+
+    // the colour a part t, 0 to 1, along a number's colours: between the two it falls between
+    function chemColour(h, t) {
+        var c = h.colours, at = t * (c.length - 1), i = Math.min(c.length - 2, Math.floor(at)), f = at - i;
+        return 'hsl(' + [0, 1, 2].map(function (k) { return Math.round(c[i][k] + (c[i + 1][k] - c[i][k]) * f) + (k ? '%' : ''); }).join(', ') + ')';
+    }
+
+    // the slider's scale: the same colours, from end to end
+    function chemGradient(h) {
+        return 'linear-gradient(90deg, ' + h.colours.map(function (c, i) { return chemColour(h, i / (h.colours.length - 1)); }).join(', ') + ')';
+    }
+
+    // The atom drawn flat, as Bohr drew it: the nucleus with its protons and neutrons, and a ring for
+    // each shell, its electrons spaced round it
+    function chemAtom(e) {
+        var size = 150, mid = size / 2, rings = e.shells.length, gap = (mid - 20) / Math.max(rings, 1), svg, n = Math.round(e.mass) - e.z;
+        svg = '<svg class="calc-pt-atom" data-pt="atom" data-full="' + e.z + ' protons, ' + n + ' neutrons; electrons ' + e.shells.join(', ') + '" viewBox="0 0 ' + size + ' ' + size + '" role="img" aria-label="' + e.name + ': ' + e.z + ' protons, ' + n + ' neutrons, electrons in shells of ' + e.shells.join(', ') + '">';
+        e.shells.forEach(function (count, i) { // each shell with its electrons, which come in one after the other from the middle
+            var r = 18 + gap * (i + 0.75), j, a;
+            svg += '<g class="calc-pt-shell" style="--i: ' + i + '"><circle class="calc-pt-ring" cx="' + mid + '" cy="' + mid + '" r="' + r.toFixed(1) + '"/>';
+            for (j = 0; j < count; j++) {
+                a = 2 * Math.PI * j / count - Math.PI / 2 + i * 0.4;
+                svg += '<circle class="calc-pt-e" cx="' + (mid + r * Math.cos(a)).toFixed(1) + '" cy="' + (mid + r * Math.sin(a)).toFixed(1) + '" r="' + (count > 18 ? 1.6 : 2.3) + '"/>';
+            }
+            svg += '</g>';
+        });
+        return svg + '<g class="calc-pt-core"><circle class="calc-pt-nucleus" cx="' + mid + '" cy="' + mid + '" r="14"/><text x="' + mid + '" y="' + (mid - 1.5) + '">' + e.z + 'p</text><text x="' + mid + '" y="' + (mid + 7) + '">' + n + 'n</text></g></svg>';
+    }
+
+    // the mass as tables write it: of one with no stable isotope, in brackets
+    function chemMass(e) {
+        return e.unstable ? '[' + e.mass + ']' : local(String(chemIn('m', e.mass)));
+    }
+
+    // and on a big tile, with its tip: the mass in full, whatever its places
+    function chemMassHtml(e) {
+        return '<span class="calc-pt-mass" data-pt="mass" data-full="' + (e.unstable ? '[' + e.mass + ']' : local(String(e.mass)) + ' g/mol') + '">' + chemMass(e) + '</span>';
+    }
+
+    // The tip of a part of an element, its data-pt: what it is, its value in full above, as its tile may cut it
+    // short; its kind, what the elements of the family are like
+    function chemPartTip(el) {
+        var k = el.dataset.pt, info = CalcTips[k === 'kind' ? 'chem kind ' + el.dataset.kind : 'chem fact ' + k],
+            v = el.hasAttribute('data-full') ? el.dataset.full : el.textContent.trim();
+        if (!info) return null;
+        return { t: info.t, d: (v && k !== 'kind' ? '<div class="calc-tip-value">' + v + '</div>' : '') + info.d };
+    }
+
+    // The tip of a tile of the details, as a result's: what it is, and its value in full with its unit, to copy, a
+    // number to put in as well; one in words, whole on its tile already, only what it is
+    function chemFactPeek(el) {
+        var info = CalcTips['chem fact ' + el.dataset.fact], label = el.querySelector('.calc-sv-label'), value = el.querySelector('.calc-sv-value'),
+            unit = label.querySelector('i'), name = label.firstChild.data.trim(), shown = value.textContent.trim(), u;
+        if (!info) return null;
+        if (el.classList.contains('calc-pt-text') || /^–?$/.test(shown)) return { t: name, d: info.d };
+        u = unit && !/^(K L M …|Pauling|mass number)$/.test(unit.textContent) ? ' ' + unit.textContent.replace(', 3 places', '') : '';
+        return { t: name, d: info.d, html: value.innerHTML + u, text: el.hasAttribute('data-v') ? local(statsValue(+el.dataset.v).text) : shown, put: el.hasAttribute('data-v') };
+    }
+
+    function chemGroupOf(e) {
+        return chemBy === 'cat' ? e.cat : chemBy === 'state' ? chemStateOf(e) || 'unknown' : chemBy === 'block' ? e.block : '';
+    }
+
+    function renderChemTable() {
+        // popped in, by kind alone; not saved, as the table's own window, open as well, would have Kind from it and lose its colour
+        if (chemBy !== 'cat' && !chemAlone && !root.classList.contains('calc-chem-big')) {
+            chemByBig = chemBy;
+            chemBy = 'cat';
+        }
+        chemGrid.innerHTML = '<div class="calc-pt-gap" aria-live="polite"></div>' +
+            '<div class="calc-pt-el calc-pt-series calc-pt-' + (chemBy === 'cat' ? 'lanthanide' : chemBy === 'block' ? 'fb' : 'solid') + '" style="grid-area: 6 / 3" data-from="57" role="button" aria-label="Lanthanides, 57 to 71"><b><span>La–</span><span>Lu</span></b><span class="calc-pt-mass">57–71</span></div>' +
+            '<div class="calc-pt-el calc-pt-series calc-pt-' + (chemBy === 'cat' ? 'actinide' : chemBy === 'block' ? 'fb' : 'solid') + '" style="grid-area: 7 / 3" data-from="89" role="button" aria-label="Actinides, 89 to 103"><b><span>Ac–</span><span>Lr</span></b><span class="calc-pt-mass">89–103</span></div>' +
+            CalcChem.elements.map(function (e) {
+                return '<div class="calc-pt-el ' + chemClass(e) + '" data-z="' + e.z + '" style="' + chemHeat(e) + 'grid-area: ' + e.row + ' / ' + e.col + '"' +
+                    ' role="button" aria-label="' + e.name + ', ' + e.z + '"><span class="calc-pt-z">' + e.z + '</span><b>' + e.s + '</b><span class="calc-pt-name">' + e.name +
+                    '</span><span class="calc-pt-mass">' + chemMass(e) + '</span></div>';
+            }).join('');
+        [].forEach.call(chemModes.children, function (m) { m.classList.toggle('calc-on', m.dataset.by === chemBy); });
+        chemLegend.innerHTML = CHEM_HEAT[chemBy] ? chemSliderHtml() + '<span class="calc-pt-key calc-pt-unknown"><i></i>Not known</span>' :
+            (chemBy === 'cat' ? CalcChem.categories : chemBy === 'state' ? CHEM_STATES : CHEM_BLOCKS).map(function (c) {
+                return '<span class="calc-pt-key calc-pt-' + (chemBy === 'block' ? c[0] + 'b' : c[0]) + (chemHot === c[0] ? ' calc-on' : '') + '" data-g="' + c[0] + '" role="button"><i></i>' + c[1] + '</span>';
+            }).join('') + (chemBy === 'state' ? '<span class="calc-pt-break"></span>' + chemSliderHtml() : '');
+        if (chemBy === 'state' || CHEM_HEAT[chemBy]) chemSliderDraw(chemSliderPlaces());
+        chemDim();
+        chemShow(chemAt, true);
+    }
+
+    // an element of the search, of the legend clicked, or both: the others dimmed
+    function chemMatches(e, q) {
+        q = q.toLowerCase();
+        return !q || e.s.toLowerCase() === q || String(e.z) === q || e.name.toLowerCase().indexOf(q) > -1 || (q.length < 3 && e.s.toLowerCase().indexOf(q) === 0);
+    }
+
+    function chemDim() {
+        var q = chemSearch.value.trim();
+        chemClear.hidden = !chemSearch.value;
+        [].forEach.call(chemGrid.querySelectorAll('.calc-pt-el[data-z]'), function (t) {
+            var e = CalcChem.elements[t.dataset.z - 1];
+            t.classList.toggle('calc-pt-dim', !chemMatches(e, q) || (!!chemHot && chemGroupOf(e) !== chemHot) || chemCutOut(e));
+        });
+        [].forEach.call(chemGrid.querySelectorAll('.calc-pt-series'), function (t, i) { // bright while one of its row is
+            // and always dimmed in the states and the colours of a number, as their elements have no one of them
+            t.classList.toggle('calc-pt-dim', !!CHEM_HEAT[chemBy] || chemBy === 'state' || (!!(q || chemHot) && !chemGrid.querySelector('.calc-pt-el[data-z]:not(.calc-pt-dim)[style*="grid-area: ' + (9 + i) + ' /"]')));
+        });
+    }
+
+    // The electrons alone in their orbitals, by Hund's rule: of each subshell of the configuration not full,
+    // as many as it has up to one for each orbital, then fewer as they pair; the core in [ ] is full
+    function chemUnpaired(config) {
+        var n = 0;
+        config.replace(/\[[^\]]*\]/, '').replace(/\d([spdf])([⁰¹²³⁴⁵⁶⁷⁸⁹]+)/g, function (m, l, sup) {
+            var orbitals = 2 * 'spdf'.indexOf(l) + 1,
+                k = +sup.replace(/./g, function (c) { return '⁰¹²³⁴⁵⁶⁷⁸⁹'.indexOf(c); });
+            n += k <= orbitals ? k : 2 * orbitals - k;
+            return m;
+        });
+        return n;
+    }
+
+    // The element in the space above the transition metals: the one pointed at, or the one chosen. With
+    // all, the tiles of what is known of it under the table too, each number to put in
+    function chemShow(z, all) {
+        var e = CalcChem.elements[z - 1], gap = chemGrid.querySelector('.calc-pt-gap'), cat = CalcChem.categories.filter(function (c) { return c[0] === e.cat; })[0][1], tiles;
+        // each part with data-pt, the tip of what it is (chemPartTip), its value in full under it
+        gap.innerHTML = '<div class="calc-pt-big calc-pt-el ' + chemClass(e) + '" data-show="' + e.z + '" style="' + chemHeat(e) + '" role="button" aria-label="All of ' + e.name + '"><span class="calc-pt-z" data-pt="z">' + e.z + '</span>' +
+            // popped out, the tile has room for more, as on a printed table: the electronegativity and the oxidation
+            // states at the top right, the name under the symbol, the configuration at the foot
+            '<span class="calc-pt-more calc-pt-en" data-pt="en">' + (e.en === null ? '' : local(String(e.en))) + '</span>' +
+            '<span class="calc-pt-more calc-pt-ox" data-pt="ox" data-full="' + (e.ox || '').split(' ').join(', ') + '">' + (e.ox || '').split(' ').join('<br>') + '</span>' +
+            '<b data-pt="symbol">' + e.s + '</b><span class="calc-pt-more calc-pt-full" data-pt="name">' + e.name + '</span>' + chemMassHtml(e) +
+            '<span class="calc-pt-more calc-pt-conf" data-pt="config">' + e.config + '</span></div>' +
+            '<div class="calc-pt-about"><span class="calc-pt-title" data-pt="name">' + e.name + '</span><span data-pt="kind" data-kind="' + e.cat + '">' + cat + '</span><span class="calc-pt-cfg" data-pt="config">' + e.config + '</span>' +
+            // and beside it, what the tile has no room for, a label over each value
+            '<dl class="calc-pt-facts">' + [
+                ['Mass', e.unstable ? e.mass : chemIn('m', e.mass), e.unstable ? 'mass number' : 'g/mol', 'mass'], ['Group', e.group, '', 'group'], ['Period', e.period, '', 'period'], ['Block', e.block, '', 'block'],
+                ['Melts', chemIn('t', e.mp), chemUnitName('t'), 'mp'], ['Boils', chemIn('t', e.bp), chemUnitName('t'), 'bp'],
+                ['Density', chemIn('d', e.density), chemUnitName('d'), 'density'], ['Ionization', chemIn('e', e.ie), chemUnitName('e'), 'ie'],
+                ['State', e.state ? e.state.charAt(0).toUpperCase() + e.state.slice(1) : null, '', 'state'], ['Radius', e.radius, 'pm', 'radius'],
+                ['Affinity', chemIn('e', e.affinity), chemUnitName('e'), 'affinity'], ['Ions', e.ions, '', 'ions']
+            ].map(function (f) {
+                var v = f[1] === null || f[1] === undefined ? '–' : typeof f[1] === 'number' ? local(String(f[1])) : f[1];
+                return '<div data-pt="' + f[3] + '" data-full="' + (v === '–' ? '' : v + (f[2] && f[2] !== 'mass number' ? ' ' + f[2] : '')) + '"><dt>' + f[0] + (f[2] ? ' <i>' + f[2] + '</i>' : '') + '</dt><dd>' + v + '</dd></div>';
+            }).join('') + '</dl></div>';
+        if (!all) return;
+        chemAt = z;
+        [].forEach.call(chemGrid.querySelectorAll('.calc-pt-el.calc-on'), function (t) { t.classList.remove('calc-on'); });
+        if (chemGrid.querySelector('.calc-pt-el[data-z="' + z + '"]')) chemGrid.querySelector('.calc-pt-el[data-z="' + z + '"]').classList.add('calc-on');
+        tiles = [
+            ['Atomic number', e.z], e.unstable ? ['Atomic mass', e.mass, 'mass number'] : ['Atomic mass', chemIn('m', e.mass), chemUnitName('m'), false, 'm'], ['Electronegativity', e.en, 'Pauling'],
+            ['Ionization energy', chemIn('e', e.ie), chemUnitName('e'), false, 'e'], ['Melting point', chemIn('t', e.mp), chemUnitName('t'), false, 't'],
+            ['Boiling point', chemIn('t', e.bp), chemUnitName('t'), false, 't'],
+            ['Density', chemIn('d', e.density), chemUnitName('d') + (e.state === 'gas' ? ' at 0 °C' : ''), false, 'd'], ['Group', e.group], ['Period', e.period],
+            ['Protons', e.z], ['Electrons', e.z], ['Neutrons', Math.round(e.mass) - e.z],
+            ['Electron configuration', e.config, '', true], ['Shells', e.shells.join(', '), 'K L M …'], ['Block', e.block],
+            ['Outer-shell electrons', e.shells[e.shells.length - 1]], ['Unpaired electrons', chemUnpaired(e.config)],
+            ['Atomic radius', e.radius, 'pm'], ['Electron affinity', chemIn('e', e.affinity), chemUnitName('e'), false, 'e'],
+            ['Common ions', e.ions || '–', '', true], ['Oxidation states', e.ox || '–', '', true], ['State at 20 °C', e.state ? e.state.charAt(0).toUpperCase() + e.state.slice(1) : 'Not known'], ['Specific heat', e.heat, 'J/(g·K)'],
+            // in words, each on its own line: when and by whom it was found, its isotopes, its name, its uses
+            ['Discovered', (e.year === 0 ? 'In ancient times' : e.year) + (e.foundBy ? ', by ' + e.foundBy : '') + (e.isolatedBy ? '; isolated by ' + e.isolatedBy : ''), '', true, '', true],
+            ['Isotopes', e.isotopes || '–', '', true, '', true],
+            [/^The name/.test(e.story || '') ? 'Name' : 'History', e.story || '–', '', true, '', true], ['Uses', e.uses || '–', '', true, '', true]
+        ];
+        chemInfo.classList.toggle('calc-pt-new', String(z) !== chemInfo.dataset.z); // its details come in with a move, once for each element
+        chemInfo.dataset.z = z;
+        chemInfo.innerHTML = '<div class="calc-pt-head"><div class="calc-pt-big calc-pt-el ' + chemClass(e) + '" style="' + chemHeat(e) + '"><span class="calc-pt-z" data-pt="z">' + e.z + '</span><b data-pt="symbol">' + e.s +
+            '</b>' + chemMassHtml(e) + '</div><div class="calc-pt-about"><span class="calc-pt-title" data-pt="name">' + e.name + '</span><span data-pt="kind" data-kind="' + e.cat + '">' + cat + '</span><span data-pt="config">' + e.config +
+            '</span><span data-pt="shells" data-full="' + e.shells.join(', ') + '">Shells ' + e.shells.join(', ') + '</span></div>' + chemAtom(e) + '</div><div class="calc-sv-grid calc-pt-tiles">' + tiles.map(function (t, i) {
+            var num = typeof t[1] === 'number' && !(t[0] === 'Found'), known = t[1] !== null && t[1] !== undefined;
+            return '<div class="calc-sv-tile' + (num && known ? '' : ' calc-none') + (t[3] ? ' calc-sv-wide' : '') + (t[5] ? ' calc-pt-text' : '') + '" style="--i: ' + i + '" data-fact="' + CHEM_FACTS[t[0]] + '"' + (num && known ? ' data-v="' + t[1] + '"' : '') + '><span class="calc-sv-label">' + t[0] +
+                (t[2] ? ' <i' + (t[4] ? ' class="calc-pt-unit" data-unit="' + t[4] + '" role="button"' : '') + '>' + t[2] + '</i>' : '') + '</span><span class="calc-sv-value">' + (!known ? '–' : num ? statsValue(t[1]).html : t[1]) + '</span></div>';
+        }).join('') + '</div>';
+    }
+
+    function chemTabs() {
+        [].forEach.call(chemPanel.querySelectorAll('.calc-solve-tab'), function (t) {
+            t.classList.toggle('calc-on', t.dataset.tab === chemTab);
+        });
+        chemTable.hidden = chemTab !== 'table';
+        chemList.hidden = chemTab === 'table';
+        chemPanel.classList.toggle('calc-chem-cards', chemTab !== 'table');
+    }
+
+    // Big beside the list, the tools grow with the room: as they are up to 1200px wide, to half as big again
+    function chemFit() {
+        var side = root.classList.contains('calc-chem-big') && window.matchMedia('(min-width: 760px)').matches;
+        chemList.style.zoom = side ? Math.max(1, Math.min(1.45, chemPanel.clientWidth / 1200)).toFixed(3) : '';
+    }
+
+    window.addEventListener('resize', function () {
+        chemFit();
+        if (chemTab !== 'table' && chemList.classList.contains('calc-side') !== bigSide(chemPanel)) chemCards.render(); // in place again, or beside
+    }, false);
+
+    function renderChem() {
+        chemTabs();
+        chemFit();
+        if (chemTab === 'table') renderChemTable();
+        else if (chemCards.tab() !== chemTab) chemCards.setTab(chemTab);
+        else chemCards.render();
+    }
+
+    // Reset all: the table as at first, coloured by kind with hydrogen chosen and nothing searched, and
+    // nothing typed in any card
+    function clearChem() {
+        chemCards.clear();
+        chemSearch.value = '';
+        chemTab = 'table';
+        chemBy = 'cat';
+        chemByBig = null;
+        chemAt = 1;
+        chemTemp = 20;
+        chemCut = {};
+        chemHot = '';
+        if (chemAlone || chemPanel.classList.contains('calc-open')) renderChem();
+        saveChem();
+    }
+
+    function saveChem() {
+        store('chemView', { tab: chemTab, by: chemByBig || chemBy, at: chemAt, units: chemUnit, temp: chemTemp, cut: chemCut });
+    }
+
+    function loadChem(saved) {
+        if (!saved || typeof saved !== 'object') return;
+        if (saved.tab === 'table' || CHEM_TOOLS.hasOwnProperty(saved.tab)) chemTab = saved.tab;
+        if (CHEM_BY.hasOwnProperty(saved.by)) {
+            chemBy = saved.by;
+            chemByBig = null;
+        }
+        if (saved.at >= 1 && saved.at <= 118 && saved.at === Math.floor(saved.at)) chemAt = saved.at;
+        if (typeof saved.temp === 'number' && saved.temp >= -273 && saved.temp <= 5727) chemTemp = Math.round(saved.temp);
+        if (saved.cut && typeof saved.cut === 'object') {
+            Object.keys(CHEM_HEAT).forEach(function (k) {
+                var c = saved.cut[k], ok = function (v) { return v === null || (typeof v === 'number' && v >= CHEM_HEAT[k].lo && v <= CHEM_HEAT[k].hi); };
+                if (Array.isArray(c) && c.length === 2 && ok(c[0]) && ok(c[1]) && (c[0] === null || c[1] === null || c[0] <= c[1])) chemCut[k] = c;
+            });
+        }
+        if (saved.units && typeof saved.units === 'object') {
+            Object.keys(CHEM_UNITS).forEach(function (k) {
+                if (CHEM_UNITS[k].hasOwnProperty(saved.units[k])) chemUnit[k] = saved.units[k];
+            });
+        }
+    }
+
+    function showChem(open) {
+        if (!open && chemAlone) return; // its own window stays, even as a value is put in
+        if (!open) chemBig(false);
+        if (open) {
+            closePanels(chemPanel);
+            placePanel(chemPanel);
+            if (!chemPanel.classList.contains('calc-open')) chemAt = 1; // the table opens on hydrogen
+        }
+        chemPanel.classList.toggle('calc-open', open);
+        chemButton.classList.toggle('calc-on', open);
+        if (open) {
+            renderChem();
+            if (chemTab !== 'table') chemCards.focus();
+        } else if (chemPanel.contains(document.activeElement)) {
+            document.activeElement.blur(); // the keys are the calculator's again
+        }
+    }
+
+    // closed by its button or Esc; its own window is closed then
+    function closeChem() {
+        if (chemAlone) ask('chem-close'); else showChem(false);
+    }
+
+    // a value put in: the calculator again, or brought up by the extension from the table's own window
+    function chemDone() {
+        if (chemAlone) ask('chem-put'); else showChem(false);
+    }
+
+    // The table as big as the page, as the graph is: on the website all of its window; the extension, whose
+    // popup cannot grow, opens it in a window of its own. True if it changed
+    function chemBig(on) {
+        if (on === root.classList.contains('calc-chem-big') || (chemAlone && !on)) return false;
+        hideTip();
+        showMenu(false);
+        if (on) {
+            saveState();
+            saveChem();
+            if (!ask('chem-big', { big: true })) return showChem(false), false; // in its own window, and not here as well
+            if (!chemPanel.classList.contains('calc-open')) showChem(true);
+        }
+        root.classList.toggle('calc-chem-big', on);
+        root.classList.toggle('calc-panel-big', on); // as every panel popped out
+        chemPanel.classList.toggle('calc-big-on', on);
+        if (on && chemByBig) { // popped out again: its colour of before
+            chemBy = chemByBig;
+            chemByBig = null;
+            renderChemTable();
+        }
+        if (!on) ask('chem-big', { big: false });
+        if (!on && chemBy !== 'cat') renderChemTable(); // the colours have no buttons popped in: Kind again
+        chemFit();
+        if (chemTab !== 'table') chemCards.render(); // big, a tool open beside the list
+        return true;
+    }
+
+    chemButton.addEventListener('click', function () {
+        showChem(!chemPanel.classList.contains('calc-open'));
+    }, false);
+
+    chemPanel.querySelector('.calc-past-close').addEventListener('click', closeChem, false);
+
+    chemSize.addEventListener('click', function () {
+        chemBig(!root.classList.contains('calc-chem-big'));
+    }, false);
+
+    chemPanel.querySelector('.calc-solve-tabs').addEventListener('click', function (e) {
+        var t = e.target.closest('.calc-solve-tab');
+        if (!t) return;
+        chemTab = t.dataset.tab;
+        renderChem();
+        saveChem();
+    }, false);
+
+    // the page asks for it: big and alone in the table's own window
+    root.addEventListener('calc-chem', function (e) {
+        var d = e.detail || {};
+        if (d.alone) {
+            chemAlone = true;
+            root.classList.add('calc-chem-alone');
+            chemTab = 'table';
+            chemAt = 1; // its own window opens on hydrogen too
+        }
+        chemBig(!!d.big);
+    }, false);
+
+    chemModes.addEventListener('click', function (e) {
+        var m = e.target.closest('[data-by]');
+        if (!m || m.dataset.by === chemBy) return;
+        chemBy = m.dataset.by;
+        chemByBig = null;
+        chemHot = '';
+        renderChemTable();
+        saveChem();
+    }, false);
+
+    // the temperature slid: the states at it, each tile coloured again; its number clicked, 20 °C again
+    function chemTempTo(t) {
+        var big = chemGrid.querySelector('.calc-pt-gap .calc-pt-big'), shown = big ? +big.dataset.show : chemAt;
+        chemTemp = t;
+        chemLegend.querySelector('.calc-pt-temp-v').textContent = chemTempText();
+        [].forEach.call(chemGrid.querySelectorAll('.calc-pt-el[data-z]'), function (el) {
+            var e = CalcChem.elements[el.dataset.z - 1];
+            el.classList.remove('calc-pt-solid', 'calc-pt-liquid', 'calc-pt-gas', 'calc-pt-unknown');
+            el.classList.add(chemClass(e));
+        });
+        chemDim();
+        // the big tiles of the element shown above and of the one chosen below, their colour only
+        [[chemGrid.querySelector('.calc-pt-gap .calc-pt-big'), shown], [chemInfo.querySelector('.calc-pt-big'), chemAt]].forEach(function (b) {
+            if (b[0]) b[0].className = 'calc-pt-big calc-pt-el ' + chemClass(CalcChem.elements[b[1] - 1]);
+        });
+    }
+
+    // A knob dragged, or the line pressed: the knob nearest, or the one on the side pressed, comes there
+    chemLegend.addEventListener('pointerdown', function (e) {
+        var line = e.target.closest('.calc-pt-range'), places, at, i, move, done;
+        if (!line || e.button > 0) return;
+        e.preventDefault();
+        places = chemSliderPlaces();
+        at = function (ev) {
+            var r = line.getBoundingClientRect();
+            return 1000 * (ev.clientX - r.left) / r.width;
+        };
+        i = e.target.dataset.i !== undefined ? +e.target.dataset.i : places.length < 2 ? 0 :
+            Math.abs(at(e) - places[0]) < Math.abs(at(e) - places[1]) || (places[0] === places[1] && at(e) < places[0]) ? 0 : 1;
+        line.querySelectorAll('.calc-pt-range-knob')[i].focus({ preventScroll: true });
+        chemSliding = true;
+        hideTip();
+        tipKey = null;
+        i = chemSliderSet(i, at(e));
+        // followed over the whole window, the pointer off the line as well, until it is let go
+        move = function (ev) { if (ev.pointerId === e.pointerId) i = chemSliderSet(i, at(ev)); };
+        done = function (ev) {
+            if (ev.pointerId !== e.pointerId) return;
+            window.removeEventListener('pointermove', move, false);
+            window.removeEventListener('pointerup', done, false);
+            window.removeEventListener('pointercancel', done, false);
+            chemSliding = false;
+            saveChem();
+        };
+        window.addEventListener('pointermove', move, false);
+        window.addEventListener('pointerup', done, false);
+        window.addEventListener('pointercancel', done, false);
+    }, false);
+
+    // a knob with the keys: the arrows a step, with Shift or Page Up and Down ten, Home and End to the ends
+    chemLegend.addEventListener('keydown', function (e) {
+        var knob = e.target.closest('.calc-pt-range-knob'), i, p, step;
+        if (!knob) return;
+        i = +knob.dataset.i;
+        p = chemSliderPlaces()[i];
+        step = e.shiftKey ? 50 : 5;
+        p = { ArrowLeft: p - step, ArrowDown: p - step, ArrowRight: p + step, ArrowUp: p + step, PageDown: p - 50, PageUp: p + 50, Home: 0, End: 1000 }[e.key];
+        if (p === undefined) return;
+        e.preventDefault();
+        e.stopPropagation(); // not on the keys of the calculator
+        chemSliderSet(i, p);
+        saveChem();
+    }, false);
+
+    chemLegend.addEventListener('click', function (e) {
+        var k = e.target.closest('[data-g]');
+        // the number of a slider clicked: 20 °C again, or all the elements
+        if (e.target.closest('.calc-pt-temp-v')) {
+            if (chemBy === 'state') chemTempTo(20);
+            else {
+                delete chemCut[chemBy];
+                chemDim();
+            }
+            chemSliderDraw(chemSliderPlaces());
+            saveChem();
+            return;
+        }
+        if (!k) return;
+        chemHot = chemHot === k.dataset.g ? '' : k.dataset.g;
+        [].forEach.call(chemLegend.children, function (c) { c.classList.toggle('calc-on', c.dataset.g === chemHot); });
+        chemDim();
+    }, false);
+
+    // Pointed at: in the space above. Off every element, in the table's gaps, on the tile above or out of
+    // the table, the one chosen again; drawn only when it changes, as the tile under the mouse is redrawn
+    function chemPoint(z) {
+        var big = chemGrid.querySelector('.calc-pt-gap .calc-pt-big');
+        if (z && (!big || +big.dataset.show !== z)) chemShow(z);
+    }
+
+    chemGrid.addEventListener('pointerover', function (e) {
+        var t = e.target.closest('.calc-pt-el[data-z]');
+        if (e.pointerType !== 'touch') chemPoint(t ? +t.dataset.z : chemAt);
+    }, false);
+
+    chemGrid.addEventListener('pointerleave', function () {
+        chemPoint(chemAt);
+    }, false);
+
+    // The details of the element chosen, below the table, scrolled up to: smoothly, in the table's own
+    // scroll alone, as the page around the calculator must not move
+    function chemToInfo() {
+        var by = (chemInfo.getBoundingClientRect().top - chemTable.getBoundingClientRect().top) / scale();
+        chemTable.scrollTo({ top: chemTable.scrollTop + by - 4, behavior: 'smooth' });
+    }
+
+    // An element clicked is chosen; clicked again, or its big tile above the table, its details below are
+    // scrolled to. On a touch screen, with nothing to point at, at once
+    chemGrid.addEventListener('click', function (e) {
+        var t = e.target.closest('.calc-pt-el[data-z]'), s = e.target.closest('.calc-pt-series'), big = e.target.closest('[data-show]'), again = false;
+        if (s) { // La–Lu and Ac–Lr go to their row
+            chemShow(+s.dataset.from, true);
+        } else if (big) {
+            if (+big.dataset.show !== chemAt) chemShow(+big.dataset.show, true);
+            again = true;
+        } else if (t) {
+            again = +t.dataset.z === chemAt;
+            if (!again) chemShow(+t.dataset.z, true);
+        } else {
+            return;
+        }
+        if (again || touchScreen()) chemToInfo();
+        saveChem();
+    }, false);
+
+    // the arrow keys go from element to element, as they are placed: across a gap to the next one
+    chemGrid.addEventListener('keydown', function (e) {
+        var e0 = CalcChem.elements[chemAt - 1], dr = { 38: -1, 40: 1 }[e.which] || 0, dc = { 37: -1, 39: 1 }[e.which] || 0, best = null;
+        if (!dr && !dc) return;
+        e.preventDefault();
+        CalcChem.elements.forEach(function (x) {
+            var r = x.row - e0.row, c = x.col - e0.col, d;
+            if (dc && (r || c * dc <= 0)) return;
+            if (dr && r * dr <= 0) return;
+            d = dc ? Math.abs(c) : Math.abs(r) * 100 + Math.abs(c);
+            if (!best || d < best.d) best = { d: d, z: x.z };
+        });
+        if (best) {
+            chemShow(best.z, true);
+            saveChem();
+        }
+    }, false);
+
+    chemSearch.addEventListener('input', function () {
+        var q = chemSearch.value.trim().toLowerCase(), exact = CalcChem.elements.filter(function (e) {
+            return q && (e.s.toLowerCase() === q || String(e.z) === q || e.name.toLowerCase() === q);
+        })[0];
+        chemDim();
+        if (exact) {
+            chemShow(exact.z, true);
+            saveChem();
+        }
+    }, false);
+
+    // its × empties it, the box keeping the focus
+    chemClear.addEventListener('click', function () {
+        chemSearch.value = '';
+        chemDim();
+        focusBox(chemSearch);
+    }, false);
+
+    // Enter chooses the first element found; Esc empties it first, then closes as ever
+    chemSearch.addEventListener('keydown', function (e) {
+        var q = chemSearch.value.trim(), first;
+        if (e.which === 27 && chemSearch.value) {
+            e.preventDefault();
+            e.stopPropagation();
+            chemSearch.value = '';
+            chemDim();
+            return;
+        }
+        if (e.which !== 13) return;
+        e.preventDefault();
+        first = CalcChem.elements.filter(function (x) { return q && chemMatches(x, q); })[0];
+        if (first) {
+            chemShow(first.z, true);
+            saveChem();
+        }
+    }, false);
+
+    // a number of the element chosen is put in
+    chemInfo.addEventListener('click', function (e) {
+        var u = e.target.closest('[data-unit]'), t = e.target.closest('.calc-sv-tile[data-v]'), units;
+        // its unit, the next one: for every number of its kind, in the table and under it
+        if (u) {
+            units = Object.keys(CHEM_UNITS[u.dataset.unit]);
+            chemUnit[u.dataset.unit] = units[(units.indexOf(chemUnit[u.dataset.unit]) + 1) % units.length];
+            renderChemTable();
+            saveChem();
+            return;
+        }
+        if (!t || !engine.put(+t.dataset.v)) return;
+        keyBoard['AC'].children[0].firstChild.data = 'C';
+        refresh();
+        saveState();
+        chemDone();
+    }, false);
+
+    // the tips of the panel: its tabs, its pop out and close, and the cards
+    function chemTip(el) {
+        if (el === chemSize) return CalcTips[root.classList.contains('calc-chem-big') ? 'chem small' : 'chem big'];
+        if (el.classList.contains('calc-past-close')) return CalcTips['chem close'];
+        if (el.classList.contains('calc-solve-tab')) return CalcTips['chem tab ' + el.dataset.tab] || null;
+        if (el.classList.contains('calc-pt-mode')) return CalcTips['chem by ' + el.dataset.by] || null;
+        if (el.classList.contains('calc-pt-unit')) return CalcTips['chem unit'];
+        if (el.closest('.calc-pt-temp')) return CalcTips[chemBy === 'state' ? 'chem temp' : 'chem cut'];
+        if (el.hasAttribute('data-pt')) return chemPartTip(el);
+        if (el === chemClear) return CalcTips['chem search clear'];
+        return chemCards.tip(el);
     }
 
     // What else of a web page a card works out (page/picks.js in the extension), in its panel: a card of the
@@ -7364,7 +8602,8 @@
     // Its other tab has the dates, in cards
     var dates = toolCards(conv.querySelector('.calc-sv-list'), DATE_TOOLS, 'dates', true, {
         open: function () { return conv.classList.contains('calc-open') && convTab === 'dates'; },
-        done: function () { showConv(false); }
+        done: function () { showConv(false); },
+        side: function () { return bigSide(conv); }
     });
 
     dates.load({ open: 'span' }); // the first card open at first
@@ -7442,6 +8681,7 @@
 
     // A result in the display starts the value, as in the formulas
     function showConv(open) {
+        if (!open && bigShut(conv)) return;
         if (!open) {
             closeCalendar();
             showPicker(convGroup, false);
@@ -7631,33 +8871,38 @@
 
     // the statistics, the formulas, the converter, the graph, the solver and the numbers have their button while they are
     // turned on in the options, and not turned off by an administrator. The graph's own window closes with the graph
-    function setPanels(statsOn, fxOn, convOn, graphOn, solveOn, numbersOn) {
+    function setPanels(statsOn, fxOn, convOn, graphOn, solveOn, numbersOn, chemOn) {
         statsOn = statsOn && !policyOff('statistics');
         fxOn = fxOn && !policyOff('formulas');
         convOn = convOn && !policyOff('converter');
         graphOn = graphOn && !policyOff('graph');
         solveOn = solveOn && !policyOff('solve');
         numbersOn = numbersOn && !policyOff('numbers');
+        chemOn = chemOn && !policyOff('chemistry');
         if (!graphOn && graphAlone) ask('graph-close');
+        if (!chemOn && chemAlone) ask('chem-close');
+        if (panelAlone && !{ stats: statsOn, fx: fxOn, conv: convOn, solve: solveOn, numbers: numbersOn }[panelAlone]) ask('panel-close');
         statsButton.hidden = !statsOn;
         fxButton.hidden = !fxOn;
         convButton.hidden = !convOn;
         graphButton.hidden = !graphOn;
         solveButton.hidden = !solveOn;
         numbersButton.hidden = !numbersOn;
+        chemButton.hidden = !chemOn;
         if (!statsOn) showStats(false);
         if (!fxOn) showFx(false);
         if (!convOn) showConv(false);
         if (!graphOn) showGraph(false);
         if (!solveOn) showSolve(false);
         if (!numbersOn) showNumbers(false);
+        if (!chemOn) showChem(false);
         showTools();
     }
 
     // the panels as the options and the administrator have them now
     function readPanels() {
         setPanels(stored('statsOn') !== false, stored('fxOn') !== false, stored('convOn') !== false, stored('graphOn') !== false,
-            stored('solveOn') !== false, stored('numbersOn') !== false);
+            stored('solveOn') !== false, stored('numbersOn') !== false, stored('chemOn') !== false);
     }
 
     // the page tells of a change of the administrator's, which it heard first: it is not a storage event here
@@ -8094,6 +9339,128 @@
         }
     }
 
+    // ---------------- pop out ---------------- //
+
+    // Every panel but the history pops out as the graph and the periodic table do: as big as the page on the website,
+    // and in a window of its own in the extension, whose popup cannot grow, popup.html?panel=solve. Beside a list of
+    // cards, the card open is in the middle; and all of it grows with the room
+    var bigPanel = null, // the panel popped out
+        panelAlone = '', // in the extension, the panel of this window
+        BIG_PANELS = [
+            { key: 'stats', panel: stats, show: showStats, render: renderStats },
+            { key: 'fx', panel: fx, show: showFx, render: renderFx },
+            { key: 'conv', panel: conv, show: showConv, render: convTabs },
+            { key: 'solve', panel: solvePanel, show: showSolve, render: solver.render },
+            { key: 'numbers', panel: numbersPanel, show: showNumbers, render: numbers.render }
+        ];
+
+    // a panel, by itself or its name
+    function bigOf(panel) {
+        return BIG_PANELS.filter(function (p) { return p.panel === panel || p.key === panel; })[0];
+    }
+
+    // popped out on a wide page: its list of cards at the left, the card open beside it
+    function bigSide(panel) {
+        return panel.classList.contains('calc-big-on') && window.matchMedia('(min-width: 760px)').matches;
+    }
+
+    // A panel popped out, or in. The page may do it its own way: the extension opens it in a window of its own. True if it changed
+    function panelBig(panel, on) {
+        var p = bigOf(panel);
+        if (!p || on === (bigPanel === panel) || (panelAlone && !on)) return false;
+        hideTip();
+        showMenu(false);
+        if (on) {
+            saveState();
+            if (!ask('panel-big', { big: true, panel: p.key })) return p.show(false), false; // in its own window, and not here as well
+            if (!panel.classList.contains('calc-open')) p.show(true);
+        }
+        bigPanel = on ? panel : null;
+        root.classList.toggle('calc-panel-big', on);
+        panel.classList.toggle('calc-big-on', on);
+        if (!on) ask('panel-big', { big: false, panel: p.key });
+        panelFit();
+        p.render();
+        return true;
+    }
+
+    // Esc, and close in the panel's own window: popped out, it pops in; its own window closes
+    function panelIn() {
+        if (panelAlone) ask('panel-close'); else panelBig(bigPanel, false);
+    }
+
+    // A panel closing, as a value is put in: in its own window it stays, and the calculator comes up with the value;
+    // popped out, it pops in first. True if it stays
+    function bigShut(panel) {
+        if (panelAlone && bigPanel === panel) return ask('panel-put'), true;
+        panelBig(panel, false);
+        return false;
+    }
+
+    // Popped out, what is under its head grows with the room: as it is 1200px wide, to half as big again
+    function panelFit() {
+        var z = bigPanel && window.matchMedia('(min-width: 760px)').matches ? Math.max(1, Math.min(1.45, bigPanel.clientWidth / 1200)).toFixed(3) : '';
+        BIG_PANELS.forEach(function (p) {
+            [].forEach.call(p.panel.children, function (el) {
+                if (!el.classList.contains('calc-past-head') && el !== calendar) el.style.zoom = p.panel === bigPanel ? z : '';
+            });
+        });
+    }
+
+    // as narrow as a phone, the cards open in place again; wider, beside the list
+    window.addEventListener('resize', function () {
+        var list = bigPanel && bigPanel.querySelector('.calc-sv-list:not([hidden]), .calc-fx-list');
+        if (!bigPanel) return;
+        panelFit();
+        if (list && list.classList.contains('calc-side') !== bigSide(bigPanel)) bigOf(bigPanel).render();
+    }, false);
+
+    BIG_PANELS.forEach(function (p) {
+        p.panel.querySelector('.calc-panel-size').addEventListener('click', function () {
+            panelBig(p.panel, bigPanel !== p.panel);
+        }, false);
+        // in its own window, close closes the window: before the panel's own close
+        p.panel.querySelector('.calc-past-close').addEventListener('click', function (e) {
+            if (panelAlone !== p.key) return;
+            e.stopImmediatePropagation();
+            ask('panel-close');
+        }, true);
+    });
+
+    // the extension's window of a panel: only the panel, popped out
+    root.addEventListener('calc-panel', function (e) {
+        var p = bigOf((e.detail || {}).panel);
+        if (!p) return;
+        p.show(true);
+        panelBig(p.panel, true);
+        panelAlone = p.key;
+        root.classList.add('calc-panel-alone');
+    }, false);
+
+    // what a panel's own window saved, or the calculator's while it is open: the same here
+    function panelSaved(key) {
+        var s;
+        if (key === 'solve' || key === 'numbers') {
+            (s = key === 'solve' ? solver : numbers).load(stored(key));
+            if (s.open()) s.render();
+        } else if (key === 'dates' || key === 'conv') {
+            if (key === 'dates') dates.load(stored('dates')); else loadConv(stored('conv'));
+            if (conv.classList.contains('calc-open')) convTabs();
+        } else if (key === 'fxTab') {
+            if (/^(vars|formulas|constants)$/.test(stored('fxTab'))) fxTab = stored('fxTab');
+            if (fx.classList.contains('calc-open')) renderFx();
+        } else {
+            s = stored(key);
+            if (key === 'stat' && typeof s === 'string') statsTexts.list = s;
+            if (key === 'statPairs' && typeof s === 'string') statsTexts.pairs = s;
+            if (key === 'statTab') statsTab = s === 'pairs' ? 'pairs' : 'list';
+            if (key === 'statBy') setStatsBy(Math.max(0, BY.map(function (by) { return by[0]; }).indexOf(s)));
+            if (document.activeElement !== statsInput) statsInput.value = statsTexts[statsTab];
+            statsTiles();
+            if (stats.classList.contains('calc-open')) renderStats();
+        }
+    }
+
     // ---------------- saved state ---------------- //
 
     // a damaged value reads as missing, and a full or blocked storage must not break the calculator
@@ -8119,7 +9486,7 @@
     // The graph's own window saves only the graph and the calculation, the two it changes: the rest it
     // has from when it opened, and the calculator may have changed it since
     function saveState() {
-        store('graph', {
+        if (!chemAlone && !panelAlone) store('graph', {
             f: graphInputs.slice(0, graphCount).map(function (box) { return box.value; }), c: graphHue.slice(0, graphCount),
             view: graphView, tab: graphTab, side: graphSide, from: graphFrom.value, by: graphBy.value, off: graphOff.slice(0, graphCount), d: graphDiff.slice(0, graphCount),
             p: graphLetters.reduce(function (p, k) {
@@ -8128,13 +9495,15 @@
             }, {})
         });
         store('calc', engine.save());
-        if (graphAlone) return;
+        if (!graphAlone && !chemAlone && (!panelAlone || panelAlone === 'stats')) {
+            store('stat', statsTexts.list);
+            store('statPairs', statsTexts.pairs);
+            store('statTab', statsTab);
+            store('statBy', BY[statsBy.at][0]);
+        }
+        if (graphAlone || chemAlone || panelAlone) return;
         store('secondActive', secondActive);
         store('deg', deg === 2 ? 'grad' : deg === 1); // true or false for Deg and Rad, as before Grad came
-        store('stat', statsTexts.list);
-        store('statPairs', statsTexts.pairs);
-        store('statTab', statsTab);
-        store('statBy', BY[statsBy.at][0]);
         store('fraction', fracMode);
         store('dms', dmsMode);
         store('memory', engine.memory);
@@ -8145,7 +9514,7 @@
         var s = {};
 
         // all read first: the keys pressed below must not save over what is still to be read
-        ['secondActive', 'deg', 'stat', 'statPairs', 'statTab', 'statBy', 'statsOn', 'fxOn', 'fxTab', 'convOn', 'conv', 'dates', 'graphOn', 'graph', 'solveOn', 'solve', 'numbersOn', 'numbers', 'fraction', 'dms', 'format', 'memory', 'calc'].forEach(function (key) {
+        ['secondActive', 'deg', 'stat', 'statPairs', 'statTab', 'statBy', 'statsOn', 'fxOn', 'fxTab', 'convOn', 'conv', 'dates', 'graphOn', 'graph', 'solveOn', 'solve', 'numbersOn', 'numbers', 'chemOn', 'chem', 'chemView', 'fraction', 'dms', 'format', 'memory', 'calc'].forEach(function (key) {
             s[key] = stored(key);
         });
         if (s.secondActive) {
@@ -8160,10 +9529,12 @@
         statsTiles();
         setStatsBy(Math.max(0, BY.map(function (by) { return by[0]; }).indexOf(s.statBy)));
         // all on, until changed in the options
-        setPanels(s.statsOn !== false, s.fxOn !== false, s.convOn !== false, s.graphOn !== false, s.solveOn !== false, s.numbersOn !== false);
+        setPanels(s.statsOn !== false, s.fxOn !== false, s.convOn !== false, s.graphOn !== false, s.solveOn !== false, s.numbersOn !== false, s.chemOn !== false);
         loadGraph(s.graph);
         solver.load(s.solve);
         numbers.load(s.numbers);
+        chemCards.load(s.chem);
+        loadChem(s.chemView);
         if (/^(vars|formulas|constants)$/.test(s.fxTab)) fxTab = s.fxTab;
         loadConv(s.conv);
         dates.load(s.dates);
@@ -8181,8 +9552,8 @@
     }
 
     // The number format or the panels were changed on the options page, or by an administrator.
-    // The graph, the calculation and the angle unit follow another page of the calculator: the graph's
-    // own window and the popup or the detached window show the same ones. Not what this page saved
+    // The graph, the calculation, the angle unit and the chemistry follow another page of the calculator: the
+    // graph's and the table's own windows and the popup or the detached window show the same ones. Not what this page saved
     window.addEventListener('storage', function (e) {
         if (e.newValue !== null && e.newValue === ownSaves[e.key]) return;
         if (e.key === 'graph') {
@@ -8199,11 +9570,22 @@
             lettersChanged(); // as the other page stored them
             return refresh();
         }
+        if (e.key === 'chemView' || e.key === 'chem') { // the table's own window and the calculator show the same
+            ownSaves[e.key] = e.newValue;
+            if (e.key === 'chem') chemCards.load(stored('chem'));
+            else loadChem(stored('chemView'));
+            if (chemAlone || chemPanel.classList.contains('calc-open')) renderChem();
+            return;
+        }
+        if (/^(solve|numbers|dates|conv|fxTab|stat|statPairs|statTab|statBy)$/.test(e.key)) { // a panel's own window and the calculator show the same
+            ownSaves[e.key] = e.newValue;
+            return panelSaved(e.key);
+        }
         if (e.key === 'deg') {
             ownSaves.deg = e.newValue;
             return setUnit(stored('deg') === true ? 1 : stored('deg') === 'grad' ? 2 : 0);
         }
-        if (/^(statsOn|fxOn|convOn|graphOn|solveOn|numbersOn|policy)$/.test(e.key)) return readPanels();
+        if (/^(statsOn|fxOn|convOn|graphOn|solveOn|numbersOn|chemOn|policy)$/.test(e.key)) return readPanels();
         if (e.key === 'format') setFormat(stored('format'));
         else return;
         refresh();

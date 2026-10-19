@@ -113,6 +113,14 @@
                                 <path d="M4.5 11c1.6-6 3.2-6 4.6-3s2.6 2.5 4.4-3.5" />
                             </svg>
                         </div>
+                        <!-- matrices, complex numbers and bases -->
+                        <div class="calc-numbers-btn" hidden>
+                            <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
+                                stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M4.2 2.5H2.2v11h2M11.8 2.5h2v11h-2" stroke-width="1.4" />
+                                <path d="M6.19 7.42C6.34 6.82 7.2 6.07 8.28 5.83C8.85 5.7 9.18 6 9.11 6.54L7.96 11.06C7.81 11.53 8.1 11.69 8.5 11.38C8.85 11.1 9.18 10.75 9.34 10.52C9.43 10.38 9.61 10.46 9.54 10.66C9.18 11.45 8.35 12.35 7.49 12.35C6.85 12.35 6.56 11.84 6.74 11.14L7.71 7.32C7.81 6.85 7.56 6.54 7.2 6.66C6.85 6.78 6.52 7.17 6.42 7.52C6.36 7.7 6.14 7.63 6.19 7.42ZM9.62 3.87a0.82 0.82 0 1 0-1.64 0a0.82 0.82 0 1 0 1.64 0Z" fill="currentColor" stroke-width=".35" />
+                            </svg>
+                        </div>
                         <!-- equations solved, calculus and probability -->
                         <div class="calc-solve-btn" hidden>
                             <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
@@ -121,19 +129,19 @@
                                 <path d="M9.5 6.5H14M9.5 9.5H14" />
                             </svg>
                         </div>
+                        <!-- chemistry: the periodic table and its tools. Iron's tile, its symbol alone -->
+                        <div class="calc-chem-btn" hidden>
+                            <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
+                                stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="1.8" y="1.8" width="12.4" height="12.4" rx="2" fill="none" stroke-width="1.3" />
+                                <text transform="translate(8 11.24) scale(0.88 1)" fill="currentColor" stroke="currentColor" stroke-width="0.1" font-size="9" font-weight="700" font-family="Play, sans-serif" text-anchor="middle">Fe</text>
+                            </svg>
+                        </div>
                         <!-- statistics of a list of numbers -->
                         <div class="calc-stat-btn" hidden>
                             <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
                                 stroke-width="1.8" stroke-linecap="round">
-                                <path d="M3.5 13.5V9M8 13.5V3M12.5 13.5V6.5" />
-                            </svg>
-                        </div>
-                        <!-- matrices, complex numbers and bases -->
-                        <div class="calc-numbers-btn" hidden>
-                            <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
-                                stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M4.2 2.5H2.2v11h2M11.8 2.5h2v11h-2" stroke-width="1.4" />
-                                <path d="M6.19 7.42C6.34 6.82 7.2 6.07 8.28 5.83C8.85 5.7 9.18 6 9.11 6.54L7.96 11.06C7.81 11.53 8.1 11.69 8.5 11.38C8.85 11.1 9.18 10.75 9.34 10.52C9.43 10.38 9.61 10.46 9.54 10.66C9.18 11.45 8.35 12.35 7.49 12.35C6.85 12.35 6.56 11.84 6.74 11.14L7.71 7.32C7.81 6.85 7.56 6.54 7.2 6.66C6.85 6.78 6.52 7.17 6.42 7.52C6.36 7.7 6.14 7.63 6.19 7.42ZM9.62 3.87a0.82 0.82 0 1 0-1.64 0a0.82 0.82 0 1 0 1.64 0Z" fill="currentColor" stroke-width=".35" />
+                                <path d="M3.5 12.9V8.8M8 12.9V3.4M12.5 12.9V6.6" />
                             </svg>
                         </div>
                     </div>
@@ -343,6 +351,8 @@
                     <div class="calc-conv-menu" role="listbox" hidden></div>
                 </div>
                 <span class="calc-past-clear">Clear</span>
+                <!-- pop out: the panel as big as the page, or in a window of its own; pop in: back in the calculator -->
+                <span class="calc-panel-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-panel-grow" d="M10 2h4v4M7.5 8.5L14 2" /><path class="calc-panel-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
                 <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
             </div>
             <textarea class="calc-stats-input" spellcheck="false" maxlength="20000"
@@ -383,7 +393,7 @@
                     <span class="calc-graph-diff">y′</span>
                     <!-- the points as a table of x and y, to type in -->
                     <span class="calc-graph-points"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2.5" width="12" height="11" rx="1.5" /><path d="M8 2.5v11M2 6.2h12M2 9.9h12" /></svg></span>
-                    <span class="calc-graph-del"><svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8" /></svg></span>
+                    <span class="calc-graph-del"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
                 </label>
             </div>
             <!-- the points of a box as a table, under the boxes while it is open; main.js fills it -->
@@ -440,6 +450,8 @@
                     <span class="calc-solve-tab" data-tab="chance">Probability</span>
                     <span class="calc-solve-tab" data-tab="finance">Finance</span>
                 </span>
+                <!-- pop out: the panel as big as the page, or in a window of its own; pop in: back in the calculator -->
+                <span class="calc-panel-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-panel-grow" d="M10 2h4v4M7.5 8.5L14 2" /><path class="calc-panel-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
                 <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
             </div>
             <div class="calc-sv-list"></div>
@@ -454,9 +466,57 @@
                     <span class="calc-solve-tab" data-tab="whole">Integer</span>
                     <span class="calc-solve-tab" data-tab="computer">Computer</span>
                 </span>
+                <!-- pop out: the panel as big as the page, or in a window of its own; pop in: back in the calculator -->
+                <span class="calc-panel-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-panel-grow" d="M10 2h4v4M7.5 8.5L14 2" /><path class="calc-panel-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
                 <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
             </div>
             <div class="calc-sv-list"></div>
+        </div>
+
+        <!-- chemistry, over the keys like the history: the periodic table, and a card for each tool, as the solver has -->
+        <div class="calc-past calc-chem">
+            <div class="calc-past-head">
+                <span class="calc-solve-tabs">
+                    <span class="calc-solve-tab" data-tab="table">Table</span>
+                    <span class="calc-solve-tab" data-tab="mass">Mass</span>
+                    <span class="calc-solve-tab" data-tab="reactions">Reactions</span>
+                    <span class="calc-solve-tab" data-tab="solutions">Solutions</span>
+                    <span class="calc-solve-tab" data-tab="ions">Ions</span>
+                    <span class="calc-solve-tab" data-tab="gases">Gases</span>
+                </span>
+                <!-- pop out: the table as big as the page, or in a window of its own; pop in: back in the calculator -->
+                <span class="calc-chem-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-chem-grow" d="M10 2h4v4M7.5 8.5L14 2" /><path class="calc-chem-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
+                <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
+            </div>
+            <!-- the periodic table: a search and what its colours show, the key of the colours, the elements, and all of the one chosen; main.js fills it -->
+            <div class="calc-pt">
+                <div class="calc-pt-bar">
+                    <span class="calc-pt-find">
+                        <input class="calc-pt-search" type="text" spellcheck="false" autocomplete="off" maxlength="20"
+                            placeholder="Search: Fe, iron, 26" aria-label="Search the elements">
+                        <!-- the search emptied: every element bright again -->
+                        <span class="calc-pt-clear" role="button" aria-label="Clear the search" hidden><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
+                    </span>
+                    <span class="calc-pt-modes" role="radiogroup" aria-label="Colours">
+                        <span class="calc-pt-mode" data-by="cat" role="radio">Kind</span>
+                        <span class="calc-pt-mode" data-by="en" role="radio">Electronegativity</span>
+                        <span class="calc-pt-mode" data-by="block" role="radio">Block</span>
+                        <span class="calc-pt-mode" data-by="ie" role="radio">Ionization energy</span>
+                        <span class="calc-pt-mode" data-by="affinity" role="radio">Electron affinity</span>
+                        <span class="calc-pt-mode" data-by="radius" role="radio">Atomic radius</span>
+                        <span class="calc-pt-mode" data-by="state" role="radio">State</span>
+                        <span class="calc-pt-mode" data-by="mp" role="radio">Melts</span>
+                        <span class="calc-pt-mode" data-by="bp" role="radio">Boils</span>
+                        <span class="calc-pt-mode" data-by="density" role="radio">Density</span>
+                        <span class="calc-pt-mode" data-by="mass" role="radio">Mass</span>
+                        <span class="calc-pt-mode" data-by="year" role="radio">Discovered</span>
+                    </span>
+                </div>
+                <div class="calc-pt-legend"></div>
+                <div class="calc-pt-grid" tabindex="0" aria-label="Periodic table: the arrow keys go from element to element"></div>
+                <div class="calc-pt-info"></div>
+            </div>
+            <div class="calc-sv-list" hidden></div>
         </div>
 
         <!-- vars, formulas and constants, over the keys like the history -->
@@ -467,6 +527,8 @@
                     <span class="calc-fx-tab" data-tab="formulas">Formulas</span>
                     <span class="calc-fx-tab" data-tab="constants">Constants</span>
                 </span>
+                <!-- pop out: the panel as big as the page, or in a window of its own; pop in: back in the calculator -->
+                <span class="calc-panel-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-panel-grow" d="M10 2h4v4M7.5 8.5L14 2" /><path class="calc-panel-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
                 <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
             </div>
             <input class="calc-fx-search" type="text" spellcheck="false" autocomplete="off" maxlength="60" placeholder="Search">
@@ -480,6 +542,8 @@
                     <span class="calc-solve-tab" data-tab="units">Units</span>
                     <span class="calc-solve-tab" data-tab="dates">Dates</span>
                 </span>
+                <!-- pop out: the panel as big as the page, or in a window of its own; pop in: back in the calculator -->
+                <span class="calc-panel-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-panel-grow" d="M10 2h4v4M7.5 8.5L14 2" /><path class="calc-panel-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
                 <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
             </div>
             <!-- lists drawn as the calculator draws, not by the browser -->
@@ -525,6 +589,7 @@
     <script src="js/formulas.js"></script>
     <script src="js/maths.js"></script>
     <script src="js/units.js"></script>
+    <script src="js/chem.js"></script>
     <script src="js/policy.js"></script>
     <script src="js/main.js"></script>
     <script src="js/popup.js"></script>

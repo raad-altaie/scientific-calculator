@@ -181,6 +181,14 @@
                                 <path d="M4.5 11c1.6-6 3.2-6 4.6-3s2.6 2.5 4.4-3.5" />
                             </svg>
                         </div>
+                        <!-- matrices, complex numbers and bases -->
+                        <div class="calc-numbers-btn" hidden>
+                            <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
+                                stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M4.2 2.5H2.2v11h2M11.8 2.5h2v11h-2" stroke-width="1.4" />
+                                <path d="M6.19 7.42C6.34 6.82 7.2 6.07 8.28 5.83C8.85 5.7 9.18 6 9.11 6.54L7.96 11.06C7.81 11.53 8.1 11.69 8.5 11.38C8.85 11.1 9.18 10.75 9.34 10.52C9.43 10.38 9.61 10.46 9.54 10.66C9.18 11.45 8.35 12.35 7.49 12.35C6.85 12.35 6.56 11.84 6.74 11.14L7.71 7.32C7.81 6.85 7.56 6.54 7.2 6.66C6.85 6.78 6.52 7.17 6.42 7.52C6.36 7.7 6.14 7.63 6.19 7.42ZM9.62 3.87a0.82 0.82 0 1 0-1.64 0a0.82 0.82 0 1 0 1.64 0Z" fill="currentColor" stroke-width=".35" />
+                            </svg>
+                        </div>
                         <!-- equations solved, calculus and probability -->
                         <div class="calc-solve-btn" hidden>
                             <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
@@ -189,19 +197,19 @@
                                 <path d="M9.5 6.5H14M9.5 9.5H14" />
                             </svg>
                         </div>
+                        <!-- chemistry: the periodic table and its tools. Iron's tile, its symbol alone -->
+                        <div class="calc-chem-btn" hidden>
+                            <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
+                                stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="1.8" y="1.8" width="12.4" height="12.4" rx="2" fill="none" stroke-width="1.3" />
+                                <text transform="translate(8 11.24) scale(0.88 1)" fill="currentColor" stroke="currentColor" stroke-width="0.1" font-size="9" font-weight="700" font-family="Play, sans-serif" text-anchor="middle">Fe</text>
+                            </svg>
+                        </div>
                         <!-- statistics of a list of numbers -->
                         <div class="calc-stat-btn" hidden>
                             <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
                                 stroke-width="1.8" stroke-linecap="round">
-                                <path d="M3.5 13.5V9M8 13.5V3M12.5 13.5V6.5" />
-                            </svg>
-                        </div>
-                        <!-- matrices, complex numbers and bases -->
-                        <div class="calc-numbers-btn" hidden>
-                            <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
-                                stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M4.2 2.5H2.2v11h2M11.8 2.5h2v11h-2" stroke-width="1.4" />
-                                <path d="M6.19 7.42C6.34 6.82 7.2 6.07 8.28 5.83C8.85 5.7 9.18 6 9.11 6.54L7.96 11.06C7.81 11.53 8.1 11.69 8.5 11.38C8.85 11.1 9.18 10.75 9.34 10.52C9.43 10.38 9.61 10.46 9.54 10.66C9.18 11.45 8.35 12.35 7.49 12.35C6.85 12.35 6.56 11.84 6.74 11.14L7.71 7.32C7.81 6.85 7.56 6.54 7.2 6.66C6.85 6.78 6.52 7.17 6.42 7.52C6.36 7.7 6.14 7.63 6.19 7.42ZM9.62 3.87a0.82 0.82 0 1 0-1.64 0a0.82 0.82 0 1 0 1.64 0Z" fill="currentColor" stroke-width=".35" />
+                                <path d="M3.5 12.9V8.8M8 12.9V3.4M12.5 12.9V6.6" />
                             </svg>
                         </div>
                     </div>
@@ -411,6 +419,8 @@
                     <div class="calc-conv-menu" role="listbox" hidden></div>
                 </div>
                 <span class="calc-past-clear">Clear</span>
+                <!-- pop out: the panel as big as the page, or in a window of its own; pop in: back in the calculator -->
+                <span class="calc-panel-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-panel-grow" d="M10 2h4v4M7.5 8.5L14 2" /><path class="calc-panel-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
                 <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
             </div>
             <textarea class="calc-stats-input" spellcheck="false" maxlength="20000"
@@ -451,7 +461,7 @@
                     <span class="calc-graph-diff">y′</span>
                     <!-- the points as a table of x and y, to type in -->
                     <span class="calc-graph-points"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2.5" width="12" height="11" rx="1.5" /><path d="M8 2.5v11M2 6.2h12M2 9.9h12" /></svg></span>
-                    <span class="calc-graph-del"><svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8" /></svg></span>
+                    <span class="calc-graph-del"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
                 </label>
             </div>
             <!-- the points of a box as a table, under the boxes while it is open; main.js fills it -->
@@ -508,6 +518,8 @@
                     <span class="calc-solve-tab" data-tab="chance">Probability</span>
                     <span class="calc-solve-tab" data-tab="finance">Finance</span>
                 </span>
+                <!-- pop out: the panel as big as the page, or in a window of its own; pop in: back in the calculator -->
+                <span class="calc-panel-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-panel-grow" d="M10 2h4v4M7.5 8.5L14 2" /><path class="calc-panel-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
                 <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
             </div>
             <div class="calc-sv-list"></div>
@@ -522,9 +534,57 @@
                     <span class="calc-solve-tab" data-tab="whole">Integer</span>
                     <span class="calc-solve-tab" data-tab="computer">Computer</span>
                 </span>
+                <!-- pop out: the panel as big as the page, or in a window of its own; pop in: back in the calculator -->
+                <span class="calc-panel-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-panel-grow" d="M10 2h4v4M7.5 8.5L14 2" /><path class="calc-panel-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
                 <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
             </div>
             <div class="calc-sv-list"></div>
+        </div>
+
+        <!-- chemistry, over the keys like the history: the periodic table, and a card for each tool, as the solver has -->
+        <div class="calc-past calc-chem">
+            <div class="calc-past-head">
+                <span class="calc-solve-tabs">
+                    <span class="calc-solve-tab" data-tab="table">Table</span>
+                    <span class="calc-solve-tab" data-tab="mass">Mass</span>
+                    <span class="calc-solve-tab" data-tab="reactions">Reactions</span>
+                    <span class="calc-solve-tab" data-tab="solutions">Solutions</span>
+                    <span class="calc-solve-tab" data-tab="ions">Ions</span>
+                    <span class="calc-solve-tab" data-tab="gases">Gases</span>
+                </span>
+                <!-- pop out: the table as big as the page, or in a window of its own; pop in: back in the calculator -->
+                <span class="calc-chem-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-chem-grow" d="M10 2h4v4M7.5 8.5L14 2" /><path class="calc-chem-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
+                <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
+            </div>
+            <!-- the periodic table: a search and what its colours show, the key of the colours, the elements, and all of the one chosen; main.js fills it -->
+            <div class="calc-pt">
+                <div class="calc-pt-bar">
+                    <span class="calc-pt-find">
+                        <input class="calc-pt-search" type="text" spellcheck="false" autocomplete="off" maxlength="20"
+                            placeholder="Search: Fe, iron, 26" aria-label="Search the elements">
+                        <!-- the search emptied: every element bright again -->
+                        <span class="calc-pt-clear" role="button" aria-label="Clear the search" hidden><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
+                    </span>
+                    <span class="calc-pt-modes" role="radiogroup" aria-label="Colours">
+                        <span class="calc-pt-mode" data-by="cat" role="radio">Kind</span>
+                        <span class="calc-pt-mode" data-by="en" role="radio">Electronegativity</span>
+                        <span class="calc-pt-mode" data-by="block" role="radio">Block</span>
+                        <span class="calc-pt-mode" data-by="ie" role="radio">Ionization energy</span>
+                        <span class="calc-pt-mode" data-by="affinity" role="radio">Electron affinity</span>
+                        <span class="calc-pt-mode" data-by="radius" role="radio">Atomic radius</span>
+                        <span class="calc-pt-mode" data-by="state" role="radio">State</span>
+                        <span class="calc-pt-mode" data-by="mp" role="radio">Melts</span>
+                        <span class="calc-pt-mode" data-by="bp" role="radio">Boils</span>
+                        <span class="calc-pt-mode" data-by="density" role="radio">Density</span>
+                        <span class="calc-pt-mode" data-by="mass" role="radio">Mass</span>
+                        <span class="calc-pt-mode" data-by="year" role="radio">Discovered</span>
+                    </span>
+                </div>
+                <div class="calc-pt-legend"></div>
+                <div class="calc-pt-grid" tabindex="0" aria-label="Periodic table: the arrow keys go from element to element"></div>
+                <div class="calc-pt-info"></div>
+            </div>
+            <div class="calc-sv-list" hidden></div>
         </div>
 
         <!-- vars, formulas and constants, over the keys like the history -->
@@ -535,6 +595,8 @@
                     <span class="calc-fx-tab" data-tab="formulas">Formulas</span>
                     <span class="calc-fx-tab" data-tab="constants">Constants</span>
                 </span>
+                <!-- pop out: the panel as big as the page, or in a window of its own; pop in: back in the calculator -->
+                <span class="calc-panel-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-panel-grow" d="M10 2h4v4M7.5 8.5L14 2" /><path class="calc-panel-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
                 <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
             </div>
             <input class="calc-fx-search" type="text" spellcheck="false" autocomplete="off" maxlength="60" placeholder="Search">
@@ -548,6 +610,8 @@
                     <span class="calc-solve-tab" data-tab="units">Units</span>
                     <span class="calc-solve-tab" data-tab="dates">Dates</span>
                 </span>
+                <!-- pop out: the panel as big as the page, or in a window of its own; pop in: back in the calculator -->
+                <span class="calc-panel-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-panel-grow" d="M10 2h4v4M7.5 8.5L14 2" /><path class="calc-panel-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
                 <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
             </div>
             <!-- lists drawn as the calculator draws, not by the browser -->
@@ -691,6 +755,27 @@
             <div class="option">
                 <span class="option-icon screen-icon">
                     <svg viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M4.2 2.5H2.2v11h2M11.8 2.5h2v11h-2" stroke-width="1.4"></path>
+                        <path d="M6.19 7.42C6.34 6.82 7.2 6.07 8.28 5.83C8.85 5.7 9.18 6 9.11 6.54L7.96 11.06C7.81 11.53 8.1 11.69 8.5 11.38C8.85 11.1 9.18 10.75 9.34 10.52C9.43 10.38 9.61 10.46 9.54 10.66C9.18 11.45 8.35 12.35 7.49 12.35C6.85 12.35 6.56 11.84 6.74 11.14L7.71 7.32C7.81 6.85 7.56 6.54 7.2 6.66C6.85 6.78 6.52 7.17 6.42 7.52C6.36 7.7 6.14 7.63 6.19 7.42ZM9.62 3.87a0.82 0.82 0 1 0-1.64 0a0.82 0.82 0 1 0 1.64 0Z" fill="currentColor" stroke-width=".35"></path>
+                    </svg>
+                </span>
+                <div class="option-text">
+                    <h3>Numbers</h3>
+                    <p>A button at the top left of the display for matrices: their determinant, inverse, powers,
+                        sums, products, eigenvalues, rows reduced, LU and QR, and A x = b, up to 10 × 10, and vectors; complex
+                        numbers, such as (2 + 3i)(1 – i), and the roots of polynomials of them; whole numbers in bits
+                        with their hexadecimal, octal and binary, numbers in any base, text as its codes, and numbers
+                        as doubles and floats; and whole numbers' prime factors, GCD and LCM, modular arithmetic,
+                        primes, numbers to every digit, fractions and their decimals, and rounding.</p>
+                </div>
+                <label class="switch" title="Numbers">
+                    <input type="checkbox" id="panel-numbers">
+                    <span></span>
+                </label>
+            </div>
+            <div class="option">
+                <span class="option-icon screen-icon">
+                    <svg viewBox="0 0 16 16" aria-hidden="true">
                         <path d="M2 4.5l5 7M7 4.5l-5 7" stroke-width="1.6"></path>
                         <path d="M9.5 6.5H14M9.5 9.5H14" stroke-width="1.6"></path>
                     </svg>
@@ -711,7 +796,29 @@
             <div class="option">
                 <span class="option-icon screen-icon">
                     <svg viewBox="0 0 16 16" aria-hidden="true">
-                        <path d="M3.5 13.5V9M8 13.5V3M12.5 13.5V6.5" stroke-width="1.8"></path>
+                        <g stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="1.8" y="1.8" width="12.4" height="12.4" rx="2" fill="none" stroke-width="1.3" />
+                        <text transform="translate(8 11.24) scale(0.88 1)" fill="currentColor" stroke="currentColor" stroke-width="0.1" font-size="9" font-weight="700" font-family="Play, sans-serif" text-anchor="middle">Fe</text>
+                        </g>
+                    </svg>
+                </span>
+                <div class="option-text">
+                    <h3>Chemistry</h3>
+                    <p>A button at the top left of the display for the periodic table: all 118 elements in light colours by
+                        kind, state, block or electronegativity, and a click on one for its mass, electron configuration,
+                        melting and boiling points, density, oxidation states and its atom drawn with its shells, popped out as
+                        big as the page. And the molar mass of a formula, equations balanced, the amounts of a reaction and its
+                        limiting reactant, empirical formulas, molarity, dilution, pH and buffers, the gas laws, heat and half-life.</p>
+                </div>
+                <label class="switch" title="Chemistry">
+                    <input type="checkbox" id="panel-chem">
+                    <span></span>
+                </label>
+            </div>
+            <div class="option">
+                <span class="option-icon screen-icon">
+                    <svg viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M3.5 12.9V8.8M8 12.9V3.4M12.5 12.9V6.6" stroke-width="1.8"></path>
                     </svg>
                 </span>
                 <div class="option-text">
@@ -722,27 +829,6 @@
                 </div>
                 <label class="switch" title="Statistics">
                     <input type="checkbox" id="panel-stats">
-                    <span></span>
-                </label>
-            </div>
-            <div class="option">
-                <span class="option-icon screen-icon">
-                    <svg viewBox="0 0 16 16" aria-hidden="true">
-                        <path d="M4.2 2.5H2.2v11h2M11.8 2.5h2v11h-2" stroke-width="1.4"></path>
-                        <path d="M6.19 7.42C6.34 6.82 7.2 6.07 8.28 5.83C8.85 5.7 9.18 6 9.11 6.54L7.96 11.06C7.81 11.53 8.1 11.69 8.5 11.38C8.85 11.1 9.18 10.75 9.34 10.52C9.43 10.38 9.61 10.46 9.54 10.66C9.18 11.45 8.35 12.35 7.49 12.35C6.85 12.35 6.56 11.84 6.74 11.14L7.71 7.32C7.81 6.85 7.56 6.54 7.2 6.66C6.85 6.78 6.52 7.17 6.42 7.52C6.36 7.7 6.14 7.63 6.19 7.42ZM9.62 3.87a0.82 0.82 0 1 0-1.64 0a0.82 0.82 0 1 0 1.64 0Z" fill="currentColor" stroke-width=".35"></path>
-                    </svg>
-                </span>
-                <div class="option-text">
-                    <h3>Numbers</h3>
-                    <p>A button at the top left of the display for matrices: their determinant, inverse, powers,
-                        sums, products, eigenvalues, rows reduced, LU and QR, and A x = b, up to 10 × 10, and vectors; complex
-                        numbers, such as (2 + 3i)(1 – i), and the roots of polynomials of them; whole numbers in bits
-                        with their hexadecimal, octal and binary, numbers in any base, text as its codes, and numbers
-                        as doubles and floats; and whole numbers' prime factors, GCD and LCM, modular arithmetic,
-                        primes, numbers to every digit, fractions and their decimals, and rounding.</p>
-                </div>
-                <label class="switch" title="Numbers">
-                    <input type="checkbox" id="panel-numbers">
                     <span></span>
                 </label>
             </div>
@@ -765,14 +851,17 @@
                     "Converter" section below.</li>
                 <li>Graph: functions, equations, inequalities, sequences, slope fields and points drawn, with their roots, highs, lows and
                     crossings. See the "Graph" section below.</li>
+                <li>Numbers: matrices up to 10 × 10 and their eigenvalues, vectors, complex numbers, bases and bits, text and its
+                    codes, IEEE 754, prime factors, modular arithmetic, primes, exact numbers, fractions and rounding.
+                    See the "Numbers" section below.</li>
                 <li>Solve: every root of an equation, in exact form as well, inequalities, turning points,
                     polynomials, linear systems, two curves, integrals, slopes, sums, limits, Taylor series,
                     differential equations, probability, confidence intervals, money over time, NPV and IRR, loans and savings, bonds and depreciation. See the "Solve" section below.</li>
                 <li>Statistics: count, sum, mean, standard deviation, quartiles, median and more of a list of numbers,
                     and the line of best fit of pairs of them. See the "Statistics" section below.</li>
-                <li>Numbers: matrices up to 10 × 10 and their eigenvalues, vectors, complex numbers, bases and bits, text and its
-                    codes, IEEE 754, prime factors, modular arithmetic, primes, exact numbers, fractions and rounding.
-                    See the "Numbers" section below.</li>
+                <li>Chemistry: the periodic table, each element's data and its atom drawn, popped out as big as the page; molar mass,
+                    equations balanced, amounts and the limiting reactant, empirical formulas, molarity, dilution, pH, buffers,
+                    the gas laws, heat and half-life.</li>
                 <li><kbd class="k">mod</kbd>, <kbd class="k">gcd</kbd> and <kbd class="k">lcm</kbd> on the <kbd class="k">2nd</kbd> layer of <kbd class="k">%</kbd>, <kbd class="k"><sup>n</sup>C<sub>r</sub></kbd> and <kbd class="k"><sup>n</sup>P<sub>r</sub></kbd>.</li>
                 <li><kbd class="k">floor</kbd> and <kbd class="k">ceil</kbd> on the <kbd class="k">2nd</kbd> layer of <kbd class="k">abs</kbd> and <kbd class="k">x!</kbd>, side by side, and <kbd class="k">round</kbd> on that of <kbd class="k">Rand</kbd>: a number to the whole number below or above it, and to the nearest, half away from 0. They can be pasted too, with trunc, which goes toward 0: floor(7.5) = 7.</li>
                 <li><kbd class="k">10<sup>x</sup></kbd>, <kbd class="k">e</kbd> and <kbd class="k">log<sub>y</sub></kbd> (the logarithm to any base: 8 log<sub>y</sub> 2 = 3) on the <kbd class="k">2nd</kbd> layer of <kbd class="k">log</kbd>, <kbd class="k">&pi;</kbd> and <kbd class="k">y<sup>x</sup></kbd>.</li>
@@ -954,6 +1043,51 @@
         </div>
 
         <div class="features" data-tab="guide">
+            <h2 class="logo title sub">Numbers</h2>
+            <p>Click the brackets with an i at the top left of the display. It has cards as the solver has, on four
+                tabs. Click a result, or a number of a matrix, to put it into your calculation; rest the pointer on a result
+                to see it in full, with Insert and Copy.</p>
+            <ul>
+                <li>Matrix has a matrix of up to 10 × 10, its determinant, rank, inverse, transpose and power n, and
+                    the sum and products of two; its eigenvalues, real or complex, its characteristic polynomial and
+                    its eigenvectors; A x = b, linear equations of up to ten unknowns, all of their answers where
+                    there are many, x = p + t v, and the nearest by least squares where there are none; its rows
+                    reduced, its rank and null space; P A = L U and A = Q R. From 6 columns on its boxes and its results are smaller, to fit the card, each number of a result to as many digits as fit, the whole of it shown as you point at it; the eigenvalues of a matrix larger than 4 × 4 are found by the QR algorithm, and where a matrix is badly conditioned, as the 10 × 10 Hilbert matrix is, the note says how few digits of its inverse, determinant or answers can be trusted. A whole matrix pastes into a box of one, from there right and down: a block of cells copied from a spreadsheet, lines of numbers, or [1 2; 3 4] and [[1, 2], [3, 4]], the matrix made as big as it needs to be; and Copy on a matrix of results copies it, to paste into a spreadsheet or back into a box for the next step; each card's Example types in one to start from. And of two vectors, 1, 2, 3, their dot
+                    and cross products, lengths, the angle between them and the projection of one on the
+                    other.</li>
+                <li>Complex works out a complex number, (2 + 3i)(1 – i), sqrt(-4) or 2∠30 in polar form, for its
+                    real and imaginary parts, length, angle and conjugate and as r e^(iθ), and the n-th roots of one,
+                    each drawn on the plane; the roots of a polynomial of complex coefficients, x^2 + (1 + i)x + 2i;
+                    and the AC impedance of a resistor, a coil and a capacitor in series or side by side at a
+                    frequency, its size and phase, their reactances and the frequency of resonance, a value typed
+                    with a prefix as well, 4.7k, 10m or 100µ.</li>
+                <li>Integer has the prime factors of a whole number of up to 20 digits, 360 = 2³ × 3² × 5, whether
+                    it is prime, and its divisors; the GCD and LCM of two numbers or more; a mod m, a^b mod m, the
+                    inverse of a and every x of a x ≡ b (mod m), and the Chinese remainder theorem, 2 mod 3, 3 mod 5;
+                    a calculation to every digit, 100!, 2^200, 50 nCr 25, fib(300); the primes before and after a
+                    number, π(n), the n-th prime and the primes from a to b; a fraction, a decimal or 0.1(6) as a
+                    fraction, a decimal with the part that comes again in brackets and a continued fraction; and a
+                    number rounded to d places, half away from 0, down, up and toward 0, and to d significant
+                    figures.</li>
+                <li>Computer works out whole numbers as they are kept in 8, 16, 32, 64 or 128 bits: decimal, 0xFF,
+                    0b1010 or 0o17, with + – × ÷, mod, AND, OR, XOR, NOT, shifts and ROL and ROR, shown in decimal,
+                    hexadecimal, octal and binary, and its bytes big-endian, little-endian and swapped. Bits shows each bit of a number, to turn over with a click, and
+                    how many are 1; IEEE 754 shows a number as a double and a float, 0.1 = 0x3FB999999999999A, what
+                    it is to its last digit, and the number of the bits of one. Any base writes a number of any base
+                    from 2 to 36 in another, the digits after its point as well, 0.1 as 0.0(0011) in base 2; Text and
+                    codes gives the code points, UTF-8 and UTF-16 of a text, é = U+00E9 = C3 A9, and a text of
+                    them; IP subnet gives the network of an IPv4 address, 192.168.1.10/24 or with its mask: its
+                    network and broadcast addresses, mask, first and last host and how many hosts; or of an IPv6
+                    address, 2001:db8::1/48: the address in full and written short, its first and last address, how
+                    many addresses and /64 networks, its kind and its name for reverse DNS; UUID makes five new
+                    UUIDs of version 4, random, or of version 7, in order by time, each to copy, and reads one for
+                    its version, variant and the time it was made; Base32, 58, 64 and 85 writes a text in Base32, as
+                    the keys of two-step sign-in are, in Base58, as Bitcoin addresses are, in Base64, and in that of
+                    web addresses, or in Ascii85, and reads one back; and Hashes gives the MD5, SHA-1, SHA-256,
+                    SHA-512 and CRC-32 of a text, and checks a hash pasted against them.</li>
+            </ul>
+        </div>
+        <div class="features" data-tab="guide">
             <h2 class="logo title sub">Solve</h2>
             <p>Click x= at the top left of the display. Each tool is a card: open it, type in its boxes, and it is
                 worked out as you type. Click a result to put it into your calculation, or rest the pointer on it to see it
@@ -1002,53 +1136,33 @@
                     the box, and drawn through the pairs under the results.</li>
                 <li>Each tab keeps its own numbers, and both stay for the next time.</li>
             </ul>
-        </div>
 
-        <div class="features" data-tab="guide">
-            <h2 class="logo title sub">Numbers</h2>
-            <p>Click the brackets with an i at the top left of the display. It has cards as the solver has, on four
-                tabs. Click a result, or a number of a matrix, to put it into your calculation; rest the pointer on a result
-                to see it in full, with Insert and Copy.</p>
+            <h2 class="logo title sub">Chemistry</h2>
+            <p>Click the small periodic table at the top left of the display. It opens on the table; the other four tabs
+                have cards as the solver has. Click a number to put it into your calculation.</p>
             <ul>
-                <li>Matrix has a matrix of up to 10 × 10, its determinant, rank, inverse, transpose and power n, and
-                    the sum and products of two; its eigenvalues, real or complex, its characteristic polynomial and
-                    its eigenvectors; A x = b, linear equations of up to ten unknowns, all of their answers where
-                    there are many, x = p + t v, and the nearest by least squares where there are none; its rows
-                    reduced, its rank and null space; P A = L U and A = Q R. From 6 columns on its boxes and its results are smaller, to fit the card, each number of a result to as many digits as fit, the whole of it shown as you point at it; the eigenvalues of a matrix larger than 4 × 4 are found by the QR algorithm, and where a matrix is badly conditioned, as the 10 × 10 Hilbert matrix is, the note says how few digits of its inverse, determinant or answers can be trusted. A whole matrix pastes into a box of one, from there right and down: a block of cells copied from a spreadsheet, lines of numbers, or [1 2; 3 4] and [[1, 2], [3, 4]], the matrix made as big as it needs to be; and Copy on a matrix of results copies it, to paste into a spreadsheet or back into a box for the next step; each card's Example types in one to start from. And of two vectors, 1, 2, 3, their dot
-                    and cross products, lengths, the angle between them and the projection of one on the
-                    other.</li>
-                <li>Complex works out a complex number, (2 + 3i)(1 – i), sqrt(-4) or 2∠30 in polar form, for its
-                    real and imaginary parts, length, angle and conjugate and as r e^(iθ), and the n-th roots of one,
-                    each drawn on the plane; the roots of a polynomial of complex coefficients, x^2 + (1 + i)x + 2i;
-                    and the AC impedance of a resistor, a coil and a capacitor in series or side by side at a
-                    frequency, its size and phase, their reactances and the frequency of resonance, a value typed
-                    with a prefix as well, 4.7k, 10m or 100µ.</li>
-                <li>Integer has the prime factors of a whole number of up to 20 digits, 360 = 2³ × 3² × 5, whether
-                    it is prime, and its divisors; the GCD and LCM of two numbers or more; a mod m, a^b mod m, the
-                    inverse of a and every x of a x ≡ b (mod m), and the Chinese remainder theorem, 2 mod 3, 3 mod 5;
-                    a calculation to every digit, 100!, 2^200, 50 nCr 25, fib(300); the primes before and after a
-                    number, π(n), the n-th prime and the primes from a to b; a fraction, a decimal or 0.1(6) as a
-                    fraction, a decimal with the part that comes again in brackets and a continued fraction; and a
-                    number rounded to d places, half away from 0, down, up and toward 0, and to d significant
-                    figures.</li>
-                <li>Computer works out whole numbers as they are kept in 8, 16, 32, 64 or 128 bits: decimal, 0xFF,
-                    0b1010 or 0o17, with + – × ÷, mod, AND, OR, XOR, NOT, shifts and ROL and ROR, shown in decimal,
-                    hexadecimal, octal and binary, and its bytes big-endian, little-endian and swapped. Bits shows each bit of a number, to turn over with a click, and
-                    how many are 1; IEEE 754 shows a number as a double and a float, 0.1 = 0x3FB999999999999A, what
-                    it is to its last digit, and the number of the bits of one. Any base writes a number of any base
-                    from 2 to 36 in another, the digits after its point as well, 0.1 as 0.0(0011) in base 2; Text and
-                    codes gives the code points, UTF-8 and UTF-16 of a text, é = U+00E9 = C3 A9, and a text of
-                    them; IP subnet gives the network of an IPv4 address, 192.168.1.10/24 or with its mask: its
-                    network and broadcast addresses, mask, first and last host and how many hosts; or of an IPv6
-                    address, 2001:db8::1/48: the address in full and written short, its first and last address, how
-                    many addresses and /64 networks, its kind and its name for reverse DNS; UUID makes five new
-                    UUIDs of version 4, random, or of version 7, in order by time, each to copy, and reads one for
-                    its version, variant and the time it was made; Base32, 58, 64 and 85 writes a text in Base32, as
-                    the keys of two-step sign-in are, in Base58, as Bitcoin addresses are, in Base64, and in that of
-                    web addresses, or in Ascii85, and reads one back; and Hashes gives the MD5, SHA-1, SHA-256,
-                    SHA-512 and CRC-32 of a text, and checks a hash pasted against them.</li>
+                <li>Table: all 118 elements in their places, coloured by kind, by state at 20 °C, by block, or by
+                    electronegativity; click a colour below the table to light its elements alone, or search by symbol,
+                    name or number. Point at an element to see it above the table; click it for its mass, electronegativity,
+                    ionization energy, melting and boiling points, density, group and period, protons, electrons and
+                    neutrons, electron configuration, shells, oxidation states and the year it was found, and its atom drawn
+                    as Bohr drew it, the nucleus and a ring for each shell with its electrons. The arrow keys go from element
+                    to element. Pop out shows the table as big as the page, each element with its number, name and mass;
+                    in the extension, in a window of its own.</li>
+                <li>Mass: the molar mass of a formula, CuSO4·5H2O, Ca(OH)2 or K4[Fe(CN)6], and the percent of each
+                    element; grams, moles and particles of a substance; and the empirical formula of a composition,
+                    C 40, H 6.71, O 53.29, with its molecular formula from a molar mass.</li>
+                <li>Reactions: an equation balanced, Fe + O2 = Fe2O3, ions with their charge, Fe^3+, and e- for an
+                    electron, with what kind of reaction it is; the amounts of a reaction from the amount of one formula,
+                    and of two reactants or more the limiting one, what is left of the others, and a percent yield;
+                    heat, q = mcΔT; and half-life.</li>
+                <li>Solutions: molarity, dilution, pH, pOH, [H⁺] and [OH⁻], weak acids and bases from K<sub>a</sub> or
+                    K<sub>b</sub>, and buffers.</li>
+                <li>Gases: the ideal gas law, PV = nRT, in atm, kPa, mmHg or bar, with the mass and density of a gas; and
+                    the combined gas law. Leave the one to work out empty.</li>
             </ul>
         </div>
+
 
         <hr class="guide-rule" data-tab="guide">
         <div class="features" data-tab="guide">
@@ -1652,6 +1766,7 @@
     <script src="js/formulas.js"></script>
     <script src="js/maths.js"></script>
     <script src="js/units.js"></script>
+    <script src="js/chem.js"></script>
     <script src="js/main.js"></script>
     <script src="js/app.js"></script>
     <script src="js/options.js"></script>

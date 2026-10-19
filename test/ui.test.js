@@ -257,21 +257,21 @@ async function calculator(page, at) {
 
     // the formulas, the converter, the statistics and the graph are on at first, in the order of their options
     await page.fresh(at, {});
-    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-solve-btn calc-stat-btn calc-numbers-btn', t + 'all of them at first', await buttons(page));
-    check(await page.calc('document.getElementById("display-box").style.getPropertyValue("--tools")') === '6',
+    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-stat-btn', t + 'all of them at first', await buttons(page));
+    check(await page.calc('document.getElementById("display-box").style.getPropertyValue("--tools")') === '7',
         t + 'the line above a result clears them');
-    await page.fresh(at, { fxOn: false, convOn: false, statsOn: false, graphOn: false, solveOn: false, numbersOn: false });
+    await page.fresh(at, { fxOn: false, convOn: false, statsOn: false, graphOn: false, solveOn: false, numbersOn: false, chemOn: false });
     check(await buttons(page) === '', t + 'no buttons with all of them off', await buttons(page));
     check(await page.calc('document.getElementById("display-box").style.getPropertyValue("--tools")') === '0',
         t + 'the line above a result starts at the left');
 
     // what an administrator turned off, as the extension keeps it: on in the options does not bring it
     await page.fresh(at, { statsOn: true, policy: { statistics: false, formulas: false } });
-    check(await buttons(page) === 'calc-conv-btn calc-graph-btn calc-solve-btn calc-numbers-btn', t + 'the statistics and f(x) turned off by an administrator', await buttons(page));
+    check(await buttons(page) === 'calc-conv-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn', t + 'the statistics and f(x) turned off by an administrator', await buttons(page));
     await page.fresh(at, { solveOn: true, policy: { solve: false, numbers: false } });
-    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-stat-btn', t + 'and the solver and the numbers', await buttons(page));
+    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-chem-btn calc-stat-btn', t + 'and the solver and the numbers', await buttons(page));
     await page.fresh(at, { convOn: false });
-    check(await buttons(page) === 'calc-fx-btn calc-graph-btn calc-solve-btn calc-stat-btn calc-numbers-btn', t + 'three buttons with the converter off', await buttons(page));
+    check(await buttons(page) === 'calc-fx-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-stat-btn', t + 'three buttons with the converter off', await buttons(page));
 
     // the ? beside the name has a tip of the calculator's own, below it, in place of a title
     await page.hover('.calc-help');
@@ -292,8 +292,8 @@ async function calculator(page, at) {
     // the keys still work, and the history adds its clock
     await page.type('2+3\r');
     check(await shown(page) === '5', t + '2 + 3 = 5', await shown(page));
-    check(await buttons(page) === 'calc-hist calc-fx-btn calc-graph-btn calc-solve-btn calc-stat-btn calc-numbers-btn', t + 'the clock comes with a history', await buttons(page));
-    check(await page.calc('document.getElementById("display-box").style.getPropertyValue("--tools")') === '6',
+    check(await buttons(page) === 'calc-hist calc-fx-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-stat-btn', t + 'the clock comes with a history', await buttons(page));
+    check(await page.calc('document.getElementById("display-box").style.getPropertyValue("--tools")') === '7',
         t + 'the line above a result clears the buttons');
 
     // the panel: the search has the keys, the result in the display starts the first box
@@ -2033,14 +2033,14 @@ async function graphBig(page, at) {
     check(await page.calc(sent) === '[{"command":"open-graph"}]' && !await page.calc(big) && await open(page, '.calc-graph'),
         t + 'the popup asks for the graph\'s own window', await page.calc(sent));
 
-    // the graph's window: only the graph, big, without pop in or a close button
+    // the graph's window: only the graph, big, with a close button and no pop in
     await page.send('Page.enable'); // for the script before the page's own
     script = (await page.send('Page.addScriptToEvaluateOnNewDocument', { source: stub })).result.identifier;
     await page.go(page.base + '/popup.html?graph', [700, 500]);
     check(await page.calc(big) && await open(page, '.calc-graph') && await page.calc(plot + '.clientWidth') > 350 &&
-        await page.ev('document.title') === 'Graph' && !await page.calc('document.querySelector(".calc-graph .calc-past-close").offsetWidth'),
+        await page.ev('document.title') === 'Graph' && await page.calc('document.querySelector(".calc-graph .calc-past-close").offsetWidth') > 0 &&
         !await page.calc('document.querySelector(".calc-graph-size").offsetWidth'),
-        t + 'its window has only the graph, big, without pop in or a close button', await page.calc(plot + '.clientWidth'));
+        t + 'its window has only the graph, big, with a close button and no pop in', await page.calc(plot + '.clientWidth'));
     check(await page.calc('document.querySelector(".calc-graph-input").value') === 'x^2-3', t + 'with the functions of the calculator');
 
     // a value put in: the calculation has it, the calculator is asked to come up, the window stays
@@ -2961,7 +2961,7 @@ async function converter(page, at) {
 
     // its button comes after f(x), as its option does
     await page.fresh(at, {});
-    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-solve-btn calc-stat-btn calc-numbers-btn', t + 'the converter between f(x) and the graph',
+    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-stat-btn', t + 'the converter between f(x) and the graph',
         await buttons(page));
 
     // the result shown is the value to start from
@@ -3438,7 +3438,7 @@ async function menus(page, at) {
     await page.rightClick('.calc-past-res');
     await pick(page, 'Delete');
     check(await page.calc('document.querySelectorAll(".calc-past-row").length') === 1, t + 'Delete takes the line out');
-    await page.rightClick('.calc-past:not(.calc-stats):not(.calc-fx):not(.calc-conv):not(.calc-graph):not(.calc-solve):not(.calc-numbers) .calc-past-head span');
+    await page.rightClick('.calc-past:not(.calc-stats):not(.calc-fx):not(.calc-conv):not(.calc-graph):not(.calc-solve):not(.calc-numbers):not(.calc-chem) .calc-past-head span');
     check(await menu(page) === 'Clear history', t + 'above the lines, Clear history', await menu(page));
     await pick(page, 'Clear history');
     check(await page.calc('document.querySelector(".calc-hist").hidden'), t + 'which empties it');
@@ -3635,7 +3635,7 @@ async function menus(page, at) {
     check(await page.calc('window.cutText') === '8 + 9' && await shown(page) === '0', t + 'Ctrl+X cuts what is selected',
         await page.calc('window.cutText') + ' | ' + await shown(page));
 
-    // the line above a result is not selected: a drag slides it, and a double click opens it in the display again
+    // the line above a result is not selected, and a double click opens it in the display again
     async function press(selector, dx, count) { // a press on it that goes dx along before it lets go
         var p = await page.at(selector);
         await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: p[0], y: p[1] });
@@ -3653,11 +3653,6 @@ async function menus(page, at) {
     end = await page.calc('document.querySelector(".calc-log").scrollLeft');
     check(end > 0 && await page.calc('getComputedStyle(document.querySelector(".calc-log")).userSelect') === 'none',
         t + 'the text of the line above a result is not selected', end);
-    await press('.calc-log', 60);
-    check(await page.calc('document.querySelector(".calc-log").scrollLeft') === end - 60 && await selected() === '' && await above() !== '',
-        t + 'a drag slides it at once, selects nothing in it and does not open it',
-        await page.calc('document.querySelector(".calc-log").scrollLeft') + ' ' + await selected());
-    await sleep(500);
     await press('.calc-log', 0);
     check(await above() !== '' && !await page.calc('!!document.querySelector("#box .calc-cursor")'),
         t + 'one click on it leaves the result as it is', await shown(page) + ' | ' + await above());
@@ -3673,12 +3668,64 @@ async function menus(page, at) {
 }
 
 // the options turn the buttons on and off in an open calculator, by the storage
+// The chemistry: the periodic table, an element chosen and a number of it put in, the search, and a card
+async function chemistry(page, at) {
+    var t = at + ': chemistry: ', got;
+
+    await page.fresh(at, {});
+    await page.click('.calc-chem-btn');
+    check(await open(page, '.calc-chem') && await page.calc('document.querySelector(".calc-chem .calc-solve-tab.calc-on").dataset.tab') === 'table',
+        t + 'it opens on the table');
+    check(await page.calc('document.querySelectorAll(".calc-pt-el[data-z]").length') === 118 &&
+        await page.calc('document.querySelectorAll(".calc-pt-series").length') === 2, t + '118 elements, and 57–71 and 89–103');
+    await page.click('.calc-pt-el[data-z="26"]');
+    got = await page.calc('document.querySelector(".calc-pt-info .calc-pt-title").textContent');
+    check(got === 'Iron', t + 'a click on Fe shows iron', got);
+    check(await page.calc('document.querySelectorAll(".calc-pt-atom .calc-pt-ring").length') === 4 &&
+        await page.calc('document.querySelectorAll(".calc-pt-atom .calc-pt-e").length') === 26, t + 'its atom: 4 shells, 26 electrons');
+    check(await page.calc('document.querySelector(".calc-pt").scrollTop') === 0, t + 'chosen, the table stays where it is');
+    await page.click('.calc-pt-el[data-z="26"]');
+    check(await page.until('document.querySelector(".calc-pt").scrollTop > 100', 2000), t + 'clicked again, its details below are scrolled to');
+    await page.calc('document.querySelector(".calc-pt").scrollTop = 0');
+    await page.calc('(function (i) { i.value = "gold"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-pt-search"))');
+    check(await page.calc('document.querySelector(".calc-pt-info .calc-pt-title").textContent') === 'Gold' &&
+        await page.calc('document.querySelectorAll(".calc-pt-el[data-z]:not(.calc-pt-dim)").length') === 1, t + 'the search finds gold, the others dimmed');
+    await page.click('.calc-pt-info .calc-sv-tile[data-v="196.97"]');
+    check(await shown(page) === '196.97' && !await open(page, '.calc-chem'), t + 'its mass put in, the panel closed', await shown(page));
+    await page.click('.calc-chem-btn');
+    got = await page.calc('document.querySelector(".calc-pt-info .calc-pt-title").textContent');
+    check(got === 'Hydrogen', t + 'opened again, the table starts on hydrogen', got);
+    await page.click('.calc-chem .calc-solve-tab[data-tab="reactions"]');
+    await page.click('.calc-chem .calc-sv-item:first-child .calc-sv-row');
+    await page.calc('(function (i) { i.value = "Fe + O2 = Fe2O3"; i.dispatchEvent(new Event("input", { bubbles: true })); })(document.querySelector(".calc-chem .calc-sv-item.calc-on input"))');
+    got = await page.calc('document.querySelector(".calc-chem .calc-sv-item.calc-on .calc-sv-tile .calc-sv-value").textContent');
+    check(got === '4Fe + 3O2 → 2Fe2O3', t + 'Fe + O2 = Fe2O3 balanced', got);
+    await page.key('Escape', 27);
+    check(!await open(page, '.calc-chem'), t + 'Esc closes it');
+
+    // Reset all: the table as at first, by kind, hydrogen chosen, nothing searched, and the cards empty
+    await page.click('.calc-chem-btn');
+    await page.click('.calc-chem .calc-solve-tab[data-tab="table"]');
+    await page.calc('(function (i) { i.value = "iron"; i.dispatchEvent(new Event("input", { bubbles: true })); })(document.querySelector(".calc-pt-search"))');
+    await page.click('.calc-chem .calc-solve-tab[data-tab="mass"]');
+    await page.key('Escape', 27);
+    await page.rightClick('.calc-display');
+    await pick(page, 'Reset all');
+    await page.click('.calc-chem-btn');
+    got = await page.calc('[document.querySelector(".calc-chem .calc-solve-tab.calc-on").dataset.tab, document.querySelector(".calc-pt-mode.calc-on").dataset.by, ' +
+        'document.querySelector(".calc-pt-info .calc-pt-title").textContent, document.querySelector(".calc-pt-search").value, document.querySelectorAll(".calc-pt-dim").length].join(" ")');
+    check(got === 'table cat Hydrogen  0', t + 'Reset all shows the table as at first', got);
+    await page.click('.calc-chem .calc-solve-tab[data-tab="reactions"]');
+    check(!await page.calc('document.querySelector(".calc-chem .calc-sv-item.calc-on")'), t + 'and no card open, nothing in them');
+    await page.key('Escape', 27);
+}
+
 async function options(page) {
     var t;
 
     await page.fresh('/frame.html', {});
     t = 'in a frame: ';
-    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-solve-btn calc-stat-btn calc-numbers-btn', t + 'all four buttons');
+    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-stat-btn', t + 'all four buttons');
     await page.click('.calc-fx-btn');
     await page.ev('localStorage.setItem("fxOn", "false")');
     check(await page.until('!(document.getElementById("calc-iframe").contentDocument.querySelector(".calc-fx-btn").offsetWidth)'),
@@ -3729,7 +3776,7 @@ async function adminPolicy(page) {
     // the popup: the graph goes, kept for the next time it opens
     await page.fresh('/popup.html', {});
     check(await page.until('document.querySelector(".calc-graph-btn").hidden'), t + 'the graph turned off goes from the popup');
-    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-solve-btn calc-stat-btn calc-numbers-btn', t + 'the rest stays', await buttons(page));
+    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-stat-btn', t + 'the rest stays', await buttons(page));
     check(await page.ev('localStorage.getItem("policy")') === '{"graph":false,"detachedMode":false,"pageButton":false,"pageMaths":false}',
         t + 'kept, with the button and the maths on the pages, which open Detached Mode', await page.ev('localStorage.getItem("policy")'));
     await change({});
@@ -3794,6 +3841,7 @@ async function adminPolicy(page) {
         await converter(page, '/popup.html');
         await convDates(page, '/popup.html');
         await statsMore(page, '/popup.html');
+        await chemistry(page, '/popup.html');
         await solver(page, '/popup.html');
         await numbersPanel(page, '/popup.html');
         await matrixTen(page, '/popup.html');

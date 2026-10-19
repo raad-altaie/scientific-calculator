@@ -31,6 +31,11 @@
             "description": "false turns off the panel of matrices, complex numbers, bases, prime factors and rounding for everyone, and its option cannot turn it on.",
             "type": "boolean"
         },
+        "chemistry": {
+            "title": "Chemistry",
+            "description": "false turns off the periodic table and the chemistry tools for everyone, with the table's own window, and its option cannot turn it on.",
+            "type": "boolean"
+        },
         "detachedMode": {
             "title": "Detached Mode",
             "description": "false turns off the calculator in a window of its own, and with it the calculator button on every website and the instant answers on every website, which open that window.",

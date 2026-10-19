@@ -202,11 +202,11 @@ window.addEventListener('storage', (e) => {
     showFormat();
 });
 
-// The formulas, the converter, the statistics, the graph, the solver and the numbers: a button on the display for each
+// The formulas, the converter, the statistics, the graph, the solver, the numbers and the chemistry: a button on the display for each
 // while it is turned on. All of them start on; an open calculator gets the change as a
 // storage event
 [['panel-fx', 'fxOn', true], ['panel-conv', 'convOn', true], ['panel-stats', 'statsOn', true], ['panel-graph', 'graphOn', true],
-    ['panel-solve', 'solveOn', true], ['panel-numbers', 'numbersOn', true]].forEach(([id, key, on]) => {
+    ['panel-solve', 'solveOn', true], ['panel-numbers', 'numbersOn', true], ['panel-chem', 'chemOn', true]].forEach(([id, key, on]) => {
     const box = document.getElementById(id);
 
     box.checked = on;
@@ -224,7 +224,7 @@ window.addEventListener('storage', (e) => {
 // What an administrator turned off (policy.js): its switch or button cannot be used, and
 // says why. Turned on again, the switch shows the choice that was kept
 const managed = [['panel-fx', 'formulas', 'fxOn'], ['panel-conv', 'converter', 'convOn'], ['panel-graph', 'graph', 'graphOn'],
-    ['panel-stats', 'statistics', 'statsOn'], ['panel-solve', 'solve', 'solveOn'], ['panel-numbers', 'numbers', 'numbersOn'],
+    ['panel-stats', 'statistics', 'statsOn'], ['panel-solve', 'solve', 'solveOn'], ['panel-numbers', 'numbers', 'numbersOn'], ['panel-chem', 'chemistry', 'chemOn'],
     ['open-mode', 'detachedMode'], ['page-icon', 'pageButton'], ['page-maths', 'pageMaths']];
 
 const showPolicy = () => {

@@ -26,6 +26,20 @@ const detachedUrl = chrome.runtime.getURL("popup.html?detached");
 // the graph's own window, opened by the big graph button: the same page, with only the graph
 const graphUrl = chrome.runtime.getURL("popup.html?graph");
 
+// the periodic table's own window, opened by its pop out button: the same page, with only the table
+const chemUrl = chrome.runtime.getURL("popup.html?chem");
+
+// its least size, the room of its 18 columns and of the element chosen beside them, as in popup.js
+const chemMin = { width: 1000, height: 700 };
+
+// each other panel's own window, opened by its pop out button: the same page, popup.html?panel=solve, with only
+// that panel; by the policy that turns the panel off
+const panelPolicies = { stats: "statistics", fx: "formulas", conv: "converter", solve: "solve", numbers: "numbers" };
+const panelUrl = (key) => chrome.runtime.getURL("popup.html?panel=" + key);
+
+// their least size, the room of the list of cards and of the card beside it, as in popup.js
+const panelMin = { width: 900, height: 640 };
+
 // the popup page in any window, to find them by
 const popupPages = chrome.runtime.getURL("popup.html*");
 
@@ -83,8 +97,9 @@ function getDisplays(done) {
 function createPopupWindow(graph) {
     getDisplays((displayInfo) => {
         readDetachedBounds(graph ? "graphBounds" : "bounds", (saved) => {
-            const displayWidth = displayInfo[0].workArea.width;
-            const displayHeight = displayInfo[0].workArea.height;
+            const area = displayInfo[0].workArea;
+            const displayWidth = area.width;
+            const displayHeight = area.height;
             const width = graph ? Math.round(Math.min(1200, displayWidth * 0.8)) : popupWidth + 2 * detachedMargin.x;
             const height = graph ? Math.round(Math.min(900, displayHeight * 0.85)) : popupHeight + 2 * detachedMargin.y;
 
@@ -92,8 +107,8 @@ function createPopupWindow(graph) {
             let bounds = {
                 width: width,
                 height: height,
-                left: Math.round((displayWidth - width) / 2),
-                top: Math.round((displayHeight - height) / 2),
+                left: Math.round(area.left + (displayWidth - width) / 2),
+                top: Math.round(area.top + (displayHeight - height) / 2),
             };
 
             // It opens where it was left, at the size it was left, if a screen
@@ -125,7 +140,7 @@ function createPopupWindow(graph) {
 // and its tab no longer gives its address: it is found by the kept id, and
 // closed if it is still a popup with nothing else in it. The graph's window too
 function closeDetachedWindow() {
-    [["id", detachedUrl], ["graphId", graphUrl]].forEach(([key, url]) => {
+    [["id", detachedUrl], ["graphId", graphUrl], ["chemId", chemUrl]].concat(Object.keys(panelPolicies).map((key) => ["panel-" + key, panelUrl(key)])).forEach(([key, url]) => {
         detachedBoundsStore("readonly", (store) => {
             const read = store.get(key);
 
@@ -160,6 +175,57 @@ function openGraphWindow() {
         if (tab) bringToFront(tab.windowId);
         else createPopupWindow(true);
     });
+}
+
+// The screen a window is on, the one with its middle; the first if it is on none, or there is no window
+function displayOf(displayInfo, win) {
+    const x = win ? win.left + win.width / 2 : NaN;
+    const y = win ? win.top + win.height / 2 : NaN;
+
+    return displayInfo.find(({ workArea: a }) => x >= a.left && x < a.left + a.width && y >= a.top && y < a.top + a.height) || displayInfo[0];
+}
+
+// The periodic table's own window, and each other panel's (url, its id kept as key), opened from a window of the
+// calculator (fromId), or from the popup, which is over the browser's window last used. On that window's screen:
+// 85% of it, in its middle, no smaller than it needs (min) nor bigger than the screen. Open already, it is put so
+// again and comes to the front
+function openChemWindow(fromId) {
+    openBigWindow(chemUrl, "chemId", chemMin, fromId);
+}
+
+function openPanelWindow(key, fromId) {
+    openBigWindow(panelUrl(key), "panel-" + key, panelMin, fromId);
+}
+
+function openBigWindow(url, key, min, fromId) {
+    const from = fromId !== undefined ? chrome.windows.get(fromId) : chrome.windows.getLastFocused({ windowTypes: ["normal"] });
+
+    from.catch(() => null).then((win) => getDisplays((displayInfo) => {
+        const area = displayOf(displayInfo, win).workArea;
+        const width = Math.min(area.width, Math.max(min.width, Math.round(area.width * 0.85)));
+        const height = Math.min(area.height, Math.max(min.height, Math.round(area.height * 0.85)));
+        const bounds = {
+            width: width,
+            height: height,
+            left: Math.round(area.left + (area.width - width) / 2),
+            top: Math.round(area.top + (area.height - height) / 2),
+        };
+
+        chrome.tabs.query({ url: popupPages }, (tabs) => {
+            const tab = tabs.find((t) => t.url.startsWith(url));
+
+            if (tab) {
+                chrome.windows.update(tab.windowId, Object.assign({ state: "normal" }, bounds))
+                    .then(() => chrome.windows.update(tab.windowId, { focused: true }))
+                    .catch(() => { });
+                return;
+            }
+            chrome.windows.create(Object.assign({ type: "popup", url: url, focused: true }, bounds), (win) => {
+                // kept to close it on an update, when its page no longer tells what it is
+                detachedBoundsStore("readwrite", (store) => store.put(win.id, key));
+            });
+        });
+    }));
 }
 
 // A window to the front, once the system has put it there: a moment after it is
@@ -543,6 +609,10 @@ chrome.runtime.onMessage.addListener((message, sender, answer) => {
         launchOpenMode();
     } else if (message?.command === "open-graph") {
         unlessOff("graph", openGraphWindow);
+    } else if (message?.command === "open-chem") {
+        unlessOff("chemistry", () => openChemWindow(sender.tab?.windowId));
+    } else if (message?.command === "open-panel" && Object.hasOwn(panelPolicies, message.panel)) {
+        unlessOff(panelPolicies[message.panel], () => openPanelWindow(message.panel, sender.tab?.windowId));
     } else if (message?.command === "show-calculator") {
         showCalculator();
     } else if (message?.command === "open-calculator") {

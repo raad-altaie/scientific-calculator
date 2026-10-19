@@ -99,7 +99,8 @@
 #calculator .calc-conv-btn,
 #calculator .calc-graph-btn,
 #calculator .calc-solve-btn,
-#calculator .calc-numbers-btn {
+#calculator .calc-numbers-btn,
+#calculator .calc-chem-btn {
     padding: 2px;
     border-radius: 4px;
     color: #1f333c;
@@ -130,7 +131,9 @@
 #calculator .calc-solve-btn:hover,
 #calculator .calc-solve-btn.calc-on,
 #calculator .calc-numbers-btn:hover,
-#calculator .calc-numbers-btn.calc-on {
+#calculator .calc-numbers-btn.calc-on,
+#calculator .calc-chem-btn:hover,
+#calculator .calc-chem-btn.calc-on {
     opacity: 0.9;
     background: #a3bdaf;
 }
@@ -141,7 +144,8 @@
 #calculator .calc-conv-btn:active,
 #calculator .calc-graph-btn:active,
 #calculator .calc-solve-btn:active,
-#calculator .calc-numbers-btn:active {
+#calculator .calc-numbers-btn:active,
+#calculator .calc-chem-btn:active {
     opacity: 0.75;
 }
 
@@ -151,13 +155,12 @@
 #calculator .calc-stats-input {
     flex: none;
     height: 84px;
-    margin: 4px 8px 0; /* its ring of the focus takes 2px of it, and is bright: more room than under Converter */
+    margin: 8px 8px 0; /* its ring of the focus takes 2px of it, and is bright: more room than under Converter */
     padding: 7px 9px;
     border: 0;
     border-radius: 5px;
     outline: none;
     background: #a9c4b5;
-    box-shadow: 0 0 12px #36475a;
     color: #000;
     font: 15px/1.4 'Play', 'Russo One', sans-serif;
     resize: none;
@@ -175,7 +178,7 @@
 
 #calculator .calc-stats-input:focus {
     background: #b3cdbf;
-    box-shadow: 0 0 0 2px #c9e0d3, 0 0 12px #36475a;
+    box-shadow: 0 0 0 2px #c9e0d3;
 }
 
 /* what is between the numbers: a small list at the top, beside the name of the panel */
@@ -257,7 +260,6 @@
     margin-top: 7px;
     border-radius: 5px;
     background: #b6d1c2;
-    box-shadow: 0 0 12px #36475a;
 }
 
 #calculator .calc-stats-chart:empty {
@@ -318,7 +320,6 @@
     padding: 4px 8px 3px;
     border-radius: 5px;
     background: #b6d1c2;
-    box-shadow: 0 0 12px #36475a;
     color: #000;
     cursor: pointer;
 }
@@ -383,7 +384,7 @@
     display: flex;
     flex-direction: column;
     gap: 5px;
-    margin: 4px 8px 0; /* the ring of the focus takes 2px of it, as the search's */
+    margin: 8px 8px 0; /* the ring of the focus takes 2px of it, as the search's */
 }
 
 /* More than three boxes scroll, so the plot keeps its room: three show, and the ring of
@@ -391,13 +392,67 @@
 #calculator .calc-graph-fns.calc-graph-many {
     flex: none;
     max-height: 86px;
-    margin: 2px 6px 0;
+    margin: 6px 6px 0;
     padding: 2px;
     overflow-y: auto;
 }
 
 #calculator.calc-big .calc-graph-fns.calc-graph-many {
     max-height: 45vh;
+}
+
+/* big, Clear and + as every panel's popped out, in the head's 1.15 zoom */
+#calculator.calc-big .calc-graph .calc-past-clear {
+    height: calc(24px / 1.15);
+    padding: 0 calc(8px / 1.15);
+    border-radius: calc(5px / 1.15);
+    font-size: calc(15px / 1.15);
+    line-height: calc(24px / 1.15);
+}
+
+#calculator.calc-big .calc-graph-add {
+    width: calc(24px / 1.15);
+    height: calc(24px / 1.15);
+    border-radius: calc(5px / 1.15);
+}
+
+#calculator.calc-big .calc-graph-add svg {
+    width: calc(14px / 1.15);
+    height: calc(14px / 1.15);
+}
+
+/* big, the boxes as tall as the boxes of every panel popped out */
+#calculator.calc-big .calc-graph-fns {
+    gap: 8px;
+}
+
+#calculator.calc-big .calc-graph-fn {
+    gap: 8px;
+    padding: 0 10px;
+    border-radius: 6px;
+}
+
+#calculator.calc-big .calc-graph-fn .calc-graph-swatch {
+    width: 12px;
+    height: 12px;
+}
+
+#calculator.calc-big .calc-graph-input {
+    padding: 5px 0;
+    font-size: 14px;
+    line-height: 18px;
+}
+
+#calculator.calc-big .calc-graph-fn > span {
+    font-size: 14px;
+    line-height: 18px;
+}
+
+/* their × as the × of the periodic table's search popped out, in the boxes' 1.15 zoom */
+#calculator.calc-big .calc-graph-fns {
+    --calc-x: calc(24px / 1.15);
+    --calc-x-icon: calc(13px / 1.15);
+    --calc-x-round: calc(5px / 1.15);
 }
 
 #calculator .calc-graph-fns::-webkit-scrollbar {
@@ -416,7 +471,6 @@
     padding: 0 9px;
     border-radius: 5px;
     background: #a9c4b5;
-    box-shadow: 0 0 12px #36475a;
     cursor: text;
 }
 
@@ -426,12 +480,12 @@
 
 #calculator .calc-graph-fn:focus-within {
     background: #b3cdbf;
-    box-shadow: 0 0 0 2px #c9e0d3, 0 0 12px #36475a;
+    box-shadow: 0 0 0 2px #c9e0d3;
 }
 
 /* not a function the calculator can read, as in the converter */
 #calculator .calc-graph-fn.calc-bad {
-    box-shadow: 0 0 0 2px #d86672, 0 0 12px #36475a;
+    box-shadow: 0 0 0 2px #d86672;
 }
 
 /* the color of a curve: in its box, and beside the point shown */
@@ -553,17 +607,16 @@
     padding: 0 8px;
     border-radius: 5px;
     background: #a9c4b5;
-    box-shadow: 0 0 12px #36475a;
     cursor: text;
 }
 
 #calculator .calc-graph-val:focus-within {
     background: #b3cdbf;
-    box-shadow: 0 0 0 2px #c9e0d3, 0 0 12px #36475a;
+    box-shadow: 0 0 0 2px #c9e0d3;
 }
 
 #calculator .calc-graph-val.calc-bad {
-    box-shadow: 0 0 0 2px #d86672, 0 0 12px #36475a;
+    box-shadow: 0 0 0 2px #d86672;
 }
 
 #calculator .calc-graph-val i,
@@ -800,21 +853,9 @@
 }
 
 /* its × at the right, quiet until pointed at; none while it is the only box */
+/* its ×, as the × of the periodic table's search (calc-pt-clear) */
 #calculator .calc-graph-fn > .calc-graph-del {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 18px;
-    height: 18px;
-    margin-right: -5px;
-    border-radius: 4px;
-    opacity: 0.55;
-    cursor: pointer;
-}
-
-#calculator .calc-graph-fn > .calc-graph-del:hover {
-    opacity: 1;
-    background: #97b3a4;
+    margin-right: -6px;
 }
 
 #calculator .calc-graph-fns.calc-graph-single .calc-graph-del {
@@ -896,7 +937,6 @@
     overflow: hidden;
     border-radius: 5px;
     background: #b6d1c2;
-    box-shadow: 0 0 12px #36475a;
 }
 
 #calculator .calc-graph-plot canvas {
@@ -1177,17 +1217,16 @@
     padding: 0 9px;
     border-radius: 5px;
     background: #a9c4b5;
-    box-shadow: 0 0 12px #36475a;
     cursor: text;
 }
 
 #calculator .calc-graph-step label:focus-within {
     background: #b3cdbf;
-    box-shadow: 0 0 0 2px #c9e0d3, 0 0 12px #36475a;
+    box-shadow: 0 0 0 2px #c9e0d3;
 }
 
 #calculator .calc-graph-step label.calc-bad {
-    box-shadow: 0 0 0 2px #d86672, 0 0 12px #36475a;
+    box-shadow: 0 0 0 2px #d86672;
 }
 
 #calculator .calc-graph-step span {
@@ -1222,7 +1261,6 @@
     overflow: auto; /* down, and across where the columns of many curves are wider than the panel */
     border-radius: 5px;
     background: #b6d1c2;
-    box-shadow: 0 0 12px #36475a;
 }
 
 #calculator .calc-graph-list::-webkit-scrollbar {
@@ -1366,9 +1404,9 @@
         grid-template-rows: auto auto auto auto minmax(0, 1fr);
     }
 
-    /* The head shrinks with the column: its words get smaller, down to 10.5px at the narrowest,
-       and past that the tabs are cut short, never over the line between the columns. Measured:
-       its words fit at 14px from 278px of it, at 10.75px in 235px, about in a line between */
+    /* The head's words stay at their full size: as the column narrows it is the space round them that
+       shrinks, the tabs' padding and the gap between them, and past that the tabs are cut short, never
+       over the line between the columns. Measured: the tabs, add and clear fit with their full spacing from 250px of it (the page is zoomed 1.15) */
     #calculator.calc-big .calc-graph > .calc-past-head {
         grid-area: 1 / 1;
         min-width: 0;
@@ -1376,8 +1414,14 @@
         container-type: inline-size;
     }
 
-    #calculator.calc-big .calc-graph > .calc-past-head > * {
-        font-size: clamp(10.5px, 7.5cqi - 7px, 14px);
+    @container (max-width: 250px) {
+        #calculator.calc-big .calc-graph .calc-past-head .calc-graph-tab {
+            padding: 0 3px;
+        }
+
+        #calculator.calc-big .calc-graph .calc-past-head .calc-graph-tabs {
+            gap: 0;
+        }
     }
 
     #calculator.calc-big .calc-graph-tabs {
@@ -1392,6 +1436,7 @@
         text-overflow: ellipsis;
         white-space: nowrap;
     }
+
 
     #calculator.calc-big .calc-graph-add,
     #calculator.calc-big .calc-past-clear {
@@ -1427,21 +1472,66 @@
 
     #calculator.calc-big .calc-graph-note {
         grid-area: 1 / 2;
-        margin-right: 38px; /* clear of pop in */
+        align-self: center;
+        justify-content: safe center; /* its words, and the x and y of the point, in the middle; cut at the right if too long */
+        margin-right: 96px; /* clear of pop in and close */
+        margin-bottom: calc(12px / 1.15); /* in the middle above the line, level with the tabs */
     }
 
-    /* pop in: at the top right, above the plot, a little bigger than the head's buttons */
-    #calculator.calc-big .calc-graph-size {
+    /* the head's row as tall as a panel's popped out, for pop in and close above the plot, and
+       the same faint line under it, across both columns */
+    #calculator.calc-big .calc-graph > .calc-past-head {
+        box-sizing: border-box;
+        padding-bottom: 5px; /* not the 6px of the panels' heads: its row has the height of the popped out ones */
+        min-height: calc(41px / 1.15);
+        background: none; /* its colour and line across both columns, below */
+        box-shadow: none;
+        margin-bottom: calc(8px / 1.15);
+    }
+
+    #calculator.calc-big .calc-graph.calc-open::before {
+        content: '';
         position: absolute;
-        top: env(safe-area-inset-top);
-        right: calc(8px + env(safe-area-inset-right));
-        width: 26px;
-        height: 26px;
+        z-index: -1;
+        top: 0;
+        right: 0;
+        left: 0;
+        height: calc(40px + env(safe-area-inset-top));
+        background: #3f5366;
+        pointer-events: none;
     }
 
-    #calculator.calc-big .calc-graph-size svg {
-        width: 18px;
-        height: 18px;
+    #calculator.calc-big .calc-graph.calc-open::after {
+        content: '';
+        position: absolute;
+        top: calc(40px + env(safe-area-inset-top));
+        right: 0;
+        left: 0;
+        height: 1px;
+        background: rgba(211, 217, 226, 0.14);
+        pointer-events: none;
+    }
+
+    /* pop in and close: at the top right, above the plot, as big and as placed as every panel's popped out,
+       in the head's 1.15 zoom; the graph's own window has close alone */
+    #calculator.calc-big .calc-graph-size,
+    #calculator.calc-big .calc-graph .calc-past-close {
+        position: absolute;
+        top: calc((6px + env(safe-area-inset-top)) / 1.15);
+        right: calc((12px + env(safe-area-inset-right)) / 1.15);
+        width: calc(24px / 1.15);
+        height: calc(24px / 1.15);
+        border-radius: calc(5px / 1.15);
+    }
+
+    #calculator.calc-big .calc-graph-size {
+        right: calc((48px + env(safe-area-inset-right)) / 1.15);
+    }
+
+    #calculator.calc-big .calc-graph-size svg,
+    #calculator.calc-big .calc-graph .calc-past-close svg {
+        width: calc(16px / 1.15);
+        height: calc(16px / 1.15);
     }
 
     #calculator.calc-big .calc-graph-plot,
@@ -1534,12 +1624,6 @@
     display: none;
 }
 
-/* Big, the graph has no close button: on the website its button and Esc make it small,
-   and the graph's own window closes as any window does */
-#calculator.calc-big .calc-graph .calc-past-close {
-    display: none;
-}
-
 /* closer, farther, the start and save, at the top right of the plot */
 #calculator .calc-graph-zoom {
     position: absolute;
@@ -1620,34 +1704,38 @@
     margin-left: -6px;
 }
 
-#calculator .calc-fx .calc-past-head .calc-fx-tab, /* not the first span of the head, which has the room left */
-#calculator .calc-graph .calc-past-head .calc-graph-tab,
-#calculator .calc-solve .calc-past-head .calc-solve-tab,
-#calculator .calc-numbers .calc-past-head .calc-solve-tab,
-#calculator .calc-conv .calc-past-head .calc-solve-tab,
-#calculator .calc-stats .calc-past-head .calc-solve-tab {
+/* the tabs of every panel, the same: over the first span of the head, which has the room left */
+#calculator .calc-past .calc-past-head :is(.calc-solve-tab, .calc-fx-tab, .calc-graph-tab) {
     flex: none;
-    padding: 0 8px;
+    padding: 0 5px;
     border-radius: 4px;
-    line-height: 22px;
+    line-height: 18px;
     font-weight: 400;
     opacity: 0.7;
     cursor: pointer;
 }
 
-#calculator .calc-fx-tab:hover,
-#calculator .calc-graph-tab:hover,
-#calculator .calc-solve-tab:hover {
+/* popped in, the text of the tabs a little smaller than the head's, and more room between them; popped out, as big as it */
+#calculator:not(.calc-big):not(.calc-panel-big) .calc-past .calc-past-head :is(.calc-solve-tab, .calc-fx-tab, .calc-graph-tab) {
+    font-size: 12.5px;
+}
+
+#calculator:not(.calc-big):not(.calc-panel-big) .calc-past .calc-past-head :is(.calc-solve-tabs, .calc-fx-tabs, .calc-graph-tabs) {
+    gap: 5px;
+}
+
+/* the chemistry's six tabs, narrower in the popup, to fit beside its pop out and close */
+
+#calculator:not(.calc-chem-big) .calc-chem .calc-past-head .calc-solve-tab {
+    padding: 0 4px;
+}
+
+#calculator .calc-past .calc-past-head :is(.calc-solve-tab, .calc-fx-tab, .calc-graph-tab):hover {
     opacity: 1;
     background: #52687d;
 }
 
-#calculator .calc-fx .calc-past-head .calc-fx-tab.calc-on,
-#calculator .calc-graph .calc-past-head .calc-graph-tab.calc-on,
-#calculator .calc-solve .calc-past-head .calc-solve-tab.calc-on,
-#calculator .calc-numbers .calc-past-head .calc-solve-tab.calc-on,
-#calculator .calc-conv .calc-past-head .calc-solve-tab.calc-on,
-#calculator .calc-stats .calc-past-head .calc-solve-tab.calc-on {
+#calculator .calc-past .calc-past-head :is(.calc-solve-tab, .calc-fx-tab, .calc-graph-tab).calc-on {
     opacity: 1;
     background: #5d748a;
     color: #fff;
@@ -1657,13 +1745,12 @@
 /* the search: a box to type in, the green of the display a little darker */
 #calculator .calc-fx-search,
 #calculator .calc-gx-search {
-    margin: 4px 8px 6px; /* its ring of the focus takes 2px of it, and is bright: more room than under Converter */
+    margin: 8px 8px 6px; /* its ring of the focus takes 2px of it, and is bright: more room than under Converter */
     padding: 5px 9px;
     border: 0;
     border-radius: 5px;
     outline: none;
     background: #a9c4b5;
-    box-shadow: 0 0 12px #36475a;
     color: #000;
     font: 14px/18px 'Play', 'Russo One', sans-serif;
     -webkit-user-select: text;
@@ -1678,7 +1765,7 @@
 #calculator .calc-fx-search:focus,
 #calculator .calc-gx-search:focus {
     background: #b3cdbf;
-    box-shadow: 0 0 0 2px #c9e0d3, 0 0 12px #36475a;
+    box-shadow: 0 0 0 2px #c9e0d3;
 }
 
 #calculator .calc-fx-list,
@@ -1689,9 +1776,14 @@
     padding: 0 8px;
 }
 
-/* the cards as far below the tabs as the graph's boxes */
+/* the cards as far below the tabs as the graph's boxes, the room inside it: it scrolls up to the head's line */
 #calculator .calc-sv-list {
-    padding-top: 4px;
+    padding-top: 8px;
+}
+
+/* the variables, with no search above them, the same */
+#calculator .calc-fx-search[hidden] + .calc-fx-list {
+    padding-top: 8px;
 }
 
 #calculator .calc-fx-list::-webkit-scrollbar,
@@ -1738,7 +1830,6 @@
     margin-bottom: 6px;
     border-radius: 5px;
     background: #b6d1c2;
-    box-shadow: 0 0 12px #36475a;
     color: #000;
 }
 
@@ -2789,7 +2880,6 @@
     border-radius: 5px;
     outline: none;
     background: #a9c4b5;
-    box-shadow: 0 0 12px #36475a;
     color: #000;
     font: 14px/18px 'Play', 'Russo One', sans-serif;
 }
@@ -2816,7 +2906,7 @@
 }
 
 #calculator .calc-conv-group {
-    margin: 4px 8px 0;
+    margin: 8px 8px 0;
     font-weight: 700;
 }
 
@@ -2845,7 +2935,7 @@
 
 #calculator .calc-conv-pick:focus,
 #calculator .calc-conv-value:focus {
-    box-shadow: 0 0 0 2px #c9e0d3, 0 0 12px #36475a;
+    box-shadow: 0 0 0 2px #c9e0d3;
 }
 
 #calculator .calc-conv-value:focus {
@@ -2920,7 +3010,7 @@
 
 /* not a number the calculator can read */
 #calculator .calc-conv-value.calc-bad {
-    box-shadow: 0 0 0 2px #d86672, 0 0 12px #36475a;
+    box-shadow: 0 0 0 2px #d86672;
 }
 
 /* what to do, or why nothing is shown */
@@ -2959,7 +3049,6 @@
     padding: 4px 9px 3px;
     border-radius: 5px;
     background: #b6d1c2;
-    box-shadow: 0 0 12px #36475a;
     color: #000;
     cursor: pointer;
 }
@@ -3046,7 +3135,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    margin: 9px 2px 7px;
+    margin: 0 2px 7px; /* the room above it is the list's */
     color: #acb4c1;
     font-size: 11px;
 }
@@ -3183,11 +3272,14 @@
     visibility: hidden;
 }
 
+/* a little darker than the panel, with a faint line along its foot, inside it: it takes no room */
 #calculator .calc-past-head {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 3px 4px 2px 12px;
+    padding: 4px 4px 6px 12px; /* the tabs, and pop out and close, with room under them */
+    background: #3f5366;
+    box-shadow: inset 0 -1px 0 rgba(211, 217, 226, 0.08);
     color: #d3d9e2;
     font-size: 14px;
 }
@@ -3201,8 +3293,10 @@
 #calculator .calc-past-close,
 #calculator .calc-past-export,
 #calculator .calc-graph-size,
+#calculator .calc-chem-size,
+#calculator .calc-panel-size,
 #calculator .calc-graph-add {
-    height: 22px;
+    height: 18px; /* as tall as the tabs: lit, the same size */
     border-radius: 4px;
     text-align: center;
     cursor: pointer;
@@ -3210,24 +3304,28 @@
 }
 
 #calculator .calc-past-clear {
-    padding: 0 6px;
-    line-height: 22px;
+    padding: 0 5px;
+    line-height: 18px;
 }
 
 #calculator .calc-past-close,
 #calculator .calc-past-export,
 #calculator .calc-graph-size,
+#calculator .calc-chem-size,
+#calculator .calc-panel-size,
 #calculator .calc-graph-add {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
+    width: 18px;
 }
 
 #calculator .calc-past-clear:hover,
 #calculator .calc-past-close:hover,
 #calculator .calc-past-export:hover,
 #calculator .calc-graph-size:hover,
+#calculator .calc-chem-size:hover,
+#calculator .calc-panel-size:hover,
 #calculator .calc-graph-add:hover {
     opacity: 1;
     background: #52687d;
@@ -3254,7 +3352,7 @@
 #calculator .calc-past-list {
     flex: 1;
     overflow-y: auto;
-    padding: 4px 8px 0;
+    padding: 8px 8px 0; /* the room under the head inside it: it scrolls up to the head's line */
 }
 
 #calculator .calc-past-list::-webkit-scrollbar {
@@ -3272,7 +3370,6 @@
     padding: 6px 10px 4px;
     border-radius: 5px;
     background: #b6d1c2;
-    box-shadow: 0px 0px 12px #36475a;
     color: #000;
 }
 
@@ -4361,6 +4458,14 @@
     white-space: nowrap;
 }
 
+/* the value of a part of an element, in full, over what it is */
+#calculator .calc-tip-value {
+    margin-bottom: 4px;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+}
+
 /* what 2nd turns the key into */
 #calculator .calc-tip-more {
     margin-top: 5px;
@@ -4374,6 +4479,87 @@
 #calculator .calc-tip sub {
     font-size: 9px;
     line-height: 0;
+}
+
+/* Popped out, the graph and every panel, the tips are as big as the rest: wider, their words larger */
+#calculator:is(.calc-panel-big, .calc-big) .calc-tip {
+    width: 300px;
+    padding: 11px 14px 12px;
+    border-radius: 9px;
+    font-size: 15px;
+}
+
+#calculator:is(.calc-panel-big, .calc-big) .calc-tip::before {
+    width: 18px;
+    height: 9px;
+    margin-left: -9px;
+}
+
+#calculator:is(.calc-panel-big, .calc-big) .calc-tip::after {
+    width: 16.172px;
+    height: 8.086px;
+    margin-left: -8.086px;
+}
+
+#calculator:is(.calc-panel-big, .calc-big) .calc-tip-head {
+    gap: 8px;
+    margin-bottom: 5px;
+}
+
+#calculator:is(.calc-panel-big, .calc-big) .calc-tip-head b {
+    font-size: 17px;
+}
+
+#calculator:is(.calc-panel-big, .calc-big) .calc-tip-2nd {
+    padding: 0 5px;
+    font-size: 13px;
+    line-height: 19px;
+}
+
+#calculator:is(.calc-panel-big, .calc-big) .calc-tip kbd {
+    padding: 0 6px;
+    font-size: 13px;
+    line-height: 19px;
+}
+
+#calculator:is(.calc-panel-big, .calc-big) .calc-tip-more {
+    margin-top: 7px;
+    padding-top: 6px;
+    font-size: 14px;
+}
+
+#calculator:is(.calc-panel-big, .calc-big) .calc-tip-value {
+    margin-bottom: 6px;
+    font-size: 17px;
+}
+
+#calculator:is(.calc-panel-big, .calc-big) .calc-tip sup,
+#calculator:is(.calc-panel-big, .calc-big) .calc-tip sub {
+    font-size: 11px;
+}
+
+#calculator:is(.calc-panel-big, .calc-big) .calc-peek-value {
+    margin: 6px 0 9px;
+    font-size: 21px;
+}
+
+#calculator:is(.calc-panel-big, .calc-big) .calc-peek-value .calc-fx-unit {
+    font-size: 15px;
+}
+
+#calculator:is(.calc-panel-big, .calc-big) .calc-peek-acts {
+    gap: 8px;
+}
+
+#calculator:is(.calc-panel-big, .calc-big) .calc-peek-act {
+    gap: 5px;
+    padding: 4px 12px;
+    border-radius: 5px;
+}
+
+#calculator:is(.calc-panel-big, .calc-big) .calc-peek-act svg {
+    width: 14px;
+    height: 14px;
 }
 
 /* the menu of a right click, in the colours of the history */
@@ -4478,3 +4664,1469 @@
     margin: 0px;
 }
 
+
+/* ---------- chemistry ---------- */
+
+#calculator .calc-chem-shrink,
+#calculator.calc-chem-big .calc-chem-grow {
+    display: none;
+}
+
+#calculator.calc-chem-big .calc-chem-shrink {
+    display: inline;
+}
+
+/* every other panel's pop out and pop in the same */
+#calculator .calc-panel-shrink,
+#calculator .calc-big-on .calc-panel-grow {
+    display: none;
+}
+
+#calculator .calc-big-on .calc-panel-shrink {
+    display: inline;
+}
+
+#calculator.calc-panel-alone .calc-panel-size {
+    display: none;
+}
+
+/* the table's own window is always big, and closes as any window does: no pop in */
+#calculator.calc-chem-alone .calc-chem-size {
+    display: none;
+}
+
+/* popped in, 2px less under the details, for the atom to show more of itself */
+#calculator:not(.calc-chem-big) .calc-past.calc-chem {
+    padding-bottom: 8px;
+}
+
+/* the table and all of the element chosen, scrolling under the tabs */
+#calculator .calc-pt {
+    flex: 1;
+    overflow-y: auto;
+    padding: 3px 6px 0; /* with its bar's 2px, 5px under the head */
+}
+
+#calculator .calc-pt[hidden] {
+    display: none;
+}
+
+#calculator .calc-pt::-webkit-scrollbar {
+    width: 6px;
+}
+
+#calculator .calc-pt::-webkit-scrollbar-thumb {
+    background: #6b8196;
+    border-radius: 3px;
+}
+
+#calculator .calc-pt-bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    margin: 2px 2px 6px;
+}
+
+/* the search, its × inside it at the right; where the colours leave it too little room, on a line of its own */
+#calculator .calc-pt-find {
+    position: relative;
+    display: flex;
+    flex: 1 1 160px;
+    min-width: 0;
+}
+
+#calculator .calc-pt-search {
+    flex: 1;
+    min-width: 0;
+    padding: 4px 28px 4px 8px;
+    border: 0;
+    border-radius: 5px;
+    outline: none;
+    background: #a9c4b5; /* flat: no shadow round it */
+    color: #000;
+    font: 13px/17px 'Play', 'Russo One', sans-serif;
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+#calculator .calc-pt-search::placeholder {
+    color: #5b7768;
+}
+
+#calculator .calc-pt-search:focus {
+    background: #b3cdbf;
+    box-shadow: 0 0 0 2px #c9e0d3;
+}
+
+/* A × in a box, that empties it or takes it away: the periodic table's search, and each box of the graph.
+   Popped out, bigger: --calc-x, --calc-x-icon and --calc-x-round */
+#calculator .calc-pt-clear,
+#calculator .calc-graph-fn > .calc-graph-del {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: var(--calc-x, 20px);
+    height: var(--calc-x, 20px);
+    border-radius: var(--calc-x-round, 4px);
+    color: #4d6a5b;
+    cursor: pointer;
+}
+
+#calculator .calc-pt-clear svg,
+#calculator .calc-graph-fn > .calc-graph-del svg {
+    width: var(--calc-x-icon, 12px);
+    height: var(--calc-x-icon, 12px);
+}
+
+#calculator .calc-pt-clear:hover,
+#calculator .calc-graph-fn > .calc-graph-del:hover {
+    background: rgba(51, 68, 59, 0.15);
+    color: #1d2a24;
+}
+
+/* the table's in its search, at the right */
+#calculator .calc-pt-clear {
+    position: absolute;
+    top: 50%;
+    right: 1px;
+    margin-top: calc(var(--calc-x, 20px) / -2);
+}
+
+#calculator .calc-pt-clear[hidden] {
+    display: none;
+}
+
+
+/* what the colours show: one of four, as the tabs are */
+#calculator .calc-pt-modes {
+    display: flex;
+    flex: 0 1 auto; /* round its buttons, up to the whole width when they need it, then on two lines */
+    max-width: 100%;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1px;
+    padding: 2px;
+    border-radius: 5px;
+    background: #3f5265;
+}
+
+#calculator .calc-pt-mode {
+    white-space: nowrap;
+    padding: 0 6px;
+    border-radius: 4px;
+    color: #d3d9e2;
+    font-size: 12px;
+    line-height: 20px;
+    opacity: 0.75;
+    cursor: pointer;
+}
+
+/* the colours only popped out, where there is room for them: popped in, the table by kind alone */
+#calculator:not(.calc-chem-big) .calc-pt-modes {
+    display: none;
+}
+
+#calculator .calc-pt-mode:hover {
+    opacity: 1;
+    background: #52687d;
+}
+
+#calculator .calc-pt-mode.calc-on {
+    opacity: 1;
+    background: #5d748a;
+    color: #fff;
+    font-weight: 700;
+}
+
+/* 18 columns, 7 rows and the two of the lanthanides and actinides below a gap */
+#calculator .calc-pt-grid {
+    container-type: inline-size;
+    display: grid;
+    grid-template-columns: repeat(18, minmax(0, 1fr));
+    grid-template-rows: repeat(7, auto) 5px auto auto;
+    gap: 1px;
+    outline: none;
+}
+
+#calculator .calc-pt-el {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    aspect-ratio: 1 / 1.08;
+    border-radius: 4px;
+    background: #cfd8df;
+    color: #1d2a35;
+    line-height: 1;
+    overflow: hidden;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+
+#calculator .calc-pt-el b {
+    font-size: 9.5px;
+}
+
+/* small, only the symbol shows; big, the number, the name and the mass as well */
+#calculator .calc-pt-el .calc-pt-z,
+#calculator .calc-pt-el .calc-pt-name,
+#calculator .calc-pt-el .calc-pt-mass {
+    display: none;
+}
+
+#calculator .calc-pt-el:hover {
+    filter: brightness(1.08);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+    z-index: 1;
+}
+
+/* the element chosen a little bigger, in a ring of a very light grey, the panel's colour between */
+#calculator .calc-pt-el.calc-on {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 2px #4a5f73, 0 0 0 4px #eceff2;
+    z-index: 2;
+}
+
+#calculator.calc-chem-big .calc-pt-el.calc-on {
+    box-shadow: 0 0 0 2px #4a5f73, 0 0 0 5px #eceff2;
+}
+
+#calculator .calc-pt-el.calc-pt-dim {
+    opacity: 0.22;
+}
+
+#calculator .calc-pt-series {
+    cursor: pointer;
+}
+
+/* La–Lu and Ac–Lr: small, the first symbol above the last; big, on one line, with their numbers below */
+#calculator .calc-pt-series b {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 7.5px;
+    line-height: 1.05;
+    white-space: nowrap;
+}
+
+/* the colours, light, each kind its own: a rainbow across the table, red at the left to violet at the right */
+#calculator .calc-pt-alkali { background: #f28b82; }
+#calculator .calc-pt-alkaline { background: #fbbc77; }
+#calculator .calc-pt-transition { background: #fde293; }
+#calculator .calc-pt-post { background: #c8e6a0; }
+#calculator .calc-pt-metalloid { background: #a7e8d8; }
+#calculator .calc-pt-nonmetal { background: #aecbfa; }
+#calculator .calc-pt-halogen { background: #c5b8f5; }
+#calculator .calc-pt-noble { background: #e3b7f2; }
+#calculator .calc-pt-lanthanide { background: #f8bbd9; }
+#calculator .calc-pt-actinide { background: #f6aeb8; }
+#calculator .calc-pt-solid { background: #fde293; }
+#calculator .calc-pt-liquid { background: #a7e8d8; }
+#calculator .calc-pt-gas { background: #e3b7f2; }
+#calculator .calc-pt-unknown { background: #93a3b2; }
+#calculator .calc-pt-sb { background: #f7b39a; }
+#calculator .calc-pt-pb { background: #f9dc96; }
+#calculator .calc-pt-db { background: #a3d6f6; }
+#calculator .calc-pt-fb { background: #b2e2cb; }
+
+/* in the space above the transition metals: the element pointed at, or chosen */
+#calculator .calc-pt-gap {
+    grid-area: 1 / 3 / 4 / 13;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    padding: 0 4px;
+    pointer-events: none;
+}
+
+/* its big tile: a click goes down to all of it */
+#calculator .calc-pt-gap .calc-pt-big {
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+/* pointed at, a little bigger, popped in and out */
+#calculator .calc-pt-gap .calc-pt-big:hover {
+    transform: scale(1.02);
+}
+
+/* what is beside it, each with its tip */
+#calculator .calc-pt-gap [data-pt] {
+    pointer-events: auto;
+}
+
+#calculator .calc-pt-big {
+    flex: none;
+    width: auto;
+    height: 100%;
+    max-height: 56px;
+    aspect-ratio: 1 / 1.08;
+    border-radius: 7px;
+    cursor: default;
+}
+
+#calculator .calc-pt-el.calc-pt-big .calc-pt-z,
+#calculator .calc-pt-el.calc-pt-big .calc-pt-mass {
+    display: block;
+    font-size: 8px;
+}
+
+#calculator .calc-pt-el.calc-pt-big .calc-pt-z {
+    position: absolute;
+    top: 3px;
+    left: 4px;
+}
+
+#calculator .calc-pt-el.calc-pt-big b {
+    font-size: 20px;
+    margin: 4px 0 2px;
+}
+
+#calculator .calc-pt-about {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    color: #d3d9e2;
+    font-size: 10px;
+    line-height: 13px;
+}
+
+#calculator .calc-pt-about span {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+#calculator .calc-pt-about .calc-pt-title {
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 16px;
+}
+
+/* what each colour is, above the table and in its middle: a click lights its elements alone */
+#calculator .calc-pt-legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 3px 8px;
+    margin: 0 2px 7px;
+    color: #d3d9e2;
+    font-size: 10.5px;
+    line-height: 16px;
+}
+
+#calculator .calc-pt-key {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 4px 0 2px;
+    border-radius: 3px;
+    background: none !important;
+    cursor: pointer;
+}
+
+#calculator .calc-pt-key:hover,
+#calculator .calc-pt-key.calc-on {
+    background: #52687d !important;
+    color: #fff;
+}
+
+/* its swatch has the colour of its class: the key itself is not coloured */
+#calculator .calc-pt-key i {
+    width: 9px;
+    height: 9px;
+    border-radius: 2px;
+}
+
+#calculator .calc-pt-alkali i { background: #f28b82; }
+#calculator .calc-pt-alkaline i { background: #fbbc77; }
+#calculator .calc-pt-transition i { background: #fde293; }
+#calculator .calc-pt-post i { background: #c8e6a0; }
+#calculator .calc-pt-metalloid i { background: #a7e8d8; }
+#calculator .calc-pt-nonmetal i { background: #aecbfa; }
+#calculator .calc-pt-halogen i { background: #c5b8f5; }
+#calculator .calc-pt-noble i { background: #e3b7f2; }
+#calculator .calc-pt-lanthanide i { background: #f8bbd9; }
+#calculator .calc-pt-actinide i { background: #f6aeb8; }
+#calculator .calc-pt-solid i { background: #fde293; }
+#calculator .calc-pt-liquid i { background: #a7e8d8; }
+#calculator .calc-pt-gas i { background: #e3b7f2; }
+#calculator .calc-pt-unknown i { background: #93a3b2; }
+#calculator .calc-pt-sb i { background: #f7b39a; }
+#calculator .calc-pt-pb i { background: #f9dc96; }
+#calculator .calc-pt-db i { background: #a3d6f6; }
+#calculator .calc-pt-fb i { background: #b2e2cb; }
+
+/* the temperature of the states: a slider and its number, on a line of their own under the keys */
+#calculator .calc-pt-temp {
+    display: flex;
+    flex: 0 1 360px;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+}
+
+/* its line, as wide as the row, the part up to the knob lit; a knob as the graph's sliders have, kept on
+   the line at its ends */
+#calculator .calc-pt-range {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 60px;
+    height: 18px;
+    margin: 0 7px;
+    cursor: pointer;
+    touch-action: none;
+}
+
+#calculator .calc-pt-range::before {
+    content: '';
+}
+
+#calculator .calc-pt-range-knob {
+    position: absolute;
+    top: 2px;
+    width: 14px;
+    height: 14px;
+    margin-left: -7px;
+    border: 2px solid #22476a;
+    border-radius: 50%;
+    background: #b6d1c2;
+    box-sizing: border-box;
+    outline: none;
+}
+
+#calculator .calc-pt-range-knob:focus-visible {
+    box-shadow: 0 0 0 2px #fff;
+}
+
+/* A number's scale of colours as the slider, from the least to the most, a knob at each end and its number
+   beside it; the colours outside the knobs shaded. On a line with Not known, as wide as there is room */
+#calculator .calc-pt-heat {
+    min-width: 220px;
+}
+
+/* the temperature's slider on a line of its own, under the keys of the states */
+#calculator .calc-pt-break {
+    flex-basis: 100%;
+    height: 0;
+}
+
+#calculator .calc-pt-range::before,
+#calculator .calc-pt-range-out {
+    position: absolute;
+    top: 6px;
+    height: 6px;
+    border-radius: 3px;
+}
+
+#calculator .calc-pt-range::before {
+    left: 0;
+    right: 0;
+    background: var(--calc-heat, linear-gradient(90deg, #fde293, #a7e8d8, #e3b7f2)); /* a number's colours from main.js; the temperature's, the states' */
+}
+
+#calculator .calc-pt-range-out {
+    background: rgba(63, 82, 101, 0.78);
+}
+
+#calculator .calc-pt-heat .calc-pt-range-out:first-child {
+    border-radius: 3px 0 0 3px;
+}
+
+#calculator .calc-pt-range-out:last-of-type {
+    border-radius: 0 3px 3px 0;
+}
+
+/* as wide whatever it says, for the line not to move under the pointer as its number changes; the
+   number of the first end right against the line */
+#calculator .calc-pt-temp-v {
+    flex: none;
+    width: var(--calc-label, 7.5em); /* from main.js: as wide as the longest it can say */
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+}
+
+#calculator .calc-pt-from {
+    text-align: right;
+}
+
+/* The table of solubility in its card: the cations down, the anions across, each cell's letter on its colour,
+   the salt typed outlined; as wide as the card, smaller in the popup */
+#calculator .calc-sol {
+    display: grid;
+    grid-template-columns: auto repeat(calc(var(--cols) - 1), minmax(0, 1fr));
+    gap: 2px;
+    width: 100%;
+    font-size: 10px;
+    line-height: 16px;
+    text-align: center;
+}
+
+#calculator .calc-sol-head {
+    align-self: end;
+    overflow: hidden;
+    color: #33443b;
+    font-size: 9px;
+    line-height: 11px;
+    white-space: nowrap;
+}
+
+#calculator .calc-sol-side {
+    align-self: center;
+}
+
+#calculator .calc-sol-side {
+    padding-right: 3px;
+    text-align: right;
+}
+
+#calculator .calc-sol > [class^="calc-sol-"]:not(.calc-sol-head),
+#calculator .calc-sol-key i {
+    border-radius: 3px;
+    color: #1d2a35;
+    font-style: normal;
+}
+
+#calculator .calc-sol-S { background: #c8e6a0; }
+#calculator .calc-sol-little { background: #fde293; }
+#calculator .calc-sol-I { background: #f28b82; }
+#calculator .calc-sol-R { background: #c9d2db; }
+
+#calculator .calc-sol .calc-on {
+    box-shadow: 0 0 0 2px #1d2a35;
+    font-weight: 700;
+}
+
+#calculator .calc-sol-key {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2px 10px;
+    margin-top: 6px;
+    color: #33443b;
+    font-size: 11px;
+    line-height: 16px;
+}
+
+#calculator .calc-sol-key span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+#calculator .calc-sol-key i {
+    width: 14px;
+    text-align: center;
+    font-size: 10px;
+}
+
+#calculator.calc-chem-big .calc-sol {
+    font-size: 13px;
+    line-height: 22px;
+}
+
+#calculator.calc-chem-big .calc-sol-head {
+    font-size: 12px;
+}
+
+/* the worksheet's questions and answers: a numbered list, left aligned, the kind of each answer after it */
+#calculator .calc-ws {
+    margin: 2px 0 0;
+    padding-left: 24px;
+    font-size: 13px;
+    line-height: 22px;
+    text-align: left;
+    white-space: normal;
+}
+
+#calculator .calc-ws i {
+    margin-left: 6px;
+    color: #4d6157;
+    font-size: 11px;
+    font-style: normal;
+}
+
+/* the ions, each its formula over its name, as many to a line as fit */
+#calculator .calc-ion-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+    gap: 4px;
+    font-size: 10px;
+    line-height: 13px;
+    white-space: normal;
+}
+
+#calculator .calc-ion-list span {
+    display: flex;
+    flex-direction: column;
+    padding: 3px 2px;
+    border-radius: 4px;
+    background: rgba(29, 42, 53, 0.06);
+}
+
+#calculator .calc-ion-list b {
+    font-size: 13px;
+    line-height: 18px;
+}
+
+#calculator.calc-chem-big .calc-ion-list {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    font-size: 12px;
+    line-height: 16px;
+}
+
+#calculator.calc-chem-big .calc-ion-list b {
+    font-size: 16px;
+    line-height: 22px;
+}
+
+/* the element's facts in words: wrapped, left aligned, smaller than its numbers */
+#calculator .calc-pt-text .calc-sv-value {
+    font-size: 13px;
+    line-height: 18px;
+    text-align: left;
+    white-space: normal;
+}
+
+#calculator.calc-chem-big .calc-pt-text .calc-sv-value {
+    font-size: 15px;
+    line-height: 21px;
+}
+
+/* a unit of the element's numbers: clicked, the next one */
+#calculator .calc-pt-unit {
+    border-radius: 3px;
+    text-decoration: underline dotted;
+    text-underline-offset: 2px;
+    cursor: pointer;
+}
+
+#calculator .calc-pt-unit:hover {
+    background: rgba(29, 42, 53, 0.12);
+}
+
+/* all of the element chosen: its tile, its name, and its atom drawn; then a tile of each number */
+/* a faint line between the table and the element chosen */
+#calculator .calc-pt-info {
+    margin: 9px 2px 0;
+    padding-top: 12px;
+    border-top: 1px solid rgba(211, 217, 226, 0.14);
+}
+
+/* its tile, its name and its atom, along their tops */
+#calculator .calc-pt-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin: 0 6px;
+}
+
+#calculator .calc-pt-head .calc-pt-big {
+    height: 62px;
+    max-height: none;
+}
+
+/* the tile of the details is only shown: no light when pointed at, as the table's tiles have */
+#calculator .calc-pt-head .calc-pt-big:hover {
+    filter: none;
+    box-shadow: none;
+}
+
+#calculator .calc-pt-head .calc-pt-about {
+    flex: 1;
+    font-size: 11px;
+    line-height: 15px;
+}
+
+#calculator .calc-pt-head .calc-pt-about .calc-pt-title {
+    font-size: 16px;
+    line-height: 20px;
+}
+
+/* the atom as Bohr drew it: the nucleus, and a ring for each shell with its electrons */
+#calculator .calc-pt-atom {
+    flex: none;
+    width: 104px;
+    height: 104px;
+    margin: -11px 0 -4px; /* the drawing has room of its own above and below */
+}
+
+#calculator .calc-pt-ring {
+    fill: none;
+    stroke: #8ea3b6;
+    stroke-width: 0.8;
+}
+
+#calculator .calc-pt-e {
+    fill: #a3d6f6;
+}
+
+#calculator .calc-pt-nucleus {
+    fill: #f7b39a;
+}
+
+#calculator .calc-pt-atom text {
+    fill: #1d2a35;
+    font: 700 7px 'Play', 'Russo One', sans-serif;
+    text-anchor: middle;
+}
+
+#calculator .calc-pt-tiles {
+    margin: 6px 0 0; /* the line above is 2px in from each side */
+}
+
+/* A new element chosen: its tile comes up, its words and its tiles rise into place one after the other, and
+   its atom is built from the middle, each shell turning into place. Not for those who want less motion */
+@keyframes calc-pt-pop {
+    from { opacity: 0; transform: scale(0.82); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes calc-pt-rise {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes calc-pt-orbit {
+    from { opacity: 0; transform: rotate(-70deg) scale(0.8); }
+    to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    #calculator .calc-pt-new .calc-pt-head .calc-pt-big {
+        animation: calc-pt-pop 0.32s cubic-bezier(0.2, 0.8, 0.3, 1.15) both;
+    }
+
+    #calculator .calc-pt-new .calc-pt-about {
+        animation: calc-pt-rise 0.3s 0.05s ease-out both;
+    }
+
+    #calculator .calc-pt-new .calc-pt-core {
+        transform-box: fill-box;
+        transform-origin: center;
+        animation: calc-pt-pop 0.3s ease-out both;
+    }
+
+    #calculator .calc-pt-new .calc-pt-shell {
+        transform-box: view-box;
+        transform-origin: 50% 50%;
+        animation: calc-pt-orbit 0.55s calc(0.08s + var(--i) * 0.07s) cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    }
+
+    #calculator .calc-pt-new .calc-pt-tiles .calc-sv-tile {
+        animation: calc-pt-rise 0.28s calc(0.08s + var(--i) * 0.02s) ease-out both;
+    }
+}
+
+#calculator .calc-pt-tiles .calc-sv-label i {
+    color: #5b7768;
+    font-style: normal;
+    font-size: 10px;
+}
+
+#calculator .calc-pt-tiles .calc-sv-value {
+    font-size: 15px;
+}
+
+#calculator .calc-pt-tiles .calc-sv-wide {
+    grid-column: 1 / -1;
+}
+
+/* the cards of the tools under the tabs, as the solver's */
+#calculator .calc-chem .calc-sv-list[hidden] {
+    display: none;
+}
+
+/* A panel popped out, the periodic table as well: the calculator fills the page, or its window, and shows only
+   the panel; the table's tiles with their number, name and mass, the element chosen beside it on a wide page */
+#calculator.calc-panel-big {
+    position: fixed !important;
+    inset: 0;
+    z-index: 10;
+    width: auto;
+    height: auto;
+    margin: 0 !important;
+    border: 0;
+    border-radius: 0;
+    background: #4a5f73;
+    transform: none !important;
+}
+
+#calculator.calc-panel-big > :not(.calc-big-on, .calc-tip, .calc-menu-box) {
+    display: none !important;
+}
+
+#calculator.calc-panel-big .calc-big-on {
+    top: 0 !important;
+    left: 0 !important;
+    right: 0;
+    bottom: 0;
+    width: auto !important;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) calc(10px + env(safe-area-inset-bottom)) env(safe-area-inset-left);
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+/* with a faint line under it, as under the table's own window */
+#calculator.calc-panel-big .calc-big-on .calc-past-head {
+    gap: 8px;
+    margin-bottom: 6px; /* room under the line */
+    padding: 6px 12px 6px 22px;
+    border-bottom: 1px solid rgba(211, 217, 226, 0.14);
+    box-shadow: none;
+    font-size: 17px;
+}
+
+#calculator.calc-panel-big .calc-big-on .calc-past-head :is(.calc-solve-tab, .calc-fx-tab) {
+    padding: 0 10px;
+    border-radius: 5px;
+    line-height: 28px;
+}
+
+/* as the big graph: pop in and close at the top right, bigger than the head's buttons;
+   a window of its own has close alone */
+#calculator.calc-panel-big .calc-big-on :is(.calc-chem-size, .calc-panel-size, .calc-past-close, .calc-past-clear) {
+    height: 24px;
+    border-radius: 5px;
+}
+
+#calculator.calc-panel-big .calc-big-on :is(.calc-chem-size, .calc-panel-size, .calc-past-close) {
+    width: 24px;
+}
+
+#calculator.calc-panel-big .calc-big-on .calc-past-clear {
+    padding: 0 7px;
+    line-height: 24px;
+}
+
+#calculator.calc-panel-big .calc-big-on :is(.calc-chem-size, .calc-panel-size, .calc-past-close) svg {
+    width: 16px;
+    height: 16px;
+}
+
+#calculator.calc-chem-big .calc-pt:not([hidden]) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    gap: 0 18px;
+    padding: 6px 16px 0;
+}
+
+/* big, the search, what the colours show and their key a size for the room: easier to read and to hit */
+#calculator.calc-chem-big .calc-pt-bar {
+    gap: 10px;
+    margin: 0 0 10px; /* as wide as the table under it */
+}
+
+/* the search on a line of its own, the selector under it */
+#calculator.calc-chem-big .calc-pt-bar .calc-pt-find {
+    flex-basis: 100%;
+}
+
+#calculator.calc-chem-big .calc-pt-search {
+    padding: 6px 36px 6px 12px;
+    border-radius: 7px;
+    font-size: 15px;
+    line-height: 20px;
+}
+
+#calculator.calc-chem-big .calc-pt-find {
+    --calc-x: 24px;
+    --calc-x-icon: 13px;
+    --calc-x-round: 5px;
+}
+
+#calculator.calc-chem-big .calc-pt-clear {
+    right: 5px;
+}
+
+#calculator.calc-chem-big .calc-pt-modes {
+    padding: 3px;
+    border-radius: 7px;
+}
+
+#calculator.calc-chem-big .calc-pt-mode {
+    padding: 0 12px;
+    border-radius: 5px;
+    font-size: 14px;
+    line-height: 28px;
+}
+
+#calculator.calc-chem-big .calc-pt-grid {
+    gap: 3px;
+}
+
+#calculator.calc-chem-big .calc-pt-el {
+    border-radius: 7px;
+    aspect-ratio: 1 / 1.12;
+}
+
+#calculator.calc-chem-big .calc-pt-el b {
+    font-size: 2.1cqw;
+    margin: 0.3cqw 0 0.25cqw;
+}
+
+#calculator.calc-chem-big .calc-pt-el .calc-pt-z {
+    display: block;
+    position: absolute;
+    top: 0.35cqw;
+    left: 0.45cqw;
+    font-size: 0.85cqw;
+}
+
+#calculator.calc-chem-big .calc-pt-el .calc-pt-name,
+#calculator.calc-chem-big .calc-pt-el .calc-pt-mass {
+    display: block;
+    max-width: 94%;
+    overflow: hidden;
+    font-size: 0.68cqw;
+    line-height: 1.25;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+#calculator.calc-chem-big .calc-pt-series b {
+    flex-direction: row;
+    font-size: 1.5cqw;
+}
+
+#calculator.calc-chem-big .calc-pt-gap {
+    gap: 2cqw;
+    padding: 0 2cqw;
+}
+
+#calculator.calc-chem-big .calc-pt-gap .calc-pt-big {
+    max-height: none;
+    height: 92%;
+}
+
+#calculator.calc-chem-big .calc-pt-gap .calc-pt-big b {
+    font-size: 4.4cqw;
+}
+
+#calculator.calc-chem-big .calc-pt-gap .calc-pt-big .calc-pt-z,
+#calculator.calc-chem-big .calc-pt-gap .calc-pt-big .calc-pt-mass {
+    font-size: 1.2cqw;
+}
+
+#calculator.calc-chem-big .calc-pt-gap .calc-pt-name {
+    display: none;
+}
+
+/* what only the tile popped out holds: its name, configuration, electronegativity and oxidation states */
+#calculator .calc-pt-el .calc-pt-more {
+    display: none;
+}
+
+#calculator.calc-chem-big .calc-pt-gap .calc-pt-big .calc-pt-more {
+    display: block;
+    max-width: 94%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+#calculator.calc-chem-big .calc-pt-gap .calc-pt-big b {
+    margin: 0.6cqw 0 0.2cqw;
+}
+
+#calculator.calc-chem-big .calc-pt-gap .calc-pt-big .calc-pt-full {
+    font-size: 1.35cqw;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+#calculator.calc-chem-big .calc-pt-gap .calc-pt-big .calc-pt-conf {
+    margin-top: 0.4cqw;
+    font-size: 1.1cqw;
+    line-height: 1.3;
+}
+
+#calculator.calc-chem-big .calc-pt-gap .calc-pt-big :is(.calc-pt-en, .calc-pt-ox) {
+    position: absolute;
+    right: 0.6cqw;
+    font-size: 1.05cqw;
+    line-height: 1.2;
+    text-align: right;
+}
+
+#calculator.calc-chem-big .calc-pt-gap .calc-pt-big .calc-pt-en {
+    top: 0.45cqw;
+    font-size: 1.2cqw;
+}
+
+#calculator.calc-chem-big .calc-pt-gap .calc-pt-big .calc-pt-ox {
+    top: 2.1cqw;
+    opacity: 0.75;
+}
+
+/* beside the tile, popped out: its name and kind, then the facts the tile has no room for */
+#calculator .calc-pt-facts {
+    display: none;
+}
+
+#calculator.calc-chem-big .calc-pt-gap .calc-pt-about {
+    flex: 1 1 0;
+}
+
+#calculator.calc-chem-big .calc-pt-gap .calc-pt-cfg {
+    display: none;
+}
+
+#calculator.calc-chem-big .calc-pt-gap .calc-pt-facts {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.7cqw 1.2cqw;
+    margin: 0.9cqw 0 0;
+}
+
+#calculator.calc-chem-big .calc-pt-facts div {
+    min-width: 0;
+}
+
+#calculator.calc-chem-big .calc-pt-facts :is(dt, dd) {
+    overflow: hidden;
+    margin: 0;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+#calculator.calc-chem-big .calc-pt-facts dt {
+    color: #aebacb;
+    font-size: 0.95cqw;
+    line-height: 1.3;
+}
+
+#calculator.calc-chem-big .calc-pt-facts dt i {
+    font-style: normal;
+    opacity: 0.75;
+}
+
+#calculator.calc-chem-big .calc-pt-facts dd {
+    color: #fff;
+    font-size: 1.25cqw;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+#calculator.calc-chem-big .calc-pt-about {
+    font-size: 1.35cqw;
+    line-height: 1.45;
+}
+
+#calculator.calc-chem-big .calc-pt-about .calc-pt-title {
+    font-size: 2.4cqw;
+    line-height: 1.3;
+}
+
+/* as high as its two lines at the most, Kind's or State's, so the table stays where it is from colour to colour */
+#calculator.calc-chem-big .calc-pt-legend {
+    box-sizing: border-box;
+    min-height: 62px;
+    align-content: center;
+    font-size: 15px;
+    line-height: 24px;
+    gap: 6px 10px;
+    margin-bottom: 12px;
+}
+
+#calculator.calc-chem-big .calc-pt-key {
+    gap: 7px;
+    padding: 1px 8px 1px 5px;
+    border-radius: 5px;
+}
+
+#calculator.calc-chem-big .calc-pt-key i {
+    width: 13px;
+    height: 13px;
+    border-radius: 3px;
+}
+
+/* the table narrower beside the card: the keys smaller, Kind's ten on two lines still */
+@media (max-width: 1179px) {
+    #calculator.calc-chem-big .calc-pt-legend {
+        font-size: 13px;
+        gap: 6px;
+    }
+
+    #calculator.calc-chem-big .calc-pt-key {
+        gap: 5px;
+        padding: 1px 5px 1px 4px;
+    }
+}
+
+/* the tile of the element chosen, beside its name: a size of its own, not the table's */
+#calculator.calc-chem-big .calc-pt-head .calc-pt-big {
+    height: 76px;
+}
+
+#calculator.calc-chem-big .calc-pt-head .calc-pt-big b {
+    font-size: 26px;
+    margin: 6px 0 3px;
+}
+
+#calculator.calc-chem-big .calc-pt-head .calc-pt-big .calc-pt-z,
+#calculator.calc-chem-big .calc-pt-head .calc-pt-big .calc-pt-mass {
+    font-size: 10px;
+}
+
+#calculator.calc-chem-big .calc-pt-head .calc-pt-about {
+    font-size: 13px;
+}
+
+#calculator.calc-chem-big .calc-pt-head .calc-pt-about .calc-pt-title {
+    font-size: 20px;
+}
+
+/* big, the element chosen in a card of its own: below the table, or beside it on a wide page */
+#calculator.calc-chem-big .calc-pt-info {
+    max-width: 760px;
+    margin: 14px 0 12px;
+    padding: 14px 12px 12px;
+    border: 1px solid #5f758a;
+    border-radius: 12px;
+    background: #41556a;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+#calculator.calc-chem-big .calc-pt-head {
+    margin: 0 2px;
+}
+
+/* wide: the element chosen in a column of its own at the right, its atom bigger */
+@media (min-width: 900px) {
+    #calculator.calc-chem-big .calc-pt:not([hidden]) {
+        grid-template-columns: minmax(0, 1fr) 330px;
+        grid-template-rows: auto auto auto 1fr;
+    }
+
+    #calculator.calc-chem-big .calc-pt-bar,
+    #calculator.calc-chem-big .calc-pt-grid,
+    #calculator.calc-chem-big .calc-pt-legend {
+        grid-column: 1;
+    }
+
+    /* the card scrolls on its own, the table staying where it is */
+    #calculator.calc-chem-big .calc-pt-info {
+        grid-column: 2;
+        grid-row: 1 / 5;
+        align-self: start;
+        box-sizing: border-box;
+        max-height: calc(100% - 6px);
+        margin: 0;
+        overflow-y: auto;
+    }
+
+    #calculator.calc-chem-big .calc-pt-info::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    #calculator.calc-chem-big .calc-pt-info::-webkit-scrollbar-thumb {
+        background: #6b8196;
+        border-radius: 3px;
+    }
+
+    #calculator.calc-chem-big .calc-pt-head {
+        flex-wrap: wrap;
+    }
+
+    #calculator.calc-chem-big .calc-pt-head .calc-pt-atom {
+        order: 3;
+        width: 100%;
+        height: 200px;
+        margin: 0;
+    }
+
+    #calculator.calc-chem-big .calc-pt-tiles {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* the cards, popped out, no wider than reads well */
+#calculator.calc-panel-big .calc-big-on :is(.calc-sv-list, .calc-fx-list, .calc-fx-search) {
+    width: 100%;
+    max-width: 720px;
+    margin-right: auto;
+    margin-left: auto;
+    box-sizing: border-box;
+}
+
+/* Popped out on a wide page (toolCards, renderFx): the cards a list at the left, with no arrows, the one chosen
+   marked; its boxes and results in a card of their own beside it, in sight as the list scrolls. Each card's
+   header and form become the list's own items, the card spanning as many rows as there are (--rows) */
+#calculator .calc-sv-list.calc-side,
+#calculator .calc-fx-list.calc-side {
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr);
+    grid-template-rows: repeat(var(--rows, 8), auto) minmax(0, 1fr);
+    align-content: start;
+    gap: 8px 22px;
+}
+
+#calculator.calc-panel-big .calc-big-on :is(.calc-sv-list, .calc-fx-list).calc-side {
+    max-width: 1280px;
+    padding: 12px 22px;
+}
+
+#calculator .calc-side > :is(.calc-sv-item, .calc-fx-item) {
+    display: contents;
+}
+
+#calculator .calc-side > .calc-fx-cat {
+    grid-column: 1;
+    margin: 10px 2px 0;
+}
+
+#calculator .calc-side > .calc-fx-cat:first-child {
+    margin-top: 0;
+}
+
+#calculator .calc-side :is(.calc-sv-row, .calc-fx-row) {
+    grid-column: 1;
+    border-radius: 8px;
+    background: #b6d1c2;
+    color: #000;
+    transition: transform 0.15s, background-color 0.15s;
+}
+
+#calculator .calc-side :is(.calc-sv-row, .calc-fx-row):hover {
+    background: #a3bdaf;
+}
+
+/* the one chosen: lighter, and a little bigger than the others */
+#calculator .calc-side .calc-on > :is(.calc-sv-row, .calc-fx-row) {
+    border-radius: 8px;
+    background: #c2dacd;
+    transform: scale(1.04);
+    cursor: default;
+}
+
+#calculator .calc-side .calc-item-collapse {
+    display: none;
+}
+
+#calculator .calc-side :is(.calc-sv-form, .calc-fx-form) {
+    position: sticky;
+    top: 0;
+    grid-column: 2;
+    grid-row: 1 / -1;
+    align-self: start;
+    padding: 0 20px 16px;
+    overflow: hidden;
+    border-radius: 10px;
+    background: #b6d1c2;
+    color: #000;
+}
+
+/* at its top, as the header of a card open: its name, its formula and what it does */
+#calculator .calc-side .calc-sv-side-head {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    margin: 0 -20px 16px;
+    padding: 12px 24px 14px;
+    background: #98b3a5;
+    box-shadow: inset 0 -1px 0 rgba(58, 88, 114, 0.35);
+    text-align: center;
+}
+
+#calculator .calc-side .calc-sv-side-name {
+    align-self: flex-start;
+    color: #33443b;
+    font-family: 'Play Bold', 'Play', sans-serif;
+    font-size: 15px;
+    line-height: 18px;
+}
+
+#calculator .calc-side .calc-sv-side-head :is(.calc-sv-f, .calc-fx-f) {
+    height: auto;
+    margin: 0;
+    padding: 0;
+    font-size: 19px;
+    line-height: 28px;
+    white-space: normal;
+}
+
+#calculator .calc-side .calc-sv-side-d {
+    max-width: 720px;
+    margin: 2px 0 0;
+    color: #33443b;
+    font-size: 13.5px;
+    line-height: 19px;
+}
+
+/* Popped out, the boxes and buttons as tall as their bigger room: the boxes and lists of the cards,
+   the search and the converter, their choices, and Example, Again and Insert */
+#calculator.calc-panel-big .calc-big-on :is(.calc-sv-var, .calc-fx-var) input,
+#calculator.calc-panel-big .calc-big-on .calc-sv-area {
+    padding: 5px 9px;
+    border-radius: 6px;
+    font-size: 14px;
+    line-height: 18px;
+}
+
+#calculator.calc-panel-big .calc-big-on :is(.calc-sv-var, .calc-fx-var) {
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+#calculator.calc-panel-big .calc-big-on .calc-sv-opt {
+    padding: 5px 9px;
+    border-radius: 6px;
+    font-size: 14px;
+    line-height: 18px;
+}
+
+#calculator.calc-panel-big .calc-big-on :is(.calc-fx-search, .calc-conv-value) {
+    padding: 7px 11px;
+    border-radius: 6px;
+    font-size: 14px;
+    line-height: 18px;
+}
+
+#calculator.calc-panel-big .calc-big-on .calc-conv-pick:not(.calc-stats-by) {
+    padding: 7px 28px 7px 11px;
+    border-radius: 6px;
+    background-position: right 11px center;
+    font-size: 14px;
+    line-height: 18px;
+}
+
+#calculator.calc-panel-big .calc-big-on :is(.calc-sv-again, .calc-fx-insert) {
+    border-radius: 6px;
+    font-size: 14px;
+    line-height: 30px;
+}
+
+#calculator.calc-panel-big .calc-big-on .calc-sv-again {
+    margin-bottom: 10px;
+    padding: 0 18px;
+}
+
+#calculator.calc-panel-big .calc-big-on .calc-fx-insert {
+    padding: 0 10px 0 16px;
+}
+
+/* the separator of the statistics, as big as the head's words */
+#calculator.calc-panel-big .calc-big-on .calc-stats-by-label {
+    font-size: 14px;
+}
+
+#calculator.calc-panel-big .calc-big-on .calc-stats-by {
+    padding: 4px 26px 4px 9px;
+    border-radius: 5px;
+    background-position: right 9px center;
+    background-size: 10px 6px;
+    font-size: 14px;
+    line-height: 18px;
+}
+
+#calculator.calc-panel-big .calc-big-on .calc-stats-by .calc-conv-item {
+    padding: 4px 10px;
+    line-height: 18px;
+}
+
+/* The units popped out: no wider than reads well, in the middle; on a wide page the values in two columns */
+#calculator.calc-panel-big .calc-conv.calc-big-on :is(.calc-conv-group, .calc-conv-from, .calc-conv-note, .calc-conv-list) {
+    width: calc(100% - 44px);
+    max-width: 960px;
+    margin-right: auto;
+    margin-left: auto;
+    box-sizing: border-box;
+}
+
+#calculator.calc-panel-big .calc-conv.calc-big-on .calc-conv-group {
+    margin-top: 8px;
+}
+
+@media (min-width: 760px) {
+    #calculator.calc-panel-big .calc-conv:not(.calc-conv-dates).calc-big-on .calc-conv-list {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-content: start;
+        gap: 8px 16px;
+        padding: 4px 0 8px;
+    }
+
+    #calculator.calc-panel-big .calc-conv.calc-big-on .calc-conv-row {
+        margin: 0;
+    }
+
+    /* the search of the formulas above their list, as wide as it, its top with the card's: the list goes up
+       behind it, and its first row is the room of the search (38px tall), the formulas scrolling under it */
+    #calculator.calc-panel-big .calc-fx.calc-big-on:has(.calc-fx-list.calc-side) .calc-fx-search {
+        position: relative;
+        z-index: 1;
+        width: 300px;
+        max-width: none;
+        margin-top: 12px;
+        margin-bottom: 0;
+        margin-left: calc(max(0px, (100% - 1280px) / 2) + 22px);
+    }
+
+    #calculator.calc-panel-big .calc-fx.calc-big-on .calc-fx-list.calc-side {
+        margin-top: -38px;
+        padding-top: 0;
+    }
+
+    #calculator .calc-fx-list.calc-side::before {
+        content: '';
+        grid-column: 1;
+        grid-row: 1;
+        height: 38px;
+    }
+
+    /* The statistics popped out on a wide page: what is typed at the left, as tall as the window, and its
+       results and chart beside it */
+    #calculator.calc-panel-big .calc-stats.calc-big-on.calc-open {
+        display: grid;
+        grid-template-columns: minmax(260px, 1fr) minmax(0, 1.8fr);
+        grid-template-rows: auto auto minmax(0, 1fr);
+        column-gap: 14px;
+    }
+
+    #calculator.calc-panel-big .calc-stats.calc-big-on .calc-past-head {
+        grid-column: 1 / -1;
+    }
+
+    #calculator.calc-panel-big .calc-stats.calc-big-on .calc-stats-input {
+        grid-column: 1;
+        grid-row: 2 / 4;
+        align-self: start;
+        field-sizing: content; /* as tall as its lines, from 260px to all of the room, then it scrolls */
+        height: auto;
+        min-height: 260px;
+        max-height: calc(100% - 24px);
+        margin: 8px 0 4px 22px;
+    }
+
+    #calculator.calc-panel-big .calc-stats.calc-big-on .calc-stats-note {
+        grid-column: 2;
+        grid-row: 2;
+        margin: 8px 30px 2px 8px;
+    }
+
+    #calculator.calc-panel-big .calc-stats.calc-big-on .calc-stats-out {
+        grid-column: 2;
+        grid-row: 3;
+        padding: 4px 22px 6px 4px;
+    }
+}
+
+/* only there: in a card that opens in place, its header is the one above it */
+#calculator .calc-sv-side-head {
+    display: none;
+}

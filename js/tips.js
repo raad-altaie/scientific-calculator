@@ -294,6 +294,194 @@
             k: 'Esc'
         },
 
+        // chemistry
+        'chem': {
+            t: 'Chemistry',
+            d: 'The periodic table, each element with its mass, electrons, its atom drawn and more; molar mass, equations balanced, ' +
+                'amounts and the limiting reactant, empirical formulas, molarity, dilution, pH and buffers, the gas laws, heat and half-life. ' +
+                'Click a number to put it in.',
+            k: ''
+        },
+        'chem close': {
+            t: 'Close the chemistry',
+            d: 'What you typed, and the element chosen, stay for the next time.',
+            k: 'Esc'
+        },
+        'panel big': {
+            t: 'Pop out',
+            d: 'The panel as big as the page, its cards in a list with the one open beside it; in the extension, in a window of its own.',
+            k: ''
+        },
+        'panel small': {
+            t: 'Pop in',
+            d: 'The panel back in the calculator.',
+            k: 'Esc'
+        },
+        'chem big': {
+            t: 'Pop out',
+            d: 'The periodic table as big as the page, each element with its number, name and mass; in the extension, in a window of its own.',
+            k: ''
+        },
+        'chem small': {
+            t: 'Pop in',
+            d: 'The table back in the calculator.',
+            k: 'Esc'
+        },
+        'chem tab table': {
+            t: 'Periodic table',
+            d: 'All 118 elements. Point at one to see it above the table, click it for all that is known of it and its atom; the arrow keys go from one to the next.',
+            k: ''
+        },
+        'chem tab mass': {
+            t: 'Mass',
+            d: 'The molar mass of a formula and each element\'s part of it; grams, moles and particles; and the empirical and molecular formula of a composition.',
+            k: ''
+        },
+        'chem tab reactions': {
+            t: 'Reactions',
+            d: 'An equation balanced, with its kind; the amounts of a reaction, its limiting reactant and percent yield; heat, q = mcΔT; and half-life.',
+            k: ''
+        },
+        'chem tab solutions': {
+            t: 'Solutions',
+            d: 'Molarity, dilution, pH, pOH, [H⁺] and [OH⁻], weak acids and bases, and buffers.',
+            k: ''
+        },
+        'chem tab ions': {
+            t: 'Ions',
+            d: 'The common ions, monatomic and polyatomic: the charge and molar mass of each, its colour in water and in a flame.',
+            k: ''
+        },
+        'chem tab gases': {
+            t: 'Gases',
+            d: 'The ideal gas law, PV = nRT, with the mass and density of a gas; and the combined gas law.',
+            k: ''
+        },
+        'chem search clear': {
+            t: 'Clear the search',
+            d: 'Every element bright again.',
+            k: 'Esc'
+        },
+        'chem by cat': {
+            t: 'Kind',
+            d: 'Each kind of element its colour: alkali metals, transition metals, halogens, noble gases … Click one below the table to light only its elements.',
+            k: ''
+        },
+        'chem by state': {
+            t: 'State',
+            d: 'Solid, liquid or gas at 20 °C.',
+            k: ''
+        },
+        'chem by block': {
+            t: 'Block',
+            d: 'The subshell its last electrons go in: s, p, d or f.',
+            k: ''
+        },
+        'chem by en': {
+            t: 'Electronegativity',
+            d: 'How strongly it pulls electrons in a bond, on Pauling\'s scale: blue for little, red for much. Fluorine pulls most, 3.98.',
+            k: ''
+        },
+        'chem temp': {
+            t: 'Temperature',
+            d: 'Slide it and each element is solid, liquid or gas as it is at that temperature, at 1 atm, from its melting and boiling points. Click the temperature for 20 °C again.',
+            k: ''
+        },
+        'chem cut': {
+            t: 'From – to',
+            d: 'Drag either end of the scale and the elements outside it are dimmed, to see which are between two numbers. Click a number for all of them again.',
+            k: ''
+        },
+        'chem by bp': {
+            t: 'Boiling point',
+            d: 'Where it boils, in °C: blue for low, red for high. Helium boils lowest, −269 °C; tungsten highest, near 5930 °C.',
+            k: ''
+        },
+        'chem by radius': {
+            t: 'Atomic radius',
+            d: 'How big its atom is, its van der Waals radius in pm: aqua for small, lavender for big. It grows down a group and shrinks across a period.',
+            k: ''
+        },
+        'chem by affinity': {
+            t: 'Electron affinity',
+            d: 'The energy given off as its atom takes an electron, in kJ/mol: pale for little, green for much. Chlorine gives off most, 349; the noble gases take none.',
+            k: ''
+        },
+        'chem by mass': {
+            t: 'Atomic mass',
+            d: 'The mass of its atoms, in g/mol: peach for light, coral for heavy.',
+            k: ''
+        },
+        'chem by year': {
+            t: 'Discovered',
+            d: 'The year it was found: sand for the elements known since ancient times, violet for the newest, made in labs.',
+            k: ''
+        },
+        'chem unit': {
+            t: 'Change the unit',
+            d: 'The next unit, for every number of its kind: °C, °F and K; kJ/mol and eV; g/cm³, kg/m³ and lb/ft³; the atomic mass in full or to 3 places.',
+            k: ''
+        },
+        'chem by ie': {
+            t: 'Ionization energy',
+            d: 'The energy to take one electron from each atom of a mole of it, in kJ/mol: green for little, purple for much. Helium holds on hardest, 2372.',
+            k: ''
+        },
+        'chem by mp': {
+            t: 'Melting point',
+            d: 'Where it melts, in °C: blue for low, red for high. Carbon melts highest, near 3550 °C.',
+            k: ''
+        },
+        'chem by density': {
+            t: 'Density',
+            d: 'Its mass in each cm³: pale for light, brown for heavy. Osmium is the heaviest, 22.6 g/cm³; the gases are all near 0.',
+            k: ''
+        },
+
+        // what each number and word of an element is: on its big tile, beside it and in its details
+        'chem fact z': { t: 'Atomic number', d: 'The protons in the nucleus of each atom, which make it this element; as many electrons round it in the neutral atom. The table is in its order.' },
+        'chem fact symbol': { t: 'Symbol', d: 'Its one or two letters, as formulas write it: some from its Latin name, Fe from ferrum, Na from natrium.' },
+        'chem fact name': { t: 'Name', d: 'Its name, as IUPAC spells it.' },
+        'chem fact mass': { t: 'Atomic mass', d: 'The mean mass of its atoms, as found in nature, in g/mol: a mole of it weighs that many grams. In [ ], an element with no stable isotope: the mass number of its longest-lived one.' },
+        'chem fact en': { t: 'Electronegativity', d: 'How strongly its atom pulls the electrons of a bond, on Pauling\'s scale, from caesium\'s 0.79 to fluorine\'s 3.98. The noble gases with few bonds have none.' },
+        'chem fact ox': { t: 'Oxidation states', d: 'The charges its atom takes in its compounds, as if each bond were ionic: the most common ones.' },
+        'chem fact config': { t: 'Electron configuration', d: 'How its electrons fill the subshells, s, p, d and f, from the lowest energy up; in [ ], the noble gas before it, whose subshells are full.' },
+        'chem fact kind': { t: 'Kind', d: 'The family of elements it is in, alike in how they react.' },
+        'chem fact shells': { t: 'Shells', d: 'Its electrons in each shell, from the nucleus out: K, L, M, N, O, P and Q.' },
+        'chem fact atom': { t: 'Its atom', d: 'The Bohr model: the protons and neutrons in the nucleus, and the electrons in their shells round it.' },
+        'chem fact group': { t: 'Group', d: 'Its column, 1 to 18: the elements of a group have as many outer electrons, and react alike. The lanthanides and actinides have none.' },
+        'chem fact period': { t: 'Period', d: 'Its row, 1 to 7: the shells its electrons fill.' },
+        'chem fact block': { t: 'Block', d: 'The subshell its last electrons go in: s, p, d or f.' },
+        'chem fact mp': { t: 'Melting point', d: 'Where it turns from solid to liquid, at 1 atm.' },
+        'chem fact bp': { t: 'Boiling point', d: 'Where it turns from liquid to gas, at 1 atm.' },
+        'chem fact density': { t: 'Density', d: 'Its mass in each cm³ at 20 °C; a gas\'s at 0 °C and 1 atm.' },
+        'chem fact ie': { t: 'Ionization energy', d: 'The energy to take the outermost electron from each atom of a mole of it, as a gas: the first ionization energy.' },
+        'chem fact state': { t: 'State', d: 'Solid, liquid or gas at 20 °C and 1 atm.' },
+        'chem fact radius': { t: 'Atomic radius', d: 'How big its atom is: its van der Waals radius, in picometres, 10⁻¹² m.' },
+        'chem fact affinity': { t: 'Electron affinity', d: 'The energy given off as each atom of a mole of it, as a gas, takes an electron.' },
+        'chem fact ions': { t: 'Common ions', d: 'The ions it most often forms, with their charges.' },
+        'chem fact protons': { t: 'Protons', d: 'In the nucleus, as many as the atomic number.' },
+        'chem fact electrons': { t: 'Electrons', d: 'Round the nucleus of the neutral atom, as many as its protons.' },
+        'chem fact neutrons': { t: 'Neutrons', d: 'In the nucleus of its commonest isotope: the mass number less the protons.' },
+        'chem fact outer': { t: 'Outer-shell electrons', d: 'Its electrons in the shell furthest out, the valence shell, which take part in bonds.' },
+        'chem fact unpaired': { t: 'Unpaired electrons', d: 'Its electrons alone in their orbitals, by Hund\'s rule: what makes an atom magnetic.' },
+        'chem fact heat': { t: 'Specific heat', d: 'The energy to warm a gram of it by 1 K, at 25 °C: q = mcΔT. Not measured for most radioactive elements.' },
+        'chem fact year': { t: 'Discovered', d: 'When it was found, by whom, and who first made it pure.' },
+        'chem fact isotopes': { t: 'Isotopes', d: 'Its stable isotopes, the commonest first; with none stable, those found in nature, or its longest-lived one and its half-life.' },
+        'chem fact story': { t: 'Name', d: 'Where its name comes from, and how it was found.' },
+        'chem fact uses': { t: 'Uses', d: 'What it is used for.' },
+        // its kind, pointed at: what the elements of each family are like
+        'chem kind alkali': { t: 'Alkali metal', d: 'Group 1 but hydrogen: soft metals that react hard with water, giving hydroxides and hydrogen. One outer electron, lost as a 1+ ion.' },
+        'chem kind alkaline': { t: 'Alkaline earth metal', d: 'Group 2: reactive metals, less than the alkali metals. Two outer electrons, lost as a 2+ ion.' },
+        'chem kind transition': { t: 'Transition metal', d: 'Groups 3 to 12, filling d subshells: hard metals, with many oxidation states and coloured compounds; good catalysts.' },
+        'chem kind post': { t: 'Post-transition metal', d: 'The metals after the transition metals: softer, melting lower, some with oxides that are both acidic and basic.' },
+        'chem kind metalloid': { t: 'Metalloid', d: 'Between the metals and the nonmetals: semiconductors, as silicon and germanium.' },
+        'chem kind nonmetal': { t: 'Nonmetal', d: 'Poor conductors of heat and electricity, gases or brittle solids, that take or share electrons in their compounds.' },
+        'chem kind halogen': { t: 'Halogen', d: 'Group 17: reactive nonmetals, one electron short of a full shell, taken as a 1− ion; with metals they make salts.' },
+        'chem kind noble': { t: 'Noble gas', d: 'Group 18: their shells full, they hardly react; gases of single atoms.' },
+        'chem kind lanthanide': { t: 'Lanthanide', d: 'Lanthanum to lutetium, filling the 4f subshell: the rare earth metals, much alike, most often 3+.' },
+        'chem kind actinide': { t: 'Actinide', d: 'Actinium to lawrencium, filling the 5f subshell: all radioactive; only thorium and uranium are common in nature.' },
+
         // the graph
         'graph': {
             t: 'Graph',

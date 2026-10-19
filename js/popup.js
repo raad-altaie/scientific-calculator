@@ -4,10 +4,21 @@
 const calculator = document.getElementById('calculator');
 const params = new URLSearchParams(location.search);
 
+// each panel that pops out into a window of its own, popup.html?panel=solve: its title, and the policy that turns it off
+const PANELS = {
+    stats: ['Statistics', 'statistics'],
+    fx: ['Formulas', 'formulas'],
+    conv: ['Converter', 'converter'],
+    solve: ['Solver', 'solve'],
+    numbers: ['Numbers', 'numbers'],
+};
+const panel = Object.hasOwn(PANELS, params.get('panel')) ? params.get('panel') : '';
+
 // An administrator's change (policy.js): the calculator takes its panels out, and the detached
 // window or the graph's own window closes when what it shows is turned off
 const followPolicy = () => {
-    if ((params.has('detached') && CalcPolicy.off('detachedMode')) || (params.has('graph') && CalcPolicy.off('graph'))) {
+    if ((params.has('detached') && CalcPolicy.off('detachedMode')) || (params.has('graph') && CalcPolicy.off('graph')) ||
+        (params.has('chem') && CalcPolicy.off('chemistry')) || (panel && CalcPolicy.off(PANELS[panel][1]))) {
         window.close();
         return;
     }
@@ -119,6 +130,24 @@ if ((params.has('detached') || params.has('graph')) && chrome.windows && !chrome
     }, 1000);
 }
 
+// A window of its own made no smaller than min, nor bigger than the screen: put back once the resize stops
+function keepAtLeast(min) {
+    let settling;
+
+    window.addEventListener('resize', () => {
+        clearTimeout(settling);
+        settling = setTimeout(() => {
+            const width = Math.min(screen.availWidth, Math.max(min.width, window.outerWidth));
+            const height = Math.min(screen.availHeight, Math.max(min.height, window.outerHeight));
+
+            if (width === window.outerWidth && height === window.outerHeight) return;
+            chrome.windows.getCurrent((win) => {
+                if (win.state === 'normal') chrome.windows.update(win.id, { width, height });
+            });
+        }, 300);
+    });
+}
+
 // The graph's own window, popup.html?graph: only the graph, as big as the window. Its close
 // button and Esc close the window; a value put in brings the calculator up, which has it
 // through the storage
@@ -129,12 +158,42 @@ if (params.has('graph')) {
     document.addEventListener('calc-graph-put', () => {
         chrome.runtime.sendMessage({ command: 'show-calculator' }).catch(() => { });
     });
+} else if (params.has('chem')) {
+    // The periodic table's own window, popup.html?chem: only the table, as big as the window, the same way
+    document.title = 'Periodic table';
+    calculator.dispatchEvent(new CustomEvent('calc-chem', { detail: { big: true, alone: true } }));
+    // no smaller than the room of its 18 columns and of the element chosen beside them, as in background.js
+    keepAtLeast({ width: 1000, height: 700 });
+    document.addEventListener('calc-chem-close', () => window.close());
+    document.addEventListener('calc-chem-put', () => {
+        chrome.runtime.sendMessage({ command: 'show-calculator' }).catch(() => { });
+    });
+} else if (panel) {
+    // Any other panel's own window, popup.html?panel=solve: only the panel, as big as the window, the same way
+    document.title = PANELS[panel][0];
+    calculator.dispatchEvent(new CustomEvent('calc-panel', { detail: { panel } }));
+    // no smaller than the room of the list of cards and of the card beside it, as in background.js
+    keepAtLeast({ width: 900, height: 640 });
+    document.addEventListener('calc-panel-close', () => window.close());
+    document.addEventListener('calc-panel-put', () => {
+        chrome.runtime.sendMessage({ command: 'show-calculator' }).catch(() => { });
+    });
 } else {
-    // the popup and the detached window keep the calculator's size: the big graph opens in that window
+    // the popup and the detached window keep the calculator's size: the big graph and the big table open in windows of their own
     document.addEventListener('calc-big', (event) => {
         if (!event.detail.big) return;
         event.preventDefault();
         chrome.runtime.sendMessage({ command: 'open-graph' }).catch(() => { });
+    });
+    document.addEventListener('calc-chem-big', (event) => {
+        if (!event.detail.big) return;
+        event.preventDefault();
+        chrome.runtime.sendMessage({ command: 'open-chem' }).catch(() => { });
+    });
+    document.addEventListener('calc-panel-big', (event) => {
+        if (!event.detail.big) return;
+        event.preventDefault();
+        chrome.runtime.sendMessage({ command: 'open-panel', panel: event.detail.panel }).catch(() => { });
     });
 }
 
