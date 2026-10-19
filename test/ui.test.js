@@ -2038,7 +2038,7 @@ async function graphBig(page, at) {
     script = (await page.send('Page.addScriptToEvaluateOnNewDocument', { source: stub })).result.identifier;
     await page.go(page.base + '/popup.html?graph', [700, 500]);
     check(await page.calc(big) && await open(page, '.calc-graph') && await page.calc(plot + '.clientWidth') > 350 &&
-        await page.ev('document.title') === 'Graph' && await page.calc('document.querySelector(".calc-graph .calc-past-close").offsetWidth') > 0 &&
+        await page.ev('document.title') === 'Graph | Scientific Calculator' && await page.calc('document.querySelector(".calc-graph .calc-past-close").offsetWidth') > 0 &&
         !await page.calc('document.querySelector(".calc-graph-size").offsetWidth'),
         t + 'its window has only the graph, big, with a close button and no pop in', await page.calc(plot + '.clientWidth'));
     check(await page.calc('document.querySelector(".calc-graph-input").value') === 'x^2-3', t + 'with the functions of the calculator');
