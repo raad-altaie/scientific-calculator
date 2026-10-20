@@ -15,9 +15,10 @@ const PANELS = {
 const panel = Object.hasOwn(PANELS, params.get('panel')) ? params.get('panel') : '';
 
 // An administrator's change (policy.js): the calculator takes its panels out, and the detached
-// window or the graph's own window closes when what it shows is turned off
+// window or the graph's own window closes when what it shows is turned off. The Calculator tab of a tool's
+// window as well, which goes with Detached Mode, as the open mode Advanced does (background.js)
 const followPolicy = () => {
-    if ((params.has('detached') && CalcPolicy.off('detachedMode')) || (params.has('graph') && CalcPolicy.off('graph')) ||
+    if (((params.has('detached') || params.has('calc')) && CalcPolicy.off('detachedMode')) || (params.has('graph') && CalcPolicy.off('graph')) ||
         (params.has('chem') && CalcPolicy.off('chemistry')) || (panel && CalcPolicy.off(PANELS[panel][1]))) {
         window.close();
         return;
@@ -130,7 +131,10 @@ if ((params.has('detached') || params.has('graph')) && chrome.windows && !chrome
     }, 1000);
 }
 
-// A window of its own made no smaller than min, nor bigger than the screen: put back once the resize stops
+// A window of its own made no smaller than min, nor bigger than the screen: put back once the resize stops. Each
+// tool's no narrower than an iPad mini, as in background.js
+const MIN_WIDTH = 744;
+
 function keepAtLeast(min) {
     let settling;
 
@@ -148,59 +152,129 @@ function keepAtLeast(min) {
     });
 }
 
+// A tool's own window going to another tool, or to its Calculator tab (popup.html?calc), as the bar above it does
+const goWindow = (to) => {
+    chrome.runtime.sendMessage({ command: 'go-window', to: to }).catch(() => { });
+};
+
 // The graph's own window, popup.html?graph: only the graph, as big as the window. Its close
-// button and Esc close the window; a value put in brings the calculator up, which has it
+// button and Esc close the window; a value put in goes to its Calculator tab, which has it
 // through the storage
 if (params.has('graph')) {
     document.title = 'Graph | Scientific Calculator';
     calculator.dispatchEvent(new CustomEvent('calc-graph', { detail: { big: true, alone: true } }));
+    keepAtLeast({ width: MIN_WIDTH, height: 640 });
     document.addEventListener('calc-graph-close', () => window.close());
-    document.addEventListener('calc-graph-put', () => {
-        chrome.runtime.sendMessage({ command: 'show-calculator' }).catch(() => { });
-    });
+    document.addEventListener('calc-graph-put', () => goWindow('calc'));
 } else if (params.has('chem')) {
     // The periodic table's own window, popup.html?chem: only the table, as big as the window, the same way
     document.title = 'Chemistry | Scientific Calculator';
     calculator.dispatchEvent(new CustomEvent('calc-chem', { detail: { big: true, alone: true } }));
-    // no smaller than the room of its 18 columns and of the element chosen beside them, as in background.js
-    keepAtLeast({ width: 1000, height: 700 });
+    // no smaller than an iPad mini is wide, and the room of the table's rows high, as in background.js
+    keepAtLeast({ width: MIN_WIDTH, height: 700 });
     document.addEventListener('calc-chem-close', () => window.close());
-    document.addEventListener('calc-chem-put', () => {
-        chrome.runtime.sendMessage({ command: 'show-calculator' }).catch(() => { });
-    });
+    document.addEventListener('calc-chem-put', () => goWindow('calc'));
 } else if (panel) {
     // Any other panel's own window, popup.html?panel=solve: only the panel, as big as the window, the same way
     document.title = PANELS[panel][0] + ' | Scientific Calculator';
     calculator.dispatchEvent(new CustomEvent('calc-panel', { detail: { panel } }));
-    // no smaller than the room of the list of cards and of the card beside it, as in background.js
-    keepAtLeast({ width: 900, height: 640 });
+    // no smaller than an iPad mini is wide, as in background.js
+    keepAtLeast({ width: MIN_WIDTH, height: 640 });
     document.addEventListener('calc-panel-close', () => window.close());
-    document.addEventListener('calc-panel-put', () => {
-        chrome.runtime.sendMessage({ command: 'show-calculator' }).catch(() => { });
+    document.addEventListener('calc-panel-put', () => goWindow('calc'));
+} else if (params.has('calc')) {
+    // A tool's own window on its Calculator tab, popup.html?calc: the calculator fills the room beside the rail of
+    // the tools, as the website's fills its pane (web/js/app.js): 4px of
+    // room round it, its margin of 3px and 4px, no bigger than 1.4 times, the normal size kept sharp, and in the
+    // middle. A tool popped out from it is shown in this window, as the bar shows it
+    const bar = document.querySelector('.calc-go');
+    const acts = document.querySelector('.calc-home-acts');
+    const MAX_SCALE = 1.4;
+    const fitHome = () => {
+        const rail = bar.getBoundingClientRect(); // zoomed as the window is big (main.js, popScale)
+        const across = rail.width > rail.height; // a bar across the top, on a narrow window (style.css)
+        const left = across ? 0 : rail.width;
+        const top = across ? rail.height + acts.getBoundingClientRect().height : 0; // and pop in and close under it
+        const room = { width: window.innerWidth - left - 8, height: window.innerHeight - top - 8 };
+        const size = { width: calculator.offsetWidth + 8, height: calculator.offsetHeight + 6 };
+        let scale = Math.min(room.width / size.width, room.height / size.height, MAX_SCALE);
+
+        if (!(scale > 0)) return;
+        if (Math.abs(scale - 1) < 0.01) scale = 1;
+        const x = Math.round(left + 4 + (room.width - size.width * scale) / 2 + 4 * scale);
+        const y = Math.round(top + 4 + (room.height - size.height * scale) / 2 + 3 * scale);
+
+        calculator.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
+    };
+
+    document.title = 'Calculator | Scientific Calculator';
+    document.documentElement.classList.add('home');
+    calculator.dispatchEvent(new CustomEvent('calc-home'));
+    // no smaller than the panels' windows, as the window it opens in (background.js), for going from tab to tab
+    keepAtLeast({ width: MIN_WIDTH, height: 640 });
+    document.addEventListener('calc-home-close', () => window.close());
+    window.addEventListener('resize', fitHome);
+    fitHome();
+    [['calc-big', () => 'graph'], ['calc-chem-big', () => 'chem'], ['calc-panel-big', (detail) => detail.panel]].forEach(([name, tool]) => {
+        document.addEventListener(name, (event) => {
+            if (!event.detail.big) return;
+            event.preventDefault();
+            goWindow(tool(event.detail));
+        });
     });
 } else {
-    // the popup and the detached window keep the calculator's size: the big graph and the big table open in windows of their own
+    // The popup and the detached window keep the calculator's size: the big graph, the big table and each panel
+    // open in windows of their own, and the calculator is left, only that window open till pop in brings it back.
+    // The detached window is closed by background.js, once the tool's window is open; the popup closes here, then,
+    // as background.js answers. Nothing opened, as the tool is turned off or the window could not be made, it stays
+    const popOut = (message) => {
+        chrome.runtime.sendMessage(message)
+            .catch(() => false)
+            .then((opened) => {
+                if (opened && !params.has('detached')) window.close();
+            });
+    };
+
     document.addEventListener('calc-big', (event) => {
         if (!event.detail.big) return;
         event.preventDefault();
-        chrome.runtime.sendMessage({ command: 'open-graph' }).catch(() => { });
+        popOut({ command: 'open-graph' });
     });
     document.addEventListener('calc-chem-big', (event) => {
         if (!event.detail.big) return;
         event.preventDefault();
-        chrome.runtime.sendMessage({ command: 'open-chem' }).catch(() => { });
+        popOut({ command: 'open-chem' });
     });
     document.addEventListener('calc-panel-big', (event) => {
         if (!event.detail.big) return;
         event.preventDefault();
-        chrome.runtime.sendMessage({ command: 'open-panel', panel: event.detail.panel }).catch(() => { });
+        popOut({ command: 'open-panel', panel: event.detail.panel });
     });
+    // and the calculator itself, by the button after its name, in the detached window, not the small popup, and
+    // only while the open mode is Advanced (options.js): in the big window, on its Calculator tab
+    const openBig = calculator.querySelector('.calc-open-big');
+    const showOpenBig = (mode) => {
+        openBig.hidden = !params.has('detached') || mode !== 'advanced';
+    };
+
+    showOpenBig();
+    // not where the page is opened outside the extension, as in the tests
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.get('openMode').then(({ openMode }) => showOpenBig(openMode)).catch(() => { });
+        chrome.storage.onChanged.addListener((changes, area) => {
+            if (area === 'local' && changes.openMode) showOpenBig(changes.openMode.newValue);
+        });
+    }
+    document.addEventListener('calc-open-big', () => popOut({ command: 'open-home' }));
 }
 
 // Pop in, in a window of its own: the calculator comes up with it, opened if it was closed, and this window closes
 document.addEventListener('calc-pop-in', () => {
     chrome.runtime.sendMessage({ command: 'pop-in' }).catch(() => { });
 });
+
+// the bar above the head, in a window of its own: the window goes to the tool chosen, or to its Calculator tab
+document.addEventListener('calc-go', (event) => goWindow(event.detail.to));
 
 // as it was kept last, until the browser answers
 followPolicy();
@@ -240,9 +314,80 @@ if (pageStore && params.has('detached')) {
     });
 }
 
-// the name, the ? and the FIX mark of the calculator open the options page
-document.addEventListener('calc-options', () => {
-    chrome.runtime.openOptionsPage();
+// A tool's own window, or its Calculator tab: Options and Guide of the rail open the options page over the window
+// beside the rail, in a frame, on that tab, as the website opens them over a tool popped out, that one marked on the
+// rail. Escape or a tool of the rail closes it, and the calculator is out of use meanwhile (main.js
+// types nothing under an inert one)
+const optionsOver = document.querySelector('.options-over');
+const optionsFrame = optionsOver.querySelector('iframe');
+const goBar = document.querySelector('.calc-go');
+const toolWindow = ['graph', 'chem', 'panel', 'calc'].some((key) => params.has(key));
+
+const showOptionsOver = (open, tab) => {
+    optionsOver.hidden = !open;
+    calculator.inert = open;
+    document.querySelector('.calc-home-acts').inert = open;
+    document.documentElement.classList.toggle('options-shown', open);
+    goBar.querySelectorAll('.calc-go-opt').forEach((item) => item.classList.toggle('calc-opt-on', open && item.dataset.tab === tab));
+    if (open) optionsFrame.focus();
+};
+
+// a tool of the rail: the options close, and it is gone to (main.js), or shown again if it is the one under them
+const goneFromRail = (e) => {
+    if (!optionsOver.hidden && e.target.closest('.calc-go-item[data-go]')) showOptionsOver(false);
+};
+
+goBar.addEventListener('click', goneFromRail, true);
+goBar.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') goneFromRail(e);
+}, true);
+
+// the tab last asked for: one asked for while the page is still loading is shown as it loads
+let optionsTab = '';
+let optionsLoaded = false;
+
+const showOptionsTab = () => {
+    const shown = optionsFrame.contentDocument?.querySelector(`.tab[data-tab-for="${optionsTab}"]`);
+
+    if (!shown) return;
+    shown.click(); // on that tab, at its top
+    optionsFrame.contentWindow.scrollTo(0, 0);
+};
+
+const openOptionsOver = (tab) => {
+    optionsTab = tab;
+    if (optionsLoaded) showOptionsTab(); // open already once
+    else if (!optionsFrame.getAttribute('src')) optionsFrame.src = 'options.html#' + tab;
+    showOptionsOver(true, tab);
+};
+
+optionsFrame.addEventListener('load', () => {
+    optionsLoaded = true;
+    showOptionsTab();
+    optionsFrame.contentDocument.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') showOptionsOver(false);
+    });
+});
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !optionsOver.hidden) showOptionsOver(false);
+});
+
+// the ? and the FIX mark of the calculator open the options page; Options and Guide of the rail of a tool
+// popped out open it on that tab, its mark after the # (options.js), open already or as it opens; over the
+// window, in a tool's own window. On its Calculator tab, the ? and the FIX mark as well, as the website's
+// Advanced mode has them (web/js/app.js)
+document.addEventListener('calc-options', (event) => {
+    const tab = event.detail?.tab;
+    const page = chrome.runtime.getURL('options.html');
+
+    if (toolWindow && (event.detail?.over || params.has('calc'))) {
+        openOptionsOver(tab || 'options');
+        return;
+    }
+    chrome.runtime.openOptionsPage()
+        .then(() => tab && chrome.tabs.query({ url: page + '*' }))
+        .then((tabs) => tabs && tabs[0] && chrome.tabs.update(tabs[0].id, { url: page + '#' + tab }))
+        .catch(() => { });
 });
 
 // Paste in the menu of a right click: the browser asks once to allow reading the
@@ -290,3 +435,8 @@ document.addEventListener('calc-paste', (event) => {
         refused(); // asked for outside a click
     }
 });
+
+// a tool's own window or its Calculator tab, made what it is to be: shown (js/opening.js), on the frame after
+if (document.documentElement.classList.contains('opening')) {
+    requestAnimationFrame(() => document.documentElement.classList.remove('opening'));
+}

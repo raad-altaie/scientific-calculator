@@ -1,17 +1,33 @@
+// in a frame over a tool's own window (popup.js): laid out as the website has the options over a tool (options.css)
+if (window.top !== window) {
+    document.documentElement.classList.add('embedded');
+    // the guide in one box, as the options are in theirs: shown and hidden as its parts were (data-tab)
+    const guideParts = document.querySelectorAll('.wrapper > [data-tab="guide"]');
+    const guideBox = document.createElement('div');
+
+    guideBox.className = 'guide-box';
+    guideBox.dataset.tab = 'guide';
+    guideParts[0].before(guideBox);
+    guideBox.append(...guideParts);
+}
+
 // the copyright line always shows the current year
 document.querySelectorAll('.year').forEach((el) => {
     el.textContent = new Date().getFullYear();
 });
 
-// Two tabs: the options, and the guide to the calculator. The page always opens on
-// the options
+// Two tabs: the options, and the guide to the calculator. The page opens on the options,
+// or on the guide with #guide after it, as Guide on the rail of a tool popped out opens it (popup.js)
 const tabs = document.querySelectorAll('.tab');
 const showTab = (name) => {
     tabs.forEach((tab) => tab.setAttribute('aria-selected', tab.dataset.tabFor === name));
     document.querySelector('.tabs').parentElement.dataset.show = name;
 };
 
-showTab('options');
+const showHashTab = () => showTab(location.hash === '#guide' ? 'guide' : 'options');
+
+showHashTab();
+window.addEventListener('hashchange', showHashTab);
 tabs.forEach((tab) => tab.addEventListener('click', () => showTab(tab.dataset.tabFor)));
 
 // the launch button opens the mode chosen: the popup, or the detached window
@@ -25,8 +41,9 @@ const choose = (group, value) => {
     group.querySelector(`input[value="${value}"]`).checked = true;
 };
 
-// What the toolbar icon opens, the popup or the detached window: kept in chrome.storage.local,
-// where background.js reads it and changes what the icon does. Fixed until Detached is chosen
+// What the toolbar icon opens, the popup or the detached window, or with Advanced the calculator popped
+// out in the big window, whose pop in goes to the detached window: kept in chrome.storage.local, where background.js reads it
+// and changes what the icon does. Fixed until another is chosen
 const openMode = document.getElementById('open-mode');
 const modeStore = typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local;
 
@@ -34,7 +51,7 @@ const showOpenMode = () => {
     if (!modeStore) return;
     modeStore.get('openMode', ({ openMode: mode } = {}) => {
         // an administrator who turns Detached Mode off leaves the popup
-        choose(openMode, mode === 'detached' && !CalcPolicy.off('detachedMode') ? 'detached' : 'fixed');
+        choose(openMode, (mode === 'detached' || mode === 'advanced') && !CalcPolicy.off('detachedMode') ? mode : 'fixed');
     });
 };
 
@@ -43,6 +60,12 @@ openMode.addEventListener('change', () => {
     if (modeStore) modeStore.set({ openMode: chosen(openMode) });
 });
 showOpenMode();
+// chosen on another options page, as the one over a tool's own window (popup.js), or in the toolbar icon's menu
+if (modeStore) {
+    chrome.storage.onChanged.addListener((changes, area) => {
+        if (area === 'local' && changes.openMode) showOpenMode();
+    });
+}
 
 // The button on every page and the icons after the maths of the pages, two options: each is on while
 // the extension holds this access and it is chosen, as background.js reads them. The browser asks for
@@ -53,7 +76,8 @@ const pageIcon = document.getElementById('page-icon');
 const pageMaths = document.getElementById('page-maths');
 const pageAccess = { permissions: ['scripting'], origins: ['http://*/*', 'https://*/*'] };
 
-// The browser does not put the button on its own pages, so this page adds it itself
+// The browser does not put the button on its own pages, so this page adds it itself; not in the frame over a
+// tool's own window, which is the calculator already
 const pageIconId = 'scientific-calculator-page-icon'; // as in page/icon.js
 
 const showPageOptions = () => {
@@ -65,7 +89,7 @@ const showPageOptions = () => {
         pageMaths.checked = !!kept && kept.pageMathsOn === true && !CalcPolicy.off('pageMaths');
         showKinds();
         showSites();
-        if (buttonOn && !button) {
+        if (buttonOn && !button && window.top === window) {
             const script = document.createElement('script');
 
             script.src = 'js/page/icon.js';
@@ -250,6 +274,15 @@ window.addEventListener('storage', (e) => {
     box.addEventListener('change', () => {
         try {
             localStorage.setItem(key, JSON.stringify(box.checked));
+        } catch (e) { }
+    });
+    // turned on or off on another options page, as the one over a tool's own window (popup.js); one an
+    // administrator turned off stays off
+    window.addEventListener('storage', (e) => {
+        if (e.key !== key || box.disabled) return;
+        try {
+            const stored = JSON.parse(e.newValue);
+            box.checked = typeof stored === 'boolean' ? stored : on;
         } catch (e) { }
     });
 });

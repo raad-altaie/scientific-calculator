@@ -29,16 +29,19 @@ const graphUrl = chrome.runtime.getURL("popup.html?graph");
 // the periodic table's own window, opened by its pop out button: the same page, with only the table
 const chemUrl = chrome.runtime.getURL("popup.html?chem");
 
-// its least size, the room of its 18 columns and of the element chosen beside them, as in popup.js
-const chemMin = { width: 1000, height: 700 };
+// its least size: an iPad mini's width, and the room of the table's rows high, as in popup.js
+const chemMin = { width: 744, height: 700 };
 
 // each other panel's own window, opened by its pop out button: the same page, popup.html?panel=solve, with only
 // that panel; by the policy that turns the panel off
 const panelPolicies = { stats: "statistics", fx: "formulas", conv: "converter", solve: "solve", numbers: "numbers" };
 const panelUrl = (key) => chrome.runtime.getURL("popup.html?panel=" + key);
 
-// their least size, the room of the list of cards and of the card beside it, as in popup.js
-const panelMin = { width: 900, height: 640 };
+// their least size: an iPad mini's width, as in popup.js
+const panelMin = { width: 744, height: 640 };
+
+// a tool's own window on its Calculator tab, gone to from the bar above the tool or as a value is put in
+const homeUrl = chrome.runtime.getURL("popup.html?calc");
 
 // the popup page in any window, to find them by
 const popupPages = chrome.runtime.getURL("popup.html*");
@@ -65,7 +68,8 @@ function readDetachedBounds(key, done) {
 }
 
 // The window is moved or resized: its new place is remembered. Firefox does not tell of
-// that, so there the window tells it itself, in popup.js
+// that, so there the window tells it itself, in popup.js. The graph's only of the window opened for it (graphId):
+// another tool's window gone to the graph keeps its own size, not the graph's
 function rememberBounds(win) {
     if (win.type !== "popup" || win.state !== "normal") return; // not maximised or full screen
 
@@ -74,8 +78,15 @@ function rememberBounds(win) {
         if (!tab) return;
 
         detachedBoundsStore("readwrite", (store) => {
-            store.put({ left: win.left, top: win.top, width: win.width, height: win.height },
-                tab.url.startsWith(graphUrl) ? "graphBounds" : "bounds");
+            const bounds = { left: win.left, top: win.top, width: win.width, height: win.height };
+
+            if (!tab.url.startsWith(graphUrl)) {
+                store.put(bounds, "bounds");
+                return;
+            }
+            const read = store.get("graphId");
+
+            read.onsuccess = () => read.result === win.id && store.put(bounds, "graphBounds");
         });
     });
 }
@@ -92,9 +103,19 @@ function getDisplays(done) {
     done([{ workArea: { left: screen.availLeft || 0, top: screen.availTop || 0, width: screen.availWidth, height: screen.availHeight } }]);
 }
 
+// A tool's own window, kept by its id to close it on an update, when its page no longer tells what it is. Every
+// one, as each may go to another tool since (goWindow): the last twenty
+function keepToolWindow(id) {
+    detachedBoundsStore("readwrite", (store) => {
+        const read = store.get("toolIds");
+
+        read.onsuccess = () => store.put((read.result || []).filter((other) => other !== id).concat(id).slice(-20), "toolIds");
+    });
+}
+
 // The detached window, or with graph the graph's own window, which at first is most of
-// the screen
-function createPopupWindow(graph) {
+// the screen. Then done, told whether it opened
+function createPopupWindow(graph, done) {
     getDisplays((displayInfo) => {
         readDetachedBounds(graph ? "graphBounds" : "bounds", (saved) => {
             const area = displayInfo[0].workArea;
@@ -128,9 +149,12 @@ function createPopupWindow(graph) {
                 top: bounds.top,
                 focused: true,
             }, (win) => {
+                if (chrome.runtime.lastError || !win) return done && done(false);
                 // kept to close it on an update, when its page no longer tells
-                // what it is
+                // what it is, and the graph's for its size
                 detachedBoundsStore("readwrite", (store) => store.put(win.id, graph ? "graphId" : "id"));
+                if (graph) keepToolWindow(win.id);
+                if (done) done(true);
             });
         });
     });
@@ -138,24 +162,31 @@ function createPopupWindow(graph) {
 
 // An update takes the page out of the detached window and leaves it blank,
 // and its tab no longer gives its address: it is found by the kept id, and
-// closed if it is still a popup with nothing else in it. The graph's window too
+// closed if it is still a popup with nothing else in it. The graph's window too,
+// and each tool's, which may have gone to another tool or its Calculator tab since
 function closeDetachedWindow() {
-    [["id", detachedUrl], ["graphId", graphUrl], ["chemId", chemUrl]].concat(Object.keys(panelPolicies).map((key) => ["panel-" + key, panelUrl(key)])).forEach(([key, url]) => {
-        detachedBoundsStore("readonly", (store) => {
+    const toolPage = chrome.runtime.getURL("popup.html?");
+    const close = (id, url) => {
+        chrome.windows.get(id, { populate: true })
+            .then((win) => {
+                if (win.type === "popup" && win.tabs.every((t) => !t.url || t.url.startsWith(url))) {
+                    return chrome.windows.remove(win.id);
+                }
+            })
+            .catch(() => { }); // it was already closed
+    };
+    // a key for each kind of window, as the detached one is kept and the tools' were before toolIds
+    const kept = [["id", detachedUrl], ["graphId", toolPage], ["chemId", toolPage], ["homeId", toolPage]].concat(Object.keys(panelPolicies).map((key) => ["panel-" + key, toolPage]));
+
+    detachedBoundsStore("readonly", (store) => {
+        kept.forEach(([key, url]) => {
             const read = store.get(key);
 
-            read.onsuccess = () => {
-                if (read.result === undefined) return;
-
-                chrome.windows.get(read.result, { populate: true })
-                    .then((win) => {
-                        if (win.type === "popup" && win.tabs.every((t) => !t.url || t.url.startsWith(url))) {
-                            return chrome.windows.remove(win.id);
-                        }
-                    })
-                    .catch(() => { }); // it was already closed
-            };
+            read.onsuccess = () => read.result !== undefined && close(read.result, url);
         });
+        const tools = store.get("toolIds");
+
+        tools.onsuccess = () => (tools.result || []).forEach((id) => close(id, toolPage));
     });
 }
 
@@ -167,13 +198,14 @@ function bringToFront(windowId) {
 }
 
 // The graph's own window: opened, or to the front if it is open. It reads the
-// graph from the storage, as the calculator left it
-function openGraphWindow() {
+// graph from the storage, as the calculator left it. Then done, told whether it is there
+function openGraphWindow(done) {
     chrome.tabs.query({ url: popupPages }, (tabs) => {
         const tab = tabs.find((t) => t.url.startsWith(graphUrl));
 
-        if (tab) bringToFront(tab.windowId);
-        else createPopupWindow(true);
+        if (!tab) return createPopupWindow(true, done);
+        bringToFront(tab.windowId);
+        done(true);
     });
 }
 
@@ -185,19 +217,20 @@ function displayOf(displayInfo, win) {
     return displayInfo.find(({ workArea: a }) => x >= a.left && x < a.left + a.width && y >= a.top && y < a.top + a.height) || displayInfo[0];
 }
 
-// The periodic table's own window, and each other panel's (url, its id kept as key), opened from a window of the
-// calculator (fromId), or from the popup, which is over the browser's window last used. On that window's screen:
-// 85% of it, in its middle, no smaller than it needs (min) nor bigger than the screen. Open already, it is put so
-// again and comes to the front
-function openChemWindow(fromId) {
-    openBigWindow(chemUrl, "chemId", chemMin, fromId);
+// The periodic table's own window, and each other panel's (url), opened from a window of the calculator (fromId),
+// or from the popup, which is over the browser's window last used. On that window's screen: 85% of it, in its
+// middle, no smaller than it needs (min) nor bigger than the screen. Open already, it is put so again and comes to
+// the front. Then done, told whether it is there: what it was opened from is left (leave) only once it is, so a
+// window that cannot be made leaves the calculator where it was
+function openChemWindow(fromId, done) {
+    openBigWindow(chemUrl, chemMin, fromId, done);
 }
 
-function openPanelWindow(key, fromId) {
-    openBigWindow(panelUrl(key), "panel-" + key, panelMin, fromId);
+function openPanelWindow(key, fromId, done) {
+    openBigWindow(panelUrl(key), panelMin, fromId, done);
 }
 
-function openBigWindow(url, key, min, fromId) {
+function openBigWindow(url, min, fromId, done = () => { }) {
     const from = fromId !== undefined ? chrome.windows.get(fromId) : chrome.windows.getLastFocused({ windowTypes: ["normal"] });
 
     from.catch(() => null).then((win) => getDisplays((displayInfo) => {
@@ -217,12 +250,13 @@ function openBigWindow(url, key, min, fromId) {
             if (tab) {
                 chrome.windows.update(tab.windowId, Object.assign({ state: "normal" }, bounds))
                     .then(() => chrome.windows.update(tab.windowId, { focused: true }))
-                    .catch(() => { });
+                    .then(() => done(true), () => done(false));
                 return;
             }
             chrome.windows.create(Object.assign({ type: "popup", url: url, focused: true }, bounds), (win) => {
-                // kept to close it on an update, when its page no longer tells what it is
-                detachedBoundsStore("readwrite", (store) => store.put(win.id, key));
+                if (chrome.runtime.lastError || !win) return done(false);
+                keepToolWindow(win.id);
+                done(true);
             });
         });
     }));
@@ -263,6 +297,48 @@ function showCalculator() {
             .then((win) => focusWindow(win.id).then(() => chrome.action.openPopup({ windowId: win.id })))
             .catch(() => unlessOff("detachedMode", openCalculatorInDetachedMode)); // no browser window, or no popup allowed now
     });
+}
+
+// A tool popped out into a window of its own: the calculator it came from is left, only that window open till pop in
+// brings the calculator back (popInTo). The detached window closes here; the popup closes itself, in popup.js
+function leave(sender) {
+    const detached = !!sender.url?.startsWith(detachedUrl) && sender.tab;
+
+    chrome.storage.local.set({ popOutFrom: detached ? "detached" : "popup" }).catch(() => { });
+    if (detached) chrome.windows.remove(sender.tab.windowId).catch(() => { });
+}
+
+// Pop in: the calculator popped out from comes back, the detached window if it was that, else the popup.
+// With the Advanced open mode, which opens the calculator popped out, it always comes back in the detached window
+function popInTo() {
+    return chrome.storage.local.get(["popOutFrom", "openMode"])
+        .catch(() => ({}))
+        .then(async ({ popOutFrom, openMode }) => {
+            if ((popOutFrom === "detached" || openMode === "advanced") && !await policyOff("detachedMode")) openCalculatorInDetachedMode();
+            else return showCalculator();
+        });
+}
+
+// A tool's own window going to another tool, or to its Calculator tab, from the bar above its head or as a value is
+// put in: this window shows it, or the window that shows it already comes to the front and this one closes. The
+// Calculator tab goes with Detached Mode, as the open mode Advanced does: turned off, the calculator comes up as
+// the popup instead, with the value put in, which it reads from the storage as well
+function goWindow(from, to) {
+    const url = to === "calc" ? homeUrl : to === "graph" ? graphUrl : to === "chem" ? chemUrl : Object.hasOwn(panelPolicies, to) ? panelUrl(to) : "";
+    const go = () => chrome.tabs.query({ url: popupPages }, (tabs) => {
+        const open = tabs.find((t) => t.id !== from.id && t.url.startsWith(url));
+
+        if (open) {
+            bringToFront(open.windowId);
+            chrome.windows.remove(from.windowId).catch(() => { });
+        } else {
+            chrome.tabs.update(from.id, { url: url });
+        }
+    });
+
+    if (!url) return;
+    if (to === "calc") policyOff("detachedMode").then((off) => off ? showCalculator() : go());
+    else unlessOff(to === "graph" ? "graph" : to === "chem" ? "chemistry" : panelPolicies[to], go);
 }
 
 
@@ -473,36 +549,50 @@ chrome.runtime.onStartup.addListener(followPolicy);
 
 
 // What the toolbar icon and its shortcut open, an option: "fixed", the popup under the
-// icon, or "detached", the window of its own. Fixed unless Detached is chosen, and while
-// an administrator allows Detached Mode
-function opensDetached() {
+// icon, "detached", the window of its own, or "advanced", the calculator popped out, in the
+// big window with the rail of the tools, whose pop in goes to the window of its own (popInTo).
+// Fixed unless another is chosen, and while an administrator allows Detached Mode
+function openModeOf() {
     return chrome.storage.local.get("openMode")
         .catch(() => ({}))
-        .then(async ({ openMode }) => openMode === "detached" && !await policyOff("detachedMode"));
+        .then(async ({ openMode }) => (openMode === "detached" || openMode === "advanced") && !await policyOff("detachedMode") ? openMode : "fixed");
 }
 
 // Without a popup the browser tells of a click on the icon, which then opens the window
 async function followOpenMode() {
-    chrome.action.setPopup({ popup: await opensDetached() ? "" : "popup.html" });
+    chrome.action.setPopup({ popup: await openModeOf() === "fixed" ? "popup.html" : "" });
+}
+
+// The calculator popped out, the big window on its Calculator tab, as the button beside the ? opens it
+function openHomeWindow() {
+    openBigWindow(homeUrl, panelMin);
+}
+
+// the window of the mode chosen: the big one with Advanced, else the detached one
+function openModeWindow(mode) {
+    if (mode === "advanced") openHomeWindow();
+    else unlessOff("detachedMode", openCalculatorInDetachedMode);
 }
 
 // Launch on the options page opens the mode chosen. The popup is given back to the icon
-// first, in case the choice of Fixed has only just been made
+// first, in case the choice of Fixed has only just been made. It opens over the browser's window last used: the
+// options over a tool's own window (popup.js) are in a window with no icon, which comes to the front first
 function launchOpenMode() {
-    opensDetached().then((detached) => {
-        if (detached) {
-            openCalculatorInDetachedMode();
+    openModeOf().then((mode) => {
+        if (mode !== "fixed") {
+            openModeWindow(mode);
             return;
         }
         chrome.action.setPopup({ popup: "popup.html" })
-            .then(() => chrome.action.openPopup())
+            .then(() => chrome.windows.getLastFocused({ windowTypes: ["normal"] }))
+            .then((win) => (win.focused ? Promise.resolve() : focusWindow(win.id)).then(() => chrome.action.openPopup({ windowId: win.id })))
             .catch(error => {
                 console.log("Failed to open popup:", error);
             });
     });
 }
 
-chrome.action.onClicked.addListener(() => unlessOff("detachedMode", openCalculatorInDetachedMode));
+chrome.action.onClicked.addListener(() => openModeOf().then(openModeWindow));
 
 // the popup the browser gives the icon from the manifest, at each start
 chrome.runtime.onStartup.addListener(followOpenMode);
@@ -513,9 +603,9 @@ followOpenMode();
 // Listen for commands
 chrome.commands.onCommand.addListener(function (command) {
     if (command === "open_popup") {
-        opensDetached().then((detached) => {
-            if (detached) {
-                openCalculatorInDetachedMode();
+        openModeOf().then((mode) => {
+            if (mode !== "fixed") {
+                openModeWindow(mode);
                 return;
             }
             chrome.action.openPopup()
@@ -597,6 +687,18 @@ function unlessOff(key, open) {
     policyOff(key).then((off) => off || open());
 }
 
+// A tool popped out from the popup or the detached window (popup.js), unless its policy (key) turned it off: its
+// window opened, then, once it is there, what it came from left; the popup answered whether it is, to close itself
+function popOut(key, sender, answer, open) {
+    policyOff(key).then((off) => {
+        if (off) return answer(false);
+        open((opened) => {
+            if (opened) leave(sender);
+            answer(opened);
+        });
+    });
+}
+
 // The engine of the calculator, and with maths its solver, put into a page that has maths on it, for
 // page/answers.js to work it out: only then, as they are large. With "chem", chem.js, for the chemistry
 // of a page, unless an administrator turned the chemistry off. It answers once they are in
@@ -640,16 +742,30 @@ chrome.runtime.onMessage.addListener((message, sender, answer) => {
     } else if (message?.command === "launch") {
         launchOpenMode();
     } else if (message?.command === "open-graph") {
-        unlessOff("graph", openGraphWindow);
+        popOut("graph", sender, answer, (done) => openGraphWindow(done));
+        return true; // it answers later
     } else if (message?.command === "open-chem") {
-        unlessOff("chemistry", () => openChemWindow(sender.tab?.windowId));
+        popOut("chemistry", sender, answer, (done) => openChemWindow(sender.tab?.windowId, done));
+        return true;
     } else if (message?.command === "open-panel" && Object.hasOwn(panelPolicies, message.panel)) {
-        unlessOff(panelPolicies[message.panel], () => openPanelWindow(message.panel, sender.tab?.windowId));
+        popOut(panelPolicies[message.panel], sender, answer, (done) => openPanelWindow(message.panel, sender.tab?.windowId, done));
+        return true;
+    } else if (message?.command === "open-home") {
+        // the button beside the ? of the popup or the detached window: the big window, on its Calculator tab, while
+        // Detached Mode is allowed, as the open mode Advanced is
+        popOut("detachedMode", sender, answer, (done) => openBigWindow(homeUrl, panelMin, sender.tab?.windowId, done));
+        return true;
     } else if (message?.command === "show-calculator") {
         showCalculator();
     } else if (message?.command === "pop-in" && sender.tab) {
         // a panel's own window, the graph's or the table's popped in: the calculator comes up with it open, then that window closes
-        showCalculator().then(() => chrome.windows.remove(sender.tab.windowId)).catch(() => { });
+        popInTo().then(() => chrome.windows.remove(sender.tab.windowId)).catch(() => { });
+    } else if (message?.command === "go-window" && sender.tab) {
+        goWindow(sender.tab, message.to);
+    } else if (message?.command === "page-window" && sender.tab) {
+        // the kind of window a page is in, for its button (page/icon.js): normal, or a popup
+        chrome.windows.get(sender.tab.windowId).then((win) => answer(win.type), () => answer());
+        return true; // it answers later
     } else if (message?.command === "open-calculator") {
         // the button on a page opens the detached window
         unlessOff("detachedMode", openCalculatorInDetachedMode);

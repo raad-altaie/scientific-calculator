@@ -56,8 +56,10 @@ try {
 // what is typed is not for its keys
 const themeColor = document.querySelector('meta[name="theme-color"]');
 
-const showOptions = (open) => {
+const showOptions = (open, over) => {
     document.body.classList.toggle('options-open', open);
+    // from the rail of a tool popped out: over it, on a wide screen as well
+    document.documentElement.classList.toggle('options-over', !!(open && over));
     // the bar of the installed app: the calculator's grey, the options' navy while they are open
     if (themeColor) themeColor.content = open ? '#39576f' : '#a8a8a8';
     pane.inert = open;
@@ -69,7 +71,7 @@ const showOptions = (open) => {
     }
 };
 
-// the ? and the name do the same on a wide screen: hide the panel, or show it again
+// the ? does the same on a wide screen: hide the panel, or show it again
 const toggleWide = () => {
     const hidden = document.documentElement.classList.toggle('options-hidden');
 
@@ -78,19 +80,57 @@ const toggleWide = () => {
     } catch (e) { }
 };
 
-closeButton.addEventListener('click', () => (wide.matches ? toggleWide() : showOptions(false)));
+closeButton.addEventListener('click', () => (wide.matches && !document.documentElement.classList.contains('options-over') ? toggleWide() : showOptions(false)));
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && document.body.classList.contains('options-open')) showOptions(false);
 });
 // the panel is always there on a wide screen
 wide.addEventListener('change', () => showOptions(false));
 
+// ---- the mode: Standard, or Advanced, as the extension's Advanced mode opens the calculator ----
+
+// Advanced: the calculator on its Calculator tab, the rail of the tools down its left (main.js), and the options not
+// beside it but over it, from the ? or the rail. Chosen in the options (options.js); pop in at the top right shows
+// Standard till the page opens again, and the button beside the ? goes back, as in the extension's detached window
+const openBig = calculator.querySelector('.calc-open-big');
+const modeKey = 'openMode';
+
+const advanced = () => {
+    try {
+        return localStorage.getItem(modeKey) === 'advanced';
+    } catch (e) {
+        return false;
+    }
+};
+
+const showHome = (on) => {
+    // the options open over the calculator on a small screen stay open, over it
+    if (on && document.body.classList.contains('options-open')) document.documentElement.classList.add('options-over');
+    document.documentElement.classList.toggle('home', on);
+    calculator.dispatchEvent(new CustomEvent('calc-home', { detail: { page: true, on } }));
+    openBig.hidden = on || !advanced();
+    fit();
+};
+
+openBig.dataset.tip = 'open advanced'; // its tip, not of a window of its own (tips.js)
+showHome(document.documentElement.classList.contains('home'));
+document.addEventListener('calc-pop-in', () => showHome(false));
+document.addEventListener('calc-open-big', () => showHome(true));
+window.addEventListener('storage', (e) => {
+    if (e.key === modeKey) showHome(advanced());
+});
+
 // ---- what the calculator asks of its page ----
 
-// the ? and the name: on a wide screen hide the panel, so the calculator
-// is in the middle, or show it again; on a small one open it over the calculator
-document.addEventListener('calc-options', () => {
-    if (wide.matches) {
+// the ?: on a wide screen hide the panel, so the calculator
+// is in the middle, or show it again; on a small one open it over the calculator.
+// The ? of the rail of a tool popped out opens it over the tool, at every width
+document.addEventListener('calc-options', (event) => {
+    // in Advanced mode, the ? as well: the options are not beside the calculator there
+    if (event.detail?.over || document.documentElement.classList.contains('home')) {
+        document.querySelector(`.options-pane .tab[data-tab-for="${event.detail?.tab || 'options'}"]`)?.click();
+        showOptions(true, true);
+    } else if (wide.matches) {
         toggleWide();
     } else {
         showOptions(!document.body.classList.contains('options-open'));

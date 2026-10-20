@@ -89,6 +89,18 @@
         },
 
         // the ? beside the name
+        'open big': {
+            t: 'Open big',
+            d: 'The calculator in a big window of its own, with every tool a click away down its left side. ' +
+                'This one closes.',
+            k: ''
+        },
+        // the same on the website (app.js), in Advanced mode
+        'open advanced': {
+            t: 'Advanced',
+            d: 'The calculator with every tool a click away down its left side, as Advanced mode opens it.',
+            k: ''
+        },
         'help': {
             t: 'Options and guide',
             d: 'The options: the panels and the number format, and a guide ' +

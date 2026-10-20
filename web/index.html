@@ -114,6 +114,10 @@
         try {
             if (localStorage.getItem('optionsHidden') === 'true') document.documentElement.classList.add('options-hidden');
         } catch (e) { }
+        // and Advanced mode, the calculator beside the rail of the tools (app.js): from the first, without the options flashing
+        try {
+            if (localStorage.getItem('openMode') === 'advanced') document.documentElement.classList.add('home');
+        } catch (e) { }
     </script>
 </head>
 
@@ -131,6 +135,8 @@
     <div id="calculator" class="text-center">
         <div class="calc-head">
             <span class="logo">Scientific Calculator</span>
+            <!-- the extension's detached window only (popup.js), just before the ?: the calculator in a big window of its own -->
+            <span class="calc-open-big" role="button" aria-label="Open big" hidden><svg viewBox="1 1 14 14" width="12.36" height="12.36" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path d="M10 2h4v4M6.5 9.5L14 2" /></svg></span>
             <span class="calc-help">?</span>
 
         </div>
@@ -545,7 +551,8 @@
         <div class="calc-past calc-chem">
             <div class="calc-past-head">
                 <span class="calc-solve-tabs">
-                    <span class="calc-solve-tab" data-tab="table">Table</span>
+                    <!-- its name in full where there is room: popped out on a wide page -->
+                    <span class="calc-solve-tab" data-tab="table"><span class="calc-tab-long">Periodic table</span><span class="calc-tab-short">Table</span></span>
                     <span class="calc-solve-tab" data-tab="mass">Mass</span>
                     <span class="calc-solve-tab" data-tab="reactions">Reactions</span>
                     <span class="calc-solve-tab" data-tab="solutions">Solutions</span>
@@ -650,6 +657,22 @@
             <div class="calc-past-list"></div>
         </div>
     </div>
+    <!-- popped out, the bar above the panel's head, and above the calculator in a tool's own window: the calculator,
+         and each tool shown at the top left of the display, by its icon and name, to go to; main.js adds the tools,
+         the one shown marked. A rail down the left, each tool's name under its icon on a wide page, its icon
+         alone on a narrow one. Beside the calculator, not in it: there it would be scaled with it -->
+    <nav class="calc-go" aria-label="Tools">
+        <span class="calc-go-item" data-go="calc" role="button" tabindex="0" aria-label="Calculator" title="Calculator"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="1.8" width="10" height="12.4" rx="1.6" /><path d="M5.4 4.4h5.2v2.2H5.4z" /><path d="M5.6 9.2h.01M8 9.2h.01M10.4 9.2h.01M5.6 11.6h.01M8 11.6h.01M10.4 11.6h.01" stroke-width="1.9" /></svg><span>Calculator</span></span>
+        <!-- at the bottom: the options, and the guide, on their tabs of the page the ? of the calculator opens -->
+        <span class="calc-go-item calc-go-opt" data-tab="options" role="button" tabindex="0" aria-label="Options" title="Options"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4.5h3.2M8.4 4.5H14M2 11.5h7.2M12.4 11.5H14" /><circle cx="6.8" cy="4.5" r="1.6" /><circle cx="10.8" cy="11.5" r="1.6" /></svg><span>Options</span></span>
+        <span class="calc-go-item calc-go-opt" data-tab="guide" role="button" tabindex="0" aria-label="Guide" title="Guide"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.2" /><path d="M6.2 6.3a1.85 1.85 0 0 1 3.6.55c0 1.25-1.8 1.6-1.8 2.75" /><path d="M8 11.7h.01" stroke-width="1.9" /></svg><span>Guide</span></span>
+    </nav>
+    <!-- a tool's own window on its Calculator tab only (main.js): pop in and close at the top right, where every
+         tool popped out has them, without a bar under them -->
+    <div class="calc-home-acts">
+        <span class="calc-home-in" role="button" tabindex="0" aria-label="Pop in" title="Pop in"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
+        <span class="calc-home-close" role="button" tabindex="0" aria-label="Close" title="Close"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
+    </div>
     <!-- /calculator -->
             </div>
         </main>
@@ -671,6 +694,27 @@
             <button type="button" class="tab" role="tab" data-tab-for="guide">Guide</button>
         </div>
         <div class="options" data-tab="options">
+            <div class="option format-option">
+                <span class="option-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+                        <path d="M3 9h18M8 13h3M8 16h6"></path>
+                    </svg>
+                </span>
+                <div class="option-text">
+                    <h3>Mode</h3>
+                    <p>How the calculator opens: Standard, with these options beside it, or Advanced, as the
+                        extension's Advanced mode, with every tool down its left side a click away, popped out as big as
+                        the page. In Advanced, pop in at the top right shows Standard, and the button beside the ? goes
+                        back.</p>
+                    <div class="format-row">
+                        <fieldset class="choice" id="open-mode" title="Mode">
+                            <label><input type="radio" name="open-mode" value="standard"><span>Standard</span></label>
+                            <label><input type="radio" name="open-mode" value="advanced"><span>Advanced</span></label>
+                        </fieldset>
+                    </div>
+                </div>
+            </div>
             <div class="option format-option">
                 <span class="option-icon format-icon" id="format-icon" aria-hidden="true">1500</span>
                 <div class="option-text">

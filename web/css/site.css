@@ -214,6 +214,47 @@ html:has(.options-open),
     }
 }
 
+/* Advanced mode (app.js), as the extension's Advanced mode opens the calculator: the rail of the tools down the left
+   (style.css), the calculator in the middle of the room beside it, the options not beside it but over it */
+.home .app {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.home:not(.options-over) .options-pane {
+    display: none;
+}
+
+.home .calc-pane {
+    padding-left: calc((37px + env(safe-area-inset-left)) * var(--calc-pop, 1) + 4px);
+}
+
+@media (min-width: 760px) {
+    .home .calc-pane {
+        padding-left: calc((58px + env(safe-area-inset-left)) * var(--calc-pop, 1) + 4px);
+    }
+}
+
+/* a phone: the rail is a bar across the top (style.css), pop in under it, the calculator under them both */
+@media (max-width: 743px) {
+    .home .calc-pane {
+        padding-left: env(safe-area-inset-left);
+        padding-top: calc((72px + env(safe-area-inset-top)) * var(--calc-pop, 1));
+    }
+}
+
+/* there is no window to close: pop in alone */
+.calc-home-acts > .calc-home-close {
+    display: none;
+}
+
+/* the ? of the rail of a tool popped out: the options over it, at every width, over the rail as well */
+.options-over .options-pane {
+    position: fixed;
+    inset: 0;
+    z-index: 12;
+    display: block;
+}
+
 /* the options keep off the pane's edges at every width; the max-width grows by the padding,
    so a wide screen still has the 768px of text it had */
 .options-pane .wrapper {

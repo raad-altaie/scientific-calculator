@@ -2047,7 +2047,7 @@ async function graphBig(page, at) {
     await page.ev('localStorage.setItem("stat", JSON.stringify("1 2 3"))'); // as the calculator changed it meanwhile
     await page.clickAt('.calc-graph-plot', 0, -3);
     await page.click('.calc-graph-pop-row[data-put="y"]');
-    check(await page.calc(big) && await open(page, '.calc-graph') && /"show-calculator"/.test(await page.calc(sent)) &&
+    check(await page.calc(big) && await open(page, '.calc-graph') && /\{"command":"go-window","to":"calc"\}/.test(await page.calc(sent)) &&
         /-3/.test(await page.ev('localStorage.getItem("calc")')), t + 'y put in: saved for the calculator, which is asked for; the graph stays',
         await page.calc(sent));
     check(await page.ev('localStorage.getItem("stat")') === '"1 2 3"', t + 'only the graph and the calculation are saved, not what it had of the rest');

@@ -177,6 +177,43 @@
         return root.dispatchEvent(new CustomEvent('calc-' + what, { bubbles: true, cancelable: true, detail: detail }));
     }
 
+    // Popped out, every tool grows with the window, by one measure for all of it: the rail, the head, the cards, the
+    // table, the graph's words and the numbers on its plot. As the window is 1400px wide and 880px high, to 1.3 times;
+    // never smaller. Set first as the window is resized, for what is measured or drawn again then to have it; kept
+    // in popZoom for the script, which reads it as often as a drag moves
+    var popZoom = 1;
+
+    function popScale() {
+        popZoom = Math.max(1, Math.min(1.3, window.innerWidth / 1400, window.innerHeight / 880));
+        document.documentElement.style.setProperty('--calc-pop', popZoom.toFixed(3));
+    }
+
+    popScale();
+    window.addEventListener('resize', popScale, false);
+
+    // A row that scrolls sideways, faded at the side, or the sides, it has more at: calc-more-l and calc-more-r, as it
+    // is scrolled or its size changes. The wheel of a mouse scrolls it sideways as well, till the end it is turned
+    // towards, where the page scrolls as it would; in lines or pages in Firefox, as the graph reads them. Gives back
+    // what marks it again
+    function fadeEdges(el) {
+        function mark() {
+            var end = el.scrollWidth - el.clientWidth;
+            el.classList.toggle('calc-more-l', end > 1 && el.scrollLeft > 1);
+            el.classList.toggle('calc-more-r', end > 1 && el.scrollLeft < end - 1);
+        }
+        el.addEventListener('scroll', mark, { passive: true });
+        el.addEventListener('wheel', function (e) {
+            var end = el.scrollWidth - el.clientWidth,
+                dy = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? el.clientWidth : 1);
+            if (end < 2 || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+            if ((dy < 0 && el.scrollLeft <= 0) || (dy > 0 && el.scrollLeft >= end - 1)) return;
+            e.preventDefault();
+            el.scrollLeft += dy;
+        }, { passive: false });
+        if (window.ResizeObserver) new ResizeObserver(mark).observe(el);
+        return mark;
+    }
+
     // A press in the calculator takes the keyboard back from the rest of the page: the keys
     // leave the focus where it is, so a box or a button there would go on taking what is typed
     root.addEventListener('pointerdown', function () {
@@ -760,7 +797,7 @@
             '.calc-graph-btn, .calc-graph-size, .calc-graph-add, .calc-graph-del, .calc-graph-diff, .calc-graph-points, .calc-graph-zoom > span, .calc-graph-pop-end, .calc-graph-pop-row, .calc-graph-play, ' +
             '.calc-graph-fn > .calc-graph-swatch, ' +
             '.calc-sto, .calc-var-btn, .calc-var-clear, input, textarea, ' +
-            '.calc-stats-chart, .calc-hist, .calc-past-export, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit, .calc-help, ' +
+            '.calc-stats-chart, .calc-hist, .calc-past-export, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit, .calc-help, .calc-open-big, ' +
             '.calc-solve .calc-solve-tab, .calc-chem .calc-solve-tab, .calc-chem [data-pt], .calc-sv-opt, .calc-sv-copy, .calc-sv-example') || letterIn(target);
         if (key === tipKey) return;
         hideTip();
@@ -1013,6 +1050,7 @@
         }
         if (/^(INPUT|TEXTAREA)$/.test(el.tagName) && (info = lettersTip(el))) return info; // a box with letters in it; any other has the tip of its own below
         if (el.classList.contains('calc-help')) return CalcTips['help'];
+        if (el.classList.contains('calc-open-big')) return CalcTips[el.dataset.tip || 'open big']; // the website's its own (app.js)
         if (el.classList.contains('calc-panel-size')) return CalcTips[bigPanel ? 'panel small' : 'panel big'];
         if (el === radDeg) return CalcTips['unit ' + radDeg.firstChild.data];
         if (el === fxButton) return CalcTips[fx.classList.contains('calc-open') ? 'formulas close' : 'formulas'];
@@ -2188,7 +2226,7 @@
         var cs = getComputedStyle(graph),
             room = (graph.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - GRAPH_PLOT_MIN) * GRAPH_SIDE_MAX;
         if (!graphSplitFrom || !graphSplit.hasPointerCapture(e.pointerId)) return;
-        setSide(Math.round(Math.max(GRAPH_SIDE_MIN, Math.min(room, graphSplitFrom.w + e.clientX - graphSplitFrom.x))));
+        setSide(Math.round(Math.max(GRAPH_SIDE_MIN * popZoom, Math.min(room, graphSplitFrom.w + e.clientX - graphSplitFrom.x))));
         drawGraph();
     }, false);
 
@@ -3426,12 +3464,13 @@
     }
 
     // the lines of the grid, the axes, and the numbers along them; an axis out of
-    // the view leaves its numbers at the nearest edge
+    // the view leaves its numbers at the nearest edge. Big, the numbers as big as the words beside the plot (popScale)
     function drawGrid(ctx, v, w, h) {
-        var sx = gridStep(v.ux, graphAngles() && deg === 1), sy = gridStep(v.uy, false),
+        var f = root.classList.contains('calc-big') ? popZoom : 1,
+            sx = gridStep(v.ux, graphAngles() && deg === 1), sy = gridStep(v.uy, false),
             ax = Math.max(1, Math.min(w - 1, Math.round(plotX(v, 0)))) + 0.5, // where the axes are drawn, on whole pixels
             ay = Math.max(1, Math.min(h - 1, Math.round(plotY(v, 0)))) + 0.5,
-            labelY = Math.min(h - 4, ay + 13), onLeft = ax > w - 40, k, p, text;
+            labelY = Math.min(h - 4 * f, ay + 13 * f), onLeft = ax > w - 40 * f, k, p, text;
 
         ctx.lineWidth = 1;
         ctx.strokeStyle = GRAPH_INK.grid;
@@ -3460,7 +3499,7 @@
         }
         ctx.stroke();
 
-        ctx.font = '10px Play, sans-serif';
+        ctx.font = 10 * f + 'px Play, sans-serif';
         ctx.fillStyle = GRAPH_INK.text;
         ctx.strokeStyle = GRAPH_INK.paper; // a rim of the paper, so a number reads over a line
         ctx.lineWidth = 3;
@@ -3469,7 +3508,7 @@
         ctx.textBaseline = 'alphabetic';
         for (k = Math.ceil(graphX(v, 0) / sx); k * sx <= graphX(v, w); k++) {
             p = plotX(v, k * sx);
-            if (!k || p < 10 || p > w - 10) continue;
+            if (!k || p < 10 * f || p > w - 10 * f) continue;
             text = gridLabel(k * sx, sx);
             ctx.strokeText(text, p, labelY);
             ctx.fillText(text, p, labelY);
@@ -3478,10 +3517,10 @@
         ctx.textBaseline = 'middle';
         for (k = Math.ceil(graphY(v, h) / sy); k * sy <= graphY(v, 0); k++) {
             p = plotY(v, k * sy);
-            if (!k || p < 8 || p > h - 8) continue;
+            if (!k || p < 8 * f || p > h - 8 * f) continue;
             text = gridLabel(k * sy, sy);
-            ctx.strokeText(text, onLeft ? ax - 4 : ax + 4, p);
-            ctx.fillText(text, onLeft ? ax - 4 : ax + 4, p);
+            ctx.strokeText(text, onLeft ? ax - 4 * f : ax + 4 * f, p);
+            ctx.fillText(text, onLeft ? ax - 4 * f : ax + 4 * f, p);
         }
     }
 
@@ -4685,7 +4724,6 @@
         });
         fxList.innerHTML = html || '<div class="calc-fx-none">Nothing found</div>';
         fxList.scrollTop = 0;
-        fxList.style.setProperty('--rows', fxList.children.length + 1); // beside the list, its first row the room of the search
         fxList.classList.toggle('calc-side', fxTab === 'formulas' && bigSide(fx));
         if (fxTab === 'formulas' && bigSide(fx)) { // beside the list, one is always open: the one open last, if found, else the first
             openFormula(fxList.querySelector('.calc-fx-item[data-i="' + fxOpen + '"]') || fxList.querySelector('.calc-fx-item'), true);
@@ -6770,7 +6808,6 @@
                     pills(tool.f) + '</span></span></span>' + collapseButton() + '</div></div>'; // each in a badge, one alone as well
             }).join('');
             list.scrollTop = 0;
-            list.style.setProperty('--rows', tools[tab].length);
             list.classList.toggle('calc-side', !!(now.side && now.side())); // beside the list, the card open
             if (open === undefined && (tools[tab].length === 1 || (now.side && now.side()))) open = 0; // beside the list, a card is always open
             if (open !== undefined) openTool(list.children[open], true);
@@ -8033,7 +8070,11 @@
                     ' role="button" aria-label="' + e.name + ', ' + e.z + '"><span class="calc-pt-z">' + e.z + '</span><b>' + e.s + '</b><span class="calc-pt-name">' + e.name +
                     '</span><span class="calc-pt-mass">' + chemMass(e) + '</span></div>';
             }).join('');
-        [].forEach.call(chemModes.children, function (m) { m.classList.toggle('calc-on', m.dataset.by === chemBy); });
+        [].forEach.call(chemModes.children, function (m) {
+            m.classList.toggle('calc-on', m.dataset.by === chemBy);
+            m.setAttribute('aria-checked', m.dataset.by === chemBy);
+        });
+        chemModeSeen();
         chemLegend.innerHTML = CHEM_HEAT[chemBy] ? chemSliderHtml() + '<span class="calc-pt-key calc-pt-unknown"><i></i>Not known</span>' :
             (chemBy === 'cat' ? CalcChem.categories : chemBy === 'state' ? CHEM_STATES : CHEM_BLOCKS).map(function (c) {
                 return '<span class="calc-pt-key calc-pt-' + (chemBy === 'block' ? c[0] + 'b' : c[0]) + (chemHot === c[0] ? ' calc-on' : '') + '" data-g="' + c[0] + '" role="button"><i></i>' + c[1] + '</span>';
@@ -8151,10 +8192,8 @@
         chemPanel.classList.toggle('calc-chem-cards', chemTab !== 'table');
     }
 
-    // Big beside the list, the tools grow with the room: as they are up to 1200px wide, to half as big again
+    // Big, the table and the tools grow as every panel popped out does (popScale), in the CSS
     function chemFit() {
-        var side = root.classList.contains('calc-chem-big') && window.matchMedia('(min-width: 760px)').matches;
-        chemList.style.zoom = side ? Math.max(1, Math.min(1.45, chemPanel.clientWidth / 1200)).toFixed(3) : '';
         chemTableFit();
     }
 
@@ -8165,10 +8204,11 @@
         chemTable.style.removeProperty('--calc-pt-w');
         if (!root.classList.contains('calc-chem-big') || chemTable.hidden) return;
         for (var i = 0; i < 4; i++) {
-            var g = chemGrid.getBoundingClientRect(),
-                cut = g.bottom - chemTable.getBoundingClientRect().top + chemTable.scrollTop - chemTable.clientHeight + 6;
-            if (cut < 1 || g.width <= 560) break;
-            chemTable.style.setProperty('--calc-pt-w', Math.max(560, Math.floor(g.width - 2 * cut)) + 'px');
+            var t = chemTable.getBoundingClientRect(), k = t.height / chemTable.offsetHeight || 1, // zoomed (popScale)
+                g = chemGrid.getBoundingClientRect(), w = g.width / k,
+                cut = (g.bottom - t.top) / k + chemTable.scrollTop - chemTable.clientHeight + 6;
+            if (cut < 1 || w <= 560) break;
+            chemTable.style.setProperty('--calc-pt-w', Math.max(560, Math.floor(w - 2 * cut)) + 'px');
         }
     }
 
@@ -8319,6 +8359,15 @@
         }
         chemBig(!!d.big);
     }, false);
+
+    // the colours on one line that scrolls, on a phone: the one chosen scrolled into sight, clear of the fades
+    fadeEdges(chemModes);
+
+    function chemModeSeen() {
+        var on = chemModes.querySelector('.calc-on');
+        if (!on || chemModes.scrollWidth - chemModes.clientWidth < 2) return;
+        chemModes.scrollLeft = Math.min(Math.max(chemModes.scrollLeft, on.offsetLeft + on.offsetWidth + 28 - chemModes.clientWidth), on.offsetLeft - 28);
+    }
 
     chemModes.addEventListener('click', function (e) {
         var m = e.target.closest('[data-by]');
@@ -9528,7 +9577,6 @@
         root.classList.toggle('calc-panel-big', on);
         panel.classList.toggle('calc-big-on', on);
         if (!on) ask('panel-big', { big: false, panel: p.key });
-        panelFit();
         p.render();
         return true;
     }
@@ -9546,21 +9594,13 @@
         return false;
     }
 
-    // Popped out, what is under its head grows with the room: as it is 1200px wide, to half as big again
-    function panelFit() {
-        var z = bigPanel && window.matchMedia('(min-width: 760px)').matches ? Math.max(1, Math.min(1.45, bigPanel.clientWidth / 1200)).toFixed(3) : '';
-        BIG_PANELS.forEach(function (p) {
-            [].forEach.call(p.panel.children, function (el) {
-                if (!el.classList.contains('calc-past-head') && el !== calendar) el.style.zoom = p.panel === bigPanel ? z : '';
-            });
-        });
-    }
+    // popped out, the tabs of a head too many for its room scroll sideways, faded at the side there are more
+    [].forEach.call(root.querySelectorAll('.calc-past-head > .calc-solve-tabs, .calc-past-head > .calc-fx-tabs'), fadeEdges);
 
     // as narrow as a phone, the cards open in place again; wider, beside the list
     window.addEventListener('resize', function () {
         var list = bigPanel && bigPanel.querySelector('.calc-sv-list:not([hidden]), .calc-fx-list');
         if (!bigPanel) return;
-        panelFit();
         if (list && list.classList.contains('calc-side') !== bigSide(bigPanel)) bigOf(bigPanel).render();
     }, false);
 
@@ -9603,7 +9643,7 @@
     // too. One older than 10 seconds is of a calculator that never came
     function takePopIn() {
         var p = stored('popIn'), big;
-        if (!p || graphAlone || chemAlone || panelAlone) return;
+        if (!p || graphAlone || chemAlone || panelAlone || homeAlone) return;
         if (Date.now() - p.at < 10000) {
             if (p.panel === 'graph') showGraph(true);
             else if (p.panel === 'chem') showChem(true, true);
@@ -9615,6 +9655,153 @@
             } catch (e) { }
         }, Date.now() - p.at < 10000 ? 1500 : 0);
     }
+
+    // Popped out, the bar above the head, and above the calculator in a tool's own window: the calculator, and each
+    // tool turned on, by the icon of its button at the top left of the display and its name; the one shown marked,
+    // and at the bottom the options and the guide. It is beside the calculator, not in it, which the page may scale
+    var goBar = root.parentNode.querySelector('.calc-go'), goOpt = goBar.querySelector('.calc-go-opt'),
+        home = false, // the calculator on its Calculator tab beside the rail: homeAlone, or the website in Advanced mode
+        homeAlone = false, // in the extension, a tool's own window on its Calculator tab
+        GO = [['fx', fxButton, 'Formulas'], ['conv', convButton, 'Converter'], ['graph', graphButton, 'Graph'],
+            ['numbers', numbersButton, 'Numbers'], ['solve', solveButton, 'Solver'], ['chem', chemButton, 'Chemistry'],
+            ['stats', statsButton, 'Statistics']];
+
+    GO.forEach(function (g) {
+        var item = document.createElement('span'), name = document.createElement('span');
+        item.className = 'calc-go-item';
+        item.dataset.go = g[0];
+        item.setAttribute('role', 'button');
+        item.setAttribute('aria-label', g[2]);
+        item.title = g[2]; // its name, on a narrow page where the rail has its icon alone
+        item.tabIndex = 0;
+        name.textContent = g[2];
+        item.appendChild(g[1].querySelector('svg').cloneNode(true));
+        item.appendChild(name);
+        goBar.insertBefore(item, goOpt);
+    });
+
+    // what is popped out: the graph, the periodic table, another panel, or nothing; or the calculator, on its
+    // Calculator tab beside the rail
+    function bigShown() {
+        if (root.classList.contains('calc-big')) return 'graph';
+        if (root.classList.contains('calc-chem-big')) return 'chem';
+        if (bigPanel) return bigOf(bigPanel).key;
+        return home ? 'calc' : '';
+    }
+
+    // the tools as their buttons are, turned on or off, and the one shown marked, scrolled into view on a short
+    // page: as anything pops out or in
+    function goMark() {
+        var shown = bigShown(), on;
+        GO.forEach(function (g) {
+            goBar.querySelector('[data-go="' + g[0] + '"]').hidden = g[1].hidden;
+        });
+        [].forEach.call(goBar.children, function (item) {
+            item.classList.toggle('calc-on', item.dataset.go === shown);
+            if (item.dataset.go === shown) item.setAttribute('aria-current', 'page'); else item.removeAttribute('aria-current');
+        });
+        if ((on = goBar.querySelector('.calc-on'))) {
+            goBar.scrollTop = Math.min(Math.max(goBar.scrollTop, on.offsetTop + on.offsetHeight + 8 - goBar.clientHeight), on.offsetTop - 8);
+            // or sideways, the bar across the top on a phone
+            goBar.scrollLeft = Math.min(Math.max(goBar.scrollLeft, on.offsetLeft + on.offsetWidth + 8 - goBar.clientWidth), on.offsetLeft - 8);
+        }
+    }
+
+    new MutationObserver(goMark).observe(root, { attributes: true, attributeFilter: ['class'] });
+    new MutationObserver(goMark).observe(tools, { attributes: true, subtree: true, attributeFilter: ['hidden'] });
+
+    // Gone to from the bar: what is popped out goes in and closes, and the tool pops out in its place, or the
+    // calculator shows. In a tool's own window in the extension, the window goes there, the calculator as well
+    function goTo(key) {
+        var from = bigShown();
+        if (!from || key === from) return;
+        hideTip();
+        saveState();
+        if (from === 'chem') saveChem();
+        if (graphAlone || chemAlone || panelAlone || homeAlone) return ask('go', { to: key });
+        if (from === 'graph') showGraph(false);
+        else if (from === 'chem') showChem(false);
+        else if (from !== 'calc') bigOf(from).show(false);
+        if (key === 'graph') graphBig(true);
+        else if (key === 'chem') chemBig(true);
+        else if (key !== 'calc') panelBig(bigOf(key).panel, true);
+    }
+
+    // the options, or the guide: the page the ? opens, on that tab; over what is popped out, on the website
+    function goOptions(tab) {
+        hideTip();
+        saveState();
+        goBar.dispatchEvent(new CustomEvent('calc-options', { bubbles: true, detail: { over: true, tab: tab } }));
+    }
+
+    function goItem(item) {
+        if (item.dataset.tab) goOptions(item.dataset.tab);
+        else goTo(item.dataset.go);
+    }
+
+    goBar.addEventListener('click', function (e) {
+        var item = e.target.closest('.calc-go-item');
+        if (item) goItem(item);
+    }, false);
+
+    // Enter or the space bar on one goes there, and is not typed on the keys
+    goBar.addEventListener('keydown', function (e) {
+        var item = e.target.closest('.calc-go-item');
+        if (!item || (e.key !== 'Enter' && e.key !== ' ')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        goItem(item);
+    }, false);
+
+    // The extension's window of a tool, on its Calculator tab: the calculator, with the bar above it. A tool's button
+    // at the top left of the display goes to the tool, popped out in this window, as the bar does; the history opens
+    // over the keys still
+    // in the extension's popup and detached window, the button beside the ?: the calculator in a big window of its
+    // own, with the rail of the tools, on its Calculator tab
+    root.querySelector('.calc-open-big').addEventListener('click', function () {
+        hideTip();
+        saveState();
+        ask('open-big');
+    }, false);
+
+    // The website in Advanced mode, as the extension's Advanced mode opens it, { page: true, on }: the same, in the
+    // page itself, without a window of its own; a tool goes out of it, popped out on the page, as from the bar
+    root.addEventListener('calc-home', function (e) {
+        var d = e.detail || {};
+        home = d.on !== false;
+        homeAlone = home && !d.page;
+        root.classList.toggle('calc-home', home);
+        goMark();
+    }, false);
+
+    // there, pop in and close at the top right, as every tool's: pop in brings the calculator back where it was
+    // popped out from, the popup or the detached window, and this window closes; close closes it. On the website,
+    // pop in shows the calculator as in Standard mode (app.js)
+    (function (acts) {
+        function press(button) {
+            hideTip();
+            saveState();
+            ask(button.classList.contains('calc-home-in') ? 'pop-in' : 'home-close');
+        }
+        acts.addEventListener('click', function (e) {
+            var button = e.target.closest('.calc-home-acts > span');
+            if (button && home) press(button);
+        }, false);
+        acts.addEventListener('keydown', function (e) {
+            var button = e.target.closest('.calc-home-acts > span');
+            if (!button || !home || (e.key !== 'Enter' && e.key !== ' ')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            press(button);
+        }, false);
+    })(root.parentNode.querySelector('.calc-home-acts'));
+
+    tools.addEventListener('click', function (e) {
+        var g = bigShown() === 'calc' && GO.filter(function (g) { return g[1].contains(e.target); })[0];
+        if (!g) return;
+        e.stopImmediatePropagation();
+        goTo(g[0]);
+    }, true);
 
     // what a panel's own window saved, or the calculator's while it is open: the same here
     function panelSaved(key) {
@@ -10078,8 +10265,8 @@
 })(window);
 
 
-// the name and the ? open the options: the page around the calculator does that
-document.querySelectorAll('#calculator .logo, #calculator .calc-help').forEach(function (el) {
+// the ? opens the options: the page around the calculator does that
+document.querySelectorAll('#calculator .calc-help').forEach(function (el) {
     el.addEventListener('click', function () {
         el.dispatchEvent(new CustomEvent('calc-options', { bubbles: true }));
     });

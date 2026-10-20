@@ -86,6 +86,27 @@ const choose = (group, value) => {
     group.querySelector(`input[value="${value}"]`).checked = true;
 };
 
+// The mode, Standard or Advanced: kept where app.js reads it, which follows it at once, as it does a change in
+// another tab of the website. Standard until Advanced is chosen
+const openMode = document.getElementById('open-mode');
+const readMode = () => {
+    try {
+        return localStorage.getItem('openMode') === 'advanced' ? 'advanced' : 'standard';
+    } catch (e) {
+        return 'standard';
+    }
+};
+
+choose(openMode, readMode());
+openMode.addEventListener('change', () => {
+    try {
+        localStorage.setItem('openMode', chosen(openMode));
+    } catch (e) { }
+});
+window.addEventListener('storage', (e) => {
+    if (e.key === 'openMode') choose(openMode, readMode());
+});
+
 // The formulas, the converter, the statistics, the graph, the solver, the numbers and the chemistry: a button on the display for each
 // while it is turned on. All of them start on; an open calculator gets the change as a
 // storage event
@@ -101,6 +122,14 @@ const choose = (group, value) => {
     box.addEventListener('change', () => {
         try {
             localStorage.setItem(key, JSON.stringify(box.checked));
+        } catch (e) { }
+    });
+    // turned on or off in another tab of the website
+    window.addEventListener('storage', (e) => {
+        if (e.key !== key) return;
+        try {
+            const stored = JSON.parse(e.newValue);
+            box.checked = typeof stored === 'boolean' ? stored : on;
         } catch (e) { }
     });
 });

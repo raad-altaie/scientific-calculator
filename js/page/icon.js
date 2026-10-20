@@ -356,9 +356,22 @@
         document.documentElement.appendChild(host);
     };
 
-    if (chrome.storage) {
-        chrome.storage.local.get('pageIconPlace', start);
-    } else {
-        start();
-    }
+    // only in the browser's own windows: not in a popup window, as a website's sign-in or a window an extension
+    // opens, which background.js tells. Shown if it cannot tell
+    const inBrowserWindow = () => new Promise((done) => {
+        try {
+            chrome.runtime.sendMessage({ command: 'page-window' }, (type) => done(chrome.runtime.lastError || !type || type === 'normal'));
+        } catch (error) {
+            done(true);
+        }
+    });
+
+    inBrowserWindow().then((show) => {
+        if (!show) return;
+        if (chrome.storage) {
+            chrome.storage.local.get('pageIconPlace', start);
+        } else {
+            start();
+        }
+    });
 })();

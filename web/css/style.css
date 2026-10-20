@@ -46,7 +46,6 @@
     font-family: 'Play', 'Russo One', sans-serif;
     font-size: 1.4em;
     color: #acb4c1;
-    cursor: pointer;
     -webkit-user-select: none;
     user-select: none;
 }
@@ -77,6 +76,36 @@
 }
 
 #calculator .calc-help:active {
+    opacity: 0.75;
+}
+
+/* at the right, just before the ?, as subtle as it and a little smaller than its box: the calculator in a big window
+   of its own, in the extension's detached window with the Advanced open mode. A little above the ?, 8px from its box */
+#calculator .calc-open-big {
+    position: absolute;
+    top: 0;
+    bottom: -4px;
+    right: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 12.36px;
+    height: 12.36px;
+    margin: auto 0;
+    color: #acb4c1;
+    opacity: 0.55;
+    cursor: pointer;
+}
+
+#calculator .calc-open-big[hidden] {
+    display: none;
+}
+
+#calculator .calc-open-big:hover {
+    opacity: 1;
+}
+
+#calculator .calc-open-big:active {
     opacity: 0.75;
 }
 
@@ -220,6 +249,11 @@
 /* the sign of each, after its name */
 #calculator .calc-stats-by b {
     margin-left: 3px;
+}
+
+/* the separator and Clear as big as the tabs beside them, and the separator's box as tall */
+#calculator .calc-stats .calc-past-head :is(.calc-stats-by-label, .calc-stats-by, .calc-past-clear) {
+    font-size: 12.5px;
 }
 
 /* how many numbers, and what was left out */
@@ -1365,12 +1399,12 @@
 }
 
 #calculator.calc-big .calc-graph {
-    top: 0 !important;
-    left: 0 !important;
+    top: var(--calc-go-top) !important; /* under the bar of the tools, or beside its rail */
+    left: var(--calc-go-left) !important;
     right: 0;
     bottom: 0;
     width: auto !important;
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) calc(10px + env(safe-area-inset-bottom)) env(safe-area-inset-left);
+    padding: 0 env(safe-area-inset-right) calc(10px + env(safe-area-inset-bottom)) env(safe-area-inset-left);
     border: 0;
     border-radius: 0;
     box-shadow: none;
@@ -1388,14 +1422,16 @@
 
 /* Big on a wide page, or in the graph's own window, the graph has two columns: at the left
    its head, the boxes, their points, the sliders and the examples; at the right the line
-   about the point and the plot, or the table. The plot stays beside the examples */
-@media (min-width: 640px) {
+   about the point and the plot, or the table. The plot stays beside the examples. Narrower, its head and tabs at
+   the top: from 760px, as the panels' cards beside their list (main.js, bigSide) and the rail's names */
+@media (min-width: 760px) {
     #calculator.calc-big .calc-graph.calc-open {
         display: grid;
         /* the width dragged, or as at first: as narrow as keeps the head's words at their full size,
            some 320px, wider on a wide screen; never under 270px, as GRAPH_SIDE_MIN, nor over 0.7 of
-           what leaves the plot 320px, as GRAPH_SIDE_MAX and GRAPH_PLOT_MIN */
-        grid-template-columns: clamp(270px, var(--calc-graph-side, clamp(320px, 26vw, 380px)), max(270px, (100% - 320px) * 0.7)) minmax(0, 1fr);
+           what leaves the plot 320px, as GRAPH_SIDE_MAX and GRAPH_PLOT_MIN; its least and its first as
+           big again as the window makes its words (--calc-pop) */
+        grid-template-columns: clamp(270px * var(--calc-pop, 1), var(--calc-graph-side, clamp(320px * var(--calc-pop, 1), 26vw, 380px * var(--calc-pop, 1))), max(270px * var(--calc-pop, 1), (100% - 320px) * 0.7)) minmax(0, 1fr);
         grid-template-rows: auto auto auto auto minmax(0, 1fr);
     }
 
@@ -1477,8 +1513,8 @@
        the same faint line under it, across both columns */
     #calculator.calc-big .calc-graph > .calc-past-head {
         box-sizing: border-box;
-        padding-bottom: 5px; /* not the 6px of the panels' heads: its row has the height of the popped out ones */
-        min-height: calc(41px / 1.15);
+        padding-bottom: 4px; /* its row has the height of the popped out ones */
+        min-height: calc(33px / 1.15);
         background: none; /* its colour and line across both columns, below */
         box-shadow: none;
         margin-bottom: calc(8px / 1.15);
@@ -1491,7 +1527,7 @@
         top: 0;
         right: 0;
         left: 0;
-        height: calc(40px + env(safe-area-inset-top));
+        height: 40px;
         background: #3f5366;
         pointer-events: none;
     }
@@ -1499,7 +1535,7 @@
     #calculator.calc-big .calc-graph.calc-open::after {
         content: '';
         position: absolute;
-        top: calc(40px + env(safe-area-inset-top));
+        top: 40px;
         right: 0;
         left: 0;
         height: 1px;
@@ -1512,15 +1548,15 @@
     #calculator.calc-big .calc-graph-size,
     #calculator.calc-big .calc-graph .calc-past-close {
         position: absolute;
-        top: calc((6px + env(safe-area-inset-top)) / 1.15);
-        right: calc((12px + env(safe-area-inset-right)) / 1.15);
+        top: calc(4px / 1.15);
+        right: calc((5px + env(safe-area-inset-right)) / 1.15);
         width: calc(24px / 1.15);
         height: calc(24px / 1.15);
         border-radius: calc(5px / 1.15);
     }
 
     #calculator.calc-big .calc-graph-size {
-        right: calc((48px + env(safe-area-inset-right)) / 1.15);
+        right: calc((33px + env(safe-area-inset-right)) / 1.15);
     }
 
     #calculator.calc-big .calc-graph-size svg,
@@ -1590,9 +1626,10 @@
     }
 }
 
-/* Big, its words and buttons are a little bigger, as there is room; not the plot, whose
-   pointer is read in its own pixels: only what is on it. Not the point's popup either, which
-   is put at the point in the plot's pixels: zoomed, it would be put that much further */
+/* Big, its words and buttons are a little bigger, as there is room, and bigger again as the window is, as every
+   tool's popped out (--calc-pop, main.js popScale); not the plot, whose pointer is read in its own pixels: only
+   what is on it. Not the point's popup either, which is put at the point in the plot's pixels: zoomed, it would be
+   put that much further */
 #calculator.calc-big .calc-graph > .calc-past-head,
 #calculator.calc-big .calc-graph-fns,
 #calculator.calc-big .calc-graph-cells,
@@ -1602,11 +1639,11 @@
 #calculator.calc-big .calc-graph-examples,
 #calculator.calc-big .calc-graph-zoom,
 #calculator.calc-big .calc-graph-window {
-    zoom: 1.15;
+    zoom: calc(1.15 * var(--calc-pop, 1));
 }
 
 #calculator.calc-big .calc-graph-pop {
-    font-size: 15px;
+    font-size: calc(15px * var(--calc-pop, 1));
 }
 
 /* the line between the columns is only for the big graph on a wide page */
@@ -1719,6 +1756,15 @@
     gap: 5px;
 }
 
+/* popped out, the tabs' text 12.6px, the graph's as well in its head's 1.15 zoom: smaller than the head's own */
+#calculator.calc-panel-big .calc-big-on .calc-past-head :is(.calc-solve-tab, .calc-fx-tab) {
+    font-size: 12.6px;
+}
+
+#calculator.calc-big .calc-graph .calc-past-head .calc-graph-tab {
+    font-size: calc(12.6px / 1.15);
+}
+
 /* the chemistry's six tabs, narrower in the popup, to fit beside its pop out and close */
 
 #calculator:not(.calc-chem-big) .calc-chem .calc-past-head .calc-solve-tab {
@@ -1818,11 +1864,12 @@
     text-align: center;
 }
 
-/* a formula or a constant, on a piece of display */
+/* a formula or a constant, on a piece of display; what is too wide for it, a box's long choices, cut at its edge */
 #calculator .calc-fx-item,
 #calculator .calc-gx-item,
 #calculator .calc-sv-item {
     margin-bottom: 6px;
+    overflow: hidden;
     border-radius: 5px;
     background: #b6d1c2;
     color: #000;
@@ -5492,32 +5539,364 @@
     display: none !important;
 }
 
+/* all of it, its head as well, bigger as the window is, by the measure every tool popped out is (--calc-pop, main.js
+   popScale); not the calendar, put in the panel's own pixels (placeCalendar) */
+#calculator.calc-panel-big .calc-big-on > :not(.calc-cal) {
+    zoom: var(--calc-pop, 1);
+}
+
 #calculator.calc-panel-big .calc-big-on {
-    top: 0 !important;
-    left: 0 !important;
+    top: var(--calc-go-top) !important; /* under the bar of the tools, or beside its rail */
+    left: var(--calc-go-left) !important;
     right: 0;
     bottom: 0;
     width: auto !important;
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) calc(10px + env(safe-area-inset-bottom)) env(safe-area-inset-left);
+    padding: 0 env(safe-area-inset-right) calc(10px + env(safe-area-inset-bottom)) env(safe-area-inset-left);
     border: 0;
     border-radius: 0;
     box-shadow: none;
 }
 
-/* with a faint line under it, as under the table's own window */
+/* Popped out, the graph and every panel, and the calculator in a tool's own window: a rail down the left of where
+   to go (main.js, goTo), as a mail app has. The bars across the top are the tools' own tabs alone, and the plot, the
+   table and the cards keep all of the height. Each tool its icon, in a box with corners a little round, lit as it
+   is pointed at, the one shown in the blue of the bar of the tabs, lighter; its name under it on a wide page,
+   alone its icon on a narrow one. The calculator first, a faint line under it. It is beside the calculator, not in
+   it, which may be scaled */
+.calc-go {
+    display: none;
+}
+
+#calculator:is(.calc-big, .calc-panel-big) {
+    --calc-go-top: 0px;
+    --calc-go-left: calc((37px + env(safe-area-inset-left)) * var(--calc-pop, 1));
+}
+
+/* the notch at the top kept clear by what is popped out itself; at the left, by the rail */
+#calculator.calc-panel-big .calc-big-on,
+#calculator.calc-big .calc-graph {
+    padding-top: env(safe-area-inset-top);
+    padding-left: 0;
+}
+
+#calculator.calc-big .calc-graph.calc-open::before {
+    height: calc(32px * var(--calc-pop, 1) + env(safe-area-inset-top));
+}
+
+#calculator.calc-big .calc-graph.calc-open::after {
+    top: calc(32px * var(--calc-pop, 1) + env(safe-area-inset-top));
+}
+
+#calculator.calc-big .calc-graph-size,
+#calculator.calc-big .calc-graph .calc-past-close {
+    top: calc((4px + env(safe-area-inset-top)) / 1.15);
+}
+
+#calculator:is(.calc-big, .calc-panel-big, .calc-home) ~ .calc-go {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 11; /* over the calculator popped out */
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    box-sizing: border-box;
+    width: calc(37px + env(safe-area-inset-left));
+    padding: calc(8px + env(safe-area-inset-top)) 0 calc(8px + env(safe-area-inset-bottom)) env(safe-area-inset-left);
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: none;
+    background: #34465a;
+    color: #d3d9e2;
+    font-family: 'Play', 'Russo One', sans-serif;
+    font-size: 10px;
+    text-align: center;
+    -webkit-user-select: none;
+    user-select: none;
+    zoom: var(--calc-pop, 1); /* bigger as the window is, as the tools beside it */
+}
+
+.calc-go::-webkit-scrollbar {
+    display: none;
+}
+
+.calc-go .calc-go-item {
+    position: relative;
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    margin: 0 4px;
+    padding: 7px 0;
+    border-radius: 6px;
+    white-space: nowrap;
+    opacity: 0.6;
+    cursor: pointer;
+    outline: 0;
+    transition: opacity 0.15s, background 0.15s;
+}
+
+.calc-go .calc-go-item[hidden] {
+    display: none;
+}
+
+.calc-go .calc-go-item svg {
+    flex: none;
+    width: 17px;
+    height: 17px;
+}
+
+/* the name, on a wide page only (below) */
+.calc-go .calc-go-item span {
+    display: none;
+}
+
+.calc-go .calc-go-item:is(:hover, :focus-visible) {
+    opacity: 0.9;
+    background: rgba(211, 217, 226, 0.1);
+}
+
+.calc-go .calc-go-item.calc-on {
+    opacity: 1;
+    background: #4e6378; /* the blue of the bar of the tabs, a little lighter */
+    color: #fff;
+    cursor: default;
+}
+
+.calc-go .calc-go-item[data-go="calc"] {
+    margin-bottom: 9px;
+}
+
+.calc-go .calc-go-item[data-go="calc"]::before {
+    content: '';
+    position: absolute;
+    right: 5px;
+    bottom: -8px;
+    left: 5px;
+    height: 1px;
+    background: rgba(211, 217, 226, 0.18);
+}
+
+/* the options and the guide, at the bottom, a faint line over them as under the calculator */
+.calc-go .calc-go-item[data-tab="options"] {
+    margin-top: auto;
+}
+
+.calc-go .calc-go-item[data-tab="options"]::before {
+    content: '';
+    position: absolute;
+    top: -5px;
+    right: 5px;
+    left: 5px;
+    height: 1px;
+    background: rgba(211, 217, 226, 0.18);
+}
+
+/* the calculator in a tool's own window: pop in and close at the top right, as big and as placed as every tool's
+   popped out, without a bar under them: on a box in the corner of the page's own grey, its corner at the bottom
+   left round; in the calculator's blue a little darker, to be seen on it */
+.calc-home-acts {
+    display: none;
+}
+
+/* not over a tool popped out on the website in Advanced mode, which has its own */
+#calculator.calc-home:not(.calc-big, .calc-chem-big, .calc-panel-big) ~ .calc-home-acts {
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 11;
+    display: flex;
+    gap: 4px;
+    padding: calc(4px + env(safe-area-inset-top)) calc(5px + env(safe-area-inset-right)) 4px 6px;
+    border-bottom-left-radius: 10px;
+    background: #a8a8a8; /* the page's own grey */
+    zoom: var(--calc-pop, 1); /* as big as the tools' pop in and close */
+}
+
+.calc-home-acts > span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 5px;
+    color: #2c3e50;
+    opacity: 0.85;
+    cursor: pointer;
+    outline: 0;
+}
+
+.calc-home-acts > span:is(:hover, :focus-visible) {
+    opacity: 1;
+    background: rgba(63, 83, 102, 0.16);
+}
+
+/* on a wide page, wider, each icon with its name under it */
+@media (min-width: 760px) {
+    #calculator:is(.calc-big, .calc-panel-big) {
+        --calc-go-left: calc((58px + env(safe-area-inset-left)) * var(--calc-pop, 1));
+    }
+
+    #calculator:is(.calc-big, .calc-panel-big, .calc-home) ~ .calc-go {
+        gap: 5px;
+        width: calc(58px + env(safe-area-inset-left));
+        padding-top: calc(10px + env(safe-area-inset-top));
+        padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    }
+
+    .calc-go .calc-go-item {
+        margin: 0 3px;
+        padding: 7px 3px 5px; /* a little room round the name */
+    }
+
+    .calc-go .calc-go-item[data-go="calc"] {
+        margin-bottom: 9px;
+    }
+
+    .calc-go .calc-go-item:is([data-go="calc"], [data-tab="options"])::before {
+        right: 8px;
+        left: 8px;
+    }
+
+    .calc-go .calc-go-item span {
+        display: block;
+    }
+}
+
+/* on a phone, narrower than an iPad mini (744px), not a rail down the left but a bar across the top: the icons in a
+   row, scrolled sideways if too many, the options and the guide at its right end; what is popped out under it, the
+   notch kept clear by the bar */
+@media (max-width: 743px) {
+    #calculator:is(.calc-big, .calc-panel-big) {
+        --calc-go-top: calc((40px + env(safe-area-inset-top)) * var(--calc-pop, 1));
+        --calc-go-left: 0px;
+    }
+
+    #calculator.calc-panel-big .calc-big-on,
+    #calculator.calc-big .calc-graph {
+        padding-top: 0;
+    }
+
+    #calculator.calc-big .calc-graph.calc-open::before {
+        height: calc(32px * var(--calc-pop, 1));
+    }
+
+    #calculator.calc-big .calc-graph.calc-open::after {
+        top: calc(32px * var(--calc-pop, 1));
+    }
+
+    #calculator.calc-big .calc-graph-size,
+    #calculator.calc-big .calc-graph .calc-past-close {
+        top: calc(4px / 1.15);
+    }
+
+    #calculator:is(.calc-big, .calc-panel-big, .calc-home) ~ .calc-go {
+        right: 0;
+        bottom: auto;
+        flex-direction: row;
+        align-items: center;
+        width: auto;
+        height: calc(40px + env(safe-area-inset-top));
+        padding: calc(4px + env(safe-area-inset-top)) calc(4px + env(safe-area-inset-right)) 4px calc(4px + env(safe-area-inset-left));
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+
+    .calc-go .calc-go-item {
+        justify-content: center;
+        height: 32px;
+        margin: 0;
+        padding: 0 8px;
+        box-sizing: border-box;
+    }
+
+    .calc-go .calc-go-item[data-go="calc"] {
+        margin-bottom: 0;
+        margin-right: 9px;
+    }
+
+    .calc-go .calc-go-item[data-go="calc"]::before {
+        top: 6px;
+        right: -7px;
+        bottom: 6px;
+        left: auto;
+        width: 1px;
+        height: auto;
+    }
+
+    .calc-go .calc-go-item[data-tab="options"] {
+        margin-top: 0;
+        margin-left: auto;
+        padding-left: 8px;
+    }
+
+    .calc-go .calc-go-item[data-tab="options"]::before {
+        top: 6px;
+        right: auto;
+        bottom: 6px;
+        left: -5px;
+        width: 1px;
+        height: auto;
+    }
+
+    /* pop in and close under the bar, not over it */
+    #calculator.calc-home:not(.calc-big, .calc-chem-big, .calc-panel-big) ~ .calc-home-acts {
+        top: calc(40px + env(safe-area-inset-top));
+        padding-top: 4px;
+    }
+}
+
+/* with a faint line under it, as under the table's own window; pop in and close at the top right where the
+   calculator's are in a tool's own window (.calc-home-acts): close 5px from the edge, pop in 4px before it */
 #calculator.calc-panel-big .calc-big-on .calc-past-head {
     gap: 8px;
     margin-bottom: 6px; /* room under the line */
-    padding: 6px 12px 6px 22px;
+    padding: 4px 5px 4px 20px;
     border-bottom: 1px solid rgba(211, 217, 226, 0.14);
     box-shadow: none;
     font-size: 17px;
 }
 
+/* the periodic table's tab: Table, and its name in full popped out on a wide page */
+#calculator .calc-tab-long {
+    display: none;
+}
+
+@media (min-width: 900px) {
+    #calculator.calc-chem-big .calc-tab-long {
+        display: inline;
+    }
+
+    #calculator.calc-chem-big .calc-tab-short {
+        display: none;
+    }
+}
+
+/* tabs too many for the room scroll sideways, pop in and close staying in sight */
+#calculator.calc-panel-big .calc-big-on > .calc-past-head > :is(.calc-solve-tabs, .calc-fx-tabs) {
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+#calculator.calc-panel-big .calc-big-on > .calc-past-head > :is(.calc-solve-tabs, .calc-fx-tabs)::-webkit-scrollbar {
+    display: none;
+}
+
+#calculator.calc-panel-big .calc-big-on > .calc-past-head > :is(.calc-chem-size, .calc-panel-size, .calc-past-close, .calc-past-clear) {
+    flex: none;
+}
+
+#calculator.calc-panel-big .calc-big-on > .calc-past-head > :is(.calc-chem-size, .calc-panel-size) {
+    margin-right: -4px; /* 4px from close, as the calculator's */
+}
+
 #calculator.calc-panel-big .calc-big-on .calc-past-head :is(.calc-solve-tab, .calc-fx-tab) {
-    padding: 0 10px;
+    padding: 0 8px;
     border-radius: 5px;
-    line-height: 28px;
+    line-height: 24px;
 }
 
 /* as the big graph: pop in and close at the top right, bigger than the head's buttons;
@@ -5552,22 +5931,25 @@
     padding: 6px 16px 0;
 }
 
-/* big, the search, what the colours show and their key a size for the room: easier to read and to hit */
+/* Big, the search, then what the colours show, laid out by the room the bar has (its own width, as the page or the
+   card beside it leave it): the search a line of its own, the colours under it as wide; on one line, as they all
+   fit, their buttons sharing it; where they do not, six to a line, or four; and narrower, a phone's, one line that
+   scrolls sideways, faded at the side there is more (fadeEdges). With room for both, the search and the colours on
+   one line, the search no wider than reads well. The search as high as the colours, its words as big as the tabs' */
 #calculator.calc-chem-big .calc-pt-bar {
-    gap: 10px;
+    container-type: inline-size;
+    gap: 8px 10px;
     margin: 0 0 10px; /* as wide as the table under it */
 }
 
-/* the search and the selector on one line where there is room, the search taking what the selector leaves;
-   where there is not, the search on a line of its own, the selector under it */
 #calculator.calc-chem-big .calc-pt-bar .calc-pt-find {
-    flex-basis: 220px;
+    flex: 1 1 100%;
 }
 
 #calculator.calc-chem-big .calc-pt-search {
-    padding: 6px 36px 6px 12px;
+    padding: 5px 36px 5px 12px;
     border-radius: 7px;
-    font-size: 15px;
+    font-size: 13.5px;
     line-height: 20px;
 }
 
@@ -5582,15 +5964,96 @@
 }
 
 #calculator.calc-chem-big .calc-pt-modes {
+    position: relative; /* the buttons' offsetLeft, to scroll the one chosen into sight */
+    flex: 1 1 100%;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    gap: 2px;
+    min-width: 0;
     padding: 3px;
     border-radius: 7px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+}
+
+#calculator.calc-chem-big .calc-pt-modes::-webkit-scrollbar {
+    display: none;
 }
 
 #calculator.calc-chem-big .calc-pt-mode {
-    padding: 0 12px;
+    flex: 1 0 auto;
+    padding: 0 8px;
     border-radius: 5px;
-    font-size: 14px;
-    line-height: 28px;
+    font-size: 12.6px;
+    line-height: 24px;
+    text-align: center;
+}
+
+/* four to a line, then six: as wide as each other, as the widest needs (Electronegativity, some 108px) */
+@container (min-width: 450px) {
+    #calculator.calc-chem-big .calc-pt-modes {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        overflow: visible;
+    }
+
+    #calculator.calc-chem-big .calc-pt-mode {
+        overflow: hidden;
+        padding: 0 6px;
+        text-overflow: ellipsis;
+    }
+}
+
+@container (min-width: 670px) {
+    #calculator.calc-chem-big .calc-pt-modes {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+}
+
+/* all on one line (some 860px), their buttons sharing it */
+@container (min-width: 870px) {
+    #calculator.calc-chem-big .calc-pt-modes {
+        display: flex;
+    }
+}
+
+/* the search beside them, at least 220px of it; on a big screen no wider than reads well */
+@container (min-width: 1100px) {
+    #calculator.calc-chem-big .calc-pt-bar .calc-pt-find {
+        flex: 1 1 220px;
+    }
+
+    #calculator.calc-chem-big .calc-pt-modes {
+        flex: 0 1 auto;
+    }
+}
+
+@container (min-width: 1250px) {
+    #calculator.calc-chem-big .calc-pt-bar .calc-pt-find {
+        flex: 0 1 380px;
+    }
+
+    #calculator.calc-chem-big .calc-pt-modes {
+        flex: 1 1 auto;
+    }
+}
+
+/* a row that scrolls sideways faded at the side, or the sides, it has more at (main.js, fadeEdges): the colours,
+   and the tabs of a panel popped out on a phone */
+#calculator .calc-more-r {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+}
+
+#calculator .calc-more-l {
+    -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent);
+}
+
+#calculator .calc-more-l.calc-more-r {
+    -webkit-mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent);
 }
 
 #calculator.calc-chem-big .calc-pt-grid {
@@ -5855,7 +6318,7 @@
 /* big, the element chosen in a card of its own: below the table, or beside it on a wide page */
 #calculator.calc-chem-big .calc-pt-info {
     max-width: 760px;
-    margin: 14px 0 12px;
+    margin: 24px 0 12px; /* below the table, on a tablet or a phone: room between them */
     padding: 14px 12px 12px;
     border: 1px solid #5f758a;
     border-radius: 12px;
@@ -5986,6 +6449,120 @@
     }
 }
 
+/* Popped out on a phone: the table as compact as the popup's, all of it seen, each tile its symbol alone, the
+   element chosen in the gap with its tile, name, kind and configuration, its facts in the card under the table;
+   the page laid out as it comes, not as a grid, the key under the colours always; the card's atom under its name,
+   its numbers two by two */
+@media (max-width: 619px) {
+    #calculator.calc-chem-big .calc-pt:not([hidden]) {
+        display: block;
+        padding: 6px 12px 0;
+    }
+
+    #calculator.calc-chem-big .calc-pt-legend {
+        min-height: 0;
+        gap: 2px;
+        font-size: 12px;
+        line-height: 20px;
+    }
+
+    #calculator.calc-chem-big .calc-pt-key {
+        gap: 5px;
+        padding: 1px 5px;
+    }
+
+    #calculator.calc-chem-big .calc-pt-grid {
+        gap: 2px;
+    }
+
+    #calculator.calc-chem-big .calc-pt-grid .calc-pt-el {
+        border-radius: 4px;
+        aspect-ratio: 1 / 1.08;
+    }
+
+    #calculator.calc-chem-big .calc-pt-grid .calc-pt-el b {
+        margin: 0;
+        font-size: 9.5px;
+    }
+
+    #calculator.calc-chem-big .calc-pt-grid .calc-pt-el :is(.calc-pt-z, .calc-pt-name, .calc-pt-mass),
+    #calculator.calc-chem-big .calc-pt-gap .calc-pt-big .calc-pt-more {
+        display: none;
+    }
+
+    #calculator.calc-chem-big .calc-pt-series b {
+        flex-direction: column;
+        font-size: 7.5px;
+    }
+
+    #calculator.calc-chem-big .calc-pt-gap {
+        gap: 6px;
+        margin: 0;
+        padding: 0 4px;
+    }
+
+    #calculator.calc-chem-big .calc-pt-gap .calc-pt-big {
+        height: 100%;
+        max-height: 56px;
+        aspect-ratio: 1 / 1.08;
+    }
+
+    #calculator.calc-chem-big .calc-pt-grid .calc-pt-gap .calc-pt-big b {
+        margin: 4px 0 2px;
+        font-size: 20px;
+    }
+
+    #calculator.calc-chem-big .calc-pt-grid .calc-pt-gap .calc-pt-big :is(.calc-pt-z, .calc-pt-mass) {
+        display: block;
+        font-size: 8px;
+    }
+
+    #calculator.calc-chem-big .calc-pt-gap .calc-pt-big .calc-pt-z {
+        top: 3px;
+        left: 4px;
+    }
+
+    #calculator.calc-chem-big .calc-pt-gap .calc-pt-about {
+        flex: 0 1 auto;
+        height: auto;
+        font-size: 10px;
+        line-height: 13px;
+    }
+
+    #calculator.calc-chem-big .calc-pt-gap .calc-pt-about .calc-pt-title {
+        font-size: 13px;
+        line-height: 16px;
+    }
+
+    #calculator.calc-chem-big .calc-pt-gap .calc-pt-cfg {
+        display: block;
+    }
+
+    #calculator.calc-chem-big .calc-pt-gap .calc-pt-facts {
+        display: none;
+    }
+
+    #calculator.calc-chem-big .calc-pt-info {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    #calculator.calc-chem-big .calc-pt-info .calc-pt-about span {
+        white-space: normal;
+    }
+
+    #calculator.calc-chem-big .calc-pt-info .calc-pt-atom {
+        grid-column: 1 / -1;
+        justify-self: center;
+        width: 160px;
+        height: 160px;
+        margin: 4px 0 -4px;
+    }
+
+    #calculator.calc-chem-big .calc-pt-info .calc-pt-tiles {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
 /* the cards, popped out, no wider than reads well */
 #calculator.calc-panel-big .calc-big-on :is(.calc-sv-list, .calc-fx-list, .calc-fx-search) {
     width: 100%;
@@ -5995,21 +6572,46 @@
     box-sizing: border-box;
 }
 
+/* more room at their sides than popped in: the search as wide as the cards under it */
+#calculator.calc-panel-big .calc-big-on :is(.calc-sv-list, .calc-fx-list) {
+    padding-right: 16px;
+    padding-left: 16px;
+}
+
+#calculator.calc-panel-big .calc-big-on .calc-fx-search {
+    width: calc(100% - 32px);
+    max-width: 688px;
+}
+
+/* on a phone, as little room as popped in */
+@media (max-width: 619px) {
+    #calculator.calc-panel-big .calc-big-on :is(.calc-sv-list, .calc-fx-list) {
+        padding-right: 8px;
+        padding-left: 8px;
+    }
+
+    #calculator.calc-panel-big .calc-big-on .calc-fx-search {
+        width: calc(100% - 16px);
+    }
+}
+
 /* Popped out on a wide page (toolCards, renderFx): the cards a list at the left, with no arrows, the one chosen
    marked; its boxes and results in a card of their own beside it, in sight as the list scrolls. Each card's
-   header and form become the list's own items, the card spanning as many rows as there are (--rows) */
+   header becomes the list's own item; the list scrolls alone, its scrollbar beside it, not past the card */
 #calculator .calc-sv-list.calc-side,
 #calculator .calc-fx-list.calc-side {
     display: grid;
-    grid-template-columns: 300px minmax(0, 1fr);
-    grid-template-rows: repeat(var(--rows, 8), auto) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     align-content: start;
-    gap: 8px 22px;
+    gap: 8px;
 }
 
+/* where the cards were in the middle of the page, no wider than 1280px: the rows 300px, 8px, the scrollbar 6px */
 #calculator.calc-panel-big .calc-big-on :is(.calc-sv-list, .calc-fx-list).calc-side {
-    max-width: 1280px;
-    padding: 12px 22px;
+    width: 336px;
+    max-width: none;
+    margin-left: max(0px, (100% - 1280px) / 2);
+    padding: 12px 8px 12px 22px;
 }
 
 #calculator .calc-side > :is(.calc-sv-item, .calc-fx-item) {
@@ -6037,10 +6639,10 @@
     background: #a3bdaf;
 }
 
-/* the one chosen: lighter, and a little bigger than the others */
+/* the one chosen: a little darker, and a little bigger than the others */
 #calculator .calc-side .calc-on > :is(.calc-sv-row, .calc-fx-row) {
     border-radius: 8px;
-    background: #c2dacd;
+    background: #a9c5b6;
     transform: scale(1.04);
     cursor: default;
 }
@@ -6049,17 +6651,30 @@
     display: none;
 }
 
+/* out of the list, in the panel: it stays where it is as the list scrolls, its top with the list's first row
+   (where it would be, in the list), 14px past the scrollbar, its right side where the cards' room ends; taller
+   than the window, it scrolls itself */
 #calculator .calc-side :is(.calc-sv-form, .calc-fx-form) {
-    position: sticky;
-    top: 0;
-    grid-column: 2;
-    grid-row: 1 / -1;
-    align-self: start;
+    position: absolute;
+    box-sizing: border-box;
+    width: calc(min(100%, 1280px) - 372px);
+    max-height: calc(100% - 73px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    margin-left: 328px;
     padding: 0 20px 16px;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
     border-radius: 10px;
     background: #b6d1c2;
     color: #000;
+}
+
+#calculator .calc-side :is(.calc-sv-form, .calc-fx-form)::-webkit-scrollbar {
+    width: 6px;
+}
+
+#calculator .calc-side :is(.calc-sv-form, .calc-fx-form)::-webkit-scrollbar-thumb {
+    background: #6b8196;
+    border-radius: 3px;
 }
 
 /* at its top, as the header of a card open: its name, its formula and what it does */
@@ -6152,6 +6767,51 @@
     padding: 0 10px 0 16px;
 }
 
+/* the letters of the Variables tab, popped out: a little bigger, as the boxes and buttons of the cards are */
+#calculator.calc-panel-big .calc-big-on .calc-var-head {
+    margin-bottom: 9px;
+    font-size: 12px;
+}
+
+#calculator.calc-panel-big .calc-big-on .calc-var-head kbd {
+    font-size: 11px;
+    line-height: 15px;
+}
+
+#calculator.calc-panel-big .calc-big-on .calc-var {
+    margin-bottom: 7px;
+}
+
+#calculator.calc-panel-big .calc-big-on .calc-var:last-child {
+    margin-bottom: 0;
+}
+
+#calculator.calc-panel-big .calc-big-on .calc-var-row {
+    gap: 6px;
+    padding: 5px 6px 5px 14px;
+}
+
+#calculator.calc-panel-big .calc-big-on .calc-var-k {
+    width: 20px;
+    font-size: 19px;
+    line-height: 26px;
+}
+
+#calculator.calc-panel-big .calc-big-on .calc-var-row input {
+    padding: 5px 9px;
+    border-radius: 6px;
+    font-size: 15px;
+    line-height: 18px;
+}
+
+#calculator.calc-panel-big .calc-big-on .calc-var-btn {
+    min-width: 34px;
+    height: 30px;
+    padding: 0 8px;
+    border-radius: 5px;
+    font-size: 12.5px;
+}
+
 /* the separator of the statistics, as big as the head's words */
 #calculator.calc-panel-big .calc-big-on .calc-stats-by-label {
     font-size: 14px;
@@ -6169,6 +6829,16 @@
 #calculator.calc-panel-big .calc-big-on .calc-stats-by .calc-conv-item {
     padding: 4px 10px;
     line-height: 18px;
+}
+
+/* popped out, the separator and Clear as big as the tabs as well, the separator's box as tall: 24px */
+#calculator.calc-panel-big .calc-stats.calc-big-on .calc-past-head :is(.calc-stats-by-label, .calc-stats-by, .calc-past-clear) {
+    font-size: 12.6px;
+}
+
+#calculator.calc-panel-big .calc-stats.calc-big-on .calc-past-head .calc-stats-by {
+    padding-top: 3px;
+    padding-bottom: 3px;
 }
 
 /* The units popped out: no wider than reads well, in the middle; on a wide page the values in two columns */
@@ -6197,28 +6867,24 @@
         margin: 0;
     }
 
-    /* the search of the formulas above their list, as wide as it, its top with the card's: the list goes up
-       behind it, and its first row is the room of the search (38px tall), the formulas scrolling under it */
+    /* the search of the formulas above their list, as wide as it, its top with the card's: the list under it,
+       apart from it, the formulas scrolling in the list alone and not behind the search */
     #calculator.calc-panel-big .calc-fx.calc-big-on:has(.calc-fx-list.calc-side) .calc-fx-search {
-        position: relative;
-        z-index: 1;
         width: 300px;
         max-width: none;
         margin-top: 12px;
-        margin-bottom: 0;
+        margin-bottom: 8px;
         margin-left: calc(max(0px, (100% - 1280px) / 2) + 22px);
     }
 
+    /* room at the top for the one chosen, a little bigger */
     #calculator.calc-panel-big .calc-fx.calc-big-on .calc-fx-list.calc-side {
-        margin-top: -38px;
-        padding-top: 0;
+        padding-top: 4px;
     }
 
-    #calculator .calc-fx-list.calc-side::before {
-        content: '';
-        grid-column: 1;
-        grid-row: 1;
-        height: 38px;
+    /* the card up by the search (32px), the room under it and the list's own: its top with the search's */
+    #calculator .calc-fx-list.calc-side .calc-fx-form {
+        margin-top: -44px;
     }
 
     /* The statistics popped out on a wide page: what is typed at the left, as tall as the window, and its
