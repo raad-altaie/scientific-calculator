@@ -252,14 +252,14 @@ function focusWindow(id) {
 // comes to the front first: the graph's window has the focus, and a popup is
 // only shown over the window in front
 function showCalculator() {
-    chrome.tabs.query({ url: popupPages }, (tabs) => {
+    return chrome.tabs.query({ url: popupPages }).then((tabs) => {
         const tab = tabs.find((t) => t.url.startsWith(detachedUrl));
 
         if (tab) {
             bringToFront(tab.windowId);
             return;
         }
-        chrome.windows.getLastFocused({ windowTypes: ["normal"] })
+        return chrome.windows.getLastFocused({ windowTypes: ["normal"] })
             .then((win) => focusWindow(win.id).then(() => chrome.action.openPopup({ windowId: win.id })))
             .catch(() => unlessOff("detachedMode", openCalculatorInDetachedMode)); // no browser window, or no popup allowed now
     });
@@ -647,6 +647,9 @@ chrome.runtime.onMessage.addListener((message, sender, answer) => {
         unlessOff(panelPolicies[message.panel], () => openPanelWindow(message.panel, sender.tab?.windowId));
     } else if (message?.command === "show-calculator") {
         showCalculator();
+    } else if (message?.command === "pop-in" && sender.tab) {
+        // a panel's own window, the graph's or the table's popped in: the calculator comes up with it open, then that window closes
+        showCalculator().then(() => chrome.windows.remove(sender.tab.windowId)).catch(() => { });
     } else if (message?.command === "open-calculator") {
         // the button on a page opens the detached window
         unlessOff("detachedMode", openCalculatorInDetachedMode);

@@ -2146,6 +2146,7 @@
 
     // pop out and pop in
     graphSize.addEventListener('click', function () {
+        if (graphAlone) return popIn('graph');
         graphBig(!root.classList.contains('calc-big'));
     }, false);
 
@@ -7749,7 +7750,7 @@
         chemTab = 'table', // the tab shown: the table, or one of the tools'
         chemBy = 'cat', // what the colours of the table show: cat, state, block, or a number of CHEM_HEAT
         chemByBig = null, // the colour chosen popped out, kept and saved still while popped in shows Kind, the colours having no buttons there
-        chemAt = 1, // the element chosen, by its number: hydrogen each time the panel opens
+        chemAt = 26, // the element chosen, by its number: iron each time the panel opens
         chemShut = false, // popped out on a wide page, its card at the right closed: the table the whole width
         chemHot = '', // a colour of the legend clicked: only its elements bright
         chemAlone = false, // in a window of its own, in the extension
@@ -8040,6 +8041,7 @@
         if (chemBy === 'state' || CHEM_HEAT[chemBy]) chemSliderDraw(chemSliderPlaces());
         chemDim();
         chemShow(chemAt, true);
+        chemTableFit(); // its key on more lines, or fewer
     }
 
     // an element of the search, of the legend clicked, or both: the others dimmed
@@ -8153,6 +8155,21 @@
     function chemFit() {
         var side = root.classList.contains('calc-chem-big') && window.matchMedia('(min-width: 760px)').matches;
         chemList.style.zoom = side ? Math.max(1, Math.min(1.45, chemPanel.clientWidth / 1200)).toFixed(3) : '';
+        chemTableFit();
+    }
+
+    // Popped out, the table no wider than lets all of it be seen, on a page wide and not as high: its tiles
+    // square, narrower by twice what it is cut by; and again, as the search and the key over it may then take
+    // another line. Not narrower than its tiles can be read
+    function chemTableFit() {
+        chemTable.style.removeProperty('--calc-pt-w');
+        if (!root.classList.contains('calc-chem-big') || chemTable.hidden) return;
+        for (var i = 0; i < 4; i++) {
+            var g = chemGrid.getBoundingClientRect(),
+                cut = g.bottom - chemTable.getBoundingClientRect().top + chemTable.scrollTop - chemTable.clientHeight + 6;
+            if (cut < 1 || g.width <= 560) break;
+            chemTable.style.setProperty('--calc-pt-w', Math.max(560, Math.floor(g.width - 2 * cut)) + 'px');
+        }
     }
 
     window.addEventListener('resize', function () {
@@ -8168,7 +8185,7 @@
         else chemCards.render();
     }
 
-    // Reset all: the table as at first, coloured by kind with hydrogen chosen and nothing searched, and
+    // Reset all: the table as at first, coloured by kind with iron chosen and nothing searched, and
     // nothing typed in any card
     function clearChem() {
         chemCards.clear();
@@ -8176,7 +8193,7 @@
         chemTab = 'table';
         chemBy = 'cat';
         chemByBig = null;
-        chemAt = 1;
+        chemAt = 26;
         chemTemp = 20;
         chemCut = {};
         chemHot = '';
@@ -8192,6 +8209,7 @@
     function chemCard(open) {
         chemShut = !open;
         chemTable.classList.toggle('calc-pt-shut', chemShut);
+        chemTableFit(); // the table the whole width, or beside the card
     }
 
     function loadChem(saved) {
@@ -8217,13 +8235,13 @@
         }
     }
 
-    function showChem(open) {
+    function showChem(open, keep) {
         if (!open && chemAlone) return; // its own window stays, even as a value is put in
         if (!open) chemBig(false);
         if (open) {
             closePanels(chemPanel);
             placePanel(chemPanel);
-            if (!chemPanel.classList.contains('calc-open') && !chemAlone) chemAt = 1; // the table opens on hydrogen; its own window on the element popped out
+            if (!chemPanel.classList.contains('calc-open') && !chemAlone && !keep) chemAt = 26; // the table opens on iron; its own window, or popped in from it, on the element chosen there
         }
         chemPanel.classList.toggle('calc-open', open);
         chemButton.classList.toggle('calc-on', open);
@@ -8279,6 +8297,7 @@
     chemPanel.querySelector('.calc-past-close').addEventListener('click', closeChem, false);
 
     chemSize.addEventListener('click', function () {
+        if (chemAlone) return popIn('chem');
         chemBig(!root.classList.contains('calc-chem-big'));
     }, false);
 
@@ -8296,7 +8315,7 @@
         if (d.alone) {
             chemAlone = true;
             root.classList.add('calc-chem-alone');
-            chemTab = 'table'; // on the element chosen when it was popped out, which chemBig saved for it
+            // on the tab and the element chosen when it was popped out, which chemBig saved for it, as every panel's window
         }
         chemBig(!!d.big);
     }, false);
@@ -9547,6 +9566,7 @@
 
     BIG_PANELS.forEach(function (p) {
         p.panel.querySelector('.calc-panel-size').addEventListener('click', function () {
+            if (panelAlone === p.key) return popIn(p.key);
             panelBig(p.panel, bigPanel !== p.panel);
         }, false);
         // in its own window, close closes the window: before the panel's own close
@@ -9566,6 +9586,35 @@
         panelAlone = p.key;
         root.classList.add('calc-panel-alone');
     }, false);
+
+    // Pop in, in a window of its own in the extension: the calculator comes up, opened if it is closed, with
+    // this open in it as it is here, and this window closes. What to open is kept for it, with when (takePopIn)
+    function popIn(key) {
+        hideTip();
+        saveState();
+        if (key === 'chem') saveChem();
+        store('popIn', { panel: key, at: Date.now() });
+        ask('pop-in', { panel: key });
+    }
+
+    // The calculator, opened or come up for a pop in: the panel open, popped in. Not in a window of its own.
+    // Taken away only once this calculator has stayed a moment: the popup popped out from may be open still,
+    // behind that window, and hear it first, then be put out by the popup the extension opens, which needs it
+    // too. One older than 10 seconds is of a calculator that never came
+    function takePopIn() {
+        var p = stored('popIn'), big;
+        if (!p || graphAlone || chemAlone || panelAlone) return;
+        if (Date.now() - p.at < 10000) {
+            if (p.panel === 'graph') showGraph(true);
+            else if (p.panel === 'chem') showChem(true, true);
+            else if ((big = bigOf(p.panel))) big.show(true);
+        }
+        setTimeout(function () {
+            try {
+                if ((stored('popIn') || {}).at === p.at) localStorage.removeItem('popIn');
+            } catch (e) { }
+        }, Date.now() - p.at < 10000 ? 1500 : 0);
+    }
 
     // what a panel's own window saved, or the calculator's while it is open: the same here
     function panelSaved(key) {
@@ -9685,6 +9734,7 @@
     // The graph, the calculation, the angle unit and the chemistry follow another page of the calculator: the
     // graph's and the table's own windows and the popup or the detached window show the same ones. Not what this page saved
     window.addEventListener('storage', function (e) {
+        if (e.key === 'popIn') return takePopIn(); // the detached window, open as a panel's own window pops in
         if (e.newValue !== null && e.newValue === ownSaves[e.key]) return;
         if (e.key === 'graph') {
             ownSaves.graph = e.newValue;
@@ -10019,6 +10069,7 @@
     }
 
     loadState();
+    setTimeout(takePopIn, 0); // once the page has said whether this is a window of its own
 
     // the lines are measured with the font they are shown in: once it has loaded
     // they are measured again, or their end could be left out of view

@@ -2033,14 +2033,14 @@ async function graphBig(page, at) {
     check(await page.calc(sent) === '[{"command":"open-graph"}]' && !await page.calc(big) && !await open(page, '.calc-graph'),
         t + 'the popup asks for the graph\'s own window, and closes the graph', await page.calc(sent));
 
-    // the graph's window: only the graph, big, with a close button and no pop in
+    // the graph's window: only the graph, big, with pop in and close
     await page.send('Page.enable'); // for the script before the page's own
     script = (await page.send('Page.addScriptToEvaluateOnNewDocument', { source: stub })).result.identifier;
     await page.go(page.base + '/popup.html?graph', [700, 500]);
     check(await page.calc(big) && await open(page, '.calc-graph') && await page.calc(plot + '.clientWidth') > 350 &&
         await page.ev('document.title') === 'Graph | Scientific Calculator' && await page.calc('document.querySelector(".calc-graph .calc-past-close").offsetWidth') > 0 &&
-        !await page.calc('document.querySelector(".calc-graph-size").offsetWidth'),
-        t + 'its window has only the graph, big, with a close button and no pop in', await page.calc(plot + '.clientWidth'));
+        await page.calc('document.querySelector(".calc-graph-size").offsetWidth') > 0,
+        t + 'its window has only the graph, big, with pop in and close', await page.calc(plot + '.clientWidth'));
     check(await page.calc('document.querySelector(".calc-graph-input").value') === 'x^2-3', t + 'with the functions of the calculator');
 
     // a value put in: the calculation has it, the calculator is asked to come up, the window stays
@@ -3676,15 +3676,17 @@ async function chemistry(page, at) {
     await page.click('.calc-chem-btn');
     check(await open(page, '.calc-chem') && await page.calc('document.querySelector(".calc-chem .calc-solve-tab.calc-on").dataset.tab') === 'table',
         t + 'it opens on the table');
+    got = await page.calc('document.querySelector(".calc-pt-info .calc-pt-title").textContent');
+    check(got === 'Iron', t + 'iron chosen at first', got);
     check(await page.calc('document.querySelectorAll(".calc-pt-el[data-z]").length') === 118 &&
         await page.calc('document.querySelectorAll(".calc-pt-series").length') === 2, t + '118 elements, and 57–71 and 89–103');
-    await page.click('.calc-pt-el[data-z="26"]');
+    await page.click('.calc-pt-el[data-z="29"]');
     got = await page.calc('document.querySelector(".calc-pt-info .calc-pt-title").textContent');
-    check(got === 'Iron', t + 'a click on Fe shows iron', got);
+    check(got === 'Copper', t + 'a click on Cu shows copper', got);
     check(await page.calc('document.querySelectorAll(".calc-pt-atom .calc-pt-ring").length') === 4 &&
-        await page.calc('document.querySelectorAll(".calc-pt-atom .calc-pt-e").length') === 26, t + 'its atom: 4 shells, 26 electrons');
+        await page.calc('document.querySelectorAll(".calc-pt-atom .calc-pt-e").length') === 29, t + 'its atom: 4 shells, 29 electrons');
     check(await page.calc('document.querySelector(".calc-pt").scrollTop') === 0, t + 'chosen, the table stays where it is');
-    await page.click('.calc-pt-el[data-z="26"]');
+    await page.click('.calc-pt-el[data-z="29"]');
     check(await page.until('document.querySelector(".calc-pt").scrollTop > 100', 2000), t + 'clicked again, its details below are scrolled to');
     // its smooth scroll over before the table goes back to its top: going on, it moves the tiles under the click below
     await page.calc('new Promise(function (r) { var s = document.querySelector(".calc-pt"), a = -1; (function f() { if (s.scrollTop === a) return r(); a = s.scrollTop; setTimeout(f, 100); })(); })');
@@ -3696,7 +3698,7 @@ async function chemistry(page, at) {
     check(await shown(page) === '196.97' && !await open(page, '.calc-chem'), t + 'its mass put in, the panel closed', await shown(page));
     await page.click('.calc-chem-btn');
     got = await page.calc('document.querySelector(".calc-pt-info .calc-pt-title").textContent');
-    check(got === 'Hydrogen', t + 'opened again, the table starts on hydrogen', got);
+    check(got === 'Iron', t + 'opened again, the table starts on iron', got);
     await page.click('.calc-chem .calc-solve-tab[data-tab="reactions"]');
     await page.click('.calc-chem .calc-sv-item:first-child .calc-sv-row');
     await page.calc('(function (i) { i.value = "Fe + O2 = Fe2O3"; i.dispatchEvent(new Event("input", { bubbles: true })); })(document.querySelector(".calc-chem .calc-sv-item.calc-on input"))');
@@ -3705,7 +3707,7 @@ async function chemistry(page, at) {
     await page.key('Escape', 27);
     check(!await open(page, '.calc-chem'), t + 'Esc closes it');
 
-    // Reset all: the table as at first, by kind, hydrogen chosen, nothing searched, and the cards empty
+    // Reset all: the table as at first, by kind, iron chosen, nothing searched, and the cards empty
     await page.click('.calc-chem-btn');
     await page.click('.calc-chem .calc-solve-tab[data-tab="table"]');
     await page.calc('(function (i) { i.value = "iron"; i.dispatchEvent(new Event("input", { bubbles: true })); })(document.querySelector(".calc-pt-search"))');
@@ -3716,7 +3718,7 @@ async function chemistry(page, at) {
     await page.click('.calc-chem-btn');
     got = await page.calc('[document.querySelector(".calc-chem .calc-solve-tab.calc-on").dataset.tab, document.querySelector(".calc-pt-mode.calc-on").dataset.by, ' +
         'document.querySelector(".calc-pt-info .calc-pt-title").textContent, document.querySelector(".calc-pt-search").value, document.querySelectorAll(".calc-pt-dim").length].join(" ")');
-    check(got === 'table cat Hydrogen  0', t + 'Reset all shows the table as at first', got);
+    check(got === 'table cat Iron  0', t + 'Reset all shows the table as at first', got);
     await page.click('.calc-chem .calc-solve-tab[data-tab="reactions"]');
     check(!await page.calc('document.querySelector(".calc-chem .calc-sv-item.calc-on")'), t + 'and no card open, nothing in them');
     await page.key('Escape', 27);

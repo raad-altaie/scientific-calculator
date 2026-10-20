@@ -197,6 +197,11 @@ if (params.has('graph')) {
     });
 }
 
+// Pop in, in a window of its own: the calculator comes up with it, opened if it was closed, and this window closes
+document.addEventListener('calc-pop-in', () => {
+    chrome.runtime.sendMessage({ command: 'pop-in' }).catch(() => { });
+});
+
 // as it was kept last, until the browser answers
 followPolicy();
 

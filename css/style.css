@@ -1386,11 +1386,6 @@
     display: inline;
 }
 
-/* the graph's own window is always big, and closes as any window does: no pop in */
-#calculator.calc-alone .calc-graph-size {
-    display: none;
-}
-
 /* Big on a wide page, or in the graph's own window, the graph has two columns: at the left
    its head, the boxes, their points, the sliders and the examples; at the right the line
    about the point and the plot, or the table. The plot stays beside the examples */
@@ -1513,7 +1508,7 @@
     }
 
     /* pop in and close: at the top right, above the plot, as big and as placed as every panel's popped out,
-       in the head's 1.15 zoom; the graph's own window has close alone */
+       in the head's 1.15 zoom; in the graph's own window, pop in brings it into the calculator */
     #calculator.calc-big .calc-graph-size,
     #calculator.calc-big .calc-graph .calc-past-close {
         position: absolute;
@@ -4686,15 +4681,6 @@
     display: inline;
 }
 
-#calculator.calc-panel-alone .calc-panel-size {
-    display: none;
-}
-
-/* the table's own window is always big, and closes as any window does: no pop in */
-#calculator.calc-chem-alone .calc-chem-size {
-    display: none;
-}
-
 /* popped in, 2px less under the details, for the atom to show more of itself */
 #calculator:not(.calc-chem-big) .calc-past.calc-chem {
     padding-bottom: 8px;
@@ -5555,9 +5541,12 @@
     height: 16px;
 }
 
+/* the table as wide as it can be and all of it seen, on a wide page not as high (chemTableFit, --calc-pt-w):
+   with what is beside it, in the middle of the page */
 #calculator.calc-chem-big .calc-pt:not([hidden]) {
     display: grid;
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, var(--calc-pt-w, 1fr));
+    justify-content: center;
     align-content: start;
     gap: 0 18px;
     padding: 6px 16px 0;
@@ -5890,7 +5879,7 @@
 /* wide: the element chosen in a column of its own at the right, its atom bigger */
 @media (min-width: 900px) {
     #calculator.calc-chem-big .calc-pt:not([hidden]) {
-        grid-template-columns: minmax(0, 1fr) 330px;
+        grid-template-columns: minmax(0, var(--calc-pt-w, 1fr)) 330px;
         grid-template-rows: auto auto auto 1fr;
     }
 
@@ -5951,7 +5940,7 @@
 
     /* closed: the table the whole width, until an element is clicked */
     #calculator.calc-chem-big .calc-pt.calc-pt-shut:not([hidden]) {
-        grid-template-columns: minmax(0, 1fr);
+        grid-template-columns: minmax(0, var(--calc-pt-w, 1fr));
     }
 
     #calculator.calc-chem-big .calc-pt-shut .calc-pt-info {
