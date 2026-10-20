@@ -1,10 +1,10 @@
 // Offline support: the whole calculator is cached on the first visit.
 // Raise CACHE when the files change, so the old copies are dropped.
-const CACHE = 'calculator-v77';
+const CACHE = 'calculator-v80';
 const FILES = [
     './', 'index.html', 'manifest.webmanifest',
     'css/style.css', 'css/options.css', 'css/site.css',
-    'js/app.js', 'js/engine.js', 'js/formulas.js', 'js/maths.js', 'js/main.js', 'js/options.js', 'js/tips.js', 'js/units.js',
+    'js/app.js', 'js/engine.js', 'js/formulas.js', 'js/maths.js', 'js/main.js', 'js/options.js', 'js/tips.js', 'js/units.js', 'js/chem.js',
     'fonts/Play-Regular.ttf', 'fonts/Play-Bold.ttf',
     'imgs/icon.png', 'imgs/icon128.png', 'imgs/icon-192.png', 'imgs/icon-512.png',
     'imgs/icon-maskable-512.png', 'imgs/apple-touch-icon.png', 'imgs/og-image.png'

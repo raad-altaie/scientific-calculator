@@ -26,6 +26,20 @@ const detachedUrl = chrome.runtime.getURL("popup.html?detached");
 // the graph's own window, opened by the big graph button: the same page, with only the graph
 const graphUrl = chrome.runtime.getURL("popup.html?graph");
 
+// the periodic table's own window, opened by its pop out button: the same page, with only the table
+const chemUrl = chrome.runtime.getURL("popup.html?chem");
+
+// its least size, the room of its 18 columns and of the element chosen beside them, as in popup.js
+const chemMin = { width: 1000, height: 700 };
+
+// each other panel's own window, opened by its pop out button: the same page, popup.html?panel=solve, with only
+// that panel; by the policy that turns the panel off
+const panelPolicies = { stats: "statistics", fx: "formulas", conv: "converter", solve: "solve", numbers: "numbers" };
+const panelUrl = (key) => chrome.runtime.getURL("popup.html?panel=" + key);
+
+// their least size, the room of the list of cards and of the card beside it, as in popup.js
+const panelMin = { width: 900, height: 640 };
+
 // the popup page in any window, to find them by
 const popupPages = chrome.runtime.getURL("popup.html*");
 
@@ -83,8 +97,9 @@ function getDisplays(done) {
 function createPopupWindow(graph) {
     getDisplays((displayInfo) => {
         readDetachedBounds(graph ? "graphBounds" : "bounds", (saved) => {
-            const displayWidth = displayInfo[0].workArea.width;
-            const displayHeight = displayInfo[0].workArea.height;
+            const area = displayInfo[0].workArea;
+            const displayWidth = area.width;
+            const displayHeight = area.height;
             const width = graph ? Math.round(Math.min(1200, displayWidth * 0.8)) : popupWidth + 2 * detachedMargin.x;
             const height = graph ? Math.round(Math.min(900, displayHeight * 0.85)) : popupHeight + 2 * detachedMargin.y;
 
@@ -92,8 +107,8 @@ function createPopupWindow(graph) {
             let bounds = {
                 width: width,
                 height: height,
-                left: Math.round((displayWidth - width) / 2),
-                top: Math.round((displayHeight - height) / 2),
+                left: Math.round(area.left + (displayWidth - width) / 2),
+                top: Math.round(area.top + (displayHeight - height) / 2),
             };
 
             // It opens where it was left, at the size it was left, if a screen
@@ -125,7 +140,7 @@ function createPopupWindow(graph) {
 // and its tab no longer gives its address: it is found by the kept id, and
 // closed if it is still a popup with nothing else in it. The graph's window too
 function closeDetachedWindow() {
-    [["id", detachedUrl], ["graphId", graphUrl]].forEach(([key, url]) => {
+    [["id", detachedUrl], ["graphId", graphUrl], ["chemId", chemUrl]].concat(Object.keys(panelPolicies).map((key) => ["panel-" + key, panelUrl(key)])).forEach(([key, url]) => {
         detachedBoundsStore("readonly", (store) => {
             const read = store.get(key);
 
@@ -162,6 +177,57 @@ function openGraphWindow() {
     });
 }
 
+// The screen a window is on, the one with its middle; the first if it is on none, or there is no window
+function displayOf(displayInfo, win) {
+    const x = win ? win.left + win.width / 2 : NaN;
+    const y = win ? win.top + win.height / 2 : NaN;
+
+    return displayInfo.find(({ workArea: a }) => x >= a.left && x < a.left + a.width && y >= a.top && y < a.top + a.height) || displayInfo[0];
+}
+
+// The periodic table's own window, and each other panel's (url, its id kept as key), opened from a window of the
+// calculator (fromId), or from the popup, which is over the browser's window last used. On that window's screen:
+// 85% of it, in its middle, no smaller than it needs (min) nor bigger than the screen. Open already, it is put so
+// again and comes to the front
+function openChemWindow(fromId) {
+    openBigWindow(chemUrl, "chemId", chemMin, fromId);
+}
+
+function openPanelWindow(key, fromId) {
+    openBigWindow(panelUrl(key), "panel-" + key, panelMin, fromId);
+}
+
+function openBigWindow(url, key, min, fromId) {
+    const from = fromId !== undefined ? chrome.windows.get(fromId) : chrome.windows.getLastFocused({ windowTypes: ["normal"] });
+
+    from.catch(() => null).then((win) => getDisplays((displayInfo) => {
+        const area = displayOf(displayInfo, win).workArea;
+        const width = Math.min(area.width, Math.max(min.width, Math.round(area.width * 0.85)));
+        const height = Math.min(area.height, Math.max(min.height, Math.round(area.height * 0.85)));
+        const bounds = {
+            width: width,
+            height: height,
+            left: Math.round(area.left + (area.width - width) / 2),
+            top: Math.round(area.top + (area.height - height) / 2),
+        };
+
+        chrome.tabs.query({ url: popupPages }, (tabs) => {
+            const tab = tabs.find((t) => t.url.startsWith(url));
+
+            if (tab) {
+                chrome.windows.update(tab.windowId, Object.assign({ state: "normal" }, bounds))
+                    .then(() => chrome.windows.update(tab.windowId, { focused: true }))
+                    .catch(() => { });
+                return;
+            }
+            chrome.windows.create(Object.assign({ type: "popup", url: url, focused: true }, bounds), (win) => {
+                // kept to close it on an update, when its page no longer tells what it is
+                detachedBoundsStore("readwrite", (store) => store.put(win.id, key));
+            });
+        });
+    }));
+}
+
 // A window to the front, once the system has put it there: a moment after it is
 // asked, or half a second at most
 function focusWindow(id) {
@@ -186,14 +252,14 @@ function focusWindow(id) {
 // comes to the front first: the graph's window has the focus, and a popup is
 // only shown over the window in front
 function showCalculator() {
-    chrome.tabs.query({ url: popupPages }, (tabs) => {
+    return chrome.tabs.query({ url: popupPages }).then((tabs) => {
         const tab = tabs.find((t) => t.url.startsWith(detachedUrl));
 
         if (tab) {
             bringToFront(tab.windowId);
             return;
         }
-        chrome.windows.getLastFocused({ windowTypes: ["normal"] })
+        return chrome.windows.getLastFocused({ windowTypes: ["normal"] })
             .then((win) => focusWindow(win.id).then(() => chrome.action.openPopup({ windowId: win.id })))
             .catch(() => unlessOff("detachedMode", openCalculatorInDetachedMode)); // no browser window, or no popup allowed now
     });
@@ -232,12 +298,39 @@ const pageOptions = {
         on: (kept) => kept.pageButtonOn !== false,
     },
     pageMaths: {
-        // formulas.js: the formulas and constants to find; units.js, the units of quantities; picks.js, what else the cards work out
-        script: { id: "page-maths", js: ["js/formulas.js", "js/units.js", "js/page/picks.js", "js/page/answers.js"], matches: pageSites },
+        script: { id: "page-maths", js: [], matches: pageSites },
+        files: pageMathsFiles,
         off: "remove-page-maths",
         on: (kept) => kept.pageMathsOn === true,
     },
 };
+
+// The features of the instant answers, each of a panel of the calculator, by the name of its policy: a file of
+// its own, page/*.js, with the data it reads before it, formulas.js the formulas and constants, units.js the
+// units of quantities. In this order, as page/reader.js reads them: the lists, quantities and dates selected
+// before the numbers, 1700000000 a Unix time before a whole number
+const pageFeatures = {
+    statistics: ["js/page/statistics.js"],
+    converter: ["js/units.js", "js/page/converter.js"],
+    numbers: ["js/page/numbers.js"],
+    solve: ["js/page/solve.js"],
+    graph: ["js/page/graph.js"],
+    formulas: ["js/formulas.js", "js/page/formulas.js"],
+    chemistry: ["js/page/chemistry.js"],
+};
+
+// What the pages get of the instant answers: page/reader.js, which reads the sums, then each feature that is
+// on, as options.js keeps them in pageMathsFeatures, each on unless false, and an administrator did not turn its
+// panel off, then page/answers.js, which puts the icons in the page
+async function pageMathsFiles(kept) {
+    const chosen = kept.pageMathsFeatures || {};
+    const files = ["js/page/reader.js"];
+
+    for (const [name, list] of Object.entries(pageFeatures)) {
+        if (chosen[name] !== false && !await policyOff(name)) files.push(...list);
+    }
+    return files.concat("js/page/answers.js");
+}
 
 // pages that are already open get it without a reload
 function addToOpenPages(files) {
@@ -261,8 +354,9 @@ function tellOpenPages(command) {
 
 // Each of the two on the pages while it is on and an administrator did not turn it off, and the
 // access given back with neither. The browser forgets the registered scripts when the extension is
-// updated, so this also runs then. One run at a time, as the options page changes the choice and the
-// access together
+// updated, so this also runs then. The features of the instant answers chosen again, the open pages
+// get them at once, the copy they had giving way to it. One run at a time, as the options page changes
+// the choice and the access together
 let pageRun = Promise.resolve();
 
 function followPageOptions() {
@@ -272,24 +366,26 @@ function followPageOptions() {
             if (visible) followFrontTab();
         };
         if (!await chrome.permissions.contains(pageAccess)) return menu(false);
-        const kept = await chrome.storage.local.get(["pageButtonOn", "pageMathsOn"]).catch(() => ({}));
-        const registered = (await chrome.scripting.getRegisteredContentScripts().catch(() => [])).map((script) => script.id);
+        const kept = await chrome.storage.local.get(["pageButtonOn", "pageMathsOn", "pageMathsFeatures"]).catch(() => ({}));
+        const registered = await chrome.scripting.getRegisteredContentScripts().catch(() => []);
         let any = false;
 
         for (const [key, option] of Object.entries(pageOptions)) {
             const on = option.on(kept) && !await policyOff(key);
-            const was = registered.includes(option.script.id);
+            const script = option.files ? { ...option.script, js: await option.files(kept) } : option.script;
+            const was = registered.find((other) => other.id === script.id);
 
             any = any || on;
             if (key === "pageMaths") menu(on); // Calculate "…" goes with the icons
             if (on && !was) {
-                await chrome.scripting.registerContentScripts([option.script])
-                    .then(() => addToOpenPages(option.script.js))
+                await chrome.scripting.registerContentScripts([script])
+                    .then(() => addToOpenPages(script.js))
                     .catch((error) => console.log("Failed to put " + key + " on the pages:", error));
             } else if (on) {
-                await chrome.scripting.updateContentScripts([option.script]).catch(() => { }); // its files, as this version has them
+                await chrome.scripting.updateContentScripts([script]).catch(() => { }); // its files, as this version has them
+                if (String(was.js) !== String(script.js)) addToOpenPages(script.js);
             } else if (was) {
-                await chrome.scripting.unregisterContentScripts({ ids: [option.script.id] }).catch(() => { });
+                await chrome.scripting.unregisterContentScripts({ ids: [script.id] }).catch(() => { });
                 tellOpenPages(option.off);
             }
         }
@@ -365,7 +461,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
         followOpenMode();
     } else if (area === "local" && changes.openMode) {
         followOpenMode();
-    } else if (area === "local" && (changes.pageButtonOn || changes.pageMathsOn)) {
+    } else if (area === "local" && (changes.pageButtonOn || changes.pageMathsOn || changes.pageMathsFeatures)) {
         followPageOptions(); // chosen on the options page
     } else if (area === "local" && changes.pageMathsOff) {
         followFrontTab(); // a website turned on again on the options page
@@ -502,12 +598,13 @@ function unlessOff(key, open) {
 }
 
 // The engine of the calculator, and with maths its solver, put into a page that has maths on it, for
-// page/answers.js to work it out: only then, as they are large. It answers once they are in
+// page/answers.js to work it out: only then, as they are large. With "chem", chem.js, for the chemistry
+// of a page, unless an administrator turned the chemistry off. It answers once they are in
 function addEngineToPage(tab, frameId, maths, done) {
-    chrome.scripting.executeScript({
+    (maths === "chem" ? policyOff("chemistry") : Promise.resolve(false)).then((off) => off ? Promise.reject() : chrome.scripting.executeScript({
         target: { tabId: tab.id, frameIds: [frameId] },
-        files: maths ? ["js/engine.js", "js/maths.js"] : ["js/engine.js"],
-    })
+        files: maths === "chem" ? ["js/chem.js"] : maths ? ["js/engine.js", "js/maths.js"] : ["js/engine.js"],
+    }))
         .then(() => done(true))
         .catch(() => done(false));
 }
@@ -519,8 +616,9 @@ function openPageMaths(message) {
         "derivative", "taylor", "ode", "card"];
     // the boxes of a card: f, a and b of the solver's, a function to draw, a matrix's size and numbers, a11 to
     // a1010; or the name of a formula or a constant; frac: a sum written in fractions, shown in them. Of a card
-    // of picks.js, its panel and card and their boxes, and of the statistics a list of numbers, which is long
-    const boxes = /^(f|a|b|name|size|a\d{2,4}|frac|panel|card|x|n|x0|y0|e|e1|e2|z|u|t|enc|bits|ts|convert|d|y|m|days|loan|rate|years|py|apr|[abcd][1-3]|g|v|to|list)$/;
+    // of a panel, its panel and card and their boxes, and of the statistics a list of numbers, which is long. Of the
+    // chemistry, page/chemistry.js: a formula or a name f, a reaction eq, a composition c and an element's symbol s
+    const boxes = /^(f|a|b|name|size|a\d{2,4}|frac|panel|card|x|n|x0|y0|e|e1|e2|z|u|t|enc|bits|ts|convert|d|y|m|days|loan|rate|years|py|apr|[abcd][1-3]|g|v|to|list|eq|c|s)$/;
     const fields = {};
 
     if (typeof message.text !== "string" || !kinds.includes(message.kind)) return;
@@ -533,7 +631,7 @@ function openPageMaths(message) {
 
 chrome.runtime.onMessage.addListener((message, sender, answer) => {
     if (message?.command === "page-maths-engine" && sender.tab) {
-        addEngineToPage(sender.tab, sender.frameId, !!message.maths, answer);
+        addEngineToPage(sender.tab, sender.frameId, message.chem ? "chem" : !!message.maths, answer);
         return true; // it answers later
     } else if (message?.command === "open-page-maths") {
         openPageMaths(message);
@@ -543,8 +641,15 @@ chrome.runtime.onMessage.addListener((message, sender, answer) => {
         launchOpenMode();
     } else if (message?.command === "open-graph") {
         unlessOff("graph", openGraphWindow);
+    } else if (message?.command === "open-chem") {
+        unlessOff("chemistry", () => openChemWindow(sender.tab?.windowId));
+    } else if (message?.command === "open-panel" && Object.hasOwn(panelPolicies, message.panel)) {
+        unlessOff(panelPolicies[message.panel], () => openPanelWindow(message.panel, sender.tab?.windowId));
     } else if (message?.command === "show-calculator") {
         showCalculator();
+    } else if (message?.command === "pop-in" && sender.tab) {
+        // a panel's own window, the graph's or the table's popped in: the calculator comes up with it open, then that window closes
+        showCalculator().then(() => chrome.windows.remove(sender.tab.windowId)).catch(() => { });
     } else if (message?.command === "open-calculator") {
         // the button on a page opens the detached window
         unlessOff("detachedMode", openCalculatorInDetachedMode);

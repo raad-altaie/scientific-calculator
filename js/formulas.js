@@ -573,6 +573,151 @@
                         ['v2', 'V<sub>2</sub>', 'volume after']],
                     x: '{c1}*{v1}/{v2}', ex: [[2, 0.5, 2], 0.5],
                     zero: ['v2']
+                },
+                {
+                    t: 'pOH', f: 'pOH = −log[OH<sup>−</sup>]',
+                    d: 'How basic a solution is; at 25 °C, pH = 14 − pOH.',
+                    v: [['OH', '[OH<sup>−</sup>]', 'concentration (mol/L)']],
+                    x: '-log({OH})', ex: [[0.001], 3],
+                    pos: ['OH']
+                },
+                {
+                    t: '[H⁺] from pH', f: '[H<sup>+</sup>] = 10<sup>−pH</sup>',
+                    d: 'The concentration of hydrogen ions, in mol/L, of a pH.',
+                    v: [['p', 'pH', 'pH']],
+                    x: '10^(-{p})', ex: [[3], 0.001]
+                },
+                {
+                    t: 'Henderson–Hasselbalch', f: 'pH = pK<sub>a</sub> + log{{[A<sup>−</sup>]|[HA]}}',
+                    d: 'The pH of a buffer of a weak acid HA and its base A<sup>−</sup>.',
+                    v: [['k', 'pK<sub>a</sub>', 'of the acid'], ['a', '[A<sup>−</sup>]', 'base (mol/L)'], ['h', '[HA]', 'acid (mol/L)']],
+                    x: '{k}+log({a}/{h})', ex: [[4.76, 0.1, 0.1], 4.76],
+                    pos: ['a', 'h']
+                },
+                {
+                    t: 'Ideal gas law', f: 'P = {{nRT|V}}',
+                    d: 'The pressure of a gas, in kPa, from PV = nRT with V in litres.',
+                    v: [['n', 'n', 'amount (mol)'], ['T', 'T', 'temperature (K)'], ['V', 'V', 'volume (L)']],
+                    x: '{n}*8.314462618*{T}/{V}', ex: [[1, 300, 1], 2494.3387854],
+                    zero: ['V']
+                },
+                {
+                    t: 'Combined gas law', f: 'V<sub>2</sub> = {{P<sub>1</sub>V<sub>1</sub>T<sub>2</sub>|T<sub>1</sub>P<sub>2</sub>}}',
+                    d: 'The volume of a gas after its pressure and temperature change; T in kelvin.',
+                    v: [['p1', 'P<sub>1</sub>', 'pressure before'], ['v1', 'V<sub>1</sub>', 'volume before'], ['t1', 'T<sub>1</sub>', 'temperature before (K)'],
+                        ['p2', 'P<sub>2</sub>', 'pressure after'], ['t2', 'T<sub>2</sub>', 'temperature after (K)']],
+                    x: '{p1}*{v1}*{t2}/({t1}*{p2})', ex: [[1, 2, 300, 2, 600], 2],
+                    zero: ['t1', 'p2']
+                },
+                {
+                    t: 'Molality', f: 'b = {{n|m}}',
+                    d: 'Moles of solute in each kilogram of solvent, mol/kg.',
+                    v: [['n', 'n', 'solute (mol)'], ['m', 'm', 'solvent (kg)']],
+                    x: '{n}/{m}', ex: [[0.5, 0.25], 2],
+                    zero: ['m']
+                },
+                {
+                    t: 'Boiling point elevation', f: 'ΔT = iK<sub>b</sub>b',
+                    d: 'How much higher a solution boils than its solvent. K<sub>b</sub> of water is 0.512 °C·kg/mol.',
+                    v: [['i', 'i', 'van \'t Hoff factor'], ['k', 'K<sub>b</sub>', 'constant (°C·kg/mol)'], ['b', 'b', 'molality (mol/kg)']],
+                    x: '{i}*{k}*{b}', ex: [[2, 0.512, 1], 1.024]
+                },
+                {
+                    t: 'Freezing point depression', f: 'ΔT = iK<sub>f</sub>b',
+                    d: 'How much lower a solution freezes than its solvent. K<sub>f</sub> of water is 1.86 °C·kg/mol.',
+                    v: [['i', 'i', 'van \'t Hoff factor'], ['k', 'K<sub>f</sub>', 'constant (°C·kg/mol)'], ['b', 'b', 'molality (mol/kg)']],
+                    x: '{i}*{k}*{b}', ex: [[2, 1.86, 0.5], 1.86]
+                },
+                {
+                    t: 'Osmotic pressure', f: 'Π = iMRT',
+                    d: 'The pressure of osmosis of a solution, in atm.',
+                    v: [['i', 'i', 'van \'t Hoff factor'], ['M', 'M', 'molarity (mol/L)'], ['T', 'T', 'temperature (K)']],
+                    x: '{i}*{M}*0.08205736608096*{T}', ex: [[1, 0.1, 298], 2.445309509212608]
+                },
+                {
+                    t: 'Raoult\'s law', f: 'P = x P°',
+                    d: 'The vapour pressure of a solvent in a solution, from its mole fraction and its vapour pressure alone.',
+                    v: [['x', 'x', 'mole fraction'], ['p', 'P°', 'pure vapour pressure']],
+                    x: '{x}*{p}', ex: [[0.9, 23.8], 21.42]
+                },
+                {
+                    t: 'Heat', f: 'q = mcΔT',
+                    d: 'The heat that warms a mass by ΔT, in J. c of water is 4.184 J/(g·°C).',
+                    v: [['m', 'm', 'mass (g)'], ['c', 'c', 'specific heat (J/(g·°C))'], ['t', 'ΔT', 'change (°C)']],
+                    x: '{m}*{c}*{t}', ex: [[100, 4.184, 25], 10460]
+                },
+                {
+                    t: 'Gibbs free energy', f: 'ΔG = ΔH − TΔS',
+                    d: 'Below 0, the reaction goes by itself. ΔH and ΔS in the same unit of energy: kJ and kJ/K.',
+                    v: [['h', 'ΔH', 'enthalpy (kJ/mol)'], ['T', 'T', 'temperature (K)'], ['s', 'ΔS', 'entropy (kJ/(mol·K))']],
+                    x: '{h}-{T}*{s}', ex: [[-92.2, 298, -0.1987], -32.9874]
+                },
+                {
+                    t: 'Free energy and K', f: 'ΔG° = −RT ln K',
+                    d: 'The standard free energy of a reaction, in J/mol, from its equilibrium constant.',
+                    v: [['T', 'T', 'temperature (K)'], ['K', 'K', 'equilibrium constant']],
+                    x: '-8.314462618*{T}*ln({K})', ex: [[298, 10], -5705.137788777988],
+                    pos: ['K']
+                },
+                {
+                    t: 'Nernst equation', f: 'E = E° − {{RT|nF}} ln Q',
+                    d: 'The voltage of a cell away from standard conditions, in V.',
+                    v: [['e', 'E°', 'standard voltage (V)'], ['T', 'T', 'temperature (K)'], ['n', 'n', 'electrons moved'], ['Q', 'Q', 'reaction quotient']],
+                    x: '{e}-8.314462618*{T}/({n}*96485.33212331001)*ln({Q})', ex: [[1.1, 298.15, 2, 0.01], 1.159159349683692],
+                    zero: ['n'], pos: ['Q']
+                },
+                {
+                    t: 'Arrhenius equation', f: 'k = Ae<sup>−E<sub>a</sub>/RT</sup>',
+                    d: 'The rate constant of a reaction at a temperature; E<sub>a</sub> in J/mol.',
+                    v: [['A', 'A', 'pre-exponential factor'], ['E', 'E<sub>a</sub>', 'activation energy (J/mol)'], ['T', 'T', 'temperature (K)']],
+                    x: '{A}*e^(-{E}/(8.314462618*{T}))', ex: [[1000, 20000, 300], 0.32942659591539336],
+                    zero: ['T']
+                },
+                {
+                    t: 'First-order decay', f: '[A] = [A]<sub>0</sub>e<sup>−kt</sup>',
+                    d: 'What is left of a reactant that goes at a rate k.',
+                    v: [['a', '[A]<sub>0</sub>', 'at first'], ['k', 'k', 'rate constant'], ['t', 't', 'time']],
+                    x: '{a}*e^(-{k}*{t})', ex: [[1, 0.1, 10], 0.36787944117144233]
+                },
+                {
+                    t: 'Half-life', f: 'N = N<sub>0</sub>(½)<sup>t/t½</sup>',
+                    d: 'What is left of a radioactive substance after a time t; t and t½ in the same unit.',
+                    v: [['N', 'N<sub>0</sub>', 'at first'], ['t', 't', 'time'], ['h', 't½', 'half-life']],
+                    x: '{N}*0.5^({t}/{h})', ex: [[100, 10, 5], 25],
+                    zero: ['h']
+                },
+                {
+                    t: 'Beer–Lambert law', f: 'A = εlc',
+                    d: 'How much light a solution absorbs.',
+                    v: [['e', 'ε', 'molar absorptivity (L/(mol·cm))'], ['l', 'l', 'path length (cm)'], ['c', 'c', 'concentration (mol/L)']],
+                    x: '{e}*{l}*{c}', ex: [[100, 1, 0.01], 1]
+                },
+                {
+                    t: 'Graham\'s law', f: '{{r<sub>1</sub>|r<sub>2</sub>}} = [[{{M<sub>2</sub>|M<sub>1</sub>}}]]',
+                    d: 'How many times faster the first gas effuses than the second.',
+                    v: [['a', 'M<sub>1</sub>', 'molar mass of the first'], ['b', 'M<sub>2</sub>', 'molar mass of the second']],
+                    x: 'sqrt({b}/{a})', ex: [[4, 16], 2],
+                    pos: ['a', 'b']
+                },
+                {
+                    t: 'Electrolysis', f: 'm = {{ItM|nF}}',
+                    d: 'The mass made at an electrode, in g, by a current over a time, Faraday\'s law.',
+                    v: [['I', 'I', 'current (A)'], ['t', 't', 'time (s)'], ['M', 'M', 'molar mass (g/mol)'], ['n', 'n', 'electrons per ion']],
+                    x: '{I}*{t}*{M}/({n}*96485.33212331001)', ex: [[2, 3600, 63.546, 2], 2.37098836647661],
+                    zero: ['n']
+                },
+                {
+                    t: 'Percent yield', f: '% = {{actual|theoretical}} × 100',
+                    d: 'How much of what a reaction could give it gave.',
+                    v: [['a', 'actual', 'yield got'], ['t', 'theoretical', 'yield possible']],
+                    x: '{a}/{t}*100', ex: [[8, 10], 80],
+                    zero: ['t']
+                },
+                {
+                    t: 'Particles', f: 'N = nN<sub>A</sub>',
+                    d: 'The number of atoms or molecules in an amount of substance.',
+                    v: [['n', 'n', 'amount (mol)']],
+                    x: '{n}*6.02214076*10^23', ex: [[2], 1.204428152e24]
                 }
             ]
         },

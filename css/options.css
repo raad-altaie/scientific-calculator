@@ -138,6 +138,7 @@ html, body {
 
 .option-icon {
     flex: none;
+    align-self: flex-start; /* at the top of a long option, not halfway down it */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -220,6 +221,27 @@ html, body {
     color: #acb4c1;
 }
 
+/* a link in the text of an option, as of the examples of the instant answers */
+.option-text a {
+    color: #f0b8be;
+}
+
+/* what the instant answers are for: a row of choices, each on or off on its own, in the middle */
+.answer-kinds {
+    text-align: center;
+}
+
+.answer-kinds .choice {
+    justify-content: center;
+    margin-top: 0.4em;
+}
+
+/* a feature an administrator turned off: it cannot be chosen */
+.choice input:disabled + span {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
 /* the websites the instant answers are turned off on, each with its button that turns them on again */
 .site-list ul {
     display: flex;
@@ -269,6 +291,7 @@ html, body {
 
 .switch {
     flex: none;
+    align-self: flex-start; /* at the top, as the icon */
     position: relative;
     width: 40px;
     height: 22px;
@@ -339,6 +362,7 @@ html, body {
 
 .launch {
     flex: none;
+    align-self: flex-start; /* at the top, as the icon and the switches */
     min-width: 7.5em;
     padding: 0.7em 1.6em;
     font-size: 1.05em;

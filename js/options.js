@@ -63,6 +63,7 @@ const showPageOptions = () => {
 
         pageIcon.checked = buttonOn;
         pageMaths.checked = !!kept && kept.pageMathsOn === true && !CalcPolicy.off('pageMaths');
+        showKinds();
         showSites();
         if (buttonOn && !button) {
             const script = document.createElement('script');
@@ -81,6 +82,37 @@ const showPageOptions = () => {
         else show(null);
     });
 };
+
+// What the instant answers are for, besides the sums: each feature, a panel of the calculator, on unless kept
+// off in pageMathsFeatures, where background.js reads which to put into the pages. Listed while the instant
+// answers are on; one an administrator turned off with its panel cannot be chosen, and says why
+const kindList = document.getElementById('page-maths-kinds');
+const kindBoxes = kindList.querySelectorAll('input:not(.always)'); // the sums are always on
+
+function showKinds() {
+    kindList.hidden = !pageMaths.checked;
+    if (kindList.hidden) return;
+    chrome.storage.local.get('pageMathsFeatures', (kept) => {
+        const chosen = kept?.pageMathsFeatures || {};
+
+        kindBoxes.forEach((box) => {
+            const label = box.parentElement;
+            const off = CalcPolicy.off(box.value);
+
+            label.dataset.about = label.dataset.about || label.title;
+            label.title = label.dataset.about + (off ? '. Turned off by your administrator.' : '');
+            box.disabled = off;
+            box.checked = !off && chosen[box.value] !== false;
+        });
+    });
+}
+
+kindBoxes.forEach((box) => box.addEventListener('change', () => {
+    chrome.storage.local.get('pageMathsFeatures', (kept) => {
+        chrome.storage.local.set({ pageMathsFeatures: Object.assign({}, kept?.pageMathsFeatures, { [box.value]: box.checked }) });
+    });
+}));
+CalcPolicy.onChange(showKinds);
 
 // The websites the instant answers are turned off on, with the menu of a right click on a page
 // (background.js): listed under the option while it is on, each with a button that turns them on again
@@ -136,6 +168,7 @@ chrome.permissions.onRemoved.addListener(showPageOptions);
 chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && (changes.pageButtonOn || changes.pageMathsOn)) showPageOptions();
     else if (area === 'local' && changes.pageMathsOff) showSites();
+    else if (area === 'local' && changes.pageMathsFeatures) showKinds();
 });
 showPageOptions();
 
@@ -202,11 +235,11 @@ window.addEventListener('storage', (e) => {
     showFormat();
 });
 
-// The formulas, the converter, the statistics, the graph, the solver and the numbers: a button on the display for each
+// The formulas, the converter, the statistics, the graph, the solver, the numbers and the chemistry: a button on the display for each
 // while it is turned on. All of them start on; an open calculator gets the change as a
 // storage event
 [['panel-fx', 'fxOn', true], ['panel-conv', 'convOn', true], ['panel-stats', 'statsOn', true], ['panel-graph', 'graphOn', true],
-    ['panel-solve', 'solveOn', true], ['panel-numbers', 'numbersOn', true]].forEach(([id, key, on]) => {
+    ['panel-solve', 'solveOn', true], ['panel-numbers', 'numbersOn', true], ['panel-chem', 'chemOn', true]].forEach(([id, key, on]) => {
     const box = document.getElementById(id);
 
     box.checked = on;
@@ -224,7 +257,7 @@ window.addEventListener('storage', (e) => {
 // What an administrator turned off (policy.js): its switch or button cannot be used, and
 // says why. Turned on again, the switch shows the choice that was kept
 const managed = [['panel-fx', 'formulas', 'fxOn'], ['panel-conv', 'converter', 'convOn'], ['panel-graph', 'graph', 'graphOn'],
-    ['panel-stats', 'statistics', 'statsOn'], ['panel-solve', 'solve', 'solveOn'], ['panel-numbers', 'numbers', 'numbersOn'],
+    ['panel-stats', 'statistics', 'statsOn'], ['panel-solve', 'solve', 'solveOn'], ['panel-numbers', 'numbers', 'numbersOn'], ['panel-chem', 'chemistry', 'chemOn'],
     ['open-mode', 'detachedMode'], ['page-icon', 'pageButton'], ['page-maths', 'pageMaths']];
 
 const showPolicy = () => {

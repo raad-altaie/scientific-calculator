@@ -1,14 +1,20 @@
 // Run with: node test/page-picks.test.js
-// What else of a page's text the icons go after (page/picks.js), and what is selected: quantities to convert,
-// dates, money, equations together, choices and complex numbers; numbers, lists and the codes of a computer.
-// And the derivatives, series and differential equations that page/answers.js reads; and what their tips say
+// What else of a page's text the icons go after, and what is selected: quantities to convert and dates (page/converter.js),
+// money and equations together (page/solve.js), choices and complex numbers (page/numbers.js); numbers, lists
+// (page/statistics.js) and the codes of a computer. And the derivatives, series and differential equations of
+// page/solve.js; and what their tips say
 'use strict';
 
-var Picks = require('../js/page/picks.js'),
-    PageMaths = require('../js/page/answers.js'),
+var PageMaths = require('../js/page/answers.js'),
+    Reader = require('../js/page/reader.js'),
     Engine = require('../js/engine.js'),
     Maths = require('../js/maths.js'),
     Units = require('../js/units.js'),
+    // what the features read before the sums, and their tips, as picks.js had them before it was split
+    Picks = {
+        find: Reader.before, picked: Reader.picked, readDate: require('../js/page/converter.js').readDate,
+        tipOf: function (c, M, E, U, unit) { return Reader.featureOf(c).tip(c, unit, { maths: M, engine: E, units: U }); }
+    },
     failures = 0,
     checks = 0;
 
@@ -119,7 +125,7 @@ function tip(c) {
 (function () {
     [['4 8 15 16', 'list'], ['2 + 3', 'sum'], ['5 km in miles', 'unit'], ['52 choose 5 ways', 'exact'], ['0xFF', 'bits'],
         ['2 + 3 and 52 choose 5', null], ['d/dx x^3 at x = 2', 'derivative']].forEach(function (c) {
-        var got = PageMaths.selected(c[0], null, 'mdy');
+        var got = PageMaths.selected(c[0], 'mdy');
         check((got ? got.kind : null) === c[1], 'selected: ' + c[0], got && got.kind);
     });
 })();
@@ -186,7 +192,7 @@ function tip(c) {
     check(t.rows.length === 8 && t.rows[6][1] === '3.106856', 'tip: 5 km', JSON.stringify(t));
 })();
 
-// derivatives, series and differential equations, of page/answers.js, in text and in TeX
+// derivatives, series and differential equations, of page/solve.js, in text and in TeX
 (function () {
     var text = function (s) {
         return PageMaths.find(s).map(function (c) { return s.slice(c.from, c.to) + ' | ' + c.kind + ' | ' + JSON.stringify(c.fields); }).join(' || ');
