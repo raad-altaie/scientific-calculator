@@ -211,6 +211,13 @@
                                 <text transform="translate(8 11.24) scale(0.88 1)" fill="currentColor" stroke="currentColor" stroke-width="0.1" font-size="9" font-weight="700" font-family="Play, sans-serif" text-anchor="middle">Fe</text>
                             </svg>
                         </div>
+                        <!-- physics: circuits, motion, forces and waves. A resistor -->
+                        <div class="calc-phys-btn" hidden>
+                            <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
+                                stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 8h3l1-3 2 6 2-6 2 6 1-3h3" stroke-width="1.35" />
+                            </svg>
+                        </div>
                         <!-- statistics of a list of numbers -->
                         <div class="calc-stat-btn" hidden>
                             <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
@@ -416,6 +423,7 @@
                 <span class="calc-solve-tabs">
                     <span class="calc-solve-tab" data-tab="list">List</span>
                     <span class="calc-solve-tab" data-tab="pairs">Pairs</span>
+                    <span class="calc-solve-tab" data-tab="tests">Tests</span>
                 </span>
                 <!-- what is between the numbers: found by itself, or the one chosen -->
                 <span class="calc-stats-by-label">Separator</span>
@@ -432,11 +440,23 @@
             <textarea class="calc-stats-input" spellcheck="false" maxlength="20000"
                 placeholder="Type or paste numbers: 4 8 15 16 23 42"></textarea>
             <div class="calc-stats-note"></div>
+            <!-- the pairs only: the kind of curve fitted to them, and its equation -->
+            <div class="calc-stats-fitrow">
+                <span class="calc-stats-by-label">Fit</span>
+                <div class="calc-conv-pick calc-stats-fitpick" tabindex="0" role="combobox" aria-haspopup="listbox"
+                    aria-expanded="false" aria-label="Fit" title="The curve fitted to the pairs">
+                    <span class="calc-conv-chosen"></span>
+                    <div class="calc-conv-menu" role="listbox" hidden></div>
+                </div>
+                <span class="calc-stats-eq"></span>
+            </div>
             <!-- the results, and a chart of the numbers under them -->
             <div class="calc-stats-out">
                 <div class="calc-stats-grid"></div>
                 <div class="calc-stats-chart"></div>
             </div>
+            <!-- the Tests tab: a card for each test, as the solver has, in place of the list and its results -->
+            <div class="calc-sv-list calc-stats-tests"></div>
         </div>
 
         <!-- the graph of y = a function of x, over the keys like the history -->
@@ -521,6 +541,7 @@
                 <span class="calc-solve-tabs">
                     <span class="calc-solve-tab" data-tab="solve">Solve</span>
                     <span class="calc-solve-tab" data-tab="calculus">Calculus</span>
+                    <span class="calc-solve-tab" data-tab="geometry">Geometry</span>
                     <span class="calc-solve-tab" data-tab="chance">Probability</span>
                     <span class="calc-solve-tab" data-tab="finance">Finance</span>
                 </span>
@@ -539,6 +560,22 @@
                     <span class="calc-solve-tab" data-tab="complex">Complex</span>
                     <span class="calc-solve-tab" data-tab="whole">Integer</span>
                     <span class="calc-solve-tab" data-tab="computer">Computer</span>
+                </span>
+                <!-- pop out: the panel as big as the page, or in a window of its own; pop in: back in the calculator -->
+                <span class="calc-panel-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-panel-grow" d="M10 2h4v4M6.5 9.5L14 2" /><path class="calc-panel-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
+                <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
+            </div>
+            <div class="calc-sv-list"></div>
+        </div>
+
+        <!-- physics, over the keys like the history: a card for each tool, as the solver has -->
+        <div class="calc-past calc-phys">
+            <div class="calc-past-head">
+                <span class="calc-solve-tabs">
+                    <span class="calc-solve-tab" data-tab="circuits">Circuits</span>
+                    <span class="calc-solve-tab" data-tab="motion">Motion</span>
+                    <span class="calc-solve-tab" data-tab="forces">Forces</span>
+                    <span class="calc-solve-tab" data-tab="waves">Waves</span>
                 </span>
                 <!-- pop out: the panel as big as the page, or in a window of its own; pop in: back in the calculator -->
                 <span class="calc-panel-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-panel-grow" d="M10 2h4v4M6.5 9.5L14 2" /><path class="calc-panel-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
@@ -673,6 +710,10 @@
         <span class="calc-home-in" role="button" tabindex="0" aria-label="Pop in" title="Pop in"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
         <span class="calc-home-close" role="button" tabindex="0" aria-label="Close" title="Close"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
     </div>
+    <!-- a tool's own window: the options and the guide over it, from the rail; popup.js opens the page in the frame -->
+    <div class="options-over" hidden>
+        <iframe title="Options"></iframe>
+    </div>
     <!-- /calculator -->
             </div>
         </main>
@@ -768,9 +809,11 @@
                 <div class="option-text">
                     <h3>Converter</h3>
                     <p>A button at the top left of the display that converts units of length, area, volume, mass,
-                        temperature, speed, time, data, pressure, energy, power, angles and fuel economy. The result
+                        temperature, speed, time, data, pressure, energy, power, angles, fuel economy, force, torque,
+                        density, frequency, acceleration, flow rate, current, voltage and charge. The result
                         shown is the value to start from; click a converted value to put it into the display. Its
-                        Dates tab counts the days between two dates and moves a date on by years, months and days.</p>
+                        Dates tab counts the days between two dates, moves a date on by years, months and days, and
+                        shows a time in other time zones.</p>
                 </div>
                 <label class="switch" title="Converter">
                     <input type="checkbox" id="panel-conv">
@@ -830,7 +873,8 @@
                         polynomial, two or three linear equations or two curves, finds turning points, integrals,
                         slopes, sums and products to ∞, limits, Taylor series, areas between curves, arc lengths and
                         differential equations, the chances of the normal, t, χ², F, binomial, Poisson and other
-                        distributions, confidence intervals, and money over time, NPV and IRR, loans and savings, APR and APY, bonds, depreciation, break-even, inflation and percentage change.</p>
+                        distributions, confidence intervals, and money over time, NPV and IRR, loans and savings, APR and APY, bonds, depreciation, break-even, inflation and percentage change;
+                        and geometry: a triangle of any three of its sides and angles, shapes, solids, points and lines, and polygons.</p>
                 </div>
                 <label class="switch" title="Solve">
                     <input type="checkbox" id="panel-solve">
@@ -862,14 +906,35 @@
             <div class="option">
                 <span class="option-icon screen-icon">
                     <svg viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M1 8h3l1-3 2 6 2-6 2 6 1-3h3" stroke-width="1.35"></path>
+                    </svg>
+                </span>
+                <div class="option-text">
+                    <h3>Physics</h3>
+                    <p>A button at the top left of the display for motion at a steady acceleration from any three of s, u, v,
+                        a and t, projectiles with their path drawn, circular motion and pendulums; forces, slopes with
+                        friction, collisions, energy, work and gravitation; the resistor colour code both ways, resistors
+                        and capacitors in series and parallel, Ohm's law, dividers and RC circuits; and waves, lenses and
+                        mirrors, refraction, the Doppler effect, photons and decibels.</p>
+                </div>
+                <label class="switch" title="Physics">
+                    <input type="checkbox" id="panel-phys">
+                    <span></span>
+                </label>
+            </div>
+            <div class="option">
+                <span class="option-icon screen-icon">
+                    <svg viewBox="0 0 16 16" aria-hidden="true">
                         <path d="M3.5 12.9V8.8M8 12.9V3.4M12.5 12.9V6.6" stroke-width="1.8"></path>
                     </svg>
                 </span>
                 <div class="option-text">
                     <h3>Statistics</h3>
                     <p>A button at the top left of the display: type or paste a list of numbers for its count, sum,
-                        mean, standard deviation, quartiles, median and more, with a histogram and a box plot; or pairs
-                        of numbers for their line of best fit and correlation.</p>
+                        mean, standard deviation, quartiles, median and more, with a histogram and a box plot; pairs
+                        of numbers for their correlation and a curve fitted to them, a line, quadratic, cubic, exponential,
+                        power, logarithmic or logistic; and tests of hypotheses: t and z, paired t, proportions, χ² of
+                        goodness of fit and of independence, ANOVA and correlation.</p>
                 </div>
                 <label class="switch" title="Statistics">
                     <input type="checkbox" id="panel-stats">
@@ -891,8 +956,8 @@
                     operator in the middle of it. Back at the end, the calculator goes on as before.</li>
                 <li>Variables, formulas and constants: the variables A to J, some hundred formulas to fill in and sixty
                     constants of math and science. See the "Variables, Formulas and Constants" section below.</li>
-                <li>Converter: units of length, area, volume, mass, temperature and more, and dates. See the
-                    "Converter" section below.</li>
+                <li>Converter: units of length, area, volume, mass, temperature, force, density, current and more, dates and
+                    time zones. See the "Converter" section below.</li>
                 <li>Graph: functions, equations, inequalities, sequences, slope fields and points drawn, with their roots, highs, lows and
                     crossings. See the "Graph" section below.</li>
                 <li>Numbers: matrices up to 10 × 10 and their eigenvalues, vectors, complex numbers, bases and bits, text and its
@@ -900,13 +965,15 @@
                     See the "Numbers" section below.</li>
                 <li>Solve: every root of an equation, in exact form as well, inequalities, turning points,
                     polynomials, linear systems, two curves, integrals, slopes, sums, limits, Taylor series,
-                    differential equations, probability, confidence intervals, money over time, NPV and IRR, loans and savings, bonds and depreciation. See the "Solve" section below.</li>
+                    differential equations, probability, confidence intervals, money over time, NPV and IRR, loans and savings, bonds and depreciation, and geometry. See the "Solve" section below.</li>
                 <li>Statistics: count, sum, mean, standard deviation, quartiles, median and more of a list of numbers,
-                    and the line of best fit of pairs of them. See the "Statistics" section below.</li>
+                    the curve of best fit of pairs of them, and tests of hypotheses. See the "Statistics" section below.</li>
                 <li>Chemistry: the periodic table, each element's data and its atom drawn, popped out as big as the page; molar mass,
                     equations balanced with redox, amounts and the limiting reactant, empirical formulas, names and formulas,
                     oxidation numbers, ions, molarity, dilution, freezing and boiling points, pH, weak acids, buffers, solubility,
                     the gas laws, heat and half-life.</li>
+                <li>Physics: motion, projectiles, forces, collisions, energy and gravitation; the resistor colour code and circuits;
+                    waves, lenses, refraction, the Doppler effect and photons. See the "Physics" section below.</li>
                 <li><kbd class="k">mod</kbd>, <kbd class="k">gcd</kbd> and <kbd class="k">lcm</kbd> on the <kbd class="k">2nd</kbd> layer of <kbd class="k">%</kbd>, <kbd class="k"><sup>n</sup>C<sub>r</sub></kbd> and <kbd class="k"><sup>n</sup>P<sub>r</sub></kbd>.</li>
                 <li><kbd class="k">floor</kbd> and <kbd class="k">ceil</kbd> on the <kbd class="k">2nd</kbd> layer of <kbd class="k">abs</kbd> and <kbd class="k">x!</kbd>, side by side, and <kbd class="k">round</kbd> on that of <kbd class="k">Rand</kbd>: a number to the whole number below or above it, and to the nearest, half away from 0. They can be pasted too, with trunc, which goes toward 0: floor(7.5) = 7.</li>
                 <li><kbd class="k">10<sup>x</sup></kbd>, <kbd class="k">e</kbd> and <kbd class="k">log<sub>y</sub></kbd> (the logarithm to any base: 8 log<sub>y</sub> 2 = 3) on the <kbd class="k">2nd</kbd> layer of <kbd class="k">log</kbd>, <kbd class="k">&pi;</kbd> and <kbd class="k">y<sup>x</sup></kbd>.</li>
@@ -987,10 +1054,11 @@
             <p>Click the arrows at the top left of the display. Pick what to convert and the unit your value is in,
                 and the list shows it in all the other units of its kind at once, worked out as you type.</p>
             <ul>
-                <li>Thirteen kinds: length, area, volume, mass, temperature, speed, time, data, pressure, energy,
-                    power, angles and fuel economy. From millimeters to nautical miles, teaspoons to US and UK
-                    gallons, kilobytes to tebibytes, calories to kilowatt-hours, horsepower, knots, and miles per
-                    gallon to liters per 100 km.</li>
+                <li>Twenty-two kinds: length, area, volume, mass, temperature, speed, time, data, pressure, energy,
+                    power, angles, fuel economy, force, torque, density, frequency, acceleration, flow rate, electric
+                    current, voltage and electric charge. From nanometers to light-years, teaspoons to US and UK
+                    gallons, kilobytes to tebibytes, calories to kilowatt-hours, horsepower, knots, miles per
+                    gallon to liters per 100 km, pound-feet to newton meters, and mAh to coulombs.</li>
                 <li>The result in the display is the value to start from.</li>
                 <li>Click a converted value, or press Enter for the first one, to put it into the equation.
                     Right-click one to copy it, alone or with its unit.</li>
@@ -1000,7 +1068,7 @@
                     degrees, radians, gradians and turns.</li>
                 <li>The kind, the units and the value stay for the next time.</li>
             </ul>
-            <p>The Dates tab beside Units has three cards, each opened with a click. Dates are written as your
+            <p>The Dates tab beside Units has four cards, each opened with a click. Dates are written as your
                 region writes them, 14/10/2026 in the UK and France, 14.10.2026 in Germany, 10/14/2026 in the US,
                 and typed so, or as 14 Oct 2026 or 2026-10-14. A click in a box of a date, its button or the arrow
                 down opens its calendar, its weeks starting on your region's first day; an empty box is today. In
@@ -1017,6 +1085,9 @@
                     being Tuesday 14 November 2023, 22:13:20 UTC, one of 13 digits being of milliseconds, in UTC, in the
                     time here and in ISO 8601. Date → Unix: the timestamp of a date and a time, 14:30 or 2:30 pm, in
                     UTC or the time here.</li>
+                <li>Time zones: the time now, to type over, and the same time in another place: pick From and To in
+                    their lists, which a letter jumps along. 9:00 in New York is 22:00 in Tokyo, with each offset from
+                    UTC and how far ahead or behind it is; summer time is as each place has it today.</li>
                 <li>Click a number among the results to put it into the equation. The tab and the dates stay for
                     the next time.</li>
             </ul>
@@ -1152,6 +1223,14 @@
                     (1 + 1/x)^x at inf; its Taylor series about a, sin x as x – x³/6 + x⁵/120 – …; the area between
                     two curves and the length of one from a to b; and y at x of a differential equation, y′ = x + y
                     with y(0) = 1.</li>
+                <li>Geometry has a triangle of any three of its sides and angles, one a side at least, each angle A across
+                    from its side a: the rest, its area, perimeter, heights and the radii of its circles inside and round
+                    it, and it drawn; two sides and an angle not between them may make two triangles, which are both given.
+                    And the area and perimeter of a circle, rectangle, trapezoid, ellipse, sector or regular polygon; the
+                    volume and surface of a sphere, cylinder, cone, box or square pyramid; the distance, midpoint and line
+                    of two points; the circle through three points; and the area, perimeter and centroid of a polygon of its
+                    corners. Each but a solid is drawn to scale first, with its sizes or points named; Example fills
+                    any card in. Angles are in the unit in use, Deg, Rad or Grad.</li>
                 <li>Probability has the normal distribution's chances, density and inverse; Student's t, χ² and F,
                     their chances, p-values and the value for a chance; binomial, Poisson, geometric and
                     hypergeometric chances; exponential and uniform ones; confidence intervals of a mean and of a
@@ -1176,10 +1255,18 @@
                     the medians of the halves below and above the median, the median in neither. Under the results, a
                     histogram of the numbers and their box plot.</li>
                 <li>Pairs takes x and y on each line, 1 2 or 1, 2, or two columns pasted from a spreadsheet, for
-                    their means, standard deviations, sums, Σxy and covariance, and the line of best fit by least
-                    squares, y = a + bx, with its slope, intercept, correlation r and r². The line is in the note under
-                    the box, and drawn through the pairs under the results.</li>
-                <li>Each tab keeps its own numbers, and both stay for the next time.</li>
+                    their means, standard deviations, sums, Σxy and covariance, Spearman's ρ, and the curve of best fit
+                    by least squares of the kind chosen under the box: linear, y = a + bx, with its slope, intercept,
+                    correlation r and r²; quadratic; cubic; exponential, y = a · bˣ; power, y = a · xᵇ; logarithmic,
+                    y = a + b ln x; or logistic, y = c / (1 + a e^(–bx)). Its equation is beside the choice, and it is
+                    drawn through the pairs under the results.</li>
+                <li>Tests has a card for each test of a hypothesis, as a TI-84's STAT TESTS: the t-test of one sample,
+                    of its numbers or of its mean, s and n; the t-test of two samples, Welch's or pooled; the paired
+                    t-test, a pair on each line; the z-test; the z-test of one proportion and of two; χ² of goodness of
+                    fit, the expected as counts or a ratio, 9:3:3:1; χ² of independence of a table pasted; one-way ANOVA,
+                    a group on each line; and the correlation test, with Spearman's ρ. Each gives its statistic, p-value
+                    and degrees of freedom, whether to reject H₀ at α, ≠, &lt; or &gt;, and the interval of what it tests.</li>
+                <li>Each tab keeps its own numbers, and all stay for the next time.</li>
             </ul>
 
             <h2 class="logo title sub">Chemistry</h2>
@@ -1212,6 +1299,25 @@
                     a formula or an ion, K2Cr2O7, SO4^2-, and of NH4NO3 each ion's own.</li>
                 <li>Gases: the ideal gas law, PV = nRT, in atm, kPa, mmHg or bar, with the mass and density of a gas; and
                     the combined gas law. Leave the one to work out empty.</li>
+            </ul>
+
+            <h2 class="logo title sub">Physics</h2>
+            <p>Click the resistor at the top left of the display. Each tool is a card, as the solver has; numbers are in SI
+                units, m, kg, s, N and J, unless the card says. Click a result to put it into your calculation.</p>
+            <ul>
+                <li>Motion: steady acceleration, any three of s, u, v, a and t giving the other two, both answers where a
+                    speed may go either way; a projectile's time, range, height and landing speed, from a height as well,
+                    its path drawn; circular motion from its speed, period or rpm; and pendulums and springs.</li>
+                <li>Forces: F = ma; a mass on a slope with friction, and whether it slides; collisions, elastic or
+                    sticking together; kinetic and potential energy; work and power; gravitation, with the gravity, orbit
+                    and escape speed of a planet; and springs.</li>
+                <li>Circuits: the resistor colour code of 4, 5 or 6 bands, chosen by colour, and the colours of a
+                    resistance, the resistor drawn; resistors, capacitors or coils in series and parallel, 100 + 220 || 330;
+                    Ohm's law and power from any two; the voltage divider, with a load; and the time constant and
+                    cut-off of an RC circuit. A part's value is typed as it is written: 4.7k, 4k7, 470R, 100n, 2.2µ.</li>
+                <li>Waves: v = fλ; thin lenses and mirrors, with the image; refraction and the critical angle; the
+                    Doppler effect; light of a wavelength, frequency or energy, and its colour; and sound in decibels.</li>
+                <li>Angles are in the unit in use, Deg, Rad or Grad. What you typed stays for the next time.</li>
             </ul>
         </div>
 
@@ -1819,6 +1925,7 @@
     <script src="js/maths.js"></script>
     <script src="js/units.js"></script>
     <script src="js/chem.js"></script>
+    <script src="js/physics.js"></script>
     <script src="js/main.js"></script>
     <script src="js/app.js"></script>
     <script src="js/options.js"></script>

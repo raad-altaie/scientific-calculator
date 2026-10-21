@@ -1545,9 +1545,12 @@
     // ln y or ln x, as calculators fit them, with that line's r². { kind, k: its numbers in that
     // order, r2, at(x) }. Null where the points cannot have one: too few x, or a y or an x not
     // above 0 where its logarithm is taken
+    // Of the statistics as well: cubic, y = a x³ + b x² + c x + d; and logistic, y = c / (1 + a e^(–b x)), as a TI-84 has it
     function fit(points, kind) {
         var line, k, logX = kind === 'pow' || kind === 'log', logY = kind === 'exp' || kind === 'pow', at;
         if (kind === 'quad') return fitQuad(points);
+        if (kind === 'cubic') return fitPoly(points, 3);
+        if (kind === 'logistic') return fitLogistic(points);
         if (points.some(function (p) { return (logX && !(p.x > 0)) || (logY && !(p.y > 0)); })) return null;
         if (kind === 'lin') line = fitLine(points);
         else line = fitLine(points.map(function (p) { return { x: logX ? Math.log(p.x) : p.x, y: logY ? Math.log(p.y) : p.y }; }), true);
@@ -1595,6 +1598,107 @@
             r2: all > 0 ? +Math.max(0, Math.min(1, 1 - top / all)).toPrecision(10) : 1,
             at: function (x) { return (q[0] * x + q[1]) * x + q[2]; }
         };
+    }
+
+    // r² of a curve through points: how much of how the y differ it tells, 1 for points all on it
+    function rSquared(points, at) {
+        var n = points.length, my = 0, top = 0, all = 0;
+        points.forEach(function (p) { my += p.y / n; });
+        points.forEach(function (p) {
+            top += Math.pow(p.y - at(p.x), 2);
+            all += (p.y - my) * (p.y - my);
+        });
+        return all > 0 ? +Math.max(0, Math.min(1, 1 - top / all)).toPrecision(10) : 1;
+    }
+
+    // A polynomial of the power d nearest points, its numbers from the highest power down: worked out in u, x from its
+    // middle over its spread, so the sums stay near 1, then written in x again. Null for fewer than d + 1 x
+    function fitPoly(points, d) {
+        var n = points.length, mx = 0, h = 0, xs = [], s = [], t = [], a, c, q = [], j, k, at;
+        points.forEach(function (p) {
+            mx += p.x / n;
+            if (xs.indexOf(p.x) < 0) xs.push(p.x);
+        });
+        if (xs.length < d + 1) return null;
+        points.forEach(function (p) { h = Math.max(h, Math.abs(p.x - mx)); });
+        for (k = 0; k <= 2 * d; k++) s[k] = 0;
+        for (k = 0; k <= d; k++) t[k] = 0;
+        points.forEach(function (p) {
+            var u = (p.x - mx) / h;
+            for (k = 0; k <= 2 * d; k++) s[k] += Math.pow(u, k);
+            for (k = 0; k <= d; k++) t[k] += Math.pow(u, k) * p.y;
+        });
+        a = [];
+        for (j = 0; j <= d; j++) {
+            a.push([]);
+            for (k = 0; k <= d; k++) a[j].push(s[j + k]);
+        }
+        c = solve(a, t); // c[k], of u^k
+        if (!c) return null;
+        // u^k = ((x – mx)/h)^k: the part of x^j of each, by the binomial
+        for (j = 0; j <= d; j++) {
+            q[j] = 0;
+            for (k = j; k <= d; k++) q[j] += c[k] * choose(k, j) * Math.pow(-mx, k - j) / Math.pow(h, k);
+        }
+        q = q.reverse().map(function (v) { return +v.toPrecision(10) + 0; }); // from the highest power
+        at = function (x) { return q.reduce(function (y, v) { return y * x + v; }, 0); };
+        return { kind: d === 3 ? 'cubic' : 'poly' + d, k: q, r2: rSquared(points, at), at: at };
+        function choose(m, r) {
+            var v = 1, i;
+            for (i = 1; i <= r; i++) v = v * (m - r + i) / i;
+            return v;
+        }
+    }
+
+    // y = c / (1 + a e^(–b x)) nearest points, by Levenberg and Marquardt's way from the straight line of ln(c/y – 1), c a little
+    // above the highest y; a and c kept above 0 as their logarithms, x from its middle. Every y above 0, and four x or more
+    function fitLogistic(points) {
+        var n = points.length, mx = 0, top = -Infinity, xs = [], p, sse, lambda = 1e-3, i, line, best;
+        points.forEach(function (q) {
+            mx += q.x / n;
+            top = Math.max(top, q.y);
+            if (xs.indexOf(q.x) < 0) xs.push(q.x);
+        });
+        if (xs.length < 4 || points.some(function (q) { return !(q.y > 0); })) return null;
+        line = fitLine(points.map(function (q) { return { x: q.x - mx, y: Math.log(top * 1.1 / q.y - 1) }; }), true);
+        if (!line) return null;
+        p = [line.b, -line.m, Math.log(top * 1.1)]; // ln a about the middle, b, ln c
+        function errors(p) {
+            return points.map(function (q) { return q.y - Math.exp(p[2]) / (1 + Math.exp(p[0] - p[1] * (q.x - mx))); });
+        }
+        function sum(e) {
+            return e.reduce(function (s, v) { return s + v * v; }, 0);
+        }
+        sse = sum(errors(p));
+        for (i = 0; i < 300 && lambda < 1e12; i++) {
+            var jt = [[], [], []], e = errors(p), g = [0, 0, 0], m = [[0, 0, 0], [0, 0, 0], [0, 0, 0]], step, next, s2, r, c;
+            points.forEach(function (q, at) {
+                var x = q.x - mx, ex = Math.exp(p[0] - p[1] * x), dd = 1 + ex, f = Math.exp(p[2]) / dd;
+                jt[0][at] = -f * ex / dd; // ∂f/∂ ln a
+                jt[1][at] = f * ex * x / dd; // ∂f/∂b
+                jt[2][at] = f; // ∂f/∂ ln c
+            });
+            for (r = 0; r < 3; r++) {
+                for (c = 0; c < 3; c++) m[r][c] = jt[r].reduce(function (s, v, at) { return s + v * jt[c][at]; }, 0);
+                g[r] = jt[r].reduce(function (s, v, at) { return s + v * e[at]; }, 0);
+            }
+            step = solve(m.map(function (row, r) { return row.map(function (v, c) { return r === c ? v * (1 + lambda) : v; }); }), g);
+            if (!step) { lambda *= 10; continue; }
+            next = p.map(function (v, r) { return v + step[r]; });
+            s2 = sum(errors(next));
+            if (s2 < sse) {
+                if (sse - s2 <= 1e-15 * sse) { p = next; sse = s2; break; }
+                p = next;
+                sse = s2;
+                lambda /= 10;
+            } else {
+                lambda *= 10;
+            }
+        }
+        best = [Math.exp(p[0] + p[1] * mx), p[1], Math.exp(p[2])].map(function (v) { return +v.toPrecision(10); });
+        if (!best.every(isFinite) || !(best[0] > 0)) return null;
+        var at = function (x) { return best[2] / (1 + best[0] * Math.exp(-best[1] * x)); };
+        return { kind: 'logistic', k: best, r2: rSquared(points, at), at: at };
     }
 
     // a times x is b, for a square a, by elimination with the largest first; null if it has no one answer

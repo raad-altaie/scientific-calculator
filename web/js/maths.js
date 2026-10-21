@@ -1677,6 +1677,209 @@
         return { p: round(p), from: round(p - margin), to: round(p + margin), margin: round(margin), z: z, wilson: [round(mid - half), round(mid + half)] };
     }
 
+    // ---------- tests of hypotheses ---------- //
+
+    // Each test as a TI-84's STAT TESTS works it out. side: where the alternative is, 0 not equal (≠, two
+    // tails), 1 below (<), 2 above (>). level: of the confidence interval given with it, two-sided, as 0.95.
+    // Null where the numbers cannot have the test
+
+    // the p-value of a statistic of chances d = { lo: P(X ≤ x), hi: P(X ≥ x) }, of a distribution even about 0
+    function pValue(d, side) {
+        return round(side === 1 ? d.lo : side === 2 ? d.hi : Math.min(1, 2 * Math.min(d.lo, d.hi)));
+    }
+
+    function normalChances(z) {
+        return isNaN(z) ? { lo: NaN, hi: NaN } : { lo: below(z), hi: below(-z) };
+    }
+
+    // the value a statistic of t, or of the normal where df is Infinity, is below with the chance of the middle level and a tail
+    function critical(level, df) {
+        var p = 1 - (1 - level) / 2;
+        if (!(level > 0 && level < 1)) return NaN;
+        return df === Infinity ? normalInverse(p, 0, 1) : quantile(function (x) { return tDist(x, df); }, p);
+    }
+
+    // a statistic, its p-value and the interval of the difference d it tests, ± so many standard errors se
+    function tested(stat, chances, side, d, se, level, df, more) {
+        var margin = critical(level, df) * se, r = { stat: round(stat), p: pValue(chances, side), se: round(se), df: df === Infinity ? NaN : round(df),
+            from: round(d - margin), to: round(d + margin), margin: round(margin) };
+        Object.keys(more || {}).forEach(function (k) { r[k] = more[k]; });
+        return r;
+    }
+
+    // Student's t of one sample, of mean m, standard deviation s and n, against the mean mu
+    function tTest(m, s, n, mu, side, level) {
+        var se, t;
+        if (!isFinite(m) || !(s > 0) || !isWhole(n) || n < 2 || !isFinite(mu)) return null;
+        se = s / Math.sqrt(n);
+        t = (m - mu) / se;
+        return tested(t, tDist(t, n - 1), side, m, se, level, n - 1);
+    }
+
+    // Student's t of two samples, of the difference of their means: Welch's, or pooled where their spreads are taken
+    // as the same
+    function tTest2(m1, s1, n1, m2, s2, n2, pooled, side, level) {
+        var v1, v2, se, df, sp, t;
+        if (![m1, m2].every(isFinite) || !(s1 >= 0) || !(s2 >= 0) || !isWhole(n1) || !isWhole(n2) || n1 < 2 || n2 < 2) return null;
+        v1 = s1 * s1 / n1;
+        v2 = s2 * s2 / n2;
+        if (pooled) {
+            sp = Math.sqrt(((n1 - 1) * s1 * s1 + (n2 - 1) * s2 * s2) / (n1 + n2 - 2));
+            se = sp * Math.sqrt(1 / n1 + 1 / n2);
+            df = n1 + n2 - 2;
+        } else {
+            se = Math.sqrt(v1 + v2);
+            df = (v1 + v2) * (v1 + v2) / (v1 * v1 / (n1 - 1) + v2 * v2 / (n2 - 1));
+        }
+        if (!(se > 0)) return null;
+        t = (m1 - m2) / se;
+        return tested(t, tDist(t, df), side, m1 - m2, se, level, df, { sp: pooled ? round(sp) : NaN });
+    }
+
+    // the normal z of one sample, of mean m and n, whose standard deviation sigma is known, against the mean mu
+    function zTest(m, sigma, n, mu, side, level) {
+        var se, z;
+        if (!isFinite(m) || !(sigma > 0) || !(n >= 1) || !isFinite(mu)) return null;
+        se = sigma / Math.sqrt(n);
+        z = (m - mu) / se;
+        return tested(z, normalChances(z), side, m, se, level, Infinity);
+    }
+
+    // the z of a proportion, x of n, against the chance p0; its interval about x/n, Wald's
+    function propTest(x, n, p0, side, level) {
+        var p, z;
+        if (!isWhole(x) || !isWhole(n) || n < 1 || x < 0 || x > n || !(p0 > 0 && p0 < 1)) return null;
+        p = x / n;
+        z = (p - p0) / Math.sqrt(p0 * (1 - p0) / n);
+        return tested(z, normalChances(z), side, p, Math.sqrt(p * (1 - p) / n), level, Infinity, { phat: round(p) });
+    }
+
+    // the z of two proportions, x1 of n1 and x2 of n2, by their pooled proportion; the interval of their difference unpooled
+    function propTest2(x1, n1, x2, n2, side, level) {
+        var p1, p2, p, se, z, r;
+        if (![x1, n1, x2, n2].every(isWhole) || n1 < 1 || n2 < 1 || x1 < 0 || x2 < 0 || x1 > n1 || x2 > n2) return null;
+        p1 = x1 / n1;
+        p2 = x2 / n2;
+        p = (x1 + x2) / (n1 + n2);
+        se = Math.sqrt(p * (1 - p) * (1 / n1 + 1 / n2));
+        if (!(se > 0)) return null; // all of both, or none
+        z = (p1 - p2) / se;
+        r = tested(z, normalChances(z), side, p1 - p2, Math.sqrt(p1 * (1 - p1) / n1 + p2 * (1 - p2) / n2), level, Infinity, { p1: round(p1), p2: round(p2), pooled: round(p) });
+        r.se = round(se);
+        return r;
+    }
+
+    // χ² of goodness of fit: counts observed against those expected, each of a category. expected may be ratios, 9:3:3:1,
+    // scaled to the counts' sum; none is each the same. { stat, df, p, expected, parts: (o – e)²/e of each, small: how many expect fewer than 5 }
+    function chiFit(observed, expected) {
+        var k = observed.length, sumO = 0, sumE = 0, stat = 0, parts;
+        if (k < 2 || observed.some(function (o) { return !(o >= 0) || !isFinite(o); })) return null;
+        expected = expected && expected.length ? expected : observed.map(function () { return 1; });
+        if (expected.length !== k || expected.some(function (e) { return !(e > 0) || !isFinite(e); })) return null;
+        observed.forEach(function (o, i) { sumO += o; sumE += expected[i]; });
+        if (!(sumO > 0)) return null;
+        expected = expected.map(function (e) { return e * sumO / sumE; });
+        parts = observed.map(function (o, i) { return (o - expected[i]) * (o - expected[i]) / expected[i]; });
+        parts.forEach(function (c) { stat += c; });
+        return { stat: round(stat), df: k - 1, p: round(chiDist(stat, k - 1).hi), expected: expected.map(round), parts: parts.map(round),
+            small: expected.filter(function (e) { return e < 5; }).length };
+    }
+
+    // χ² of independence of a table of counts, rows by columns, each 2 or more: { stat, df, p, expected, v: Cramér's V, small }
+    function chiTable(m) {
+        var r = m.length, c = r ? m[0].length : 0, rows, cols, total = 0, stat = 0, expected;
+        if (r < 2 || c < 2 || m.some(function (row) { return row.length !== c || row.some(function (x) { return !(x >= 0) || !isFinite(x); }); })) return null;
+        rows = m.map(function (row) { return row.reduce(function (s, x) { return s + x; }, 0); });
+        cols = m[0].map(function (x, j) { return m.reduce(function (s, row) { return s + row[j]; }, 0); });
+        rows.forEach(function (s) { total += s; });
+        if (rows.concat(cols).some(function (s) { return !(s > 0); })) return null; // a row or column of none expects none
+        expected = m.map(function (row, i) {
+            return row.map(function (x, j) {
+                var e = rows[i] * cols[j] / total;
+                stat += (x - e) * (x - e) / e;
+                return e;
+            });
+        });
+        return { stat: round(stat), df: (r - 1) * (c - 1), p: round(chiDist(stat, (r - 1) * (c - 1)).hi), expected: expected.map(function (row) { return row.map(round); }),
+            v: round(Math.sqrt(stat / (total * (Math.min(r, c) - 1)))), small: expected.reduce(function (n, row) { return n + row.filter(function (e) { return e < 5; }).length; }, 0) };
+    }
+
+    // One-way ANOVA of groups of numbers, two or more: whether their means differ. { stat: F, df1, df2, p, ssb, ssw, msb, msw, mean }
+    function anova(groups) {
+        var k = groups.length, total = 0, sum = 0, mean, ssb = 0, ssw = 0, df1, df2, f;
+        if (k < 2 || groups.some(function (g) { return !g.length; })) return null;
+        groups.forEach(function (g) { g.forEach(function (x) { sum += x; total++; }); });
+        if (total <= k) return null;
+        mean = sum / total;
+        groups.forEach(function (g) {
+            var m = g.reduce(function (s, x) { return s + x; }, 0) / g.length;
+            ssb += g.length * (m - mean) * (m - mean);
+            g.forEach(function (x) { ssw += (x - m) * (x - m); });
+        });
+        df1 = k - 1;
+        df2 = total - k;
+        f = ssw > 0 ? (ssb / df1) / (ssw / df2) : ssb > 0 ? Infinity : NaN;
+        return { stat: round(f), df1: df1, df2: df2, p: isNaN(f) ? NaN : f === Infinity ? 0 : round(fDist(f, df1, df2).hi), ssb: round(ssb), ssw: round(ssw),
+            msb: round(ssb / df1), msw: round(ssw / df2), mean: round(mean) };
+    }
+
+    // the ranks of numbers, 1 the least, those the same the mean of theirs
+    function ranks(xs) {
+        var order = xs.map(function (x, i) { return i; }).sort(function (a, b) { return xs[a] - xs[b]; }), r = [], i = 0, j, k;
+        while (i < order.length) {
+            for (j = i; j + 1 < order.length && xs[order[j + 1]] === xs[order[i]]; j++);
+            for (k = i; k <= j; k++) r[order[k]] = (i + j) / 2 + 1;
+            i = j + 1;
+        }
+        return r;
+    }
+
+    // Pearson's r of pairs, NaN where x or y does not vary
+    function pearson(xs, ys) {
+        var n = xs.length, mx = 0, my = 0, sxx = 0, syy = 0, sxy = 0;
+        xs.forEach(function (x, i) { mx += x / n; my += ys[i] / n; });
+        xs.forEach(function (x, i) {
+            sxx += (x - mx) * (x - mx);
+            syy += (ys[i] - my) * (ys[i] - my);
+            sxy += (x - mx) * (ys[i] - my);
+        });
+        return sxx > 0 && syy > 0 ? Math.max(-1, Math.min(1, sxy / Math.sqrt(sxx * syy))) : NaN;
+    }
+
+    // Spearman's ρ: Pearson's r of the ranks
+    function spearman(xs, ys) {
+        return xs.length > 1 ? round(pearson(ranks(xs), ranks(ys))) : NaN;
+    }
+
+    // whether pairs are correlated, by the t of the slope of their line, as LinRegTTest: { r, stat: t, df, p, b, a, se: of b, rho, prho }
+    function corrTest(xs, ys, side) {
+        var n = xs.length, r = pearson(xs, ys), line, t, rho, trho, sse = 0, sxx = 0, mx = 0;
+        if (n < 3 || isNaN(r)) return null;
+        line = fitLine(xs.map(function (x, i) { return { x: x, y: ys[i] }; }));
+        xs.forEach(function (x) { mx += x / n; });
+        xs.forEach(function (x, i) {
+            var e = ys[i] - (line.b + line.m * x);
+            sse += e * e;
+            sxx += (x - mx) * (x - mx);
+        });
+        t = Math.abs(r) === 1 ? r * Infinity : r * Math.sqrt((n - 2) / (1 - r * r));
+        rho = pearson(ranks(xs), ranks(ys));
+        trho = isNaN(rho) ? NaN : Math.abs(rho) === 1 ? rho * Infinity : rho * Math.sqrt((n - 2) / (1 - rho * rho)); // its p by t, as for n of 10 or more
+        return { r: round(r), stat: round(t), df: n - 2, p: pValue(tDist(t, n - 2), side), b: round(line.m), a: round(line.b), se: round(Math.sqrt(sse / (n - 2) / sxx)),
+            rho: round(rho), prho: isNaN(trho) ? NaN : pValue(tDist(trho, n - 2), side) };
+    }
+
+    // the line of least squares of points, unrounded: { m, b }, null where every x is the same
+    function fitLine(points) {
+        var n = points.length, mx = 0, my = 0, sxx = 0, sxy = 0;
+        points.forEach(function (p) { mx += p.x / n; my += p.y / n; });
+        points.forEach(function (p) {
+            sxx += (p.x - mx) * (p.x - mx);
+            sxy += (p.x - mx) * (p.y - my);
+        });
+        return sxx > 0 ? { m: sxy / sxx, b: my - sxy / sxx * mx } : null;
+    }
+
     // the chance of k of n, each with the chance p: of exactly k, by logarithms so n may be large
     function binomial(n, p, k) {
         if (!isWhole(n) || n < 0 || !(p >= 0 && p <= 1) || !isFinite(k)) return NaN;
@@ -4451,6 +4654,226 @@
         return h * 3600 + +(m[2] || 0) * 60 + +(m[3] || 0);
     }
 
+    // ---------- geometry ---------- //
+
+    // A triangle of three of its sides a, b and c and its angles A, B and C, each angle across from its side, in
+    // radians, NaN where not given; at least one a side. { list: each triangle they make, of { s: [a, b, c], t: [A, B, C],
+    // area, perimeter, r: the inradius, R: the circumradius, h: the height onto each side } } — two where two sides and an
+    // angle not between them make two, none where they make none — or { error: 'few' | 'many' | 'angles' | 'range' }
+    function triangle(sides, angles) {
+        var ns = sides.filter(isFinite).length, na = angles.filter(isFinite).length, out = [], u, i, j, k, sj, cand;
+        if (sides.some(function (v) { return isFinite(v) && !(v > 0); }) || angles.some(function (v) { return isFinite(v) && !(v > 0 && v < PI); })) return { error: 'range' };
+        if (ns + na !== 3) return { error: ns + na < 3 ? 'few' : 'many' };
+        if (!ns) return { error: 'angles' }; // three angles: of any size
+        sides = sides.slice();
+        angles = angles.slice();
+        if (na === 2) { // two angles and a side: the third angle, then the sides by the law of sines
+            u = angles.findIndex(function (v) { return !isFinite(v); });
+            angles[u] = PI - angles[(u + 1) % 3] - angles[(u + 2) % 3];
+            if (!(angles[u] > 1e-12)) return { list: [] };
+            i = sides.findIndex(isFinite);
+            k = sides[i] / Math.sin(angles[i]);
+            out.push(angles.map(function (a) { return k * Math.sin(a); }));
+        } else if (ns === 3) { // three sides: each angle by the law of cosines
+            if (sides.some(function (s, i) { return s >= sides[(i + 1) % 3] + sides[(i + 2) % 3]; })) return { list: [] };
+            out.push(sides.slice());
+        } else { // two sides and an angle
+            u = sides.findIndex(function (v) { return !isFinite(v); });
+            i = angles.findIndex(isFinite);
+            if (i === u) { // the angle between them: the third side by the law of cosines
+                sides[u] = Math.sqrt(Math.max(0, Math.pow(sides[(u + 1) % 3], 2) + Math.pow(sides[(u + 2) % 3], 2) - 2 * sides[(u + 1) % 3] * sides[(u + 2) % 3] * Math.cos(angles[u])));
+                out.push(sides.slice());
+            } else { // the angle across from a side given, i: the other's angle j by the law of sines, of which there may be two
+                j = 3 - i - u;
+                sj = sides[j] * Math.sin(angles[i]) / sides[i];
+                if (sj > 1 + 1e-12) return { list: [] };
+                sj = sj > 1 - 1e-12 ? PI / 2 : Math.asin(sj); // of a right angle, one triangle
+                cand = [sj, PI - sj].filter(function (a, n, all) { return angles[i] + a < PI - 1e-12 && (n === 0 || Math.abs(a - all[0]) > 1e-9); });
+                cand.forEach(function (a) {
+                    var s = sides.slice(), au = PI - angles[i] - a;
+                    s[u] = sides[i] * Math.sin(au) / Math.sin(angles[i]);
+                    out.push(s);
+                });
+            }
+        }
+        return { list: out.map(function (s) { // each by its sides: its angles, area and more
+            var t = s.map(function (x, n) {
+                    var y = s[(n + 1) % 3], z = s[(n + 2) % 3];
+                    return Math.acos(Math.max(-1, Math.min(1, (y * y + z * z - x * x) / (2 * y * z))));
+                }), p = s[0] + s[1] + s[2], area = 0.5 * s[1] * s[2] * Math.sin(t[0]);
+            return { s: s.map(round), t: t.map(round), area: round(area), perimeter: round(p), r: round(2 * area / p), R: round(s[0] / (2 * Math.sin(t[0]))),
+                h: s.map(function (x) { return round(2 * area / x); }) };
+        }) };
+    }
+
+    // The circle through three points: { x, y, r }, null where they are on one line
+    function circleOf(x1, y1, x2, y2, x3, y3) {
+        var d = 2 * (x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2)), size = Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1), Math.abs(x3 - x1), Math.abs(y3 - y1)), q1, q2, q3, x, y;
+        if (![x1, y1, x2, y2, x3, y3].every(isFinite) || !(Math.abs(d) > 1e-12 * size * size)) return null;
+        q1 = x1 * x1 + y1 * y1;
+        q2 = x2 * x2 + y2 * y2;
+        q3 = x3 * x3 + y3 * y3;
+        x = (q1 * (y2 - y3) + q2 * (y3 - y1) + q3 * (y1 - y2)) / d;
+        y = (q1 * (x3 - x2) + q2 * (x1 - x3) + q3 * (x2 - x1)) / d;
+        return { x: round(x), y: round(y), r: round(Math.hypot(x1 - x, y1 - y)) };
+    }
+
+    // A polygon of its corners in order, xs and ys, by the shoelace: { area, perimeter, x, y: its centroid }, null for fewer than 3
+    // or of no area
+    function polygon(xs, ys) {
+        var n = xs.length, twice = 0, cx = 0, cy = 0, p = 0, i, j, c;
+        if (n < 3) return null;
+        for (i = 0; i < n; i++) {
+            j = (i + 1) % n;
+            c = xs[i] * ys[j] - xs[j] * ys[i];
+            twice += c;
+            cx += (xs[i] + xs[j]) * c;
+            cy += (ys[i] + ys[j]) * c;
+            p += Math.hypot(xs[j] - xs[i], ys[j] - ys[i]);
+        }
+        if (!twice) return null;
+        return { area: round(Math.abs(twice) / 2), perimeter: round(p), x: round(cx / (3 * twice)), y: round(cy / (3 * twice)) };
+    }
+
+    // ---------- time zones ---------- //
+
+    // A time zone typed as people write it: a city, Tokyo or San Francisco; a country of one zone, Japan; a
+    // zone of the browser's, Europe/Berlin; an abbreviation, EST or JST, taken as the zone it is of, with
+    // its summer time; or an offset, UTC+5:30, GMT-3, +0900. Each zone's rules are the browser's, so a
+    // place's summer time is as it is on that day. A city not in a zone's name is in ZONE_PLACES
+    var ZONE_PLACES = {
+        'washington': 'America/New_York', 'washington dc': 'America/New_York', 'boston': 'America/New_York', 'philadelphia': 'America/New_York',
+        'miami': 'America/New_York', 'atlanta': 'America/New_York', 'orlando': 'America/New_York', 'pittsburgh': 'America/New_York',
+        'dallas': 'America/Chicago', 'houston': 'America/Chicago', 'austin': 'America/Chicago', 'san antonio': 'America/Chicago',
+        'minneapolis': 'America/Chicago', 'new orleans': 'America/Chicago', 'st louis': 'America/Chicago', 'nashville': 'America/Chicago',
+        'san francisco': 'America/Los_Angeles', 'seattle': 'America/Los_Angeles', 'san diego': 'America/Los_Angeles', 'las vegas': 'America/Los_Angeles',
+        'sacramento': 'America/Los_Angeles', 'silicon valley': 'America/Los_Angeles', 'salt lake city': 'America/Denver', 'albuquerque': 'America/Denver',
+        'calgary': 'America/Edmonton', 'ottawa': 'America/Toronto', 'montreal': 'America/Toronto', 'quebec': 'America/Toronto',
+        'hawaii': 'Pacific/Honolulu', 'alaska': 'America/Anchorage', 'rio de janeiro': 'America/Sao_Paulo', 'rio': 'America/Sao_Paulo',
+        'brasilia': 'America/Sao_Paulo', 'beijing': 'Asia/Shanghai', 'shenzhen': 'Asia/Shanghai', 'guangzhou': 'Asia/Shanghai', 'chengdu': 'Asia/Shanghai',
+        'delhi': 'Asia/Kolkata', 'new delhi': 'Asia/Kolkata', 'mumbai': 'Asia/Kolkata', 'bangalore': 'Asia/Kolkata', 'bengaluru': 'Asia/Kolkata',
+        'chennai': 'Asia/Kolkata', 'hyderabad': 'Asia/Kolkata', 'kolkata': 'Asia/Kolkata', 'pune': 'Asia/Kolkata', 'osaka': 'Asia/Tokyo',
+        'kyoto': 'Asia/Tokyo', 'busan': 'Asia/Seoul', 'hanoi': 'Asia/Ho_Chi_Minh', 'ho chi minh city': 'Asia/Ho_Chi_Minh', 'saigon': 'Asia/Ho_Chi_Minh',
+        'abu dhabi': 'Asia/Dubai', 'doha': 'Asia/Qatar', 'mecca': 'Asia/Riyadh', 'jeddah': 'Asia/Riyadh', 'medina': 'Asia/Riyadh',
+        'islamabad': 'Asia/Karachi', 'lahore': 'Asia/Karachi', 'bali': 'Asia/Makassar', 'cebu': 'Asia/Manila', 'canberra': 'Australia/Sydney',
+        'gold coast': 'Australia/Brisbane', 'wellington': 'Pacific/Auckland', 'christchurch': 'Pacific/Auckland', 'barcelona': 'Europe/Madrid',
+        'seville': 'Europe/Madrid', 'valencia': 'Europe/Madrid', 'munich': 'Europe/Berlin', 'frankfurt': 'Europe/Berlin', 'hamburg': 'Europe/Berlin',
+        'cologne': 'Europe/Berlin', 'milan': 'Europe/Rome', 'venice': 'Europe/Rome', 'florence': 'Europe/Rome', 'naples': 'Europe/Rome',
+        'geneva': 'Europe/Zurich', 'bern': 'Europe/Zurich', 'st petersburg': 'Europe/Moscow', 'saint petersburg': 'Europe/Moscow',
+        'edinburgh': 'Europe/London', 'manchester': 'Europe/London', 'glasgow': 'Europe/London', 'liverpool': 'Europe/London', 'cardiff': 'Europe/London',
+        'cape town': 'Africa/Johannesburg', 'durban': 'Africa/Johannesburg', 'pretoria': 'Africa/Johannesburg', 'tel aviv': 'Asia/Jerusalem',
+        'kyiv': 'Europe/Kiev', 'kiev': 'Europe/Kiev',
+        'uk': 'Europe/London', 'united kingdom': 'Europe/London', 'england': 'Europe/London', 'britain': 'Europe/London', 'scotland': 'Europe/London',
+        'ireland': 'Europe/Dublin', 'france': 'Europe/Paris', 'germany': 'Europe/Berlin', 'spain': 'Europe/Madrid', 'italy': 'Europe/Rome',
+        'netherlands': 'Europe/Amsterdam', 'belgium': 'Europe/Brussels', 'switzerland': 'Europe/Zurich', 'austria': 'Europe/Vienna',
+        'poland': 'Europe/Warsaw', 'sweden': 'Europe/Stockholm', 'norway': 'Europe/Oslo', 'denmark': 'Europe/Copenhagen', 'finland': 'Europe/Helsinki',
+        'greece': 'Europe/Athens', 'ukraine': 'Europe/Kiev', 'turkey': 'Europe/Istanbul', 'egypt': 'Africa/Cairo', 'israel': 'Asia/Jerusalem',
+        'jordan': 'Asia/Amman', 'lebanon': 'Asia/Beirut', 'iraq': 'Asia/Baghdad', 'iran': 'Asia/Tehran', 'saudi arabia': 'Asia/Riyadh',
+        'uae': 'Asia/Dubai', 'united arab emirates': 'Asia/Dubai', 'qatar': 'Asia/Qatar', 'kuwait': 'Asia/Kuwait', 'pakistan': 'Asia/Karachi',
+        'india': 'Asia/Kolkata', 'bangladesh': 'Asia/Dhaka', 'nepal': 'Asia/Kathmandu', 'thailand': 'Asia/Bangkok', 'vietnam': 'Asia/Ho_Chi_Minh',
+        'malaysia': 'Asia/Kuala_Lumpur', 'philippines': 'Asia/Manila', 'china': 'Asia/Shanghai', 'taiwan': 'Asia/Taipei', 'japan': 'Asia/Tokyo',
+        'korea': 'Asia/Seoul', 'south korea': 'Asia/Seoul', 'new zealand': 'Pacific/Auckland', 'south africa': 'Africa/Johannesburg',
+        'nigeria': 'Africa/Lagos', 'kenya': 'Africa/Nairobi', 'morocco': 'Africa/Casablanca', 'argentina': 'America/Argentina/Buenos_Aires',
+        'colombia': 'America/Bogota', 'peru': 'America/Lima', 'venezuela': 'America/Caracas', 'cuba': 'America/Havana', 'iceland': 'Atlantic/Reykjavik',
+        'portugal': 'Europe/Lisbon', 'czechia': 'Europe/Prague', 'czech republic': 'Europe/Prague', 'hungary': 'Europe/Budapest', 'romania': 'Europe/Bucharest'
+    },
+        // the zone each abbreviation is of, its summer time with it: EST in July is New York's time, EDT
+        ZONE_ABBR = {
+            et: 'America/New_York', est: 'America/New_York', edt: 'America/New_York', ct: 'America/Chicago', cst: 'America/Chicago', cdt: 'America/Chicago',
+            mt: 'America/Denver', mst: 'America/Denver', mdt: 'America/Denver', pt: 'America/Los_Angeles', pst: 'America/Los_Angeles', pdt: 'America/Los_Angeles',
+            akst: 'America/Anchorage', akdt: 'America/Anchorage', hst: 'Pacific/Honolulu', ast: 'America/Halifax', adt: 'America/Halifax', nst: 'America/St_Johns',
+            bst: 'Europe/London', wet: 'Europe/Lisbon', west: 'Europe/Lisbon', cet: 'Europe/Paris', cest: 'Europe/Paris', eet: 'Europe/Athens', eest: 'Europe/Athens',
+            msk: 'Europe/Moscow', ist: 'Asia/Kolkata', pkt: 'Asia/Karachi', gst: 'Asia/Dubai', ict: 'Asia/Bangkok', wib: 'Asia/Jakarta', sgt: 'Asia/Singapore',
+            hkt: 'Asia/Hong_Kong', pht: 'Asia/Manila', jst: 'Asia/Tokyo', kst: 'Asia/Seoul', awst: 'Australia/Perth', acst: 'Australia/Adelaide',
+            acdt: 'Australia/Adelaide', aest: 'Australia/Sydney', aedt: 'Australia/Sydney', nzst: 'Pacific/Auckland', nzdt: 'Pacific/Auckland',
+            sast: 'Africa/Johannesburg', cat: 'Africa/Maputo', eat: 'Africa/Nairobi', wat: 'Africa/Lagos', brt: 'America/Sao_Paulo', art: 'America/Argentina/Buenos_Aires'
+        },
+        zoneFormats = {}, // a formatter of each zone, made once
+        zoneList = null; // the browser's zones, each with its city in words: [id, 'new york']
+
+    // the formatter of a zone's wall time, in numbers and hours of 0 to 23; null where the browser has no such zone
+    function zoneFormat(id) {
+        if (!zoneFormats.hasOwnProperty(id)) {
+            try {
+                zoneFormats[id] = new Intl.DateTimeFormat('en-US', { timeZone: id, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric',
+                    hour: 'numeric', minute: 'numeric', second: 'numeric', era: 'short' });
+            } catch (e) {
+                zoneFormats[id] = null;
+            }
+        }
+        return zoneFormats[id];
+    }
+
+    // a zone's city, or place, in words: America/New_York is New York, America/Argentina/Buenos_Aires Buenos Aires
+    function zoneCity(id) {
+        return id.split('/').pop().replace(/_/g, ' ');
+    }
+
+    // Of a text, its zone: { id, name } of a zone of the browser's, or { fixed, name } of an offset, in minutes
+    // east of UTC; null where it is none. Empty, or here, is the browser's own zone
+    function timeZone(text) {
+        var t = String(text || '').trim().replace(/[−–]/g, '-').replace(/\s+/g, ' '), key = t.toLowerCase().replace(/\./g, ''), m, id, found;
+        if (!t || /^(here|local|local time|my time)$/i.test(t)) {
+            id = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+            return { id: id, name: 'Here', here: true };
+        }
+        if (/^(utc|gmt|z|zulu)$/.test(key)) return { fixed: 0, name: 'UTC' };
+        // +5:30, UTC+5:30, GMT-3, UTC +0900
+        if ((m = /^(?:utc|gmt)? ?([+-]) ?(\d{1,2})(?::?(\d{2}))?$/.exec(key))) {
+            found = (+m[2] * 60 + +(m[3] || 0)) * (m[1] === '-' ? -1 : 1);
+            if (+(m[3] || 0) > 59 || Math.abs(found) > 14 * 60) return null;
+            return { fixed: found, name: offsetText(found) };
+        }
+        if (ZONE_ABBR.hasOwnProperty(key) && zoneFormat(ZONE_ABBR[key])) return { id: ZONE_ABBR[key], name: t.toUpperCase() + ', ' + zoneCity(ZONE_ABBR[key]) };
+        if (ZONE_PLACES.hasOwnProperty(key) && zoneFormat(ZONE_PLACES[key])) return { id: ZONE_PLACES[key], name: titleCase(key) };
+        // a zone as the browser names it, Europe/Berlin, or its city alone, Berlin
+        if (/\//.test(t) && zoneFormat(t.replace(/ /g, '_'))) return { id: zoneFormat(t.replace(/ /g, '_')).resolvedOptions().timeZone, name: zoneCity(t) };
+        if (!zoneList) {
+            try {
+                zoneList = Intl.supportedValuesOf('timeZone').map(function (z) { return [z, zoneCity(z).toLowerCase()]; });
+            } catch (e) {
+                zoneList = [];
+            }
+        }
+        found = zoneList.filter(function (z) { return z[1] === key; })[0];
+        return found ? { id: found[0], name: zoneCity(found[0]) } : null;
+    }
+
+    // a place's name as it is written: san francisco is San Francisco, uae UAE
+    function titleCase(text) {
+        return /^(uk|uae|washington dc)$/.test(text) ? text.replace(/^washington /, 'Washington ').toUpperCase().replace('WASHINGTON', 'Washington') :
+            text.replace(/(^|[\s-])([a-z])/g, function (all, before, c) { return before + c.toUpperCase(); });
+    }
+
+    // UTC+9, UTC+5:30, UTC−3, UTC: an offset of minutes east of UTC
+    function offsetText(minutes) {
+        var a = Math.abs(minutes);
+        return 'UTC' + (minutes ? (minutes < 0 ? '−' : '+') + Math.floor(a / 60) + (a % 60 ? ':' + String(a % 60).padStart(2, '0') : '') : '');
+    }
+
+    // How far a zone is ahead of UTC at the moment ms, in minutes: its wall clock less UTC's
+    function zoneOffset(zone, ms) {
+        var parts = {}, wall, f;
+        if (zone.fixed !== undefined) return zone.fixed;
+        f = zoneFormat(zone.id);
+        if (!f || !isFinite(ms)) return NaN;
+        f.formatToParts(new Date(ms)).forEach(function (p) { parts[p.type] = p.value; });
+        wall = new Date(0);
+        wall.setUTCFullYear(/^B/.test(parts.era) ? 1 - +parts.year : +parts.year, +parts.month - 1, +parts.day);
+        wall.setUTCHours(+parts.hour % 24, +parts.minute, +parts.second);
+        return Math.round((wall.getTime() - Math.floor(ms / 1000) * 1000) / 60000);
+    }
+
+    // The moment, in ms from 1970 in UTC, at which a zone's clock shows a day (of dayFrom) and a time of day in
+    // seconds. A time the clocks skip, as summer time starts, is taken at the offset before it; one they show
+    // twice, as it ends, is the first
+    function zoneMoment(zone, day, seconds) {
+        var wall = day * 86400000 + seconds * 1000, before = zoneOffset(zone, wall - 86400000), after = zoneOffset(zone, wall + 86400000),
+            first = wall - before * 60000, then = wall - after * 60000;
+        if (zoneOffset(zone, first) === before) return first; // as the clock was a day before: of a time shown twice, the first
+        return zoneOffset(zone, then) === after ? then : first; // as it is a day after; in a gap, as the clock before would go on
+    }
+
     var CalcMaths = {
         number: number,
         fn: fn,
@@ -4478,6 +4901,19 @@
         uniform: uniform,
         meanInterval: meanInterval,
         proportionInterval: proportionInterval,
+        tTest: tTest,
+        tTest2: tTest2,
+        zTest: zTest,
+        propTest: propTest,
+        propTest2: propTest2,
+        chiFit: chiFit,
+        chiTable: chiTable,
+        anova: anova,
+        spearman: spearman,
+        corrTest: corrTest,
+        triangle: triangle,
+        circleOf: circleOf,
+        polygon: polygon,
         integral: integral,
         slopes: slopes,
         series: series,
@@ -4583,7 +5019,11 @@
         datesBetween: datesBetween,
         dayOfYear: dayOfYear,
         isoWeek: isoWeek,
-        readTime: readTime
+        readTime: readTime,
+        timeZone: timeZone,
+        zoneOffset: zoneOffset,
+        zoneMoment: zoneMoment,
+        offsetText: offsetText
     };
 
     root.CalcMaths = CalcMaths;

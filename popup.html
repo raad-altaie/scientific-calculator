@@ -228,6 +228,13 @@
                                 <text transform="translate(8 11.24) scale(0.88 1)" fill="currentColor" stroke="currentColor" stroke-width="0.1" font-size="9" font-weight="700" font-family="Play, sans-serif" text-anchor="middle">Fe</text>
                             </svg>
                         </div>
+                        <!-- physics: circuits, motion, forces and waves. A resistor -->
+                        <div class="calc-phys-btn" hidden>
+                            <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
+                                stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 8h3l1-3 2 6 2-6 2 6 1-3h3" stroke-width="1.35" />
+                            </svg>
+                        </div>
                         <!-- statistics of a list of numbers -->
                         <div class="calc-stat-btn" hidden>
                             <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
@@ -433,6 +440,7 @@
                 <span class="calc-solve-tabs">
                     <span class="calc-solve-tab" data-tab="list">List</span>
                     <span class="calc-solve-tab" data-tab="pairs">Pairs</span>
+                    <span class="calc-solve-tab" data-tab="tests">Tests</span>
                 </span>
                 <!-- what is between the numbers: found by itself, or the one chosen -->
                 <span class="calc-stats-by-label">Separator</span>
@@ -449,11 +457,23 @@
             <textarea class="calc-stats-input" spellcheck="false" maxlength="20000"
                 placeholder="Type or paste numbers: 4 8 15 16 23 42"></textarea>
             <div class="calc-stats-note"></div>
+            <!-- the pairs only: the kind of curve fitted to them, and its equation -->
+            <div class="calc-stats-fitrow">
+                <span class="calc-stats-by-label">Fit</span>
+                <div class="calc-conv-pick calc-stats-fitpick" tabindex="0" role="combobox" aria-haspopup="listbox"
+                    aria-expanded="false" aria-label="Fit" title="The curve fitted to the pairs">
+                    <span class="calc-conv-chosen"></span>
+                    <div class="calc-conv-menu" role="listbox" hidden></div>
+                </div>
+                <span class="calc-stats-eq"></span>
+            </div>
             <!-- the results, and a chart of the numbers under them -->
             <div class="calc-stats-out">
                 <div class="calc-stats-grid"></div>
                 <div class="calc-stats-chart"></div>
             </div>
+            <!-- the Tests tab: a card for each test, as the solver has, in place of the list and its results -->
+            <div class="calc-sv-list calc-stats-tests"></div>
         </div>
 
         <!-- the graph of y = a function of x, over the keys like the history -->
@@ -538,6 +558,7 @@
                 <span class="calc-solve-tabs">
                     <span class="calc-solve-tab" data-tab="solve">Solve</span>
                     <span class="calc-solve-tab" data-tab="calculus">Calculus</span>
+                    <span class="calc-solve-tab" data-tab="geometry">Geometry</span>
                     <span class="calc-solve-tab" data-tab="chance">Probability</span>
                     <span class="calc-solve-tab" data-tab="finance">Finance</span>
                 </span>
@@ -556,6 +577,22 @@
                     <span class="calc-solve-tab" data-tab="complex">Complex</span>
                     <span class="calc-solve-tab" data-tab="whole">Integer</span>
                     <span class="calc-solve-tab" data-tab="computer">Computer</span>
+                </span>
+                <!-- pop out: the panel as big as the page, or in a window of its own; pop in: back in the calculator -->
+                <span class="calc-panel-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-panel-grow" d="M10 2h4v4M6.5 9.5L14 2" /><path class="calc-panel-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
+                <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
+            </div>
+            <div class="calc-sv-list"></div>
+        </div>
+
+        <!-- physics, over the keys like the history: a card for each tool, as the solver has -->
+        <div class="calc-past calc-phys">
+            <div class="calc-past-head">
+                <span class="calc-solve-tabs">
+                    <span class="calc-solve-tab" data-tab="circuits">Circuits</span>
+                    <span class="calc-solve-tab" data-tab="motion">Motion</span>
+                    <span class="calc-solve-tab" data-tab="forces">Forces</span>
+                    <span class="calc-solve-tab" data-tab="waves">Waves</span>
                 </span>
                 <!-- pop out: the panel as big as the page, or in a window of its own; pop in: back in the calculator -->
                 <span class="calc-panel-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-panel-grow" d="M10 2h4v4M6.5 9.5L14 2" /><path class="calc-panel-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
@@ -702,6 +739,7 @@
     <script src="js/maths.js"></script>
     <script src="js/units.js"></script>
     <script src="js/chem.js"></script>
+    <script src="js/physics.js"></script>
     <script src="js/policy.js"></script>
     <script src="js/main.js"></script>
     <script src="js/popup.js"></script>

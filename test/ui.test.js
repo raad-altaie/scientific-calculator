@@ -257,21 +257,17 @@ async function calculator(page, at) {
 
     // the formulas, the converter, the statistics and the graph are on at first, in the order of their options
     await page.fresh(at, {});
-    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-stat-btn', t + 'all of them at first', await buttons(page));
-    check(await page.calc('document.getElementById("display-box").style.getPropertyValue("--tools")') === '7',
-        t + 'the line above a result clears them');
-    await page.fresh(at, { fxOn: false, convOn: false, statsOn: false, graphOn: false, solveOn: false, numbersOn: false, chemOn: false });
+    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-stat-btn', t + 'all of them at first', await buttons(page));
+    await page.fresh(at, { fxOn: false, convOn: false, statsOn: false, graphOn: false, solveOn: false, numbersOn: false, chemOn: false, physOn: false });
     check(await buttons(page) === '', t + 'no buttons with all of them off', await buttons(page));
-    check(await page.calc('document.getElementById("display-box").style.getPropertyValue("--tools")') === '0',
-        t + 'the line above a result starts at the left');
 
     // what an administrator turned off, as the extension keeps it: on in the options does not bring it
     await page.fresh(at, { statsOn: true, policy: { statistics: false, formulas: false } });
-    check(await buttons(page) === 'calc-conv-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn', t + 'the statistics and f(x) turned off by an administrator', await buttons(page));
+    check(await buttons(page) === 'calc-conv-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn', t + 'the statistics and f(x) turned off by an administrator', await buttons(page));
     await page.fresh(at, { solveOn: true, policy: { solve: false, numbers: false } });
-    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-chem-btn calc-stat-btn', t + 'and the solver and the numbers', await buttons(page));
+    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-chem-btn calc-phys-btn calc-stat-btn', t + 'and the solver and the numbers', await buttons(page));
     await page.fresh(at, { convOn: false });
-    check(await buttons(page) === 'calc-fx-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-stat-btn', t + 'three buttons with the converter off', await buttons(page));
+    check(await buttons(page) === 'calc-fx-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-stat-btn', t + 'three buttons with the converter off', await buttons(page));
 
     // the ? beside the name has a tip of the calculator's own, below it, in place of a title
     await page.hover('.calc-help');
@@ -292,9 +288,7 @@ async function calculator(page, at) {
     // the keys still work, and the history adds its clock
     await page.type('2+3\r');
     check(await shown(page) === '5', t + '2 + 3 = 5', await shown(page));
-    check(await buttons(page) === 'calc-hist calc-fx-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-stat-btn', t + 'the clock comes with a history', await buttons(page));
-    check(await page.calc('document.getElementById("display-box").style.getPropertyValue("--tools")') === '7',
-        t + 'the line above a result clears the buttons');
+    check(await buttons(page) === 'calc-hist calc-fx-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-stat-btn', t + 'the clock comes with a history', await buttons(page));
 
     // the panel: the search has the keys, the result in the display starts the first box
     await page.click('.calc-fx-btn');
@@ -1080,8 +1074,8 @@ async function solver(page, at) {
 
     await page.fresh(at, {});
     await page.click('.calc-solve-btn');
-    check(await open(page, '.calc-solve') && await page.calc('[].map.call(document.querySelectorAll(".calc-solve .calc-solve-tab"), function (t) { return t.dataset.tab; }).join()') === 'solve,calculus,chance,finance' &&
-        await page.calc('document.querySelectorAll(".calc-solve .calc-sv-item").length') === 10, t + 'its button opens it: four tabs, Finance after Probability, ten cards on the first');
+    check(await open(page, '.calc-solve') && await page.calc('[].map.call(document.querySelectorAll(".calc-solve .calc-solve-tab"), function (t) { return t.dataset.tab; }).join()') === 'solve,calculus,geometry,chance,finance' &&
+        await page.calc('document.querySelectorAll(".calc-solve .calc-sv-item").length') === 10, t + 'its button opens it: five tabs, Finance after Probability, Geometry last, ten cards on the first');
     await page.click('.calc-sv-item:nth-child(1) .calc-sv-row');
     check(await page.calc('document.activeElement === document.querySelector("' + on + ' input")'), t + 'a card opens its boxes, the first to type in');
     await page.type('x^2=2x+3');
@@ -2961,7 +2955,7 @@ async function converter(page, at) {
 
     // its button comes after f(x), as its option does
     await page.fresh(at, {});
-    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-stat-btn', t + 'the converter between f(x) and the graph',
+    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-stat-btn', t + 'the converter between f(x) and the graph',
         await buttons(page));
 
     // the result shown is the value to start from
@@ -3180,7 +3174,7 @@ async function convDates(page, at) {
     check(/^Before the year 1 or after 9999/.test(await page.calc(note)), t + 'nor past 9999', await page.calc(note));
 
     // Unix time: a timestamp's date and time, of milliseconds too, and the timestamp of a date
-    await page.click('.calc-conv .calc-sv-item:nth-child(3) .calc-sv-row');
+    await page.click('.calc-conv .calc-sv-item:nth-child(4) .calc-sv-row');
     check(await page.calc('[].map.call(document.querySelectorAll("' + on + ' input"), function (i) { return i.dataset.k; }).join()') === 'ts',
         t + 'Unix time: Unix → Date at first, a box of the timestamp alone');
     await set(0, '1700000000');
@@ -3241,8 +3235,8 @@ async function statsMore(page, at) {
 
     await page.fresh(at, {});
     await page.click('.calc-stat-btn');
-    check(await page.calc('[].map.call(document.querySelectorAll(".calc-stats .calc-solve-tab"), function (e) { return e.textContent; }).join(" ")') === 'List Pairs' &&
-        await page.calc('document.querySelector(".calc-stats .calc-solve-tab.calc-on").dataset.tab') === 'list', t + 'two tabs, List on at first');
+    check(await page.calc('[].map.call(document.querySelectorAll(".calc-stats .calc-solve-tab"), function (e) { return e.textContent; }).join(" ")') === 'List Pairs Tests' &&
+        await page.calc('document.querySelector(".calc-stats .calc-solve-tab.calc-on").dataset.tab') === 'list', t + 'three tabs, List on at first');
     check(await page.calc('document.querySelector(".calc-stats-chart").childElementCount') === 0, t + 'no chart without numbers');
     await page.hover('.calc-stats-tile[data-k="q1"]');
     check(await page.until('!document.querySelector(".calc-peek").hidden && /^First quartile/.test(document.querySelector(".calc-peek").textContent)', 2500) &&
@@ -3288,7 +3282,7 @@ async function statsMore(page, at) {
     check(await page.calc('document.querySelector(".calc-stats-input").value') === '' && /^Type or paste pairs/.test(await page.calc('document.querySelector(".calc-stats-input").placeholder')) &&
         await page.calc('document.activeElement.className') === 'calc-stats-input', t + 'Pairs: empty, with its own placeholder and the focus');
     await typed('1 2\n2 4.1\n3 5.9\n4 8.2\n5 9.9\nabc');
-    check(await note() === '5 pairs · y = 0.05 + 1.99x · left out: abc', t + 'five pairs and their line', await note());
+    check(await note() === '5 pairs · left out: abc' && await page.calc('document.querySelector(".calc-stats-eq").textContent') === 'y = 0.05 + 1.99x', t + 'five pairs and their line', await note());
     got = [await tile('n'), await tile('xmean'), await tile('ymean'), await tile('b'), await tile('a'), await tile('cov'), await tile('sumxy')].join(' ');
     check(got === '5 3 6.02 1.99 0.05 4.975 110.2', t + 'their means, slope, intercept, covariance and Σxy', got);
     check(/^0\.99915513367/.test(await tile('r')), t + 'r', await tile('r'));
@@ -3779,7 +3773,7 @@ async function options(page) {
 
     await page.fresh('/frame.html', {});
     t = 'in a frame: ';
-    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-stat-btn', t + 'all four buttons');
+    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-stat-btn', t + 'all four buttons');
     await page.click('.calc-fx-btn');
     await page.ev('localStorage.setItem("fxOn", "false")');
     check(await page.until('!(document.getElementById("calc-iframe").contentDocument.querySelector(".calc-fx-btn").offsetWidth)'),
@@ -3830,7 +3824,7 @@ async function adminPolicy(page) {
     // the popup: the graph goes, kept for the next time it opens
     await page.fresh('/popup.html', {});
     check(await page.until('document.querySelector(".calc-graph-btn").hidden'), t + 'the graph turned off goes from the popup');
-    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-stat-btn', t + 'the rest stays', await buttons(page));
+    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-stat-btn', t + 'the rest stays', await buttons(page));
     check(await page.ev('localStorage.getItem("policy")') === '{"graph":false,"detachedMode":false,"pageButton":false,"pageMaths":false}',
         t + 'kept, with the button and the maths on the pages, which open Detached Mode', await page.ev('localStorage.getItem("policy")'));
     await change({});

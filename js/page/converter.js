@@ -41,10 +41,34 @@
         'watt-hours': ['watt hours', 'watt-hour', 'watt hour'], 'kilowatt-hours': ['kilowatt hours', 'kilowatt-hour', 'kilowatt hour'],
         'British thermal units': ['btus'], electronvolts: ['electronvolt', 'electron volts'], watts: ['watt'], kilowatts: ['kilowatt'],
         horsepower: [], 'metric horsepower': [], degrees: ['degree', 'deg'], radians: ['radian'], gradians: ['gradian', 'gon'], turns: ['turn'],
-        'kilometers per liter': ['kilometres per litre', 'km/l', 'kmpl'], 'liters per 100 km': ['litres per 100 km', 'l/100km'], 'miles per gallon (US)': ['miles per gallon']
+        'kilometers per liter': ['kilometres per litre', 'km/l', 'kmpl'], 'liters per 100 km': ['litres per 100 km', 'l/100km'], 'miles per gallon (US)': ['miles per gallon'],
+        micrometers: ['micrometres', 'micrometre', 'micrometer', 'microns', 'micron', 'um'], nanometers: ['nanometres', 'nanometre', 'nanometer'],
+        angstroms: ['angstrom', 'ångströms', 'ångström'], 'astronomical units': ['astronomical unit'], 'light-years': ['light years', 'light-year', 'light year'],
+        parsecs: ['parsec'], micrograms: ['microgram', 'mcg', 'ug'], carats: ['carat'], microseconds: ['microsecond'], nanoseconds: ['nanosecond'],
+        megapascals: ['megapascal'], torr: [], megajoules: ['megajoule'],
+        newtons: ['newton'], kilonewtons: ['kilonewton'], millinewtons: ['millinewton'], dynes: ['dyne'], 'kilograms-force': ['kilogram-force', 'kilograms force', 'kilogram force'],
+        'pounds-force': ['pound-force', 'pounds force', 'pound force'], 'ounces-force': ['ounce-force'],
+        'newton meters': ['newton metres', 'newton-meters', 'newton-metres', 'newton meter', 'newton metre', 'Nm'], 'newton centimeters': ['newton centimetres'],
+        'kilonewton meters': ['kilonewton metres'], 'kilogram-force meters': ['kilogram-force metres'],
+        'pound-feet': ['pound-foot', 'pound feet', 'foot-pounds', 'foot-pound', 'ft-lb', 'ft-lbs', 'lb-ft'], 'pound-inches': ['pound-inch', 'inch-pounds', 'inch-pound', 'in-lb', 'in-lbs'],
+        'ounce-inches': ['ounce-inch'],
+        'kilograms per cubic meter': ['kilograms per cubic metre', 'kg/m3'], 'grams per cubic centimeter': ['grams per cubic centimetre', 'g/cc', 'g/cm3'],
+        'grams per milliliter': ['grams per millilitre', 'g/ml'], 'grams per liter': ['grams per litre', 'g/l'], 'kilograms per liter': ['kilograms per litre', 'kg/l'],
+        'pounds per cubic foot': ['lb/ft3'], 'pounds per cubic inch': ['lb/in3'], 'pounds per gallon (US)': ['pounds per gallon'],
+        hertz: [], kilohertz: [], megahertz: [], gigahertz: [], 'revolutions per minute': [], 'radians per second': ['radian per second'],
+        'meters per second squared': ['metres per second squared', 'm/s2'], 'centimeters per second squared': ['centimetres per second squared'],
+        'feet per second squared': ['ft/s2'], 'inches per second squared': [], 'standard gravity': ['g-force', 'gee'],
+        'liters per second': ['litres per second'], 'liters per minute': ['litres per minute', 'lpm'], 'liters per hour': ['litres per hour'],
+        'milliliters per minute': ['millilitres per minute'], 'cubic meters per second': ['cubic metres per second'], 'cubic meters per hour': ['cubic metres per hour'],
+        'gallons per minute (US)': ['gallons per minute', 'gpm'], 'gallons per hour (US)': ['gallons per hour', 'gph'], 'cubic feet per minute': ['cfm'],
+        'cubic feet per second': ['cfs'],
+        amperes: ['ampere', 'amps', 'amp'], milliamperes: ['milliampere', 'milliamps', 'milliamp'], microamperes: ['microampere', 'microamps', 'microamp'],
+        kiloamperes: ['kiloampere', 'kiloamps'], volts: ['volt'], millivolts: ['millivolt'], microvolts: ['microvolt'], kilovolts: ['kilovolt'], megavolts: ['megavolt'],
+        coulombs: ['coulomb'], millicoulombs: ['millicoulomb'], microcoulombs: ['microcoulomb'], 'milliampere-hours': ['milliampere hours', 'milliamp hours', 'milliamp-hours'],
+        'ampere-hours': ['ampere hours', 'amp hours', 'amp-hours'], 'elementary charges': ['elementary charge']
     };
     // symbols that are words or other things as often: not taken alone
-    const UNIT_NOT = new Set(['°′″', '′', '″', 'turn', 'K', 'cup', 'st', 'd', 't', 'PS', 'B', 'gal']);
+    const UNIT_NOT = new Set(['°′″', '′', '″', 'turn', 'K', 'cup', 'st', 'd', 't', 'PS', 'B', 'gal', 'A', 'V', 'C', 'e', 'au', 'ct', 'pc', 'g₀']);
     let unitIndex = null;
 
     function units() {

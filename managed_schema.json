@@ -18,7 +18,7 @@
         },
         "solve": {
             "title": "Solve",
-            "description": "false turns off the solver of equations, calculus and probability for everyone, and its option cannot turn it on.",
+            "description": "false turns off the solver of equations, calculus, probability, finance and geometry for everyone, and its option cannot turn it on.",
             "type": "boolean"
         },
         "statistics": {
@@ -34,6 +34,11 @@
         "chemistry": {
             "title": "Chemistry",
             "description": "false turns off the periodic table and the chemistry tools for everyone, with the table's own window and the chemistry of the instant answers, and its option cannot turn it on.",
+            "type": "boolean"
+        },
+        "physics": {
+            "title": "Physics",
+            "description": "false turns off the physics tools, of motion, forces, circuits and waves, for everyone, and its option cannot turn it on.",
             "type": "boolean"
         },
         "detachedMode": {

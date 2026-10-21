@@ -176,6 +176,12 @@
                 'yield; depreciation; break-even; inflation; and percentage change and markup.',
             k: ''
         },
+        'solve tab geometry': {
+            t: 'Geometry',
+            d: 'A triangle of any three of its sides and angles, the area and perimeter of shapes, the volume and surface of solids, two points and ' +
+                'the line through them, the circle through three points, and the area of a polygon of its corners.',
+            k: ''
+        },
         'solve tab chance': {
             t: 'Probability',
             d: 'The normal, t, χ², F, binomial, Poisson and other distributions, confidence intervals and random whole numbers.',
@@ -271,6 +277,41 @@
             d: 'The date and time typed are in the time of this computer\'s time zone, summer time as well.',
             k: ''
         },
+        'choice ha 0': {
+            t: 'Not equal, ≠',
+            d: 'The alternative is that it differs either way: the p-value counts both tails.',
+            k: ''
+        },
+        'choice ha 1': {
+            t: 'Less, <',
+            d: 'The alternative is that it is below what H₀ says: the p-value is of the tail below.',
+            k: ''
+        },
+        'choice ha 2': {
+            t: 'Greater, >',
+            d: 'The alternative is that it is above what H₀ says: the p-value is of the tail above.',
+            k: ''
+        },
+        'choice input 0': {
+            t: 'Data',
+            d: 'The numbers of the sample, typed or pasted, a column of a spreadsheet as well.',
+            k: ''
+        },
+        'choice input 1': {
+            t: 'Summary',
+            d: 'The mean, standard deviation and size of the sample, as a book gives them.',
+            k: ''
+        },
+        'choice pool 0': {
+            t: 'Welch',
+            d: 'The spreads of the two samples may differ: its degrees of freedom by Welch and Satterthwaite. The usual choice.',
+            k: ''
+        },
+        'choice pool 1': {
+            t: 'Pooled',
+            d: 'The two samples are taken to have the same spread: one standard deviation of both, n₁ + n₂ – 2 degrees of freedom.',
+            k: ''
+        },
         'table copy': {
             t: 'Copy table',
             d: 'Copies the table with its heads, a tab between the numbers, all their digits: it pastes into a spreadsheet, a number in each cell.',
@@ -318,6 +359,49 @@
             t: 'Close the chemistry',
             d: 'What you typed, and the element chosen, stay for the next time.',
             k: 'Esc'
+        },
+        'phys': {
+            t: 'Physics',
+            d: 'Motion at a steady acceleration, projectiles drawn, circular motion and pendulums; forces, slopes, collisions, energy and ' +
+                'gravitation; the resistor colour code, series and parallel, Ohm\'s law, dividers and RC circuits; waves, lenses, refraction, ' +
+                'the Doppler effect, photons and decibels. Click a number to put it in.',
+            k: ''
+        },
+        'phys close': {
+            t: 'Close the physics',
+            d: 'What you typed stays for the next time.',
+            k: 'Esc'
+        },
+        'phys tab motion': {
+            t: 'Motion',
+            d: 'Steady acceleration from any three of s, u, v, a and t; a projectile\'s flight, drawn; circular motion; pendulums and springs.',
+            k: ''
+        },
+        'phys tab forces': {
+            t: 'Forces',
+            d: 'F = ma, the inclined plane with friction, collisions, kinetic and potential energy, work and power, gravitation and springs.',
+            k: ''
+        },
+        'phys tab circuits': {
+            t: 'Circuits',
+            d: 'The resistor colour code both ways, parts in series and parallel, Ohm\'s law and power, the voltage divider and RC circuits. ' +
+                'A part\'s value as it is written: 4.7k, 4k7, 100n.',
+            k: ''
+        },
+        'phys tab waves': {
+            t: 'Waves',
+            d: 'v = fλ, lenses and mirrors, refraction and the critical angle, the Doppler effect, light and photons, and sound in decibels.',
+            k: ''
+        },
+        'choice stick 0': {
+            t: 'Elastic',
+            d: 'They bounce apart, as billiard balls do, and no kinetic energy is lost.',
+            k: ''
+        },
+        'choice stick 1': {
+            t: 'Stick together',
+            d: 'They go on as one: momentum is kept, and as much kinetic energy as can be is lost.',
+            k: ''
         },
         'panel big': {
             t: 'Pop out',
@@ -708,7 +792,30 @@
             t: 'Statistics',
             d: 'Type or paste a list of numbers, a column from a spreadsheet as well, for its mean, standard ' +
                 'deviation, sum, quartiles, median and more, with a histogram and a box plot. The Pairs tab takes x and y ' +
-                'on each line, for the line of best fit and the correlation.',
+                'on each line, for the curve of best fit and the correlation; the Tests tab tests hypotheses.',
+            k: ''
+        },
+        'stats tab list': {
+            t: 'List',
+            d: 'A list of numbers: its count, sum, mean, standard deviations, quartiles, median and more, with a histogram and a box plot.',
+            k: ''
+        },
+        'stats tab pairs': {
+            t: 'Pairs',
+            d: 'x and y on each line: their means, deviations and sums, the correlation, and the curve of best fit of the kind chosen, drawn through them.',
+            k: ''
+        },
+        'stats tab tests': {
+            t: 'Tests',
+            d: 'Tests of hypotheses, as a TI-84\'s STAT TESTS: t and z of one sample or two, paired t, proportions, χ² of goodness of fit and of ' +
+                'independence, ANOVA and correlation, each with its p-value and whether to reject H₀.',
+            k: ''
+        },
+        'stats fit': {
+            t: 'Fit',
+            d: 'The curve fitted to the pairs by least squares: a line, y = a + bx; quadratic; cubic; exponential, y = a · bˣ; power, y = a · xᵇ; ' +
+                'logarithmic, y = a + b ln x; or logistic, y = c / (1 + a e^(–bx)). Exponential, power and logarithmic are fitted as a line of their ' +
+                'logarithms, as calculators fit them.',
             k: ''
         },
         'stats close': {
@@ -859,11 +966,35 @@
         },
         'pairs chart': {
             t: 'Scatter plot',
-            d: 'Each pair as a dot, x across and y up, with the line of best fit through them.'
+            d: 'Each pair as a dot, x across and y up, with the curve of best fit through them.'
         },
         'pairs sumy2': {
             t: 'Sum of squares of y, Σy<sup>2</sup>',
             d: 'Each y squared, then added up.'
+        },
+        'pairs rho': {
+            t: 'Spearman\'s ρ',
+            d: 'The correlation of the ranks of x and of y, from −1 to 1: how far y goes up, or down, as x goes up, in a line or not.'
+        },
+        'pairs fa': {
+            t: 'a',
+            d: 'The number a of the curve fitted, in its equation above the results.'
+        },
+        'pairs fb': {
+            t: 'b',
+            d: 'The number b of the curve fitted, in its equation above the results.'
+        },
+        'pairs fc': {
+            t: 'c',
+            d: 'The number c of the curve fitted, in its equation above the results.'
+        },
+        'pairs fd': {
+            t: 'd',
+            d: 'The number d of the curve fitted, in its equation above the results.'
+        },
+        'pairs fr2': {
+            t: 'Coefficient of determination, r<sup>2</sup>',
+            d: 'The share of how y varies that the curve accounts for, from 0 to 1; of an exponential, power or logarithmic curve, that of the line of its logarithms.'
         },
 
         // the history

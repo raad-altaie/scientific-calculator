@@ -11,6 +11,7 @@ const PANELS = {
     conv: ['Converter', 'converter'],
     solve: ['Solver', 'solve'],
     numbers: ['Numbers', 'numbers'],
+    phys: ['Physics', 'physics'],
 };
 const panel = Object.hasOwn(PANELS, params.get('panel')) ? params.get('panel') : '';
 

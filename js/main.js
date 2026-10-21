@@ -31,7 +31,7 @@
         pressedAt = null, // where a press put the tips away: none again till the pointer moves from there
         scrolledAt = null, // where a scroll put the tips away: none again till the pointer moves from there
         copying = null, // text a history button is copying, in place of the main line
-        past = root.querySelector('.calc-past:not(.calc-stats):not(.calc-fx):not(.calc-conv):not(.calc-graph):not(.calc-solve):not(.calc-numbers):not(.calc-chem)'), // the history, over the keys
+        past = root.querySelector('.calc-past:not(.calc-stats):not(.calc-fx):not(.calc-conv):not(.calc-graph):not(.calc-solve):not(.calc-numbers):not(.calc-chem):not(.calc-phys)'), // the history, over the keys
         pastList = past.querySelector('.calc-past-list'),
         pastButton = root.querySelector('.calc-hist'),
         pastExport = past.querySelector('.calc-past-export'), // the history copied or saved: a menu of how
@@ -48,9 +48,15 @@
             ['colon', 'Colon <b>:</b>', 'colons']
         ],
         statsNow = { n: 0 }, // what the list gives
-        statsTab = 'list', // the tab shown: a list of numbers, or pairs of them
-        statsTexts = { list: '', pairs: '' }, // what is typed in each
+        statsTab = 'list', // the tab shown: a list of numbers, pairs of them, or the tests
+        statsTexts = { list: '', pairs: '', tests: '' }, // what is typed in each; the tests keep theirs in their cards
         statsChart = stats.querySelector('.calc-stats-chart'),
+        statsFitPick = stats.querySelector('.calc-stats-fitpick'), // the curve fitted to the pairs
+        statsEq = stats.querySelector('.calc-stats-eq'), // and its equation
+        // its kinds, as CalcEngine.fit names them, and their names; the numbers of each, the tiles of the line's place
+        STATS_FITS = [['lin', 'Linear'], ['quad', 'Quadratic'], ['cubic', 'Cubic'], ['exp', 'Exponential'], ['pow', 'Power'],
+            ['log', 'Logarithmic'], ['logistic', 'Logistic']],
+        statsFit = 'lin',
         STATS = { // the results of each tab in the order shown: the name the engine gives each, and its label
             list: [
                 ['n', 'n'], ['sum', 'Σx'], ['squares', 'Σx<sup>2</sup>'],
@@ -65,7 +71,7 @@
                 ['b', 'slope b'], ['a', 'intercept a'], ['r2', 'r<sup>2</sup>'],
                 ['sdpx', 'σ<sub>x</sub>'], ['sdpy', 'σ<sub>y</sub>'], ['cov', 'cov'],
                 ['sumx', 'Σx'], ['sumy', 'Σy'], ['sumxy', 'Σxy'],
-                ['sumx2', 'Σx<sup>2</sup>'], ['sumy2', 'Σy<sup>2</sup>']
+                ['sumx2', 'Σx<sup>2</sup>'], ['sumy2', 'Σy<sup>2</sup>'], ['rho', 'Spearman ρ']
             ]
         },
         fx = root.querySelector('.calc-fx'), // formulas and constants, over the keys
@@ -90,6 +96,8 @@
         solveButton = root.querySelector('.calc-solve-btn'),
         numbersPanel = root.querySelector('.calc-numbers'), // matrices, complex numbers and bases, over the keys
         numbersButton = root.querySelector('.calc-numbers-btn'),
+        physPanel = root.querySelector('.calc-phys'), // circuits, motion, forces and waves, over the keys
+        physButton = root.querySelector('.calc-phys-btn'),
         graphRows = (function (first) { // a box for each curve, seven: the + shows the next one, its × takes it away
             var rows = [first], row;
             while (rows.length < 7) {
@@ -793,12 +801,12 @@
     function onKey(target, quick) {
         if (chemSliding) return; // no tip comes while a knob of the periodic table's slider is dragged
         var key = target.closest('.calc-left > *, .calc-right > .del-ac, .calc-rad, .calc-mem, .calc-frac, .calc-fmt, .calc-hold, ' +
-            '.calc-stat-btn, .calc-fx-btn, .calc-fx-row, .calc-gx-row, .calc-conv-btn, .calc-solve-btn, .calc-numbers-btn, .calc-chem-btn, .calc-chem-size, .calc-panel-size, .calc-pt-mode, .calc-pt-clear, .calc-pt-unit, .calc-pt-temp-v, .calc-sv-row, ' +
+            '.calc-stat-btn, .calc-fx-btn, .calc-fx-row, .calc-gx-row, .calc-conv-btn, .calc-solve-btn, .calc-numbers-btn, .calc-chem-btn, .calc-phys-btn, .calc-chem-size, .calc-panel-size, .calc-pt-mode, .calc-pt-clear, .calc-pt-unit, .calc-pt-temp-v, .calc-sv-row, ' +
             '.calc-graph-btn, .calc-graph-size, .calc-graph-add, .calc-graph-del, .calc-graph-diff, .calc-graph-points, .calc-graph-zoom > span, .calc-graph-pop-end, .calc-graph-pop-row, .calc-graph-play, ' +
             '.calc-graph-fn > .calc-graph-swatch, ' +
             '.calc-sto, .calc-var-btn, .calc-var-clear, input, textarea, ' +
             '.calc-stats-chart, .calc-hist, .calc-past-export, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit, .calc-help, .calc-open-big, ' +
-            '.calc-solve .calc-solve-tab, .calc-chem .calc-solve-tab, .calc-chem [data-pt], .calc-sv-opt, .calc-sv-copy, .calc-sv-example') || letterIn(target);
+            '.calc-solve .calc-solve-tab, .calc-chem .calc-solve-tab, .calc-stats .calc-solve-tab, .calc-phys .calc-solve-tab, .calc-stats-fitpick, .calc-chem [data-pt], .calc-sv-opt, .calc-sv-copy, .calc-sv-example') || letterIn(target);
         if (key === tipKey) return;
         hideTip();
         tipKey = key;
@@ -929,6 +937,7 @@
         if (el.hasAttribute('data-fact')) return chemFactPeek(el);
         value = el.querySelector('.calc-sv-value');
         if (!row || row.m !== undefined || row.flip || (row.text === undefined && !isFinite(row.v)) || !value || /^–?$/.test(value.textContent.trim())) return null;
+        if (value.querySelector('svg')) return null; // a drawing: nothing to copy or put in
         return { t: el.querySelector('.calc-sv-label').innerHTML, html: value.innerHTML,
             text: row.text !== undefined ? value.textContent : local(statsValue(row.v).text), put: row.text === undefined };
     }
@@ -1059,11 +1068,18 @@
         if (conv.contains(el)) return convTip(el);
         if (el === statsButton) return CalcTips[stats.classList.contains('calc-open') ? 'stats close' : 'stats'];
         if (el === statsChart) return CalcTips[statsTab === 'pairs' ? 'pairs chart' : 'stats chart'];
-        if (stats.contains(el)) return CalcTips[el.classList.contains('calc-past-clear') ? 'stats clear' : 'stats close'];
+        if (stats.contains(el)) {
+            if (el.classList.contains('calc-solve-tab')) return CalcTips['stats tab ' + el.dataset.tab] || null;
+            if (el === statsFitPick) return CalcTips['stats fit'];
+            if (stats.querySelector('.calc-stats-tests').contains(el)) return statTests.tip(el);
+            return CalcTips[el.classList.contains('calc-past-clear') ? 'stats clear' : 'stats close'];
+        }
         if (el === solveButton) return CalcTips[solvePanel.classList.contains('calc-open') ? 'solve close' : 'solve'];
         if (solvePanel.contains(el)) return solver.tip(el);
         if (el === numbersButton) return CalcTips[numbersPanel.classList.contains('calc-open') ? 'numbers close' : 'numbers'];
         if (numbersPanel.contains(el)) return numbers.tip(el);
+        if (el === physButton) return CalcTips[physPanel.classList.contains('calc-open') ? 'phys close' : 'phys'];
+        if (physPanel.contains(el)) return phys.tip(el);
         if (el === chemButton) return CalcTips[chemPanel.classList.contains('calc-open') ? 'chem close' : 'chem'];
         if (chemPanel.contains(el)) return chemTip(el);
         if (el === graphButton) return CalcTips[graph.classList.contains('calc-open') ? 'graph close' : 'graph'];
@@ -1388,10 +1404,12 @@
         // statistics, the search and a formula open, the value to convert and the dates, the graph
         // and its examples, and the boxes of the solver and the numbers
         statsInput.value = '';
-        statsTexts = { list: '', pairs: '' };
+        statsTexts = { list: '', pairs: '', tests: '' };
         statsTab = 'list';
+        setStatsFit('lin');
         statsTiles();
         setStatsBy(0);
+        statTests.clear();
         renderStats();
         fxSearch.value = '';
         fxTab = 'vars';
@@ -1506,7 +1524,7 @@
     // the tip of a box that uses letters, of a formula, of Solve or of the graph: what each holds now,
     // A = 200000; none for a box without one, nor where A to F are digits, as in the Numbers panel
     function lettersTip(box) {
-        var used = (fx.contains(box) && !box.closest('.calc-var')) || solvePanel.contains(box) || graph.contains(box) || box === convInput ||
+        var used = (fx.contains(box) && !box.closest('.calc-var')) || solvePanel.contains(box) || physPanel.contains(box) || graph.contains(box) || box === convInput ||
             (numbersPanel.contains(box) && box.dataset.num) ?
             CalcEngine.lettersOf(box.value) : [];
         if (!used.length) return null;
@@ -1574,6 +1592,9 @@
         }
         if (numbersPanel.classList.contains('calc-open') && !numbersPanel.contains(e.target) && !numbersButton.contains(e.target)) {
             showNumbers(false);
+        }
+        if (physPanel.classList.contains('calc-open') && !physPanel.contains(e.target) && !physButton.contains(e.target)) {
+            showPhys(false);
         }
         if (chemPanel.classList.contains('calc-open') && !chemPanel.contains(e.target) && !chemButton.contains(e.target)) {
             showChem(false);
@@ -1670,7 +1691,7 @@
 
     // one panel at a time: every one closed but the one opening
     function closePanels(but) {
-        [[past, showPast], [stats, showStats], [fx, showFx], [conv, showConv], [graph, showGraph], [solvePanel, showSolve], [numbersPanel, showNumbers], [chemPanel, showChem]]
+        [[past, showPast], [stats, showStats], [fx, showFx], [conv, showConv], [graph, showGraph], [solvePanel, showSolve], [numbersPanel, showNumbers], [physPanel, showPhys], [chemPanel, showChem]]
             .forEach(function (p) { if (p[0] !== but) p[1](false); });
     }
 
@@ -1708,7 +1729,7 @@
     // a box of the same panel is being typed in, the keyboard up already, as Enter goes on
     function focusBox(box) {
         var at = document.activeElement;
-        if (touchScreen() && !(/^(INPUT|TEXTAREA)$/.test(at.tagName) && [stats, fx, conv, graph, solvePanel, numbersPanel, chemPanel].some(function (p) {
+        if (touchScreen() && !(/^(INPUT|TEXTAREA)$/.test(at.tagName) && [stats, fx, conv, graph, solvePanel, numbersPanel, physPanel, chemPanel].some(function (p) {
             return p.contains(at) && p.contains(box);
         }))) return false;
         box.focus();
@@ -1721,18 +1742,31 @@
     // mean, the standard deviations and variance, min, the quartiles, median, max,
     // the ranges and the mode, worked out as it is typed, with a histogram and a box
     // plot of them. Or, on the Pairs tab, x and y on each line: their means, sums and
-    // deviations, and the line of best fit, drawn through them. A click on a result
-    // puts it into the calculation, as Ans does. Each tab keeps what is typed in it
+    // deviations, and the curve of best fit of the kind chosen, drawn through them. A click
+    // on a result puts it into the calculation, as Ans does. Each tab keeps what is typed in
+    // it. The Tests tab has a card for each test of a hypothesis, as the solver has
+
+    // the numbers of the curve fitted to the pairs, in place of the line's slope, intercept and r²: a, b, c and d of its equation
+    function fitTiles(kind) {
+        var n = { quad: 3, cubic: 4, logistic: 3 }[kind] || 2;
+        return 'abcd'.slice(0, n).split('').map(function (c) { return ['f' + c, c]; }).concat([['fr2', 'r<sup>2</sup>']]);
+    }
 
     // the tiles of the tab, the one shown on it
     function statsTiles() {
+        var list = STATS[statsTab] || [], at;
         [].forEach.call(stats.querySelectorAll('.calc-solve-tab'), function (t) {
             t.classList.toggle('calc-on', t.dataset.tab === statsTab);
         });
         stats.classList.toggle('calc-stats-pairs', statsTab === 'pairs');
+        stats.classList.toggle('calc-stats-testing', statsTab === 'tests');
         statsInput.placeholder = statsTab === 'pairs' ? 'Type or paste pairs, x and y on each line:\n1 2\n2 4.1\n3 5.9' :
             'Type or paste numbers: 4 8 15 16 23 42';
-        statsGrid.innerHTML = STATS[statsTab].map(function (s) {
+        if (statsTab === 'pairs' && statsFit !== 'lin') { // the line's three, in their place, for the curve's numbers
+            at = list.map(function (s) { return s[0]; }).indexOf('b');
+            list = list.slice(0, at).concat(fitTiles(statsFit), list.slice(at + 3));
+        }
+        statsGrid.innerHTML = list.map(function (s) {
             return '<div class="calc-stats-tile" data-k="' + s[0] + '"><span class="calc-stats-label">' + s[1] +
                 '</span><span class="calc-stats-value"></span></div>';
         }).join('');
@@ -1740,18 +1774,39 @@
 
     statsTiles();
 
+    // the tab shown: the box of the list or the pairs keeps what was typed in each
+    function setStatsTab(tab) {
+        if (statsTab !== 'tests') statsTexts[statsTab] = statsInput.value;
+        statsTab = tab;
+        if (tab !== 'tests') statsInput.value = statsTexts[tab];
+        statsTiles();
+        renderStats();
+    }
+
     stats.querySelector('.calc-solve-tabs').addEventListener('click', function (e) {
         var t = e.target.closest('.calc-solve-tab');
         if (!t || t.dataset.tab === statsTab) return;
-        statsTexts[statsTab] = statsInput.value;
-        statsTab = t.dataset.tab;
-        statsInput.value = statsTexts[statsTab];
-        statsTiles();
-        renderStats();
+        setStatsTab(t.dataset.tab);
         statsChart.parentNode.scrollTop = 0;
         saveState();
-        if (focusBox(statsInput)) statsInput.setSelectionRange(statsInput.value.length, statsInput.value.length);
+        if (statsTab === 'tests') statTests.focus();
+        else if (focusBox(statsInput)) statsInput.setSelectionRange(statsInput.value.length, statsInput.value.length);
     }, false);
+
+    // the kind of curve fitted to the pairs
+    function setStatsFit(kind) {
+        statsFit = STATS_FITS.some(function (f) { return f[0] === kind; }) ? kind : 'lin';
+        setPicker(statsFitPick, STATS_FITS.map(function (f) { return f[1]; }), STATS_FITS.map(function (f) { return f[0]; }).indexOf(statsFit));
+    }
+
+    picker(statsFitPick, function (i) {
+        setStatsFit(STATS_FITS[i][0]);
+        statsTiles();
+        renderStats();
+        saveState();
+    });
+    statsFitPick.box = statsInput;
+    setStatsFit('lin');
 
     statsButton.addEventListener('click', function () {
         showStats(!stats.classList.contains('calc-open'));
@@ -1807,16 +1862,34 @@
         statsButton.classList.toggle('calc-on', open);
         if (open) {
             renderStats(); // shown, so a long value can be made smaller to fit
-            if (focusBox(statsInput)) statsInput.setSelectionRange(statsInput.value.length, statsInput.value.length);
-        } else if (document.activeElement === statsInput) {
-            statsInput.blur(); // the keys are the calculator's again
+            if (statsTab === 'tests') statTests.focus();
+            else if (focusBox(statsInput)) statsInput.setSelectionRange(statsInput.value.length, statsInput.value.length);
+        } else if (stats.contains(document.activeElement)) {
+            document.activeElement.blur(); // the keys are the calculator's again
         }
     }
 
     // the results as the display shows numbers: in the number format, and as
-    // fractions in fraction mode; the chart of them, and a note of how many there are
+    // fractions in fraction mode; the chart of them, and a note of how many there are.
+    // Of the pairs, the curve chosen fitted to them, its numbers and its equation
     function renderStats() {
-        var pairs = statsTab === 'pairs', s = statsNow = CalcEngine[pairs ? 'pairs' : 'stats'](statsInput.value, engine.comma, BY[statsBy.at][0]);
+        var pairs = statsTab === 'pairs', s, fit;
+        if (statsTab === 'tests') return statTests.render();
+        s = statsNow = CalcEngine[pairs ? 'pairs' : 'stats'](statsInput.value, engine.comma, BY[statsBy.at][0]);
+        if (pairs && s.n) {
+            s.rho = CalcMaths.spearman(s.xs, s.ys);
+            fit = statsFit === 'lin' ? null : CalcEngine.fit(s.xs.map(function (x, i) { return { x: x, y: s.ys[i] }; }), statsFit);
+            if (fit) {
+                fit.k.forEach(function (v, i) { s['f' + 'abcd'.charAt(i)] = v; });
+                s.fr2 = fit.r2;
+            }
+            s.fit = fit;
+        }
+        if (pairs) {
+            statsEq.textContent = !s.n ? '' : statsFit === 'lin' ? (isFinite(s.b) ? 'y = ' + shortNumber(s.a) + (s.b < 0 ? ' − ' : ' + ') + shortNumber(Math.abs(s.b)) + 'x' : 'Needs two x or more') :
+                fit ? fitEquation(fit) : 'Needs ' + STATS_FIT_NEEDS[statsFit];
+            statsEq.classList.toggle('calc-stats-warn', !!s.n && (statsFit === 'lin' ? !isFinite(s.b) : !fit));
+        }
         [].forEach.call(statsGrid.children, function (tile) {
             var value = s[tile.dataset.k], known = s.n > 0 && isFinite(value), shown = tile.lastChild, size = 17;
             tile.classList.toggle('calc-none', !known);
@@ -1830,7 +1903,7 @@
         if (pairs) {
             statsNote.textContent = !s.n && !s.bad.length ? (statsBy.at > 1 ? 'Only ' + BY[statsBy.at][2] + ' are between x and y; a pair on each line.' :
                 'x and y on each line, apart by a space, ' + (engine.comma ? 'semicolon' : 'comma') + ' or tab.') :
-                s.n + (s.n === 1 ? ' pair' : ' pairs') + (isFinite(s.b) ? ' · y = ' + shortNumber(s.a) + (s.b < 0 ? ' − ' : ' + ') + shortNumber(Math.abs(s.b)) + 'x' : '') +
+                s.n + (s.n === 1 ? ' pair' : ' pairs') +
                 (s.bad.length ? ' · left out: ' + s.bad.slice(0, 3).join(', ') + (s.bad.length > 3 ? ' …' : '') : '');
             return;
         }
@@ -1843,6 +1916,28 @@
     // a number to 6 digits, with the decimal mark in use and − for its minus: for the note and the charts
     function shortNumber(v) {
         return local(String(+(+v).toPrecision(6))).replace('-', '−');
+    }
+
+    // what each curve needs of the pairs, said when they do not have it
+    var STATS_FIT_NEEDS = { quad: 'three x or more', cubic: 'four x or more', exp: 'every y above 0', pow: 'every x and y above 0',
+        log: 'every x above 0', logistic: 'four x or more, and every y above 0' };
+
+    // the equation of a curve fitted, its numbers to 6 digits: y = 1.2x² − 3x + 0.5, y = 2 · 1.5ˣ
+    function fitEquation(f) {
+        var k = f.k.map(shortNumber), sum = function (terms) { // a + b, each of its number and power, 0 left out, − for a minus
+            return terms.filter(function (t, i) { return +f.k[i] || terms.length === 1; }).map(function (t, i) {
+                var minus = t[0].charAt(0) === '−', n = minus ? t[0].slice(1) : t[0];
+                return (i ? (minus ? ' − ' : ' + ') : minus ? '−' : '') + (n === '1' && t[1] ? '' : n) + t[1];
+            }).join('') || '0';
+        };
+        return 'y = ' + {
+            quad: function () { return sum([[k[0], 'x²'], [k[1], 'x'], [k[2], '']]); },
+            cubic: function () { return sum([[k[0], 'x³'], [k[1], 'x²'], [k[2], 'x'], [k[3], '']]); },
+            exp: function () { return k[0] + ' · ' + k[1] + 'ˣ'; },
+            pow: function () { return k[0] + ' · x^' + k[1]; },
+            log: function () { return k[0] + (f.k[1] < 0 ? ' − ' + k[1].slice(1) : ' + ' + k[1]) + ' ln x'; },
+            logistic: function () { return k[2] + ' / (1 + ' + k[0] + ' · e^(' + (f.k[1] < 0 ? k[1].slice(1) : '−' + k[1]) + 'x))'; }
+        }[f.kind]();
     }
 
     var CHART_W = 340, CHART_H = 120;
@@ -1913,7 +2008,12 @@
         px = function (v) { return 34 + (v - x0) / (x1 - x0) * (CHART_W - 46); };
         py = function (v) { return 98 - (v - y0) / (y1 - y0) * 90; };
         html += '<line class="calc-stats-axis" x1="30" y1="102.5" x2="' + (CHART_W - 8) + '" y2="102.5"/><line class="calc-stats-axis" x1="30.5" y1="6" x2="30.5" y2="102.5"/>';
-        if (isFinite(s.b)) {
+        if (s.fit) { // a curve: a line through it at 120 places across, broken where it has no value
+            html += '<path class="calc-stats-fit" fill="none" d="' + Array.from({ length: 121 }, function (u, i) {
+                var x = x0 + (x1 - x0) * i / 120, y = s.fit.at(x);
+                return isFinite(y) ? px(x).toFixed(1) + ' ' + Math.max(-1000, Math.min(1000, py(y))).toFixed(1) : '';
+            }).reduce(function (d, p, i, all) { return p ? d + (i && all[i - 1] ? ' L' : ' M') + p : d; }, '') + '"/>';
+        } else if (isFinite(s.b) && statsFit === 'lin') {
             html += '<line class="calc-stats-fit" x1="' + px(x0).toFixed(1) + '" y1="' + py(s.a + s.b * x0).toFixed(1) + '" x2="' + px(x1).toFixed(1) +
                 '" y2="' + py(s.a + s.b * x1).toFixed(1) + '"/>';
         }
@@ -4998,6 +5098,53 @@
                 fields: [{ k: 'f', l: 'y′ =', ph: 'x + y', fn: true }, { k: 'x0', l: 'x<sub>0</sub>', ph: '0', def: 0 }, { k: 'y0', l: 'y<sub>0</sub>', ph: '1', def: 1 }, { k: 'x', l: 'x', ph: '1', def: 1 }],
                 cols: 3, run: runOde }
         ],
+        geometry: [
+            { id: 'triangle', t: 'Triangle', f: ['a, b, c', 'A, B, C'], d: 'Any three of its sides and angles, one a side at least, and the rest: each angle A across from its side a. Two sides and an angle not between them may ' +
+                'make two triangles, or none. Its area, perimeter, heights and the radii of its circles inside and round it, and it drawn. Angles in the unit in use, Deg, Rad or Grad.',
+                fields: [{ k: 'a', l: 'a', ph: '' }, { k: 'b', l: 'b', ph: '' }, { k: 'c', l: 'c', ph: '' }, { k: 'A', l: 'A', ph: '' }, { k: 'B', l: 'B', ph: '' }, { k: 'C', l: 'C', ph: '' }],
+                cols: 3, run: runTriangle, example: function () { return { a: '6', b: '8', A: angleTyped(30) }; } },
+            { id: 'shape', t: 'Shapes', f: ['Area', 'Perimeter'], d: 'The area and perimeter of a circle, rectangle, trapezoid, ellipse, sector of a circle or regular polygon, and more of each. Angles in the unit in use.',
+                fields: function (raw) {
+                    var way = [{ k: 'shape', l: 'Shape', choice: ['Circle', 'Rectangle', 'Trapezoid', 'Ellipse', 'Sector', 'Polygon'] }];
+                    return way.concat([
+                        [{ k: 'r', l: 'r', ph: '5', name: 'The radius' }],
+                        [{ k: 'w', l: 'Width', ph: '4' }, { k: 'h', l: 'Height', ph: '3' }],
+                        [{ k: 'a', l: 'a', ph: '6', name: 'a' }, { k: 'b', l: 'b', ph: '4', name: 'b' }, { k: 'h', l: 'Height', ph: '3' }],
+                        [{ k: 'a', l: 'a', ph: '5', name: 'a' }, { k: 'b', l: 'b', ph: '3', name: 'b' }],
+                        [{ k: 'r', l: 'r', ph: '5', name: 'The radius' }, { k: 't', l: 'θ', ph: deg === 1 ? '60' : deg === 2 ? '50' : '1', name: 'θ' }],
+                        [{ k: 'n', l: 'Sides', ph: '6' }, { k: 's', l: 'Side', ph: '2' }]
+                    ][+raw.shape || 0]);
+                }, cols: 3, run: runShape, example: function (raw) {
+                    var ex = [{ r: '5' }, { w: '4', h: '3' }, { a: '6', b: '4', h: '3' }, { a: '5', b: '3' }, { r: '5', t: angleTyped(60) }, { n: '6', s: '2' }][+raw.shape || 0];
+                    ex.shape = raw.shape || '0';
+                    return ex;
+                } },
+            { id: 'solid', t: 'Solids', f: ['Volume', 'Surface'], d: 'The volume and surface area of a sphere, cylinder, cone, box or square pyramid, and more of each.',
+                fields: function (raw) {
+                    var way = [{ k: 'solid', l: 'Solid', choice: ['Sphere', 'Cylinder', 'Cone', 'Box', 'Pyramid'] }];
+                    return way.concat([
+                        [{ k: 'r', l: 'r', ph: '3', name: 'The radius' }],
+                        [{ k: 'r', l: 'r', ph: '3', name: 'The radius' }, { k: 'h', l: 'Height', ph: '5' }],
+                        [{ k: 'r', l: 'r', ph: '3', name: 'The radius' }, { k: 'h', l: 'Height', ph: '4' }],
+                        [{ k: 'l', l: 'Length', ph: '4' }, { k: 'w', l: 'Width', ph: '3' }, { k: 'h', l: 'Height', ph: '2' }],
+                        [{ k: 'a', l: 'Base side', ph: '4' }, { k: 'h', l: 'Height', ph: '6' }]
+                    ][+raw.solid || 0]);
+                }, cols: 3, run: runSolid, example: function (raw) {
+                    var ex = [{ r: '3' }, { r: '3', h: '5' }, { r: '3', h: '4' }, { l: '4', w: '3', h: '2' }, { a: '4', h: '6' }][+raw.solid || 0];
+                    ex.solid = raw.solid || '0';
+                    return ex;
+                } },
+            { id: 'points', t: 'Two points', f: ['distance', 'midpoint', 'y = mx + b'], d: 'Of two points, the distance between them, the point halfway, and the line through them: its slope, where it meets the y axis, ' +
+                'its equation and its angle, in the unit in use.',
+                fields: [{ k: 'x1', l: 'x<sub>1</sub>', ph: '1', name: 'x₁' }, { k: 'y1', l: 'y<sub>1</sub>', ph: '2', name: 'y₁' }, { k: 'x2', l: 'x<sub>2</sub>', ph: '4', name: 'x₂' },
+                    { k: 'y2', l: 'y<sub>2</sub>', ph: '6', name: 'y₂' }], cols: 2, run: runPoints, example: { x1: '1', y1: '2', x2: '4', y2: '6' } },
+            { id: 'circle3', t: 'Circle through three points', f: '(x – h)<sup>2</sup> + (y – k)<sup>2</sup> = r<sup>2</sup>', d: 'The one circle through three points not on a line: its centre (h, k), radius, equation, area and circumference.',
+                fields: [{ k: 'x1', l: 'x<sub>1</sub>', ph: '0', name: 'x₁' }, { k: 'y1', l: 'y<sub>1</sub>', ph: '0', name: 'y₁' }, { k: 'x2', l: 'x<sub>2</sub>', ph: '4', name: 'x₂' },
+                    { k: 'y2', l: 'y<sub>2</sub>', ph: '0', name: 'y₂' }, { k: 'x3', l: 'x<sub>3</sub>', ph: '0', name: 'x₃' }, { k: 'y3', l: 'y<sub>3</sub>', ph: '3', name: 'y₃' }],
+                cols: 2, run: runCircle3, example: { x1: '0', y1: '0', x2: '4', y2: '0', x3: '0', y3: '3' } },
+            { id: 'polygon', t: 'Polygon of points', f: 'A = ½ |Σ (x<sub>i</sub> y<sub>i+1</sub> – x<sub>i+1</sub> y<sub>i</sub>)|', d: 'The area, perimeter and centroid of a polygon of its corners in order, by the shoelace: x and y of a corner on each line.',
+                fields: [{ k: 'p', l: 'Corners', ph: 'x and y of each, in order:\n0 0\n4 0\n4 3', area: true }], cols: 1, run: runPolygon, example: { p: '0 0\n4 0\n4 3\n0 3' } }
+        ],
         chance: [
             { id: 'normal', t: 'Normal probability', f: 'P(a ≤ X ≤ b)', d: 'The chance that a normal value of mean μ and standard deviation σ is between a and b; an empty end goes on without end.',
                 fields: [{ k: 'a', l: 'From', ph: '−∞', def: -Infinity, inf: true }, { k: 'b', l: 'To', ph: '∞', def: Infinity, inf: true }, MEAN, SPREAD], cols: 2,
@@ -5126,6 +5273,280 @@
                 fields: [{ k: 'a', l: 'From', ph: '' }, { k: 'b', l: 'To', ph: '' }], cols: 2, run: runChange }
         ]
     };
+
+    // ---------------- geometry ---------------- //
+
+    // an angle typed in the unit in use, in radians, and back; the unit's name
+    function toRadians(v) {
+        return deg === 1 ? v * Math.PI / 180 : deg === 2 ? v * Math.PI / 200 : v;
+    }
+
+    function fromRadians(v) {
+        return CalcMaths.round(deg === 1 ? v * 180 / Math.PI : deg === 2 ? v * 200 / Math.PI : v);
+    }
+
+    // an angle of so many degrees as an example types it, in the unit in use: 45, 50 or pi/4
+    function angleTyped(d) {
+        return deg === 1 ? String(d) : deg === 2 ? String(+(d * 10 / 9).toFixed(4)) : { 30: 'pi/6', 45: 'pi/4', 60: 'pi/3', 90: 'pi/2' }[d] || String(+(d * Math.PI / 180).toFixed(6));
+    }
+
+    function unitWord() {
+        return deg === 1 ? 'degrees' : deg === 2 ? 'gradians' : 'radians';
+    }
+
+    // A triangle of its sides, drawn with A at the left, c along the bottom, each corner and side named
+    function triangleDrawing(t) {
+        var s = t.s, A = t.t[0], pts = [[0, 0], [s[2], 0], [s[1] * Math.cos(A), s[1] * Math.sin(A)]], x0 = Math.min(0, pts[2][0]), x1 = Math.max(s[2], pts[2][0]),
+            h = pts[2][1], k = Math.min(260 / (x1 - x0), 96 / h), W = 300, H = 120, ox = (W - (x1 - x0) * k) / 2 - x0 * k, oy = H - 12 - (96 - h * k) / 2,
+            p = pts.map(function (q) { return [ox + q[0] * k, oy - q[1] * k]; }), mid = function (i, j) { return [(p[i][0] + p[j][0]) / 2, (p[i][1] + p[j][1]) / 2]; },
+            cx = (p[0][0] + p[1][0] + p[2][0]) / 3, cy = (p[0][1] + p[1][1] + p[2][1]) / 3,
+            label = function (q, text, out) { // a name a little away from the middle of the triangle
+                var dx = q[0] - cx, dy = q[1] - cy, d = Math.hypot(dx, dy) || 1;
+                return '<text x="' + (q[0] + dx / d * out).toFixed(1) + '" y="' + (q[1] + dy / d * out + 4).toFixed(1) + '" text-anchor="middle">' + text + '</text>';
+            };
+        return '<svg class="calc-sv-shape" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="The triangle"><polygon points="' + p.map(function (q) { return q[0].toFixed(1) + ',' + q[1].toFixed(1); }).join(' ') + '"/>' +
+            label(p[0], 'A', 9) + label(p[1], 'B', 9) + label(p[2], 'C', 9) + label(mid(1, 2), '<tspan font-style="italic">a</tspan>', 9) +
+            label(mid(0, 2), '<tspan font-style="italic">b</tspan>', 9) + label(mid(0, 1), '<tspan font-style="italic">c</tspan>', 9) + '</svg>';
+    }
+
+    // Points of the plane drawn in a box of W × H, x to the right and y up at one scale, all of them in it
+    function planeFit(xs, ys, W, H) {
+        var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys), pad = 18,
+            k = Math.min((W - 2 * pad) / (x1 - x0 || 1e-9), (H - 2 * pad) / (y1 - y0 || 1e-9)), ox, oy;
+        if (!isFinite(k) || k > 1e9) k = 1;
+        ox = W / 2 - (x0 + x1) / 2 * k;
+        oy = H / 2 + (y0 + y1) / 2 * k;
+        return { x: function (v) { return +(ox + v * k).toFixed(1); }, y: function (v) { return +(oy - v * k).toFixed(1); }, k: k, W: W, H: H };
+    }
+
+    // the svg of a drawing, and its x and y axes where they cross it, faint
+    function planeSvg(f, label, body) {
+        var ax = f.x(0), ay = f.y(0);
+        return '<svg class="calc-sv-shape" viewBox="0 0 ' + f.W + ' ' + f.H + '" role="img" aria-label="' + label + '">' +
+            (ax > 0 && ax < f.W ? '<path class="calc-sv-axis" d="M' + ax + ' 0V' + f.H + '"/>' : '') + (ay > 0 && ay < f.H ? '<path class="calc-sv-axis" d="M0 ' + ay + 'H' + f.W + '"/>' : '') +
+            body + '</svg>';
+    }
+
+    // a dot at a point, and a name by it: away from (cx, cy), or over it, kept in the box
+    function planeDot(f, x, y) {
+        return '<circle class="calc-sv-dot" cx="' + f.x(x) + '" cy="' + f.y(y) + '" r="2.5"/>';
+    }
+
+    function planeLabel(f, px, py, text, cx, cy, out) {
+        var dx = px - cx, dy = py - cy, d = Math.hypot(dx, dy), x, y, anchor;
+        if (!d) { dx = 0; dy = -1; d = 1; }
+        x = px + dx / d * (out || 10);
+        y = py + dy / d * (out || 10) + 4;
+        anchor = dx / d > 0.4 ? 'start' : dx / d < -0.4 ? 'end' : 'middle'; // the text going on away from the point
+        if (anchor === 'middle' && x < 40) anchor = 'start';
+        if (anchor === 'middle' && x > f.W - 40) anchor = 'end';
+        return '<text x="' + x.toFixed(1) + '" y="' + Math.min(f.H - 3, Math.max(11, y)).toFixed(1) + '" text-anchor="' + anchor + '">' + text + '</text>';
+    }
+
+    // (1, 2), a point as its name
+    function pointText(x, y) {
+        return '(' + shortNumber(x) + (engine.comma ? '; ' : ', ') + shortNumber(y) + ')';
+    }
+
+    // r = 5, a length's name and its value
+    function sizeText(letter, v) {
+        return '<tspan font-style="italic">' + letter + '</tspan> = ' + shortNumber(v);
+    }
+
+    function runTriangle(n) {
+        var sides = [n.a, n.b, n.c], angles = [n.A, n.B, n.C].map(toRadians), r = CalcMaths.triangle(sides, angles), t, rows, other;
+        if (r.error || !r.list.length) {
+            return { rows: [{ l: 'a', v: NaN }, { l: 'b', v: NaN }, { l: 'c', v: NaN }], cols: 3, warn: r.error !== 'few',
+                note: r.error === 'few' ? 'Type three of the six, one a side at least.' : r.error === 'many' ? 'Three of the six only: leave the rest empty.' :
+                    r.error === 'angles' ? 'Three angles make triangles of every size: give a side.' : r.error === 'range' ? 'Sides above 0, and angles above 0 and below a half turn.' :
+                        'No triangle has these: a side is too short to meet the others, or the angles add up to a half turn or more.' };
+        }
+        t = r.list[0];
+        rows = t.s.map(function (v, i) { return { l: 'abc'.charAt(i), v: v }; }).concat(t.t.map(function (v, i) { return { l: 'ABC'.charAt(i), v: fromRadians(v) }; }),
+            [{ l: 'Area', v: t.area }, { l: 'Perimeter', v: t.perimeter }, { l: 'Inradius r', v: t.r }, { l: 'Height onto a', v: t.h[0] }, { l: 'onto b', v: t.h[1] }, { l: 'onto c', v: t.h[2] },
+                { l: 'Circumradius R', v: t.R }]);
+        if ((other = r.list[1])) {
+            rows.push({ l: 'The other triangle', wide: true, text: 'a ' + statsValue(other.s[0]).html + ', b ' + statsValue(other.s[1]).html + ', c ' + statsValue(other.s[2]).html + '; A ' +
+                statsValue(fromRadians(other.t[0])).html + ', B ' + statsValue(fromRadians(other.t[1])).html + ', C ' + statsValue(fromRadians(other.t[2])).html, wrap: true });
+        }
+        rows.unshift({ l: 'Drawn', wide: true, text: triangleDrawing(t) });
+        return { rows: rows, cols: 3, note: (other ? 'Two triangles have these; the first is shown. ' : '') + 'Angles in ' + unitWord() + '.' };
+    }
+
+    function runShape(n, raw) {
+        var shape = +raw.shape || 0, pi = Math.PI, rows, t, e;
+        function none(why) { return { rows: [{ l: 'Area', v: NaN }, { l: 'Perimeter', v: NaN }], cols: 2, warn: true, note: why }; }
+        if (shape === 0) {
+            if (!raw.r) return { rows: [{ l: 'Area', v: NaN }, { l: 'Circumference', v: NaN }], cols: 2 };
+            if (!(n.r > 0)) return none('The radius is above 0.');
+            rows = [{ l: 'Area', v: pi * n.r * n.r }, { l: 'Circumference', v: 2 * pi * n.r }, { l: 'Diameter', v: 2 * n.r }];
+        } else if (shape === 1) {
+            if (!raw.w && !raw.h) return { rows: [{ l: 'Area', v: NaN }, { l: 'Perimeter', v: NaN }], cols: 2 };
+            if (!(n.w > 0 && n.h > 0)) return none('The width and height are above 0.');
+            rows = [{ l: 'Area', v: n.w * n.h }, { l: 'Perimeter', v: 2 * (n.w + n.h) }, { l: 'Diagonal', v: Math.hypot(n.w, n.h) }];
+        } else if (shape === 2) {
+            if (!raw.a && !raw.b && !raw.h) return { rows: [{ l: 'Area', v: NaN }, { l: 'Midline', v: NaN }], cols: 2 };
+            if (!(n.a > 0 && n.b > 0 && n.h > 0)) return none('a and b, the two sides that are parallel, and the height between them are above 0.');
+            rows = [{ l: 'Area', v: (n.a + n.b) / 2 * n.h }, { l: 'Midline', v: (n.a + n.b) / 2 }];
+        } else if (shape === 3) {
+            if (!raw.a && !raw.b) return { rows: [{ l: 'Area', v: NaN }, { l: 'Perimeter', v: NaN }], cols: 2 };
+            if (!(n.a > 0 && n.b > 0)) return none('a and b, half of each axis, are above 0.');
+            t = Math.pow(n.a - n.b, 2) / Math.pow(n.a + n.b, 2);
+            e = Math.sqrt(1 - Math.pow(Math.min(n.a, n.b) / Math.max(n.a, n.b), 2));
+            rows = [{ l: 'Area', v: pi * n.a * n.b }, { l: 'Perimeter', v: pi * (n.a + n.b) * (1 + 3 * t / (10 + Math.sqrt(4 - 3 * t))) }, { l: 'Eccentricity', v: e }];
+        } else if (shape === 4) {
+            if (!raw.r && !raw.t) return { rows: [{ l: 'Area', v: NaN }, { l: 'Arc', v: NaN }], cols: 2 };
+            t = toRadians(n.t);
+            if (!(n.r > 0 && t > 0 && t <= 2 * pi)) return none('The radius is above 0, and θ above 0 and a whole turn at most.');
+            rows = [{ l: 'Area', v: n.r * n.r * t / 2 }, { l: 'Arc', v: n.r * t }, { l: 'Chord', v: 2 * n.r * Math.sin(t / 2) }, { l: 'Perimeter', v: n.r * t + 2 * n.r }];
+        } else {
+            if (!raw.n && !raw.s) return { rows: [{ l: 'Area', v: NaN }, { l: 'Perimeter', v: NaN }], cols: 2 };
+            if (!(Number.isInteger(n.n) && n.n >= 3 && n.s > 0)) return none('3 sides or more, a whole number, each of a length above 0.');
+            rows = [{ l: 'Area', v: n.n * n.s * n.s / (4 * Math.tan(pi / n.n)) }, { l: 'Perimeter', v: n.n * n.s }, { l: 'Apothem', v: n.s / (2 * Math.tan(pi / n.n)) },
+                { l: 'Circumradius', v: n.s / (2 * Math.sin(pi / n.n)) }, { l: 'Each angle inside', v: fromRadians(pi - 2 * pi / n.n) }];
+        }
+        rows.forEach(function (r) { r.v = CalcMaths.round(r.v); });
+        rows.unshift({ l: 'Drawn', wide: true, text: shapeDrawing(shape, n) });
+        return { rows: rows, cols: 2, note: shape === 3 ? 'The perimeter by Ramanujan\'s second way: to some 10 digits for most.' : shape >= 4 ? 'Angles in ' + unitWord() + '.' : '' };
+    }
+
+    // A shape of its sizes, to scale, each named with its value: a circle and its radius, a rectangle, a trapezoid
+    // and its height, an ellipse and its half axes, a sector and its angle, a regular polygon and its side
+    function shapeDrawing(shape, n) {
+        var W = 300, H = 130, f, body, xs, ys, t, i, pts, R, m, a0, sign = deg === 1 ? '°' : '';
+        if (shape === 0) {
+            f = planeFit([-n.r, n.r], [-n.r, n.r], W, H);
+            body = '<circle class="calc-sv-fill" cx="' + f.x(0) + '" cy="' + f.y(0) + '" r="' + (n.r * f.k).toFixed(1) + '"/>' +
+                '<path class="calc-sv-guide" d="M' + f.x(0) + ' ' + f.y(0) + 'H' + f.x(n.r) + '"/>' + planeDot(f, 0, 0) +
+                planeLabel(f, (f.x(0) + f.x(n.r)) / 2, f.y(0), sizeText('r', n.r), (f.x(0) + f.x(n.r)) / 2, f.y(0) + 1, 8);
+        } else if (shape === 1) {
+            f = planeFit([0, n.w], [0, n.h], W, H);
+            body = '<rect class="calc-sv-fill" x="' + f.x(0) + '" y="' + f.y(n.h) + '" width="' + (n.w * f.k).toFixed(1) + '" height="' + (n.h * f.k).toFixed(1) + '"/>' +
+                planeLabel(f, f.x(n.w / 2), f.y(0), sizeText('w', n.w), f.x(n.w / 2), f.y(n.h / 2), 8) + planeLabel(f, f.x(n.w), f.y(n.h / 2), sizeText('h', n.h), f.x(n.w / 2), f.y(n.h / 2), 8);
+        } else if (shape === 2) {
+            pts = [[0, 0], [n.a, 0], [(n.a + n.b) / 2, n.h], [(n.a - n.b) / 2, n.h]];
+            f = planeFit(pts.map(function (q) { return q[0]; }), [0, n.h], W, H);
+            body = '<polygon points="' + pts.map(function (q) { return f.x(q[0]) + ',' + f.y(q[1]); }).join(' ') + '"/>' +
+                '<path class="calc-sv-guide" d="M' + f.x(n.a / 2) + ' ' + f.y(0) + 'V' + f.y(n.h) + '"/>' +
+                planeLabel(f, f.x(n.a / 2), f.y(0), sizeText('a', n.a), f.x(n.a / 2), f.y(n.h / 2), 8) + planeLabel(f, f.x(n.a / 2), f.y(n.h), sizeText('b', n.b), f.x(n.a / 2), f.y(n.h / 2), 8) +
+                '<text x="' + (f.x(n.a / 2) + 5) + '" y="' + (f.y(n.h / 2) + 4) + '">' + sizeText('h', n.h) + '</text>';
+        } else if (shape === 3) {
+            f = planeFit([-n.a, n.a], [-n.b, n.b], W, H);
+            body = '<ellipse class="calc-sv-fill" cx="' + f.x(0) + '" cy="' + f.y(0) + '" rx="' + (n.a * f.k).toFixed(1) + '" ry="' + (n.b * f.k).toFixed(1) + '"/>' +
+                '<path class="calc-sv-guide" d="M' + f.x(0) + ' ' + f.y(0) + 'H' + f.x(n.a) + 'M' + f.x(0) + ' ' + f.y(0) + 'V' + f.y(n.b) + '"/>' + planeDot(f, 0, 0) +
+                planeLabel(f, (f.x(0) + f.x(n.a)) / 2, f.y(0), sizeText('a', n.a), (f.x(0) + f.x(n.a)) / 2, f.y(0) - 1, 8) +
+                '<text x="' + (f.x(0) - 5) + '" y="' + ((f.y(0) + f.y(n.b)) / 2 + 4) + '" text-anchor="end">' + sizeText('b', n.b) + '</text>';
+        } else if (shape === 4) {
+            t = Math.min(toRadians(n.t), 2 * Math.PI);
+            xs = [0, n.r, n.r * Math.cos(t)];
+            ys = [0, 0, n.r * Math.sin(t)];
+            [0.5, 1, 1.5].forEach(function (q) { if (t > q * Math.PI) { xs.push(n.r * Math.cos(q * Math.PI)); ys.push(n.r * Math.sin(q * Math.PI)); } }); // the arc's ends of each quarter it goes past
+            f = planeFit(xs, ys, W, H);
+            m = t / 2;
+            body = (t >= 2 * Math.PI - 1e-9 ? '<circle class="calc-sv-fill" cx="' + f.x(0) + '" cy="' + f.y(0) + '" r="' + (n.r * f.k).toFixed(1) + '"/>' :
+                '<path class="calc-sv-fill" d="M' + f.x(0) + ' ' + f.y(0) + 'L' + f.x(n.r) + ' ' + f.y(0) + 'A' + (n.r * f.k).toFixed(1) + ' ' + (n.r * f.k).toFixed(1) + ' 0 ' +
+                    (t > Math.PI ? 1 : 0) + ' 0 ' + f.x(n.r * Math.cos(t)) + ' ' + f.y(n.r * Math.sin(t)) + 'Z"/>') + planeDot(f, 0, 0) +
+                planeLabel(f, (f.x(0) + f.x(n.r)) / 2, f.y(0), sizeText('r', n.r), (f.x(0) + f.x(n.r)) / 2, f.y(0) - 1, 8) +
+                '<text x="' + (f.x(0) + Math.cos(m) * 16).toFixed(1) + '" y="' + (f.y(0) - Math.sin(m) * 16 + 4).toFixed(1) + '" text-anchor="' + (Math.cos(m) < -0.3 ? 'end' : 'start') + '">' +
+                sizeText('θ', n.t) + sign + '</text>';
+        } else {
+            R = n.s / (2 * Math.sin(Math.PI / n.n));
+            a0 = -Math.PI / 2 - Math.PI / n.n; // a side along the bottom
+            pts = [];
+            for (i = 0; i < Math.min(n.n, 400); i++) pts.push([R * Math.cos(a0 + 2 * Math.PI * i / n.n), R * Math.sin(a0 + 2 * Math.PI * i / n.n)]);
+            f = planeFit(pts.map(function (q) { return q[0]; }).concat(-R, R), pts.map(function (q) { return q[1]; }), W, H);
+            body = (n.n > 400 ? '<circle class="calc-sv-fill" cx="' + f.x(0) + '" cy="' + f.y(0) + '" r="' + (R * f.k).toFixed(1) + '"/>' :
+                '<polygon points="' + pts.map(function (q) { return f.x(q[0]) + ',' + f.y(q[1]); }).join(' ') + '"/>') +
+                planeLabel(f, f.x(0), f.y(pts[0][1]), sizeText('s', n.s), f.x(0), f.y(0), 8);
+        }
+        return '<svg class="calc-sv-shape" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="The shape">' + body + '</svg>';
+    }
+
+    function runSolid(n, raw) {
+        var solid = +raw.solid || 0, pi = Math.PI, rows, l, need = [['r'], ['r', 'h'], ['r', 'h'], ['l', 'w', 'h'], ['a', 'h']][solid];
+        if (need.every(function (k) { return !raw[k]; })) return { rows: [{ l: 'Volume', v: NaN }, { l: 'Surface area', v: NaN }], cols: 2 };
+        if (!need.every(function (k) { return n[k] > 0; })) return { rows: [{ l: 'Volume', v: NaN }, { l: 'Surface area', v: NaN }], cols: 2, warn: true, note: 'Each length is above 0.' };
+        if (solid === 0) rows = [{ l: 'Volume', v: 4 / 3 * pi * Math.pow(n.r, 3) }, { l: 'Surface area', v: 4 * pi * n.r * n.r }, { l: 'Diameter', v: 2 * n.r }];
+        else if (solid === 1) rows = [{ l: 'Volume', v: pi * n.r * n.r * n.h }, { l: 'Surface area', v: 2 * pi * n.r * (n.r + n.h) }, { l: 'Curved surface', v: 2 * pi * n.r * n.h }];
+        else if (solid === 2) {
+            l = Math.hypot(n.r, n.h);
+            rows = [{ l: 'Volume', v: pi * n.r * n.r * n.h / 3 }, { l: 'Surface area', v: pi * n.r * (n.r + l) }, { l: 'Curved surface', v: pi * n.r * l }, { l: 'Slant height', v: l }];
+        } else if (solid === 3) {
+            rows = [{ l: 'Volume', v: n.l * n.w * n.h }, { l: 'Surface area', v: 2 * (n.l * n.w + n.l * n.h + n.w * n.h) }, { l: 'Diagonal', v: Math.sqrt(n.l * n.l + n.w * n.w + n.h * n.h) }];
+        } else {
+            l = Math.hypot(n.h, n.a / 2);
+            rows = [{ l: 'Volume', v: n.a * n.a * n.h / 3 }, { l: 'Surface area', v: n.a * n.a + 2 * n.a * l }, { l: 'Slant height', v: l }, { l: 'Edge', v: Math.hypot(n.h, n.a / Math.SQRT2) }];
+        }
+        rows.forEach(function (r) { r.v = CalcMaths.round(r.v); });
+        return { rows: rows, cols: 2 };
+    }
+
+    // y = 1.33333x + 0.666667, a number to 6 digits, 0 left out; x = 3 of a line straight up
+    function lineText(m, b, x) {
+        if (!isFinite(m)) return 'x = ' + shortNumber(x);
+        return 'y = ' + (m ? (m === 1 ? '' : m === -1 ? '−' : shortNumber(m)) + 'x' : '') + (b || !m ? (m ? (b < 0 ? ' − ' : ' + ') + shortNumber(Math.abs(b)) : shortNumber(b)) : '');
+    }
+
+    function runPoints(n, raw) {
+        var dx = n.x2 - n.x1, dy = n.y2 - n.y1, m, b, none = [{ l: 'Distance', v: NaN }, { l: 'Slope', v: NaN }];
+        if (!raw.x1 && !raw.y1 && !raw.x2 && !raw.y2) return { rows: none, cols: 2 };
+        if (![n.x1, n.y1, n.x2, n.y2].every(isFinite)) return { rows: none, cols: 2, warn: true, note: 'Type both points, x and y of each.' };
+        if (!dx && !dy) return { rows: none, cols: 2, warn: true, note: 'The two points are the same: no line goes through them alone.' };
+        m = dx ? CalcMaths.round(dy / dx) : NaN;
+        b = dx ? CalcMaths.round(n.y1 - dy / dx * n.x1) : NaN;
+        return { rows: [{ l: 'Drawn', wide: true, text: pointsDrawing(n) }, { l: 'Distance', v: CalcMaths.round(Math.hypot(dx, dy)) }, { l: 'Slope', v: m }, { l: 'Midpoint x', v: CalcMaths.round((n.x1 + n.x2) / 2) },
+            { l: 'Midpoint y', v: CalcMaths.round((n.y1 + n.y2) / 2) }, { l: 'y-intercept', v: b }, { l: 'Angle', v: fromRadians(Math.atan2(dy, dx)) },
+            { l: 'Line', text: lineText(m, b, n.x1), wide: true }], cols: 2, note: (dx ? '' : 'Straight up: its slope has no value. ') + 'The angle from the x axis, in ' + unitWord() + '.' };
+    }
+
+    // two points, the line through them across the box, dashed, the segment between them and its midpoint
+    function pointsDrawing(n) {
+        var mx = (n.x1 + n.x2) / 2, my = (n.y1 + n.y2) / 2, f = planeFit([n.x1, n.x2], [n.y1, n.y2], 300, 130),
+            ux = f.x(n.x2) - f.x(n.x1), uy = f.y(n.y2) - f.y(n.y1), d = Math.hypot(ux, uy) || 1, px = uy / d, py = -ux / d;
+        if (py > 0) { px = -px; py = -py; } // the names to the side of the line, over it
+        ux = ux / d * 1000;
+        uy = uy / d * 1000;
+        return planeSvg(f, 'The two points', '<path class="calc-sv-guide" d="M' + (f.x(n.x1) - ux).toFixed(1) + ' ' + (f.y(n.y1) - uy).toFixed(1) + 'L' + (f.x(n.x2) + ux).toFixed(1) + ' ' +
+            (f.y(n.y2) + uy).toFixed(1) + '"/><path class="calc-sv-seg" d="M' + f.x(n.x1) + ' ' + f.y(n.y1) + 'L' + f.x(n.x2) + ' ' + f.y(n.y2) + '"/>' +
+            planeDot(f, n.x1, n.y1) + planeDot(f, n.x2, n.y2) + '<circle class="calc-sv-mid" cx="' + f.x(mx) + '" cy="' + f.y(my) + '" r="2.5"/>' +
+            planeLabel(f, f.x(n.x1), f.y(n.y1), pointText(n.x1, n.y1), f.x(n.x1) - px, f.y(n.y1) - py, 9) +
+            planeLabel(f, f.x(n.x2), f.y(n.y2), pointText(n.x2, n.y2), f.x(n.x2) - px, f.y(n.y2) - py, 9));
+    }
+
+    // the circle, its three points and its centre, and a radius to the first point, dashed
+    function circleDrawing(n, c) {
+        var f = planeFit([c.x - c.r, c.x + c.r], [c.y - c.r, c.y + c.r], 300, 150), ps = [[n.x1, n.y1], [n.x2, n.y2], [n.x3, n.y3]];
+        return planeSvg(f, 'The circle', '<circle class="calc-sv-fill" cx="' + f.x(c.x) + '" cy="' + f.y(c.y) + '" r="' + (c.r * f.k).toFixed(1) + '"/>' +
+            '<path class="calc-sv-guide" d="M' + f.x(c.x) + ' ' + f.y(c.y) + 'L' + f.x(n.x1) + ' ' + f.y(n.y1) + '"/>' + '<circle class="calc-sv-mid" cx="' + f.x(c.x) + '" cy="' + f.y(c.y) + '" r="2.5"/>' +
+            ps.map(function (q) { return planeDot(f, q[0], q[1]) + planeLabel(f, f.x(q[0]), f.y(q[1]), pointText(q[0], q[1]), f.x(c.x), f.y(c.y), 10); }).join('') +
+            planeLabel(f, f.x(c.x), f.y(c.y), pointText(c.x, c.y), f.x(n.x1), f.y(n.y1), 8)); // the centre's name away from the radius drawn
+    }
+
+    // the polygon, its corners numbered in order, up to 20, and its centroid
+    function polygonDrawing(xs, ys, r) {
+        var f = planeFit(xs, ys, 300, 150);
+        return planeSvg(f, 'The polygon', '<polygon points="' + xs.map(function (x, i) { return f.x(x) + ',' + f.y(ys[i]); }).join(' ') + '"/>' +
+            (xs.length > 20 ? '' : xs.map(function (x, i) { return planeDot(f, x, ys[i]) + planeLabel(f, f.x(x), f.y(ys[i]), String(i + 1), f.x(r.x), f.y(r.y), 9); }).join('')) +
+            '<circle class="calc-sv-mid" cx="' + f.x(r.x) + '" cy="' + f.y(r.y) + '" r="2.5"/>');
+    }
+
+    function runCircle3(n, raw) {
+        var c = CalcMaths.circleOf(n.x1, n.y1, n.x2, n.y2, n.x3, n.y3), none = [{ l: 'Centre h', v: NaN }, { l: 'Centre k', v: NaN }, { l: 'Radius r', v: NaN }];
+        if (['x1', 'y1', 'x2', 'y2', 'x3', 'y3'].every(function (k) { return !raw[k]; })) return { rows: none, cols: 3 };
+        if (!c) return { rows: none, cols: 3, warn: true, note: [n.x1, n.y1, n.x2, n.y2, n.x3, n.y3].every(isFinite) ? 'The three points are on one line: no circle goes through them.' : 'Type the three points, x and y of each.' };
+        return { rows: [{ l: 'Drawn', wide: true, text: circleDrawing(n, c) }, { l: 'Centre h', v: c.x }, { l: 'Centre k', v: c.y }, { l: 'Radius r', v: c.r },
+            { l: 'Equation', wide: true, text: '(x ' + (c.x < 0 ? '+ ' : '− ') + shortNumber(Math.abs(c.x)) + ')² + (y ' + (c.y < 0 ? '+ ' : '− ') + shortNumber(Math.abs(c.y)) + ')² = ' + shortNumber(CalcMaths.round(c.r * c.r)) },
+            { l: 'Area', v: CalcMaths.round(Math.PI * c.r * c.r) }, { l: 'Circumference', v: CalcMaths.round(2 * Math.PI * c.r) }, { l: 'Diameter', v: CalcMaths.round(2 * c.r) }], cols: 3 };
+    }
+
+    function runPolygon(n, raw) {
+        var p = CalcEngine.pairs(raw.p || '', engine.comma, 'auto'), r = CalcMaths.polygon(p.xs, p.ys), none = [{ l: 'Area', v: NaN }, { l: 'Perimeter', v: NaN }];
+        if (!p.n && !p.bad.length) return { rows: none, cols: 2 };
+        if (!r) return { rows: none, cols: 2, warn: true, note: 'Three corners or more, x and y of each on its line, in order round the polygon.' };
+        return { rows: [{ l: 'Drawn', wide: true, text: polygonDrawing(p.xs, p.ys, r) }, { l: 'Area', v: r.area }, { l: 'Perimeter', v: r.perimeter }, { l: 'Centroid x', v: r.x },
+            { l: 'Centroid y', v: r.y }, { l: 'Corners', v: p.n }], cols: 2,
+            note: (p.bad.length ? 'Left out: ' + p.bad.slice(0, 3).join(', ') + '. ' : '') + 'Of corners in order; sides that cross make the area less.', warn: !!p.bad.length };
+    }
 
     // a box for each coefficient, a of 1 and the others of 0 while they are empty
     function coefficients(letters) {
@@ -6470,6 +6891,10 @@
                 fields: [{ k: 'd', l: 'Date', date: true }, { k: 'y', l: 'Years', ph: '0', def: 0, cls: 'calc-sv-dated' },
                     { k: 'm', l: 'Months', ph: '0', def: 0, cls: 'calc-sv-dated' }, { k: 'days', l: 'Days', ph: '0', def: 0, cls: 'calc-sv-dated' }],
                 cols: 3, run: runAdd },
+            { id: 'zones', t: 'Time zones', f: '15:00 London = 23:00 Tokyo', d: 'A time in one place, and the same time in another: the time is now at first, to type over, and empty again is now. ' +
+                'Summer time is as each place has it today.',
+                fields: [{ k: 'time', l: 'Time', ph: 'Now', text: true, now: zoneNow }, { k: 'from', l: 'From', pick: zoneChoices, at: 'Here', wide: true },
+                    { k: 'to', l: 'To', pick: zoneChoices, at: 'London', wide: true }], run: runZones },
             { id: 'unix', t: 'Unix time', f: '1700000000 ↔ 14 Nov 2023 22:13:20', d: 'One way or the other. Unix → Date: the date and time of a Unix timestamp, the seconds from 1 January 1970 in UTC, or of 13 digits its milliseconds, in UTC, here, and in ISO 8601. Date → Unix: the timestamp of a date and time, in UTC or the time here; an empty date is today, an empty time midnight.',
                 // the boxes of the way chosen only: a timestamp, or a date, a time and its zone
                 fields: function (raw) {
@@ -6479,6 +6904,113 @@
                 }, run: runUnix }
         ]
     };
+
+    // the places of the lists, the browser's own first, then the cities most asked for, A to Z: [name, zone]; a
+    // place is kept by its name, as several cities share a zone. The browser's other zones join them
+    var ZONE_CHOICES = [
+        ['Here', 'here'], ['UTC', 'UTC'], ['Abu Dhabi', 'Asia/Dubai'], ['Accra', 'Africa/Accra'], ['Addis Ababa', 'Africa/Addis_Ababa'],
+        ['Adelaide', 'Australia/Adelaide'], ['Algiers', 'Africa/Algiers'], ['Almaty', 'Asia/Almaty'], ['Amman', 'Asia/Amman'], ['Amsterdam', 'Europe/Amsterdam'],
+        ['Anchorage', 'America/Anchorage'], ['Ankara', 'Europe/Istanbul'], ['Athens', 'Europe/Athens'], ['Atlanta', 'America/New_York'],
+        ['Auckland', 'Pacific/Auckland'], ['Baghdad', 'Asia/Baghdad'], ['Baku', 'Asia/Baku'], ['Bangkok', 'Asia/Bangkok'], ['Barcelona', 'Europe/Madrid'],
+        ['Beijing', 'Asia/Shanghai'], ['Beirut', 'Asia/Beirut'], ['Belgrade', 'Europe/Belgrade'], ['Bengaluru', 'Asia/Kolkata'], ['Berlin', 'Europe/Berlin'],
+        ['Bogotá', 'America/Bogota'], ['Boston', 'America/New_York'], ['Brisbane', 'Australia/Brisbane'], ['Brussels', 'Europe/Brussels'],
+        ['Bucharest', 'Europe/Bucharest'], ['Budapest', 'Europe/Budapest'], ['Buenos Aires', 'America/Argentina/Buenos_Aires'], ['Cairo', 'Africa/Cairo'],
+        ['Calgary', 'America/Edmonton'], ['Cape Town', 'Africa/Johannesburg'], ['Caracas', 'America/Caracas'], ['Casablanca', 'Africa/Casablanca'],
+        ['Chicago', 'America/Chicago'], ['Copenhagen', 'Europe/Copenhagen'], ['Dallas', 'America/Chicago'], ['Damascus', 'Asia/Damascus'],
+        ['Dar es Salaam', 'Africa/Dar_es_Salaam'], ['Delhi', 'Asia/Kolkata'], ['Denver', 'America/Denver'], ['Dhaka', 'Asia/Dhaka'], ['Doha', 'Asia/Qatar'],
+        ['Dubai', 'Asia/Dubai'], ['Dublin', 'Europe/Dublin'], ['Edinburgh', 'Europe/London'], ['Frankfurt', 'Europe/Berlin'], ['Geneva', 'Europe/Zurich'],
+        ['Halifax', 'America/Halifax'], ['Hanoi', 'Asia/Ho_Chi_Minh'], ['Havana', 'America/Havana'], ['Helsinki', 'Europe/Helsinki'],
+        ['Ho Chi Minh City', 'Asia/Ho_Chi_Minh'], ['Hong Kong', 'Asia/Hong_Kong'], ['Honolulu', 'Pacific/Honolulu'], ['Houston', 'America/Chicago'],
+        ['Islamabad', 'Asia/Karachi'], ['Istanbul', 'Europe/Istanbul'], ['Jakarta', 'Asia/Jakarta'], ['Jeddah', 'Asia/Riyadh'], ['Jerusalem', 'Asia/Jerusalem'],
+        ['Johannesburg', 'Africa/Johannesburg'], ['Kabul', 'Asia/Kabul'], ['Karachi', 'Asia/Karachi'], ['Kathmandu', 'Asia/Kathmandu'], ['Khartoum', 'Africa/Khartoum'],
+        ['Kolkata', 'Asia/Kolkata'], ['Kuala Lumpur', 'Asia/Kuala_Lumpur'], ['Kuwait City', 'Asia/Kuwait'], ['Kyiv', 'Europe/Kiev'], ['Lagos', 'Africa/Lagos'],
+        ['Lahore', 'Asia/Karachi'], ['Las Vegas', 'America/Los_Angeles'], ['Lima', 'America/Lima'], ['Lisbon', 'Europe/Lisbon'], ['London', 'Europe/London'],
+        ['Los Angeles', 'America/Los_Angeles'], ['Madrid', 'Europe/Madrid'], ['Manchester', 'Europe/London'], ['Manila', 'Asia/Manila'], ['Mecca', 'Asia/Riyadh'],
+        ['Melbourne', 'Australia/Melbourne'], ['Mexico City', 'America/Mexico_City'], ['Miami', 'America/New_York'], ['Milan', 'Europe/Rome'], ['Minsk', 'Europe/Minsk'],
+        ['Montevideo', 'America/Montevideo'], ['Montreal', 'America/Toronto'], ['Moscow', 'Europe/Moscow'], ['Mumbai', 'Asia/Kolkata'], ['Munich', 'Europe/Berlin'],
+        ['Muscat', 'Asia/Muscat'], ['Nairobi', 'Africa/Nairobi'], ['New York', 'America/New_York'], ['Oslo', 'Europe/Oslo'], ['Ottawa', 'America/Toronto'],
+        ['Paris', 'Europe/Paris'], ['Perth', 'Australia/Perth'], ['Philadelphia', 'America/New_York'], ['Phoenix', 'America/Phoenix'], ['Prague', 'Europe/Prague'],
+        ['Reykjavik', 'Atlantic/Reykjavik'], ['Rio de Janeiro', 'America/Sao_Paulo'], ['Riyadh', 'Asia/Riyadh'], ['Rome', 'Europe/Rome'],
+        ['San Francisco', 'America/Los_Angeles'], ['Santiago', 'America/Santiago'], ['São Paulo', 'America/Sao_Paulo'], ['Seattle', 'America/Los_Angeles'],
+        ['Seoul', 'Asia/Seoul'], ['Shanghai', 'Asia/Shanghai'], ['Singapore', 'Asia/Singapore'], ['St Petersburg', 'Europe/Moscow'], ['Stockholm', 'Europe/Stockholm'],
+        ['Sydney', 'Australia/Sydney'], ['Taipei', 'Asia/Taipei'], ['Tashkent', 'Asia/Tashkent'], ['Tehran', 'Asia/Tehran'], ['Tel Aviv', 'Asia/Jerusalem'],
+        ['Tokyo', 'Asia/Tokyo'], ['Toronto', 'America/Toronto'], ['Tunis', 'Africa/Tunis'], ['Vancouver', 'America/Vancouver'], ['Vienna', 'Europe/Vienna'],
+        ['Warsaw', 'Europe/Warsaw'], ['Washington DC', 'America/New_York'], ['Wellington', 'Pacific/Auckland'], ['Yangon', 'Asia/Yangon'], ['Zurich', 'Europe/Zurich']];
+
+    // a place of the list as the time zones take it: here, UTC, or a zone of the browser's with its city's name
+    function zoneOf(name) {
+        var place = zonePlaces().filter(function (c) { return c[0] === name; })[0];
+        if (!place || place[1] === 'here') return CalcMaths.timeZone('');
+        return place[1] === 'UTC' ? { fixed: 0, name: 'UTC' } : { id: place[1], name: place[0] };
+    }
+
+    // The cities most asked for and every other zone of the browser's, by its city, Kinshasa of Africa/Kinshasa, as one
+    // list A to Z after here and UTC; a zone already in it, or of a city in it under an old name, as Kiev, is left out. Made once
+    var zonePlaceList = null;
+    function zonePlaces() {
+        var names = {}, all = ZONE_CHOICES.slice(2), fold = function (t) { return t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); };
+        if (zonePlaceList) return zonePlaceList;
+        all.forEach(function (c) { names[c[0]] = names[c[1]] = true; });
+        ['Kiev', 'Katmandu', 'Calcutta', 'Saigon', 'Rangoon', 'Godthab', 'Ulan Bator', 'Asmera', 'Faeroe', 'Thimbu', 'Dacca', 'Kuwait'].forEach(function (n) { names[n] = true; });
+        try {
+            Intl.supportedValuesOf('timeZone').forEach(function (id) {
+                var name = id.split('/').pop().replace(/_/g, ' ');
+                if (id.indexOf('/') < 0 || /^Etc\//.test(id) || names[name] || names[id]) return;
+                names[name] = true;
+                all.push([name, id]);
+            });
+        } catch (e) {} // a browser without the list: the cities alone
+        all.sort(function (a, b) { return fold(a[0]) < fold(b[0]) ? -1 : fold(a[0]) > fold(b[0]) ? 1 : 0; });
+        zonePlaceList = ZONE_CHOICES.slice(0, 2).concat(all);
+        return zonePlaceList;
+    }
+
+    // the list, each place with its offset now; here, with its city
+    function zoneChoices() {
+        var ms = Date.now();
+        return zonePlaces().filter(function (c) {
+            return isFinite(CalcMaths.zoneOffset(zoneOf(c[0]), ms)); // not a zone the browser does not have
+        }).map(function (c) {
+            var z = zoneOf(c[0]);
+            return [c[0], (z.here ? 'Here, ' + (z.id || '').split('/').pop().replace(/_/g, ' ') : c[0]) +
+                ' <span class="calc-conv-of">(' + CalcMaths.offsetText(CalcMaths.zoneOffset(z, ms)) + ')</span>'];
+        });
+    }
+
+    // the time shown while none is typed: now, in the first place, 14:05
+    function zoneNow(raw) {
+        var ms = Date.now(), at = new Date(ms + CalcMaths.zoneOffset(zoneOf(raw.from), ms) * 60000);
+        return String(at.getUTCHours()).padStart(2, '0') + ':' + String(at.getUTCMinutes()).padStart(2, '0');
+    }
+
+    // A time today in one place, or now, and the same moment in another: its date and time there, its offset
+    // from UTC, and how far it is ahead of the first or behind it
+    function runZones(n, raw) {
+        var from = zoneOf(raw.from), to = zoneOf(raw.to || 'London'), now = Date.now(), t, off, ms;
+        t = raw.time ? CalcMaths.readTime(raw.time) : NaN;
+        if (raw.time && isNaN(t)) {
+            return { rows: [{ l: to.name, text: '–', wide: true }], bad: ['time'], warn: true, note: 'A time, 14:30 or 2:30 pm.' };
+        }
+        if (!raw.time) {
+            ms = Math.floor(now / 60000) * 60000; // the minute shown in the box
+        } else {
+            off = CalcMaths.zoneOffset(from, now);
+            ms = CalcMaths.zoneMoment(from, Math.floor((now + off * 60000) / 86400000), t); // today, in the first place
+        }
+        off = CalcMaths.zoneOffset(from, ms);
+        return { rows: (from.here ? [] : [zoneRow(from, ms, off, null)]).concat(zoneRow(to, ms, CalcMaths.zoneOffset(to, ms), off)) }; // here: the other place alone
+    }
+
+    // a place's tile: its time, big, its offset beside it, and of another place how far ahead of the first it is, then its date under it
+    function zoneRow(zone, ms, off, first) {
+        var at = new Date(ms + off * 60000), gap = first === null ? 0 : off - first, a = Math.abs(gap),
+            clock = at.toLocaleString(DATE_LANG, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC' }),
+            day = at.toLocaleString(DATE_LANG, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+        return { l: zone.here ? (zone.id || '').split('/').pop().replace(/_/g, ' ') : zone.name, wide: true, copy: day + ', ' + clock + ' ' + CalcMaths.offsetText(off), // here, by its city
+            text: '<span class="calc-sv-clock">' + clock + '<span class="calc-sv-off">' + CalcMaths.offsetText(off) +
+                (first === null ? '' : ' (' + (!gap ? 'the same time' : (Math.floor(a / 60) ? Math.floor(a / 60) + 'h' : '') +
+                    (a % 60 ? (a >= 60 ? ' ' : '') + a % 60 + 'min' : '') + (gap > 0 ? ' ahead' : ' behind')) + ')') + '</span></span><span class="calc-sv-day">' + day + '</span>' };
+    }
 
     // The date and time of a Unix timestamp, or the timestamp of a date and time: the timestamp in
     // seconds and milliseconds, the time in UTC, here and in ISO 8601. One of 13 digits or more is
@@ -6839,7 +7371,7 @@
             run();
             keep();
             box = form.querySelector('input');
-            if (!quiet && focusBox(box)) box.select();
+            if (!quiet && box && focusBox(box)) box.select(); // the colour code has none, its ways all buttons
             item.scrollIntoView({ block: 'nearest' });
         }
 
@@ -6855,6 +7387,12 @@
             closeCalendar();
             var kept = values[tool.id] || {}, cols = tool.cols || 1, html = '<div class="calc-sv-fields" style="--cols: ' + cols + '">';
             fieldsOf(tool, rawOf(tool)).forEach(function (f) {
+                if (f.pick) { // a list to choose from, drawn as the converter's
+                    html += '<div class="calc-sv-var' + (f.wide ? ' calc-sv-wide' : '') + '"><span class="calc-sv-sym">' + f.l + '</span><div class="calc-conv-pick calc-sv-pick" tabindex="0" role="combobox" ' +
+                        'aria-haspopup="listbox" aria-expanded="false" aria-label="' + f.l + '" data-k="' + f.k + '"><span class="calc-conv-chosen"></span>' +
+                        '<div class="calc-conv-menu" role="listbox" hidden></div></div></div>';
+                    return;
+                }
                 if (f.choice) { // one of a few ways, each a button, as the tabs are: its way at first (at), or the first, while none is chosen
                     html += '<div class="calc-sv-var calc-sv-wide"><span class="calc-sv-sym">' + f.l + '</span><span class="calc-sv-choice" role="radiogroup" aria-label="' +
                         f.l + '" data-k="' + f.k + '">' + f.choice.map(function (c, i) {
@@ -6883,6 +7421,37 @@
                 input.value = typeof kept[input.dataset.k] === 'string' ? kept[input.dataset.k] : '';
                 if (input.parentNode.classList.contains('calc-sv-date')) dateBoxOf(input);
             });
+            nowBoxes(tool, item);
+            [].forEach.call(item.querySelectorAll('.calc-sv-pick'), function (el) {
+                var f = fieldsOf(tool, rawOf(tool)).filter(function (g) { return g.k === el.dataset.k; })[0];
+                picker(el, function (i) {
+                    values[tool.id] = values[tool.id] || {};
+                    values[tool.id][f.k] = el.ids[i];
+                    pickOf(el, f, el.ids[i]);
+                    nowBoxes(tool, item);
+                    run();
+                    keep();
+                });
+                el.box = el; // chosen, the list keeps the focus
+                pickOf(el, f, (values[tool.id] || {})[f.k]);
+            });
+        }
+
+        // a list's places, the one kept chosen, else the one it has at first
+        function pickOf(el, f, kept) {
+            var list = f.pick(), at = list.map(function (c) { return c[0]; }).indexOf(kept);
+            if (at < 0) at = Math.max(0, list.map(function (c) { return c[0]; }).indexOf(f.at));
+            el.ids = list.map(function (c) { return c[0]; });
+            setPicker(el, list.map(function (c) { return c[1]; }), at);
+        }
+
+        // a box of now, while nothing is typed in it, shows it, to type over
+        function nowBoxes(tool, item) {
+            var raw = rawOf(tool);
+            fieldsOf(tool, raw).forEach(function (f) {
+                var input = f.now && !raw[f.k] && item.querySelector('.calc-sv-boxes input[data-k="' + f.k + '"]');
+                if (input) input.value = f.now(raw);
+            });
         }
 
         // What the open tool gives from its boxes now: each number read, or its default while
@@ -6903,7 +7472,7 @@
                     n[f.k] = +f.choice[raw[f.k]];
                     return;
                 }
-                if (f.fn || f.text || f.date || f.area) return;
+                if (f.fn || f.text || f.date || f.area || f.pick) return;
                 v = text ? CalcMaths.number(text, engine.comma, deg, f.inf) : f.def !== undefined ? f.def : NaN;
                 if (box) box.classList.toggle('calc-bad', !!text && isNaN(v));
                 if (box && text && isNaN(v)) bad.push(f.name || f.aria || (f.l || '').replace(/<[^>]*>/g, '')); // name: for a label that does not read in a note
@@ -7045,8 +7614,9 @@
         // a card's example in its boxes, in place of what was typed, with the decimal mark in use
         function example(item) {
             var tool = tools[tab][+item.dataset.i];
+            var ex = typeof tool.example === 'function' ? tool.example(rawOf(tool)) : tool.example; // of a card of ways, the way chosen's
             values[tool.id] = {};
-            Object.keys(tool.example).forEach(function (k) { values[tool.id][k] = local(tool.example[k]); });
+            Object.keys(ex).forEach(function (k) { values[tool.id][k] = local(ex[k]); });
             boxes(tool, item);
             run();
             keep();
@@ -7054,9 +7624,25 @@
 
         // one of the ways of a choice chosen: kept as a box's text is, and the results
         function choose(opt) {
-            var item = opt.closest('.calc-sv-item'), tool = tools[tab][+item.dataset.i], k = opt.parentNode.dataset.k, again;
-            values[tool.id] = values[tool.id] || {};
-            values[tool.id][k] = opt.dataset.c;
+            var item = opt.closest('.calc-sv-item'), tool = tools[tab][+item.dataset.i], k = opt.parentNode.dataset.k, again, kept, f, was, now;
+            kept = values[tool.id] = values[tool.id] || {};
+            if (typeof tool.fields === 'function') { // boxes of each way of their own: what was typed in this way's kept for it, and the other's back
+                f = fieldsOf(tool, rawOf(tool));
+                was = chosen(f.filter(function (g) { return g.k === k; })[0], kept[k]);
+                now = rawOf(tool);
+                now[k] = opt.dataset.c;
+                now = fieldsOf(tool, now).map(function (g) { return g.k + ':' + g.l; }).join();
+                if (String(was) !== opt.dataset.c && now !== f.map(function (g) { return g.k + ':' + g.l; }).join()) { // a way of other boxes, not one of the same boxes, as a matrix's
+                    kept['@' + k + was] = {};
+                    f.forEach(function (g) {
+                        if (g.k === k || g.head || kept[g.k] === undefined) return;
+                        kept['@' + k + was][g.k] = kept[g.k];
+                        delete kept[g.k];
+                    });
+                    Object.keys(kept['@' + k + opt.dataset.c] || {}).forEach(function (g) { kept[g] = kept['@' + k + opt.dataset.c][g]; });
+                }
+            }
+            kept[k] = opt.dataset.c;
             [].forEach.call(opt.parentNode.children, function (o) { o.classList.toggle('calc-on', o === opt); });
             if (typeof tool.fields === 'function') { // boxes of the way chosen, as Unix time has: drawn again, the button keeping the focus
                 boxes(tool, item);
@@ -7287,6 +7873,634 @@
 
     function showNumbers(open) {
         numbers.show(open);
+    }
+
+    // ---------------- tests of hypotheses ---------------- //
+
+    // The statistics' Tests tab: a card for each test, as a TI-84's STAT TESTS has them, of numbers typed or pasted
+    // in a box, a column of a spreadsheet as well, or of a sample's mean, deviation and size. Each gives its statistic,
+    // its p-value and whether that is below the significance α, so H₀ is rejected; and the interval of what it tests
+    var HA = { k: 'ha', l: 'H<sub>a</sub>', choice: ['≠', '<', '>'] }, // where the alternative is: two tails, below, above
+        ALPHA = { k: 'alpha', l: 'α', ph: '0.05', def: 0.05, name: 'α' },
+        DATA_OR = { k: 'input', l: 'From', choice: ['Data', 'Summary'] },
+        TEST_TOOLS = {
+            tests: [
+                { id: 'ttest', t: 't-test', f: 't = (x̄ – μ<sub>0</sub>) ÷ (s/√n)', d: 'Whether the mean of a sample differs from μ₀, by Student\'s t: of its numbers, or of its mean x̄, standard deviation s and size n. ' +
+                    'Its interval is where the mean is, with the chance of the level.',
+                    fields: function (raw) {
+                        return [DATA_OR].concat(raw.input === '1' ? [{ k: 'm', l: 'x̄', ph: '5.4' }, { k: 's', l: 's', ph: '0.43' }, { k: 'n', l: 'n', ph: '6' }] :
+                            [{ k: 'x', l: 'Data', ph: '5.1 4.9 5.6 5.8 6 5.2', area: true }]).concat([{ k: 'mu', l: 'μ<sub>0</sub>', ph: '0', def: 0, name: 'μ₀' }, ALPHA, LEVEL, HA]);
+                    }, cols: 3, run: runTTest, example: { x: '5.1 4.9 5.6 5.8 6 5.2', mu: '5' } },
+                { id: 'ttest2', t: 'Two-sample t-test', f: 't = (x̄<sub>1</sub> – x̄<sub>2</sub>) ÷ SE', d: 'Whether the means of two samples differ, by Welch\'s t, or by t pooled where their spreads are taken as the same: ' +
+                    'of their numbers, or of the mean, standard deviation and size of each. Its interval is of the difference of the means.',
+                    fields: function (raw) {
+                        return [DATA_OR].concat(raw.input === '1' ? [{ k: 'm1', l: 'x̄<sub>1</sub>', ph: '20', name: 'x̄₁' }, { k: 's1', l: 's<sub>1</sub>', ph: '4', name: 's₁' },
+                            { k: 'n1', l: 'n<sub>1</sub>', ph: '10', name: 'n₁' }, { k: 'm2', l: 'x̄<sub>2</sub>', ph: '16', name: 'x̄₂' }, { k: 's2', l: 's<sub>2</sub>', ph: '6', name: 's₂' },
+                            { k: 'n2', l: 'n<sub>2</sub>', ph: '12', name: 'n₂' }] :
+                            [{ k: 'x1', l: 'Sample 1', ph: '20 22 19 24 25', area: true }, { k: 'x2', l: 'Sample 2', ph: '16 18 15 21 14', area: true }])
+                            .concat([ALPHA, LEVEL, { k: 'pool', l: 'Spread', choice: ['Welch', 'Pooled'] }, HA]);
+                    }, cols: 3, run: runTTest2, example: { x1: '20 22 19 24 25 21', x2: '16 18 15 21 14 19' } },
+                { id: 'paired', t: 'Paired t-test', f: 't = (d̄ – μ<sub>d</sub>) ÷ (s<sub>d</sub>/√n)', d: 'Whether two measures of the same things differ, before and after: a pair on each line, as two columns of a spreadsheet; ' +
+                    'the t of their differences, the second less the first, against μd, 0 at first.',
+                    fields: [{ k: 'xy', l: 'Pairs', ph: 'before after, a pair on each line:\n72 70\n80 76\n65 66', area: true }, { k: 'mu', l: 'μ<sub>d</sub>', ph: '0', def: 0, name: 'μd' },
+                        ALPHA, LEVEL, HA], cols: 3, run: runPaired, example: { xy: '72 70\n80 76\n65 66\n90 84\n77 73\n68 67' } },
+                { id: 'ztest', t: 'z-test', f: 'z = (x̄ – μ<sub>0</sub>) ÷ (σ/√n)', d: 'Whether the mean of a sample differs from μ₀, where the standard deviation σ of all is known: of its numbers, or of its mean x̄ and size n.',
+                    fields: function (raw) {
+                        return [DATA_OR].concat(raw.input === '1' ? [{ k: 'm', l: 'x̄', ph: '105' }, { k: 'n', l: 'n', ph: '36' }] :
+                            [{ k: 'x', l: 'Data', ph: '102 110 98 107', area: true }]).concat([{ k: 'sigma', l: 'σ', ph: '15' }, { k: 'mu', l: 'μ<sub>0</sub>', ph: '0', def: 0, name: 'μ₀' }, ALPHA, LEVEL, HA]);
+                    }, cols: 3, run: runZTest, example: { input: '1', m: '105', n: '36', sigma: '15', mu: '100' } },
+                { id: 'prop', t: 'Proportion z-test', f: 'z = (p̂ – p<sub>0</sub>) ÷ √(p<sub>0</sub>(1 – p<sub>0</sub>)/n)', d: 'Whether a proportion, x of n, differs from the chance p₀, by the normal distribution. Its interval is of the proportion.',
+                    fields: [{ k: 'x', l: 'x', ph: '60' }, { k: 'n', l: 'n', ph: '100' }, { k: 'p0', l: 'p<sub>0</sub>', ph: '0.5', def: 0.5, name: 'p₀' }, ALPHA, LEVEL, HA],
+                    cols: 3, run: runProp, example: { x: '60', n: '100', p0: '0.5' } },
+                { id: 'prop2', t: 'Two-proportion z-test', f: 'z = (p̂<sub>1</sub> – p̂<sub>2</sub>) ÷ SE', d: 'Whether two proportions, x₁ of n₁ and x₂ of n₂, differ, by their pooled proportion. Its interval is of their difference.',
+                    fields: [{ k: 'x1', l: 'x<sub>1</sub>', ph: '45', name: 'x₁' }, { k: 'n1', l: 'n<sub>1</sub>', ph: '100', name: 'n₁' }, { k: 'x2', l: 'x<sub>2</sub>', ph: '30', name: 'x₂' },
+                        { k: 'n2', l: 'n<sub>2</sub>', ph: '100', name: 'n₂' }, ALPHA, LEVEL, HA], cols: 2, run: runProp2, example: { x1: '45', n1: '100', x2: '30', n2: '100' } },
+                { id: 'gof', t: 'χ² goodness of fit', f: 'χ<sup>2</sup> = Σ (O – E)<sup>2</sup> ÷ E', d: 'Whether counts fit what was expected: the counts of each kind, and what was expected of each, as counts or as a ratio, 9:3:3:1 as Mendel\'s peas; ' +
+                    'none expected is each the same.',
+                    fields: [{ k: 'o', l: 'Observed', ph: '315 108 101 32', area: true }, { k: 'e', l: 'Expected', ph: 'the same of each, or 9:3:3:1', area: true }, ALPHA],
+                    cols: 1, run: runGof, example: { o: '315 108 101 32', e: '9 3 3 1' } },
+                { id: 'indep', t: 'χ² test of independence', f: 'χ<sup>2</sup> = Σ (O – E)<sup>2</sup> ÷ E', d: 'Whether the rows and the columns of a table of counts are independent: a row on each line, as a block of a spreadsheet is pasted. ' +
+                    'Each count expected is its row\'s times its column\'s, over all.',
+                    fields: [{ k: 't', l: 'Table', ph: 'a row on each line:\n10 20\n30 40', area: true }, ALPHA], cols: 1, run: runIndep, example: { t: '20 15 25\n30 35 15' } },
+                { id: 'anova', t: 'ANOVA', f: 'F = MS<sub>between</sub> ÷ MS<sub>within</sub>', d: 'One-way analysis of variance: whether the means of three groups or more, or two, differ. A group on each line, its numbers apart by spaces.',
+                    fields: [{ k: 'g', l: 'Groups', ph: 'a group on each line:\n6 8 4 5\n8 12 9 11\n13 9 11 8', area: true }, ALPHA], cols: 1, run: runAnova,
+                    example: { g: '6 8 4 5 3 4\n8 12 9 11 6 8\n13 9 11 8 7 12' } },
+                { id: 'corr', t: 'Correlation test', f: ['t = r √(n – 2) ÷ √(1 – r<sup>2</sup>)', 'ρ'], d: 'Whether pairs are correlated, by the t of the slope of their line, as LinRegTTest: x and y on each line. ' +
+                    'With Spearman\'s ρ, of their ranks, for pairs that go up or down together but not in a line.',
+                    fields: [{ k: 'xy', l: 'Pairs', ph: 'x and y on each line:\n1 2.1\n2 3.9\n3 6.2', area: true }, ALPHA, HA], cols: 2, run: runCorr,
+                    example: { xy: '1 2.1\n2 3.9\n3 6.2\n4 7.8\n5 10.1\n6 12.2' } }
+            ]
+        };
+
+    // the numbers of a box of a test, in the order typed, and what is no number in it
+    function testList(text) {
+        return CalcEngine.numbers(text || '', engine.comma, 'auto');
+    }
+
+    // a sample's mean, standard deviation and size
+    function sampleOf(xs) {
+        var n = xs.length, m = xs.reduce(function (s, x) { return s + x; }, 0) / n;
+        return { m: m, s: n > 1 ? Math.sqrt(xs.reduce(function (s, x) { return s + (x - m) * (x - m); }, 0) / (n - 1)) : NaN, n: n };
+    }
+
+    // the decision at α: reject H₀ where the p-value is below it
+    function decision(p, alpha) {
+        if (!isFinite(p) || !(alpha > 0 && alpha < 1)) return [];
+        return [{ l: 'At α = ' + local(String(alpha)), text: p < alpha ? 'Reject H<sub>0</sub>' : 'Do not reject H<sub>0</sub>', wide: true }];
+    }
+
+    // what a test gives: its statistic and p-value, the decision, then more, and its interval
+    function testRows(name, r, n, more) {
+        if (!r) return [{ l: name, v: NaN }, { l: 'p', v: NaN }];
+        return [{ l: name, v: r.stat }, { l: 'p', v: r.p }].concat(decision(r.p, n.alpha), more || [],
+            isFinite(r.from) ? [{ l: local(String(CalcMaths.round(n.level * 100))) + '% interval from', v: r.from }, { l: 'to', v: r.to }] : []);
+    }
+
+    // the note of a test: of α, or what its numbers must be; and what a list left out
+    function testNote(r, n, why, left) {
+        if (!(n.alpha > 0 && n.alpha < 1)) return { note: 'α is a chance between 0 and 1, as 0.05.', warn: true };
+        if (!(n.level > 0 && n.level < 1) && n.level !== undefined) return { note: 'The level is a chance between 0 and 1, as 0.95.', warn: true };
+        if (!r) return { note: why, warn: true };
+        return { note: (left && left.length ? 'Left out: ' + left.slice(0, 3).join(', ') + (left.length > 3 ? ' …' : '') + '. ' : '') +
+            (r.p < n.alpha ? 'p < α: significant at ' + local(String(n.alpha)) + '.' : 'p ≥ α: not significant at ' + local(String(n.alpha)) + '.'), warn: !!(left && left.length) };
+    }
+
+    // a list's numbers as a sample, or the mean, deviation and size typed: { m, s, n, bad, left }
+    function sampleIn(raw, n, k, sum) {
+        var read;
+        if (raw.input === '1') return { m: n[sum[0]], s: sum[1] ? n[sum[1]] : NaN, n: n[sum[2]] };
+        read = testList(raw[k]);
+        return read.values.length ? Object.assign(sampleOf(read.values), { left: read.bad }) : { m: NaN, s: NaN, n: NaN, empty: true, left: read.bad };
+    }
+
+    function runTTest(n, raw) {
+        var a = sampleIn(raw, n, 'x', ['m', 's', 'n']), r = CalcMaths.tTest(a.m, a.s, a.n, n.mu, +raw.ha, n.level),
+            out = { rows: testRows('t', r, n, r ? [{ l: 'df', v: r.df }, { l: 'x̄', v: CalcMaths.round(a.m) }, { l: 's', v: CalcMaths.round(a.s) }, { l: 'n', v: a.n }, { l: 'SE', v: r.se }] : []), cols: 2 };
+        if (a.empty) return out;
+        return Object.assign(out, testNote(r, n, 'A sample of 2 numbers or more, s above 0.', a.left));
+    }
+
+    function runTTest2(n, raw) {
+        var a = sampleIn(raw, n, 'x1', ['m1', 's1', 'n1']), b = sampleIn(raw, n, 'x2', ['m2', 's2', 'n2']),
+            r = CalcMaths.tTest2(a.m, a.s, a.n, b.m, b.s, b.n, raw.pool === '1', +raw.ha, n.level),
+            out = { rows: testRows('t', r, n, r ? [{ l: 'df', v: r.df }, { l: 'x̄<sub>1</sub> – x̄<sub>2</sub>', v: CalcMaths.round(a.m - b.m) }, { l: 'SE', v: r.se }]
+                .concat(raw.pool === '1' ? [{ l: 's<sub>p</sub>', v: r.sp }] : []) : []), cols: 2 };
+        if (a.empty || b.empty) return out;
+        return Object.assign(out, testNote(r, n, 'Two samples of 2 numbers or more, that do not both have every number the same.', (a.left || []).concat(b.left || [])));
+    }
+
+    function runPaired(n, raw) {
+        var p = CalcEngine.pairs(raw.xy || '', engine.comma, 'auto'), d = p.xs.map(function (x, i) { return p.ys[i] - x; }), a = d.length ? sampleOf(d) : null,
+            r = a && CalcMaths.tTest(a.m, a.s, a.n, n.mu, +raw.ha, n.level),
+            out = { rows: testRows('t', r, n, r ? [{ l: 'df', v: r.df }, { l: 'd̄', v: CalcMaths.round(a.m) }, { l: 's<sub>d</sub>', v: CalcMaths.round(a.s) }, { l: 'n', v: a.n }] : []), cols: 2 };
+        if (!p.n && !p.bad.length) return out;
+        return Object.assign(out, testNote(r, n, 'Two pairs or more, x and y on each line, whose differences are not all the same.', p.bad));
+    }
+
+    function runZTest(n, raw) {
+        var a = sampleIn(raw, n, 'x', ['m', '', 'n']), r = CalcMaths.zTest(a.m, n.sigma, a.n, n.mu, +raw.ha, n.level),
+            out = { rows: testRows('z', r, n, r ? [{ l: 'x̄', v: CalcMaths.round(a.m) }, { l: 'n', v: a.n }, { l: 'SE', v: r.se }] : []), cols: 2 };
+        if (a.empty && !raw.sigma) return out;
+        return Object.assign(out, testNote(r, n, 'σ above 0, and a sample: n of 1 or more.', a.left));
+    }
+
+    function runProp(n, raw) {
+        var r = CalcMaths.propTest(n.x, n.n, n.p0, +raw.ha, n.level),
+            out = { rows: testRows('z', r, n, r ? [{ l: 'p̂', v: r.phat }, { l: 'SE', v: r.se }] : []), cols: 2 };
+        if (!raw.x && !raw.n) return out;
+        return Object.assign(out, testNote(r, n, 'x and n are whole numbers, x no more than n, and p₀ a chance between 0 and 1.'));
+    }
+
+    function runProp2(n, raw) {
+        var r = CalcMaths.propTest2(n.x1, n.n1, n.x2, n.n2, +raw.ha, n.level),
+            out = { rows: testRows('z', r, n, r ? [{ l: 'p̂<sub>1</sub>', v: r.p1 }, { l: 'p̂<sub>2</sub>', v: r.p2 }, { l: 'Pooled p̂', v: r.pooled }, { l: 'SE', v: r.se }] : []), cols: 2 };
+        if (!raw.x1 && !raw.n1 && !raw.x2 && !raw.n2) return out;
+        return Object.assign(out, testNote(r, n, 'Each x and n whole numbers, x no more than its n; not all of both, or none.'));
+    }
+
+    function runGof(n, raw) {
+        var o = testList(raw.o), e = testList(raw.e), r, rows, note;
+        r = CalcMaths.chiFit(o.values, e.values);
+        rows = testRows('χ<sup>2</sup>', r, n, r ? [{ l: 'df', v: r.df }] : []);
+        if (r) rows.push({ l: 'Each kind', head: ['Kind', 'Observed', 'Expected', '(O – E)² ÷ E'], m: o.values.map(function (v, i) { return [i + 1, v, r.expected[i], r.parts[i]]; }) }); // four columns, a table's, the first its number
+        if (!o.values.length && !o.bad.length) return { rows: rows, cols: 2 };
+        note = testNote(r, n, e.values.length && e.values.length !== o.values.length ? 'As many expected as observed: ' + o.values.length + '.' :
+            'Two counts or more, 0 or more each, and each expected above 0.', o.bad.concat(e.bad));
+        if (r && r.small && !note.warn) note.note += ' ' + r.small + (r.small === 1 ? ' kind expects' : ' kinds expect') + ' fewer than 5: χ² is rough.';
+        return Object.assign({ rows: rows, cols: 2 }, note);
+    }
+
+    function runIndep(n, raw) {
+        var lines = (raw.t || '').split(/\r\n|\r|\n/).filter(function (l) { return l.trim(); }), bad = [], table, r, rows, note;
+        table = lines.map(function (l) {
+            var read = testList(l);
+            bad = bad.concat(read.bad);
+            return read.values;
+        });
+        r = CalcMaths.chiTable(table);
+        rows = testRows('χ<sup>2</sup>', r, n, r ? [{ l: 'df', v: r.df }, { l: 'Cramér\'s V', v: r.v }] : []);
+        if (r) rows.push({ l: 'Expected', m: r.expected });
+        if (!lines.length) return { rows: rows, cols: 2 };
+        note = testNote(r, n, 'Two rows or more, a row on each line, each of as many counts, two or more, 0 or more each; no row or column all 0.', bad);
+        if (r && r.small && !note.warn) note.note += ' ' + r.small + (r.small === 1 ? ' count expected is' : ' counts expected are') + ' below 5: χ² is rough.';
+        return Object.assign({ rows: rows, cols: 2 }, note);
+    }
+
+    function runAnova(n, raw) {
+        var lines = (raw.g || '').split(/\r\n|\r|\n/).filter(function (l) { return l.trim(); }), bad = [], groups, r;
+        groups = lines.map(function (l) {
+            var read = testList(l);
+            bad = bad.concat(read.bad);
+            return read.values;
+        });
+        r = CalcMaths.anova(groups);
+        if (!lines.length) return { rows: testRows('F', r, n), cols: 2 };
+        return Object.assign({ rows: testRows('F', r, n, r ? [{ l: 'df between', v: r.df1 }, { l: 'df within', v: r.df2 }, { l: 'SS between', v: r.ssb }, { l: 'SS within', v: r.ssw },
+            { l: 'MS between', v: r.msb }, { l: 'MS within', v: r.msw }, { l: 'Grand mean', v: r.mean }].concat(groups.map(function (g, i) {
+                return { l: 'Mean ' + (i + 1), v: CalcMaths.round(sampleOf(g).m) };
+            })) : []), cols: 2 }, testNote(r, n, 'Two groups or more, a group on each line, with more numbers in all than groups.', bad));
+    }
+
+    function runCorr(n, raw) {
+        var p = CalcEngine.pairs(raw.xy || '', engine.comma, 'auto'), r = p.n ? CalcMaths.corrTest(p.xs, p.ys, +raw.ha) : null,
+            out = { rows: testRows('t', r, n, r ? [{ l: 'df', v: r.df }, { l: 'r', v: r.r }, { l: 'r<sup>2</sup>', v: CalcMaths.round(r.r * r.r) }, { l: 'Slope b', v: r.b },
+                { l: 'Intercept a', v: r.a }, { l: 'SE of b', v: r.se }, { l: 'Spearman ρ', v: r.rho }, { l: 'p of ρ', v: r.prho }] : []), cols: 2 };
+        if (!p.n && !p.bad.length) return out;
+        return Object.assign(out, testNote(r, n, 'Three pairs or more, x and y on each line, each of x and y not all the same.', p.bad));
+    }
+
+    var statTests = toolCards(stats.querySelector('.calc-stats-tests'), TEST_TOOLS, 'statTests', false, {
+        open: function () { return stats.classList.contains('calc-open') && statsTab === 'tests'; },
+        done: function () { showStats(false); },
+        side: function () { return bigSide(stats); }
+    });
+
+    // ---------------- physics ---------------- //
+
+    // The Physics panel (physics.js), on tabs of circuits, motion, forces and waves: a card for each tool, as the
+    // solver has. Numbers in SI units, m, kg, s, N, J, unless a card says; the boxes of a circuit take a part's
+    // value as it is written, 4.7k or 100n. Angles in the unit in use
+    var G_NEWTON = 6.6743e-11, LIGHT = 299792458, PLANCK = 6.62607015e-34, CHARGE = 1.602176634e-19,
+        GRAVITY = { k: 'g', l: 'g', ph: '9.80665', def: CalcPhysics.g, name: 'g' },
+        // a band's colours as buttons, a swatch of each with its name for its tip
+        swatches = function (kind) {
+            return CalcPhysics.BAND_COLOURS[kind].map(function (c) {
+                var col = CalcPhysics.COLOURS[c];
+                return '<i class="calc-band' + (col[5] ? '' : ' calc-band-none') + '" style="--c: ' + (col[5] || 'transparent') + '" title="' + col[0] + '"></i>';
+            });
+        },
+        BAND_NAMES = { digit: ['1st digit', '2nd digit', '3rd digit'], mult: 'Multiplier', tol: 'Tolerance', temp: 'ppm/K' },
+        PHYS_TOOLS = {
+            circuits: [
+                { id: 'colours', t: 'Resistor colour code', f: ['4.7 kΩ', 'Yellow Violet Red Gold'], d: 'The resistance of a resistor of 4, 5 or 6 bands of colour, its tolerance and coefficient; or the colours of a resistance, ' +
+                    'as 4.7k or 470R. Read from the end its bands are nearer.',
+                    fields: function (raw) {
+                        var way = [{ k: 'find', l: 'Find', choice: ['The value', 'The colours'] }], n = [4, 5, 6][+raw.n || 0], kinds;
+                        if (raw.find === '1') {
+                            return way.concat([{ k: 'ohms', l: 'Ω', ph: '4.7k', text: true, aria: 'Resistance' }, { k: 'n5', l: 'Bands', choice: ['4', '5'] },
+                                { k: 'tol', l: 'Tolerance', choice: swatches('tol'), at: 6 }]);
+                        }
+                        kinds = CalcPhysics.bandKinds(n);
+                        return way.concat([{ k: 'n', l: 'Bands', choice: ['4', '5', '6'] }], kinds.map(function (kind, i) {
+                            var digit = kinds.slice(0, i).filter(function (k) { return k === 'digit'; }).length;
+                            return { k: 'b' + n + i, l: kind === 'digit' ? BAND_NAMES.digit[digit] : BAND_NAMES[kind], choice: swatches(kind),
+                                at: n === 4 ? [4, 7, 2, 6][i] : [4, 7, 0, 1, 0, 1][i] }; // 4.7 kΩ: of each count its own, as its bands are of other kinds
+                        }));
+                    }, cols: 1, run: runColours },
+                { id: 'network', t: 'Series and parallel', f: ['R<sub>1</sub> + R<sub>2</sub>', 'R<sub>1</sub> ∥ R<sub>2</sub>'], d: 'The value of resistors, capacitors or coils joined: + in series, || in parallel, which goes first, and brackets: ' +
+                    '100 + 220 || 330, (1k + 2k2) || 4k7. Capacitors add in parallel.',
+                    fields: [{ k: 'part', l: 'Of', choice: ['Resistors', 'Capacitors', 'Coils'] }, { k: 'n', l: 'Parts', ph: '100 + 220 || 330', text: true, cls: 'calc-sv-wide', aria: 'Parts' }],
+                    cols: 1, spaces: ['n'], run: runNetwork, example: { n: '(1k + 2k2) || 4k7' } },
+                { id: 'ohm', t: 'Ohm\'s law and power', f: ['V = IR', 'P = VI'], d: 'Of a resistance, type two of the voltage V, the current I, the resistance R and the power P, and the other two are worked out.',
+                    fields: [{ k: 'V', l: 'V', ph: 'volts', text: true }, { k: 'I', l: 'I', ph: 'amperes', text: true }, { k: 'R', l: 'R', ph: 'ohms', text: true }, { k: 'P', l: 'P', ph: 'watts', text: true }],
+                    cols: 2, run: runOhm, example: { V: '12', R: '4.7k' } },
+                { id: 'divider', t: 'Voltage divider', f: 'V<sub>out</sub> = V<sub>in</sub> R<sub>2</sub> ÷ (R<sub>1</sub> + R<sub>2</sub>)', d: 'The voltage across R₂ of two resistors in series, and of a load across it as well.',
+                    fields: [{ k: 'V', l: 'V<sub>in</sub>', ph: '9', text: true, aria: 'Vin' }, { k: 'R1', l: 'R<sub>1</sub>', ph: '10k', text: true, aria: 'R1' },
+                        { k: 'R2', l: 'R<sub>2</sub>', ph: '4.7k', text: true, aria: 'R2' }, { k: 'RL', l: 'Load', ph: 'optional', text: true }], cols: 2, run: runDivider, example: { V: '9', R1: '10k', R2: '4.7k' } },
+                { id: 'rc', t: 'RC circuit', f: ['τ = RC', 'f<sub>c</sub> = 1 ÷ 2πRC'], d: 'A resistor and a capacitor: the time constant, the frequency where a filter of them cuts off, and at a time t how charged the capacitor is.',
+                    fields: [{ k: 'R', l: 'R', ph: '10k', text: true }, { k: 'C', l: 'C', ph: '100n', text: true }, { k: 't', l: 't', ph: 's, optional', text: true }], cols: 3, run: runRc,
+                    example: { R: '10k', C: '100n' } }
+            ],
+            motion: [
+                { id: 'suvat', t: 'Steady acceleration', f: ['v = u + at', 's = ut + ½at<sup>2</sup>', 'v<sup>2</sup> = u<sup>2</sup> + 2as'], d: 'Motion in a line at a steady acceleration: type any three of s, the way gone, u, the speed at first, v, ' +
+                    'the speed at last, a, the acceleration, and t, the time, and the other two are worked out. A speed found from its square may be either way: both are given.',
+                    fields: [{ k: 's', l: 's', ph: 'm' }, { k: 'u', l: 'u', ph: 'm/s' }, { k: 'v', l: 'v', ph: 'm/s' }, { k: 'a', l: 'a', ph: 'm/s²' }, { k: 't', l: 't', ph: 's' }],
+                    cols: 3, run: runSuvat, example: { u: '0', a: '9.81', t: '3' } },
+                { id: 'projectile', t: 'Projectile', f: ['range', 'height', 'time'], d: 'Something thrown at a speed and an angle above the ground, from a height, with no air: how long it flies, how far, how high, and how fast ' +
+                    'it lands; its path drawn. The angle in the unit in use.',
+                    fields: [{ k: 'v', l: 'v<sub>0</sub>', ph: 'm/s', name: 'v₀' }, { k: 'a', l: 'θ', ph: '45', name: 'θ' }, { k: 'h', l: 'Height', ph: '0', def: 0 }, GRAVITY],
+                    cols: 2, run: runProjectile, example: function () { return { v: '20', a: angleTyped(45), h: '0' }; } },
+                { id: 'circular', t: 'Circular motion', f: ['a = v<sup>2</sup>/r', 'F = mv<sup>2</sup>/r'], d: 'Going round a circle of radius r at a steady speed, of its speed, period or revolutions a minute: the other two, ' +
+                    'the angular speed and frequency, the acceleration to the middle, and of a mass the force that holds it.',
+                    fields: function (raw) {
+                        return [{ k: 'given', l: 'Of', choice: ['Speed', 'Period', 'rpm'] }, { k: 'r', l: 'r', ph: 'm' },
+                            [{ k: 'x', l: 'v', ph: 'm/s', name: 'v' }, { k: 'x', l: 'T', ph: 's', name: 'T' }, { k: 'x', l: 'rpm', ph: '60', name: 'rpm' }][+raw.given || 0], { k: 'm', l: 'm', ph: 'kg, optional' }];
+                    }, cols: 3, run: runCircular, example: function (raw) { return Object.assign({ given: raw.given || '0' }, [{ r: '2', x: '5', m: '1' }, { r: '2', x: '3', m: '1' }, { r: '0.15', x: '33', m: '0.2' }][+raw.given || 0]); } },
+                { id: 'oscillator', t: 'Pendulum and spring', f: ['T = 2π√(L/g)', 'T = 2π√(m/k)'], d: 'The period and frequency of a simple pendulum of length L, its swings small, or of a mass m on a spring of stiffness k.',
+                    fields: function (raw) {
+                        return [{ k: 'kind', l: 'Of', choice: ['Pendulum', 'Spring'] }].concat(raw.kind === '1' ? [{ k: 'm', l: 'm', ph: 'kg' }, { k: 'k', l: 'k', ph: 'N/m' }] :
+                            [{ k: 'L', l: 'L', ph: 'm' }, GRAVITY]);
+                    }, cols: 2, run: runOscillator, example: function (raw) { return Object.assign({ kind: raw.kind || '0' }, [{ L: '1' }, { m: '0.5', k: '20' }][+raw.kind || 0]); } }
+            ],
+            forces: [
+                { id: 'newton', t: 'Force, mass and acceleration', f: 'F = ma', d: 'Newton\'s second law: type two of F, m and a and the third is worked out; and the weight of the mass.',
+                    fields: [{ k: 'F', l: 'F', ph: 'N' }, { k: 'm', l: 'm', ph: 'kg' }, { k: 'a', l: 'a', ph: 'm/s²' }], cols: 3, run: runNewton, example: { m: '10', a: '2' } },
+                { id: 'incline', t: 'Inclined plane', f: ['mg sin θ', 'μ mg cos θ'], d: 'A mass on a slope of angle θ with friction μ: its weight, the normal force, the force along the slope, the friction and the acceleration, and whether it slides.',
+                    fields: [{ k: 'm', l: 'm', ph: 'kg' }, { k: 'a', l: 'θ', ph: '30', name: 'θ' }, { k: 'mu', l: 'μ', ph: '0', def: 0, name: 'μ' }, GRAVITY], cols: 2, run: runIncline,
+                    example: function () { return { m: '10', a: angleTyped(30), mu: '0.2' }; } },
+                { id: 'collision', t: 'Collision', f: 'm<sub>1</sub>u<sub>1</sub> + m<sub>2</sub>u<sub>2</sub> = m<sub>1</sub>v<sub>1</sub> + m<sub>2</sub>v<sub>2</sub>', d: 'Two masses meeting head on, speeds below 0 the other way: elastic, as billiard balls, or sticking together. ' +
+                    'Their speeds after, their momentum and the kinetic energy lost.',
+                    fields: [{ k: 'm1', l: 'm<sub>1</sub>', ph: 'kg', name: 'm₁' }, { k: 'u1', l: 'u<sub>1</sub>', ph: 'm/s', name: 'u₁' }, { k: 'm2', l: 'm<sub>2</sub>', ph: 'kg', name: 'm₂' },
+                        { k: 'u2', l: 'u<sub>2</sub>', ph: 'm/s', name: 'u₂' }, { k: 'stick', l: 'They', choice: ['Bounce, elastic', 'Stick together'] }], cols: 2, run: runCollision,
+                    example: { m1: '2', u1: '3', m2: '1', u2: '-1' } },
+                { id: 'energy', t: 'Kinetic and potential energy', f: ['½mv<sup>2</sup>', 'mgh'], d: 'The kinetic energy of a mass at a speed, its potential energy at a height, and the speed it would have at the ground, falling with no air.',
+                    fields: [{ k: 'm', l: 'm', ph: 'kg' }, { k: 'v', l: 'v', ph: 'm/s', def: 0 }, { k: 'h', l: 'h', ph: 'm', def: 0 }, GRAVITY], cols: 2, run: runEnergy, example: { m: '2', v: '3', h: '10' } },
+                { id: 'work', t: 'Work and power', f: ['W = Fd cos θ', 'P = W/t'], d: 'The work of a force along a way, at an angle θ to it, and the power of it done in a time.',
+                    fields: [{ k: 'F', l: 'F', ph: 'N' }, { k: 'd', l: 'd', ph: 'm' }, { k: 'a', l: 'θ', ph: '0', def: 0, name: 'θ' }, { k: 't', l: 't', ph: 's, optional' }], cols: 2, run: runWork,
+                    example: function () { return { F: '50', d: '10', a: angleTyped(30), t: '5' }; } },
+                { id: 'gravity', t: 'Gravitation', f: 'F = G m<sub>1</sub>m<sub>2</sub>/r<sup>2</sup>', d: 'The pull between two masses r apart, by Newton\'s law; and of the first, as a planet, the gravity at r, the speed and period of a circular orbit, ' +
+                    'and the escape speed. The Earth is 5.972e24 kg, its radius 6.371e6 m.',
+                    fields: [{ k: 'm1', l: 'm<sub>1</sub>', ph: '5.972e24', name: 'm₁' }, { k: 'm2', l: 'm<sub>2</sub>', ph: '1', def: 1, name: 'm₂' }, { k: 'r', l: 'r', ph: '6.371e6' }],
+                    cols: 3, run: runGravity, example: { m1: '5.972e24', m2: '1', r: '6.371e6' } },
+                { id: 'spring', t: 'Spring', f: ['F = kx', 'E = ½kx<sup>2</sup>'], d: 'A spring of stiffness k stretched or squeezed by x, by Hooke\'s law: its force and the energy it holds; with a mass, its period.',
+                    fields: [{ k: 'k', l: 'k', ph: 'N/m' }, { k: 'x', l: 'x', ph: 'm' }, { k: 'm', l: 'm', ph: 'kg, optional' }], cols: 3, run: runSpring, example: { k: '200', x: '0.05', m: '0.5' } }
+            ],
+            waves: [
+                { id: 'wave', t: 'Waves', f: 'v = fλ', d: 'Type two of the speed v, the frequency f and the wavelength λ, and the third is worked out; and the period, angular frequency and wave number.',
+                    fields: [{ k: 'v', l: 'v', ph: 'm/s' }, { k: 'f', l: 'f', ph: 'Hz' }, { k: 'w', l: 'λ', ph: 'm', name: 'λ' }], cols: 3, run: runWave, example: { v: '343', f: '440' } },
+                { id: 'lens', t: 'Lenses and mirrors', f: '1/f = 1/d<sub>o</sub> + 1/d<sub>i</sub>', d: 'A thin lens or a mirror: type two of the focal length f, the distance to the object and to the image, and the third is worked out; ' +
+                    'the magnification, and the image. f is above 0 for a converging lens or a concave mirror; an image distance below 0 is virtual.',
+                    fields: [{ k: 'f', l: 'f', ph: '10' }, { k: 'o', l: 'd<sub>o</sub>', ph: '30', name: 'dₒ' }, { k: 'i', l: 'd<sub>i</sub>', ph: '', name: 'dᵢ' }, { k: 'h', l: 'Height', ph: 'optional' }],
+                    cols: 2, run: runLens, example: { f: '10', o: '30' } },
+                { id: 'snell', t: 'Refraction', f: 'n<sub>1</sub> sin θ<sub>1</sub> = n<sub>2</sub> sin θ<sub>2</sub>', d: 'Light going from one medium to another, by Snell\'s law: the angle it bends to, from the normal, the critical angle, ' +
+                    'and whether it is all reflected. Air is 1.000293, water 1.333, glass about 1.5.',
+                    fields: [{ k: 'n1', l: 'n<sub>1</sub>', ph: '1', def: 1, name: 'n₁' }, { k: 'a', l: 'θ<sub>1</sub>', ph: '30', name: 'θ₁' }, { k: 'n2', l: 'n<sub>2</sub>', ph: '1.5', def: 1.5, name: 'n₂' }],
+                    cols: 3, run: runSnell, example: function () { return { n1: '1', a: angleTyped(30), n2: '1.5' }; } },
+                { id: 'doppler', t: 'Doppler effect', f: 'f′ = f (v + v<sub>o</sub>) ÷ (v – v<sub>s</sub>)', d: 'The frequency heard of a source moving and a listener moving: speeds above 0 toward each other, below 0 apart. Sound in air at 20 °C goes 343 m/s.',
+                    fields: [{ k: 'f', l: 'f', ph: 'Hz' }, { k: 'v', l: 'v', ph: '343', def: 343 }, { k: 's', l: 'v<sub>s</sub>', ph: '0', def: 0, name: 'vₛ' }, { k: 'o', l: 'v<sub>o</sub>', ph: '0', def: 0, name: 'vₒ' }],
+                    cols: 2, run: runDoppler, example: { f: '440', s: '30' } },
+                { id: 'photon', t: 'Light and photons', f: ['E = hf', 'c = fλ'], d: 'Light of a wavelength, frequency or energy: the other two, and what light it is, of its colour where it is seen.',
+                    fields: function (raw) {
+                        return [{ k: 'light', l: 'Of', choice: ['Wavelength', 'Frequency', 'Energy'] },
+                            [{ k: 'x', l: 'λ, nm', ph: '550', name: 'λ' }, { k: 'x', l: 'f, Hz', ph: '5.45e14', name: 'f' }, { k: 'x', l: 'E, eV', ph: '2.25', name: 'E' }][+raw.light || 0]];
+                    }, cols: 1, run: runPhoton, example: function (raw) { return Object.assign({ light: raw.light || '0' }, [{ x: '550' }, { x: '5.45e14' }, { x: '2.25' }][+raw.light || 0]); } },
+                { id: 'decibel', t: 'Sound level', f: 'L = 10 log(I ÷ I<sub>0</sub>)', d: 'Of a sound\'s intensity, its level in decibels, or the other way; I₀, the faintest heard, is 10⁻¹² W/m².',
+                    fields: function (raw) {
+                        return [{ k: 'sound', l: 'Of', choice: ['Intensity', 'Decibels'] }, raw.sound === '1' ? { k: 'x', l: 'L, dB', ph: '60', name: 'L' } : { k: 'x', l: 'I, W/m²', ph: '1e-6', name: 'I' }];
+                    }, cols: 1, run: runDecibel, example: function (raw) { return Object.assign({ sound: raw.sound || '0' }, [{ x: '1e-6' }, { x: '60' }][+raw.sound || 0]); } }
+            ]
+        };
+
+    // a row of each label and number, rounded as results are
+    function physRows(list) {
+        return list.map(function (r) { return { l: r[0], v: CalcMaths.round(r[1]) }; });
+    }
+
+    // a card's results while it has too few of its boxes: each with no value yet
+    function physNone(labels) {
+        return { rows: labels.map(function (l) { return { l: l, v: NaN }; }) };
+    }
+
+    function runSuvat(n, raw) {
+        var r = CalcPhysics.suvat(n), x, names = [['s', 's, m'], ['u', 'u, m/s'], ['v', 'v, m/s'], ['a', 'a, m/s²'], ['t', 't, s']], rows;
+        if (r.error === 'few') return Object.assign(physNone(names.map(function (q) { return q[1]; })), { cols: 3, note: ['s', 'u', 'v', 'a', 't'].some(function (q) { return raw[q]; }) ? 'Type three of the five.' : '' });
+        if (r.error) return Object.assign(physNone(names.map(function (q) { return q[1]; })), { cols: 3, warn: true, note: r.error === 'many' ? 'Three of the five only: leave two empty.' : 'The time is 0 or more.' });
+        if (!r.list.length) return Object.assign(physNone(names.map(function (q) { return q[1]; })), { cols: 3, warn: true, note: 'No motion at a steady acceleration has these.' });
+        x = r.list[0];
+        rows = names.map(function (q) { return { l: q[1], v: x[q[0]] }; });
+        if (r.list[1]) rows.push({ l: 'Or', wide: true, text: names.map(function (q) { return q[0] + ' ' + statsValue(r.list[1][q[0]]).html; }).join(', ') });
+        return { rows: rows, cols: 3, note: r.list[1] ? 'Two motions have these: going on, and coming back.' : 'In SI units, or any that agree.' };
+    }
+
+    // A projectile's path, from its start to where it lands, over its highest
+    function pathDrawing(p, h) {
+        var W = 300, H = 110, sx = Math.max(p.range, 1e-9), sy = Math.max(p.top, 1e-9), k = Math.min((W - 20) / sx, (H - 20) / sy), d = '', i, x, y,
+            px = function (v) { return 10 + v * k; }, py = function (v) { return H - 10 - v * k; };
+        for (i = 0; i <= 60; i++) {
+            x = p.range * i / 60;
+            y = Math.max(0, p.at(x));
+            d += (i ? ' L' : 'M') + px(x).toFixed(1) + ' ' + py(y).toFixed(1);
+        }
+        return '<svg class="calc-sv-shape calc-sv-path" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Its path"><path class="calc-sv-ground" d="M4 ' + py(0) + 'H' + (W - 4) + '"/>' +
+            (h ? '<path class="calc-sv-ground" d="M' + px(0) + ' ' + py(0) + 'V' + py(h).toFixed(1) + '"/>' : '') + '<path class="calc-sv-curve" d="' + d + '"/></svg>';
+    }
+
+    function runProjectile(n, raw) {
+        var p = CalcPhysics.projectile(n.v, toRadians(n.a), n.h, n.g), none = ['Time', 'Range', 'Highest'];
+        if (!raw.v && !raw.a) return physNone(none);
+        if (!p) return Object.assign(physNone(none), { warn: true, note: 'A speed of 0 or more, an angle from straight down to straight up, a height of 0 or more and g above 0.' });
+        return { rows: physRows([['Time, s', p.time], ['Range, m', p.range], ['Highest, m', p.top], ['To the top, s', p.rise], ['Lands at, m/s', p.speed], ['Lands at, angle', fromRadians(p.angle)],
+            ['Across, m/s', p.vx], ['Up at first, m/s', p.vy]]).concat([{ l: 'Path', wide: true, text: pathDrawing(p, n.h) }]), cols: 2, note: 'No air. Angles in ' + unitWord() + '.' };
+    }
+
+    function runCircular(n, raw) {
+        var by = +raw.given || 0, v, T, w, none = ['v, m/s', 'T, s', 'a, m/s²'];
+        if (!raw.r && !raw.x) return physNone(none);
+        if (!(n.r > 0 && n.x > 0)) return Object.assign(physNone(none), { warn: true, note: 'The radius and the ' + ['speed', 'period', 'revolutions'][by] + ' are above 0.' });
+        v = by === 0 ? n.x : by === 1 ? 2 * Math.PI * n.r / n.x : 2 * Math.PI * n.r * n.x / 60;
+        T = 2 * Math.PI * n.r / v;
+        w = v / n.r;
+        return { rows: physRows([['v, m/s', v], ['T, s', T], ['a, m/s²', v * v / n.r], ['ω, rad/s', w], ['f, Hz', 1 / T], ['rpm', 60 / T]]
+            .concat(raw.m && n.m > 0 ? [['F, N', n.m * v * v / n.r]] : [])), cols: 3 };
+    }
+
+    function runOscillator(n, raw) {
+        var spring = raw.kind === '1', T, none = ['T, s', 'f, Hz'];
+        if (spring ? !raw.m && !raw.k : !raw.L) return physNone(none);
+        if (spring ? !(n.m > 0 && n.k > 0) : !(n.L > 0 && n.g > 0)) return Object.assign(physNone(none), { warn: true, note: spring ? 'm and k are above 0.' : 'L and g are above 0.' });
+        T = 2 * Math.PI * Math.sqrt(spring ? n.m / n.k : n.L / n.g);
+        return { rows: physRows([['T, s', T], ['f, Hz', 1 / T], ['ω, rad/s', 2 * Math.PI / T]]), cols: 3, note: spring ? '' : 'For small swings, some 15° or less.' };
+    }
+
+    function runNewton(n, raw) {
+        var known = ['F', 'm', 'a'].filter(function (k) { return raw[k] && isFinite(n[k]); }), F = n.F, m = n.m, a = n.a, none = ['F, N', 'm, kg', 'a, m/s²'];
+        if (known.length < 2) return physNone(none);
+        if (known.length > 2) return Object.assign(physNone(none), { warn: true, note: 'Two of the three only: leave one empty.' });
+        if (!raw.F) F = m * a;
+        else if (!raw.m) m = a ? F / a : NaN;
+        else a = m ? F / m : NaN;
+        if (!isFinite(F + m + a)) return Object.assign(physNone(none), { warn: true, note: 'Divided by 0: no answer.' });
+        return { rows: physRows([['F, N', F], ['m, kg', m], ['a, m/s²', a], ['Weight, N', m * CalcPhysics.g]]), cols: 3 };
+    }
+
+    function runIncline(n, raw) {
+        var t = toRadians(n.a), W, N, along, f, net, none = ['Along, N', 'Normal, N', 'a, m/s²'];
+        if (!raw.m && !raw.a) return physNone(none);
+        if (!(n.m > 0 && t >= 0 && t < Math.PI / 2 && n.mu >= 0 && n.g > 0)) return Object.assign(physNone(none), { warn: true, note: 'A mass above 0, θ from 0 to below straight up, μ of 0 or more.' });
+        W = n.m * n.g;
+        N = W * Math.cos(t);
+        along = W * Math.sin(t);
+        f = Math.min(along, n.mu * N); // friction holds it, up to μN
+        net = along - f;
+        return { rows: physRows([['Weight, N', W], ['Normal, N', N], ['Along, N', along], ['Friction, N', f], ['Net, N', net], ['a, m/s²', net / n.m]]), cols: 3,
+            note: net > 1e-12 * W ? 'It slides down.' : 'Friction holds it: it does not slide, μ being at least tan θ.' };
+    }
+
+    function runCollision(n, raw) {
+        var m1 = n.m1, m2 = n.m2, u1 = n.u1, u2 = n.u2, v1, v2, p = m1 * u1 + m2 * u2, ke0, ke1, none = ['v₁, m/s', 'v₂, m/s'];
+        if (!raw.m1 && !raw.m2) return physNone(none);
+        if (!(m1 > 0 && m2 > 0 && isFinite(u1 + u2))) return Object.assign(physNone(none), { warn: true, note: 'Both masses above 0, and both speeds.' });
+        if (raw.stick === '1') v1 = v2 = p / (m1 + m2);
+        else {
+            v1 = ((m1 - m2) * u1 + 2 * m2 * u2) / (m1 + m2);
+            v2 = ((m2 - m1) * u2 + 2 * m1 * u1) / (m1 + m2);
+        }
+        ke0 = (m1 * u1 * u1 + m2 * u2 * u2) / 2;
+        ke1 = (m1 * v1 * v1 + m2 * v2 * v2) / 2;
+        return { rows: physRows([['v₁, m/s', v1], ['v₂, m/s', v2], ['Momentum, kg·m/s', p], ['KE before, J', ke0], ['KE after, J', ke1], ['KE lost, J', Math.max(0, ke0 - ke1)]]), cols: 2,
+            note: raw.stick === '1' ? 'Stuck together, they go on as one.' : 'Elastic: no kinetic energy is lost.' };
+    }
+
+    function runEnergy(n, raw) {
+        var none = ['KE, J', 'PE, J'];
+        if (!raw.m) return physNone(none);
+        if (!(n.m > 0 && n.g > 0)) return Object.assign(physNone(none), { warn: true, note: 'A mass above 0.' });
+        return { rows: physRows([['KE, J', n.m * n.v * n.v / 2], ['PE, J', n.m * n.g * n.h], ['Total, J', n.m * n.v * n.v / 2 + n.m * n.g * n.h], ['Speed at h = 0, m/s', Math.sqrt(Math.max(0, n.v * n.v + 2 * n.g * n.h))]]), cols: 2 };
+    }
+
+    function runWork(n, raw) {
+        var W = n.F * n.d * Math.cos(toRadians(n.a)), none = ['W, J', 'P, W'];
+        if (!raw.F && !raw.d) return physNone(none);
+        if (!isFinite(W)) return Object.assign(physNone(none), { warn: true, note: 'Type the force and the way.' });
+        return { rows: physRows([['W, J', Math.abs(W) < 1e-12 * Math.abs(n.F * n.d) ? 0 : W]].concat(raw.t && n.t > 0 ? [['P, W', W / n.t]] : [])), cols: 2, note: raw.t ? '' : 'With a time, the power too.' };
+    }
+
+    function runGravity(n, raw) {
+        var none = ['F, N', 'g, m/s²'];
+        if (!raw.m1 && !raw.r) return physNone(none);
+        if (!(n.m1 > 0 && n.m2 > 0 && n.r > 0)) return Object.assign(physNone(none), { warn: true, note: 'The masses and r are above 0.' });
+        return { rows: physRows([['F, N', G_NEWTON * n.m1 * n.m2 / (n.r * n.r)], ['g at r, m/s²', G_NEWTON * n.m1 / (n.r * n.r)], ['Orbit speed, m/s', Math.sqrt(G_NEWTON * n.m1 / n.r)],
+            ['Orbit period, s', 2 * Math.PI * Math.sqrt(Math.pow(n.r, 3) / (G_NEWTON * n.m1))], ['Escape speed, m/s', Math.sqrt(2 * G_NEWTON * n.m1 / n.r)]]), cols: 2, note: 'G = 6.6743 × 10⁻¹¹ N·m²/kg².' };
+    }
+
+    function runSpring(n, raw) {
+        var none = ['F, N', 'E, J'];
+        if (!raw.k && !raw.x) return physNone(none);
+        if (!(n.k > 0 && isFinite(n.x))) return Object.assign(physNone(none), { warn: true, note: 'k above 0, and x.' });
+        return { rows: physRows([['F, N', n.k * n.x], ['E, J', n.k * n.x * n.x / 2]].concat(raw.m && n.m > 0 ? [['T, s', 2 * Math.PI * Math.sqrt(n.m / n.k)]] : [])), cols: 3 };
+    }
+
+    // the values of the boxes of a circuit, as a part's value is written, 4.7k, or a calculation; and those that are not one
+    function partValues(raw, keys) {
+        var out = { v: {}, bad: [] };
+        keys.forEach(function (k) {
+            var v = raw[k] ? CalcPhysics.readValue(raw[k], engine.comma) : NaN;
+            if (raw[k] && isNaN(v)) v = CalcMaths.number(raw[k], engine.comma, deg);
+            out.v[k] = v;
+            if (raw[k] && isNaN(v)) out.bad.push(k);
+        });
+        return out;
+    }
+
+    // A resistor drawn with its bands, as a real one is: a cap at each end, wider than the middle, the first band on
+    // the left one and the last on the right one, apart from the rest, its gap 1.7 times the others'. The bands cut to its shape,
+    // its edge over them
+    var resistorClips = 0;
+    function resistorDrawing(bands) {
+        var W = 300, H = 60, n = bands.length, a = 70, b = 230, w = n === 4 ? 14 : n === 5 ? 12 : 11,
+            step = w + (b - a - 32 - n * w) / (n - 0.3), id = 'calc-resistor-' + (++resistorClips), html = '',
+            body = 'M' + a + ' 30C' + a + ' 16 ' + (a + 4) + ' 12 ' + (a + 14) + ' 12H' + (a + 22) + 'C' + (a + 30) + ' 12 ' + (a + 30) + ' 15 ' + (a + 38) + ' 15' +
+                'H' + (b - 38) + 'C' + (b - 30) + ' 15 ' + (b - 30) + ' 12 ' + (b - 22) + ' 12H' + (b - 14) + 'C' + (b - 4) + ' 12 ' + b + ' 16 ' + b + ' 30' +
+                'C' + b + ' 44 ' + (b - 4) + ' 48 ' + (b - 14) + ' 48H' + (b - 22) + 'C' + (b - 30) + ' 48 ' + (b - 30) + ' 45 ' + (b - 38) + ' 45' +
+                'H' + (a + 38) + 'C' + (a + 30) + ' 45 ' + (a + 30) + ' 48 ' + (a + 22) + ' 48H' + (a + 14) + 'C' + (a + 4) + ' 48 ' + a + ' 44 ' + a + ' 30Z';
+        bands.forEach(function (c, i) {
+            var col = CalcPhysics.COLOURS[c][5], x = i === n - 1 ? b - 16 - w : a + 16 + i * step;
+            if (col) html += '<rect x="' + x.toFixed(1) + '" y="8" width="' + w + '" height="44" fill="' + col + '"/>';
+        });
+        return '<svg class="calc-sv-shape calc-sv-resistor" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="The resistor">' +
+            '<defs><clipPath id="' + id + '"><path d="' + body + '"/></clipPath></defs>' +
+            '<path class="calc-sv-lead" d="M10 30H' + a + 'M' + b + ' 30H' + (W - 10) + '"/><path class="calc-sv-body" d="' + body + '"/>' +
+            '<g clip-path="url(#' + id + ')">' + html + '</g><path class="calc-sv-edge" d="' + body + '"/></svg>';
+    }
+
+    function runColours(n, raw) {
+        var count, kinds, bands, r, text, read, got;
+        if (raw.find === '1') {
+            read = partValues(raw, ['ohms']);
+            if (!raw.ohms) return { rows: [{ l: 'Bands', v: NaN }] };
+            got = CalcPhysics.toBands(read.v.ohms, raw.n5 === '1' ? 5 : 4, CalcPhysics.BAND_COLOURS.tol[+raw.tol]);
+            if (!got) return { rows: [{ l: 'Bands', v: NaN }], bad: ['ohms'], warn: true, note: read.bad.length ? 'A resistance, as 4.7k, 4k7, 470R or 1M.' : 'From 0.1 Ω to 999 GΩ, as bands can say.' };
+            return { rows: [{ l: 'Drawn', wide: true, text: resistorDrawing(got.bands) },
+                { l: 'Bands', wide: true, wrap: true, text: got.bands.map(function (c) { return CalcPhysics.COLOURS[c][0]; }).join(' · ') }, { l: 'As they say, Ω', v: got.ohms }],
+                note: got.ohms !== read.v.ohms ? 'Rounded to the ' + (raw.n5 === '1' ? 'three' : 'two') + ' digits its bands have: ' + CalcPhysics.si(got.ohms, 'Ω') + '.' : '' };
+        }
+        count = [4, 5, 6][+raw.n || 0];
+        kinds = CalcPhysics.bandKinds(count);
+        bands = kinds.map(function (kind, i) { return CalcPhysics.BAND_COLOURS[kind][+raw['b' + count + i]]; }); // each choice's way, its first while none is chosen
+        r = CalcPhysics.fromBands(bands);
+        text = CalcPhysics.si(r.ohms, 'Ω') + ' ± ' + r.tol + '%' + (r.temp !== null ? ', ' + r.temp + ' ppm/K' : '');
+        return { rows: [{ l: 'Drawn', wide: true, text: resistorDrawing(bands) }, { l: 'Resistance', wide: true, text: text, copy: text }, { l: 'Ω', v: r.ohms }, { l: 'From, Ω', v: r.min }, { l: 'To, Ω', v: r.max }],
+            cols: 3, note: bands[0] === 0 ? 'A first band of black is not made: read it from the other end.' : '' };
+    }
+
+    function runNetwork(n, raw) {
+        var kind = ['R', 'C', 'L'][+raw.part || 0], unit = { R: 'Ω', C: 'F', L: 'H' }[kind], r;
+        if (!raw.n) return { rows: [{ l: 'In all', v: NaN }] };
+        r = CalcPhysics.network(raw.n, kind, engine.comma);
+        if (r.error) return { rows: [{ l: 'In all', v: NaN }], bad: ['n'], warn: true, note: r.error === 'bracket' ? 'A bracket is not closed.' : 'Values above 0, as 100, 4.7k or 4k7, with + and || between them; at "' + raw.n.slice(r.at, r.at + 8) + '".' };
+        return { rows: [{ l: 'In all', wide: true, text: CalcPhysics.si(r.value, unit), copy: CalcPhysics.si(r.value, unit) }, { l: unit, v: r.value }, { l: 'Parts', v: r.parts }], cols: 2,
+            note: kind === 'C' ? 'Capacitors in parallel add up; in series, their reciprocals do.' : 'In series they add up; in parallel, their reciprocals do.' };
+    }
+
+    function runOhm(n, raw) {
+        var p = partValues(raw, ['V', 'I', 'R', 'P']), v = p.v, known = ['V', 'I', 'R', 'P'].filter(function (k) { return raw[k] && isFinite(v[k]); }), V = v.V, I = v.I, R = v.R, P = v.P, none = ['V', 'I, A', 'R, Ω', 'P, W'];
+        if (p.bad.length) return Object.assign(physNone(none), { cols: 2, bad: p.bad, warn: true, note: 'A value, as 12, 4.7k or 20m.' });
+        if (known.length < 2) return Object.assign(physNone(none), { cols: 2 });
+        if (known.length > 2) return Object.assign(physNone(none), { cols: 2, warn: true, note: 'Two of the four only: leave two empty.' });
+        switch (known.join('')) {
+            case 'VI': R = V / I; P = V * I; break;
+            case 'VR': I = V / R; P = V * V / R; break;
+            case 'VP': I = P / V; R = V * V / P; break;
+            case 'IR': V = I * R; P = I * I * R; break;
+            case 'IP': V = P / I; R = P / (I * I); break;
+            case 'RP': I = Math.sqrt(P / R); V = Math.sqrt(P * R); break;
+        }
+        if (![V, I, R, P].every(isFinite)) return Object.assign(physNone(none), { cols: 2, warn: true, note: 'Divided by 0, or a power and a resistance not of the same sign: no answer.' });
+        return { rows: physRows([['V', V], ['I, A', I], ['R, Ω', R], ['P, W', P]]), cols: 2,
+            note: CalcPhysics.si(V, 'V') + ', ' + CalcPhysics.si(I, 'A') + ', ' + CalcPhysics.si(R, 'Ω') + ', ' + CalcPhysics.si(P, 'W') + '.' };
+    }
+
+    function runDivider(n, raw) {
+        var p = partValues(raw, ['V', 'R1', 'R2', 'RL']), v = p.v, r2 = v.R2, out, none = ['V out', 'I, A'];
+        if (p.bad.length) return Object.assign(physNone(none), { cols: 2, bad: p.bad, warn: true, note: 'A value, as 9, 10k or 4k7.' });
+        if (!raw.V && !raw.R1 && !raw.R2) return Object.assign(physNone(none), { cols: 2 });
+        if (!(isFinite(v.V) && v.R1 > 0 && v.R2 > 0 && (!raw.RL || v.RL > 0))) return Object.assign(physNone(none), { cols: 2, warn: true, note: 'Vin, and resistances above 0.' });
+        if (raw.RL) r2 = 1 / (1 / v.R2 + 1 / v.RL);
+        out = v.V * r2 / (v.R1 + r2);
+        return { rows: physRows([['V out', out], ['I, A', v.V / (v.R1 + r2)], ['Ratio', r2 / (v.R1 + r2)]].concat(raw.RL ? [['Without the load', v.V * v.R2 / (v.R1 + v.R2)]] : [])), cols: 2,
+            note: CalcPhysics.si(out, 'V') + (raw.RL ? ', the load across R₂.' : '.') };
+    }
+
+    function runRc(n, raw) {
+        var p = partValues(raw, ['R', 'C', 't']), v = p.v, tau, rows, none = ['τ, s', 'f, Hz'];
+        if (p.bad.length) return Object.assign(physNone(none), { cols: 2, bad: p.bad, warn: true, note: 'A value, as 10k, 100n or 2.2µ.' });
+        if (!raw.R && !raw.C) return Object.assign(physNone(none), { cols: 2 });
+        if (!(v.R > 0 && v.C > 0)) return Object.assign(physNone(none), { cols: 2, warn: true, note: 'R and C are above 0.' });
+        tau = v.R * v.C;
+        rows = [['τ, s', tau], ['Cut-off f, Hz', 1 / (2 * Math.PI * tau)], ['To 99%, s', tau * Math.log(100)]];
+        if (raw.t && v.t >= 0) rows.push(['Charged at t, %', 100 * -Math.expm1(-v.t / tau)], ['Left at t, %', 100 * Math.exp(-v.t / tau)]);
+        return { rows: physRows(rows), cols: 2, note: 'τ = ' + CalcPhysics.si(tau, 's') + ', cut-off at ' + CalcPhysics.si(1 / (2 * Math.PI * tau), 'Hz') + '.' };
+    }
+
+    function runWave(n, raw) {
+        var known = ['v', 'f', 'w'].filter(function (k) { return raw[k] && isFinite(n[k]); }), v = n.v, f = n.f, w = n.w, none = ['v, m/s', 'f, Hz', 'λ, m'];
+        if (known.length < 2) return physNone(none);
+        if (known.length > 2) return Object.assign(physNone(none), { warn: true, note: 'Two of the three only: leave one empty.' });
+        if (!raw.v) v = f * w;
+        else if (!raw.f) f = v / w;
+        else w = v / f;
+        if (![v, f, w].every(function (x) { return x > 0 && isFinite(x); })) return Object.assign(physNone(none), { warn: true, note: 'Each is above 0.' });
+        return { rows: physRows([['v, m/s', v], ['f, Hz', f], ['λ, m', w], ['T, s', 1 / f], ['ω, rad/s', 2 * Math.PI * f], ['k, rad/m', 2 * Math.PI / w]]), cols: 3 };
+    }
+
+    function runLens(n, raw) {
+        var known = ['f', 'o', 'i'].filter(function (k) { return raw[k] && isFinite(n[k]); }), f = n.f, o = n.o, i = n.i, m, none = ['f', 'dₒ', 'dᵢ'], rows;
+        if (known.length < 2) return physNone(none);
+        if (known.length > 2) return Object.assign(physNone(none), { warn: true, note: 'Two of the three only: leave one empty.' });
+        if (!raw.f) f = 1 / (1 / o + 1 / i);
+        else if (!raw.o) o = 1 / (1 / f - 1 / i);
+        else i = 1 / (1 / f - 1 / o);
+        if (![f, o, i].every(isFinite)) return Object.assign(physNone(none), { warn: true, note: 'At the focal point: the image is at infinity.' });
+        m = -i / o;
+        rows = physRows([['f', f], ['dₒ', o], ['dᵢ', i], ['Magnification', m]].concat(raw.h && isFinite(n.h) ? [['Image height', m * n.h]] : []));
+        rows.push({ l: 'The image', wide: true, text: (i > 0 ? 'Real' : 'Virtual') + ', ' + (m < 0 ? 'upside down' : 'upright') + ', ' + (Math.abs(m) > 1 ? 'larger' : Math.abs(m) < 1 ? 'smaller' : 'as large') });
+        return { rows: rows, cols: 2, note: 'Of a mirror, a real image is on the side of the object.' };
+    }
+
+    function runSnell(n, raw) {
+        var t1 = toRadians(n.a), s = n.n1 * Math.sin(t1) / n.n2, none = ['θ₂'], rows;
+        if (!raw.a) return physNone(none);
+        if (!(n.n1 > 0 && n.n2 > 0 && t1 >= 0 && t1 <= Math.PI / 2)) return Object.assign(physNone(none), { warn: true, note: 'n₁ and n₂ above 0, and θ₁ from 0 to a right angle.' });
+        rows = s > 1 ? [{ l: 'θ₂', wide: true, text: 'None: it is all reflected' }] : [{ l: 'θ₂', v: fromRadians(Math.asin(s)) }];
+        if (n.n1 > n.n2) rows.push({ l: 'Critical angle', v: fromRadians(Math.asin(n.n2 / n.n1)) });
+        rows = rows.concat(physRows([['Speed in 1, m/s', LIGHT / n.n1], ['Speed in 2, m/s', LIGHT / n.n2]]));
+        return { rows: rows, cols: 2, note: (s > 1 ? 'Past the critical angle: total internal reflection. ' : '') + 'Angles from the normal, in ' + unitWord() + '.' };
+    }
+
+    function runDoppler(n, raw) {
+        var none = ['f′, Hz'];
+        if (!raw.f) return physNone(none);
+        if (!(n.f > 0 && n.v > 0 && n.s < n.v && n.o > -n.v)) return Object.assign(physNone(none), { warn: true, note: 'f and v above 0, and each moving slower than the sound.' });
+        return { rows: physRows([['f′, Hz', n.f * (n.v + n.o) / (n.v - n.s)], ['Change, Hz', n.f * (n.v + n.o) / (n.v - n.s) - n.f]]), cols: 2,
+            note: 'Speeds above 0 toward each other.' };
+    }
+
+    // the light of a wavelength in nm: its kind, and of what is seen its colour
+    function lightKind(nm) {
+        var seen = [[380, 'violet'], [450, 'blue'], [485, 'cyan'], [500, 'green'], [565, 'yellow'], [590, 'orange'], [625, 'red'], [750, '']];
+        if (nm < 0.01) return 'Gamma rays';
+        if (nm < 10) return 'X-rays';
+        if (nm < 380) return 'Ultraviolet';
+        if (nm <= 750) return 'Visible, ' + seen.filter(function (s, i) { return nm >= s[0] && nm < (seen[i + 1] || [Infinity])[0]; })[0][1];
+        if (nm < 1e6) return 'Infrared';
+        if (nm < 1e9) return 'Microwaves';
+        return 'Radio waves';
+    }
+
+    function runPhoton(n, raw) {
+        var of = +raw.light || 0, x = n.x, nm, f, E;
+        if (!raw.x) return physNone(['λ, nm', 'f, Hz', 'E, eV']);
+        if (!(x > 0)) return Object.assign(physNone(['λ, nm', 'f, Hz', 'E, eV']), { warn: true, note: 'It is above 0.' });
+        f = of === 0 ? LIGHT / (x * 1e-9) : of === 1 ? x : x * CHARGE / PLANCK;
+        nm = LIGHT / f * 1e9;
+        E = PLANCK * f;
+        return { rows: physRows([['λ, nm', nm], ['f, Hz', f], ['E, eV', E / CHARGE], ['E, J', E], ['Momentum, kg·m/s', E / LIGHT]]).concat([{ l: 'Light', wide: true, text: lightKind(nm) }]), cols: 2 };
+    }
+
+    function runDecibel(n, raw) {
+        var db = raw.sound === '1', L, I;
+        if (!raw.x) return physNone(['L, dB', 'I, W/m²']);
+        if (db ? !isFinite(n.x) : !(n.x > 0)) return Object.assign(physNone(['L, dB', 'I, W/m²']), { warn: true, note: db ? 'A level in dB.' : 'The intensity is above 0.' });
+        L = db ? n.x : 10 * Math.log10(n.x / 1e-12);
+        I = db ? 1e-12 * Math.pow(10, n.x / 10) : n.x;
+        return { rows: physRows([['L, dB', L], ['I, W/m²', I], ['Times I₀', I / 1e-12]]), cols: 3, note: '10 dB more is 10 times the intensity, heard as about twice as loud.' };
+    }
+
+    var phys = toolPanel(physPanel, physButton, PHYS_TOOLS, 'phys', 'phys');
+    toolPanels.push(phys);
+
+    function showPhys(open) {
+        phys.show(open);
     }
 
     // ---------------- chemistry ---------------- //
@@ -8635,11 +9849,7 @@
             saveConv();
         } else if (panel === 'stats') {
             if (statsButton.hidden) return;
-            if (statsTab !== 'list') {
-                statsTexts[statsTab] = statsInput.value;
-                statsTab = 'list';
-                statsTiles();
-            }
+            if (statsTab !== 'list') setStatsTab('list');
             statsInput.value = statsTexts.list = String(fields.list || '').replace(/\./g, engine.comma ? ',' : '.');
             showStats(true);
             saveState();
@@ -8934,18 +10144,36 @@
                 else choosePicker(el, el.lit);
             } else if (k === 36 || k === 35) { // Home and End
                 if (!menu.hidden) lightPicker(el, k === 36 ? 0 : n - 1, true);
+            } else if (e.key && /^\p{L}$/u.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) { // a letter: the next choice of it, the list opened
+                at = startsWith(el.choices, e.key, at);
+                if (at < 0) return;
+                if (menu.hidden) showPicker(el, true);
+                lightPicker(el, at, true);
             } else {
                 return;
             }
             e.preventDefault();
         }, false);
 
-        // a press anywhere else closes it
-        document.addEventListener('mousedown', function (e) {
+        // a press anywhere else closes it; a list of a card, gone with its card, listens no more
+        document.addEventListener('mousedown', function press(e) {
+            if (!el.isConnected) return document.removeEventListener('mousedown', press, true);
             if (!menu.hidden && !el.contains(e.target)) showPicker(el, false);
         }, true);
 
         el.pick = pick;
+    }
+
+    // the first choice after from that starts with a letter, round to the start again; -1 of none
+    function startsWith(choices, letter, from) {
+        var i, at, text;
+        letter = letter.toLowerCase();
+        for (i = 1; i <= choices.length; i++) {
+            at = (from + i) % choices.length;
+            text = choices[at].replace(/<[^>]*>/g, '').trim().toLowerCase();
+            if (text.charAt(0) === letter) return at;
+        }
+        return -1;
     }
 
     // its choices, as HTML, and the one chosen
@@ -8956,18 +10184,39 @@
     }
 
     function showPicker(el, open) {
-        var menu = el.querySelector('.calc-conv-menu');
+        var menu = el.querySelector('.calc-conv-menu'), form;
         if (open) {
             showPicker(el === convGroup ? convUnit : convGroup, false); // one list at a time
             hideTip();
             menu.innerHTML = el.choices.map(function (c, i) {
                 return '<div class="calc-conv-item' + (i === el.at ? ' calc-on' : '') + '" role="option" data-i="' + i + '">' + c + '</div>';
             }).join('');
-            lightPicker(el, el.at, true);
         }
+        form = el.closest('.calc-sv-form');
+        if (form) form.classList.toggle('calc-menu-open', open && form.scrollHeight <= form.clientHeight + 1); // beside the list as well, while it has no need to scroll
+        if (el.closest('.calc-sv-item')) el.closest('.calc-sv-item').classList.toggle('calc-menu-open', open); // its card lets it out
         menu.hidden = !open;
         el.classList.toggle('calc-on', open);
         el.setAttribute('aria-expanded', open);
+        if (open) {
+            placeMenu(el, menu);
+            lightPicker(el, el.at, true);
+        }
+    }
+
+    // An open list in the room it has: under its box, or over it where there is more room there, as at the foot of
+    // the cards; no taller than that room, so none of it is cut off by what scrolls round it
+    function placeMenu(el, menu) {
+        var room = el.parentNode, at = el.getBoundingClientRect(), edge, below, above;
+        menu.classList.remove('calc-up');
+        menu.style.maxHeight = '';
+        while (room && room !== document.body && !/(auto|scroll|hidden)/.test(getComputedStyle(room).overflowY)) room = room.parentNode;
+        edge = room && room !== document.body ? room.getBoundingClientRect() : { top: 0, bottom: window.innerHeight };
+        below = Math.min(edge.bottom, window.innerHeight) - at.bottom - 8;
+        above = at.top - Math.max(edge.top, 0) - 8;
+        if (menu.offsetHeight <= below) return;
+        if (above > below) menu.classList.add('calc-up');
+        menu.style.maxHeight = Math.max(60, Math.min(parseFloat(getComputedStyle(menu).maxHeight) || 250, Math.max(above, below))) + 'px'; // no taller than it would be
     }
 
     // the choice the arrow keys or the pointer are on; scroll: kept in sight
@@ -9069,7 +10318,7 @@
 
     // the statistics, the formulas, the converter, the graph, the solver and the numbers have their button while they are
     // turned on in the options, and not turned off by an administrator. The graph's own window closes with the graph
-    function setPanels(statsOn, fxOn, convOn, graphOn, solveOn, numbersOn, chemOn) {
+    function setPanels(statsOn, fxOn, convOn, graphOn, solveOn, numbersOn, chemOn, physOn) {
         statsOn = statsOn && !policyOff('statistics');
         fxOn = fxOn && !policyOff('formulas');
         convOn = convOn && !policyOff('converter');
@@ -9077,9 +10326,10 @@
         solveOn = solveOn && !policyOff('solve');
         numbersOn = numbersOn && !policyOff('numbers');
         chemOn = chemOn && !policyOff('chemistry');
+        physOn = physOn && !policyOff('physics');
         if (!graphOn && graphAlone) ask('graph-close');
         if (!chemOn && chemAlone) ask('chem-close');
-        if (panelAlone && !{ stats: statsOn, fx: fxOn, conv: convOn, solve: solveOn, numbers: numbersOn }[panelAlone]) ask('panel-close');
+        if (panelAlone && !{ stats: statsOn, fx: fxOn, conv: convOn, solve: solveOn, numbers: numbersOn, phys: physOn }[panelAlone]) ask('panel-close');
         statsButton.hidden = !statsOn;
         fxButton.hidden = !fxOn;
         convButton.hidden = !convOn;
@@ -9087,6 +10337,7 @@
         solveButton.hidden = !solveOn;
         numbersButton.hidden = !numbersOn;
         chemButton.hidden = !chemOn;
+        physButton.hidden = !physOn;
         if (!statsOn) showStats(false);
         if (!fxOn) showFx(false);
         if (!convOn) showConv(false);
@@ -9094,24 +10345,17 @@
         if (!solveOn) showSolve(false);
         if (!numbersOn) showNumbers(false);
         if (!chemOn) showChem(false);
-        showTools();
+        if (!physOn) showPhys(false);
     }
 
     // the panels as the options and the administrator have them now
     function readPanels() {
         setPanels(stored('statsOn') !== false, stored('fxOn') !== false, stored('convOn') !== false, stored('graphOn') !== false,
-            stored('solveOn') !== false, stored('numbersOn') !== false, stored('chemOn') !== false);
+            stored('solveOn') !== false, stored('numbersOn') !== false, stored('chemOn') !== false, stored('physOn') !== false);
     }
 
     // the page tells of a change of the administrator's, which it heard first: it is not a storage event here
     root.addEventListener('calc-policy', readPanels, false);
-
-    // the line above a result starts after the buttons shown at the top left
-    function showTools() {
-        display.parentNode.style.setProperty('--tools', [].filter.call(tools.children, function (b) {
-            return !b.hidden;
-        }).length);
-    }
 
     // newest first
     function renderPast() {
@@ -9549,7 +10793,8 @@
             { key: 'fx', panel: fx, show: showFx, render: renderFx },
             { key: 'conv', panel: conv, show: showConv, render: convTabs },
             { key: 'solve', panel: solvePanel, show: showSolve, render: solver.render },
-            { key: 'numbers', panel: numbersPanel, show: showNumbers, render: numbers.render }
+            { key: 'numbers', panel: numbersPanel, show: showNumbers, render: numbers.render },
+            { key: 'phys', panel: physPanel, show: showPhys, render: phys.render }
         ];
 
     // a panel, by itself or its name
@@ -9664,7 +10909,7 @@
         homeAlone = false, // in the extension, a tool's own window on its Calculator tab
         GO = [['fx', fxButton, 'Formulas'], ['conv', convButton, 'Converter'], ['graph', graphButton, 'Graph'],
             ['numbers', numbersButton, 'Numbers'], ['solve', solveButton, 'Solver'], ['chem', chemButton, 'Chemistry'],
-            ['stats', statsButton, 'Statistics']];
+            ['phys', physButton, 'Physics'], ['stats', statsButton, 'Statistics']];
 
     GO.forEach(function (g) {
         var item = document.createElement('span'), name = document.createElement('span');
@@ -9806,8 +11051,8 @@
     // what a panel's own window saved, or the calculator's while it is open: the same here
     function panelSaved(key) {
         var s;
-        if (key === 'solve' || key === 'numbers') {
-            (s = key === 'solve' ? solver : numbers).load(stored(key));
+        if (key === 'solve' || key === 'numbers' || key === 'phys') {
+            (s = { solve: solver, numbers: numbers, phys: phys }[key]).load(stored(key));
             if (s.open()) s.render();
         } else if (key === 'dates' || key === 'conv') {
             if (key === 'dates') dates.load(stored('dates')); else loadConv(stored('conv'));
@@ -9819,9 +11064,11 @@
             s = stored(key);
             if (key === 'stat' && typeof s === 'string') statsTexts.list = s;
             if (key === 'statPairs' && typeof s === 'string') statsTexts.pairs = s;
-            if (key === 'statTab') statsTab = s === 'pairs' ? 'pairs' : 'list';
+            if (key === 'statTab') statsTab = /^(pairs|tests)$/.test(s) ? s : 'list';
             if (key === 'statBy') setStatsBy(Math.max(0, BY.map(function (by) { return by[0]; }).indexOf(s)));
-            if (document.activeElement !== statsInput) statsInput.value = statsTexts[statsTab];
+            if (key === 'statFit') setStatsFit(s);
+            if (key === 'statTests') statTests.load(s);
+            if (document.activeElement !== statsInput && statsTab !== 'tests') statsInput.value = statsTexts[statsTab];
             statsTiles();
             if (stats.classList.contains('calc-open')) renderStats();
         }
@@ -9866,6 +11113,7 @@
             store('statPairs', statsTexts.pairs);
             store('statTab', statsTab);
             store('statBy', BY[statsBy.at][0]);
+            store('statFit', statsFit);
         }
         if (graphAlone || chemAlone || panelAlone) return;
         store('secondActive', secondActive);
@@ -9880,7 +11128,7 @@
         var s = {};
 
         // all read first: the keys pressed below must not save over what is still to be read
-        ['secondActive', 'deg', 'stat', 'statPairs', 'statTab', 'statBy', 'statsOn', 'fxOn', 'fxTab', 'convOn', 'conv', 'dates', 'graphOn', 'graph', 'solveOn', 'solve', 'numbersOn', 'numbers', 'chemOn', 'chem', 'chemView', 'fraction', 'dms', 'format', 'memory', 'calc'].forEach(function (key) {
+        ['secondActive', 'deg', 'stat', 'statPairs', 'statTab', 'statBy', 'statFit', 'statTests', 'statsOn', 'fxOn', 'fxTab', 'convOn', 'conv', 'dates', 'graphOn', 'graph', 'solveOn', 'solve', 'numbersOn', 'numbers', 'physOn', 'phys', 'chemOn', 'chem', 'chemView', 'fraction', 'dms', 'format', 'memory', 'calc'].forEach(function (key) {
             s[key] = stored(key);
         });
         if (s.secondActive) {
@@ -9890,15 +11138,18 @@
         setUnit(s.deg === true ? 1 : s.deg === 'grad' ? 2 : 0);
         if (typeof s.stat === 'string') statsTexts.list = s.stat;
         if (typeof s.statPairs === 'string') statsTexts.pairs = s.statPairs;
-        if (s.statTab === 'pairs') statsTab = 'pairs';
-        statsInput.value = statsTexts[statsTab];
+        if (/^(pairs|tests)$/.test(s.statTab)) statsTab = s.statTab;
+        if (statsTab !== 'tests') statsInput.value = statsTexts[statsTab];
+        setStatsFit(s.statFit);
         statsTiles();
+        statTests.load(s.statTests);
         setStatsBy(Math.max(0, BY.map(function (by) { return by[0]; }).indexOf(s.statBy)));
         // all on, until changed in the options
-        setPanels(s.statsOn !== false, s.fxOn !== false, s.convOn !== false, s.graphOn !== false, s.solveOn !== false, s.numbersOn !== false, s.chemOn !== false);
+        setPanels(s.statsOn !== false, s.fxOn !== false, s.convOn !== false, s.graphOn !== false, s.solveOn !== false, s.numbersOn !== false, s.chemOn !== false, s.physOn !== false);
         loadGraph(s.graph);
         solver.load(s.solve);
         numbers.load(s.numbers);
+        phys.load(s.phys);
         chemCards.load(s.chem);
         loadChem(s.chemView);
         if (/^(vars|formulas|constants)$/.test(s.fxTab)) fxTab = s.fxTab;
@@ -9944,7 +11195,7 @@
             if (chemAlone || chemPanel.classList.contains('calc-open')) renderChem();
             return;
         }
-        if (/^(solve|numbers|dates|conv|fxTab|stat|statPairs|statTab|statBy)$/.test(e.key)) { // a panel's own window and the calculator show the same
+        if (/^(solve|numbers|phys|dates|conv|fxTab|stat|statPairs|statTab|statBy|statFit|statTests)$/.test(e.key)) { // a panel's own window and the calculator show the same
             ownSaves[e.key] = e.newValue;
             return panelSaved(e.key);
         }
@@ -9952,7 +11203,7 @@
             ownSaves.deg = e.newValue;
             return setUnit(stored('deg') === true ? 1 : stored('deg') === 'grad' ? 2 : 0);
         }
-        if (/^(statsOn|fxOn|convOn|graphOn|solveOn|numbersOn|chemOn|policy)$/.test(e.key)) return readPanels();
+        if (/^(statsOn|fxOn|convOn|graphOn|solveOn|numbersOn|chemOn|physOn|policy)$/.test(e.key)) return readPanels();
         if (e.key === 'format') setFormat(stored('format'));
         else return;
         refresh();
@@ -10246,8 +11497,7 @@
         pastButton.hidden = !engine.past.length; // shown once there is a history
         pastExport.classList.toggle('calc-off', !engine.past.length); // and its export, which has nothing to export before
         pastExport.setAttribute('aria-disabled', String(!engine.past.length));
-        showTools();
-        slide(logline, logline.scrollWidth); // after the tools: they take room from the line, and its end must be in view
+        slide(logline, logline.scrollWidth); // its end in view
         if (stats.classList.contains('calc-open')) renderStats(); // the number format or fraction mode may have changed
         if (past.classList.contains('calc-open') && (pastShown.list !== engine.past || pastShown.mode !== shownMode() ||
             pastShown.n !== engine.past.length || pastShown.last !== engine.past[engine.past.length - 1])) {

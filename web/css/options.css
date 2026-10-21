@@ -817,6 +817,103 @@ html, body {
     font-size: 12.5px;
 }
 
+/* in a frame over a tool's own window, beside its rail (options.js, popup.js): as the website's options over a tool
+   popped out, a little smaller and kept off the sides. In the colours of the tools popped out: their blue, the
+   options in a box of the blue of their heads, the text their light grey, lit as their tabs are */
+.embedded,
+.embedded body {
+    background: #4a5f73;
+}
+
+/* lighter than on the page's navy, to read as well on the lighter blue */
+.embedded .features,
+.embedded .option p {
+    color: #fff;
+}
+
+.embedded :is(.title, .option .option-note, .footer) {
+    color: #eef1f5;
+}
+
+.embedded :is(.features a, .option-text a) {
+    color: #fad7db;
+}
+
+.embedded .option .managed-note {
+    color: #f7d0d4;
+}
+
+.embedded :is(.options, .guide-box) {
+    background: #3f5366;
+    border: 1px solid #5f748a;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+}
+
+/* the guide in a box of its own (options.js), as round as the options', its text kept off its sides */
+.embedded .guide-box {
+    padding: 0 2em 2.5em;
+    border-radius: 12px;
+}
+
+.embedded .guide-box > :first-child > .title:first-child {
+    margin-top: 1.2em;
+}
+
+/* its sections spaced as they were outside it: the end of each adds nothing under it */
+.embedded .guide-box > * > :last-child,
+.embedded .guide-box > * > div > :last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.embedded .option + .option {
+    border-top-color: rgba(211, 217, 226, 0.14);
+}
+
+.embedded .option-icon:not(.screen-icon, .page-button, .page-maths, .format-icon) {
+    background: #52687d;
+}
+
+.embedded :is(.choice, .format-row select, .site-list li) {
+    background-color: #34465a;
+    border-color: #6c8297;
+}
+
+.embedded .choice input:checked + span {
+    background: #5d748a;
+}
+
+.embedded .switch span {
+    background: #34465a;
+}
+
+.embedded .guide-rule {
+    border-top-color: #6c8297;
+}
+
+.embedded .page .wrapper,
+.embedded .page .footer {
+    font-size: 12.5px;
+}
+
+.embedded .page .wrapper {
+    max-width: 800px;
+    margin-top: 0;
+    padding: 2em 36px 0;
+}
+
+.embedded .page .footer {
+    padding-left: 36px;
+    padding-right: 36px;
+}
+
+/* the rail's Options and Guide choose the tab (popup.js), so the page's own are not shown, nor its name over them:
+   the window is the calculator's already */
+.embedded .tabs,
+.embedded .wrapper > .logo:first-child {
+    display: none;
+}
+
 .page .footer p {
     margin: 0;
 }

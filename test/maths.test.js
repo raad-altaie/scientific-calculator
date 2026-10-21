@@ -926,5 +926,73 @@ check(M.hexOfBytes([10, 255, 0]) === '0aff00' && M.hexOfBytes([10, 255, 0], ' ')
 check(M.readTime('14:30') === 52200 && M.readTime('2:30:15 pm') === 52215 && M.readTime('12 am') === 0 && M.readTime('12:00 pm') === 43200 && M.readTime('23:59:59.5') === 86399.5 &&
     isNaN(M.readTime('24:00')) && isNaN(M.readTime('13 pm')) && isNaN(M.readTime('14')) && isNaN(M.readTime('10:60')), 'readTime: of 24 hours or 12, its seconds as well');
 
+// tests of hypotheses, against the values a TI-84 and the books give
+(function () {
+    var m = 5.433333333333333, s = 0.4320493798938573, r;
+    r = M.tTest(m, s, 6, 5, 0, 0.95);
+    check(near(r.stat, 2.456769, 1e-6) && near(r.p, 0.0574563, 1e-5) && r.df === 5 && near(r.from, 4.979925, 1e-6) && near(r.to, 5.886741, 1e-6), 't-test: of one sample, ≠, its interval', JSON.stringify(r));
+    check(near(M.tTest(m, s, 6, 5, 2, 0.95).p, 0.0287281, 1e-5) && near(M.tTest(m, s, 6, 5, 1, 0.95).p, 0.9712719, 1e-5), 't-test: one tail above and below');
+    check(M.tTest(5, 0, 6, 5, 0, 0.95) === null && M.tTest(5, 1, 1, 5, 0, 0.95) === null, 't-test: none of s 0 or n 1');
+    r = M.tTest2(20, 4, 10, 16, 6, 12, false, 0, 0.95);
+    check(near(r.stat, 1.86501, 1e-5) && near(r.df, 19.19055, 1e-5) && near(r.p, 0.0775464, 1e-5), 't-test of two samples: Welch\'s degrees of freedom', JSON.stringify(r));
+    r = M.tTest2(20, 4, 10, 16, 6, 12, true, 2, 0.95);
+    check(near(r.stat, 1.797866, 1e-5) && r.df === 20 && near(r.p, 0.0436564, 1e-5) && near(r.sp, 5.196152, 1e-6), 't-test of two samples: pooled, its s_p', JSON.stringify(r));
+    r = M.zTest(105, 15, 36, 100, 2, 0.95);
+    check(r.stat === 2 && near(r.p, 0.0227501, 1e-6) && near(r.from, 100.1001, 1e-5), 'z-test: one tail, its interval by the normal', JSON.stringify(r));
+    r = M.propTest(60, 100, 0.5, 0, 0.95);
+    check(near(r.stat, 2) && near(r.p, 0.0455003, 1e-6) && r.phat === 0.6, 'z-test of a proportion', JSON.stringify(r));
+    check(M.propTest(101, 100, 0.5, 0, 0.95) === null && M.propTest(50, 100, 1, 0, 0.95) === null, 'z-test of a proportion: none of x above n or p0 of 1');
+    r = M.propTest2(45, 100, 30, 100, 0, 0.95);
+    check(near(r.stat, 2.19089, 1e-5) && near(r.p, 0.0284597, 1e-5) && r.pooled === 0.375, 'z-test of two proportions, pooled', JSON.stringify(r));
+    r = M.chiFit([315, 108, 101, 32], [9, 3, 3, 1]);
+    check(near(r.stat, 0.470024, 1e-5) && r.df === 3 && near(r.p, 0.925426, 1e-5) && r.expected[0] === 312.75 && !r.small, 'χ² of goodness of fit: Mendel\'s peas, of a ratio', JSON.stringify(r));
+    check(near(M.chiFit([10, 20, 30]).stat, 10) && M.chiFit([1, 2], [1]) === null && M.chiFit([1, 2], [1, 0]) === null, 'χ² of goodness of fit: each the same, none expected; as many expected');
+    r = M.chiTable([[10, 20], [30, 40]]);
+    check(near(r.stat, 0.793651, 1e-5) && r.df === 1 && near(r.p, 0.372998, 1e-5) && r.expected[0][0] === 12 && near(r.v, 0.0890871, 1e-5), 'χ² of independence: 2 × 2, Cramér\'s V', JSON.stringify(r));
+    check(M.chiTable([[1, 2], [3]]) === null && M.chiTable([[0, 0], [1, 2]]) === null && M.chiTable([[1, 2]]) === null, 'χ² of independence: rows of one length, none all 0, two or more');
+    r = M.anova([[6, 8, 4, 5, 3, 4], [8, 12, 9, 11, 6, 8], [13, 9, 11, 8, 7, 12]]);
+    check(near(r.stat, 9.264706, 1e-6) && r.df1 === 2 && r.df2 === 15 && near(r.p, 0.0023988, 1e-5) && r.ssb === 84 && r.ssw === 68, 'ANOVA: one way, of three groups', JSON.stringify(r));
+    check(M.anova([[1, 2, 3]]) === null && M.anova([[1], [2]]) === null && M.anova([[1, 1], [2, 2]]).p === 0, 'ANOVA: two groups or more, more numbers than groups; of no spread within, p 0');
+    r = M.corrTest([1, 2, 3, 4, 5, 6], [2.1, 3.9, 6.2, 7.8, 10.1, 12.2], 0);
+    check(near(r.r, 0.9991049, 1e-6) && near(r.stat, 47.23842, 1e-5) && r.df === 4 && r.b === 2.02 && r.a === -0.02 && r.rho === 1, 'correlation test: t of the slope, Spearman\'s ρ', JSON.stringify(r));
+    check(near(M.spearman([1, 2, 2, 3], [1, 3, 2, 4]), 0.9486833, 1e-6) && M.spearman([1, 2, 3], [3, 2, 1]) === -1, 'Spearman\'s ρ: ties by their mean rank');
+})();
+
+// geometry: triangles of each three, circles of three points, polygons
+(function () {
+    var d = Math.PI / 180, N = NaN, t = function (s, a) { return M.triangle(s, a.map(function (x) { return x * d; })); }, r;
+    r = t([3, 4, 5], [N, N, N]).list[0];
+    check(near(r.t[2], Math.PI / 2, 1e-10) && r.area === 6 && r.perimeter === 12 && r.r === 1 && r.R === 2.5, 'triangle: of three sides', JSON.stringify(r));
+    r = t([N, 4, 5], [60, N, N]).list[0];
+    check(near(r.s[0], Math.sqrt(21)), 'triangle: two sides and the angle between them');
+    r = t([6, 8, N], [30, N, N]).list;
+    check(r.length === 2 && near(r[0].t[1] / d, 41.8103149, 1e-6) && near(r[1].t[1] / d, 138.1896851, 1e-6), 'triangle: two sides and an angle not between them, two', JSON.stringify(r));
+    check(t([4, 8, N], [30, N, N]).list.length === 1 && near(t([4, 8, N], [30, N, N]).list[0].s[2], 4 * Math.sqrt(3)) && t([3, 8, N], [30, N, N]).list.length === 0 &&
+        t([10, 8, N], [30, N, N]).list.length === 1, 'triangle: one of a right angle, none, one of the longer side across');
+    r = t([N, N, 10], [40, 60, N]).list[0];
+    check(near(r.t[2] / d, 80, 1e-10) && near(r.s[0], 10 * Math.sin(40 * d) / Math.sin(80 * d), 1e-10), 'triangle: two angles and a side');
+    check(t([N, N, N], [60, 60, 60]).error === 'angles' && t([3, 4, 5], [90, N, N]).error === 'many' && t([3, 4, N], [N, N, N]).error === 'few' &&
+        t([1, 2, 5], [N, N, N]).list.length === 0 && t([-1, 2, 2], [N, N, N]).error === 'range' && t([N, N, 5], [100, 90, N]).list.length === 0, 'triangle: what is none');
+    check(JSON.stringify(M.circleOf(0, 0, 4, 0, 0, 3)) === '{"x":2,"y":1.5,"r":2.5}' && M.circleOf(0, 0, 1, 1, 2, 2) === null, 'circle of three points; none on a line');
+    check(JSON.stringify(M.polygon([0, 4, 4, 0], [0, 0, 3, 3])) === '{"area":12,"perimeter":14,"x":2,"y":1.5}' && M.polygon([0, 4, 0], [0, 0, 3]).area === 6 &&
+        M.polygon([0, 1], [0, 1]) === null && M.polygon([0, 1, 2], [0, 1, 2]) === null, 'polygon: by the shoelace; none of fewer than three corners or of no area');
+})();
+
+// time zones: places, abbreviations and offsets, and the moment of a zone's clock, summer time and its gap
+(function () {
+    var ny = M.timeZone('New York'), iso = function (z, y, mo, d, h) { return new Date(M.zoneMoment(z, M.dayFrom(y, mo, d), h * 3600)).toISOString(); };
+    check(M.timeZone('Tokyo').id === 'Asia/Tokyo' && M.timeZone('san francisco').id === 'America/Los_Angeles' && M.timeZone('EST').id === 'America/New_York' &&
+        M.timeZone('Japan').id === 'Asia/Tokyo' && M.timeZone('Europe/Berlin').id === 'Europe/Berlin' && M.timeZone('xyz') === null, 'timeZone: a city, an abbreviation, a country, a zone');
+    check(M.timeZone('UTC+5:30').fixed === 330 && M.timeZone('gmt-3').fixed === -180 && M.timeZone('+0900').fixed === 540 && M.timeZone('UTC').fixed === 0 &&
+        M.timeZone('UTC+15') === null && M.timeZone('').here, 'timeZone: offsets, none past 14 hours; empty is here');
+    check(M.offsetText(330) === 'UTC+5:30' && M.offsetText(-180) === 'UTC−3' && M.offsetText(0) === 'UTC', 'offsetText');
+    check(M.zoneOffset(ny, Date.UTC(2026, 6, 1)) === -240 && M.zoneOffset(ny, Date.UTC(2026, 0, 1)) === -300 && M.zoneOffset(M.timeZone('Kolkata'), Date.UTC(2026, 6, 1)) === 330,
+        'zoneOffset: summer time and not');
+    check(iso(M.timeZone('Tokyo'), 2026, 10, 21, 9) === '2026-10-21T00:00:00.000Z' && iso(M.timeZone('UTC+5:30'), 2026, 10, 21, 9) === '2026-10-21T03:30:00.000Z', 'zoneMoment: a zone and an offset');
+    check(iso(ny, 2026, 3, 8, 1.5) === '2026-03-08T06:30:00.000Z' && iso(ny, 2026, 3, 8, 2.5) === '2026-03-08T07:30:00.000Z' && iso(ny, 2026, 3, 8, 3.5) === '2026-03-08T07:30:00.000Z',
+        'zoneMoment: the hour summer time skips, as the clock before it would go on');
+    check(iso(ny, 2026, 11, 1, 1.5) === '2026-11-01T05:30:00.000Z' && iso(ny, 2026, 11, 1, 2.5) === '2026-11-01T07:30:00.000Z', 'zoneMoment: of the hour shown twice, the first');
+})();
+
 console.log(failures ? failures + ' of ' + checks + ' checks failed' : 'all ' + checks + ' checks passed');
 process.exitCode = failures ? 1 : 0;
