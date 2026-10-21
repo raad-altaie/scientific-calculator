@@ -362,9 +362,11 @@
         },
         'phys': {
             t: 'Physics',
-            d: 'Motion at a steady acceleration, projectiles drawn, circular motion and pendulums; forces, slopes, collisions, energy and ' +
-                'gravitation; the resistor colour code, series and parallel, Ohm\'s law, dividers and RC circuits; waves, lenses, refraction, ' +
-                'the Doppler effect, photons and decibels. Click a number to put it in.',
+            d: 'Circuits and electronics, from the resistor colour code to wires, batteries, transistors, LEDs and the 555; motion, projectiles, ' +
+                'circular motion, pendulums and rotation; forces, slopes, collisions, impulse, energy, torque, gravitation, drag, charges, magnetic ' +
+                'fields and induction; waves, standing waves, lenses, refraction, interference, polarisation, the Doppler effect, photons and decibels; ' +
+                'heat, gas molecules, engines, stress and fluids; and modern and quantum physics, from E = mc² and binding energy to the uncertainty ' +
+                'principle, tunnelling and decay. Many draw what they work out. Click a number to put it in.',
             k: ''
         },
         'phys close': {
@@ -374,23 +376,46 @@
         },
         'phys tab motion': {
             t: 'Motion',
-            d: 'Steady acceleration from any three of s, u, v, a and t; a projectile\'s flight, drawn; circular motion; pendulums and springs.',
+            d: 'Steady acceleration from any three of s, u, v, a and t, its speed drawn; a projectile\'s flight, drawn; circular motion; ' +
+                'pendulums and springs; and rotation, the moment of inertia of a shape, its spin and its roll.',
             k: ''
         },
         'phys tab forces': {
             t: 'Forces',
-            d: 'F = ma, the inclined plane with friction, collisions, kinetic and potential energy, work and power, gravitation and springs.',
+            d: 'F = ma, the inclined plane with friction, collisions, impulse, kinetic and potential energy, work and power, torque and levers, ' +
+                'gravitation, springs, drag and terminal velocity, Coulomb\'s law, the magnetic force, the field of a wire, a solenoid or a loop, ' +
+                'and induction.',
             k: ''
         },
         'phys tab circuits': {
-            t: 'Circuits',
-            d: 'The resistor colour code both ways, parts in series and parallel, Ohm\'s law and power, the voltage divider and RC circuits. ' +
-                'A part\'s value as it is written: 4.7k, 4k7, 100n.',
+            t: 'Electronics',
+            d: 'The resistor colour code both ways, parts in series and parallel, Ohm\'s law, a wire\'s resistance, the divider, LED resistors, ' +
+                'capacitors, RC and RL, parallel plates, transformers and AC, the cost of electricity, battery life; transistors switching and biased, ' +
+                'MOSFETs, Zeners, op-amps and the 555. ' +
+                'A part\'s value as it is written: 4.7k, 4k7, 100n; a resistor to buy, of E12.',
             k: ''
         },
         'phys tab waves': {
             t: 'Waves',
-            d: 'v = fλ, lenses and mirrors, refraction and the critical angle, the Doppler effect, light and photons, and sound in decibels.',
+            d: 'v = fλ, standing waves of strings and pipes, lenses and mirrors, refraction and the critical angle, interference through two slits ' +
+                'or a grating, polarisation, the Doppler effect, light and photons, and sound in decibels.',
+            k: ''
+        },
+        'phys tab matter': {
+            t: 'Matter',
+            d: 'Heat: Q = mcΔT from any three, latent heat, mixing, thermal expansion, conduction, radiation, the speeds of gas molecules and ' +
+                'heat engines. Solids: stress and strain. Fluids: density, pressure, the pressure at a depth, buoyancy and flow in a pipe.',
+            k: ''
+        },
+        'phys tab modern': {
+            t: 'Modern',
+            d: 'E = mc², binding energy, the photoelectric effect, de Broglie wavelengths, the uncertainty principle, a particle in a box, Compton scattering, ' +
+                'tunnelling, special relativity, hydrogen\'s lines and Bohr\'s orbits, and radioactive decay.',
+            k: ''
+        },
+        'formula physics': {
+            t: 'In Physics',
+            d: 'Opens the card of the Physics panel that works this out, with what you typed in it: there, any of its letters from the others.',
             k: ''
         },
         'choice stick 0': {
@@ -571,6 +596,10 @@
         'chem fact isotopes': { t: 'Isotopes', d: 'Its stable isotopes, the commonest first; with none stable, those found in nature, or its longest-lived one and its half-life.' },
         'chem fact story': { t: 'Name', d: 'Where its name comes from, and how it was found.' },
         'chem fact uses': { t: 'Uses', d: 'What it is used for.' },
+        'chem fact spectrum': { t: 'Spectrum', d: 'The light of its atoms as a gas, from violet at 380 nm to red at 750: absorption, white light shone through it, ' +
+            'dark lines across the rainbow where it takes colours out; emission, heated or in a spark, those same colours alone, bright on black. ' +
+            'Each element has lines of its own, as a fingerprint: so helium was found in the Sun before on Earth. Its strongest lines, as NIST lists them, ' +
+            'the stronger the wider; of an element whose atom has none here, its ion\'s. Click: the other one.' },
         // its kind, pointed at: what the elements of each family are like
         'chem kind alkali': { t: 'Alkali metal', d: 'Group 1 but hydrogen: soft metals that react hard with water, giving hydroxides and hydrogen. One outer electron, lost as a 1+ ion.' },
         'chem kind alkaline': { t: 'Alkaline earth metal', d: 'Group 2: reactive metals, less than the alkali metals. Two outer electrons, lost as a 2+ ion.' },

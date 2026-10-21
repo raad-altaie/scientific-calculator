@@ -874,6 +874,58 @@
         }
     ];
 
+    // The card of the Physics panel a formula is worked out in as well, by the formula's name: [the card, its boxes
+    // of the formula's letters, { letter: box }, and what else its boxes have]; a box of '+' or '||' takes the letters
+    // joined so, of a network in series or in parallel. Each formula gets it as p
+    var inPhysics = {
+        'Half-life decay': ['decay', { N0: 'N', t: 't', T: 'T' }],
+        'Final velocity': ['suvat', { u: 'u', a: 'a', t: 't' }],
+        'Distance under acceleration': ['suvat', { u: 'u', a: 'a', t: 't' }],
+        'Velocity after a distance': ['suvat', { u: 'u', a: 'a', s: 's' }],
+        'Newton\'s second law': ['newton', { m: 'm', a: 'a' }],
+        'Momentum': ['impulse', { m: 'm', v: 'v' }],
+        'Kinetic energy': ['energy', { m: 'm', v: 'v' }],
+        'Potential energy': ['energy', { m: 'm', h: 'h' }],
+        'Work': ['work', { F: 'F', d: 'd', q: 'a' }],
+        'Centripetal force': ['circular', { m: 'm', v: 'x', r: 'r' }, { given: '0' }],
+        'Hooke\'s law': ['spring', { k: 'k', x: 'x' }],
+        'Pendulum period': ['oscillator', { L: 'L' }, { kind: '0' }],
+        'Universal gravitation': ['gravity', { m1: 'm1', m2: 'm2', r: 'r' }],
+        'Free-fall time': ['suvat', { h: 's' }, { u: '0', a: '9.80665' }],
+        'Projectile range': ['projectile', { v: 'v', q: 'a' }],
+        'Escape velocity': ['gravity', { M: 'm1', r: 'r' }],
+        'Orbital speed': ['gravity', { M: 'm1', r: 'r' }],
+        'Mass–energy': ['massenergy', { m: 'x' }, { of: '0' }],
+        'Density': ['density', { m: 'm', V: 'V' }],
+        'Pressure': ['pressure', { F: 'F', A: 'A' }],
+        'Pressure under water': ['depth', { p: 'rho', h: 'h' }],
+        'Buoyancy': ['buoyancy', { p: 'rho', V: 'V' }],
+        'Heat energy': ['heatcap', { m: 'm', c: 'c', T: 'dT' }],
+        'Wave speed': ['wave', { f: 'f', l: 'w' }],
+        'Photon energy': ['photon', { f: 'x' }, { light: '1' }],
+        'Snell\'s law': ['snell', { n1: 'n1', q: 'a', n2: 'n2' }],
+        'Thin lens': ['lens', { f: 'f', d: 'o' }],
+        'Sound level': ['decibel', { I: 'x' }, { sound: '0' }],
+        'Wien\'s law': ['radiation', { T: 'T' }],
+        'Ohm\'s law': ['ohm', { I: 'I', R: 'R' }],
+        'Electric power': ['ohm', { V: 'V', I: 'I' }],
+        'Power in a resistance': ['ohm', { I: 'I', R: 'R' }],
+        'Resistors in parallel': ['network', { a: '||', b: '||' }, { part: '0' }],
+        'Capacitors in series': ['network', { a: '+', b: '+' }, { part: '1' }],
+        'RC time constant': ['rc', { R: 'R', C: 'C' }],
+        'Resonant frequency': ['ac', { L: 'L', C: 'C' }, { kind: '2' }],
+        'Coulomb\'s law': ['coulomb', { q1: 'q1', q2: 'q2', r: 'r' }],
+        'Energy in a capacitor': ['capacitor', { C: 'C', V: 'V' }],
+        'Heat': ['heatcap', { m: 'm', c: 'c', t: 'dT' }],
+        'Half-life': ['decay', { N: 'N', t: 't', h: 'T' }]
+    };
+
+    formulas.forEach(function (group) {
+        group.list.forEach(function (f) {
+            if (inPhysics[f.t]) f.p = inPhysics[f.t];
+        });
+    });
+
     var constants = [
         {
             c: 'Mathematics', list: [
@@ -897,7 +949,10 @@
                 { s: 'μ<sub>0</sub>', t: 'Vacuum permeability', v: 1.25663706127e-6, u: 'N/A<sup>2</sup>', d: 'The magnetic constant.' },
                 { s: 'k<sub>e</sub>', t: 'Coulomb constant', v: 8.9875517862e9, u: 'N·m<sup>2</sup>/C<sup>2</sup>', d: '1 ÷ 4πε<sub>0</sub>, in Coulomb\'s law.' },
                 { s: 'l<sub>P</sub>', t: 'Planck length', v: 1.616255e-35, u: 'm', d: 'The scale where gravity and quantum physics meet: √(ħG ÷ c³).' },
-                { s: 't<sub>P</sub>', t: 'Planck time', v: 5.391247e-44, u: 's', d: 'The time light takes to cross a Planck length.' }
+                { s: 't<sub>P</sub>', t: 'Planck time', v: 5.391247e-44, u: 's', d: 'The time light takes to cross a Planck length.' },
+                { s: 'm<sub>P</sub>', t: 'Planck mass', v: 2.176434e-8, u: 'kg', d: '√(ħc ÷ G).' },
+                { s: 'T<sub>P</sub>', t: 'Planck temperature', v: 1.416784e32, u: 'K', d: 'm<sub>P</sub>c<sup>2</sup> ÷ k<sub>B</sub>: the hottest that physics as known can tell of.' },
+                { s: 'Z<sub>0</sub>', t: 'Impedance of free space', v: 376.730313412, u: 'Ω', d: 'μ<sub>0</sub>c: of a radio wave in a vacuum, its electric field over its magnetic.' }
             ]
         },
         {
@@ -910,7 +965,17 @@
                 { s: 'a<sub>0</sub>', t: 'Bohr radius', v: 5.29177210544e-11, u: 'm', d: 'The size of a hydrogen atom.' },
                 { s: 'α', t: 'Fine-structure constant', v: 7.2973525643e-3, u: '', d: 'About 1/137: the strength of electromagnetism.' },
                 { s: 'R<sub>∞</sub>', t: 'Rydberg constant', v: 10973731.568157, u: '1/m', d: 'For the spectral lines of hydrogen.' },
-                { s: 'eV', t: 'Electronvolt', v: 1.602176634e-19, u: 'J', d: 'The energy an electron gains across 1 volt. Exact.' }
+                { s: 'eV', t: 'Electronvolt', v: 1.602176634e-19, u: 'J', d: 'The energy an electron gains across 1 volt. Exact.' },
+                { s: 'm<sub>μ</sub>', t: 'Muon mass', v: 1.883531627e-28, u: 'kg', d: 'About 207 times the electron\'s.' },
+                { s: 'm<sub>α</sub>', t: 'Alpha particle mass', v: 6.644657345e-27, u: 'kg', d: 'A helium-4 nucleus.' },
+                { s: 'r<sub>e</sub>', t: 'Classical electron radius', v: 2.8179403205e-15, u: 'm', d: '' },
+                { s: 'λ<sub>C</sub>', t: 'Compton wavelength', v: 2.42631023538e-12, u: 'm', d: 'Of an electron: h ÷ m<sub>e</sub>c.' },
+                { s: 'μ<sub>B</sub>', t: 'Bohr magneton', v: 9.2740100657e-24, u: 'J/T', d: 'About the magnetic moment of an electron.' },
+                { s: 'μ<sub>N</sub>', t: 'Nuclear magneton', v: 5.0507837393e-27, u: 'J/T', d: 'The Bohr magneton of a proton.' },
+                { s: 'Φ<sub>0</sub>', t: 'Magnetic flux quantum', v: 2.067833848461929e-15, u: 'Wb', d: 'h ÷ 2e, in superconductors. Exact.' },
+                { s: 'G<sub>0</sub>', t: 'Conductance quantum', v: 7.748091729863649e-5, u: 'S', d: '2e<sup>2</sup> ÷ h. Exact.' },
+                { s: 'K<sub>J</sub>', t: 'Josephson constant', v: 483597.8484169836e9, u: 'Hz/V', d: '2e ÷ h, of the standard of the volt. Exact.' },
+                { s: 'R<sub>K</sub>', t: 'Von Klitzing constant', v: 25812.80745930451, u: 'Ω', d: 'h ÷ e<sup>2</sup>, of the standard of the ohm. Exact.' }
             ]
         },
         {
@@ -925,7 +990,9 @@
                 { s: 'T<sub>0</sub>', t: 'Absolute zero', v: -273.15, u: '°C', d: '0 K, the coldest there is.' },
                 { s: 'K', t: '0 °C in kelvin', v: 273.15, u: 'K', d: 'Where water freezes. Exact.' },
                 { s: 'ρ<sub>w</sub>', t: 'Density of water', v: 1000, u: 'kg/m<sup>3</sup>', d: 'About; 998 at 20 °C.' },
-                { s: 'c<sub>w</sub>', t: 'Specific heat of water', v: 4186, u: 'J/(kg·K)', d: 'About: the heat to warm 1 kg of water by 1 °C.' }
+                { s: 'c<sub>w</sub>', t: 'Specific heat of water', v: 4186, u: 'J/(kg·K)', d: 'About: the heat to warm 1 kg of water by 1 °C.' },
+                { s: 'L<sub>f</sub>', t: 'Latent heat of melting ice', v: 334000, u: 'J/kg', d: 'About: the heat to melt 1 kg of ice at 0 °C.' },
+                { s: 'L<sub>v</sub>', t: 'Latent heat of boiling water', v: 2.26e6, u: 'J/kg', d: 'About: the heat to boil away 1 kg of water at 100 °C.' }
             ]
         },
         {
@@ -934,6 +1001,7 @@
                 { s: 'atm', t: 'Standard atmosphere', v: 101325, u: 'Pa', d: 'Air pressure at sea level. Exact by definition.' },
                 { s: 'bar', t: 'Bar', v: 100000, u: 'Pa', d: 'Close to the air pressure at sea level. Exact by definition.' },
                 { s: 'v<sub>s</sub>', t: 'Speed of sound', v: 343, u: 'm/s', d: 'In dry air at 20 °C, about.' },
+                { s: 'v<sub>w</sub>', t: 'Speed of sound in water', v: 1481, u: 'm/s', d: 'In fresh water at 20 °C, about.' },
                 { s: 'M<sub>⊕</sub>', t: 'Mass of the Earth', v: 5.9722e24, u: 'kg', d: '' },
                 { s: 'R<sub>⊕</sub>', t: 'Radius of the Earth', v: 6.371e6, u: 'm', d: 'The mean radius.' },
                 { s: 'v<sub>esc</sub>', t: 'Escape velocity from the Earth', v: 11186, u: 'm/s', d: 'About; from the surface, √(2GM ÷ R). Enough to leave for good.' },
@@ -949,6 +1017,9 @@
                 { s: 'M<sub>☉</sub>', t: 'Mass of the Sun', v: 1.9884e30, u: 'kg', d: '' },
                 { s: 'R<sub>☉</sub>', t: 'Radius of the Sun', v: 6.957e8, u: 'm', d: 'The nominal value, about 109 Earth radii.' },
                 { s: 'L<sub>☉</sub>', t: 'Luminosity of the Sun', v: 3.828e26, u: 'W', d: 'The power the Sun gives off.' },
+                { s: 'T<sub>☉</sub>', t: 'Temperature of the Sun', v: 5772, u: 'K', d: 'Of its surface, the nominal value.' },
+                { s: 'S<sub>0</sub>', t: 'Solar constant', v: 1361, u: 'W/m<sup>2</sup>', d: 'The sunlight on 1 m² above the air, at the Earth\'s distance.' },
+                { s: 'H<sub>0</sub>', t: 'Hubble constant', v: 70, u: 'km/(s·Mpc)', d: 'About; measures give 67 to 73: how fast the universe grows.' },
                 { s: 'au', t: 'Astronomical unit', v: 149597870700, u: 'm', d: 'About the distance from the Earth to the Sun. Exact by definition.' },
                 { s: 'ly', t: 'Light-year', v: 9.4607304725808e15, u: 'm', d: 'The distance light travels in a year.' },
                 { s: 'pc', t: 'Parsec', v: 3.0856775814913673e16, u: 'm', d: 'About 3.26 light-years.' }

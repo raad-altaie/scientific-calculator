@@ -334,7 +334,7 @@
     display: block;
 }
 
-/* the results and the chart under them, scrolling where they do not fit; room round them for their shadows */
+/* the chart and the results under it, scrolling where they do not fit; room round them for their shadows */
 #calculator .calc-stats-out {
     flex: 1;
     min-height: 0;
@@ -357,7 +357,7 @@
 
 /* a histogram and box plot of the list, or the pairs and their line, on the green of the tiles */
 #calculator .calc-stats-chart {
-    margin-top: 7px;
+    margin-bottom: 7px;
     border-radius: 5px;
     background: #b6d1c2;
 }
@@ -1839,6 +1839,19 @@
     padding: 0 4px;
 }
 
+/* the physics' six, Electronics the longest of any panel's, closer still */
+#calculator:not(.calc-big):not(.calc-panel-big) .calc-phys .calc-past-head .calc-solve-tabs {
+    gap: 2px;
+}
+
+#calculator:not(.calc-big):not(.calc-panel-big) .calc-phys > .calc-past-head {
+    gap: 4px;
+}
+
+#calculator:not(.calc-panel-big) .calc-phys .calc-past-head .calc-solve-tab {
+    padding: 0 3px;
+}
+
 #calculator .calc-past .calc-past-head :is(.calc-solve-tab, .calc-fx-tab, .calc-graph-tab):hover {
     opacity: 1;
     background: #52687d;
@@ -2133,6 +2146,11 @@
     background: rgba(51, 68, 59, 0.1);
 }
 
+/* of the badges of a card, made smaller to fit it, their small letters as much smaller: 9px of 15 */
+#calculator .calc-sv-eq .calc-sv-pill :is(sub, sup) {
+    font-size: 0.6em;
+}
+
 /* the font sits low in its line: its letters half a pixel up, as much room over them as under them */
 #calculator .calc-sv-pill > span {
     display: inline-block;
@@ -2291,6 +2309,28 @@
     background: #46677f;
 }
 
+/* Insert, and of a formula of physics its card in the Physics panel beside it: a button without a fill, as it goes elsewhere */
+#calculator .calc-fx-btns {
+    display: flex;
+    gap: 6px;
+}
+
+#calculator .calc-fx-phys {
+    padding: 0 10px;
+    border: 1px solid #3a5872;
+    border-radius: 4px;
+    color: #3a5872;
+    font-size: 13px;
+    line-height: 24px;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+#calculator .calc-fx-phys:hover {
+    background: rgba(58, 88, 114, 0.12);
+}
+
 #calculator .calc-fx-insert:active {
     background: #31495e;
 }
@@ -2422,6 +2462,21 @@
     fill: #22476a;
 }
 
+/* a limit where it may have no value, a ring; the bars of chances and sums, the one asked of red */
+#calculator .calc-sv-shape .calc-sv-hole {
+    fill: #b6d1c2;
+    stroke: #b0414d;
+    stroke-width: 1.6;
+}
+
+#calculator .calc-sv-shape .calc-sv-bar {
+    fill: #6f9a85;
+}
+
+#calculator .calc-sv-shape .calc-sv-bar-lit {
+    fill: #b0414d;
+}
+
 /* a resistor, its leads and body under its bands; a projectile's path over the ground */
 #calculator .calc-sv-resistor .calc-sv-lead {
     fill: none;
@@ -2452,6 +2507,80 @@
     stroke: #b0414d;
     stroke-width: 2;
     stroke-linecap: round;
+}
+
+/* the drawings of the physics cards: a curve over its axes, its area shaded, rays, levels and waves; arrows of
+   the line's colour, or of the light's; a screen dark, as the fringes on it are seen */
+#calculator .calc-sv-plot .calc-sv-ground {
+    fill: none;
+    stroke: #33443b;
+    stroke-width: 1;
+}
+
+#calculator .calc-sv-plot .calc-sv-curve {
+    fill: none;
+    stroke: #b0414d;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+#calculator .calc-sv-plot .calc-sv-thin {
+    stroke-width: 1.2;
+}
+
+#calculator .calc-sv-plot .calc-sv-faint {
+    opacity: 0.35;
+}
+
+#calculator .calc-sv-plot .calc-sv-dash {
+    stroke-dasharray: 4 3;
+}
+
+#calculator .calc-sv-plot .calc-sv-under {
+    fill: #d3e5da;
+    stroke: none;
+}
+
+#calculator .calc-sv-plot .calc-sv-lit {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2.5;
+}
+
+#calculator .calc-sv-plot .calc-sv-head {
+    fill: #22476a;
+    stroke: none;
+}
+
+#calculator .calc-sv-plot .calc-sv-head-red {
+    fill: #b0414d;
+}
+
+#calculator .calc-sv-plot .calc-sv-head-lit {
+    fill: currentColor;
+}
+
+#calculator .calc-sv-plot .calc-sv-screen {
+    fill: #1f2a24;
+}
+
+#calculator .calc-sv-plot .calc-sv-small {
+    font-size: 10px;
+    fill: #4f6659;
+}
+
+#calculator .calc-sv-plot .calc-sv-sub {
+    font-size: 7px;
+}
+
+#calculator .calc-sv-plot .calc-sv-red {
+    fill: #b0414d;
+}
+
+#calculator .calc-sv-plot .calc-sv-bold {
+    font-weight: bold;
+    fill: #33443b;
 }
 
 /* a time zone's time, big, and its day under it, smaller */
@@ -5793,6 +5922,11 @@
     grid-column: 1 / -1;
 }
 
+/* its spectrum, nearer its label */
+#calculator .calc-pt-spec .calc-sv-shape {
+    margin: 3px auto 1px;
+}
+
 /* the cards of the tools under the tabs, as the solver's */
 #calculator .calc-chem .calc-sv-list[hidden] {
     display: none;
@@ -7076,6 +7210,13 @@
 
 #calculator.calc-panel-big .calc-big-on .calc-fx-insert {
     padding: 0 10px 0 16px;
+}
+
+#calculator.calc-panel-big .calc-big-on .calc-fx-phys {
+    padding: 0 14px;
+    border-radius: 6px;
+    font-size: 14px;
+    line-height: 28px;
 }
 
 /* the letters of the Variables tab, popped out: a little bigger, as the boxes and buttons of the cards are */

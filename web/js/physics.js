@@ -1,7 +1,8 @@
 // The physics of the Physics panel worked out: motion at a steady acceleration from any three of s, u, v, a and t,
-// a projectile's flight, the colour code of a resistor both ways, and networks of resistors, capacitors or coils in
-// series and in parallel, 100 + 220 || 330; with values written with the prefixes of SI, 4.7k, 100n, 2M2. No page is
-// needed, so it runs in the tests too
+// a projectile's flight, the colour code of a resistor both ways, networks of resistors, capacitors or coils in
+// series and in parallel, 100 + 220 || 330, the values parts are made in, E12 and E24, a transistor's bias, the
+// series of hydrogen's lines, tunnelling through a barrier and Compton's shift; with values written with the prefixes
+// of SI, 4.7k, 100n, 2M2. No page is needed, so it runs in the tests too
 (function (root) {
     'use strict';
 
@@ -206,9 +207,128 @@
         return { value: round(out), parts: parts };
     }
 
+    // ---------- electronics ---------- //
+
+    // the values parts are made in, of each decade: E12 and E24
+    var SERIES = {
+        12: [10, 12, 15, 18, 22, 27, 33, 39, 47, 56, 68, 82],
+        24: [10, 11, 12, 13, 15, 16, 18, 20, 22, 24, 27, 30, 33, 36, 39, 43, 47, 51, 56, 62, 68, 75, 82, 91]
+    };
+
+    // The value of the series n, 12 or 24, nearest x: way 1 the nearest at or above it, -1 at or below, 0 either.
+    // 147 is 150 of E12, 147 at or below 120; NaN of no value above 0
+    function standard(x, n, way) {
+        var list = SERIES[n] || SERIES[12], e, near = [], best;
+        if (!(x > 0) || !isFinite(x)) return NaN;
+        e = Math.floor(Math.log10(x)) - 1;
+        [-1, 0, 1].forEach(function (d) { // of the decade below and above too: 9.6 is 10, of the next
+            list.forEach(function (v) { near.push(round(v * Math.pow(10, e + d))); });
+        });
+        if (way > 0) near = near.filter(function (v) { return v >= x * (1 - 1e-9); });
+        if (way < 0) near = near.filter(function (v) { return v <= x * (1 + 1e-9); });
+        near.forEach(function (v) { // nearest by ratio, as the series is spaced
+            if (best === undefined || Math.abs(Math.log(v / x)) < Math.abs(Math.log(best / x))) best = v;
+        });
+        return best;
+    }
+
+    // A transistor biased by a divider: R1 from Vcc to the base, R2 from it to 0, Rc to the collector and Re from the
+    // emitter, of gain beta, Vbe its base's drop, 0.7, and Vsat what is left across it switched on, 0.2. The base
+    // current loads the divider. { vb, ve, vc, vce, ib, ic, region: 'active' | 'saturated' | 'off' } or null
+    function bias(vcc, r1, r2, rc, re, beta, vbe, vsat) {
+        var vth, rth, ib, ic, ie, ve, vc, sat, a, b, c, d, e2;
+        vbe = isFinite(vbe) ? vbe : 0.7;
+        vsat = isFinite(vsat) ? vsat : 0.2;
+        if (!(vcc > 0 && r1 > 0 && r2 > 0 && rc >= 0 && re >= 0 && beta > 0)) return null;
+        vth = vcc * r2 / (r1 + r2);
+        rth = r1 * r2 / (r1 + r2);
+        if (vth <= vbe) return { vb: round(vth), ve: 0, vc: round(vcc), vce: round(vcc), ib: 0, ic: 0, region: 'off' };
+        ib = (vth - vbe) / (rth + (beta + 1) * re);
+        ic = beta * ib;
+        ie = ib + ic;
+        ve = ie * re;
+        vc = vcc - ic * rc;
+        if (vc - ve < vsat) { // saturated: the collector as low as it goes, β no longer what sets Ic
+            sat = true;
+            // Ve = (Ib + Ic)Re, Vc = Vcc – IcRc, Vc – Ve = Vsat, Ib = (Vth – Vbe – Ve)/Rth: solved for Ic and Ib
+            a = rc + re; // a·Ic + b·Ib = c, b·Ic + d·Ib = e2
+            b = re;
+            c = vcc - vsat;
+            d = rth + re;
+            e2 = vth - vbe;
+            ic = (c * d - b * e2) / (a * d - b * b);
+            ib = (e2 - b * ic) / d;
+            if (ib < 0) {
+                ib = 0;
+                ic = c / a;
+            }
+            ve = (ib + ic) * re;
+            vc = vcc - ic * rc;
+        }
+        return { vb: round(ve + vbe), ve: round(ve), vc: round(vc), vce: round(vc - ve), ib: round(ib), ic: round(ic), region: sat ? 'saturated' : 'active' };
+    }
+
+    // ---------- modern ---------- //
+
+    // the name of the series of the lines of hydrogen that end on the level n
+    function lineSeries(n) {
+        return ['Lyman', 'Balmer', 'Paschen', 'Brackett', 'Pfund', 'Humphreys'][n - 1] || '';
+    }
+
+    var HBAR = 6.62607015e-34 / (2 * Math.PI), EV = 1.602176634e-19;
+
+    // The chance a particle of mass m, kg, and energy e, eV, goes through a barrier of height v, eV, and width w, m,
+    // worked out in full, below the barrier, at it and above it: { t, kappa: how fast the wave dies inside it, 1/m,
+    // rough: e^(–2κw), the rough one of a wide barrier }, or null
+    function tunnel(m, e, v, w) {
+        var E = e * EV, V = v * EV, k, s;
+        if (!(m > 0 && e > 0 && v >= 0 && w >= 0)) return null;
+        if (Math.abs(E - V) < 1e-12 * V) return { t: round(1 / (1 + m * w * w * V / (2 * HBAR * HBAR))), kappa: 0, rough: NaN };
+        if (E < V) {
+            k = Math.sqrt(2 * m * (V - E)) / HBAR;
+            s = Math.sinh(k * w);
+            return { t: round(isFinite(s) ? 1 / (1 + V * V * s * s / (4 * E * (V - E))) : 0), kappa: round(k), rough: round(Math.exp(-2 * k * w)) };
+        }
+        k = Math.sqrt(2 * m * (E - V)) / HBAR;
+        s = Math.sin(k * w);
+        return { t: round(1 / (1 + V * V * s * s / (4 * E * (E - V)))), kappa: 0, rough: NaN };
+    }
+
+    // A photon of wavelength l, m, scattered off an electron at the angle a, radians: its wavelength after, m, by
+    // Compton's shift (h/mc)(1 – cos a)
+    function compton(l, a) {
+        return l > 0 && isFinite(a) ? round(l + 2.42631023538e-12 * (1 - Math.cos(a))) : NaN;
+    }
+
+    // The binding energy of a nucleus of Z protons and A nucleons, of the mass of its atom in u, electrons and all:
+    // { defect, u; mev; each, MeV a nucleon }, or null. Of hydrogen-1's atom and the neutron, so the electrons cancel
+    function binding(z, a, mass) {
+        var defect;
+        if (!(z >= 1 && a >= z && z % 1 === 0 && a % 1 === 0 && mass > 0)) return null;
+        defect = z * 1.00782503223 + (a - z) * 1.00866491606 - mass;
+        return { defect: round(defect), mev: round(defect * 931.49410372), each: round(defect * 931.49410372 / a) };
+    }
+
+    // ---------- rotation and waves ---------- //
+
+    // the moment of inertia of a shape, a fraction of mr² (of a rod, of its length): a rod about its middle and its end,
+    // a disc or solid cylinder, a ring or hoop, a solid ball and a hollow one
+    var INERTIA = [1 / 12, 1 / 3, 1 / 2, 1, 2 / 5, 2 / 3];
+
+    // The n-th mode of a standing wave of length l and speed v: of a string or an open pipe nv/2l, of a pipe closed at one end
+    // only the odd ones, (2n – 1)v/4l. { f, l: its wavelength, h: which harmonic it is, nodes, antinodes } or null
+    function standing(kind, l, v, n) {
+        var h, closed = kind === 2;
+        if (!(l > 0 && v > 0 && n >= 1 && n % 1 === 0)) return null;
+        h = closed ? 2 * n - 1 : n;
+        return { f: round(h * v / (closed ? 4 * l : 2 * l)), l: round((closed ? 4 : 2) * l / h), h: h,
+            nodes: kind === 0 ? n + 1 : n, antinodes: kind === 1 ? n + 1 : n };
+    }
+
     root.CalcPhysics = {
         g: G0, readValue: readValue, si: si, suvat: suvat, projectile: projectile, COLOURS: COLOURS, BAND_COLOURS: BAND_COLOURS,
-        bandKinds: bandKinds, fromBands: fromBands, toBands: toBands, network: network
+        bandKinds: bandKinds, fromBands: fromBands, toBands: toBands, network: network, SERIES: SERIES, standard: standard, bias: bias,
+        lineSeries: lineSeries, tunnel: tunnel, compton: compton, binding: binding, INERTIA: INERTIA, standing: standing
     };
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = root.CalcPhysics;

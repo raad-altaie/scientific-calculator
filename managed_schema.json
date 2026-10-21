@@ -38,7 +38,7 @@
         },
         "physics": {
             "title": "Physics",
-            "description": "false turns off the physics tools, of motion, forces, circuits and waves, for everyone, and its option cannot turn it on.",
+            "description": "false turns off the physics tools, of electronics, motion, forces, waves, matter and modern physics, for everyone, and its option cannot turn it on.",
             "type": "boolean"
         },
         "detachedMode": {

@@ -1359,7 +1359,7 @@
     // Runge and Kutta's way of the fourth order in 16 steps, then twice as many, until two
     // agree to 11 digits, up to a quarter of a million steps or a fifth of a second, as it is
     // worked out at each key; else to the digits the last two agree to, 4 at least, as of a
-    // function that jumps. { y, slope: y′ there } or { error: 'function' | 'letters' }; y NaN
+    // function that jumps. { y, slope: y′ there, path: [x, y] of 120 steps to there } or { error: 'function' | 'letters' }; y NaN
     // where it has no value on the way or does not settle
     function ode(text, comma, deg, x0, y0, x1) {
         var s = String(text).trim().replace(/^(y\s*['′’]|dy\s*\/\s*dx)\s*=\s*/i, ''), c, n, y, last = NaN, before = NaN, digits, f, start = Date.now();
@@ -1375,8 +1375,9 @@
         if (c.letters.length) return { error: 'letters' };
         if (![x0, y0, x1].every(isFinite)) return { y: NaN, slope: NaN };
         if (x0 === x1) return { y: y0, slope: round(f(x0, y0)) };
-        function walk(n) {
+        function walk(n, pts) { // pts: each step's x and y, to draw its way
             var h = (x1 - x0) / n, x = x0, y = y0, k, k1, k2, k3, k4;
+            if (pts) pts.push([x, y]);
             for (k = 0; k < n; k++) {
                 k1 = f(x, y);
                 k2 = f(x + h / 2, y + h * k1 / 2);
@@ -1385,15 +1386,21 @@
                 y += h * (k1 + 2 * k2 + 2 * k3 + k4) / 6;
                 x = x0 + (k + 1) * h;
                 if (!isFinite(y)) return NaN;
+                if (pts) pts.push([x, y]);
             }
             return y;
+        }
+        function traced(y, slope) { // and its way from x0 to x, in 120 steps
+            var pts = [];
+            walk(120, pts);
+            return { y: y, slope: slope, path: pts };
         }
         for (n = 16; n <= 262144 && 2 * (Date.now() - start) < 200; n *= 2) { // the next as long as all before it
             y = walk(n);
             if (isNaN(y)) return { y: NaN, slope: NaN };
             if (Math.abs(y - last) <= 1e-11 * Math.max(1, Math.abs(y))) {
                 y += (y - last) / 15; // the error of the fourth order, a sixteenth for twice the steps
-                return { y: +y.toPrecision(10) + 0, slope: +f(x1, y).toPrecision(10) + 0 };
+                return traced(+y.toPrecision(10) + 0, +f(x1, y).toPrecision(10) + 0);
             }
             before = last;
             last = y;
@@ -1401,7 +1408,7 @@
         digits = Math.floor(Math.log10(Math.max(1, Math.abs(y)) / Math.abs(y - before)));
         if (!(digits >= 4)) return { y: NaN, slope: NaN };
         digits = Math.min(10, digits);
-        return { y: +y.toPrecision(digits) + 0, slope: +f(x1, y).toPrecision(digits) + 0 };
+        return traced(+y.toPrecision(digits) + 0, +f(x1, y).toPrecision(digits) + 0);
     }
 
     // ---------- probability ---------- //

@@ -181,5 +181,21 @@ check(Chem.bySymbol.O.foundBy === 'Carl Wilhelm Scheele' && Chem.bySymbol.Na.iso
 check(Chem.bySymbol.Fe.isotopes === '4 stable: ⁵⁶Fe, ⁵⁴Fe, ⁵⁷Fe, ⁵⁸Fe' && /^None stable; longest-lived ⁹⁷Tc/.test(Chem.bySymbol.Tc.isotopes), 'isotopes: Fe stable, most abundant first; Tc its longest-lived');
 check(Chem.elements.every(function (e) { return e.isotopes && e.story && e.foundBy; }), 'every element has its isotopes, its name or history, and its finder');
 
+// spectra: of the elements listed, their lines where they are seen, violet to red; hydrogen's Balmer's, in air
+// 0.03% shorter than 1/λ = R(1/4 – 1/n²) has them in a vacuum
+var listed = Chem.elements.filter(function (e) { return Chem.spectrum(e.s) && Chem.spectrum(e.s).length; });
+check(listed.length === 98 && Chem.spectrum('Og') === null && Chem.spectrum('Xx') === null,
+    'spectra of 98 elements, H to Es but astatine; none of Og', listed.length);
+check(Chem.spectrum('At').length === 0 && Chem.spectrum('At').unseen.join() === '216.225,224.401', 'astatine: no line seen, its strongest ultraviolet');
+check(Chem.spectrum('B').ion && Chem.spectrum('Te').ion && !Chem.spectrum('Na').ion && !Chem.spectrum('Ca').ion, 'boron and tellurium their ions\' lines, sodium and calcium their own');
+check(listed.every(function (e) {
+    return Chem.spectrum(e.s).every(function (l, i, all) { return l.nm >= 380 && l.nm <= 750 && [1, 2, 3].indexOf(l.k) > -1 && (!i || all[i - 1].nm < l.nm); });
+}), 'each line 380 to 750 nm, of strength 1 to 3, violet to red');
+check(Chem.spectrum('H').every(function (l, i, all) {
+    var n = all.length + 2 - i, vac = 1e9 / (10967758.34 * (1 / 4 - 1 / (n * n)));
+    return Math.abs(l.nm * 1.000277 - vac) < 0.05;
+}), 'hydrogen: Balmer\'s lines, n 8 to 3');
+check(Chem.spectrum('Na').filter(function (l) { return l.k === 3; }).map(function (l) { return l.nm; }).join() === '589,589.59', 'sodium: its D lines the strongest');
+
 console.log(failures ? failures + ' of ' + checks + ' checks failed' : 'all ' + checks + ' checks passed');
 process.exit(failures ? 1 : 0);

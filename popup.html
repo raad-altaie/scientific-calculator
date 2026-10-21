@@ -228,7 +228,7 @@
                                 <text transform="translate(8 11.24) scale(0.88 1)" fill="currentColor" stroke="currentColor" stroke-width="0.1" font-size="9" font-weight="700" font-family="Play, sans-serif" text-anchor="middle">Fe</text>
                             </svg>
                         </div>
-                        <!-- physics: circuits, motion, forces and waves. A resistor -->
+                        <!-- physics: electronics, motion, forces, waves, matter and modern physics. A resistor -->
                         <div class="calc-phys-btn" hidden>
                             <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
                                 stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
@@ -467,10 +467,10 @@
                 </div>
                 <span class="calc-stats-eq"></span>
             </div>
-            <!-- the results, and a chart of the numbers under them -->
+            <!-- a chart of the numbers, and the results under it -->
             <div class="calc-stats-out">
-                <div class="calc-stats-grid"></div>
                 <div class="calc-stats-chart"></div>
+                <div class="calc-stats-grid"></div>
             </div>
             <!-- the Tests tab: a card for each test, as the solver has, in place of the list and its results -->
             <div class="calc-sv-list calc-stats-tests"></div>
@@ -589,10 +589,12 @@
         <div class="calc-past calc-phys">
             <div class="calc-past-head">
                 <span class="calc-solve-tabs">
-                    <span class="calc-solve-tab" data-tab="circuits">Circuits</span>
+                    <span class="calc-solve-tab" data-tab="circuits">Electronics</span>
+                    <span class="calc-solve-tab" data-tab="modern">Modern</span>
                     <span class="calc-solve-tab" data-tab="motion">Motion</span>
                     <span class="calc-solve-tab" data-tab="forces">Forces</span>
                     <span class="calc-solve-tab" data-tab="waves">Waves</span>
+                    <span class="calc-solve-tab" data-tab="matter">Matter</span>
                 </span>
                 <!-- pop out: the panel as big as the page, or in a window of its own; pop in: back in the calculator -->
                 <span class="calc-panel-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-panel-grow" d="M10 2h4v4M6.5 9.5L14 2" /><path class="calc-panel-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>

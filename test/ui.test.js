@@ -1057,7 +1057,7 @@ async function graphPanel(page, at) {
 // typed is there the next time
 async function solver(page, at) {
     var t = at + ': solve: ', on = '.calc-sv-item.calc-on',
-        tiles = '[].map.call(document.querySelectorAll(".calc-sv-item.calc-on .calc-sv-tile"), function (e) {' +
+        tiles = '[].map.call(document.querySelectorAll(".calc-sv-item.calc-on .calc-sv-tile:not(.calc-sv-drawn)"), function (e) {' +
             ' return e.querySelector(".calc-sv-label").textContent + "=" + e.querySelector(".calc-sv-value").textContent; }).join(" | ")',
         note = 'document.querySelector(".calc-sv-item.calc-on .calc-sv-note").textContent', got;
 
@@ -1167,7 +1167,7 @@ async function solver(page, at) {
     got = await page.calc(tiles);
     check(got.indexOf('P(|T| ≥ |t|)=0.0500117718171') > 0 && got.indexOf('±t for p=2.228138852') > 0, t + 't of 10 degrees: its p-value and the t of 95%', got);
     await card('Normal probability');
-    await page.click(on + ' .calc-sv-tile');
+    await page.click(on + ' .calc-sv-tile:not(.calc-sv-drawn)');
     check(!await open(page, '.calc-solve') && near(await value(page), 0.682689492137), t + 'a click on a result puts it in', await value(page));
     await page.click('.calc-solve-btn');
     check(await page.calc('document.querySelector(".calc-solve .calc-solve-tab.calc-on").dataset.tab') === 'chance' &&
@@ -1181,7 +1181,7 @@ async function solver(page, at) {
 // a number of a matrix found goes in with a click
 async function numbersPanel(page, at) {
     var t = at + ': numbers: ', on = '.calc-numbers .calc-sv-item.calc-on',
-        tiles = '[].map.call(document.querySelectorAll(".calc-numbers .calc-sv-item.calc-on .calc-sv-tile"), function (e) {' +
+        tiles = '[].map.call(document.querySelectorAll(".calc-numbers .calc-sv-item.calc-on .calc-sv-tile:not(.calc-sv-drawn)"), function (e) {' +
             ' return e.querySelector(".calc-sv-label").textContent + "=" + e.lastChild.textContent; }).join(" | ")',
         note = 'document.querySelector(".calc-numbers .calc-sv-item.calc-on .calc-sv-note").textContent', got;
 
@@ -1221,17 +1221,17 @@ async function numbersPanel(page, at) {
     await card('Roots of a complex number');
     await set(0, '-16');
     check(await page.calc(tiles) === 'z1=1.41421356237 + 1.41421356237i | z2=-1.41421356237 + 1.41421356237i | z3=-1.41421356237 – 1.41421356237i | ' +
-        'z4=1.41421356237 – 1.41421356237i | On the plane=', t + 'the four fourth roots of -16, drawn on the plane', await page.calc(tiles));
+        'z4=1.41421356237 – 1.41421356237i', t + 'the four fourth roots of -16, drawn on the plane', await page.calc(tiles));
     check(await page.calc('document.querySelectorAll("' + on + ' .calc-sv-plane circle").length') === 5, t + 'the plane: a dot for each root, and their circle');
     await card('Polynomial roots');
     await set(0, 'x^2+1');
-    check(await page.calc(tiles) === 'Multiplied out=x2 + 1 | z1=–i | z2=i | On the plane=', t + 'x² + 1 has the roots ±i', await page.calc(tiles));
+    check(await page.calc(tiles) === 'Multiplied out=x2 + 1 | z1=–i | z2=i', t + 'x² + 1 has the roots ±i', await page.calc(tiles));
     await set(0, 'x^2 + (1+i)x + 2i');
     check((await page.calc(tiles)).indexOf('Multiplied out=x2 + (1 + i)x + 2i | z1=-1.36602540378 + 0.366025403784i | ') === 0, t + 'a polynomial of complex coefficients', await page.calc(tiles));
     await card('AC impedance');
     for (const [n, v] of [[0, '100'], [1, '0.1'], [2, '10µ'], [3, '50']]) await set(n, v);
     got = await page.calc(tiles);
-    check(got.indexOf('Z=100 – 286.893959648i | |Z|, Ω=303.822553611 | ') === 0 && got.indexOf('XL = ωL=31.4159265359 | XC = 1/ωC=318.309886184 | Resonance f0, Hz=159.154943092 | Z on the plane=') > 0 &&
+    check(got.indexOf('Z=100 – 286.893959648i | |Z|, Ω=303.822553611 | ') === 0 && got.indexOf('XL = ωL=31.4159265359 | XC = 1/ωC=318.309886184 | Resonance f0, Hz=159.154943092') > 0 &&
         /^Of a capacitor/.test(await page.calc(note)), t + 'R, L and C in series at 50 Hz, a capacitor\'s', got);
     await page.click(on + ' .calc-sv-opt[data-c="1"]');
     check((await page.calc(tiles)).indexOf('Z=10.8332803128 + 31.0800268492i | ') === 0 && /^Of a coil/.test(await page.calc(note)), t + 'and side by side, a coil\'s', await page.calc(tiles));
@@ -1281,7 +1281,7 @@ async function numbersPanel(page, at) {
     check(await page.calc('document.querySelectorAll("' + on + ' .calc-sv-pill").length') === 1, t + 'a card\'s subtitle of one thing: one badge');
     await page.click(on + ' .calc-sv-opt[data-c="4"]');
     await set(0, '1 << 100');
-    check(await page.calc('[].filter.call(document.querySelectorAll("' + on + ' .calc-sv-tile"), function (e) { return /^(Decimal|Hexadecimal)/.test(e.querySelector(".calc-sv-label").textContent); })' +
+    check(await page.calc('[].filter.call(document.querySelectorAll("' + on + ' .calc-sv-tile:not(.calc-sv-drawn)"), function (e) { return /^(Decimal|Hexadecimal)/.test(e.querySelector(".calc-sv-label").textContent); })' +
         '.map(function (e) { return e.classList.contains("calc-sv-wide"); }).join()') === 'true,true', t + 'bits: at 128, the decimal and the hexadecimal in wide tiles', await page.calc(tiles));
     await card('IEEE 754');
     await set(0, '0.1');
@@ -1464,7 +1464,7 @@ async function numbersPanel(page, at) {
     await set(1, '2');
     check((await page.calc(tiles)).indexOf('Rounded=1.01 | Down ⌊x⌋=1 | Up ⌈x⌉=1.01 | Toward 0=1 | Fraction part=0.005 | To 2 figures=1') === 0,
         t + '1.005 to 2 places is 1.01, as it reads', await page.calc(tiles));
-    await page.click(on + ' .calc-sv-tile:nth-child(1)');
+    await page.click(on + ' .calc-sv-tile:not(.calc-sv-drawn)');
     check(!await open(page, '.calc-numbers') && await value(page) === 1.01, t + 'a number rounded goes in with a click', await value(page));
     await page.click('.calc-numbers-btn');
     await page.key('Escape', 27);
@@ -1509,7 +1509,7 @@ async function matrixTen(page, at) {
     await card('Eigenvalues');
     await set(0, '10');
     for (i = 1; i <= 10; i++) for (j = 1; j <= 10; j++) await set((i - 1) * 10 + j, i === j ? String(i) : i < j ? '1' : '0');
-    got = await page.calc('[].map.call(document.querySelectorAll("' + on + ' .calc-sv-tile"), function (e) { return e.querySelector(".calc-sv-label").textContent + "=" + e.lastChild.textContent; }).slice(0, 11).join(" | ")');
+    got = await page.calc('[].map.call(document.querySelectorAll("' + on + ' .calc-sv-tile:not(.calc-sv-drawn)"), function (e) { return e.querySelector(".calc-sv-label").textContent + "=" + e.lastChild.textContent; }).slice(0, 11).join(" | ")');
     check(got === 'λ1=1 | λ2=2 | λ3=3 | λ4=4 | λ5=5 | λ6=6 | λ7=7 | λ8=8 | λ9=9 | λ10=10 | Trace=55', t + 'eigenvalues of a 10×10', got);
     await card('A x = b');
     await set(0, '10');
@@ -1517,7 +1517,7 @@ async function matrixTen(page, at) {
         t + 'A x = b of ten equations: a row of A and of b for each');
     for (i = 1; i <= 10; i++) await set(1 + (i - 1) * 11 + i - 1, '2'); // 2 on the diagonal
     for (i = 1; i <= 10; i++) await set(i * 11, String(2 * i));
-    got = await page.calc('[].map.call(document.querySelectorAll("' + on + ' .calc-sv-tile"), function (e) { return e.querySelector(".calc-sv-label").textContent + "=" + e.lastChild.textContent; }).slice(0, 10).join(" | ")');
+    got = await page.calc('[].map.call(document.querySelectorAll("' + on + ' .calc-sv-tile:not(.calc-sv-drawn)"), function (e) { return e.querySelector(".calc-sv-label").textContent + "=" + e.lastChild.textContent; }).slice(0, 10).join(" | ")');
     check(got === 'x1=1 | x2=2 | x3=3 | x4=4 | x5=5 | x6=6 | x7=7 | x8=8 | x9=9 | x10=10', t + 'its ten unknowns', got);
     await card('LU and QR');
     await set(0, '10');
@@ -1545,7 +1545,7 @@ async function matrixPaste(page, at) {
         return page.calc('[].map.call(document.querySelectorAll("' + on + ' input"), function (b) { return b.value; }).join("|")');
     }
     function tiles() {
-        return page.calc('[].map.call(document.querySelectorAll("' + on + ' .calc-sv-tile"), function (e) { return e.querySelector(".calc-sv-label").textContent + "=" + e.lastChild.textContent; }).join(" | ")');
+        return page.calc('[].map.call(document.querySelectorAll("' + on + ' .calc-sv-tile:not(.calc-sv-drawn)"), function (e) { return e.querySelector(".calc-sv-label").textContent + "=" + e.lastChild.textContent; }).join(" | ")');
     }
     async function card(name) {
         await page.calc('[].filter.call(document.querySelectorAll(".calc-numbers .calc-sv-name"), function (n) { return n.textContent === ' + JSON.stringify(name) +
@@ -1630,7 +1630,7 @@ async function matrixPaste(page, at) {
 // payment schedule as a table to copy, and APR and APY. With the decimal comma and fraction mode
 async function finance(page, at) {
     var t = at + ': finance: ', on = '.calc-solve .calc-sv-item.calc-on',
-        tiles = '[].map.call(document.querySelectorAll(".calc-solve .calc-sv-item.calc-on .calc-sv-tile:not(.calc-sv-table)"), function (e) {' +
+        tiles = '[].map.call(document.querySelectorAll(".calc-solve .calc-sv-item.calc-on .calc-sv-tile:not(.calc-sv-table):not(.calc-sv-drawn)"), function (e) {' +
             ' return e.querySelector(".calc-sv-label").textContent + "=" + e.querySelector(".calc-sv-value").textContent; }).join(" | ")',
         note = 'document.querySelector(".calc-solve .calc-sv-item.calc-on .calc-sv-note").textContent',
         rows = 'document.querySelectorAll(".calc-solve .calc-sv-table .calc-sv-cell").length / 4', got;
@@ -1680,12 +1680,12 @@ async function finance(page, at) {
     await set(1, '6');
     check((await page.calc(tiles)).indexOf('PMT=-1000.00 | ') === 0, t + 'tvm: a very long term: the interest alone', await page.calc(tiles));
     // a result has the tip of a result: Insert and Copy
-    await page.hover(on + ' .calc-sv-tile');
+    await page.hover(on + ' .calc-sv-tile:not(.calc-sv-drawn)');
     await page.until('!document.querySelector(".calc-peek").hidden', 2000);
     check(await page.calc('!document.querySelector(".calc-peek").hidden && !!document.querySelector(".calc-peek [data-act=insert]") && !!document.querySelector(".calc-peek [data-act=copy]")'),
         t + 'tvm: a result has its tip, with Insert and Copy');
     await set(0, '360');
-    await page.click(on + ' .calc-sv-tile');
+    await page.click(on + ' .calc-sv-tile:not(.calc-sv-drawn)');
     check(!await open(page, '.calc-solve') && await value(page) === -1199.10105031, t + 'tvm: a click puts it in with every digit, shown to the cent', await value(page));
     await page.click('.calc-solve-btn');
 
@@ -1804,8 +1804,8 @@ async function finance(page, at) {
     await page.click('.calc-solve .calc-solve-tab[data-tab="finance"]');
     await card('NPV and IRR');
     await set(1, '-1000, 300, 400, 500');
-    check(await page.calc('!!document.querySelectorAll(".calc-solve .calc-sv-item.calc-on .calc-sv-value")[2].querySelector(".calc-fr")'),
-        t + 'npv: a payback of 2.6 as 13/5 in fraction mode', await page.calc('document.querySelectorAll(".calc-solve .calc-sv-item.calc-on .calc-sv-value")[2].innerHTML'));
+    check(await page.calc('!!document.querySelectorAll(".calc-solve .calc-sv-item.calc-on .calc-sv-tile:not(.calc-sv-drawn) .calc-sv-value")[2].querySelector(".calc-fr")'),
+        t + 'npv: a payback of 2.6 as 13/5 in fraction mode', await page.calc('document.querySelectorAll(".calc-solve .calc-sv-item.calc-on .calc-sv-tile:not(.calc-sv-drawn) .calc-sv-value")[2].innerHTML'));
 }
 
 // Sequences in the graph: a(n) of the terms before, or of n alone, with the first terms and the range of n
@@ -3066,7 +3066,7 @@ async function converter(page, at) {
 // dates and a date moved on, a value put in with a click; the tab and the dates kept
 async function convDates(page, at) {
     var t = at + ': dates: ', on = '.calc-conv .calc-sv-item.calc-on',
-        tiles = '[].map.call(document.querySelectorAll("' + on + ' .calc-sv-tile"), function (e) {' +
+        tiles = '[].map.call(document.querySelectorAll("' + on + ' .calc-sv-tile:not(.calc-sv-drawn)"), function (e) {' +
             ' return e.querySelector(".calc-sv-label").textContent + "=" + e.lastChild.textContent; }).join(" | ")',
         note = 'document.querySelector("' + on + ' .calc-sv-note").textContent',
         seen = function (s) { return page.calc('getComputedStyle(document.querySelector(' + JSON.stringify(s) + ')).display !== "none"'); }, got;
@@ -3432,7 +3432,7 @@ async function menus(page, at) {
     await page.rightClick('.calc-past-res');
     await pick(page, 'Delete');
     check(await page.calc('document.querySelectorAll(".calc-past-row").length') === 1, t + 'Delete takes the line out');
-    await page.rightClick('.calc-past:not(.calc-stats):not(.calc-fx):not(.calc-conv):not(.calc-graph):not(.calc-solve):not(.calc-numbers):not(.calc-chem) .calc-past-head span');
+    await page.rightClick('.calc-past:not(.calc-stats):not(.calc-fx):not(.calc-conv):not(.calc-graph):not(.calc-solve):not(.calc-numbers):not(.calc-chem):not(.calc-phys) .calc-past-head span');
     check(await menu(page) === 'Clear history', t + 'above the lines, Clear history', await menu(page));
     await pick(page, 'Clear history');
     check(await page.calc('document.querySelector(".calc-hist").hidden'), t + 'which empties it');
@@ -3685,6 +3685,16 @@ async function chemistry(page, at) {
     // its smooth scroll over before the table goes back to its top: going on, it moves the tiles under the click below
     await page.calc('new Promise(function (r) { var s = document.querySelector(".calc-pt"), a = -1; (function f() { if (s.scrollTop === a) return r(); a = s.scrollTop; setTimeout(f, 100); })(); })');
     await page.calc('document.querySelector(".calc-pt").scrollTop = 0');
+    // its spectrum, first of its tiles: absorbed, its 8 lines dark across the rainbow; clicked, given off, bright on black
+    check(await page.calc('document.querySelector(".calc-pt-tiles > .calc-sv-tile").classList.contains("calc-pt-spec")') &&
+        await page.calc('document.querySelector(".calc-pt-spec i").textContent') === 'absorption' &&
+        await page.calc('document.querySelectorAll(".calc-pt-spec rect[fill=\'#000\']").length') === 8 &&
+        await page.calc('!!document.querySelector(".calc-pt-spec rect[fill^=\'url(\']")'), t + 'copper\'s absorption spectrum: 8 dark lines on the rainbow');
+    await page.click('.calc-pt-spec');
+    check(await page.calc('document.querySelector(".calc-pt-spec i").textContent') === 'emission' &&
+        await page.calc('!!document.querySelector(".calc-pt-spec rect[fill=\'#07090c\']")') &&
+        await page.calc('document.querySelectorAll(".calc-pt-spec rect[fill^=\'rgb(\']").length') === 8, t + 'clicked, its emission spectrum: 8 bright lines on black');
+    await page.calc('document.querySelector(".calc-pt").scrollTop = 0');
     await page.calc('(function (i) { i.value = "gold"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-pt-search"))');
     check(await page.calc('document.querySelector(".calc-pt-info .calc-pt-title").textContent') === 'Gold' &&
         await page.calc('document.querySelectorAll(".calc-pt-el[data-z]:not(.calc-pt-dim)").length') === 1, t + 'the search finds gold, the others dimmed');
@@ -3726,7 +3736,7 @@ async function chemistryTools(page, at) {
                 '(document.querySelector(".calc-chem .calc-sv-item.calc-on input[data-k=\\"' + k + '\\"]"))');
         },
         tiles = function () { // each tile of the card open, its label and what it shows
-            return page.calc('[].map.call(document.querySelectorAll(".calc-chem .calc-sv-item.calc-on .calc-sv-tile"), function (el) { ' +
+            return page.calc('[].map.call(document.querySelectorAll(".calc-chem .calc-sv-item.calc-on .calc-sv-tile:not(.calc-sv-drawn)"), function (el) { ' +
                 'return el.querySelector(".calc-sv-label").textContent + ": " + el.querySelector(".calc-sv-value").textContent; }).join("; ")');
         },
         note = function () { return page.calc('document.querySelector(".calc-chem .calc-sv-item.calc-on .calc-sv-note").textContent'); };

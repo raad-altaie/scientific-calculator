@@ -121,7 +121,17 @@ Units.units.forEach(function (group, g) {
     ['Electric current', 'amperes', 'milliamperes', 1.5, 1500],
     ['Voltage', 'kilovolts', 'volts', 11, 11000],
     ['Electric charge', 'ampere-hours', 'coulombs', 1, 3600],
-    ['Electric charge', 'coulombs', 'elementary charges', 1, 6.241509074e18, 1e-9]
+    ['Electric charge', 'coulombs', 'elementary charges', 1, 6.241509074e18, 1e-9],
+    ['Resistance', 'kiloohms', 'ohms', 4.7, 4700],
+    ['Capacitance', 'microfarads', 'nanofarads', 2.2, 2200],
+    ['Capacitance', 'picofarads', 'farads', 100, 1e-10],
+    ['Inductance', 'millihenries', 'microhenries', 10, 10000],
+    ['Magnetic field', 'gauss', 'microteslas', 0.5, 50],
+    ['Magnetic field', 'teslas', 'gauss', 1, 10000],
+    ['Momentum', 'gram centimeters per second', 'kilogram meters per second', 1e5, 1],
+    ['Momentum', 'pound feet per second', 'newton seconds', 1, 0.138254954376],
+    ['Radioactivity', 'curies', 'gigabecquerels', 1, 37],
+    ['Radioactivity', 'microcuries', 'kilobecquerels', 1, 37]
 ].forEach(function (c) {
     var got = convert(c[0], c[1], c[2], c[3]);
     // a value written to fewer digits is checked to them

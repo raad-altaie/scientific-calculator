@@ -276,6 +276,65 @@
                 { s: 'Ah', t: 'ampere-hours', f: 3600 },
                 { s: 'e', t: 'elementary charges', f: 1.602176634e-19 }
             ]
+        },
+        {
+            c: 'Resistance', list: [
+                { s: 'Ω', t: 'ohms', f: 1 },
+                { s: 'mΩ', t: 'milliohms', f: 0.001 },
+                { s: 'kΩ', t: 'kiloohms', f: 1e3 },
+                { s: 'MΩ', t: 'megaohms', f: 1e6 },
+                { s: 'GΩ', t: 'gigaohms', f: 1e9 }
+            ]
+        },
+        {
+            c: 'Capacitance', list: [
+                { s: 'F', t: 'farads', f: 1 },
+                { s: 'mF', t: 'millifarads', f: 0.001 },
+                { s: 'µF', t: 'microfarads', f: 1e-6 },
+                { s: 'nF', t: 'nanofarads', f: 1e-9 },
+                { s: 'pF', t: 'picofarads', f: 1e-12 }
+            ]
+        },
+        {
+            c: 'Inductance', list: [
+                { s: 'H', t: 'henries', f: 1 },
+                { s: 'mH', t: 'millihenries', f: 0.001 },
+                { s: 'µH', t: 'microhenries', f: 1e-6 },
+                { s: 'nH', t: 'nanohenries', f: 1e-9 }
+            ]
+        },
+        {
+            // the gauss of the CGS units is 10⁻⁴ tesla; the Earth's field is about 50 µT, half a gauss
+            c: 'Magnetic field', list: [
+                { s: 'T', t: 'teslas', f: 1 },
+                { s: 'mT', t: 'milliteslas', f: 0.001 },
+                { s: 'µT', t: 'microteslas', f: 1e-6 },
+                { s: 'nT', t: 'nanoteslas', f: 1e-9 },
+                { s: 'G', t: 'gauss', f: 1e-4 },
+                { s: 'mG', t: 'milligauss', f: 1e-7 }
+            ]
+        },
+        {
+            // a quantity of motion, mass times speed
+            c: 'Momentum', list: [
+                { s: 'kg·m/s', t: 'kilogram meters per second', f: 1 },
+                { s: 'g·cm/s', t: 'gram centimeters per second', f: 1e-5 },
+                { s: 'N·s', t: 'newton seconds', f: 1 },
+                { s: 'lb·ft/s', t: 'pound feet per second', f: 0.45359237 * 0.3048 },
+                { s: 'eV/c', t: 'electronvolts over c', f: 1.602176634e-19 / 299792458 }
+            ]
+        },
+        {
+            // of a source: the becquerel is one decay each second; the curie is a gram of radium-226's, about
+            c: 'Radioactivity', list: [
+                { s: 'Bq', t: 'becquerels', f: 1 },
+                { s: 'kBq', t: 'kilobecquerels', f: 1e3 },
+                { s: 'MBq', t: 'megabecquerels', f: 1e6 },
+                { s: 'GBq', t: 'gigabecquerels', f: 1e9 },
+                { s: 'Ci', t: 'curies', f: 3.7e10 },
+                { s: 'mCi', t: 'millicuries', f: 3.7e7 },
+                { s: 'µCi', t: 'microcuries', f: 3.7e4 }
+            ]
         }
     ];
 
