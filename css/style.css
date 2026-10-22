@@ -343,8 +343,10 @@
     color: #e3a5a5;
 }
 
-/* the Tests tab: its cards in place of the box, the results and the separator */
-#calculator .calc-stats-tests,
+/* the Tests tab: its cards in place of the box, the results and the separator. Off it, its cards and the line beside
+   them are gone, popped out as well, where the cards are a list at the side */
+#calculator .calc-stats:not(.calc-stats-testing) .calc-stats-tests,
+#calculator.calc-panel-big .calc-stats.calc-big-on:not(.calc-stats-testing) > .calc-side-split,
 #calculator .calc-stats-testing :is(.calc-stats-input, .calc-stats-note, .calc-stats-out),
 #calculator .calc-stats.calc-stats-testing .calc-past-head :is(.calc-stats-by-label, .calc-stats-by, .calc-past-clear) {
     display: none;
