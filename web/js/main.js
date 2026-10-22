@@ -8632,7 +8632,7 @@
                             return { k: 'b' + n + i, l: kind === 'digit' ? BAND_NAMES.digit[digit] : BAND_NAMES[kind], choice: swatches(kind),
                                 at: n === 4 ? [4, 7, 2, 6][i] : [4, 7, 0, 1, 0, 1][i] }; // 4.7 kΩ: of each count its own, as its bands are of other kinds
                         }));
-                    }, cols: 1, run: runColours, example: function (raw) { return raw.find === '1' ? { find: '1', ohms: '4.7k' } : { b40: '4', b41: '7', b42: '2', b43: '6' }; } },
+                    }, cols: 1, run: runColours },
                 { id: 'network', t: 'Series and parallel', f: ['R<sub>1</sub> + R<sub>2</sub>', 'R<sub>1</sub> ∥ R<sub>2</sub>'], d: 'The value of resistors, capacitors or coils joined: + in series, || in parallel, which goes first, and brackets: ' +
                     '100 + 220 || 330, (1k + 2k2) || 4k7. Capacitors add in parallel.',
                     fields: [{ k: 'part', l: 'Of', choice: ['Resistors', 'Capacitors', 'Coils'] }, { k: 'n', l: 'Parts', ph: '100 + 220 || 330', text: true, cls: 'calc-sv-wide', aria: 'Parts' }],
@@ -13260,6 +13260,10 @@
         numbersButton.hidden = !numbersOn;
         chemButton.hidden = !chemOn;
         physButton.hidden = !physOn;
+        findOff = !(statsOn || fxOn || convOn || graphOn || solveOn || numbersOn || chemOn || physOn); // no tool on, nothing to search
+        findCalc.hidden = findOff;
+        if (findButton) findButton.hidden = findOff;
+        if (findOff && findShowing()) showFind(false);
         if (!statsOn) showStats(false);
         if (!fxOn) showFx(false);
         if (!convOn) showConv(false);
@@ -14022,7 +14026,8 @@
     // of what is, the card open. In the extension a tool has a window of its own: what was found is kept for it ('found'),
     // and it opens that as the window goes there. From the calculator, not popped out, it is a panel over the keys as
     // the history is, its box and list moved into it, and what is found opens in its panel there
-    var findBox = root.parentNode.querySelector('.calc-find'),
+    var findOff = false, // every tool turned off, so no search
+        findBox = root.parentNode.querySelector('.calc-find'),
         findButton = goBar.querySelector('.calc-go-find'),
         findWide = findBox.querySelector('.calc-find-box'),
         findPh = findBox.querySelector('.calc-find-input').placeholder, // in full, beside the rail
@@ -14166,6 +14171,7 @@
     // a panel over the keys, the others closed. q: what to search for at first
     function showFind(open, q) {
         var small = open && !bigShown();
+        if (open && findOff) return;
         hideTip();
         if (open) {
             findFrom = bigShown();

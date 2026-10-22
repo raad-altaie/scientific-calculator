@@ -117,9 +117,9 @@
     position: absolute;
     z-index: 2;
     left: 4px;
-    top: 2px;
+    top: 3px;
     display: flex;
-    gap: 3px;
+    gap: 5px;
 }
 
 #calculator .calc-hist,
@@ -271,6 +271,8 @@
 
 /* how many numbers, and what was left out */
 #calculator .calc-stats-note {
+    -webkit-user-select: text; /* an error can be selected and copied */
+    user-select: text;
     min-height: 15px;
     margin: 6px 12px 2px;
     overflow: hidden;
@@ -2272,6 +2274,8 @@
 
 #calculator .calc-fx-note,
 #calculator .calc-sv-note {
+    -webkit-user-select: text; /* an error can be selected and copied */
+    user-select: text;
     align-self: stretch;
     text-align: center;
     color: #4f6659;
@@ -3881,6 +3885,7 @@
     --calc-lead: calc(23px - var(--calc-line) / 2);
     display: block;
     position: relative;
+    top: 1px; /* a pixel lower */
     z-index: 2; /* over the foot of the equation above it, so the dots there do not cover the top of a selection */
     margin: 0 -7px 0 0; /* out to the edges of the display, so the dots can cover all the way */
     padding: var(--calc-lead) 7px var(--calc-lead) 8px;
@@ -4120,6 +4125,36 @@
     cursor: pointer;
     -webkit-user-select: none;
     user-select: none;
+}
+
+/* the marks have the display's own colour, so what is beside or under one never shows through it; none is a box while it is empty */
+#calculator .calc-rad,
+#calculator .calc-mem:not(:empty),
+#calculator .calc-frac:not(:empty),
+#calculator .calc-fmt:not(:empty),
+#calculator .calc-hold:not(:empty),
+#calculator .calc-sto:not(:empty) {
+    z-index: 3; /* over the line of the result (2), which they are drawn on */
+    background: #b6d1c2;
+}
+
+/* and their light under the pointer, as before */
+#calculator .calc-rad:hover,
+#calculator .calc-mem:not(:empty):hover,
+#calculator .calc-frac:not(:empty):hover,
+#calculator .calc-fmt:not(:empty):hover,
+#calculator .calc-hold:not(:empty):hover,
+#calculator .calc-sto:not(:empty):hover {
+    background: #a3bdaf;
+}
+
+#calculator .calc-rad:active,
+#calculator .calc-mem:not(:empty):active,
+#calculator .calc-frac:not(:empty):active,
+#calculator .calc-fmt:not(:empty):active,
+#calculator .calc-hold:not(:empty):active,
+#calculator .calc-sto:not(:empty):active {
+    background: #98b3a5;
 }
 
 /* FIX 2, SCI 3, ENG 2: the notation the results are shown in */
