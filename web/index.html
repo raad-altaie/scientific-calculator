@@ -101,7 +101,7 @@
                 "Vectors and complex numbers",
                 "Bases, bits, Base64, hashes, UUIDs and IP subnets",
                 "Prime factors, exact big numbers and repeating decimals",
-                "102 formulas and 59 constants (CODATA 2022)",
+                "142 formulas and 78 constants (CODATA 2022)",
                 "Unit converter, date calculations and Unix timestamps",
                 "Works offline as an installable app"
             ]
@@ -581,11 +581,11 @@
             <div class="calc-past-head">
                 <span class="calc-solve-tabs">
                     <span class="calc-solve-tab" data-tab="circuits">Electronics</span>
-                    <span class="calc-solve-tab" data-tab="modern">Modern</span>
                     <span class="calc-solve-tab" data-tab="motion">Motion</span>
                     <span class="calc-solve-tab" data-tab="forces">Forces</span>
                     <span class="calc-solve-tab" data-tab="waves">Waves</span>
                     <span class="calc-solve-tab" data-tab="matter">Matter</span>
+                    <span class="calc-solve-tab" data-tab="modern">Modern</span>
                 </span>
                 <!-- pop out: the panel as big as the page, or in a window of its own; pop in: back in the calculator -->
                 <span class="calc-panel-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-panel-grow" d="M10 2h4v4M6.5 9.5L14 2" /><path class="calc-panel-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
@@ -1350,36 +1350,47 @@
             <ul>
                 <li>Motion: steady acceleration, any three of s, u, v, a and t giving the other two, both answers where a
                     speed may go either way; a projectile's time, range, height and landing speed, from a height as well,
-                    its path drawn; the speed against time drawn; circular motion from its speed, period or rpm, drawn; pendulums and springs,
-                    with an amplitude their fastest, the swing drawn; and rotation, the moment of inertia of a rod, disc, ring or ball, its energy,
-                    angular momentum and its speed rolled down a slope.</li>
-                <li>Forces: F = ma; a mass on a slope with friction, and whether it slides, drawn; collisions, elastic or
+                    its path drawn; the speed against time drawn; relative velocity of two things, drawn, and a boat crossing a river, its path
+                    drawn; circular motion from its speed, period or rpm, drawn; orbits by Kepler's third law, of a height, a period or an ellipse,
+                    with the speeds nearest and farthest, the orbit drawn to scale; the rocket equation, from the exhaust speed or I<sub>sp</sub>,
+                    with the thrust, its speed drawn as it burns; pendulums and springs,
+                    with an amplitude their fastest, the swing drawn; rotation, the moment of inertia of a rod, disc, ring or ball, its energy,
+                    angular momentum and its speed rolled down a slope; and the centre of mass of up to four masses, with their moment of
+                    inertia, drawn.</li>
+                <li>Forces: F = ma; a mass on a slope with friction, and whether it slides, drawn; two masses over a pulley, both hanging,
+                    one on a table or on a slope, with friction and the pulley's mass, drawn; collisions, elastic or
                     sticking together; impulse and the average force; kinetic and potential energy; work and power; torque,
-                    and levers balanced, drawn; gravitation, with the gravity, orbit and escape speed of a planet; springs, drawn; drag
+                    and levers balanced, drawn; gravitation, with the gravity, orbit and escape speed of a planet, and its Schwarzschild radius; springs, drawn; drag
                     and terminal velocity, the speed drawn; Coulomb's law; the force of a magnetic field on a moving charge, with the circle it
                     goes round, or on a wire; the field of a wire, a solenoid or a loop, and the force between two wires; and
                     induction, in a coil, a moving rod or a generator.</li>
                 <li>Electronics: the resistor colour code of 4, 5 or 6 bands, chosen by colour, and the colours of a
                     resistance, the resistor drawn; resistors, capacitors or coils in series and parallel, 100 + 220 || 330;
-                    Ohm's law and power from any two; a wire's resistance, of its metal, length and diameter; the voltage
-                    divider, with a load; the resistor for LEDs; a capacitor's charge and energy from any two; RC and RL
-                    circuits, their curves drawn; parallel plates; transformers, RMS and peak, and LC resonance; the cost of
-                    electricity; and how long a battery lasts. Transistors switching a load, with the base resistor, and biased
-                    by a divider, with the operating point; MOSFETs as switches; Zener regulators; op-amp gain, a wave in and out drawn; and the 555,
+                    Ohm's law and power from any two; a wire's resistance, of its metal, length and diameter or its AWG; the voltage
+                    divider, with a load, and as a source by Thévenin; a Wheatstone bridge, balanced or not, drawn; the resistor for LEDs; a capacitor's charge and energy from any two; RC and RL
+                    circuits, their curves drawn; parallel plates; transformers, RMS and peak, and LC resonance; three-phase power, in star or delta, its waves drawn; the impedance of
+                    R, L and C in series or parallel, its phase, resonance, Q and bandwidth, |Z| drawn; the cost of
+                    electricity; and how long a battery lasts. A diode by Shockley's equation, its curve drawn; a rectifier, a bridge or
+                    one diode, smoothed by a capacitor, its ripple drawn. Transistors switching a load, with the base resistor, and biased
+                    by a divider, with the operating point; MOSFETs as switches; Zener regulators; the LM317, its resistors for a voltage, of E12 and E24, or as a
+                    steady current, with the heat in it; op-amp gain, a wave in and out drawn; and the 555,
                     astable or monostable, its output drawn. A resistor to buy is the nearest of E12. A part's value is typed as it is written:
                     4.7k, 4k7, 470R, 100n, 2.2µ.</li>
-                <li>Waves: v = fλ, the wave drawn; standing waves on a string or in an open or closed pipe, drawn; thin lenses and mirrors,
-                    with the image and its rays drawn; refraction and the critical angle, the ray drawn; interference through
-                    two slits or a grating, the fringes drawn in their colour; polarisation, Malus's law and Brewster's angle, drawn;
-                    the Doppler effect, its waves drawn; light of a wavelength, frequency or energy, its colour and where it is among the kinds
+                <li>Waves: v = fλ, the wave drawn; standing waves on a string or in an open or closed pipe, drawn; beats of two notes, drawn; thin lenses and mirrors,
+                    with the image and its rays drawn; the lensmaker's equation, the lens and its focus drawn; refraction and the critical angle, the ray drawn; interference through
+                    two slits or a grating, the fringes drawn in their colour; one slit, its dark fringes and the width of its middle, and the
+                    resolution of a round lens by Rayleigh, two points just told apart, drawn in their colour; polarisation, Malus's law and Brewster's angle, drawn;
+                    the Doppler effect, its waves drawn, and of light by relativity, its redshift drawn; light of a wavelength, frequency or energy, its colour and where it is among the kinds
                     of light; and sound in decibels, among sounds from a whisper to a concert.</li>
                 <li>Matter: Q = mcΔT from any three; latent heat, of melting and boiling; the temperature two things mixed
                     end at; thermal expansion of a length or a volume; conduction through a wall, by Fourier's law; the
-                    radiation of a hot body, with the wavelength it shines brightest at, its spectrum drawn; the speeds of a gas's
-                    molecules, drawn; heat engines, Carnot's efficiency, and fridges and heat pumps; stress, strain and Young's
+                    radiation of a hot body, with the wavelength it shines brightest at, its spectrum drawn; Newton's law of cooling, of k or a reading, the time to a temperature, the curve drawn; the dew point and humidity, on the curve of the most air holds; the speeds of a gas's
+                    molecules, drawn; an ideal gas taken isothermal, isobaric, isochoric or adiabatic, with the work, the heat and the
+                    change in its energy, its path drawn on a PV diagram; heat engines, Carnot's efficiency, and fridges and heat pumps; stress, strain and Young's
                     modulus; density and pressure, from any two;
-                    the pressure at a depth; buoyancy, and whether it floats; and the flow in a pipe that narrows.</li>
-                <li>Modern: E = mc²; the binding energy of a nucleus, against the curve of all; the photoelectric effect, with the stopping voltage and threshold, drawn; the de Broglie
+                    the pressure at a depth; buoyancy, and whether it floats; the flow in a pipe that narrows; the Reynolds number, laminar
+                    or turbulent, with the pressure lost to friction along a pipe by Colebrook's f, the speed across it drawn; and Stokes' law, a small ball's last speed through a fluid, its forces drawn.</li>
+                <li>Modern: E = mc²; the binding energy of a nucleus, against the curve of all; the Q-value of a reaction or a decay, the two parts of a decay drawn flying apart; the photoelectric effect, with the stopping voltage and threshold, drawn; the de Broglie
                     wavelength of an electron, a proton, a neutron or a mass; the uncertainty principle, of place and momentum
                     or of energy and time; a particle in a box, with its levels and the light between them, drawn; Compton scattering;
                     quantum tunnelling through a barrier, worked out in full, drawn; special relativity, γ, time and length, γ drawn; the lines

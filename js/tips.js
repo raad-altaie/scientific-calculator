@@ -374,40 +374,42 @@
         },
         'phys tab motion': {
             t: 'Motion',
-            d: 'Steady acceleration from any three of s, u, v, a and t, its speed drawn; a projectile\'s flight, drawn; circular motion; ' +
-                'pendulums and springs; and rotation, the moment of inertia of a shape, its spin and its roll.',
+            d: 'Steady acceleration from any three of s, u, v, a and t, its speed drawn; a projectile\'s flight, drawn; relative velocity, and a boat ' +
+                'crossing a river; circular motion; orbits by Kepler\'s third law, an ellipse drawn; the rocket equation; pendulums and springs; rotation, the moment of ' +
+                'inertia of a shape, its spin and its roll; and the centre of mass of up to four masses.',
             k: ''
         },
         'phys tab forces': {
             t: 'Forces',
-            d: 'F = ma, the inclined plane with friction, collisions, impulse, kinetic and potential energy, work and power, torque and levers, ' +
-                'gravitation, springs, drag and terminal velocity, Coulomb\'s law, the magnetic force, the field of a wire, a solenoid or a loop, ' +
+            d: 'F = ma, the inclined plane with friction, masses over a pulley, collisions, impulse, kinetic and potential energy, work and power, torque and levers, ' +
+                'gravitation and the Schwarzschild radius, springs, drag and terminal velocity, Coulomb\'s law, the magnetic force, the field of a wire, a solenoid or a loop, ' +
                 'and induction.',
             k: ''
         },
         'phys tab circuits': {
             t: 'Electronics',
-            d: 'The resistor colour code both ways, parts in series and parallel, Ohm\'s law, a wire\'s resistance, the divider, LED resistors, ' +
-                'capacitors, RC and RL, parallel plates, transformers and AC, the cost of electricity, battery life; transistors switching and biased, ' +
-                'MOSFETs, Zeners, op-amps and the 555. ' +
+            d: 'The resistor colour code both ways, parts in series and parallel, Ohm\'s law, a wire\'s resistance and its AWG, the divider and Thévenin, the Wheatstone bridge, LED resistors, ' +
+                'capacitors, RC and RL, parallel plates, transformers and AC, three-phase power, impedance and resonance of R, L and C, the cost of electricity, battery life; ' +
+                'diodes and rectifiers with their ripple; transistors switching and biased, MOSFETs, Zeners, the LM317, op-amps and the 555. ' +
                 'A part\'s value as it is written: 4.7k, 4k7, 100n; a resistor to buy, of E12.',
             k: ''
         },
         'phys tab waves': {
             t: 'Waves',
-            d: 'v = fλ, standing waves of strings and pipes, lenses and mirrors, refraction and the critical angle, interference through two slits ' +
-                'or a grating, polarisation, the Doppler effect, light and photons, and sound in decibels.',
+            d: 'v = fλ, standing waves of strings and pipes, beats, lenses and mirrors, the lensmaker\'s equation, refraction and the critical angle, interference through two slits ' +
+                'or a grating, one slit and the resolution of a lens, polarisation, the Doppler effect of sound and of light, light and photons, and sound in decibels.',
             k: ''
         },
         'phys tab matter': {
             t: 'Matter',
-            d: 'Heat: Q = mcΔT from any three, latent heat, mixing, thermal expansion, conduction, radiation, the speeds of gas molecules and ' +
-                'heat engines. Solids: stress and strain. Fluids: density, pressure, the pressure at a depth, buoyancy and flow in a pipe.',
+            d: 'Heat: Q = mcΔT from any three, latent heat, mixing, thermal expansion, conduction, radiation, Newton\'s cooling, the dew point, the speeds of gas molecules, ' +
+                'an ideal gas isothermal, isobaric, isochoric or adiabatic, and heat engines. Solids: stress and strain. Fluids: density, pressure, ' +
+                'the pressure at a depth, buoyancy, flow in a pipe, the Reynolds number with the friction of a pipe, and Stokes\' law.',
             k: ''
         },
         'phys tab modern': {
             t: 'Modern',
-            d: 'E = mc², binding energy, the photoelectric effect, de Broglie wavelengths, the uncertainty principle, a particle in a box, Compton scattering, ' +
+            d: 'E = mc², binding energy, the Q-value of a reaction, the photoelectric effect, de Broglie wavelengths, the uncertainty principle, a particle in a box, Compton scattering, ' +
                 'tunnelling, special relativity, hydrogen\'s lines and Bohr\'s orbits, and radioactive decay.',
             k: ''
         },

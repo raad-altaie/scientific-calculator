@@ -4727,17 +4727,20 @@
 
     // a number box keeps only what a number is made of: digits, one point, a minus first, and the
     // variables A to J, 2A, a small letter typed as its capital; bare: the digits alone, as a variable's
-    // own value. marks: the °′″ of an angle. The point is a comma while that is the decimal mark, whichever is typed
+    // own value. marks: the °′″ of an angle. The point is a comma while that is the decimal mark, whichever is typed.
+    // An E after a digit is a power of ten, 1E-3, its sign kept, and only digits after that
     function onlyNumber(input, marks, bare) {
-        var letters = !bare, v = input.value, at = input.selectionStart, clean = '', point = false, mark = engine.comma ? ',' : '.', n, c;
+        var letters = !bare, v = input.value, at = input.selectionStart, clean = '', point = false, exp = false, mark = engine.comma ? ',' : '.', n, c;
         for (n = 0; n < v.length; n++) {
             c = v.charAt(n);
             if (/[٠-٩۰-۹]/.test(c)) c = String(c.charCodeAt(0) - (c.charCodeAt(0) >= 0x6F0 ? 0x6F0 : 0x660)); // ٥ is 5
             else if (c === '٫') c = '.';
             if (engine.comma && c === '.') c = ',';
             if (letters && /[a-j]/.test(c)) c = c.toUpperCase();
-            if (/\d/.test(c) || (marks && /[°′″]/.test(c)) || (letters && /[A-J]/.test(c)) || (c === '-' && !clean) ||
-                (c === mark && !point && (point = true))) clean += c;
+            if (bare && c === 'e') c = 'E';
+            if (exp ? /\d/.test(c) : /\d/.test(c) || (marks && /[°′″]/.test(c)) || (letters && /[A-J]/.test(c)) || (c === '-' && !clean) ||
+                (c === mark && !point && (point = true)) || (bare && c === 'E' && /[\d.,]$/.test(clean) && clean.indexOf('E') < 0 && (point = true)) ||
+                (/[-+]/.test(c) && /[\d.,]E$/.test(clean) && (exp = true))) clean += c;
             else if (n < at) at--;
         }
         if (clean !== v) {
@@ -5040,7 +5043,21 @@
             }
         });
         Object.assign(kept, f.p[2] || {});
-        phys.put(f.p[0], kept);
+        physPut(f.p[0], kept);
+    }
+
+    // The Physics panel on a card, with these in its boxes: over the keys from the calculator; popped out, it pops out in
+    // place of what is, as the rail goes to it; in the extension's windows, the window goes there and takes the card
+    // from the storage as it opens (takeFound), as the search does
+    function physPut(id, kept) {
+        var hit = { go: 'phys', kind: 'put', id: id, kept: kept }, from = bigShown();
+        if (!from || from === 'phys') return phys.put(id, kept);
+        if (graphAlone || chemAlone || panelAlone || homeAlone) {
+            store('found', { hit: hit, at: Date.now() });
+            return goTo('phys');
+        }
+        goTo('phys');
+        findOpen(hit);
     }
 
     function putConstant(k) {
@@ -8304,7 +8321,11 @@
             },
             // the panel opens on a tool's card, with these in its boxes, and what they give
             put: function (id, kept) {
-                if (cards.put(id, kept)) show(true);
+                if (!cards.put(id, kept)) return;
+                if (!panel.classList.contains('calc-open')) return show(true);
+                tabs();
+                cards.render();
+                cards.focus();
             },
             // the panel on a tool's card, open with what was typed in it, as the search finds it; or on a tab
             go: function (id) {
@@ -8623,11 +8644,22 @@
                     'with a current, the voltage it drops and the heat in it. Other: its resistivity ρ typed, in Ω·m.',
                     fields: function (raw) {
                         return [{ k: 'metal', l: 'Of', choice: METALS.map(function (m) { return m[0]; }) }].concat(raw.metal === '5' ? [{ k: 'rho', l: 'ρ', ph: 'Ω·m', text: true, aria: 'ρ' }] : [],
-                            [{ k: 'L', l: 'L', ph: 'm', text: true }, { k: 'd', l: 'd, mm', ph: '1', text: true, aria: 'd' }, { k: 'I', l: 'I', ph: 'A, optional', text: true }, { k: 'T', l: 'T', ph: '°C, optional' }]);
-                    }, cols: 2, run: runWire, example: function (raw) { return Object.assign({ metal: raw.metal || '0' }, raw.metal === '5' ? { rho: '4.9e-7' } : {}, { L: '10', d: '1', I: '5' }); } },
-                { id: 'divider', t: 'Voltage divider', f: 'V<sub>out</sub> = V<sub>in</sub> R<sub>2</sub> ÷ (R<sub>1</sub> + R<sub>2</sub>)', d: 'The voltage across R₂ of two resistors in series, and of a load across it as well.',
+                            [{ k: 'size', l: 'Size', choice: ['d, mm', 'AWG'] }, { k: 'L', l: 'L', ph: 'm', text: true },
+                                raw.size === '1' ? { k: 'd', l: 'AWG', ph: '12, 0 or 2/0', text: true, aria: 'AWG' } : { k: 'd', l: 'd, mm', ph: '1', text: true, aria: 'd' },
+                                { k: 'I', l: 'I', ph: 'A, optional', text: true }, { k: 'T', l: 'T', ph: '°C, optional' }]);
+                    }, cols: 2, run: runWire,
+                    example: function (raw) { return Object.assign({ metal: raw.metal || '0', size: raw.size || '0' }, raw.metal === '5' ? { rho: '4.9e-7' } : {}, { L: '10', d: raw.size === '1' ? '14' : '1', I: '5' }); } },
+                { id: 'divider', t: 'Voltage divider', f: ['V<sub>out</sub> = V<sub>in</sub> R<sub>2</sub> ÷ (R<sub>1</sub> + R<sub>2</sub>)', 'R<sub>th</sub> = R<sub>1</sub> ∥ R<sub>2</sub>'],
+                    d: 'The voltage across R₂ of two resistors in series, and of a load across it as well; and as a source, by Thévenin, the resistance a load sees, R<sub>th</sub>, ' +
+                        'in series with the voltage with none, and the most power a load can take, a load of R<sub>th</sub>.',
                     fields: [{ k: 'V', l: 'V<sub>in</sub>', ph: '9', text: true, aria: 'Vin' }, { k: 'R1', l: 'R<sub>1</sub>', ph: '10k', text: true, aria: 'R1' },
                         { k: 'R2', l: 'R<sub>2</sub>', ph: '4.7k', text: true, aria: 'R2' }, { k: 'RL', l: 'Load', ph: 'optional', text: true }], cols: 2, run: runDivider, example: { V: '9', R1: '10k', R2: '4.7k' } },
+                { id: 'bridge', t: 'Wheatstone bridge', f: ['R<sub>x</sub> = R<sub>2</sub>R<sub>3</sub> ÷ R<sub>1</sub>', 'V<sub>out</sub> = V<sub>left</sub> – V<sub>right</sub>'], d: 'Four resistors in a diamond, ' +
+                    'R<sub>1</sub> over R<sub>2</sub> on its left and R<sub>3</sub> over R<sub>x</sub> on its right, a voltage V across it; drawn. R<sub>x</sub> empty, the one that balances it, ' +
+                    'no voltage between its middles, as an unknown is measured; or of all four, the voltage between the middles, as of a strain gauge or a sensor, and the resistance there.',
+                    fields: [{ k: 'R1', l: 'R<sub>1</sub>', ph: '1k', text: true, aria: 'R1' }, { k: 'R2', l: 'R<sub>2</sub>', ph: '470', text: true, aria: 'R2' },
+                        { k: 'R3', l: 'R<sub>3</sub>', ph: '2.2k', text: true, aria: 'R3' }, { k: 'Rx', l: 'R<sub>x</sub>', ph: 'empty, to find', text: true, aria: 'Rx' }, { k: 'V', l: 'V', ph: 'optional', text: true }],
+                    cols: 2, run: runBridge, example: { R1: '1k', R2: '470', R3: '2.2k', V: '10' } },
                 { id: 'led', t: 'LED resistor', f: 'R = (V<sub>s</sub> – nV<sub>f</sub>) ÷ I', d: 'The resistor in series with LEDs, and the one of E12 to buy, at or above it, with the current it gives and its power. ' +
                     'V<sub>f</sub> of red is about 2 V, yellow 2.1, green 2.2 to 3, blue and white 3.2; 20 mA unless typed.',
                     fields: [{ k: 'V', l: 'V<sub>s</sub>', ph: '5', text: true, aria: 'Vs' }, { k: 'Vf', l: 'V<sub>f</sub>', ph: '2', text: true, aria: 'Vf' },
@@ -8655,6 +8687,19 @@
                                 { k: 'Vp', l: 'V<sub>p</sub>', ph: '230', text: true, aria: 'Vp' }, { k: 'Is', l: 'I<sub>s</sub>', ph: 'optional', text: true, aria: 'Is' }]);
                     }, cols: 2, run: runAc,
                     example: function (raw) { return Object.assign({ kind: raw.kind || '0' }, [{ Np: '1000', Ns: '50', Vp: '230', Is: '2' }, { given: '1', x: '230' }, { L: '1m', C: '1µ' }][+raw.kind || 0]); } },
+                { id: 'threephase', t: 'Three-phase power', f: ['P = √3 V<sub>L</sub>I<sub>L</sub> cos φ', 'V<sub>L</sub> = √3 V<sub>phase</sub>'], d: 'Three phases, in star or in delta, ' +
+                    'of the voltage between two lines, V<sub>L</sub>, the current in each line, I<sub>L</sub>, and the power factor, cos φ, 1 unless typed: the real power, the apparent and the reactive, ' +
+                    'and the voltage, current and load of each phase; its three waves drawn, a third of a turn apart. Europe\'s is 400 V between lines and 230 to the neutral, ' +
+                    'America\'s 208 and 120, or 480; a motor\'s cos φ is some 0.8 to 0.9.',
+                    fields: [{ k: 'kind', l: 'In', choice: ['Star, Y', 'Delta, Δ'] }, { k: 'V', l: 'V<sub>L</sub>', ph: '400', text: true, aria: 'VL' }, { k: 'I', l: 'I<sub>L</sub>', ph: 'A, 16', text: true, aria: 'IL' },
+                        { k: 'pf', l: 'cos φ', ph: '1', def: 1, name: 'cos φ' }, { k: 'f', l: 'f', ph: '50', def: 50 }],
+                    cols: 2, run: runThreePhase, example: function (raw) { return { kind: raw.kind || '0', V: '400', I: '16', pf: '0.85' }; } },
+                { id: 'rlc', t: 'Impedance and resonance', f: ['Z = √(R<sup>2</sup> + (X<sub>L</sub> – X<sub>C</sub>)<sup>2</sup>)', 'f<sub>0</sub> = 1 ÷ 2π√(LC)'],
+                    d: 'A resistor, a coil and a capacitor in series or in parallel, at a frequency f: the reactance of each, the impedance and its phase, ' +
+                        'where it resonates, how sharply, Q, and how wide; with a voltage, the current and what each part has. Leave one empty for RC, RL or LC; f empty, at resonance.',
+                    fields: [{ k: 'kind', l: 'In', choice: ['Series', 'Parallel'] }, { k: 'R', l: 'R', ph: '100', text: true }, { k: 'L', l: 'L', ph: '10m', text: true },
+                        { k: 'C', l: 'C', ph: '1µ', text: true }, { k: 'f', l: 'f', ph: 'Hz, 1k', text: true }, { k: 'V', l: 'V', ph: 'RMS, optional', text: true }],
+                    cols: 2, run: runRlc, example: function (raw) { return { kind: raw.kind || '0', R: '100', L: '10m', C: '1µ', f: '1k', V: '10' }; } },
                 { id: 'cost', t: 'Cost of electricity', f: 'kWh = P × hours ÷ 1000', d: 'What a device of P watts costs, on so many hours a day at a price for each kWh, in your money: a day, a month and a year.',
                     fields: [{ k: 'P', l: 'P', ph: 'watts', text: true }, { k: 'h', l: 'Hours', ph: '24', def: 24, name: 'Hours' }, { k: 'price', l: 'Per kWh', ph: '0.15', name: 'Per kWh' }],
                     cols: 3, run: runCost, example: { P: '2k', h: '1', price: '0.30' } },
@@ -8662,6 +8707,19 @@
                     'with a current to charge it, how long that takes, some 20% lost. A phone\'s is about 4000 mAh, an AA cell 2000 to 2500.',
                     fields: [{ k: 'C', l: 'mAh', ph: '2500', name: 'mAh' }, { k: 'I', l: 'I', ph: 'A, as 100m', text: true }, { k: 'V', l: 'V', ph: 'optional', text: true },
                         { k: 'Ic', l: 'Charge at', ph: 'A, optional', text: true }], cols: 2, run: runBattery, example: { C: '2500', I: '100m', V: '1.2', Ic: '500m' } },
+                { id: 'diode', t: 'Diode', f: 'I = I<sub>S</sub>(e<sup>V/nV<sub>T</sub></sup> – 1)', d: 'A diode by Shockley\'s equation: the current through it at a voltage across it, or the voltage ' +
+                    'at a current, and its resistance to a small change there. I<sub>S</sub> of a small silicon diode is some 1e-14 A to a few nA, n from 1 to 2: ' +
+                    'a 1N4148 is about 2.5n and 1.75. At 25 °C unless typed.',
+                    fields: function (raw) {
+                        return [{ k: 'by', l: 'Of', choice: ['Voltage', 'Current'] }, raw.by === '1' ? { k: 'x', l: 'I', ph: 'A, 10m', text: true, aria: 'I' } : { k: 'x', l: 'V', ph: '0.65', text: true, aria: 'V' },
+                            { k: 'Is', l: 'I<sub>S</sub>', ph: '1e-14', text: true, aria: 'IS' }, { k: 'n', l: 'n', ph: '1', def: 1 }, { k: 'T', l: 'T, °C', ph: '25', def: 25, name: 'T' }];
+                    }, cols: 2, run: runDiode, example: function (raw) { return Object.assign({ by: raw.by || '0', Is: '2.5n', n: '1.75' }, [{ x: '0.65' }, { x: '10m' }][+raw.by || 0]); } },
+                { id: 'rectifier', t: 'Rectifier and ripple', f: ['V<sub>peak</sub> = √2 V<sub>rms</sub> – V<sub>D</sub>', 'V<sub>r</sub> = I ÷ fC'], d: 'AC turned to DC: a transformer\'s RMS voltage ' +
+                    'through a bridge of four diodes, or through one, smoothed by a capacitor C into a load drawing I: its peak, the ripple, the least and the average out, ' +
+                    'and the voltage each diode must stand. Mains is 50 Hz, 60 in the Americas; a silicon diode drops about 0.7 V, a Schottky 0.3.',
+                    fields: [{ k: 'kind', l: 'By', choice: ['A bridge', 'One diode'] }, { k: 'V', l: 'V<sub>rms</sub>', ph: '12', text: true, aria: 'Vrms' }, { k: 'f', l: 'f', ph: '50', def: 50 },
+                        { k: 'C', l: 'C', ph: 'optional, 2200µ', text: true }, { k: 'I', l: 'I', ph: 'A, 500m', text: true }, { k: 'vd', l: 'V<sub>D</sub>', ph: '0.7', def: 0.7, name: 'VD' }],
+                    cols: 2, run: runRectifier, example: function (raw) { return { kind: raw.kind || '0', V: '12', C: '2200µ', I: '500m' }; } },
                 { id: 'bjt', t: 'Transistor as a switch', f: 'R<sub>B</sub> = (V<sub>in</sub> – V<sub>BE</sub>) ÷ I<sub>B</sub>', d: 'An NPN transistor switching a load, as an LED or a relay, from a pin: the base current, ' +
                     'five times the least, I<sub>C</sub>/β, so it is surely on, and the base resistor, the one of E12 at or below it to buy, and the heat in the transistor.',
                     fields: [{ k: 'I', l: 'I<sub>C</sub>', ph: '100m', text: true, aria: 'IC' }, { k: 'beta', l: 'β', ph: '100', def: 100, name: 'β' }, { k: 'V', l: 'V<sub>in</sub>', ph: '5', text: true, aria: 'Vin' },
@@ -8682,6 +8740,18 @@
                     fields: [{ k: 'V', l: 'V<sub>in</sub>', ph: '12', text: true, aria: 'Vin' }, { k: 'Vmax', l: 'Highest', ph: 'optional', text: true }, { k: 'Vz', l: 'V<sub>Z</sub>', ph: '5.1', text: true, aria: 'VZ' },
                         { k: 'IL', l: 'I<sub>L</sub>', ph: '20m', text: true, aria: 'IL' }, { k: 'Iz', l: 'I<sub>Z</sub> least', ph: '5m', text: true, aria: 'IZ least' }], cols: 2, run: runZener,
                     example: { V: '12', Vmax: '14', Vz: '5.1', IL: '20m' } },
+                { id: 'lm317', t: 'LM317 regulator', f: ['V<sub>out</sub> = 1.25(1 + R<sub>2</sub> ÷ R<sub>1</sub>)', 'I = 1.25 ÷ R'], d: 'The LM317, a regulator set by two resistors: ' +
+                    'R<sub>2</sub> for a voltage, R<sub>1</sub> 240 Ω unless typed, and the one of E12 and of E24 nearest it, with what each gives; or the voltage of R<sub>1</sub> and R<sub>2</sub>; ' +
+                    'or as a steady current, through LEDs, the R that sets it. With V<sub>in</sub> and the load, the heat in it; V<sub>in</sub> some 3 V above V<sub>out</sub> at least. ' +
+                    'The 50 µA out of its ADJ pin counted.',
+                    fields: function (raw) {
+                        var of = +raw.kind || 0;
+                        return [{ k: 'kind', l: 'For', choice: ['A voltage', 'R₁ and R₂', 'A current'] }].concat(of === 2 ? [{ k: 'I', l: 'I', ph: 'A, 20m', text: true }] :
+                            [of === 1 ? { k: 'R2', l: 'R<sub>2</sub>', ph: '720', text: true, aria: 'R2' } : { k: 'V', l: 'V<sub>out</sub>', ph: '5', text: true, aria: 'Vout' },
+                                { k: 'R1', l: 'R<sub>1</sub>', ph: '240', text: true, aria: 'R1' }], [{ k: 'Vin', l: 'V<sub>in</sub>', ph: 'optional', text: true, aria: 'Vin' }],
+                        of === 2 ? [] : [{ k: 'IL', l: 'I<sub>load</sub>', ph: 'A, optional', text: true, aria: 'I load' }]);
+                    }, cols: 2, run: runLm317,
+                    example: function (raw) { return Object.assign({ kind: raw.kind || '0', Vin: '12' }, [{ V: '5', IL: '500m' }, { R1: '240', R2: '720', IL: '500m' }, { I: '20m' }][+raw.kind || 0]); } },
                 { id: 'opamp', t: 'Op-amp gain', f: ['1 + R<sub>f</sub>/R<sub>in</sub>', '–R<sub>f</sub>/R<sub>in</sub>'], d: 'An op-amp amplifying, not inverting or inverting: its gain, in dB as well, and of an input, its output, ' +
                     'that cannot go past the supply.',
                     fields: [{ k: 'kind', l: 'It is', choice: ['Non-inverting', 'Inverting'] }, { k: 'Rf', l: 'R<sub>f</sub>', ph: '100k', text: true, aria: 'Rf' }, { k: 'Rin', l: 'R<sub>in</sub>', ph: '10k', text: true, aria: 'Rin' },
@@ -8703,12 +8773,42 @@
                     'it lands; its path drawn. The angle in the unit in use.',
                     fields: [{ k: 'v', l: 'v<sub>0</sub>', ph: 'm/s', name: 'v₀' }, { k: 'a', l: 'θ', ph: '45', name: 'θ' }, { k: 'h', l: 'Height', ph: '0', def: 0 }, GRAVITY],
                     cols: 2, run: runProjectile, example: function () { return { v: '20', a: angleTyped(45), h: '0' }; } },
+                { id: 'relative', t: 'Relative velocity', f: 'v<sub>AB</sub> = v<sub>A</sub> – v<sub>B</sub>', d: 'Two things moving, each at a speed and a heading: how fast and which way one goes ' +
+                    'as seen from the other, drawn. Or a boat crossing a river of width d at a speed v through the water, the current u: aimed straight across, how long it takes ' +
+                    'and how far down it lands; and the heading upstream that takes it straight across. Headings from east, anticlockwise, in the unit in use.',
+                    fields: function (raw) {
+                        return [{ k: 'kind', l: 'Of', choice: ['Two things', 'A river'] }].concat(raw.kind === '1' ?
+                            [{ k: 'v', l: 'v', ph: 'm/s, the boat' }, { k: 'u', l: 'u', ph: 'm/s, the current' }, { k: 'd', l: 'd', ph: 'm, its width' }] :
+                            [{ k: 'va', l: 'v<sub>A</sub>', ph: 'm/s', name: 'vA' }, { k: 'a', l: 'θ<sub>A</sub>', ph: '0', def: 0, name: 'θA' },
+                                { k: 'vb', l: 'v<sub>B</sub>', ph: 'm/s', name: 'vB' }, { k: 'b', l: 'θ<sub>B</sub>', ph: '0', def: 0, name: 'θB' }]);
+                    }, cols: 2, run: runRelative,
+                    example: function (raw) { return raw.kind === '1' ? { kind: '1', v: '3', u: '1.5', d: '60' } : { kind: '0', va: '20', a: angleTyped(0), vb: '15', b: angleTyped(90) }; } },
                 { id: 'circular', t: 'Circular motion', f: ['a = v<sup>2</sup>/r', 'F = mv<sup>2</sup>/r'], d: 'Going round a circle of radius r at a steady speed, of its speed, period or revolutions a minute: the other two, ' +
                     'the angular speed and frequency, the acceleration to the middle, and of a mass the force that holds it.',
                     fields: function (raw) {
                         return [{ k: 'given', l: 'Of', choice: ['Speed', 'Period', 'rpm'] }, { k: 'r', l: 'r', ph: 'm' },
                             [{ k: 'x', l: 'v', ph: 'm/s', name: 'v' }, { k: 'x', l: 'T', ph: 's', name: 'T' }, { k: 'x', l: 'rpm', ph: '60', name: 'rpm' }][+raw.given || 0], { k: 'm', l: 'm', ph: 'kg, optional' }];
                     }, cols: 3, run: runCircular, example: function (raw) { return Object.assign({ given: raw.given || '0' }, [{ r: '2', x: '5', m: '1' }, { r: '2', x: '3', m: '1' }, { r: '0.15', x: '33', m: '0.2' }][+raw.given || 0]); } },
+                { id: 'orbit', t: 'Orbits', f: ['T<sup>2</sup> = 4π<sup>2</sup>a<sup>3</sup> ÷ GM', 'v<sup>2</sup> = GM(2/r – 1/a)'], d: 'A satellite or a planet going round a body of mass M and radius R, ' +
+                    'by Kepler\'s third law: of its height above the surface, of its period, or of its nearest and farthest heights, an ellipse: the size of its orbit, its period and ' +
+                    'its speed, nearest and farthest by the vis-viva equation; drawn. The Earth unless typed, 5.972e24 kg and 6.371e6 m; the Sun is 1.989e30 kg and 6.957e8 m. ' +
+                    'A geostationary orbit takes 86164 s.',
+                    fields: function (raw) {
+                        var of = +raw.given || 0;
+                        return [{ k: 'given', l: 'Of', choice: ['Height', 'Period', 'Ellipse'] }, { k: 'M', l: 'M', ph: '5.972e24', def: 5.972e24 }, { k: 'R', l: 'R', ph: '6.371e6', def: 6.371e6 }]
+                            .concat(of === 1 ? [{ k: 'T', l: 'T', ph: 's' }] : of === 2 ? [{ k: 'h1', l: 'Nearest', ph: 'm, above' }, { k: 'h2', l: 'Farthest', ph: 'm, above' }] :
+                                [{ k: 'h', l: 'h', ph: 'm, above' }]);
+                    }, cols: 2, run: runOrbit,
+                    example: function (raw) { return Object.assign({ given: raw.given || '0' }, [{ h: '400e3' }, { T: '86164' }, { h1: '200e3', h2: '35786e3' }][+raw.given || 0]); } },
+                { id: 'rocket', t: 'Rocket equation', f: 'Δv = v<sub>e</sub> ln(m<sub>0</sub> ÷ m<sub>f</sub>)', d: 'Tsiolkovsky\'s: the speed a rocket gains burning its fuel, of its exhaust speed ' +
+                    'v<sub>e</sub>, or its specific impulse I<sub>sp</sub>, and its mass full, m<sub>0</sub>, and empty, m<sub>f</sub>; its speed drawn as it burns. With the time it burns, ' +
+                    'its thrust, its acceleration at first and at last, and the Δv left going straight up against g. A kerosene engine\'s I<sub>sp</sub> is some 300 s, ' +
+                    'a hydrogen one\'s 450; to orbit takes some 9400 m/s.',
+                    fields: function (raw) {
+                        return [{ k: 'by', l: 'Of', choice: ['Exhaust speed', 'I<sub>sp</sub>'] }, raw.by === '1' ? { k: 've', l: 'I<sub>sp</sub>', ph: 's, 300', name: 'Isp' } :
+                            { k: 've', l: 'v<sub>e</sub>', ph: 'm/s, 3000', name: 'vₑ' }, { k: 'm0', l: 'm<sub>0</sub>', ph: 'kg, full', name: 'm₀' }, { k: 'mf', l: 'm<sub>f</sub>', ph: 'kg, empty', name: 'mf' },
+                            { k: 't', l: 't', ph: 's, optional' }, GRAVITY];
+                    }, cols: 2, run: runRocket, example: function (raw) { return { by: raw.by || '0', ve: raw.by === '1' ? '300' : '3000', m0: '1000', mf: '300', t: '120' }; } },
                 { id: 'oscillator', t: 'Pendulum and spring', f: ['T = 2π√(L/g)', 'T = 2π√(m/k)'], d: 'The period and frequency of a simple pendulum of length L, its swings small, or of a mass m on a spring of stiffness k.',
                     fields: function (raw) {
                         return [{ k: 'kind', l: 'Of', choice: ['Pendulum', 'Spring'] }].concat(raw.kind === '1' ? [{ k: 'm', l: 'm', ph: 'kg' }, { k: 'k', l: 'k', ph: 'N/m' }] :
@@ -8721,7 +8821,14 @@
                         return [{ k: 'shape', l: 'Shape', choice: ['Rod, middle', 'Rod, end', 'Disc', 'Ring', 'Ball', 'Hollow ball'] }, { k: 'm', l: 'm', ph: 'kg' },
                             { k: 'r', l: rod ? 'L' : 'r', ph: 'm', name: rod ? 'L' : 'r' }, { k: 'by', l: 'Spin', choice: ['rpm', 'rad/s'] },
                             raw.by === '1' ? { k: 'w', l: 'ω', ph: 'rad/s', name: 'ω' } : { k: 'w', l: 'rpm', ph: '60', name: 'rpm' }, { k: 'h', l: 'h', ph: 'm, optional' }];
-                    }, cols: 2, run: runRotation, example: function (raw) { return { shape: raw.shape || '0', by: raw.by || '0', m: '2', r: '0.3', w: raw.by === '1' ? '10' : '120', h: '1' }; } }
+                    }, cols: 2, run: runRotation, example: function (raw) { return { shape: raw.shape || '0', by: raw.by || '0', m: '2', r: '0.3', w: raw.by === '1' ? '10' : '120', h: '1' }; } },
+                { id: 'centre', t: 'Centre of mass', f: ['x̄ = Σmx ÷ Σm', 'I = Σmr<sup>2</sup>'], d: 'Up to four masses at points (x, y): where their centre of mass is, as of a seesaw ' +
+                    'or a molecule, drawn; the mass in all, and their moment of inertia about the centre and about 0. x and y are 0 unless typed: leave y empty along a line.',
+                    fields: [1, 2, 3, 4].reduce(function (list, i) {
+                        var s = '₁₂₃₄'.charAt(i - 1);
+                        return list.concat([{ k: 'm' + i, l: 'm<sub>' + i + '</sub>', ph: i > 2 ? 'optional' : 'kg', name: 'm' + s }, { k: 'x' + i, l: 'x<sub>' + i + '</sub>', ph: '0', def: 0, name: 'x' + s },
+                            { k: 'y' + i, l: 'y<sub>' + i + '</sub>', ph: '0', def: 0, name: 'y' + s }]);
+                    }, []), cols: 3, run: runCentre, example: { m1: '2', x1: '0', y1: '0', m2: '3', x2: '4', y2: '0', m3: '1', x3: '2', y3: '3' } }
             ],
             forces: [
                 { id: 'newton', t: 'Force, mass and acceleration', f: 'F = ma', d: 'Newton\'s second law: type two of F, m and a and the third is worked out; and the weight of the mass.',
@@ -8729,6 +8836,17 @@
                 { id: 'incline', t: 'Inclined plane', f: ['mg sin θ', 'μ mg cos θ'], d: 'A mass on a slope of angle θ with friction μ: its weight, the normal force, the force along the slope, the friction and the acceleration, and whether it slides.',
                     fields: [{ k: 'm', l: 'm', ph: 'kg' }, { k: 'a', l: 'θ', ph: '30', name: 'θ' }, { k: 'mu', l: 'μ', ph: '0', def: 0, name: 'μ' }, GRAVITY], cols: 2, run: runIncline,
                     example: function () { return { m: '10', a: angleTyped(30), mu: '0.2' }; } },
+                { id: 'atwood', t: 'Masses over a pulley', f: ['a = (m<sub>1</sub> – m<sub>2</sub>)g ÷ (m<sub>1</sub> + m<sub>2</sub>)', 'T = m<sub>1</sub>(g – a)'], d: 'Two masses on a string ' +
+                    'over a pulley, m<sub>1</sub> hanging and m<sub>2</sub> hanging too, as Atwood\'s machine, on a table, or on a slope of angle θ, with friction μ: their acceleration, ' +
+                    'which way they go, the tension in the string, and whether friction holds them; drawn. With a distance d, how fast they go after it and how long it takes. ' +
+                    'With the pulley\'s mass, a disc, it turns too.',
+                    fields: function (raw) {
+                        var of = +raw.kind || 0;
+                        return [{ k: 'kind', l: 'Of', choice: ['Two hanging', 'A table', 'A slope'] }, { k: 'm1', l: 'm<sub>1</sub>', ph: 'kg, hanging', name: 'm₁' }, { k: 'm2', l: 'm<sub>2</sub>', ph: 'kg', name: 'm₂' }]
+                            .concat(of === 2 ? [{ k: 'a', l: 'θ', ph: angleTyped(30), name: 'θ' }] : [], of ? [{ k: 'mu', l: 'μ', ph: '0', def: 0, name: 'μ' }] : [],
+                                [{ k: 'mp', l: 'Pulley', ph: 'kg, 0', def: 0, name: 'Pulley' }, { k: 'd', l: 'd', ph: 'm, optional' }, GRAVITY]);
+                    }, cols: 2, run: runAtwood,
+                    example: function (raw) { return Object.assign({ kind: raw.kind || '0', m1: '3', m2: '2', d: '1' }, raw.kind === '2' ? { m2: '4', a: angleTyped(30), mu: '0.1' } : raw.kind === '1' ? { mu: '0.2' } : {}); } },
                 { id: 'collision', t: 'Collision', f: 'm<sub>1</sub>u<sub>1</sub> + m<sub>2</sub>u<sub>2</sub> = m<sub>1</sub>v<sub>1</sub> + m<sub>2</sub>v<sub>2</sub>', d: 'Two masses meeting head on, speeds below 0 the other way: elastic, as billiard balls, or sticking together. ' +
                     'Their speeds after, their momentum and the kinetic energy lost.',
                     fields: [{ k: 'm1', l: 'm<sub>1</sub>', ph: 'kg', name: 'm₁' }, { k: 'u1', l: 'u<sub>1</sub>', ph: 'm/s', name: 'u₁' }, { k: 'm2', l: 'm<sub>2</sub>', ph: 'kg', name: 'm₂' },
@@ -8751,8 +8869,8 @@
                             [{ k: 'F', l: 'F', ph: 'N' }, { k: 'r', l: 'r', ph: 'm' }, { k: 'a', l: 'θ', ph: angleTyped(90), name: 'θ' }]);
                     }, cols: 3, run: runTorque,
                     example: function (raw) { return Object.assign({ kind: raw.kind || '0' }, [{ F: '50', r: '0.3', a: angleTyped(60) }, { W: '600', d1: '0.5', d2: '2' }][+raw.kind || 0]); } },
-                { id: 'gravity', t: 'Gravitation', f: 'F = G m<sub>1</sub>m<sub>2</sub>/r<sup>2</sup>', d: 'The pull between two masses r apart, by Newton\'s law; and of the first, as a planet, the gravity at r, the speed and period of a circular orbit, ' +
-                    'and the escape speed. The Earth is 5.972e24 kg, its radius 6.371e6 m.',
+                { id: 'gravity', t: 'Gravitation', f: ['F = G m<sub>1</sub>m<sub>2</sub>/r<sup>2</sup>', 'r<sub>s</sub> = 2Gm ÷ c<sup>2</sup>'], d: 'The pull between two masses r apart, by Newton\'s law; and of the first, as a planet, the gravity at r, the speed and period of a circular orbit, ' +
+                    'the escape speed, and the radius it would be a black hole within, Schwarzschild\'s. The Earth is 5.972e24 kg, its radius 6.371e6 m; the Sun 1.989e30 kg.',
                     fields: [{ k: 'm1', l: 'm<sub>1</sub>', ph: '5.972e24', name: 'm₁' }, { k: 'm2', l: 'm<sub>2</sub>', ph: '1', def: 1, name: 'm₂' }, { k: 'r', l: 'r', ph: '6.371e6' }],
                     cols: 3, run: runGravity, example: { m1: '5.972e24', m2: '1', r: '6.371e6' } },
                 { id: 'spring', t: 'Spring', f: ['F = kx', 'E = ½kx<sup>2</sup>'], d: 'A spring of stiffness k stretched or squeezed by x, by Hooke\'s law: its force and the energy it holds; with a mass, its period.',
@@ -8812,10 +8930,19 @@
                             [{ k: 'v', l: 'v', ph: '343', def: 343 }] : [{ k: 'T', l: 'T', ph: 'N' }, { k: 'mu', l: 'μ', ph: 'kg/m', name: 'μ' }], [{ k: 'n', l: 'n', ph: '1', def: 1 }]);
                     }, cols: 2, run: runStanding,
                     example: function (raw) { return Object.assign({ kind: raw.kind || '0', n: '2' }, raw.kind === '1' || raw.kind === '2' ? { L: '0.6' } : { L: '0.65', T: '70', mu: '0.0011' }); } },
+                { id: 'beats', t: 'Beats', f: ['f<sub>beat</sub> = |f<sub>1</sub> – f<sub>2</sub>|', 'f = (f<sub>1</sub> + f<sub>2</sub>) ÷ 2'], d: 'Two notes of frequencies near each other sounded together: ' +
+                    'their loudness rising and falling, the beats, how many a second and how long between them, the note heard, between the two, and how far apart they are in cents; drawn. ' +
+                    'As a string is tuned to another, the beats slow till there are none.',
+                    fields: [{ k: 'f1', l: 'f<sub>1</sub>', ph: 'Hz, 440', name: 'f₁' }, { k: 'f2', l: 'f<sub>2</sub>', ph: 'Hz, 444', name: 'f₂' }], cols: 2, run: runBeats, example: { f1: '440', f2: '444' } },
                 { id: 'lens', t: 'Lenses and mirrors', f: '1/f = 1/d<sub>o</sub> + 1/d<sub>i</sub>', d: 'A thin lens or a mirror: type two of the focal length f, the distance to the object and to the image, and the third is worked out; ' +
                     'the magnification, and the image. f is above 0 for a converging lens or a concave mirror; an image distance below 0 is virtual.',
                     fields: [{ k: 'f', l: 'f', ph: '10' }, { k: 'o', l: 'd<sub>o</sub>', ph: '30', name: 'dₒ' }, { k: 'i', l: 'd<sub>i</sub>', ph: '', name: 'dᵢ' }, { k: 'h', l: 'Height', ph: 'optional' }],
                     cols: 2, run: runLens, example: { f: '10', o: '30' } },
+                { id: 'lensmaker', t: 'Lensmaker\'s equation', f: '1/f = (n – 1)(1/R<sub>1</sub> – 1/R<sub>2</sub>)', d: 'A thin lens of index n, of faces of radii R<sub>1</sub>, the one the light meets first, ' +
+                    'and R<sub>2</sub>: its focal length, its power in dioptres, and whether it gathers light or spreads it; its shape drawn. A radius is above 0 where its centre is past its face, ' +
+                    'so a lens bulging both ways has R<sub>1</sub> above 0 and R<sub>2</sub> below; empty, the face is flat. Glass is about 1.5; in water, n<sub>m</sub> is 1.333.',
+                    fields: [{ k: 'n', l: 'n', ph: '1.5', def: 1.5 }, { k: 'r1', l: 'R<sub>1</sub>', ph: 'm, empty flat', name: 'R₁' }, { k: 'r2', l: 'R<sub>2</sub>', ph: 'm, empty flat', name: 'R₂' },
+                        { k: 'nm', l: 'n<sub>m</sub>', ph: '1', def: 1, name: 'nm' }], cols: 2, run: runLensmaker, example: { n: '1.5', r1: '0.2', r2: '-0.3' } },
                 { id: 'snell', t: 'Refraction', f: 'n<sub>1</sub> sin θ<sub>1</sub> = n<sub>2</sub> sin θ<sub>2</sub>', d: 'Light going from one medium to another, by Snell\'s law: the angle it bends to, from the normal, the critical angle, ' +
                     'and whether it is all reflected. Air is 1.000293, water 1.333, glass about 1.5.',
                     fields: [{ k: 'n1', l: 'n<sub>1</sub>', ph: '1', def: 1, name: 'n₁' }, { k: 'a', l: 'θ<sub>1</sub>', ph: '30', name: 'θ₁' }, { k: 'n2', l: 'n<sub>2</sub>', ph: '1.5', def: 1.5, name: 'n₂' }],
@@ -8827,13 +8954,25 @@
                             [{ k: 'N', l: 'Lines/mm', ph: '600', name: 'Lines/mm' }] : [{ k: 'd', l: 'd', ph: 'm, 0.25e-3' }, { k: 'L', l: 'L', ph: 'm' }], [{ k: 'm', l: 'Order', ph: '1', def: 1 }]);
                     }, cols: 2, run: runInterference,
                     example: function (raw) { return Object.assign({ kind: raw.kind || '0' }, raw.kind === '1' ? { w: '550', N: '600', m: '1' } : { w: '633', d: '0.25e-3', L: '2', m: '1' }); } },
+                { id: 'slit', t: 'One slit and resolution', f: ['a sin θ = mλ', 'θ = 1.22λ ÷ D'], d: 'Light through one slit of width a: the angle of its m-th dark fringe, how wide ' +
+                    'the bright middle is, and on a screen L away, in metres too. Or through a round hole of width D, as of a telescope, a camera or the eye: the smallest angle ' +
+                    'between two points it tells apart, by Rayleigh, and at a distance, how far apart they must be. The eye\'s pupil is some 2 to 8 mm. The light drawn in its colour.',
+                    fields: function (raw) {
+                        return [{ k: 'kind', l: 'Through', choice: ['A slit', 'A round hole'] }, { k: 'w', l: 'λ, nm', ph: '550', name: 'λ' }].concat(raw.kind === '1' ?
+                            [{ k: 'D', l: 'D', ph: 'm, 5e-3' }, { k: 'L', l: 'Distance', ph: 'm, optional' }] : [{ k: 'a', l: 'a', ph: 'm, 0.1e-3' }, { k: 'L', l: 'L', ph: 'm, optional' }, { k: 'm', l: 'Order', ph: '1', def: 1 }]);
+                    }, cols: 2, run: runSlit,
+                    example: function (raw) { return Object.assign({ kind: raw.kind || '0' }, raw.kind === '1' ? { w: '550', D: '5e-3', L: '100' } : { w: '633', a: '0.1e-3', L: '2', m: '1' }); } },
                 { id: 'polarise', t: 'Polarisation', f: ['I = I<sub>0</sub> cos<sup>2</sup> θ', 'tan θ<sub>B</sub> = n<sub>2</sub> ÷ n<sub>1</sub>'], d: 'Polarised light through a polariser at θ to it: ' +
                     'what goes through, by Malus\'s law, and of light not polarised, through one first; and of light off a surface from n₁ into n₂, the angle where what it reflects is all polarised, Brewster\'s.',
                     fields: [{ k: 'I', l: 'I<sub>0</sub>', ph: '1', def: 1, name: 'I₀' }, { k: 'a', l: 'θ', ph: '30', name: 'θ' }, { k: 'n1', l: 'n<sub>1</sub>', ph: '1', def: 1, name: 'n₁' },
                         { k: 'n2', l: 'n<sub>2</sub>', ph: '1.5', def: 1.5, name: 'n₂' }], cols: 2, run: runPolarise, example: function () { return { I: '100', a: angleTyped(60) }; } },
-                { id: 'doppler', t: 'Doppler effect', f: 'f′ = f (v + v<sub>o</sub>) ÷ (v – v<sub>s</sub>)', d: 'The frequency heard of a source moving and a listener moving: speeds above 0 toward each other, below 0 apart. Sound in air at 20 °C goes 343 m/s.',
-                    fields: [{ k: 'f', l: 'f', ph: 'Hz' }, { k: 'v', l: 'v', ph: '343', def: 343 }, { k: 's', l: 'v<sub>s</sub>', ph: '0', def: 0, name: 'vₛ' }, { k: 'o', l: 'v<sub>o</sub>', ph: '0', def: 0, name: 'vₒ' }],
-                    cols: 2, run: runDoppler, example: { f: '440', s: '30' } },
+                { id: 'doppler', t: 'Doppler effect', f: ['f′ = f (v + v<sub>o</sub>) ÷ (v – v<sub>s</sub>)', 'λ′ = λ√((1 + β) ÷ (1 – β))'], d: 'The frequency heard of a source moving and a listener moving: ' +
+                    'speeds above 0 toward each other, below 0 apart. Sound in air at 20 °C goes 343 m/s. Or light, of a star or a galaxy going away at v, by relativity: its wavelength seen, ' +
+                    'longer, redder, and its redshift z; below 0 coming nearer, bluer. Hydrogen\'s red line, Hα, is 656.3 nm.',
+                    fields: function (raw) {
+                        return [{ k: 'kind', l: 'Of', choice: ['Sound', 'Light'] }].concat(raw.kind === '1' ? [{ k: 'lw', l: 'λ, nm', ph: '656.3', name: 'λ' }, { k: 'lv', l: 'v', ph: 'km/s, away', name: 'v' }] :
+                            [{ k: 'f', l: 'f', ph: 'Hz' }, { k: 'v', l: 'v', ph: '343', def: 343 }, { k: 's', l: 'v<sub>s</sub>', ph: '0', def: 0, name: 'vₛ' }, { k: 'o', l: 'v<sub>o</sub>', ph: '0', def: 0, name: 'vₒ' }]);
+                    }, cols: 2, run: runDoppler, example: function (raw) { return raw.kind === '1' ? { kind: '1', lw: '656.3', lv: '30000' } : { kind: '0', f: '440', s: '30' }; } },
                 { id: 'photon', t: 'Light and photons', f: ['E = hf', 'c = fλ'], d: 'Light of a wavelength, frequency or energy: the other two, and what light it is, of its colour where it is seen.',
                     fields: function (raw) {
                         return [{ k: 'light', l: 'Of', choice: ['Wavelength', 'Frequency', 'Energy'] },
@@ -8872,10 +9011,38 @@
                     'with the temperature around it, what it loses. Temperatures in kelvin: the Sun is 5772 K, a person 310.',
                     fields: [{ k: 'T', l: 'T', ph: 'K' }, { k: 'A', l: 'A', ph: '1', def: 1 }, { k: 'e', l: 'ε', ph: '1', def: 1, name: 'ε' }, { k: 'Ts', l: 'Around', ph: 'K, optional' }],
                     cols: 2, run: runRadiation, example: { T: '310', A: '1.8', e: '0.97', Ts: '293' } },
+                { id: 'cooling', t: 'Cooling', f: 'T = T<sub>a</sub> + (T<sub>0</sub> – T<sub>a</sub>)e<sup>–kt</sup>', d: 'Newton\'s law of cooling: a thing at T<sub>0</sub> in air at T<sub>a</sub>, ' +
+                    'as a cup of tea, cooling, or warming, the faster the farther it is from the air. Of its k a minute, or of a reading, T<sub>1</sub> after t<sub>1</sub> minutes: ' +
+                    'its temperature after t minutes, how long it takes to come to a temperature, and its curve. In °C, or any one unit.',
+                    fields: function (raw) {
+                        return [{ k: 'by', l: 'Of', choice: ['A reading', 'k'] }, { k: 'T0', l: 'T<sub>0</sub>', ph: '°C, at first', name: 'T₀' }, { k: 'Ta', l: 'T<sub>a</sub>', ph: '20', def: 20, name: 'Ta' }]
+                            .concat(raw.by === '1' ? [{ k: 'k', l: 'k', ph: 'a minute' }] : [{ k: 't1', l: 't<sub>1</sub>', ph: 'min', name: 't₁' }, { k: 'T1', l: 'T<sub>1</sub>', ph: '°C, then', name: 'T₁' }],
+                                [{ k: 't', l: 't', ph: 'min, optional' }, { k: 'T', l: 'To', ph: '°C, optional', name: 'To' }]);
+                    }, cols: 2, run: runCooling,
+                    example: function (raw) { return Object.assign({ by: raw.by || '0', T0: '90', Ta: '20', t: '30', T: '60' }, raw.by === '1' ? { k: '0.03' } : { t1: '5', T1: '80' }); } },
+                { id: 'dew', t: 'Dew point and humidity', f: ['T<sub>d</sub> = cγ ÷ (b – γ)', 'γ = ln(RH ÷ 100) + bT ÷ (c + T)'], d: 'Air at a temperature T and a relative humidity RH: ' +
+                    'its dew point, where water comes out of it as it cools, as dew, mist or on a cold glass; or of its dew point, its humidity. The water in a cubic metre of it, and the pressure ' +
+                    'of its vapour, drawn on the curve of the most air holds. By Magnus\'s formula, b 17.625 and c 243.04 °C, from –45 °C to 60 °C. In °C.',
+                    fields: function (raw) {
+                        return [{ k: 'by', l: 'Of', choice: ['Humidity', 'Dew point'] }, { k: 'T', l: 'T', ph: '°C' },
+                            raw.by === '1' ? { k: 'Td', l: 'T<sub>d</sub>', ph: '°C', name: 'Td' } : { k: 'rh', l: 'RH', ph: '%', name: 'RH' }];
+                    }, cols: 2, run: runDew, example: function (raw) { return raw.by === '1' ? { by: '1', T: '25', Td: '15' } : { by: '0', T: '25', rh: '60' }; } },
                 { id: 'molecules', t: 'Gas molecules', f: ['v<sub>rms</sub> = √(3RT ÷ M)', 'E = <sup>3</sup>⁄<sub>2</sub>kT'], d: 'The molecules of a gas of molar mass M at a temperature T, ' +
                     'by the kinetic theory: how fast they go, the root mean square, the mean and the most likely speed, drawn; and the energy of each. ' +
                     'M in g/mol: air is about 29, nitrogen 28, oxygen 32, helium 4. T in kelvin.',
                     fields: [{ k: 'M', l: 'M', ph: 'g/mol' }, { k: 'T', l: 'T', ph: 'K' }], cols: 2, run: runMolecules, example: { M: '28', T: '293' } },
+                { id: 'gasprocess', t: 'Gas processes', f: ['PV = nRT', 'PV<sup>γ</sup> = constant'], d: 'An ideal gas at P₁, V₁ and T₁ taken to a new volume at a steady temperature, isothermal, ' +
+                    'at a steady pressure, isobaric, or with no heat in or out, adiabatic; or warmed at a steady volume, isochoric, to a new temperature: its pressure, volume ' +
+                    'and temperature after, how many moles, the work it does, the heat put in and the change in its energy, its path drawn. Air is of two atoms a molecule, ' +
+                    'γ 7/5; helium and argon of one, 5/3. T in kelvin.',
+                    fields: function (raw) {
+                        return [{ k: 'kind', l: 'It is', choice: ['Isothermal', 'Isobaric', 'Isochoric', 'Adiabatic'] }, { k: 'gas', l: 'Molecule', choice: ['2 atoms', '1 atom', '3 or more'] },
+                            { k: 'P', l: 'P<sub>1</sub>', ph: '101325', def: 101325, name: 'P₁' }, { k: 'V', l: 'V<sub>1</sub>', ph: 'm³', name: 'V₁' }, { k: 'T', l: 'T<sub>1</sub>', ph: '293.15', def: 293.15, name: 'T₁' },
+                            raw.kind === '2' ? { k: 'T2', l: 'T<sub>2</sub>', ph: 'K', name: 'T₂' } : { k: 'V2', l: 'V<sub>2</sub>', ph: 'm³', name: 'V₂' }];
+                    }, cols: 2, run: runGasProcess,
+                    example: function (raw) {
+                        return Object.assign({ kind: raw.kind || '0', gas: raw.gas || '0', P: '101325', V: '0.001', T: '300' }, raw.kind === '2' ? { T2: '600' } : { V2: raw.kind === '3' ? '0.0005' : '0.002' });
+                    } },
                 { id: 'engine', t: 'Heat engines', f: ['η = 1 – T<sub>C</sub> ÷ T<sub>H</sub>', 'COP = T<sub>C</sub> ÷ (T<sub>H</sub> – T<sub>C</sub>)'], d: 'An engine between a hot T<sub>H</sub> and a cold ' +
                     'T<sub>C</sub>, in kelvin: the most of its heat it can turn to work, Carnot\'s; with the heat taken in and the work done, how well it does. ' +
                     'Or a fridge or a heat pump: the most heat it can move for each joule.',
@@ -8905,7 +9072,20 @@
                     'with no friction: its speed in the second, the flow, and how much its pressure falls; with a rise in height, of that too. Water unless typed.',
                     fields: [{ k: 'v1', l: 'v<sub>1</sub>', ph: 'm/s', name: 'v₁' }, { k: 'd1', l: 'd<sub>1</sub>', ph: 'm, its width', name: 'd₁' }, { k: 'd2', l: 'd<sub>2</sub>', ph: 'm', name: 'd₂' },
                         { k: 'rho', l: 'ρ', ph: '1000', def: 1000, name: 'ρ' }, { k: 'h', l: 'Rise', ph: '0', def: 0, name: 'Rise' }, GRAVITY], cols: 3, run: runFlow,
-                    example: { v1: '2', d1: '0.1', d2: '0.05' } }
+                    example: { v1: '2', d1: '0.1', d2: '0.05' } },
+                { id: 'reynolds', t: 'Reynolds number', f: ['Re = ρvd ÷ μ', 'Δp = f (L/d) ½ρv<sup>2</sup>'], d: 'A fluid flowing at v in a pipe of width d: its Reynolds number, and whether ' +
+                    'it flows smoothly in layers, laminar, or churns, turbulent, its speed across the pipe drawn; along a length L, the pressure it loses to friction, by Darcy and ' +
+                    'Weisbach, f from Colebrook\'s equation of the pipe\'s roughness ε, and the power to pump it. Water at 20 °C unless typed, 998 kg/m³ and μ 1.002e-3 Pa·s; ' +
+                    'air is 1.204 and 1.81e-5. Steel pipe is some 0.045 mm rough, plastic 0.0015.',
+                    fields: [{ k: 'v', l: 'v', ph: 'm/s' }, { k: 'd', l: 'd', ph: 'm' }, { k: 'rho', l: 'ρ', ph: '998', def: 998, name: 'ρ' }, { k: 'mu', l: 'μ', ph: '1.002e-3', def: 1.002e-3, name: 'μ' },
+                        { k: 'L', l: 'L', ph: 'm, optional' }, { k: 'e', l: 'ε, mm', ph: '0', def: 0, name: 'ε' }], cols: 2, run: runReynolds,
+                    example: { v: '2', d: '0.05', L: '100', e: '0.045' } },
+                { id: 'stokes', t: 'Stokes\' law', f: ['F = 6πμrv', 'v = 2(ρ<sub>s</sub> – ρ<sub>f</sub>)gr<sup>2</sup> ÷ 9μ'], d: 'A small ball of radius r and density ρ<sub>s</sub> falling slowly ' +
+                    'through a fluid, as a bead through honey, sand through water or a droplet of mist through air: the speed it falls no faster than, below 0 if it rises, the drag then, ' +
+                    'and its Reynolds number, below about 1 for the law to hold; its forces drawn. Water at 20 °C unless typed, 998 kg/m³ and μ 1.002e-3 Pa·s; glycerine is 1260 and 1.41, ' +
+                    'honey some 1420 and 10, air 1.204 and 1.81e-5. Steel is 7800, glass 2500.',
+                    fields: [{ k: 'r', l: 'r', ph: 'm' }, { k: 'rs', l: 'ρ<sub>s</sub>', ph: 'kg/m³', name: 'ρs' }, { k: 'rf', l: 'ρ<sub>f</sub>', ph: '998', def: 998, name: 'ρf' },
+                        { k: 'mu', l: 'μ', ph: '1.002e-3', def: 1.002e-3, name: 'μ' }, GRAVITY], cols: 2, run: runStokes, example: { r: '1e-3', rs: '7800', rf: '1260', mu: '1.41' } }
             ],
             modern: [
                 { id: 'massenergy', t: 'Mass and energy', f: 'E = mc<sup>2</sup>', d: 'The energy in a mass, by Einstein, or the mass of an energy: in joules, electronvolts, kilowatt-hours and tonnes of TNT.',
@@ -8916,6 +9096,11 @@
                     'its mass defect, and its binding energy, in all and of each nucleon, highest near iron, drawn. Helium-4 is 4.002602 u, iron-56 55.934936, uranium-235 235.043928.',
                     fields: [{ k: 'Z', l: 'Z', ph: '2' }, { k: 'A', l: 'A', ph: '4' }, { k: 'm', l: 'm, u', ph: '4.002602', name: 'm' }], cols: 3, run: runBinding,
                     example: { Z: '26', A: '56', m: '55.934936' } },
+                { id: 'qvalue', t: 'Q-value', f: 'Q = (m<sub>before</sub> – m<sub>after</sub>)c<sup>2</sup>', d: 'The energy a nuclear reaction or a decay gives off, or takes in, of the masses ' +
+                    'of the atoms before and after, in u, + between them: above 0, it gives energy off. Of one atom decaying into two, how they share it, the lighter faster. ' +
+                    'Uranium-238 is 238.050788 u, thorium-234 234.043601, helium-4 4.002602, hydrogen-2 2.014102, hydrogen-3 3.016049, the neutron 1.008665.',
+                    fields: [{ k: 'a', l: 'Before', ph: 'u, 238.050788', text: true, cls: 'calc-sv-wide', aria: 'Before' }, { k: 'b', l: 'After', ph: 'u, 234.043601 + 4.002602', text: true, cls: 'calc-sv-wide', aria: 'After' }],
+                    cols: 1, run: runQValue, example: { a: '238.050788', b: '234.043601 + 4.002602' } },
                 { id: 'photoelectric', t: 'Photoelectric effect', f: 'E<sub>k</sub> = hf – φ', d: 'Light on a metal of work function φ: whether it knocks electrons out, how fast they come, the voltage that stops them, ' +
                     'and the light it takes. φ of caesium is about 2.1 eV, sodium 2.3, zinc 4.3, copper 4.7.',
                     fields: function (raw) {
@@ -9071,6 +9256,15 @@
         });
         return svgOf('', W, H, 'Where it is among the kinds of light', body + '<path class="calc-sv-ground" d="M8 8h' + fix(W - 16) + 'v16H8Z"/>' +
             '<path class="calc-sv-head calc-sv-head-red" d="M' + fix(x) + ' 24l-5 7h10Z"/><path class="calc-sv-curve" d="M' + fix(x) + ' 6V24"/>');
+    }
+
+    // the colours seen, from 380 nm to 750, light of nm0 moved to nm1: a mark at each, named, the second red
+    function shiftDrawing(nm0, nm1) {
+        var W = 300, id = 'calc-plot-' + (++plotIds), x = function (nm) { return 8 + (W - 16) * (nm - 380) / 370; }, a = x(nm0), b = x(nm1), up = b >= a;
+        return svgOf('', W, 50, 'Its colour, and the one seen', rainbow(id) + '<rect x="8" y="8" width="' + (W - 16) + '" height="16" fill="url(#' + id + ')"/>' +
+            '<path class="calc-sv-ground" d="M8 8h' + (W - 16) + 'v16H8Z"/><path class="calc-sv-ground" d="M' + fix(a) + ' 4V28"/>' +
+            '<path class="calc-sv-head calc-sv-head-red" d="M' + fix(b) + ' 24l-5 7h10Z"/><path class="calc-sv-curve" d="M' + fix(b) + ' 6V24"/>' +
+            svgText(a + (up ? -3 : 3), 42, 'Its own', up ? 'end' : 'start') + svgText(b + (up ? 3 : -3), 42, 'Seen', up ? 'start' : 'end', 'calc-sv-small calc-sv-red'));
     }
 
     // a body going round a circle: its speed along it, and its acceleration in to the middle
@@ -9335,6 +9529,147 @@
             .concat(raw.m && n.m > 0 ? [['F, N', n.m * v * v / n.r]] : [])).concat({ l: 'Its speed along, its pull in', wide: true, text: orbitDrawing() }), cols: 3 };
     }
 
+    // two velocities from a point, A and B, B dashed, and A as B sees it, from the tip of B to the tip of A, red
+    function vectorsDrawing(a, b) {
+        var W = 300, H = 120, xs = [0, a[0], b[0]], ys = [0, a[1], b[1]], x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs),
+            y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys), k, o, A, B;
+        if (!(Math.max(x1 - x0, y1 - y0) > 0)) return '';
+        k = Math.min((W - 60) / (x1 - x0 || 1e-300), (H - 30) / (y1 - y0 || 1e-300));
+        function at(p) { return [W / 2 + (p[0] - (x0 + x1) / 2) * k, H / 2 - (p[1] - (y0 + y1) / 2) * k]; }
+        function name(from, to, s) { // past the tip, the way it points
+            var d = Math.hypot(to[0] - from[0], to[1] - from[1]) || 1;
+            return svgText(to[0] + 9 * (to[0] - from[0]) / d, to[1] + 9 * (to[1] - from[1]) / d + 4, s, 'middle', 'calc-sv-small calc-sv-bold');
+        }
+        o = at([0, 0]);
+        A = at(a);
+        B = at(b);
+        return svgOf('', W, H, 'A and B, and A as B sees it', svgArrow(o[0], o[1], A[0], A[1], 'calc-sv-seg') + svgArrow(o[0], o[1], B[0], B[1], 'calc-sv-seg', true) +
+            svgArrow(B[0], B[1], A[0], A[1], 'calc-sv-curve') + '<circle class="calc-sv-mid" cx="' + fix(o[0]) + '" cy="' + fix(o[1]) + '" r="2.5"/>' +
+            name(o, A, 'A') + name(o, B, 'B'));
+    }
+
+    // a river d wide, its current to the right, and a boat's path aimed straight across, landing drift down it
+    function riverDrawing(d, drift) {
+        var W = 300, H = 110, k = Math.min((H - 30) / d, (W - 80) / (drift || 1e-300)), top = H / 2 - d * k / 2, bottom = H / 2 + d * k / 2, x = 30;
+        return svgOf('', W, H, 'Its path across the river, the current carrying it down', '<path class="calc-sv-ground" d="M8 ' + fix(top) + 'H' + (W - 8) + 'M8 ' + fix(bottom) + 'H' + (W - 8) + '"/>' +
+            '<path class="calc-sv-guide" d="M' + x + ' ' + fix(bottom) + 'V' + fix(top) + '"/>' + svgArrow(W - 62, bottom - 9, W - 26, bottom - 9, 'calc-sv-seg') +
+            svgText(W - 44, bottom - 15, 'Current', 'middle') + svgArrow(x, bottom, x + drift * k, top, 'calc-sv-curve') + '<circle class="calc-sv-dot" cx="' + x + '" cy="' + fix(bottom) + '" r="3"/>');
+    }
+
+    function runRelative(n, raw) {
+        var ax, ay, bx, by, x, y, s, h, t, rows, none;
+        if (raw.kind === '1') {
+            none = ['Time, s', 'Lands down, m'];
+            if (!raw.v && !raw.u && !raw.d) return physNone(none);
+            if (!(n.v > 0 && n.u >= 0 && n.d > 0)) return Object.assign(physNone(none), { warn: true, note: 'v and d above 0, and u of 0 or more.' });
+            t = n.d / n.v;
+            rows = [['Time, s', t], ['Lands down, m', n.u * t], ['Over the ground, m/s', Math.hypot(n.v, n.u)], ['Off straight, angle', fromRadians(Math.atan2(n.u, n.v))]];
+            if (n.v > n.u) rows.push(['Aim upstream, angle', fromRadians(Math.asin(n.u / n.v))], ['Straight across, s', n.d / Math.sqrt(n.v * n.v - n.u * n.u)]);
+            return { rows: physRows(rows).concat(drawnTile(riverDrawing(n.d, n.u * t), 'Its path, aimed straight across')), cols: 2,
+                note: (n.v > n.u ? 'Aimed upstream by that angle from straight across, it goes straight over, more slowly.' : 'The current is as fast as the boat or faster: it cannot go straight across.') +
+                    ' Angles in ' + unitWord() + '.' };
+        }
+        none = ['Speed, m/s', 'Heading'];
+        if (!raw.va && !raw.vb) return physNone(none);
+        if (!(isFinite(n.va) && isFinite(n.vb) && isFinite(n.a) && isFinite(n.b))) return Object.assign(physNone(none), { warn: true, note: 'Both speeds, and their headings.' });
+        ax = n.va * Math.cos(toRadians(n.a));
+        ay = n.va * Math.sin(toRadians(n.a));
+        bx = n.vb * Math.cos(toRadians(n.b));
+        by = n.vb * Math.sin(toRadians(n.b));
+        s = 1e-12 * (Math.abs(n.va) + Math.abs(n.vb)); // what is left of cos 90°, 0
+        x = Math.abs(ax - bx) < s ? 0 : ax - bx;
+        y = Math.abs(ay - by) < s ? 0 : ay - by;
+        h = Math.atan2(y, x);
+        if (h < 0) h += 2 * Math.PI;
+        s = Math.hypot(x, y);
+        return { rows: physRows([['A from B, m/s', s], ['Its heading', s ? fromRadians(h) : NaN], ['East, m/s', x], ['North, m/s', y], ['B from A, heading', s ? fromRadians((h + Math.PI) % (2 * Math.PI)) : NaN]])
+            .concat(drawnTile(vectorsDrawing([ax, ay], [bx, by]), 'A, B, and A as B sees it')), cols: 2,
+            note: 'B sees A go so; A sees B go as fast the other way. Angles in ' + unitWord() + '.' };
+    }
+
+    // an orbit of half its width a and eccentricity e round a body of radius R at a focus, to scale, it at its nearest
+    function ellipseDrawing(a, e, R) {
+        var W = 300, H = 120, b = a * Math.sqrt(1 - e * e), k = Math.min((W - 40) / (2 * a), (H - 20) / (2 * b)), cx = W / 2, cy = H / 2;
+        return svgOf('', W, H, 'Its orbit round the body, to scale, it at its nearest', '<ellipse class="calc-sv-seg calc-sv-thin" cx="' + cx + '" cy="' + cy + '" rx="' + fix(a * k) + '" ry="' + fix(b * k) + '"/>' +
+            '<circle class="calc-sv-fill" cx="' + fix(cx - a * e * k) + '" cy="' + cy + '" r="' + fix(Math.max(2.5, R * k)) + '"/>' +
+            '<circle class="calc-sv-dot" cx="' + fix(cx - a * k) + '" cy="' + cy + '" r="3.5"/>');
+    }
+
+    function runOrbit(n, raw) {
+        var of = +raw.given || 0, gm = G_NEWTON * n.M, rp, ra, o, rows, low, none = ['a, m', 'T, s'];
+        if (of === 0 ? !raw.h : of === 1 ? !raw.T : !raw.h1 && !raw.h2) return physNone(none);
+        if (!(n.M > 0 && n.R >= 0)) return Object.assign(physNone(none), { warn: true, note: 'M above 0, and R of 0 or more.' });
+        if (of === 1) rp = ra = CalcPhysics.orbitSize(gm, n.T);
+        else if (of === 2) {
+            rp = n.R + n.h1;
+            ra = n.R + n.h2;
+        } else rp = ra = n.R + n.h;
+        o = CalcPhysics.orbit(gm, rp, ra);
+        if (!o) return Object.assign(physNone(none), { warn: true, note: of === 1 ? 'T above 0.' : of === 2 ? 'Both heights, above the middle of the body.' : 'A height above the middle of the body.' });
+        low = Math.min(rp, ra) < n.R;
+        rows = [['a, m', o.a], ['T, s', o.t], ['T, h', o.t / 3600]].concat(o.e ? [['e', o.e], ['v nearest, m/s', o.vp], ['v farthest, m/s', o.va]] :
+            [['Height, m', o.a - n.R], ['v, m/s', o.vp], ['Escape there, m/s', o.vp * Math.SQRT2], ['g there, m/s²', gm / (o.a * o.a)]], [['Energy, J/kg', -gm / (2 * o.a)]]);
+        return { rows: physRows(rows).concat(drawnTile(ellipseDrawing(o.a, o.e, n.R), 'Its orbit, to scale')), cols: 2, warn: low,
+            note: low ? 'Lower than the surface: it would hit the body.' : o.e ? 'Fastest nearest, slowest farthest, by Kepler\'s second law.' : 'T² grows as a³; G = 6.6743 × 10⁻¹¹ N·m²/kg².' };
+    }
+
+    function runRocket(n, raw) {
+        var isp = raw.by === '1', ve = isp ? n.ve * CalcPhysics.g : n.ve, timed = !!raw.t, r, rows, weak, none = ['Δv, m/s', 'm<sub>0</sub> ÷ m<sub>f</sub>'];
+        if (!raw.ve && !raw.m0 && !raw.mf) return physNone(none);
+        r = CalcPhysics.rocket(ve, n.m0, n.mf, timed ? n.t : NaN, n.g);
+        if (!r || timed && !(n.t > 0) || !(n.g > 0)) {
+            return Object.assign(physNone(none), { warn: true, note: (isp ? 'Isp' : 'vₑ') + ' and both masses above 0, the full not below the empty' + (timed ? ', and t and g above 0.' : '.') });
+        }
+        rows = [['Δv, m/s', r.dv], ['Δv, km/h', r.dv * 3.6], ['m<sub>0</sub> ÷ m<sub>f</sub>', r.ratio], ['Fuel, kg', r.fuel], ['Fuel, % of m<sub>0</sub>', 100 * r.fuel / n.m0],
+            isp ? ['v<sub>e</sub>, m/s', ve] : ['I<sub>sp</sub>, s', ve / CalcPhysics.g]];
+        if (timed) rows.push(['Burns, kg/s', r.flow], ['Thrust, N', r.thrust], ['a at first, m/s²', r.a0], ['a at last, m/s²', r.a1], ['Δv going up, m/s', r.up]);
+        weak = timed && r.thrust < n.m0 * n.g;
+        return { rows: physRows(rows).concat(drawnTile(graphDrawing('Its speed as it burns its fuel', 0, r.fuel, { fs: [function (x) { return ve * Math.log(n.m0 / (n.m0 - x)); }], names: ['kg burnt', 'v'] }),
+            'Its speed as it burns its fuel')), cols: 2, warn: weak,
+            note: weak ? 'Its thrust is less than its weight: it cannot lift off straight up.' : 'Δv in space, with no air nor gravity' + (timed ? '; straight up, g takes g × t of it.' : '. With the time it burns, its thrust.') };
+    }
+
+    // masses as dots as big as they are, named, and their centre of mass, red, a line to each
+    function centreDrawing(pts, X, Y) {
+        var W = 300, H = 120, xs = pts.map(function (p) { return p.x; }), ys = pts.map(function (p) { return p.y; }), big = Math.max.apply(null, pts.map(function (p) { return p.m; })),
+            x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys), k, c, body = '';
+        if (!(Math.max(x1 - x0, y1 - y0) > 0)) return '';
+        k = Math.min((W - 50) / (x1 - x0 || 1e-300), (H - 44) / (y1 - y0 || 1e-300));
+        function at(x, y) { return [W / 2 + (x - (x0 + x1) / 2) * k, H / 2 + 4 - (y - (y0 + y1) / 2) * k]; }
+        c = at(X, Y);
+        pts.forEach(function (p) {
+            var q = at(p.x, p.y);
+            body += '<path class="calc-sv-guide" d="M' + fix(c[0]) + ' ' + fix(c[1]) + 'L' + fix(q[0]) + ' ' + fix(q[1]) + '"/>';
+        });
+        pts.forEach(function (p) {
+            var q = at(p.x, p.y), r = 3 + 6 * Math.sqrt(p.m / big);
+            body += '<circle class="calc-sv-mid" cx="' + fix(q[0]) + '" cy="' + fix(q[1]) + '" r="' + fix(r) + '"/>' + svgText(q[0], q[1] - r - 3, 'm' + '₁₂₃₄'.charAt(p.i - 1), 'middle');
+        });
+        return svgOf('', W, H, 'The masses, and their centre of mass', body + '<path class="calc-sv-curve" d="M' + fix(c[0] - 6) + ' ' + fix(c[1]) + 'h12M' + fix(c[0]) + ' ' + fix(c[1] - 6) + 'v12"/>' +
+            '<circle class="calc-sv-dot" cx="' + fix(c[0]) + '" cy="' + fix(c[1]) + '" r="2.5"/>');
+    }
+
+    function runCentre(n, raw) {
+        var pts = [], M = 0, X = 0, Y = 0, Ic = 0, I0 = 0, i, none = ['x̄, m', 'ȳ, m', 'Σm, kg'];
+        for (i = 1; i <= 4; i++) {
+            if (raw['m' + i] || raw['x' + i] || raw['y' + i]) pts.push({ m: n['m' + i], x: n['x' + i], y: n['y' + i], i: i });
+        }
+        if (!pts.length) return Object.assign(physNone(none), { cols: 3 });
+        if (!pts.every(function (p) { return p.m > 0 && isFinite(p.x) && isFinite(p.y); })) return Object.assign(physNone(none), { cols: 3, warn: true, note: 'Each mass of a point typed, above 0.' });
+        pts.forEach(function (p) {
+            M += p.m;
+            X += p.m * p.x;
+            Y += p.m * p.y;
+            I0 += p.m * (p.x * p.x + p.y * p.y);
+        });
+        X /= M;
+        Y /= M;
+        pts.forEach(function (p) { Ic += p.m * (Math.pow(p.x - X, 2) + Math.pow(p.y - Y, 2)); });
+        return { rows: physRows([['x̄, m', X], ['ȳ, m', Y], ['Σm, kg', M], ['I about it, kg·m²', Ic], ['I about 0, kg·m²', I0], ['From 0, m', Math.hypot(X, Y)]])
+            .concat(drawnTile(centreDrawing(pts, X, Y), 'The masses, and their centre')), cols: 3,
+            note: pts.length < 2 ? 'One mass is its own centre: type another.' : 'I about an axis at right angles to the page; about 0 it is more by Σm r̄².' };
+    }
+
     function runOscillator(n, raw) {
         var spring = raw.kind === '1', T, w, none = ['T, s', 'f, Hz'];
         if (spring ? !raw.m && !raw.k : !raw.L) return physNone(none);
@@ -9385,6 +9720,59 @@
             note: net > 1e-12 * W ? 'It slides down.' : 'Friction holds it: it does not slide, μ being at least tan θ.' };
     }
 
+    // two masses on a string over a pulley: of 0 both hanging, else m2 on a slope at t, flat a table, m1 hanging past its top;
+    // way 1 as m1 falls, -1 as it rises, 0 held, a red arrow by m1
+    function atwoodDrawing(of, t, way) {
+        var W = 300, H = 120, r = of ? 9 : 12, c = Math.cos(t), s = Math.sin(t), body, L, xc = 196, yc = 38, D, bx, by, qx, qy, hx, hy, deg = t * 180 / Math.PI;
+        function block(x, y, name, side) { // a block of 20 hanging from x, its top at y, named at a side
+            return '<path class="calc-sv-seg calc-sv-thin" d="M' + fix(x) + ' ' + fix(qy) + 'V' + fix(y) + '"/><rect class="calc-sv-fill calc-sv-block" x="' + fix(x - 10) + '" y="' + fix(y) +
+                '" width="20" height="20"/>' + svgText(x + side * 15, y + 14, name, side < 0 ? 'end' : 'start');
+        }
+        if (of === 0) {
+            qx = 150;
+            qy = 26;
+            hx = qx - r;
+            hy = 74;
+            body = '<path class="calc-sv-ground" d="M118 6H182M150 6V' + qy + '"/><circle class="calc-sv-fill" cx="' + qx + '" cy="' + qy + '" r="' + r + '"/>' +
+                block(hx, hy, 'm₁', -1) + block(qx + r, 54, 'm₂', 1);
+        } else {
+            L = Math.min(176 / Math.max(c, 1e-9), 74 / Math.max(s, 1e-9));
+            D = 0.5 * L;
+            body = s > 0.01 ? '<path class="calc-sv-fill" d="M' + fix(xc - L * c) + ' ' + fix(yc + L * s) + 'L' + xc + ' ' + yc + 'V' + fix(yc + L * s) + 'Z"/>' +
+                (t > 0.05 ? '<path class="calc-sv-guide" d="M' + fix(xc - L * c + 30) + ' ' + fix(yc + L * s) + 'A30 30 0 0 0 ' + fix(xc - L * c + 30 * c) + ' ' + fix(yc + L * s - 30 * s) + '"/>' +
+                    svgText(xc - L * c + 40 * Math.cos(t / 2), yc + L * s - 40 * Math.sin(t / 2) + 4, 'θ', 'middle') : '') :
+                '<rect class="calc-sv-fill" x="' + fix(xc - L) + '" y="' + yc + '" width="' + fix(L) + '" height="8"/><path class="calc-sv-ground" d="M' + fix(xc - L + 10) + ' ' + (yc + 8) +
+                    'V' + (H - 4) + 'M' + (xc - 10) + ' ' + (yc + 8) + 'V' + (H - 4) + '"/>';
+            bx = xc - D * c;
+            by = yc + D * s;
+            qx = xc - s + 6 * c; // the pulley past the corner, the string from the block's middle along the slope to its top
+            qy = yc - c - 6 * s;
+            hx = qx + r;
+            hy = qy + 42;
+            body += '<path class="calc-sv-ground" d="M' + xc + ' ' + yc + 'L' + fix(qx) + ' ' + fix(qy) + '"/>' +
+                '<path class="calc-sv-seg calc-sv-thin" d="M' + fix(bx - 10 * s) + ' ' + fix(by - 10 * c) + 'L' + fix(qx - r * s) + ' ' + fix(qy - r * c) + '"/>' +
+                '<rect class="calc-sv-fill calc-sv-block" x="-10" y="-20" width="20" height="20" transform="translate(' + fix(bx) + ' ' + fix(by) + ') rotate(' + fix(-deg) + ')"/>' +
+                svgText(bx - 30 * s, by - 30 * c + 4, 'm₂', 'middle') + '<circle class="calc-sv-fill" cx="' + fix(qx) + '" cy="' + fix(qy) + '" r="' + r + '"/>' + block(hx, hy, 'm₁', 1);
+        }
+        if (way) body += svgArrow(hx + (of ? 34 : -34), hy + (way > 0 ? 0 : 28), hx + (of ? 34 : -34), hy + (way > 0 ? 28 : 0), 'calc-sv-curve');
+        return svgOf('', W, H, 'The masses and the pulley', body + '<circle class="calc-sv-mid" cx="' + fix(qx) + '" cy="' + fix(qy) + '" r="2"/>');
+    }
+
+    function runAtwood(n, raw) {
+        var of = +raw.kind || 0, t = of === 0 ? Math.PI / 2 : of === 1 ? 0 : toRadians(n.a), r, a, rows, none = ['a, m/s²', 'T, N'], goes;
+        if (!raw.m1 && !raw.m2) return physNone(none);
+        r = CalcPhysics.atwood(n.m1, n.m2, t, of ? n.mu : 0, n.mp, n.g);
+        if (!r) return Object.assign(physNone(none), { warn: true, note: 'Both masses above 0' + (of === 2 ? ', θ from 0 to a right angle' : '') + (of ? ', μ of 0 or more' : '') + ', the pulley 0 or more and g above 0.' });
+        a = Math.abs(r.a);
+        rows = [['a, m/s²', a]].concat(n.mp > 0 ? [['T by m₁, N', r.t1], ['T by m₂, N', r.t2]] : [['T, N', r.t1]], of ? [['Friction, N', r.friction]] : []);
+        if (raw.d && n.d > 0 && r.moves) rows.push(['v after d, m/s', Math.sqrt(2 * a * n.d)], ['Time for d, s', Math.sqrt(2 * n.d / a)]);
+        goes = !r.moves ? (of ? 'Held: friction holds them' : 'Balanced: they stay') : r.a > 0 ? 'm₁ falls, m₂ ' + (of === 0 ? 'rises' : of === 1 ? 'is pulled along' : 'is pulled up') :
+            'm₂ ' + (of === 0 ? 'falls' : 'slides down') + ', m₁ rises';
+        return { rows: physRows(rows).concat([{ l: 'They', wide: true, text: goes }], drawnTile(atwoodDrawing(of, t, r.a > 0 ? 1 : r.a < 0 ? -1 : 0), 'The masses, and which way they go')), cols: 2,
+            note: (of && !r.moves ? 'Friction holds them, as much as it takes, up to μ times the normal force. ' : '') + 'The string not stretching, of no mass' +
+                (n.mp > 0 ? '; the pulley a disc, turning with it.' : ', nor the pulley.') + (of === 2 ? ' Angles in ' + unitWord() + '.' : '') };
+    }
+
     function runCollision(n, raw) {
         var m1 = n.m1, m2 = n.m2, u1 = n.u1, u2 = n.u2, v1, v2, p = m1 * u1 + m2 * u2, ke0, ke1, none = ['v₁, m/s', 'v₂, m/s'];
         if (!raw.m1 && !raw.m2) return physNone(none);
@@ -9416,10 +9804,14 @@
 
     function runGravity(n, raw) {
         var none = ['F, N', 'g, m/s²'];
+        var rs = 2 * G_NEWTON * n.m1 / (LIGHT * LIGHT);
         if (!raw.m1 && !raw.r) return physNone(none);
+        if (n.m1 > 0 && !raw.r) return { rows: physRows([['Schwarzschild r, m', rs]]), cols: 2, note: 'With r, the pull, the gravity and the orbits at r too.' };
         if (!(n.m1 > 0 && n.m2 > 0 && n.r > 0)) return Object.assign(physNone(none), { warn: true, note: 'The masses and r are above 0.' });
         return { rows: physRows([['F, N', G_NEWTON * n.m1 * n.m2 / (n.r * n.r)], ['g at r, m/s²', G_NEWTON * n.m1 / (n.r * n.r)], ['Orbit speed, m/s', Math.sqrt(G_NEWTON * n.m1 / n.r)],
-            ['Orbit period, s', 2 * Math.PI * Math.sqrt(Math.pow(n.r, 3) / (G_NEWTON * n.m1))], ['Escape speed, m/s', Math.sqrt(2 * G_NEWTON * n.m1 / n.r)]]), cols: 2, note: 'G = 6.6743 × 10⁻¹¹ N·m²/kg².' };
+            ['Orbit period, s', 2 * Math.PI * Math.sqrt(Math.pow(n.r, 3) / (G_NEWTON * n.m1))], ['Escape speed, m/s', Math.sqrt(2 * G_NEWTON * n.m1 / n.r)], ['Schwarzschild r, m', rs]]), cols: 2,
+            warn: n.r <= rs, note: n.r <= rs ? 'r is inside its Schwarzschild radius: a black hole, that not even light leaves; Newton\'s law no longer holds.' :
+                'G = 6.6743 × 10⁻¹¹ N·m²/kg². Squeezed within its Schwarzschild radius, it would be a black hole.' };
     }
 
     function runSpring(n, raw) {
@@ -9650,14 +10042,51 @@
     }
 
     function runDivider(n, raw) {
-        var p = partValues(raw, ['V', 'R1', 'R2', 'RL']), v = p.v, r2 = v.R2, out, none = ['V out', 'I, A'];
+        var p = partValues(raw, ['V', 'R1', 'R2', 'RL']), v = p.v, r2 = v.R2, out, th, bare, none = ['V out', 'I, A'];
         if (p.bad.length) return Object.assign(physNone(none), { cols: 2, bad: p.bad, warn: true, note: 'A value, as 9, 10k or 4k7.' });
         if (!raw.V && !raw.R1 && !raw.R2) return Object.assign(physNone(none), { cols: 2 });
         if (!(isFinite(v.V) && v.R1 > 0 && v.R2 > 0 && (!raw.RL || v.RL > 0))) return Object.assign(physNone(none), { cols: 2, warn: true, note: 'Vin, and resistances above 0.' });
         if (raw.RL) r2 = 1 / (1 / v.R2 + 1 / v.RL);
         out = v.V * r2 / (v.R1 + r2);
-        return { rows: physRows([['V out', out], ['I, A', v.V / (v.R1 + r2)], ['Ratio', r2 / (v.R1 + r2)]].concat(raw.RL ? [['Without the load', v.V * v.R2 / (v.R1 + v.R2)]] : [])), cols: 2,
-            note: CalcPhysics.si(out, 'V') + (raw.RL ? ', the load across R₂.' : '.') };
+        th = v.R1 * v.R2 / (v.R1 + v.R2);
+        bare = v.V * v.R2 / (v.R1 + v.R2);
+        return { rows: physRows([['V out', out], ['I, A', v.V / (v.R1 + r2)], ['Ratio', r2 / (v.R1 + r2)]].concat(raw.RL ? [['Without the load', bare]] : [],
+            [['R<sub>th</sub>, Ω', th], ['Most to a load, W', bare * bare / (4 * th)]])), cols: 2,
+            note: CalcPhysics.si(out, 'V') + (raw.RL ? ', the load across R₂' : '') + '. To a load it is ' + CalcPhysics.si(bare, 'V') + ' behind ' + CalcPhysics.si(th, 'Ω') + ', R₁ ∥ R₂; ' +
+                'a load of ' + CalcPhysics.si(th, 'Ω') + ' takes the most.' };
+    }
+
+    function runBridge(n, raw) {
+        var p = partValues(raw, ['R1', 'R2', 'R3', 'Rx', 'V']), v = p.v, find = !raw.Rx, V = raw.V ? v.V : NaN, rx, b, rows, none = find ? ['R<sub>x</sub>, Ω', 'R<sub>out</sub>, Ω'] : ['V<sub>out</sub>', 'R<sub>out</sub>, Ω'];
+        if (p.bad.length) return Object.assign(physNone(none), { cols: 2, bad: p.bad, warn: true, note: 'A value, as 1k, 470 or 2k2.' });
+        if (!raw.R1 && !raw.R2 && !raw.R3) return Object.assign(physNone(none), { cols: 2 });
+        rx = find ? CalcPhysics.bridgeRx(v.R1, v.R2, v.R3) : v.Rx;
+        b = CalcPhysics.bridge(isFinite(V) ? V : 1, v.R1, v.R2, v.R3, rx);
+        if (!(v.R1 > 0) || !(rx >= 0) || !b || raw.V && !isFinite(V)) return Object.assign(physNone(none), { cols: 2, warn: true, note: 'R1 above 0, and R2, R3 and Rx 0 or more.' });
+        rows = find ? [['R<sub>x</sub>, Ω', rx]] : [[isFinite(V) ? 'V<sub>out</sub>' : 'V<sub>out</sub> ÷ V', b.out], ['Balanced at R<sub>x</sub>, Ω', CalcPhysics.bridgeRx(v.R1, v.R2, v.R3)]];
+        rows.push(['R<sub>out</sub>, Ω', b.r]);
+        if (isFinite(V)) rows.push(['I from V, A', V * (1 / (v.R1 + v.R2) + 1 / (v.R3 + rx))], ['V at the middles', V * v.R2 / (v.R1 + v.R2)]);
+        return { rows: physRows(rows).concat(drawnTile(bridgeDrawing([v.R1, v.R2, v.R3, rx], find), 'The bridge')), cols: 2,
+            note: find ? 'Balanced, R₁ ÷ R₂ = R₃ ÷ Rₓ: no voltage between its middles, whatever V is.' :
+                'Vout is the left middle less the right; R out is what a meter between them sees' + (isFinite(V) ? '.' : '; with V, in volts.') };
+    }
+
+    // A Wheatstone bridge, its values [R1, R2, R3, Rx]: R1 over R2 on the left, R3 over Rx on the right, a cell across its top
+    // and bottom, a meter between its middles; Rx red where it is found
+    function bridgeDrawing(r, found) {
+        var T = [150, 12], L = [92, 60], R = [208, 60], B = [150, 108], body = '';
+        function part(a, c, name, value, side, red) { // a resistor from a to c, named outside its side
+            var mx = (a[0] + c[0]) / 2, my = (a[1] + c[1]) / 2, deg = Math.atan2(c[1] - a[1], c[0] - a[0]) * 180 / Math.PI;
+            return '<path class="calc-sv-seg calc-sv-thin" d="M' + a[0] + ' ' + a[1] + 'L' + c[0] + ' ' + c[1] + '"/><rect class="calc-sv-fill calc-sv-block" x="-13" y="-5" width="26" height="10" ' +
+                'transform="translate(' + fix(mx) + ' ' + fix(my) + ') rotate(' + fix(deg) + ')"/>' + svgText(mx + side * 16, my + (my < 60 ? -4 : 12), name + ' ' + CalcPhysics.si(value, 'Ω'),
+                side < 0 ? 'end' : 'start', 'calc-sv-small' + (red ? ' calc-sv-red' : ''));
+        }
+        body += '<path class="calc-sv-seg calc-sv-thin" d="M150 12H30V57M30 63V108H150M' + L[0] + ' 60H141M159 60H' + R[0] + '"/>' +
+            '<path class="calc-sv-seg" d="M20 57H40M25 63H35"/>' + svgText(16, 64, 'V', 'end') +
+            part(T, L, 'R₁', r[0], -1) + part(L, B, 'R₂', r[1], -1) + part(T, R, 'R₃', r[2], 1) + part(R, B, 'Rₓ', r[3], 1, found) +
+            '<circle class="calc-sv-fill" cx="150" cy="60" r="9"/>' + svgText(150, 63.5, 'V', 'middle');
+        [T, L, R, B].forEach(function (q) { body += '<circle class="calc-sv-mid" cx="' + q[0] + '" cy="' + q[1] + '" r="2.5"/>'; });
+        return svgOf('', 300, 120, 'The bridge', body);
     }
 
     function runRc(n, raw) {
@@ -9692,17 +10121,20 @@
     }
 
     function runWire(n, raw) {
-        var metal = METALS[+raw.metal || 0], p = partValues(raw, ['rho', 'L', 'd', 'I']), v = p.v, rho = raw.metal === '5' ? v.rho : metal[1], A, R, Rt, rows, none = ['R, Ω', 'A metre, Ω'];
+        var gauge = raw.size === '1', metal = METALS[+raw.metal || 0], p = partValues(raw, gauge ? ['rho', 'L', 'I'] : ['rho', 'L', 'd', 'I']), v = p.v, rho = raw.metal === '5' ? v.rho : metal[1],
+            d = gauge ? CalcPhysics.awg(raw.d) : v.d, A, R, Rt, rows, none = ['R, Ω', 'A metre, Ω'];
         if (p.bad.length) return Object.assign(physNone(none), { cols: 2, bad: p.bad, warn: true, note: 'A value, as 10, 1.5 or 500m.' });
         if (!raw.L && !raw.d) return Object.assign(physNone(none), { cols: 2 });
-        if (!(rho > 0 && v.L > 0 && v.d > 0 && (!raw.T || n.T > -273.15))) return Object.assign(physNone(none), { cols: 2, warn: true, note: 'ρ, L and d above 0, and T above –273.15 °C.' });
-        A = Math.PI * v.d * v.d / 4e6;
+        if (gauge && raw.d && isNaN(d)) return Object.assign(physNone(none), { cols: 2, bad: ['d'], warn: true, note: 'A gauge from 40 to 0, then 00 or 2/0 to 0000 or 4/0.' });
+        if (!(rho > 0 && v.L > 0 && d > 0 && (!raw.T || n.T > -273.15))) return Object.assign(physNone(none), { cols: 2, warn: true, note: 'ρ, L and d above 0, and T above –273.15 °C.' });
+        A = Math.PI * d * d / 4e6;
         R = rho * v.L / A;
         Rt = raw.T ? R * (1 + metal[2] * (n.T - 20)) : R;
-        rows = [['R, Ω', R], ['A metre, Ω', rho / A], ['A, mm²', A * 1e6]];
-        if (raw.T) rows.push(['R at T, Ω', Rt]);
-        if (raw.I && isFinite(v.I)) rows.push(['Drop, V', v.I * Rt], ['Heat, W', v.I * v.I * Rt], ['Heat a metre, W', v.I * v.I * Rt / v.L]);
-        return { rows: physRows(rows), cols: 2, note: (raw.metal === '5' ? (raw.T ? 'At T as at 20 °C: its change with temperature not known. ' : '') :
+        rows = physRows([['R, Ω', R], ['A metre, Ω', rho / A], ['A, mm²', A * 1e6]].concat(gauge ? [['d, mm', d]] : []));
+        if (!gauge && CalcPhysics.awgOf(d)) rows.push({ l: 'AWG, nearest', text: CalcPhysics.awgOf(d) });
+        if (raw.T) rows = rows.concat(physRows([['R at T, Ω', Rt]]));
+        if (raw.I && isFinite(v.I)) rows = rows.concat(physRows([['Drop, V', v.I * Rt], ['Heat, W', v.I * v.I * Rt], ['Heat a metre, W', v.I * v.I * Rt / v.L]]));
+        return { rows: rows, cols: 2, note: (raw.metal === '5' ? (raw.T ? 'At T as at 20 °C: its change with temperature not known. ' : '') :
             metal[0] + ', ρ ' + local(metal[1].toExponential()) + ' Ω·m. ') + 'A cable there and back, twice its length.' };
     }
 
@@ -9778,6 +10210,55 @@
             cols: 2, note: (ratio > 1 ? 'Step up' : ratio < 1 ? 'Step down' : 'One to one') + '; ideal, no power lost.' };
     }
 
+    function runThreePhase(n, raw) {
+        var p = partValues(raw, ['V', 'I']), v = p.v, star = raw.kind !== '1', S, P, Q, vph, iph, peak, rows, none = ['P, W', 'S, VA'];
+        if (p.bad.length) return Object.assign(physNone(none), { cols: 2, bad: p.bad, warn: true, note: 'A value, as 400, 16 or 1.5k.' });
+        if (!raw.V && !raw.I) return Object.assign(physNone(none), { cols: 2 });
+        if (!(v.V > 0 && v.I >= 0 && n.pf >= 0 && n.pf <= 1 && n.f > 0)) return Object.assign(physNone(none), { cols: 2, warn: true, note: 'VL above 0, IL 0 or more, cos φ from 0 to 1 and f above 0.' });
+        S = Math.sqrt(3) * v.V * v.I;
+        P = S * n.pf;
+        Q = S * Math.sqrt(1 - n.pf * n.pf);
+        vph = star ? v.V / Math.sqrt(3) : v.V;
+        iph = star ? v.I : v.I / Math.sqrt(3);
+        peak = vph * Math.SQRT2;
+        rows = physRows([['P, W', P], ['S, VA', S], ['Q, var', Q], ['P, kW', P / 1e3], ['V of a phase', vph], ['I of a phase, A', iph]].concat(v.I > 0 ? [['Z of a phase, Ω', vph / iph]] : []));
+        rows.push({ l: 'φ', v: fromRadians(Math.acos(n.pf)) });
+        return { rows: rows.concat(drawnTile(graphDrawing('The three phases, a third of a turn apart', 0, 2000 / n.f, { fs: [0, 1, 2].map(function (k) {
+            return function (t) { return peak * Math.sin(2 * Math.PI * (n.f * t / 1000 - k / 3)); };
+        }), names: ['t, ms', 'V'] }), 'Each phase\'s voltage, ' + (star ? 'to the neutral' : 'between lines'))), cols: 2,
+            note: 'Balanced, the phases alike: in star each has the line voltage ÷ √3 and the line current, in delta the line voltage and the line current ÷ √3. φ in ' + unitWord() + '.' };
+    }
+
+    function runRlc(n, raw) {
+        var parallel = raw.kind === '1', p = partValues(raw, ['R', 'L', 'C', 'f', 'V']), v = p.v, R = raw.R ? v.R : 0, L = raw.L ? v.L : 0, C = raw.C ? v.C : 0,
+            f = raw.f ? v.f : L > 0 && C > 0 ? 1 / (2 * Math.PI * Math.sqrt(L * C)) : NaN, z, rows, I, x1, top, note, none = ['Z, Ω', 'Phase'];
+        if (p.bad.length) return Object.assign(physNone(none), { cols: 2, bad: p.bad, warn: true, note: 'A value, as 100, 10m or 1µ.' });
+        if (!raw.R && !raw.L && !raw.C) return Object.assign(physNone(none), { cols: 2 });
+        if (!raw.f && !(L > 0 && C > 0)) return Object.assign(physNone(none), { cols: 2, note: 'With f, the impedance there.' });
+        z = CalcPhysics.impedance(parallel, R, L, C, f);
+        if (!z) return Object.assign(physNone(none), { cols: 2, warn: true, note: 'f above 0, and R, L and C of 0 or more, one of them above 0.' });
+        rows = (L > 0 ? [['X<sub>L</sub>, Ω', z.xl]] : []).concat(C > 0 ? [['X<sub>C</sub>, Ω', z.xc]] : [], [['Z, Ω', z.z], ['Phase', fromRadians(z.phase)], ['Power factor', Math.cos(z.phase)]]);
+        if (isFinite(z.f0)) rows.push(['f<sub>0</sub>, Hz', z.f0]);
+        if (isFinite(z.q)) rows.push(['Q', z.q], ['Bandwidth, Hz', z.bw]);
+        if (raw.V && isFinite(v.V)) {
+            I = v.V / z.z;
+            rows.push(['I, A', I], ['P, W', v.V * I * Math.cos(z.phase)]);
+            if (parallel) rows = rows.concat(R > 0 ? [['I<sub>R</sub>, A', v.V / R]] : [], L > 0 ? [['I<sub>L</sub>, A', v.V / z.xl]] : [], C > 0 ? [['I<sub>C</sub>, A', v.V / z.xc]] : []);
+            else rows = rows.concat(R > 0 ? [['V<sub>R</sub>', I * R]] : [], L > 0 ? [['V<sub>L</sub>', I * z.xl]] : [], C > 0 ? [['V<sub>C</sub>', I * z.xc]] : []);
+        }
+        note = !isFinite(z.z) ? 'At resonance an ideal LC in parallel takes no current: its Z has no end.' : !z.z ? 'At resonance an ideal LC in series is a short: its Z is 0.' :
+            z.phase > 1e-9 ? 'Inductive: the current lags the voltage.' : z.phase < -1e-9 ? 'Capacitive: the current leads the voltage.' :
+                'In phase, as a resistor alone' + (isFinite(z.f0) ? ': at resonance.' : '.');
+        // |Z| from 0 to past f and f₀, as high as the parts' own impedances go twice over
+        x1 = 2.5 * Math.max(f, isFinite(z.f0) ? z.f0 : 0);
+        top = 2.2 * Math.max(isFinite(z.z) ? z.z : 0, R, L > 0 && C > 0 ? Math.sqrt(L / C) : 0);
+        return { rows: physRows(rows).concat(drawnTile(graphDrawing('Its impedance at each frequency', 0, x1, {
+            fs: [function (x) { var r = CalcPhysics.impedance(parallel, R, L, C, x); return r ? r.z : NaN; }], y: [0, top],
+            marks: [[f, raw.f ? 'f' : 'f₀']].concat(raw.f && isFinite(z.f0) && Math.abs(z.f0 - f) > 0.06 * x1 ? [[z.f0, 'f₀']] : []),
+            dots: isFinite(z.z) ? [[f, z.z]] : [], names: ['f', '|Z|'] }), '|Z| against f')), cols: 2,
+            note: (raw.f ? '' : 'At f₀. ') + note + ' V and I as RMS; angles in ' + unitWord() + '.' };
+    }
+
     function runCost(n, raw) {
         var p = partValues(raw, ['P']), kwh = p.v.P * n.h / 1000, none = ['kWh a day', 'A year'];
         if (p.bad.length) return Object.assign(physNone(none), { cols: 2, bad: p.bad, warn: true, note: 'A value, as 60, 2k or 1.5k.' });
@@ -9797,6 +10278,49 @@
         if (raw.V) rows.push(['Energy, Wh', n.C * v.V / 1000], ['Energy, J', n.C * v.V * 3.6], ['Power, W', v.V * v.I]);
         if (raw.Ic) rows.push(['To charge, h', n.C / 1000 / v.Ic * 1.2]);
         return { rows: physRows(rows), cols: 2, note: 'At a steady current, new; cold, old or drawn fast, it lasts less.' };
+    }
+
+    function runDiode(n, raw) {
+        var cur = raw.by === '1', p = partValues(raw, ['x', 'Is']), v = p.v, is = raw.Is ? v.Is : 1e-14, d, nvt, x1, none = [cur ? 'V' : 'I, A', 'r<sub>d</sub>, Ω'];
+        if (p.bad.length) return Object.assign(physNone(none), { cols: 2, bad: p.bad, warn: true, note: 'A value, as 0.65, 10m or 2.5n.' });
+        if (!raw.x) return Object.assign(physNone(none), { cols: 2 });
+        d = CalcPhysics.diode(cur ? NaN : v.x, cur ? v.x : NaN, is, n.n, n.T);
+        if (!d) return Object.assign(physNone(none), { cols: 2, warn: true, note: 'IS and n above 0, T above –273.15 °C, and ' + (cur ? 'I above –IS.' : 'V not so high its current has no end.') });
+        nvt = n.n * d.vt;
+        x1 = d.v * 1.15;
+        return { rows: physRows([[cur ? 'V' : 'I, A', cur ? d.v : d.i], ['r<sub>d</sub>, Ω', d.rd], ['P, W', d.v * d.i], ['V<sub>T</sub>, V', d.vt], ['Each ×10 of I, V', nvt * Math.LN10]])
+            .concat(d.v > 0 ? drawnTile(curveDrawing('Its current at each voltage', x1, 0, is * Math.expm1(x1 / nvt), function (x) { return is * Math.expm1(x / nvt); },
+                { at: d.v, names: ['V', 'I'] }), 'I against V') : []), cols: 2,
+            note: d.v < 0 ? 'Reversed: only IS leaks back, till it breaks down.' : CalcPhysics.si(d.i, 'A') + ' at ' + CalcPhysics.si(d.v, 'V') + (raw.Is ? '.' : ', IS 1e-14 A.') };
+    }
+
+    // a rectifier's output over two cycles of the mains, smoothed by c into a load of i, red, over what comes through its diodes, blue
+    function rectifierDrawing(vrms, f, vd, half, c, i, peak) {
+        var top = vrms * Math.SQRT2, drop = half ? vd : 2 * vd, N = 480, dt = 2 / f / N, out = peak, pts = [], k, now;
+        function through(t) {
+            var s = Math.sin(2 * Math.PI * f * t);
+            return Math.max(0, (half ? s : Math.abs(s)) * top - drop);
+        }
+        for (k = -N; k <= N; k++) { // two cycles to settle, then the two drawn
+            now = through(k * dt);
+            out = c > 0 ? Math.max(now, out - i / c * dt) : now;
+            if (k >= 0) pts.push(out);
+        }
+        return graphDrawing('What comes out, over two cycles', 0, 2 / f, { fs: [function (t) { return pts[Math.max(0, Math.min(N, Math.round(t / dt)))]; }].concat(c > 0 ? [through] : []),
+            names: ['t', 'V'] });
+    }
+
+    function runRectifier(n, raw) {
+        var half = raw.kind === '1', p = partValues(raw, ['V', 'C', 'I']), v = p.v, i = raw.I ? v.I : 0, r, rows, note, none = ['Peak, V', 'Average, V'];
+        if (p.bad.length) return Object.assign(physNone(none), { cols: 2, bad: p.bad, warn: true, note: 'A value, as 12, 2200µ or 500m.' });
+        if (!raw.V) return Object.assign(physNone(none), { cols: 2 });
+        r = CalcPhysics.rectifier(v.V, n.f, raw.C ? v.C : NaN, i, n.vd, half);
+        if (!r) return Object.assign(physNone(none), { cols: 2, warn: true, note: 'Vrms, f and C above 0, I and VD of 0 or more, and Vrms above the diodes\' drop.' });
+        rows = [['Peak, V', r.peak]].concat(raw.C ? [['Ripple, V p-p', r.ripple], ['Least, V', r.least], ['Average, V', r.dc]].concat(r.big ? [] : [['Ripple, %', 100 * r.ripple / r.dc]]) : [['Average, V', r.dc]],
+            [['Each diode stands, V', r.piv], ['Ripple f, Hz', r.fr]], i > 0 ? [['C for 10% ripple, F', i / (r.fr * 0.1 * r.peak)]] : []);
+        note = !raw.C ? 'Not smoothed: with C, its ripple.' : r.big ? 'C is too small for this current: the ripple is past half the peak, and only rough.' :
+            !(i > 0) ? 'With no load, C stays at the peak; with I, its ripple.' : 'The ripple a little less than this: C falls a whole cycle in it.';
+        return { rows: physRows(rows).concat(drawnTile(rectifierDrawing(v.V, n.f, n.vd, half, raw.C ? v.C : 0, i, r.peak), 'Out, over two cycles')), cols: 2, warn: r.big, note: note };
     }
 
     function runBjt(n, raw) {
@@ -9847,6 +10371,51 @@
         Pz = v.Vz * (hi - v.Vz) / buy;
         return { rows: physRows([['R, Ω', R], ['Buy, E12, Ω', buy], ['P in the Zener, W', Pz], ['P in R, W', (hi - v.Vz) * (hi - v.Vz) / buy], ['I<sub>Z</sub> at the lowest, A', (v.V - v.Vz) / buy - IL]]),
             cols: 2, note: 'The worst: at ' + CalcPhysics.si(hi, 'V') + ' with no load. A Zener of ' + (Pz * 2 <= 0.5 ? '½ W' : Pz * 2 <= 1.3 ? '1.3 W' : Pz * 2 <= 5 ? '5 W' : 'more than 5 W') + ' is enough.' };
+    }
+
+    function runLm317(n, raw) {
+        var of = +raw.kind || 0, p = partValues(raw, ['V', 'R1', 'R2', 'I', 'Vin', 'IL']), v = p.v, r1 = raw.R1 ? v.R1 : 240, vin = raw.Vin ? v.Vin : NaN, IL = raw.IL ? v.IL : NaN,
+            rows, out, R, buy, got, heat, notes = [], none = of === 2 ? ['R, Ω', 'Buy, E12, Ω'] : of === 1 ? ['V<sub>out</sub>'] : ['R<sub>2</sub>, Ω', 'R<sub>2</sub> of E12, Ω'];
+        if (p.bad.length) return Object.assign(physNone(none), { cols: 2, bad: p.bad, warn: true, note: 'A value, as 5, 240 or 500m.' });
+        if (of === 2) { // a steady current: 1.25 V across R, the current through it and the load
+            if (!raw.I) return Object.assign(physNone(none), { cols: 2 });
+            if (!(v.I > 0 && v.I <= 1.5) || raw.Vin && !(vin > 0)) return Object.assign(physNone(none), { cols: 2, warn: true, note: 'I above 0, up to 1.5 A, and Vin above 0.' });
+            R = 1.25 / v.I;
+            buy = CalcPhysics.standard(R, 12, 1);
+            got = 1.25 / buy;
+            rows = physRows([['R, Ω', R], ['Buy, E12, Ω', buy], ['I with it, A', got], ['P in R, W', 1.25 * got]].concat(raw.Vin ? [['Load up to, V', vin - 4.25]] : []));
+            return { rows: rows, cols: 2, warn: raw.Vin && vin <= 4.25,
+                note: raw.Vin && vin <= 4.25 ? 'Vin too low: 1.25 V across R and some 3 V across the LM317 leave nothing for the load.' : (v.I < 0.01 ? 'Below some 10 mA it may not hold steady. ' : '') +
+                    'R from OUT to ADJ, the load from ADJ on' + (raw.Vin ? '; the load may drop up to ' + CalcPhysics.si(vin - 4.25, 'V') + '.' : '.') };
+        }
+        if (of === 1) {
+            if (!raw.R2) return Object.assign(physNone(none), { cols: 2 });
+            if (!(r1 > 0 && v.R2 >= 0)) return Object.assign(physNone(none), { cols: 2, warn: true, note: 'R1 above 0, and R2 0 or more.' });
+            out = CalcPhysics.lm317(r1, v.R2);
+            rows = [['V<sub>out</sub>', out], ['I in R<sub>1</sub>, A', 1.25 / r1]];
+        } else {
+            if (!raw.V) return Object.assign(physNone(none), { cols: 2 });
+            if (!(r1 > 0 && v.V >= 1.25 && v.V <= 37)) return Object.assign(physNone(none), { cols: 2, warn: true, note: 'Vout from 1.25 V to 37 V, and R1 above 0.' });
+            out = v.V;
+            R = CalcPhysics.lm317R2(out, r1);
+            rows = [['R<sub>2</sub>, Ω', R]];
+            [12, 24].forEach(function (s) {
+                var b = CalcPhysics.standard(R, s, 0);
+                rows.push(['R<sub>2</sub> of E' + s + ', Ω', R ? b : 0], ['V<sub>out</sub> with it', R ? CalcPhysics.lm317(r1, b) : 1.25]);
+            });
+        }
+        if (raw.Vin && isFinite(vin)) {
+            rows.push(['V<sub>in</sub> – V<sub>out</sub>', vin - out]);
+            if (vin - out < 3) notes.push('Vin less than 3 V above Vout: it may not hold Vout.');
+            if (isFinite(IL) && IL >= 0) {
+                heat = (vin - out) * IL;
+                rows.push(['Heat in it, W', Math.max(0, heat)]);
+                notes.push(heat > 15 ? 'More heat than it can shed: some 15 W even on a big heatsink.' : heat > 1.5 ? 'It needs a heatsink: past some 1.5 W, a TO-220 alone gets too hot.' : 'No heatsink needed, below some 1.5 W.');
+            }
+        }
+        if (IL > 1.5) notes.push('More than the 1.5 A it gives.');
+        return { rows: physRows(rows), cols: 2, warn: vin - out < 3 || IL > 1.5 || heat > 15,
+            note: notes.join(' ') || 'R1 from OUT to ADJ, R2 from ADJ to 0 V; with Vin and the load, the heat in it.' };
     }
 
     function runOpamp(n, raw) {
@@ -9942,6 +10511,24 @@
             (of ? '; drawn as the air moves, its nodes still. No end correction.' : '; its nodes still.') };
     }
 
+    function runBeats(n, raw) {
+        var fb = Math.abs(n.f1 - n.f2), fm = (n.f1 + n.f2) / 2, x1, cycles, wave = [], i, t, env, none = ['Beats a second', 'Heard, Hz'];
+        if (!raw.f1 && !raw.f2) return physNone(none);
+        if (!(n.f1 > 0 && n.f2 > 0)) return Object.assign(physNone(none), { warn: true, note: 'Both frequencies above 0.' });
+        if (!fb) return { rows: physRows([['Beats a second', 0], ['Heard, Hz', fm]]), cols: 2, note: 'In tune: the same frequency, no beats.' };
+        x1 = 2 / fb; // two beats
+        cycles = fm * x1;
+        env = function (t) { return 2 * Math.abs(Math.cos(Math.PI * fb * t)); };
+        for (i = 0; cycles <= 120 && i <= 16 * Math.ceil(cycles); i++) { // 16 points a cycle, where they are few enough to be seen
+            t = x1 * i / (16 * Math.ceil(cycles));
+            wave.push([t, Math.sin(2 * Math.PI * n.f1 * t) + Math.sin(2 * Math.PI * n.f2 * t)]);
+        }
+        return { rows: physRows([['Beats a second', fb], ['Between beats, s', 1 / fb], ['Heard, Hz', fm], ['Apart, cents', 1200 * Math.log2(Math.max(n.f1, n.f2) / Math.min(n.f1, n.f2))]])
+            .concat(drawnTile(graphDrawing('The two together, loud and soft', 0, x1, { fs: [env, function (t) { return -env(t); }], fill: [env, function (t) { return -env(t); }, 0, x1], paths: wave.length ? [wave] : [],
+                marks: [[1 / fb, '1 beat'], [x1, '2']], names: ['t, s', ''] }), 'Two beats' + (wave.length ? '' : ', the wave too fast to draw'))), cols: 2,
+            note: fb > 15 ? 'Some 15 or more a second, beats are heard as a rough sound, then as two notes.' : 'Loud where their waves meet in step, soft where they cancel.' };
+    }
+
     function runLens(n, raw) {
         var known = ['f', 'o', 'i'].filter(function (k) { return raw[k] && isFinite(n[k]); }), f = n.f, o = n.o, i = n.i, m, none = ['f', 'dₒ', 'dᵢ'], rows;
         if (known.length < 2) return physNone(none);
@@ -9978,6 +10565,50 @@
         body += svgArrow(X(-o), ax, X(-o), Y(1));
         if (shown) body += svgArrow(X(i), ax, X(i), Y(m), 'calc-sv-seg', i < 0);
         return svgOf('', W, H, 'The rays through the lens', body);
+    }
+
+    function runLensmaker(n, raw) {
+        var r1 = raw.r1 ? n.r1 : Infinity, r2 = raw.r2 ? n.r2 : Infinity, f, rows, none = ['f, m', 'Power, D'], flat1 = !isFinite(r1), flat2 = !isFinite(r2), shape;
+        if (!raw.r1 && !raw.r2) return physNone(none);
+        if (!(n.n > 0 && n.nm > 0 && r1 && r2 && !isNaN(r1) && !isNaN(r2))) return Object.assign(physNone(none), { warn: true, note: 'n and nm above 0, and each radius not 0, or empty for a flat face.' });
+        f = CalcPhysics.lensmaker(n.n, r1, r2, n.nm);
+        shape = flat1 || flat2 ? ((flat1 ? -r2 : r1) > 0 ? 'Plano-convex' : 'Plano-concave') : r1 > 0 && r2 < 0 ? 'Biconvex' : r1 < 0 && r2 > 0 ? 'Biconcave' : 'A meniscus';
+        rows = isFinite(f) ? physRows([['f, m', f], ['f, mm', f * 1e3], ['Power, D', 1 / f]]) : [{ l: 'f', wide: true, text: 'None: it neither gathers light nor spreads it' }];
+        rows.push({ l: 'It is', wide: true, text: shape + (isFinite(f) ? f > 0 ? ', converging: light meets at f past it' : ', diverging: light spreads, as from f before it' : '') });
+        return { rows: rows.concat(drawnTile(lensmakerDrawing(r1, r2, f), 'Its shape, and light through it')), cols: 2,
+            note: (n.n < n.nm ? 'Its index below the medium\'s: it works the other way round. ' : '') + 'A thin lens: its thickness left out. Power in dioptres, 1 ÷ f in metres.' };
+    }
+
+    // A lens of faces of radii r1 and r2, Infinity flat, to the scale of its faces, as high as 80: its edge as thin as it may be;
+    // three rays across it bent to F, of focal length f, or spread as from it, F only roughly to scale where it is far
+    function lensmakerDrawing(r1, r2, f) {
+        var cx = 150, cy = 56, a = 0.6 * Math.min(Math.abs(r1), Math.abs(r2)), k, t = 0, faces = [], left = [], right = [], i, y, body = '', F;
+        if (!isFinite(a)) a = 1;
+        k = 40 / a;
+        function sag(r, y) { return isFinite(r) ? r - Math.sign(r) * Math.sqrt(r * r - y * y) : 0; }
+        for (i = 0; i <= 40; i++) {
+            y = a * (i / 20 - 1);
+            faces.push(y);
+            t = Math.max(t, sag(r1, y) - sag(r2, y));
+        }
+        t += 0.08 * a; // the edge's least thickness
+        faces.forEach(function (y) {
+            left.push(fix(cx + (sag(r1, y) - t / 2) * k) + ' ' + fix(cy - y * k));
+            right.unshift(fix(cx + (sag(r2, y) + t / 2) * k) + ' ' + fix(cy - y * k));
+        });
+        body += '<path class="calc-sv-axis" d="M4 ' + cy + 'H296"/><path class="calc-sv-fill" d="M' + left.concat(right).join('L') + 'Z"/>';
+        F = isFinite(f) ? cx + Math.sign(f) * Math.max(36, Math.min(136, Math.abs(f) * k)) : null;
+        [-0.6, 0, 0.6].forEach(function (u) {
+            var y0 = cy - u * 40, dx, dy, s;
+            if (F === null) return body += svgArrow(8, y0, 292, y0, 'calc-sv-curve calc-sv-thin');
+            dx = f > 0 ? F - cx : cx - F;
+            dy = f > 0 ? cy - y0 : y0 - cy;
+            s = (292 - cx) / dx;
+            body += '<path class="calc-sv-curve calc-sv-thin" d="M8 ' + fix(y0) + 'H' + cx + 'L' + fix(292) + ' ' + fix(y0 + dy * s) + '"/>';
+            if (f < 0 && u) body += '<path class="calc-sv-guide" d="M' + fix(F) + ' ' + cy + 'L' + cx + ' ' + fix(y0) + '"/>';
+        });
+        if (F !== null) body += '<circle class="calc-sv-mid" cx="' + fix(F) + '" cy="' + cy + '" r="2.5"/>' + svgText(F, cy + 14, 'F', 'middle');
+        return svgOf('', 300, 112, 'Its shape, and light through it', body);
     }
 
     function runSnell(n, raw) {
@@ -10044,6 +10675,52 @@
             (nmColour(n.w) ? '' : ' Light not seen: drawn white.') };
     }
 
+    // light of a wavelength on a screen, as bright at each place across it as f gives it, from 0 at its left to 1 at its right;
+    // the faint parts brightened, to be seen
+    function screenDrawing(nm, f, label) {
+        var W = 300, H = 40, col = nmColour(nm) || '#eef3f0', id = 'calc-plot-' + (++plotIds), stops = '', i;
+        for (i = 0; i <= 160; i++) stops += '<stop offset="' + (i / 160).toFixed(3) + '" stop-color="' + col + '" stop-opacity="' + Math.min(1, Math.sqrt(Math.max(0, f(i / 160)))).toFixed(2) + '"/>';
+        return svgOf('', W, H, label, '<defs><linearGradient id="' + id + '">' + stops + '</linearGradient></defs><rect class="calc-sv-screen" x="4" y="4" width="' + (W - 8) + '" height="' + (H - 8) +
+            '" rx="3"/><rect x="4" y="4" width="' + (W - 8) + '" height="' + (H - 8) + '" fill="url(#' + id + ')"/>');
+    }
+
+    function runSlit(n, raw) {
+        var hole = raw.kind === '1', lam = n.w * 1e-9, rows, s1, s, top, th, x1, k, marks = [], light, none = hole ? ['θ', 'θ, arcsec'] : ['θ of order m', 'Middle, angle'];
+        if (!raw.w && !(hole ? raw.D : raw.a)) return physNone(none);
+        if (hole) {
+            if (!(n.w > 0 && n.D > 0 && (!raw.L || n.L > 0))) return Object.assign(physNone(none), { warn: true, note: 'λ and D above 0, and the distance too.' });
+            s = 1.22 * lam / n.D;
+            if (s >= 1) return Object.assign(physNone(none), { warn: true, note: 'The hole is not wider than the light\'s wavelength: it tells nothing apart.' });
+            th = Math.asin(s);
+            light = function (x) { return CalcPhysics.airy(Math.PI * n.D * Math.sin(toRadians(x)) / lam); };
+            x1 = fromRadians(th);
+            rows = physRows([['θ', x1]].concat(deg ? [['θ, rad', th]] : [], [['θ, arcsec', th * 648000 / Math.PI], ['Airy disc, wide', 2 * x1]],
+                raw.L ? [['Apart at the distance, m', n.L * Math.tan(th)]] : []));
+            return { rows: rows.concat(drawnTile(graphDrawing('Two points just told apart, and the light of each', -2.5 * x1, 3.5 * x1, {
+                fs: [function (x) { return light(x) + light(x - x1); }, light, function (x) { return light(x - x1); }], y: [0, 1.15], marks: [[0, '0'], [x1, 'θ']], names: ['θ', 'I'] }), 'Two points, θ apart'),
+            drawnTile(screenDrawing(n.w, function (u) { return (light((u * 6 - 2.5) * x1) + light((u * 6 - 3.5) * x1)) / 1.1; }, 'The two points on the screen'), 'Seen')), cols: 2,
+                note: 'By Rayleigh: one point\'s middle on the other\'s first dark ring, the light between them a quarter less. Angles in ' + unitWord() + '.' +
+                    (nmColour(n.w) ? '' : ' Light not seen: drawn white.') };
+        }
+        if (!(n.w > 0 && n.a > 0 && n.m >= 1 && n.m % 1 === 0 && (!raw.L || n.L > 0))) {
+            return Object.assign(physNone(none), { warn: true, note: 'λ and a above 0, the order a whole number from 1, and L above 0.' });
+        }
+        s1 = lam / n.a;
+        s = n.m * s1;
+        top = Math.floor(n.a / lam + 1e-9);
+        rows = [s <= 1 ? { l: 'θ of order m', v: fromRadians(Math.asin(s)) } : { l: 'θ of order m', wide: true, text: 'None: past a right angle' },
+            s1 < 1 ? { l: 'Middle, angle', v: fromRadians(2 * Math.asin(s1)) } : { l: 'Middle', wide: true, text: 'All of it: a not wider than λ' }].concat(physRows([['Dark each side', top]]));
+        if (raw.L && s1 < 1) rows = rows.concat(physRows([['Middle, m', 2 * n.L * Math.tan(Math.asin(s1))], ['Middle, mm', 2e3 * n.L * Math.tan(Math.asin(s1))]].concat(s < 1 ? [['y of order m, m', n.L * Math.tan(Math.asin(s))]] : [])));
+        light = function (x) { return CalcPhysics.slit(Math.PI * n.a * Math.sin(toRadians(x)) / lam); };
+        x1 = fromRadians(Math.asin(Math.min(1, 3.5 * s1)));
+        for (k = -3; k <= 3; k++) {
+            if (k && Math.abs(k) * s1 < 1) marks.push([fromRadians(Math.asin(k * s1)), String(k).replace('-', '−')]);
+        }
+        return { rows: rows.concat(drawnTile(graphDrawing('The light at each angle', -x1, x1, { fs: [light], y: [0, 1.1], marks: marks, names: ['θ', 'I'] }), 'Its light, dark at each order'),
+            drawnTile(screenDrawing(n.w, function (u) { return light((2 * u - 1) * x1); }, 'The light on the screen'), 'On the screen')), cols: 2,
+            note: 'Dark where a sin θ = mλ; the middle twice as wide as the rest. Angles in ' + unitWord() + '.' + (nmColour(n.w) ? '' : ' Light not seen: drawn white.') };
+    }
+
     function runPolarise(n, raw) {
         var t = toRadians(n.a), c2 = Math.pow(Math.cos(t), 2), b = Math.atan(n.n2 / n.n1), none = ['I', 'Through, %'];
         if (!raw.a) return physNone(none);
@@ -10056,7 +10733,18 @@
     }
 
     function runDoppler(n, raw) {
-        var none = ['f′, Hz'];
+        var none = ['f′, Hz'], beta, k, nm;
+        if (raw.kind === '1') { // light, by relativity
+            none = ['λ′, nm', 'z'];
+            if (!raw.lw && !raw.lv) return physNone(none);
+            beta = n.lv * 1e3 / LIGHT;
+            k = CalcPhysics.redshift(beta);
+            if (!(n.lw > 0 && isFinite(k))) return Object.assign(physNone(none), { warn: true, note: 'λ above 0, and v slower than light, 299792 km/s.' });
+            nm = n.lw * k;
+            return { rows: physRows([['λ′, nm', nm], ['z', k - 1], ['Δλ, nm', nm - n.lw], ['β, of c', beta], ['f′ ÷ f', 1 / k]]).concat([{ l: 'Seen', wide: true, text: lightKind(nm) }],
+                drawnTile(nmColour(n.lw) && nmColour(nm) ? shiftDrawing(n.lw, nm) : spectrumDrawing(nm), nmColour(n.lw) && nmColour(nm) ? 'From its colour to the one seen' : 'Where it is seen among the kinds of light')), cols: 2,
+                note: beta > 0 ? 'Going away: redshifted, longer.' : beta < 0 ? 'Coming nearer: blueshifted, shorter.' : 'Not moving: as it is.' };
+        }
         if (!raw.f) return physNone(none);
         if (!(n.f > 0 && n.v > 0 && n.s < n.v && n.o > -n.v)) return Object.assign(physNone(none), { warn: true, note: 'f and v above 0, and each moving slower than the sound.' });
         return { rows: physRows([['f′, Hz', n.f * (n.v + n.o) / (n.v - n.s)], ['Change, Hz', n.f * (n.v + n.o) / (n.v - n.s) - n.f]]).concat({ l: 'Its waves, the listener at the right', wide: true, text: dopplerDrawing(n.s / n.v) }), cols: 2,
@@ -10158,6 +10846,47 @@
         return { rows: rows, cols: 2, note: !raw.Ts ? 'With the temperature around it, what it loses.' : n.Ts > n.T ? 'Below 0: it takes in more than it gives, and warms.' : 'It gives more than it takes in, and cools.' };
     }
 
+    function runCooling(n, raw) {
+        var byK = raw.by === '1', k = byK ? n.k : CalcPhysics.coolingRate(n.T0, n.Ta, n.t1, n.T1), rows, when = NaN, end, dots = [], none = ['k, a minute', 'Half the gap, min'],
+            at = function (t) { return CalcPhysics.cooling(n.T0, n.Ta, k, t); };
+        if (!raw.T0 && !(byK ? raw.k : raw.T1)) return physNone(none);
+        if (!(isFinite(n.T0) && isFinite(n.Ta) && n.T0 !== n.Ta)) return Object.assign(physNone(none), { warn: true, note: 'T₀, and the air\'s Tₐ, not the same.' });
+        if (!(k > 0)) return Object.assign(physNone(none), { warn: true, note: byK ? 'k above 0.' : 't₁ above 0, and T₁ between T₀ and Tₐ.' });
+        rows = [['k, a minute', k], ['Half the gap, min', Math.LN2 / k]];
+        if (!byK) dots.push([n.t1, n.T1]);
+        if (raw.t && n.t >= 0) {
+            rows.push(['T after t', at(n.t)]);
+            dots.push([n.t, at(n.t)]);
+        }
+        if (raw.T && isFinite(n.T)) {
+            when = CalcPhysics.coolingTime(n.T0, n.Ta, k, n.T);
+            rows.push(['Time to it, min', when]);
+            if (isFinite(when)) dots.push([when, n.T]);
+        }
+        end = Math.max(Math.log(20) / k, raw.t && n.t > 0 ? n.t * 1.1 : 0, isFinite(when) ? when * 1.1 : 0);
+        return { rows: physRows(rows).concat(drawnTile(graphDrawing('Its temperature as time goes, nearing the air\'s', 0, end, {
+            fs: [at, function () { return n.Ta; }], dots: dots, names: ['min', 'T'] }), 'Its temperature, nearing the air\'s')), cols: 2, warn: raw.T && isFinite(n.T) && !isFinite(when),
+            note: raw.T && isFinite(n.T) && !isFinite(when) ? 'It never comes to that: it only nears the air\'s temperature, from the side it starts.' :
+                'It nears the air\'s temperature without end, the gap to it halving each ' + +(Math.LN2 / k).toPrecision(3) + ' minutes.' };
+    }
+
+    function runDew(n, raw) {
+        var byDew = raw.by === '1', rh = byDew ? CalcPhysics.humidity(n.T, n.Td) : n.rh, td = byDew ? n.Td : CalcPhysics.dewPoint(n.T, n.rh), es, e, lo, hi,
+            none = byDew ? ['RH, %', 'Water, g/m³'] : ['T<sub>d</sub>, °C', 'Water, g/m³'];
+        if (!raw.T && !(byDew ? raw.Td : raw.rh)) return physNone(none);
+        if (!(isFinite(n.T) && isFinite(td) && rh > 0 && rh <= 100)) return Object.assign(physNone(none), { warn: true, note: byDew ? 'T, and Td no higher than T.' : 'T, and RH above 0, up to 100.' });
+        es = CalcPhysics.vapour(n.T);
+        e = es * rh / 100;
+        lo = Math.min(td, n.T) - 8;
+        hi = Math.max(td, n.T) + 8;
+        return { rows: physRows((byDew ? [['RH, %', rh]] : [['T<sub>d</sub>, °C', td]]).concat([['Water, g/m³', 216.7 * e / (n.T + 273.15)], ['T – T<sub>d</sub>, °C', n.T - td],
+            ['Vapour, hPa', e], ['Most it holds, hPa', es]])).concat(drawnTile(graphDrawing('The most vapour air holds, and this air', lo, hi, { fs: [CalcPhysics.vapour], dots: [[n.T, e], [td, e]],
+                lines: [[td, e, n.T, e]], marks: [[td, 'T<tspan class="calc-sv-sub" dy="2">d</tspan>']], names: ['°C', 'hPa'] }), 'Cooled, it is full at the curve, at T<sub>d</sub>')), cols: 2,
+            warn: n.T < -45 || n.T > 60,
+            note: (n.T < -45 || n.T > 60 ? 'Outside –45 °C to 60 °C, Magnus\'s formula is rough. ' : '') + (td < 0 ? 'Below 0 °C it is frost, not dew, a little above the dew point. ' : '') +
+                (rh >= 95 ? 'Near full: mist or fog.' : n.T - td <= 2.5 ? 'Within some 2.5 °C of the dew point: mist is likely.' : 'Cooled with the same water in it, it is full at the dew point.') };
+    }
+
     // a body's light by Planck's law, of its brightest wavelength in nm: to five times it, the colours seen behind it
     function planckDrawing(peak) {
         var X = 4.965114231744276, top = Math.expm1(X); // hc/λkT at the brightest, Wien's
@@ -10177,6 +10906,25 @@
         rows.push({ l: 'How many at each speed, m/s', wide: true, text: curveDrawing('How many go at each speed', 3 * vp, 0, 1, function (v) { var x = v / vp; return x * x * Math.exp(1 - x * x); },
             { under: true, marks: [[vp, 'v<tspan class="calc-sv-sub" dy="2">p</tspan>'], [vp * Math.sqrt(1.5), 'v<tspan class="calc-sv-sub" dy="2">rms</tspan>']], names: ['v', ''] }) });
         return { rows: rows, cols: 2, note: 'Of an ideal gas, by Maxwell and Boltzmann; sound in it goes some 0.7 of v rms.' };
+    }
+
+    function runGasProcess(n, raw) {
+        var kind = +raw.kind || 0, gamma = [1.4, 5 / 3, 4 / 3][+raw.gas || 0], g, path, lo, hi, pad, none = ['P<sub>2</sub>, Pa', 'W, J'];
+        if (!raw.V && !(kind === 2 ? raw.T2 : raw.V2)) return physNone(none);
+        g = CalcPhysics.gasProcess(kind, gamma, n.P, n.V, n.T, kind === 2 ? n.T2 : n.V2);
+        if (!g) return Object.assign(physNone(none), { warn: true, note: 'P₁, V₁, T₁ and ' + (kind === 2 ? 'T₂' : 'V₂') + ' above 0, T in kelvin.' });
+        // its path on a PV diagram: a curve shaded under, its area the work; of a steady volume, a line straight up or down
+        path = [function (x) { return n.P * n.V / x; }, function () { return n.P; }, null, function (x) { return n.P * Math.pow(n.V / x, gamma); }][kind];
+        lo = Math.min(n.V, g.v);
+        hi = Math.max(n.V, g.v);
+        pad = (hi - lo) * 0.25 || n.V * 0.5;
+        return { rows: physRows([['P<sub>2</sub>, Pa', g.p], ['V<sub>2</sub>, m³', g.v], ['T<sub>2</sub>, K', g.t], ['T<sub>2</sub>, °C', g.t - 273.15], ['n, mol', g.n], ['W, J', g.w], ['Q, J', g.q], ['ΔU, J', g.du]])
+            .concat(drawnTile(graphDrawing('Its path from P₁V₁ to P₂V₂, its area the work', lo - pad, hi + pad, kind === 2 ?
+                { lines: [[n.V, n.P, n.V, g.p]], dots: [[n.V, n.P], [g.v, g.p]], marks: [[n.V, 'V₁']], y: [0, Math.max(n.P, g.p) * 1.1], names: ['V', 'P'] } :
+                { fs: [function (x) { return x >= lo && x <= hi ? path(x) : NaN; }].concat(kind === 3 ? [function (x) { return n.P * n.V / x; }] : []), fit: 1, fill: [path, null, lo, hi],
+                    dots: [[n.V, n.P], [g.v, g.p]], marks: [[n.V, 'V₁'], [g.v, 'V₂']], names: ['V', 'P'] }), 'P against V' + (kind === 3 ? ', and an isotherm' : ''))), cols: 2,
+            note: ['Its energy stays the same: the heat put in is the work it does.', 'The heat put in warms it and does work: Q = n Cp ΔT.',
+                'It does no work: all the heat goes to its energy.', 'No heat in or out: the work it does comes from its energy, so it cools as it grows.'][kind] + ' W above 0: it pushes out.' };
     }
 
     function runEngine(n, raw) {
@@ -10271,6 +11019,48 @@
             note: dP < 0 ? 'Below 0: the pressure rises, the pipe wider.' : 'Narrower, faster, and the pressure lower.' };
     }
 
+    function runReynolds(n, raw) {
+        var re = n.rho * n.v * n.d / n.mu, laminar = re < 2300, f, q, dp, rows, none = ['Re', 'f'];
+        if (!raw.v && !raw.d) return physNone(none);
+        if (!(n.v > 0 && n.d > 0 && n.rho > 0 && n.mu > 0 && n.e >= 0)) return Object.assign(physNone(none), { warn: true, note: 'v, d, ρ and μ above 0, and ε of 0 or more.' });
+        f = CalcPhysics.friction(re, n.e / 1000 / n.d);
+        q = n.v * Math.PI * n.d * n.d / 4;
+        rows = physRows([['Re', re], ['f', f]]).concat([{ l: 'It flows', wide: true, text: laminar ? 'Laminar' : re < 4000 ? 'Transitional' : 'Turbulent' }], physRows([['Flow, L/s', q * 1000]]));
+        if (raw.L && n.L > 0) {
+            dp = f * n.L / n.d * n.rho * n.v * n.v / 2;
+            rows = rows.concat(physRows([['Δp, Pa', dp], ['Δp, kPa', dp / 1000], ['Head lost, m', dp / (n.rho * CalcPhysics.g)], ['To pump, W', dp * q]]));
+        }
+        // laminar, a parabola twice the mean speed in the middle; turbulent, flat across, by the seventh-power law
+        return { rows: rows.concat(drawnTile(graphDrawing('Its speed across the pipe, from wall to wall', -1, 1, {
+            fs: [function (x) { return laminar ? 2 * n.v * (1 - x * x) : n.v * 60 / 49 * Math.pow(Math.max(0, 1 - Math.abs(x)), 1 / 7); }, function () { return n.v; }],
+            y: [0, (laminar ? 2 : 60 / 49) * n.v * 1.1], names: ['', 'v'] }), 'Its speed across the pipe, the mean blue')), cols: 2,
+            note: (laminar ? 'Laminar below 2300: f = 64/Re, whatever the roughness.' : re < 4000 ? 'From 2300 to 4000 it may go either way: f as if turbulent.' :
+                'Turbulent above 4000: f by Colebrook.') + (raw.L ? '' : ' With L, the pressure it loses.') };
+    }
+
+    function runStokes(n, raw) {
+        var s = CalcPhysics.stokes(n.r, n.rs, n.rf, n.mu, n.g), V = 4 / 3 * Math.PI * Math.pow(n.r, 3), W, B, none = ['v, m/s', 'Re'];
+        if (!raw.r && !raw.rs) return physNone(none);
+        if (!s) return Object.assign(physNone(none), { warn: true, note: 'r, ρs, μ and g above 0, and ρf 0 or more.' });
+        W = n.rs * V * n.g;
+        B = n.rf * V * n.g;
+        return { rows: physRows([['v, m/s', s.v], ['v, mm/s', s.v * 1e3], ['Re', s.re], ['Weight, N', W], ['Buoyancy, N', B], ['Drag at v, N', Math.abs(W - B)], ['To 63%, s', s.tau]])
+            .concat(drawnTile(stokesDrawing(W, B), 'Its forces at its last speed')), cols: 2, warn: s.re > 1,
+            note: s.re > 1 ? 'Re above 1: too fast for Stokes\' law, its drag more than 6πμrv, so it goes slower than this.' :
+                (s.v < 0 ? 'Lighter than the fluid: it rises. ' : '') + 'Slow and smooth, Re below 1: the drag 6πμrv. At its last speed, drag and buoyancy hold its weight.' };
+    }
+
+    // A ball in a fluid, its weight down from its bottom, red, and the buoyancy and drag on it, of their sizes, the largest 40
+    // long, each named by its tip; the drag down where it rises
+    function stokesDrawing(W, B) {
+        var cx = 150, cy = 56, k = 40 / Math.max(W, B), D = W - B, dy = D > 0 ? -11 : 11, tip = cy + dy - D * k;
+        return svgOf('', 300, 112, 'Its weight, the buoyancy and the drag', '<rect class="calc-sv-under" x="0" y="0" width="300" height="112"/>' +
+            '<circle class="calc-sv-mid" cx="' + cx + '" cy="' + cy + '" r="14"/>' + svgArrow(cx, cy + 14, cx, cy + 14 + W * k, 'calc-sv-curve') +
+            svgArrow(cx - 8, cy - 11, cx - 8, cy - 11 - B * k) + svgArrow(cx + 8, cy + dy, cx + 8, tip) +
+            svgText(cx - 6, cy + 14 + W * k, 'Weight', 'end', 'calc-sv-small calc-sv-red') + svgText(cx - 14, cy - 3 - B * k, 'Buoyancy', 'end') +
+            svgText(cx + 14, tip + (D > 0 ? 8 : 0), 'Drag', 'start'));
+    }
+
     function runMassEnergy(n, raw) {
         var m, E, none = ['m, kg', 'E, J'];
         if (!raw.x) return physNone(none);
@@ -10295,6 +11085,47 @@
         graph = curveDrawing('Binding energy of each nucleon', 250, 0, 9.6, dropEnergy, { marks: [[56, 'Fe'], [235, 'U']], names: ['', 'MeV'], point: n.A <= 250 && r.each > 0 ? [n.A, r.each] : null });
         rows.push({ l: 'Each nucleon, by A', wide: true, text: graph });
         return { rows: rows, cols: 2, note: r.mev < 0 ? 'Below 0: it would fly apart.' : 'Iron and nickel the most tightly bound: fusing lighter nuclei, or splitting heavier, gives energy. Drawn rough, by the liquid drop.' };
+    }
+
+    // the masses typed with + between them, 234.043601 + 4.002602, each a number or a calculation, 2 × 1.008665: each, or
+    // null where one is not above 0. 1e+3 and a bracket's + stay in their part
+    function massesOf(text) {
+        var bits = String(text).split('+'), parts = [], s = '', i;
+        for (i = 0; i < bits.length; i++) {
+            s += (i && s ? '+' : '') + bits[i];
+            if (i < bits.length - 1 && (/\de\s*$/i.test(s) || s.split('(').length > s.split(')').length)) continue;
+            parts.push(CalcMaths.number(s.trim(), engine.comma, deg));
+            s = '';
+        }
+        return parts.every(function (m) { return m > 0; }) ? parts : null;
+    }
+
+    function runQValue(n, raw) {
+        var a = raw.a ? massesOf(raw.a) : null, b = raw.b ? massesOf(raw.b) : null, sum = function (l) { return l.reduce(function (s, m) { return s + m; }, 0); },
+            dm, Q, rows, two, none = ['Q, MeV', 'Δm, u'];
+        if (raw.a && !a || raw.b && !b) return Object.assign(physNone(none), { cols: 2, bad: [raw.a && !a ? 'a' : '', raw.b && !b ? 'b' : ''].filter(Boolean), warn: true, note: 'Masses above 0, in u, + between them.' });
+        if (!a || !b) return Object.assign(physNone(none), { cols: 2 });
+        dm = Math.round((sum(a) - sum(b)) * 1e10) / 1e10; // to 10⁻¹⁰ u, past the digits masses are known to, so 238.050788 – 238.046203 is 0.004585
+        Q = dm * 931.49410372;
+        two = a.length === 1 && b.length === 2 && Q > 0; // a decay into two, from rest: their momenta alike, the lighter faster
+        rows = physRows([['Q, MeV', Q], ['Δm, u', dm], ['Q, J', Q * 1e6 * CHARGE]]).concat([{ l: 'It', wide: true, text: Q > 0 ? 'Gives energy off, exothermic' : Q < 0 ? 'Takes energy in, endothermic' : 'Neither gives energy nor takes it' }]);
+        if (two) rows = rows.concat(physRows([['The first, MeV', Q * b[1] / (b[0] + b[1])], ['The second, MeV', Q * b[0] / (b[0] + b[1])]]), drawnTile(decayDrawing(b, Q), 'Flying apart, at their speeds'));
+        return { rows: rows, cols: 2, warn: a.length === 1 && Q < 0,
+            note: a.length === 1 && Q < 0 ? 'Below 0: it cannot decay so on its own.' : 'Of the atoms\' masses, the electrons cancel; of β⁺ decay, add two electrons\' mass after, 0.001097 u.' +
+                (two ? ' Shared as momentum is kept.' : '') };
+    }
+
+    // a nucleus decayed into two of the masses m, flying apart from where it was, each at a speed of 1 over its mass, the faster's
+    // arrow 100 long; each as big as the cube root of its mass, its share of Q under its arrow
+    function decayDrawing(m, Q) {
+        var r = m.map(function (x) { return Math.min(22, 4 + 3 * Math.cbrt(x)); }), L = m.map(function (x) { return 100 * Math.min(m[0], m[1]) / x; }), cy = 46,
+            x = [150 - r[0] - 2, 150 + r[1] + 2], e = [Q * m[1] / (m[0] + m[1]), Q * m[0] / (m[0] + m[1])], body = '<circle class="calc-sv-guide" cx="150" cy="' + cy + '" r="' + fix(Math.max(r[0], r[1]) + 4) + '"/>';
+        [0, 1].forEach(function (i) {
+            var side = i ? 1 : -1, edge = x[i] + side * r[i];
+            body += '<circle class="calc-sv-fill" cx="' + fix(x[i]) + '" cy="' + cy + '" r="' + fix(r[i]) + '"/>' + svgArrow(edge + side * 3, cy, edge + side * (3 + Math.max(L[i], 4)), cy, 'calc-sv-curve') +
+                svgText(edge + side * (3 + Math.max(L[i], 4) / 2), cy + 36, local(String(+e[i].toPrecision(3))) + ' MeV', 'middle');
+        });
+        return svgOf('', 300, 90, 'The two flying apart, at their speeds', body);
     }
 
     function runPhotoelectric(n, raw) {
@@ -13393,7 +14224,8 @@
         if (hit.kind === 'tool') return;
         if (hit.go === 'solve' || hit.go === 'numbers' || hit.go === 'phys') {
             p = { solve: solver, numbers: numbers, phys: phys }[hit.go];
-            if (hit.kind === 'card') p.go(hit.id); else p.setTab(hit.tab);
+            if (hit.kind === 'put') p.put(hit.id, hit.kept); // a formula's card, with what was typed in the formula
+            else if (hit.kind === 'card') p.go(hit.id); else p.setTab(hit.tab);
         } else if (hit.go === 'stats') {
             if (hit.kind === 'card') statTests.go(hit.id);
             tab = hit.kind === 'card' ? 'tests' : hit.tab;

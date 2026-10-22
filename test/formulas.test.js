@@ -149,7 +149,7 @@ Formulas.formulas.forEach(function (group) {
                 f.t + ': In Physics of its own letters', JSON.stringify(f.p));
         });
     });
-    check(linked === 40, 'In Physics: every formula named in it found', linked);
+    check(linked === 57, 'In Physics: every formula named in it found', linked);
 })();
 
 Formulas.constants.forEach(function (group) {
