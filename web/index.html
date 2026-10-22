@@ -218,6 +218,17 @@
                                 <path d="M1 8h3l1-3 2 6 2-6 2 6 1-3h3" stroke-width="1.35" />
                             </svg>
                         </div>
+                        <!-- biology: genetics, DNA, proteins, the lab, cells and ecology. A microscope -->
+                        <div class="calc-bio-btn" hidden>
+                            <svg viewBox="-0.8 -0.8 17.6 17.6" width="15" height="15" fill="none" stroke="currentColor"
+                                stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M5.6 1.6l2.4 1.1-2.6 5.6-2.4-1.1z" stroke-width="1.4" />
+                                <path d="M3.6 8.8l-.5 1.1" stroke-width="1.4" />
+                                <path d="M7.2 5.5c3.1.5 5 2.6 5 5.3 0 1.3-.5 2.4-1.3 3.2" />
+                                <path d="M2.6 11.3h5.4" stroke-width="1.4" />
+                                <path d="M2.5 14.2h11" />
+                            </svg>
+                        </div>
                         <!-- statistics of a list of numbers -->
                         <div class="calc-stat-btn" hidden>
                             <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
@@ -594,6 +605,25 @@
             <div class="calc-sv-list"></div>
         </div>
 
+        <!-- biology, over the keys like the history: a card for each tool, as the physics has -->
+        <div class="calc-past calc-bio">
+            <div class="calc-past-head">
+                <span class="calc-solve-tabs">
+                    <span class="calc-solve-tab" data-tab="genetics">Genetics</span>
+                    <span class="calc-solve-tab" data-tab="dna">DNA</span>
+                    <span class="calc-solve-tab" data-tab="protein">Protein</span>
+                    <span class="calc-solve-tab" data-tab="lab">Lab</span>
+                    <span class="calc-solve-tab" data-tab="cells">Cells</span>
+                    <span class="calc-solve-tab" data-tab="health">Health</span>
+                    <span class="calc-solve-tab" data-tab="ecology">Ecology</span>
+                </span>
+                <!-- pop out: the panel as big as the page, or in a window of its own; pop in: back in the calculator -->
+                <span class="calc-panel-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-panel-grow" d="M10 2h4v4M6.5 9.5L14 2" /><path class="calc-panel-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
+                <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
+            </div>
+            <div class="calc-sv-list"></div>
+        </div>
+
         <!-- chemistry, over the keys like the history: the periodic table, and a card for each tool, as the solver has -->
         <div class="calc-past calc-chem">
             <div class="calc-past-head">
@@ -951,6 +981,31 @@
             <div class="option">
                 <span class="option-icon screen-icon">
                     <svg viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M5.6 1.6l2.4 1.1-2.6 5.6-2.4-1.1z" stroke-width="1.4"></path>
+                        <path d="M3.6 8.8l-.5 1.1" stroke-width="1.4"></path>
+                        <path d="M7.2 5.5c3.1.5 5 2.6 5 5.3 0 1.3-.5 2.4-1.3 3.2" stroke-width="1.6"></path>
+                        <path d="M2.6 11.3h5.4" stroke-width="1.4"></path>
+                        <path d="M2.5 14.2h11" stroke-width="1.6"></path>
+                    </svg>
+                </span>
+                <div class="option-text">
+                    <h3>Biology</h3>
+                    <p>A button at the top left of the display for genetics, Punnett squares of up to six genes and of the X,
+                        Hardy–Weinberg, χ² of a cross, gene maps of three genes and heritability; DNA and RNA, translated in six
+                        frames with their open reading frames, the codon wheel, primer melting temperatures, A<sub>260</sub>,
+                        ligation and restriction digests run on a gel; proteins, their mass, pI and hydropathy, the amino acids,
+                        enzyme kinetics and binding; the lab, from dilutions, cell counts and CFU to PCR mixes, qPCR and error
+                        bars; cells, water potential, tonicity, membrane potentials and free energy; and ecology, population
+                        growth, predators and prey, diversity, life tables, selection and drift. Most cards draw what they work out.</p>
+                </div>
+                <label class="switch" title="Biology">
+                    <input type="checkbox" id="panel-bio">
+                    <span></span>
+                </label>
+            </div>
+            <div class="option">
+                <span class="option-icon screen-icon">
+                    <svg viewBox="0 0 16 16" aria-hidden="true">
                         <path d="M3.5 12.9V8.8M8 12.9V3.4M12.5 12.9V6.6" stroke-width="1.8"></path>
                     </svg>
                 </span>
@@ -1001,6 +1056,10 @@
                 <li>Physics: circuits and electronics, transistors and the 555; motion and rotation, forces, collisions, energy, torque, gravitation,
                     charges, magnets and induction; waves, interference and light; heat, engines and fluids; and modern and quantum physics, E = mc²,
                     binding energy, relativity, uncertainty, tunnelling and decay; many drawn. See the "Physics" section below.</li>
+                <li>Biology: genetics, Punnett squares, Hardy–Weinberg, χ², gene maps, epistasis, genetic risk and blood groups; DNA and RNA,
+                    translation, alignments, primers, CRISPR guides, digests and gels; proteins, enzymes and dose–response; the lab's dilutions,
+                    buffers, cell counts and qPCR; cells and membranes; health, from diagnostic tests to drug levels; and ecology and evolution,
+                    populations, diversity and trees; most drawn. See the "Biology" section below.</li>
                 <li><kbd class="k">mod</kbd>, <kbd class="k">gcd</kbd> and <kbd class="k">lcm</kbd> on the <kbd class="k">2nd</kbd> layer of <kbd class="k">%</kbd>, <kbd class="k"><sup>n</sup>C<sub>r</sub></kbd> and <kbd class="k"><sup>n</sup>P<sub>r</sub></kbd>.</li>
                 <li><kbd class="k">floor</kbd> and <kbd class="k">ceil</kbd> on the <kbd class="k">2nd</kbd> layer of <kbd class="k">abs</kbd> and <kbd class="k">x!</kbd>, side by side, and <kbd class="k">round</kbd> on that of <kbd class="k">Rand</kbd>: a number to the whole number below or above it, and to the nearest, half away from 0. They can be pasted too, with trunc, which goes toward 0: floor(7.5) = 7.</li>
                 <li><kbd class="k">10<sup>x</sup></kbd>, <kbd class="k">e</kbd> and <kbd class="k">log<sub>y</sub></kbd> (the logarithm to any base: 8 log<sub>y</sub> 2 = 3) on the <kbd class="k">2nd</kbd> layer of <kbd class="k">log</kbd>, <kbd class="k">&pi;</kbd> and <kbd class="k">y<sup>x</sup></kbd>.</li>
@@ -1396,6 +1455,65 @@
                     of hydrogen, with their series and colour, and Bohr's levels, orbits and speeds, the fall drawn; and radioactive
                     decay, with the activity, its curve drawn.</li>
                 <li>Angles are in the unit in use, Deg, Rad or Grad. What you typed stays for the next time.</li>
+            </ul>
+
+            <h2 class="logo title sub">Biology</h2>
+            <p>Click the double helix at the top left of the display. Each tool is a card, as the physics has; paste a sequence
+                as it comes, FASTA too, and type a genotype as it is written, AaBb. Click a result to put it into your calculation.</p>
+            <ul>
+                <li>Genetics: a Punnett square of two parents of up to six genes, the square drawn of up to three and coloured
+                    by phenotype, with the ratios of the phenotypes and genotypes, of complete or incomplete dominance; a cross
+                    of the X, as of colour blindness, by daughters and sons; Hardy–Weinberg, of p, of the counts of the three
+                    genotypes with a χ² test of equilibrium, or of how many show the recessive trait, with the carriers, its
+                    curves drawn; χ² of a cross against a ratio, as 9:3:3:1, the counts drawn beside those expected; gene maps,
+                    of two genes, or of the eight classes of a test cross of three, the gene in the middle, the distances,
+                    coincidence and interference, the chromosome drawn; the chances of offspring; heritability, by the breeder's
+                    equation; epistasis, 9:3:4, 12:3:1, 9:7 and more, its square drawn, and which ratio counts of offspring fit best;
+                    genetic risk, of a recessive gene, of the X by Bayes and of a dominant gene by its penetrance, the family drawn as a
+                    pedigree; and the ABO and Rh blood groups of children.</li>
+                <li>DNA: a sequence's length, bases and GC content along it, drawn, its mass and its complement, reverse
+                    complement and RNA to copy; translation in any of six frames, and the open reading frames, drawn; the codon
+                    wheel, to click; a primer's melting temperature by nearest neighbours, as Primer3, by Wallace's rule and with
+                    salt, with what may make it work badly, their melting drawn; DNA and RNA by A<sub>260</sub>, with their purity
+                    drawn; mass, moles and copies; ligation, the plasmid drawn; a restriction digest by 30 common enzymes, linear
+                    or circular, run on a gel beside a ladder, with a map of the sites; PCR, its copies cycle by cycle; two sequences
+                    aligned, globally or locally, of DNA or of protein by BLOSUM62, with a dot plot; CRISPR guides for SpCas9,
+                    SaCas9 and Cas12a, drawn along it; motifs of IUPAC's codes on both strands; primers for site-directed
+                    mutagenesis and for Gibson assembly, drawn; and genomes, their sizes drawn, and copies of them in so many ng.</li>
+                <li>Protein: a protein's mass, pI, charge, extinction at 280 nm, GRAVY and aliphatic index, its hydropathy and
+                    its charge against the pH drawn; the twenty amino acids, to click, with their pKa, pI, codons and titration
+                    curve; protein concentration by A<sub>280</sub> or a standard curve, as Bradford's; enzyme kinetics, of
+                    V<sub>max</sub> and K<sub>m</sub> or fitted to points, with competitive, uncompetitive and noncompetitive
+                    inhibitors, the curve and the Lineweaver–Burk plot drawn; binding by Hill, as of haemoglobin; a dose and its
+                    response fitted by the four-parameter logistic, its IC<sub>50</sub> or EC<sub>50</sub> and Hill slope, drawn; and a
+                    purification table, each step's specific activity, yield and fold.</li>
+                <li>Lab: C₁V₁ = C₂V₂ and serial dilutions, the tubes drawn; making a solution of a molarity, of a molar mass
+                    or a formula, a percent or a stock; a cell count on a haemocytometer, with viability and seeding; growth
+                    and doubling times, and OD<sub>600</sub>; colonies and CFU/mL, the plate drawn; the centrifuge's RPM and g;
+                    a PCR master mix; qPCR by ΔΔCt and Pfaffl, and its standard curve and efficiency; the mean ± 2 SE of groups,
+                    with error bars; R<sub>f</sub> of chromatography; the microscope's magnification and field of view; the size of a
+                    band from a gel, of DNA or of a protein on SDS-PAGE; transformation efficiency; seeding plates, the plate drawn;
+                    MOI, and the cells infected by Poisson; radioisotopes, their decay and shielding; and buffers, what to weigh
+                    and how much acid or base to add.</li>
+                <li>Cells: water potential, and which way water goes; osmolarity and tonicity, a red blood cell drawn; surface
+                    area to volume; Q<sub>10</sub>; diffusion by Fick's law, and the time to spread; membrane potentials by
+                    Nernst and by Goldman, on a scale of mV; free energy and K; the heart's output and blood pressure, its
+                    wave drawn; and respiration, its ATP and the respiratory quotient.</li>
+                <li>Health: diagnostic tests, their sensitivity, specificity and predictive values, a thousand people drawn;
+                    risk and odds ratios with their 95% intervals and the number needed to treat; an epidemic by SIR, and herd
+                    immunity; oxygen and haemoglobin, the Bohr shift drawn; an action potential by Hodgkin and Huxley; the
+                    kidneys, eGFR by CKD-EPI 2021, clearance and osmolality; BMI and energy; and a drug's levels over its doses.
+                    For learning, not for care.</li>
+                <li>Ecology: population growth, exponential and logistic; predators and prey by Lotka and Volterra, their
+                    cycles drawn; mark and recapture, by Lincoln and Petersen and by Chapman; diversity by Simpson and Shannon;
+                    life tables and their survivorship curve; energy pyramids; primary productivity by light and dark bottles;
+                    natural selection and genetic drift, generation by generation; Leslie matrices; competition by Lotka and
+                    Volterra, with its isoclines; species–area curves, rarefaction and Chao1; trees by UPGMA and neighbour joining,
+                    of distances or aligned sequences, drawn; and the molecular clock, by Jukes and Cantor and Kimura.</li>
+                <li>In f(x), formulas of biology and of health, each with In Biology to open its card; and in the converter,
+                    molarity, mass concentration, amount of substance, molecular mass, sequence length, enzyme activity, counts per
+                    volume and doses of radiation.</li>
+                <li>What you typed stays for the next time.</li>
             </ul>
         </div>
 
@@ -2004,6 +2122,7 @@
     <script src="js/units.js"></script>
     <script src="js/chem.js"></script>
     <script src="js/physics.js"></script>
+    <script src="js/biology.js"></script>
     <script src="js/main.js"></script>
     <script src="js/app.js"></script>
     <script src="js/options.js"></script>

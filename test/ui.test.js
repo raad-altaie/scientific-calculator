@@ -257,17 +257,17 @@ async function calculator(page, at) {
 
     // the formulas, the converter, the statistics and the graph are on at first, in the order of their options
     await page.fresh(at, {});
-    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-stat-btn', t + 'all of them at first', await buttons(page));
-    await page.fresh(at, { fxOn: false, convOn: false, statsOn: false, graphOn: false, solveOn: false, numbersOn: false, chemOn: false, physOn: false });
+    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-bio-btn calc-stat-btn', t + 'all of them at first', await buttons(page));
+    await page.fresh(at, { fxOn: false, convOn: false, statsOn: false, graphOn: false, solveOn: false, numbersOn: false, chemOn: false, physOn: false, bioOn: false });
     check(await buttons(page) === '', t + 'no buttons with all of them off', await buttons(page));
 
     // what an administrator turned off, as the extension keeps it: on in the options does not bring it
     await page.fresh(at, { statsOn: true, policy: { statistics: false, formulas: false } });
-    check(await buttons(page) === 'calc-conv-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn', t + 'the statistics and f(x) turned off by an administrator', await buttons(page));
+    check(await buttons(page) === 'calc-conv-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-bio-btn', t + 'the statistics and f(x) turned off by an administrator', await buttons(page));
     await page.fresh(at, { solveOn: true, policy: { solve: false, numbers: false } });
-    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-chem-btn calc-phys-btn calc-stat-btn', t + 'and the solver and the numbers', await buttons(page));
+    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-chem-btn calc-phys-btn calc-bio-btn calc-stat-btn', t + 'and the solver and the numbers', await buttons(page));
     await page.fresh(at, { convOn: false });
-    check(await buttons(page) === 'calc-fx-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-stat-btn', t + 'three buttons with the converter off', await buttons(page));
+    check(await buttons(page) === 'calc-fx-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-bio-btn calc-stat-btn', t + 'three buttons with the converter off', await buttons(page));
 
     // the ? beside the name has a tip of the calculator's own, below it, in place of a title
     await page.hover('.calc-help');
@@ -288,7 +288,7 @@ async function calculator(page, at) {
     // the keys still work, and the history adds its clock
     await page.type('2+3\r');
     check(await shown(page) === '5', t + '2 + 3 = 5', await shown(page));
-    check(await buttons(page) === 'calc-hist calc-fx-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-stat-btn', t + 'the clock comes with a history', await buttons(page));
+    check(await buttons(page) === 'calc-hist calc-fx-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-bio-btn calc-stat-btn', t + 'the clock comes with a history', await buttons(page));
 
     // the panel: the search has the keys, the result in the display starts the first box
     await page.click('.calc-fx-btn');
@@ -2971,7 +2971,7 @@ async function converter(page, at) {
 
     // its button comes after f(x), as its option does
     await page.fresh(at, {});
-    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-stat-btn', t + 'the converter between f(x) and the graph',
+    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-bio-btn calc-stat-btn', t + 'the converter between f(x) and the graph',
         await buttons(page));
 
     // the result shown is the value to start from
@@ -3455,7 +3455,7 @@ async function menus(page, at) {
     await page.rightClick('.calc-past-res');
     await pick(page, 'Delete');
     check(await page.calc('document.querySelectorAll(".calc-past-row").length') === 1, t + 'Delete takes the line out');
-    await page.rightClick('.calc-past:not(.calc-stats):not(.calc-fx):not(.calc-conv):not(.calc-graph):not(.calc-solve):not(.calc-numbers):not(.calc-chem):not(.calc-phys) .calc-past-head span');
+    await page.rightClick('.calc-past:not(.calc-stats):not(.calc-fx):not(.calc-conv):not(.calc-graph):not(.calc-solve):not(.calc-numbers):not(.calc-chem):not(.calc-phys):not(.calc-bio) .calc-past-head span');
     check(await menu(page) === 'Clear history', t + 'above the lines, Clear history', await menu(page));
     await pick(page, 'Clear history');
     check(await page.calc('document.querySelector(".calc-hist").hidden'), t + 'which empties it');
@@ -3752,6 +3752,62 @@ async function chemistry(page, at) {
 }
 
 // The chemistry's cards of names, oxidation numbers, redox and the freezing and boiling point: each typed into, its tiles read
+// The biology: its cards on six tabs, a Punnett square worked out and drawn, the codon wheel clicked, and drift run again
+async function biology(page, at) {
+    var t = at + ' biology: ', card = function (q) { return 'document.querySelector(".calc-bio .calc-sv-item.calc-on ' + q + '")'; }, before;
+    await page.fresh(at, {});
+    await page.click('.calc-bio-btn');
+    check(await page.calc('document.querySelector(".calc-bio").classList.contains("calc-open") && document.querySelectorAll(".calc-bio .calc-solve-tab").length === 7'),
+        t + 'the double helix opens it, on seven tabs');
+    check(await page.calc('(function (h) { var tabs = h.querySelectorAll(".calc-solve-tab"); return tabs[0].getBoundingClientRect().top === tabs[6].getBoundingClientRect().top && ' +
+        'tabs[6].getBoundingClientRect().right <= h.querySelector(".calc-panel-size").getBoundingClientRect().left; })(document.querySelector(".calc-bio .calc-past-head"))'), t + 'its tabs on one line, before pop out');
+    await page.click('.calc-bio .calc-sv-item:first-child .calc-sv-row');
+    await page.click('.calc-bio .calc-sv-item.calc-on .calc-sv-example');
+    check(await page.calc('[].some.call(document.querySelectorAll(".calc-bio .calc-sv-label"), function (l) { return /Phenotypes, 9 : 3 : 3 : 1/.test(l.textContent); })'),
+        t + 'AaBb × AaBb is 9 : 3 : 3 : 1');
+    check(await page.calc('document.querySelectorAll(".calc-bio .calc-sv-item.calc-on .calc-sv-grid > .calc-sv-drawn").length === 2 && ' +
+        'document.querySelector(".calc-bio .calc-sv-item.calc-on .calc-sv-grid").firstElementChild.classList.contains("calc-sv-drawn")'), t + 'the square and the bars drawn, first');
+    await page.click('.calc-bio .calc-solve-tab[data-tab="dna"]');
+    await page.calc('[].filter.call(document.querySelectorAll(".calc-bio .calc-sv-item"), function (i) { return /Genetic code/.test(i.textContent); })[0].querySelector(".calc-sv-row").click()');
+    await page.calc(card('[data-v=UGG]') + '.dispatchEvent(new MouseEvent("click", { bubbles: true }))');
+    await sleep(60);
+    check(await page.calc(card('input[data-k=x]') + '.value') === 'UGG' && await page.calc('/Tryptophan/.test(' + card('.calc-sv-grid') + '.textContent)') &&
+        await page.calc(card('.calc-bio-lit[data-v=UGG]') + ' !== null'), t + 'a codon clicked on the wheel is typed, worked out and ringed');
+    await page.calc(card('[data-v=Leu]') + '.dispatchEvent(new MouseEvent("click", { bubbles: true }))');
+    await sleep(60);
+    check(await page.calc('document.querySelectorAll(".calc-bio .calc-sv-item.calc-on .calc-bio-lit").length') === 6, t + 'and an amino acid, its six codons ringed');
+    await page.click('.calc-bio .calc-solve-tab[data-tab="ecology"]');
+    await page.calc('[].filter.call(document.querySelectorAll(".calc-bio .calc-sv-item"), function (i) { return /Genetic drift/.test(i.textContent); })[0].querySelector(".calc-sv-row").click()');
+    await page.click('.calc-bio .calc-sv-item.calc-on .calc-sv-example');
+    before = await page.calc(card('.calc-sv-drawn svg') + '.innerHTML');
+    await page.click('.calc-bio .calc-sv-item.calc-on .calc-sv-again:not(.calc-sv-example)');
+    check(await page.calc(card('.calc-sv-drawn svg') + '.innerHTML') !== before, t + 'Again runs the drift anew');
+
+    // Goldman's example fills its boxes; a card of the health worked out and drawn first
+    await page.click('.calc-bio .calc-solve-tab[data-tab="cells"]');
+    await page.calc('[].filter.call(document.querySelectorAll(".calc-bio .calc-sv-item"), function (i) { return /Membrane potential/.test(i.textContent); })[0].querySelector(".calc-sv-row").click()');
+    await page.calc(card('.calc-sv-choice[data-k=by]') + '.children[1].click()');
+    await page.click('.calc-bio .calc-sv-item.calc-on .calc-sv-example');
+    check(await page.calc('[].filter.call(document.querySelectorAll(".calc-bio .calc-sv-item.calc-on input"), function (i) { return i.value; }).length') === 10 &&
+        await page.calc('/Vm −6\\d/.test(' + card('.calc-sv-drawn') + '.textContent)'), t + 'Goldman\'s example fills its ten boxes, Vm drawn near −65 mV');
+    await page.click('.calc-bio .calc-solve-tab[data-tab="health"]');
+    await page.click('.calc-bio .calc-sv-item:first-child .calc-sv-row');
+    await page.click('.calc-bio .calc-sv-item.calc-on .calc-sv-example');
+    check(await page.calc('/PPV, %66\\.6/.test([].map.call(document.querySelectorAll(".calc-bio .calc-sv-item.calc-on .calc-sv-tile"), function (e) { return e.textContent; }).join("|"))') &&
+        await page.calc(card('.calc-sv-grid') + '.firstElementChild.classList.contains("calc-sv-drawn")'), t + 'a diagnostic test: its PPV, 90 of 135, a thousand people drawn first');
+
+    // a formula of the biology opens its card, with what was typed
+    await page.key('Escape', 27);
+    await page.click('.calc-fx-btn');
+    await page.calc('(function (s) { s.value = ""; s.dispatchEvent(new Event("input")); })(document.querySelector(".calc-fx-search"))');
+    await page.type('michaelis\r');
+    await page.type('10\r2\r4');
+    check(await page.calc('document.querySelector(".calc-fx-bio") !== null'), t + 'Michaelis–Menten has In Biology');
+    await page.click('.calc-fx-bio');
+    check(await page.calc('document.querySelector(".calc-bio").classList.contains("calc-open") && /Enzyme kinetics/.test(document.querySelector(".calc-bio .calc-sv-item.calc-on").textContent)') &&
+        await page.calc(card('input[data-k=vmax]') + '.value') === '10' && await page.calc(card('input[data-k=s]') + '.value') === '4', t + 'In Biology opens its card, V_max and [S] in it');
+}
+
 async function chemistryTools(page, at) {
     var t = at + ': chemistry tools: ', got,
         type = function (k, text) { // into the box of the card open
@@ -3806,7 +3862,7 @@ async function options(page) {
 
     await page.fresh('/frame.html', {});
     t = 'in a frame: ';
-    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-stat-btn', t + 'all four buttons');
+    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-bio-btn calc-stat-btn', t + 'all four buttons');
     await page.click('.calc-fx-btn');
     await page.ev('localStorage.setItem("fxOn", "false")');
     check(await page.until('!(document.getElementById("calc-iframe").contentDocument.querySelector(".calc-fx-btn").offsetWidth)'),
@@ -3849,7 +3905,7 @@ async function search(page) {
     check(await page.ev('document.querySelector(".calc-find-panel").classList.contains("calc-open") && document.querySelector(".calc-find").hidden &&' +
         ' document.activeElement === document.querySelector(".calc-find-panel .calc-find-input")'), t + 'it opens from the calculator, a panel over the keys');
     check(await page.ev('document.querySelector(".calc-find-panel .calc-solve-tab").textContent === "Search" && !!document.querySelector(".calc-find-panel .calc-panel-size") &&' +
-        ' document.querySelectorAll(".calc-find-panel .calc-find-icon svg").length === 8 && !document.querySelector(".calc-find-panel .calc-find-where")'),
+        ' document.querySelectorAll(".calc-find-panel .calc-find-icon svg").length === 9 && !document.querySelector(".calc-find-panel .calc-find-where")'),
         t + 'its head: Search, pop out and close; the tools listed with their icons');
     await page.type('ohm');
     await page.type('\r');
@@ -3893,7 +3949,7 @@ async function search(page) {
         t + 'on the rail, under the calculator');
     await page.click('.calc-go-find');
     check(await page.ev('!document.querySelector(".calc-find").hidden && document.activeElement === document.querySelector(".calc-find-input")'), t + 'it opens, to type in');
-    check(await page.ev(names) === 'Formulas, Converter, Graph, Numbers, Solver, Chemistry, Physics, Statistics', t + 'the tools, while nothing is typed', await page.ev(names));
+    check(await page.ev(names) === 'Formulas, Converter, Graph, Numbers, Solver, Chemistry, Physics, Biology, Statistics', t + 'the tools, while nothing is typed', await page.ev(names));
     await page.type('ohm');
     check(/^Ohm's law and power, Ohm's law/.test(await page.ev(names)), t + 'the card first, then the formula', await page.ev(names));
     await page.type('\r');
@@ -3957,7 +4013,7 @@ async function adminPolicy(page) {
     // the popup: the graph goes, kept for the next time it opens
     await page.fresh('/popup.html', {});
     check(await page.until('document.querySelector(".calc-graph-btn").hidden'), t + 'the graph turned off goes from the popup');
-    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-stat-btn', t + 'the rest stays', await buttons(page));
+    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-bio-btn calc-stat-btn', t + 'the rest stays', await buttons(page));
     check(await page.ev('localStorage.getItem("policy")') === '{"graph":false,"detachedMode":false,"pageButton":false,"pageMaths":false}',
         t + 'kept, with the button and the maths on the pages, which open Detached Mode', await page.ev('localStorage.getItem("policy")'));
     await change({});
@@ -4024,6 +4080,7 @@ async function adminPolicy(page) {
         await statsMore(page, '/popup.html');
         await chemistry(page, '/popup.html');
         await chemistryTools(page, '/popup.html');
+        await biology(page, '/popup.html');
         await solver(page, '/popup.html');
         await numbersPanel(page, '/popup.html');
         await matrixTen(page, '/popup.html');

@@ -418,9 +418,76 @@
                 'tunnelling, special relativity, hydrogen\'s lines and Bohr\'s orbits, and radioactive decay.',
             k: ''
         },
+        // biology
+        'bio': {
+            t: 'Biology',
+            d: 'Genetics, from Punnett squares to gene maps and genetic risk; DNA and RNA, translated, aligned, primers, CRISPR guides, digests and gels; proteins, enzymes ' +
+                'and dose–response; the lab\'s dilutions, counts, buffers and qPCR; cells, water potential and membranes; health, from diagnostic tests to drug levels; ' +
+                'and ecology and evolution, populations, diversity and trees. Click a number to put it in.',
+            k: ''
+        },
+        'bio close': {
+            t: 'Close the biology',
+            d: 'What you typed stays for the next time.',
+            k: 'Esc'
+        },
+        'bio tab genetics': {
+            t: 'Genetics',
+            d: 'Punnett squares of up to six genes, drawn, and of the X; Hardy–Weinberg, of p, of counts with its χ² test, or of the recessive trait; χ² of a cross; ' +
+                'gene maps of two genes or three, the chromosome drawn; the chances of offspring; heritability, by the breeder\'s equation; epistasis and which ratio fits; ' +
+                'genetic risk, the family drawn as a pedigree; and blood groups.',
+            k: ''
+        },
+        'bio tab dna': {
+            t: 'DNA',
+            d: 'A sequence\'s length, bases, GC along it and mass, with its complement and reverse complement; translation in six frames and the open reading frames, drawn; ' +
+                'the codon wheel; primer T<sub>m</sub> by nearest neighbours, their melting drawn; DNA and RNA by A<sub>260</sub> and their purity; mass, moles and copies; ligation, the plasmid drawn; ' +
+                'restriction digests run on a gel; PCR\'s copies, cycle by cycle; alignments, global and local, with a dot plot; CRISPR guides; motifs of IUPAC\'s codes; ' +
+                'primers for mutagenesis and Gibson assembly; and genomes and their copies.',
+            k: ''
+        },
+        'bio tab protein': {
+            t: 'Protein',
+            d: 'A protein\'s mass, pI, charge, extinction and hydropathy, drawn; the twenty amino acids, each\'s titration drawn; protein concentration by A<sub>280</sub> or a standard curve; ' +
+                'enzyme kinetics, of V<sub>max</sub> and K<sub>m</sub> or fitted to points, with inhibitors and the Lineweaver–Burk plot; binding by Hill; dose–response, its IC<sub>50</sub> fitted; ' +
+                'and a purification table.',
+            k: ''
+        },
+        'bio tab lab': {
+            t: 'Lab',
+            d: 'C₁V₁ = C₂V₂ and serial dilutions, their tubes drawn; making a solution, of its molarity, formula, percent or a stock; counting cells; growth and doubling, and OD<sub>600</sub>; ' +
+                'colonies and CFU/mL; the centrifuge\'s RPM and g; a PCR master mix; qPCR by ΔΔCt and its standard curve; the mean ± 2 SE with error bars; R<sub>f</sub> of chromatography; the microscope; ' +
+                'sizes from a gel; transformation efficiency; seeding plates; MOI; radioisotopes; and buffers.',
+            k: ''
+        },
+        'bio tab cells': {
+            t: 'Cells',
+            d: 'Water potential, osmolarity and tonicity, a red blood cell drawn; surface area to volume; Q₁₀; diffusion by Fick; membrane potentials by Nernst and by Goldman; ' +
+                'free energy; the heart\'s output and blood pressure, drawn; and respiration, its ATP and the respiratory quotient.',
+            k: ''
+        },
+        'bio tab health': {
+            t: 'Health',
+            d: 'Diagnostic tests, their sensitivity, specificity and predictive values, a thousand people drawn; risk and odds ratios with their intervals, and the number needed to treat; ' +
+                'an epidemic by SIR and herd immunity; oxygen and haemoglobin, the Bohr shift drawn; an action potential by Hodgkin and Huxley; the kidneys, eGFR and clearance; ' +
+                'BMI and energy; and a drug\'s levels over its doses. For learning, not for care.',
+            k: ''
+        },
+        'bio tab ecology': {
+            t: 'Ecology',
+            d: 'Population growth, exponential and logistic; predators and prey by Lotka and Volterra; mark and recapture; diversity by Simpson and Shannon; life tables and survivorship; ' +
+                'energy pyramids; primary productivity; natural selection and genetic drift, generation by generation; Leslie matrices; competition; species, area and rarefaction; ' +
+                'trees by UPGMA and neighbour joining; and the molecular clock.',
+            k: ''
+        },
         'formula physics': {
             t: 'In Physics',
             d: 'Opens the card of the Physics panel that works this out, with what you typed in it: there, any of its letters from the others.',
+            k: ''
+        },
+        'formula biology': {
+            t: 'In Biology',
+            d: 'Opens the card of the Biology panel that works this out, with what you typed in it, and draws it.',
             k: ''
         },
         'choice stick 0': {

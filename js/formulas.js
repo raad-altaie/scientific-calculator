@@ -845,6 +845,290 @@
             ]
         },
         {
+            c: 'Biology', list: [
+                {
+                    t: 'Hardy–Weinberg carriers', f: '2pq = 2p(1 − p)',
+                    d: 'The part of a population that is heterozygous, of p, the frequency of the dominant allele.',
+                    v: [['p', 'p', 'frequency of the dominant allele']],
+                    x: '2*{p}*(1-{p})', ex: [[0.7], 0.42]
+                },
+                {
+                    t: 'Recessive allele frequency', f: 'q = [[q<sup>2</sup>]]',
+                    d: 'q of the part of a population that shows the recessive trait, as 1/2500.',
+                    v: [['a', 'q<sup>2</sup>', 'part showing the recessive trait']],
+                    x: 'sqrt({a})', ex: [[0.0004], 0.02],
+                    neg: ['a']
+                },
+                {
+                    t: 'Recombination frequency', f: 'RF = {{recombinants|total}} × 100',
+                    d: 'The distance between two genes, in map units (cM), from a test cross.',
+                    v: [['r', 'recombinants', 'recombinant offspring'], ['n', 'total', 'all the offspring']],
+                    x: '{r}/{n}*100', ex: [[170, 1000], 17],
+                    zero: ['n']
+                },
+                {
+                    t: 'Population growth, exponential', f: 'N = N<sub>0</sub>e<sup>rt</sup>',
+                    d: 'A population growing without limit, at the rate r.',
+                    v: [['N', 'N<sub>0</sub>', 'size at first'], ['r', 'r', 'growth rate'], ['t', 't', 'time']],
+                    x: '{N}*e^({r}*{t})', ex: [[50, 0.3, 20], 20171.43967]
+                },
+                {
+                    t: 'Population growth, logistic', f: 'N = {{K|1 + {{K − N<sub>0</sub>|N<sub>0</sub>}}e<sup>−rt</sup>}}',
+                    d: 'A population growing more slowly as it nears its carrying capacity K.',
+                    v: [['N', 'N<sub>0</sub>', 'size at first'], ['r', 'r', 'growth rate'], ['t', 't', 'time'], ['K', 'K', 'carrying capacity']],
+                    x: '{K}/(1+({K}-{N})/{N}*e^(-{r}*{t}))', ex: [[50, 0.3, 20, 1000], 955.0220054],
+                    zero: ['N']
+                },
+                {
+                    t: 'Doubling time', f: 't<sub>d</sub> = {{ln 2|r}}',
+                    d: 'How long a population, or a culture, growing at the rate r takes to double.',
+                    v: [['r', 'r', 'growth rate']],
+                    x: 'ln(2)/{r}', ex: [[0.1], 6.931471806],
+                    zero: ['r']
+                },
+                {
+                    t: 'Generations', f: 'n = {{log N − log N<sub>0</sub>|log 2}}',
+                    d: 'How many times cells divided to grow from N<sub>0</sub> to N.',
+                    v: [['N', 'N', 'cells at the end'], ['M', 'N<sub>0</sub>', 'cells at first']],
+                    x: '(log({N})-log({M}))/log(2)', ex: [[64000, 1000], 6],
+                    pos: ['N', 'M']
+                },
+                {
+                    t: 'Mark and recapture', f: 'N = {{MC|R}}',
+                    d: 'The size of a population by Lincoln and Petersen: M marked, C caught later, R of them marked.',
+                    v: [['M', 'M', 'marked'], ['C', 'C', 'caught the second time'], ['R', 'R', 'recaptured, marked']],
+                    x: '{M}*{C}/{R}', ex: [[50, 60, 12], 250],
+                    zero: ['R']
+                },
+                {
+                    t: 'Solute potential', f: 'Ψ<sub>S</sub> = −iCRT',
+                    d: 'The water potential of a solution, in bars: i particles of each molecule, C in mol/L, at T in °C.',
+                    v: [['i', 'i', 'particles of each, 1 of sucrose'], ['C', 'C', 'molarity (mol/L)'], ['T', 'T', 'temperature (°C)']],
+                    x: '-{i}*{C}*0.0831446*({T}+273.15)', ex: [[1, 0.3, 22], -7.362038607]
+                },
+                {
+                    t: 'Q10', f: 'Q<sub>10</sub> = ({{R<sub>2</sub>|R<sub>1</sub>}})<sup>10/(T<sub>2</sub> − T<sub>1</sub>)</sup>',
+                    d: 'How many times faster a rate goes 10 °C warmer.',
+                    v: [['a', 'R<sub>1</sub>', 'rate at T₁'], ['b', 'R<sub>2</sub>', 'rate at T₂'], ['t', 'T<sub>1</sub>', 'temperature 1 (°C)'], ['s', 'T<sub>2</sub>', 'temperature 2 (°C)']],
+                    x: '({b}/{a})^(10/({s}-{t}))', ex: [[12, 30, 20, 30], 2.5],
+                    pos: ['a', 'b'], no: 'The two temperatures cannot be the same.'
+                },
+                {
+                    t: 'Nernst potential', f: 'E = {{RT|zF}} ln {{[out]|[in]}}',
+                    d: 'The voltage across a membrane at which an ion is at balance, in mV.',
+                    v: [['z', 'z', 'charge of the ion'], ['o', '[out]', 'concentration outside'], ['i', '[in]', 'concentration inside'], ['T', 'T', 'temperature (°C)']],
+                    x: '8.314462618*({T}+273.15)/({z}*96485.33212)*ln({o}/{i})*1000', ex: [[1, 5, 140, 37], -89.05869404],
+                    zero: ['z'], pos: ['o', 'i']
+                },
+                {
+                    t: 'Michaelis–Menten', f: 'v = {{V<sub>max</sub>[S]|K<sub>m</sub> + [S]}}',
+                    d: 'The rate of an enzyme\'s reaction at a concentration of its substrate.',
+                    v: [['V', 'V<sub>max</sub>', 'the fastest rate'], ['K', 'K<sub>m</sub>', '[S] of half V<sub>max</sub>'], ['S', '[S]', 'substrate concentration']],
+                    x: '{V}*{S}/({K}+{S})', ex: [[10, 2, 4], 6.666666667]
+                },
+                {
+                    t: 'Hill equation', f: 'θ = {{[L]<sup>n</sup>|K<sup>n</sup> + [L]<sup>n</sup>}}',
+                    d: 'The part of a protein with its ligand bound, n its cooperativity, as haemoglobin\'s 2.8.',
+                    v: [['L', '[L]', 'ligand concentration'], ['K', 'K', '[L] half bound'], ['n', 'n', 'Hill coefficient']],
+                    x: '{L}^{n}/({K}^{n}+{L}^{n})', ex: [[40, 26, 2.8], 0.7696245032],
+                    pos: ['L', 'K']
+                },
+                {
+                    t: 'Beer–Lambert', f: 'c = {{A|εl}}',
+                    d: 'A concentration in mol/L from its absorbance, of ε in M⁻¹cm⁻¹ and the path l in cm.',
+                    v: [['A', 'A', 'absorbance'], ['e', 'ε', 'extinction coefficient (M⁻¹cm⁻¹)'], ['l', 'l', 'path (cm)']],
+                    x: '{A}/({e}*{l})', ex: [[0.5, 6220, 1], 8.038585209e-5],
+                    zero: ['e', 'l']
+                },
+                {
+                    t: 'DNA by A260', f: 'c = A<sub>260</sub> × 50 × dilution',
+                    d: 'The concentration of double-stranded DNA, in µg/mL; of RNA 40, of single-stranded DNA 33 in place of 50.',
+                    v: [['A', 'A<sub>260</sub>', 'absorbance at 260 nm'], ['d', 'dilution', 'times diluted']],
+                    x: '{A}*50*{d}', ex: [[0.75, 10], 375]
+                },
+                {
+                    t: 'Wallace rule', f: 'T<sub>m</sub> = 2(A + T) + 4(G + C)',
+                    d: 'The melting point of a short primer, in °C, of the count of each base.',
+                    v: [['w', 'A + T', 'count of A and T'], ['s', 'G + C', 'count of G and C']],
+                    x: '2*{w}+4*{s}', ex: [[10, 10], 60]
+                },
+                {
+                    t: 'PCR copies', f: 'N = N<sub>0</sub>(1 + E)<sup>n</sup>',
+                    d: 'The copies after n cycles of PCR, E its efficiency in %, 100 doubling each cycle.',
+                    v: [['N', 'N<sub>0</sub>', 'copies at first'], ['E', 'E', 'efficiency (%)'], ['n', 'n', 'cycles']],
+                    x: '{N}*(1+{E}/100)^{n}', ex: [[1000, 100, 30], 1073741824000]
+                },
+                {
+                    t: 'Fold change by ΔΔCt', f: 'fold = 2<sup>−ΔΔCt</sup>',
+                    d: 'The change in a gene\'s expression by Livak\'s method, of ΔΔCt.',
+                    v: [['d', 'ΔΔCt', 'ΔCt treated − ΔCt control']],
+                    x: '2^(-{d})', ex: [[-2.5], 5.656854249]
+                },
+                {
+                    t: 'Centrifuge force', f: 'RCF = 1.118 × 10<sup>−5</sup> r × RPM<sup>2</sup>',
+                    d: 'The force of a centrifuge in g, of the rotor\'s radius in cm.',
+                    v: [['r', 'r', 'radius (cm)'], ['N', 'RPM', 'revolutions a minute']],
+                    x: '1.118E-5*{r}*{N}²', ex: [[8.4, 13000], 15871.128]
+                },
+                {
+                    t: 'Magnification', f: 'M = {{image|actual}}',
+                    d: 'How many times bigger an image is than the real thing, both in one unit.',
+                    v: [['i', 'image', 'size of the image'], ['a', 'actual', 'real size']],
+                    x: '{i}/{a}', ex: [[5, 0.01], 500],
+                    zero: ['a']
+                },
+                {
+                    t: 'Specific activity', f: 'SA = {{units|mg}}',
+                    d: 'An enzyme\'s activity for each mg of protein: the higher, the purer.',
+                    v: [['u', 'units', 'activity (U)'], ['m', 'mg', 'protein (mg)']],
+                    x: '{u}/{m}', ex: [[3000, 1500], 2],
+                    zero: ['m']
+                },
+                {
+                    t: 'Transformation efficiency', f: 'T = {{colonies|µg plated}}',
+                    d: 'The transformants a µg of DNA, of the colonies and the µg of DNA in what was spread.',
+                    v: [['n', 'colonies', 'colonies on the plate'], ['u', 'µg', 'DNA plated (µg)']],
+                    x: '{n}/{u}', ex: [[150, 1E-6], 150000000],
+                    zero: ['u']
+                },
+                {
+                    t: 'Jukes–Cantor distance', f: 'd = −¾ ln(1 − {{4|3}}p)',
+                    d: 'The substitutions a site between two sequences, of p, the part of the sites that differ.',
+                    v: [['p', 'p', 'part that differ']],
+                    x: '-3/4*ln(1-4/3*{p})', ex: [[0.1], 0.1073256327],
+                    no: 'p must be below 0.75.'
+                },
+                {
+                    t: 'Divergence time', f: 'T = {{d|2r}}',
+                    d: 'How long ago two lineages split, of d substitutions a site and r a site a year.',
+                    v: [['d', 'd', 'substitutions a site'], ['r', 'r', 'rate a site a year']],
+                    x: '{d}/(2*{r})', ex: [[0.1, 1E-9], 50000000],
+                    zero: ['r']
+                },
+                {
+                    t: 'SA:V of a sphere', f: 'SA:V = {{3|r}}',
+                    d: 'A round cell\'s surface for each of its volume: smaller cells have more.',
+                    v: [['r', 'r', 'radius']],
+                    x: '3/{r}', ex: [[2], 1.5],
+                    zero: ['r']
+                },
+                {
+                    t: 'Fick\'s law', f: 'J = {{DAΔC|d}}',
+                    d: 'The rate a substance diffuses across a membrane, in mol/s, of SI units.',
+                    v: [['D', 'D', 'diffusion coefficient (m²/s)'], ['A', 'A', 'area (m²)'], ['c', 'ΔC', 'difference (mol/m³)'], ['d', 'd', 'thickness (m)']],
+                    x: '{D}*{A}*{c}/{d}', ex: [[2E-9, 1E-6, 0.1, 1E-6], 2E-10],
+                    zero: ['d']
+                },
+                {
+                    t: 'Free energy of a reaction', f: 'ΔG = ΔG°′ + RT ln Q',
+                    d: 'Whether a reaction goes forward, below 0, at Q of its products over its reactants, in kJ/mol.',
+                    v: [['g', 'ΔG°′', 'standard (kJ/mol)'], ['q', 'Q', 'reaction quotient'], ['T', 'T', 'temperature (°C)']],
+                    x: '{g}+8.314462618E-3*({T}+273.15)*ln({q})', ex: [[-30.5, 0.001, 37], -48.31323978],
+                    pos: ['q']
+                }
+            ]
+        },
+        {
+            c: 'Health', list: [
+                {
+                    t: 'Basal metabolic rate, men', f: 'BMR = 10m + 6.25h − 5a + 5',
+                    d: 'The energy of a man at rest, kcal a day, by Mifflin and St Jeor.',
+                    v: [['m', 'm', 'weight (kg)'], ['h', 'h', 'height (cm)'], ['a', 'a', 'age (years)']],
+                    x: '10*{m}+6.25*{h}-5*{a}+5', ex: [[70, 175, 30], 1648.75]
+                },
+                {
+                    t: 'Basal metabolic rate, women', f: 'BMR = 10m + 6.25h − 5a − 161',
+                    d: 'The energy of a woman at rest, kcal a day, by Mifflin and St Jeor.',
+                    v: [['m', 'm', 'weight (kg)'], ['h', 'h', 'height (cm)'], ['a', 'a', 'age (years)']],
+                    x: '10*{m}+6.25*{h}-5*{a}-161', ex: [[60, 165, 30], 1320.25]
+                },
+                {
+                    t: 'Cardiac output', f: 'CO = HR × SV',
+                    d: 'The blood the heart pumps, in L/min, of the heart rate and the stroke volume in mL.',
+                    v: [['h', 'HR', 'heart rate (bpm)'], ['s', 'SV', 'stroke volume (mL)']],
+                    x: '{h}*{s}/1000', ex: [[70, 70], 4.9]
+                },
+                {
+                    t: 'Mean arterial pressure', f: 'MAP = DBP + {{SBP − DBP|3}}',
+                    d: 'The mean pressure in the arteries over a beat, in mmHg.',
+                    v: [['s', 'SBP', 'systolic (mmHg)'], ['d', 'DBP', 'diastolic (mmHg)']],
+                    x: '{d}+({s}-{d})/3', ex: [[120, 80], 93.33333333]
+                },
+                {
+                    t: 'Herd immunity', f: 'p = 1 − {{1|R<sub>0</sub>}}',
+                    d: 'The part of a population to make immune for an infection to die out.',
+                    v: [['R', 'R<sub>0</sub>', 'basic reproduction number']],
+                    x: '1-1/{R}', ex: [[3], 0.6666666667],
+                    zero: ['R']
+                },
+                {
+                    t: 'Sensitivity', f: 'sensitivity = {{TP|TP + FN}}',
+                    d: 'The part of those with an illness a test finds.',
+                    v: [['a', 'TP', 'true positives'], ['b', 'FN', 'false negatives']],
+                    x: '{a}/({a}+{b})', ex: [[90, 10], 0.9]
+                },
+                {
+                    t: 'Specificity', f: 'specificity = {{TN|TN + FP}}',
+                    d: 'The part of those without an illness a test clears.',
+                    v: [['a', 'TN', 'true negatives'], ['b', 'FP', 'false positives']],
+                    x: '{a}/({a}+{b})', ex: [[855, 45], 0.95]
+                },
+                {
+                    t: 'Positive predictive value', f: 'PPV = {{TP|TP + FP}}',
+                    d: 'The part of those a test flags who have the illness.',
+                    v: [['a', 'TP', 'true positives'], ['b', 'FP', 'false positives']],
+                    x: '{a}/({a}+{b})', ex: [[90, 45], 0.6666666667]
+                },
+                {
+                    t: 'Odds ratio', f: 'OR = {{ad|bc}}',
+                    d: 'Of a 2 × 2 table: a and b exposed, with the outcome and without; c and d not exposed.',
+                    v: [['a', 'a', 'exposed, with it'], ['b', 'b', 'exposed, without'], ['c', 'c', 'not, with it'], ['d', 'd', 'not, without']],
+                    x: '{a}*{d}/({b}*{c})', ex: [[15, 85, 30, 70], 0.4117647059],
+                    zero: ['b', 'c']
+                },
+                {
+                    t: 'Relative risk', f: 'RR = {{a ÷ (a + b)|c ÷ (c + d)}}',
+                    d: 'The risk of the exposed over the risk of those not.',
+                    v: [['a', 'a', 'exposed, with it'], ['b', 'b', 'exposed, without'], ['c', 'c', 'not, with it'], ['d', 'd', 'not, without']],
+                    x: '({a}/({a}+{b}))/({c}/({c}+{d}))', ex: [[15, 85, 30, 70], 0.5],
+                    zero: ['c']
+                },
+                {
+                    t: 'Number needed to treat', f: 'NNT = {{1|ARR}}',
+                    d: 'How many to treat for one fewer with the outcome, of the absolute risk reduction, a part of 1.',
+                    v: [['r', 'ARR', 'risk reduction']],
+                    x: '1/{r}', ex: [[0.15], 6.666666667],
+                    zero: ['r']
+                },
+                {
+                    t: 'Drug elimination', f: 'C = C<sub>0</sub>(½)<sup>t/t½</sup>',
+                    d: 'A drug\'s concentration after a time, falling by half each half-life.',
+                    v: [['C', 'C<sub>0</sub>', 'concentration at first'], ['t', 't', 'time'], ['h', 't½', 'half-life']],
+                    x: '{C}*0.5^({t}/{h})', ex: [[10, 6, 3], 2.5],
+                    zero: ['h']
+                },
+                {
+                    t: 'Renal clearance', f: 'C = {{UV|P}}',
+                    d: 'The plasma cleared of a substance each minute, mL/min, of its concentration in urine and plasma.',
+                    v: [['U', 'U', 'concentration in urine'], ['V', 'V', 'urine flow (mL/min)'], ['P', 'P', 'concentration in plasma']],
+                    x: '{U}*{V}/{P}', ex: [[120, 1, 1], 120],
+                    zero: ['P']
+                },
+                {
+                    t: 'Plasma osmolality', f: 'osmolality = 2Na + glucose + urea',
+                    d: 'The plasma\'s osmolality, in mOsm/kg, of each in mmol/L.',
+                    v: [['n', 'Na', 'sodium (mmol/L)'], ['g', 'glucose', 'glucose (mmol/L)'], ['u', 'urea', 'urea (mmol/L)']],
+                    x: '2*{n}+{g}+{u}', ex: [[140, 5, 5], 290]
+                },
+                {
+                    t: 'Cells infected', f: 'infected = 1 − e<sup>−MOI</sup>',
+                    d: 'The part of cells a virus infects at a multiplicity of infection, by Poisson.',
+                    v: [['m', 'MOI', 'multiplicity of infection']],
+                    x: '1-e^(-{m})', ex: [[1], 0.6321205588]
+                }
+            ]
+        },
+        {
             c: 'Statistics', list: [
                 {
                     t: 'z-score', f: 'z = {{x − μ|σ}}',
@@ -1060,9 +1344,45 @@
         'Half-life': ['decay', { N: 'N', t: 't', h: 'T' }]
     };
 
+    // The card of the Biology panel a formula is worked out in, as of the Physics panel's: each formula gets it as b
+    var inBiology = {
+        'Hardy–Weinberg carriers': ['hardy', { p: 'p' }, { by: '0' }],
+        'Recessive allele frequency': ['hardy', { a: 'q2' }, { by: '2' }],
+        'Population growth, exponential': ['popgrowth', { N: 'N0', r: 'r', t: 't' }, { by: '0' }],
+        'Population growth, logistic': ['popgrowth', { N: 'N0', r: 'r', t: 't', K: 'K' }, { by: '1' }],
+        'Mark and recapture': ['recapture', { M: 'M', C: 'C', R: 'R' }],
+        'Solute potential': ['water', { i: 'i', C: 'C', T: 'T' }],
+        'Q10': ['q10', { a: 'r1', b: 'r2', t: 't1', s: 't2' }, { by: '0' }],
+        'Nernst potential': ['membrane', { z: 'z', o: 'o', i: 'ins', T: 'T' }, { by: '0', ion: '4' }],
+        'Michaelis–Menten': ['kinetics', { V: 'vmax', K: 'km', S: 's' }, { by: '0', inh: '0' }],
+        'Hill equation': ['hill', { L: 'L', K: 'K', n: 'n' }],
+        'Beer–Lambert': ['proteinconc', { A: 'a', e: 'eps', l: 'l' }, { by: '0' }],
+        'DNA by A260': ['a260', { A: 'a', d: 'dil' }, { kind: '0' }],
+        'PCR copies': ['pcr', { N: 'N', E: 'E', n: 'n' }],
+        'Centrifuge force': ['rcf', { r: 'r', N: 'x' }, { by: '0' }],
+        'Jukes–Cantor distance': ['clock', { p: 'p' }, { by: '0' }],
+        'SA:V of a sphere': ['sav', { r: 'r' }, { shape: '1' }],
+        'Fick\'s law': ['fick', { D: 'D', A: 'A', c: 'dC', d: 'd' }, { by: '0' }],
+        'Free energy of a reaction': ['gibbs', { g: 'g', q: 'q', T: 'T' }],
+        'Basal metabolic rate, men': ['body', { m: 'w', h: 'h', a: 'age' }, { sex: '1' }],
+        'Basal metabolic rate, women': ['body', { m: 'w', h: 'h', a: 'age' }, { sex: '0' }],
+        'Cardiac output': ['heart', { h: 'hr', s: 'sv' }],
+        'Mean arterial pressure': ['heart', { s: 'sbp', d: 'dbp' }],
+        'Herd immunity': ['epidemic', { R: 'R0' }],
+        'Sensitivity': ['diagnostic', { a: 'tp', b: 'fn' }, { by: '0' }],
+        'Specificity': ['diagnostic', { a: 'tn', b: 'fp' }, { by: '0' }],
+        'Positive predictive value': ['diagnostic', { a: 'tp', b: 'fp' }, { by: '0' }],
+        'Odds ratio': ['odds', { a: 'a', b: 'b', c: 'c', d: 'd' }],
+        'Relative risk': ['odds', { a: 'a', b: 'b', c: 'c', d: 'd' }],
+        'Renal clearance': ['kidney', { U: 'U', V: 'V', P: 'P' }, { by: '1' }],
+        'Plasma osmolality': ['kidney', { n: 'na', g: 'glu', u: 'urea' }, { by: '2' }],
+        'Cells infected': ['moi', { m: 'moi' }]
+    };
+
     formulas.forEach(function (group) {
         group.list.forEach(function (f) {
             if (inPhysics[f.t]) f.p = inPhysics[f.t];
+            if (inBiology[f.t]) f.b = inBiology[f.t];
         });
     });
 
@@ -1163,6 +1483,22 @@
                 { s: 'au', t: 'Astronomical unit', v: 149597870700, u: 'm', d: 'About the distance from the Earth to the Sun. Exact by definition.' },
                 { s: 'ly', t: 'Light-year', v: 9.4607304725808e15, u: 'm', d: 'The distance light travels in a year.' },
                 { s: 'pc', t: 'Parsec', v: 3.0856775814913673e16, u: 'm', d: 'About 3.26 light-years.' }
+            ]
+        },
+        {
+            c: 'Biology', list: [
+                { s: 'bp', t: 'Mass of a base pair', v: 617.96, u: 'g/mol', d: 'Of double-stranded DNA, as NEB has it; some 650 with its sodium.' },
+                { s: 'nt', t: 'Mass of a nucleotide', v: 308.97, u: 'g/mol', d: 'Of single-stranded DNA; of RNA some 321.5.' },
+                { s: 'aa', t: 'Mass of an amino acid', v: 110, u: 'Da', d: 'The mean in a protein, about: a protein of 300 is some 33 kDa.' },
+                { s: 'A<sub>260</sub>', t: 'dsDNA of an A260 of 1', v: 50, u: 'µg/mL', d: 'Of RNA 40, of single-stranded DNA 33.' },
+                { s: 'OD<sub>600</sub>', t: 'E. coli of an OD600 of 1', v: 8e8, u: 'cells/mL', d: 'About; it differs with the spectrophotometer.' },
+                { s: 'h<sub>c</sub>', t: 'A haemocytometer\'s large square', v: 1e-4, u: 'mL', d: '1 mm by 1 mm, 0.1 mm deep: count × 10⁴ is cells/mL.' },
+                { s: 'G<sub>human</sub>', t: 'Human genome', v: 3.1e9, u: 'bp', d: 'Haploid, about; some 3.3 pg of DNA, and 20,000 genes coding for proteins.' },
+                { s: 'ΔG<sub>ATP</sub>', t: 'ATP to ADP', v: -30.5, u: 'kJ/mol', d: 'ΔG°′ of its hydrolysis; in a cell some −50.' },
+                { s: 'RT<sub>37</sub>', t: 'RT at 37 °C', v: 2.5787, u: 'kJ/mol', d: 'Of the body\'s temperature, 310.15 K.' },
+                { s: 'RT/F', t: 'RT/F at 37 °C', v: 26.73, u: 'mV', d: 'Of Nernst\'s equation: × ln 10, 61.5 mV each tenfold of a monovalent ion.' },
+                { s: 'T<sub>body</sub>', t: 'Body temperature', v: 37, u: '°C', d: 'Of people, about: 36.1 to 37.2.' },
+                { s: 'Hb', t: 'O₂ a gram of haemoglobin holds', v: 1.34, u: 'mL', d: 'Hüfner\'s number, as used in the clinic: 1.34 to 1.39.' }
             ]
         }
     ];
