@@ -37,7 +37,7 @@
 }
 
 #calculator .logo {
-    margin-top: 10px;
+    margin-top: 7px;
     margin-left: 15px;
     margin-bottom: 5px;
     float: left;
@@ -279,6 +279,11 @@
     line-height: 15px;
     white-space: nowrap;
     text-overflow: ellipsis;
+}
+
+/* of the pairs, in the middle */
+#calculator .calc-stats-pairs .calc-stats-note {
+    text-align: center;
 }
 
 /* of the pairs: the curve fitted, a small list as the separator's, and its equation beside it */
@@ -3850,7 +3855,7 @@
     width: 350px;
     height: 67px;
     margin-top: 0;
-    margin-bottom: 0; /* 10px above the keys */
+    margin-bottom: 1px; /* room above the keys */
     vertical-align: top; /* no room under it for the descent of a line of text */
     font: 30px bold;
     font-family: 'Play', 'Russo One', sans-serif;
@@ -4014,7 +4019,7 @@
     right: 0;
     padding: 0 8px 0 0; /* the room at the right is inside, so the dots cover it */
     text-indent: 5px; /* the line starts 6px from the left, as the buttons above it */
-    top: 22px;
+    top: 19px;
     height: 32px;
     line-height: 28px;
     font-size: 15px;
@@ -6415,6 +6420,68 @@
         padding-right: calc(8px + env(safe-area-inset-right));
         padding-left: calc(8px + env(safe-area-inset-left));
     }
+
+    .calc-find-box {
+        border-radius: 11px;
+    }
+
+    .calc-find-bar {
+        gap: 8px;
+        margin: 8px;
+        padding: 0 10px;
+        border-radius: 7px;
+    }
+
+    .calc-find-bar svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .calc-find-bar kbd {
+        display: none;
+    }
+
+    .calc-find-input {
+        padding: 8px 0;
+        font-size: 16px; /* not less, or a phone zooms in on it */
+        line-height: 20px;
+    }
+
+    .calc-find-list {
+        padding: 0 8px 8px;
+    }
+
+    .calc-find-head {
+        margin: 0 2px 6px;
+        font-size: 11px;
+    }
+
+    .calc-find-item {
+        gap: 9px;
+        margin-bottom: 4px;
+        padding: 6px 10px;
+        border-radius: 6px;
+    }
+
+    .calc-find-icon svg {
+        width: 15px;
+        height: 15px;
+    }
+
+    .calc-find-name {
+        font-size: 14px;
+        line-height: 18px;
+    }
+
+    .calc-find-where {
+        font-size: 11px;
+    }
+
+    .calc-find-sub {
+        margin-top: 1px;
+        font-size: 12px;
+        line-height: 16px;
+    }
 }
 
 /* From the calculator, not popped out: a panel over the keys as the history is, smaller, as the calculator is; its box
@@ -7458,7 +7525,7 @@
     line-height: 18px;
 }
 
-#calculator.calc-panel-big .calc-big-on .calc-conv-pick:not(.calc-stats-by, .calc-sv-pick) {
+#calculator.calc-panel-big .calc-big-on .calc-conv-pick:not(.calc-stats-by, .calc-stats-fitpick, .calc-sv-pick) {
     padding: 7px 28px 7px 11px;
     border-radius: 6px;
     background-position: right 11px center;
@@ -7542,7 +7609,7 @@
     font-size: 14px;
 }
 
-#calculator.calc-panel-big .calc-big-on .calc-stats-by {
+#calculator.calc-panel-big .calc-big-on :is(.calc-stats-by, .calc-stats-fitpick) {
     padding: 4px 26px 4px 9px;
     border-radius: 5px;
     background-position: right 9px center;
@@ -7551,7 +7618,7 @@
     line-height: 18px;
 }
 
-#calculator.calc-panel-big .calc-big-on .calc-stats-by .calc-conv-item {
+#calculator.calc-panel-big .calc-big-on :is(.calc-stats-by, .calc-stats-fitpick) .calc-conv-item {
     padding: 4px 10px;
     line-height: 18px;
 }
@@ -7566,6 +7633,7 @@
     padding-bottom: 3px;
 }
 
+@media (min-width: 760px) {
     /* the search of the formulas, and of the units, above their list, as wide as it, its top with the card's: the
        list under it, apart from it, the cards scrolling in the list alone and not behind the search */
     #calculator.calc-panel-big .calc-fx.calc-big-on:has(.calc-fx-list.calc-side) .calc-fx-search,
@@ -7623,6 +7691,32 @@
         grid-column: 2;
         grid-row: 3;
         padding: 4px 22px 6px 4px;
+    }
+
+    /* pairs: the curve fitted under the note, in the results' column, not at the bottom of the window */
+    #calculator.calc-panel-big .calc-stats-pairs.calc-big-on.calc-open {
+        grid-template-rows: auto auto auto minmax(0, 1fr);
+    }
+
+    #calculator.calc-panel-big .calc-stats-pairs.calc-big-on .calc-stats-input {
+        grid-row: 2 / 5;
+    }
+
+    #calculator.calc-panel-big .calc-stats-pairs.calc-big-on .calc-stats-fitrow {
+        grid-column: 2;
+        grid-row: 3;
+        margin: 2px 30px 4px 8px;
+    }
+
+    #calculator.calc-panel-big .calc-stats-pairs.calc-big-on .calc-stats-out {
+        grid-row: 4;
+    }
+}
+
+/* on a phone, the statistics' head has no room for the word Separator beside its tabs: the list says it */
+@media (max-width: 619px) {
+    #calculator.calc-panel-big .calc-stats.calc-big-on .calc-past-head .calc-stats-by-label {
+        display: none;
     }
 }
 
