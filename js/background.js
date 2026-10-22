@@ -438,7 +438,7 @@ let pageRun = Promise.resolve();
 function followPageOptions() {
     pageRun = pageRun.then(async () => {
         const menu = (visible) => {
-            ["calc-selection", "calc-site"].forEach((item) => chrome.contextMenus.update(item, { visible: visible }, () => chrome.runtime.lastError));
+            ["calc-sep", "calc-selection", "calc-site"].forEach((item) => chrome.contextMenus.update(item, { visible: visible }, () => chrome.runtime.lastError));
             if (visible) followFrontTab();
         };
         if (!await chrome.permissions.contains(pageAccess)) return menu(false);
@@ -527,7 +527,8 @@ function policyOff(key) {
 // The menu of the toolbar icon has Detached Mode while it is allowed, and the button and the icons
 // on the pages go when they are not. The open windows close themselves, in popup.js
 async function followPolicy() {
-    chrome.contextMenus.update("open-popup", { visible: !await policyOff("detachedMode") }, () => chrome.runtime.lastError);
+    const visible = !await policyOff("detachedMode");
+    ["open-popup", "open-advanced"].forEach((item) => chrome.contextMenus.update(item, { visible: visible }, () => chrome.runtime.lastError));
     followPageOptions();
 }
 
@@ -634,11 +635,6 @@ chrome.runtime.onInstalled.addListener((details) => {
     // Create "Open as Popup Window" menu item
     // removeAll first: the menu can already exist after a browser update
     chrome.contextMenus.removeAll(() => {
-        chrome.contextMenus.create({
-            id: "open-popup",
-            title: "Detached Mode",
-            contexts: ["action"] // This will make it appear when clicking the extension icon
-        }, followPolicy);
         // text selected on a page, into the calculator: shown while the instant answers are on
         chrome.contextMenus.create({
             id: "calc-selection",
@@ -656,6 +652,25 @@ chrome.runtime.onInstalled.addListener((details) => {
             documentUrlPatterns: pageSites,
             visible: false
         }, followPageOptions);
+        // a line between the instant answers and the modes, shown with them
+        chrome.contextMenus.create({
+            id: "calc-sep",
+            type: "separator",
+            contexts: ["page", "selection"],
+            documentUrlPatterns: pageSites,
+            visible: false
+        }, followPageOptions);
+        chrome.contextMenus.create({
+            id: "open-popup",
+            title: "Detached Mode",
+            contexts: ["action", "page"] // the menu of the toolbar icon, and of a right click on a page
+        }, followPolicy);
+        // the Advanced mode, which follows Detached Mode: its window is the big one
+        chrome.contextMenus.create({
+            id: "open-advanced",
+            title: "Advanced Mode",
+            contexts: ["action", "page"]
+        }, followPolicy);
     });
 
     followPageOptions();
@@ -667,6 +682,8 @@ chrome.runtime.onInstalled.addListener((details) => {
 chrome.contextMenus.onClicked.addListener((info, tab) => {
     if (info.menuItemId === "open-popup") {
         unlessOff("detachedMode", openCalculatorInDetachedMode);
+    } else if (info.menuItemId === "open-advanced") {
+        unlessOff("detachedMode", openHomeWindow);
     } else if (info.menuItemId === "calc-selection" && info.selectionText) {
         // the page reads what it is, as its icons do; a frame without page/answers.js has it put in as it is
         const asItIs = () => openPageMaths({ text: info.selectionText, kind: "sum" });

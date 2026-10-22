@@ -421,9 +421,8 @@
         // biology
         'bio': {
             t: 'Biology',
-            d: 'Genetics, from Punnett squares to gene maps and genetic risk; DNA and RNA, translated, aligned, primers, CRISPR guides, digests and gels; proteins, enzymes ' +
-                'and dose–response; the lab\'s dilutions, counts, buffers and qPCR; cells, water potential and membranes; health, from diagnostic tests to drug levels; ' +
-                'and ecology and evolution, populations, diversity and trees. Click a number to put it in.',
+            d: 'Genetics, from Punnett squares to gene maps and genetic risk; DNA and RNA, translated, aligned, with primers, CRISPR guides and gels; ' +
+                'proteins and enzymes; the lab\'s dilutions, counts and qPCR; cells; health; and ecology and evolution. Click a number to put it in.',
             k: ''
         },
         'bio close': {
@@ -1112,7 +1111,7 @@
         // the history
         'history': {
             t: 'History',
-            d: 'The calculations you finished with =, newest first. Point at a line for its buttons: insert ' +
+            d: 'The calculations you finished with\u00a0=, newest first. Point at a line for its buttons: insert ' +
                 'and copy; the x at the corner of a calculation deletes it.',
             k: ''
         },

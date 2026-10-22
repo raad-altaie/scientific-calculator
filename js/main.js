@@ -17373,6 +17373,8 @@
         findBar = findBox.querySelector('.calc-find-bar'),
         findFrom = '', // what was popped out as it opened, bigShown(): it closes as that pops in or out
         findInput = findBox.querySelector('.calc-find-input'),
+        findKey = findBox.querySelector('.calc-find-bar kbd'),
+        findClear = findBox.querySelector('.calc-find-clear'), // an x at the end while there is text, in place of Esc
         findList = findBox.querySelector('.calc-find-list'),
         findAll = [], // everything there is to find, made as the search opens: the decimal mark and the tools on may have changed
         findShown = [], // what the list shows, the best first
@@ -17473,6 +17475,8 @@
         var q = findInput.value.trim().toLowerCase().replace(/\s+/g, ' '), words = q.split(' ').filter(Boolean),
             on = GO.filter(function (g) { return !g[1].hidden; }).map(function (g) { return g[0]; }), icons = {};
         GO.forEach(function (g) { icons[g[0]] = g[1].querySelector('svg').outerHTML; });
+        findKey.hidden = !!findInput.value;
+        findClear.hidden = !findInput.value;
         findShown = findAll.filter(function (entry) { return on.indexOf(entry.go) > -1 && (q || entry.kind === 'tool'); }).map(function (entry, i) {
             return { entry: entry, rank: q ? findRank(entry, q, words) : 0, i: i };
         }).filter(function (r) { return r.rank > -1; }).sort(function (a, b) {
@@ -17662,6 +17666,18 @@
     root.addEventListener('calc-home', takeFindOpen, false);
 
     findInput.addEventListener('input', renderFind, false);
+
+    // the x empties the box, and the focus stays in it
+    findClear.addEventListener('mousedown', function (e) {
+        e.preventDefault();
+    }, false);
+
+    findClear.addEventListener('click', function (e) {
+        e.preventDefault();
+        findInput.value = '';
+        renderFind();
+        findInput.focus();
+    }, false);
 
     // the arrows go along the list, Enter goes to the one lit, Esc closes it
     findInput.addEventListener('keydown', function (e) {

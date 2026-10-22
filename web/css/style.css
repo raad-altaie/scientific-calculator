@@ -37,9 +37,9 @@
 }
 
 #calculator .logo {
-    margin-top: 7px;
-    margin-left: 15px;
-    margin-bottom: 5px;
+    margin-top: 5px;
+    margin-left: 11px;
+    margin-bottom: 7px;
     float: left;
     font-style: bold;
     font-weight: 700;
@@ -51,12 +51,12 @@
 }
 
 /* the ? box beside the name: opens the options page. It sits in the middle
-   between the top of the calculator and the display, 5px below the strip */
+   between the top of the calculator and the display, 1px below the strip */
 #calculator .calc-help {
     position: absolute;
     top: 0;
-    bottom: -5px;
-    right: 12px;
+    bottom: -1px;
+    right: 11px;
     width: 12px;
     height: 12px;
     margin: auto 0;
@@ -84,8 +84,8 @@
 #calculator .calc-open-big {
     position: absolute;
     top: 0;
-    bottom: -4px;
-    right: 34px;
+    bottom: 0;
+    right: 33px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -6677,6 +6677,36 @@
     font: 12px/16px 'Play', 'Russo One', sans-serif;
 }
 
+/* an x in place of Esc while there is text: it empties the box, as the × of the periodic table's search does (calc-pt-clear) */
+.calc-find-clear {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    color: #4d6a5b;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.calc-find-bar .calc-find-clear svg {
+    width: 16px;
+    height: 16px;
+    opacity: 1;
+}
+
+.calc-find-clear:hover {
+    background: rgba(51, 68, 59, 0.15);
+    color: #1d2a24;
+}
+
+.calc-find-clear[hidden] {
+    display: none;
+}
+
 .calc-find-list {
     flex: 1;
     min-height: 0;
@@ -6917,30 +6947,41 @@
     line-height: 14px;
 }
 
+#calculator .calc-find-panel .calc-find-clear {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+}
+
+#calculator .calc-find-panel .calc-find-bar .calc-find-clear svg {
+    width: 12px;
+    height: 12px;
+}
+
 #calculator .calc-find-panel .calc-find-list {
     padding: 0 8px 8px;
 }
 
 #calculator .calc-find-panel .calc-find-head {
-    margin: 0 2px 5px;
-    font-size: 11px;
+    margin: 0 2px 6px;
+    font-size: 12px;
 }
 
 #calculator .calc-find-panel .calc-find-none {
     margin: 10px 4px 6px;
-    font-size: 13px;
+    font-size: 14px;
 }
 
 #calculator .calc-find-panel .calc-find-item {
-    gap: 8px;
-    margin-bottom: 4px;
-    padding: 5px 8px;
+    gap: 9px;
+    margin-bottom: 5px;
+    padding: 6px 9px;
     border-radius: 6px;
 }
 
 #calculator .calc-find-panel .calc-find-icon svg {
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
 }
 
 #calculator .calc-find-panel .calc-find-top {
@@ -6948,18 +6989,18 @@
 }
 
 #calculator .calc-find-panel .calc-find-name {
-    font-size: 13px;
-    line-height: 17px;
+    font-size: 14px;
+    line-height: 18px;
 }
 
 #calculator .calc-find-panel .calc-find-where {
-    font-size: 10px;
+    font-size: 11px;
 }
 
 #calculator .calc-find-panel .calc-find-sub {
     margin-top: 1px;
-    font-size: 11px;
-    line-height: 15px;
+    font-size: 12px;
+    line-height: 16px;
 }
 
 #calculator .calc-find-panel .calc-find-gap {
