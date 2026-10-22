@@ -2893,6 +2893,13 @@ dels.forEach(function (c) {
         check(Engine.fit(Engine.points('(1, -1), (2, 4)'), 'exp') === null && Engine.fit(Engine.points('(0, 1), (2, 4)'), 'log') === null &&
             Engine.fit(Engine.points('(1, 1), (2, 4)'), 'quad') === null && Engine.fit(fit, 'quad').at(5) === 25,
             'fit: none for a y below 0 of exp, an x of 0 of log, two x of a quadratic');
+        check(Engine.fit(Engine.points('(-2, -35), (-1, -11), (0, -5), (1, -5), (2, 1), (3, 25)'), 'cubic').k.join() === '2,-3,1,-5' &&
+            Engine.fit(Engine.points('(1, 1), (2, 8), (3, 27)'), 'cubic') === null, 'fit: a cubic, 2x³ – 3x² + x – 5; none of three x');
+        kept = Engine.fit([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(function (x) { return { x: x, y: 1000 / (1 + 50 * Math.exp(-0.8 * x)) }; }), 'logistic');
+        check(kept.k.join() === '50,0.8,1000' && kept.r2 === 1 && Math.abs(kept.at(4) - 1000 / (1 + 50 * Math.exp(-3.2))) < 1e-6 &&
+            Engine.fit([0, 1, 2, 3, 4, 5, 6, 7, 8].map(function (x) { return { x: x, y: 10 / (1 + 0.2 * Math.exp(0.5 * x)) }; }), 'logistic').k.join() === '0.2,-0.5,10' &&
+            Engine.fit(Engine.points('(1, 2), (2, 3), (3, 5)'), 'logistic') === null && Engine.fit(Engine.points('(1, 2), (2, -3), (3, 5), (4, 6)'), 'logistic') === null,
+            'fit: logistic, c / (1 + a e^(–bx)), going up or down; none of three x or a y below 0');
         bends = function (s) {
             return Engine.keyPoints([Engine.graph(s)], { x0: -5, x1: 5, y0: -20, y1: 20 }, 0).filter(function (p) {
                 return p.t.indexOf('infl') > -1;

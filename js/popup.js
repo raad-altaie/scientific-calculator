@@ -11,6 +11,7 @@ const PANELS = {
     conv: ['Converter', 'converter'],
     solve: ['Solver', 'solve'],
     numbers: ['Numbers', 'numbers'],
+    phys: ['Physics', 'physics'],
 };
 const panel = Object.hasOwn(PANELS, params.get('panel')) ? params.get('panel') : '';
 
@@ -338,6 +339,10 @@ const goneFromRail = (e) => {
 };
 
 goBar.addEventListener('click', goneFromRail, true);
+// Search of the rail opens over the window: the options close under it
+document.addEventListener('calc-find', () => {
+    if (!optionsOver.hidden) showOptionsOver(false);
+});
 goBar.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') goneFromRail(e);
 }, true);

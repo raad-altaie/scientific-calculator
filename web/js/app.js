@@ -20,8 +20,12 @@ const whole = () => {
     };
 };
 
+// a tool popped out: the calculator fills the page, unscaled (style.css), and is no measure of itself
+const poppedOut = () => calculator.matches('.calc-big, .calc-panel-big');
+
 // ---- size: the calculator fits its pane, whatever the screen ----
 const fit = () => {
+    if (poppedOut()) return; // fitted again as it pops in, to the window as it is then
     const style = getComputedStyle(pane);
     const room = {
         width: pane.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
@@ -39,6 +43,8 @@ const fit = () => {
 
 new ResizeObserver(fit).observe(pane);
 window.addEventListener('resize', fit);
+// popped in, its size again: the window may have changed while a tool was popped out
+new MutationObserver(fit).observe(calculator, { attributes: true, attributeFilter: ['class'] });
 fit();
 
 // ---- the options ----
@@ -90,8 +96,8 @@ wide.addEventListener('change', () => showOptions(false));
 // ---- the mode: Standard, or Advanced, as the extension's Advanced mode opens the calculator ----
 
 // Advanced: the calculator on its Calculator tab, the rail of the tools down its left (main.js), and the options not
-// beside it but over it, from the ? or the rail. Chosen in the options (options.js); pop in at the top right shows
-// Standard till the page opens again, and the button beside the ? goes back, as in the extension's detached window
+// beside it but over it, from the ? or the rail. Chosen in the options (options.js), and left only there: the website
+// has no pop in at the top right (site.css)
 const openBig = calculator.querySelector('.calc-open-big');
 const modeKey = 'openMode';
 
@@ -106,6 +112,16 @@ const advanced = () => {
 const showHome = (on) => {
     // the options open over the calculator on a small screen stay open, over it
     if (on && document.body.classList.contains('options-open')) document.documentElement.classList.add('options-over');
+    // and back to Standard from them: on a wide screen they go beside the calculator, so it is seen at once in its new
+    // mode; on a small one they stay open over it, as there they always are
+    if (!on && document.documentElement.classList.contains('options-over')) {
+        if (wide.matches) {
+            showOptions(false);
+            document.documentElement.classList.remove('options-hidden'); // where Standard was chosen, still in view
+        } else {
+            document.documentElement.classList.remove('options-over');
+        }
+    }
     document.documentElement.classList.toggle('home', on);
     calculator.dispatchEvent(new CustomEvent('calc-home', { detail: { page: true, on } }));
     openBig.hidden = on || !advanced();
@@ -135,6 +151,11 @@ document.addEventListener('calc-options', (event) => {
     } else {
         showOptions(!document.body.classList.contains('options-open'));
     }
+});
+
+// Search of the rail opens over the page: the options open over it close
+document.addEventListener('calc-find', () => {
+    if (document.body.classList.contains('options-open')) showOptions(false);
 });
 
 // whether the clipboard holds text, for the menu to show Paste: read only where the browser

@@ -110,9 +110,9 @@
 
         // the formulas and constants
         'formulas': {
-            t: 'Vars, formulas and constants',
-            d: 'The letters A to J, each holding a value to use in the equation. Well-known formulas: fill in their letters to put the equation into the display, where you can ' +
-                'still change it before =. And constants of math and science, to put in as a number. Search to find one.',
+            t: 'Formulas, constants and vars',
+            d: 'Well-known formulas: fill in their letters to put the equation into the display, where you can still change it before =. ' +
+                'Constants of math and science, to put in as a number. Search to find one. And the letters A to J, each holding a value to use in the equation.',
             k: ''
         },
         'STO': {
@@ -174,6 +174,12 @@
             d: 'Money over time, as a BA II Plus works it out: N, I/Y, PV, PMT and FV, the one left empty found; NPV, IRR and payback of ' +
                 'cash flows; a loan\'s payment schedule, by year or by payment; savings growth; APR and APY, each of the other; a bond\'s price or ' +
                 'yield; depreciation; break-even; inflation; and percentage change and markup.',
+            k: ''
+        },
+        'solve tab geometry': {
+            t: 'Geometry',
+            d: 'A triangle of any three of its sides and angles, the area and perimeter of shapes, the volume and surface of solids, two points and ' +
+                'the line through them, the circle through three points, and the area of a polygon of its corners.',
             k: ''
         },
         'solve tab chance': {
@@ -271,9 +277,49 @@
             d: 'The date and time typed are in the time of this computer\'s time zone, summer time as well.',
             k: ''
         },
+        'choice ha 0': {
+            t: 'Not equal, ≠',
+            d: 'The alternative is that it differs either way: the p-value counts both tails.',
+            k: ''
+        },
+        'choice ha 1': {
+            t: 'Less, <',
+            d: 'The alternative is that it is below what H₀ says: the p-value is of the tail below.',
+            k: ''
+        },
+        'choice ha 2': {
+            t: 'Greater, >',
+            d: 'The alternative is that it is above what H₀ says: the p-value is of the tail above.',
+            k: ''
+        },
+        'choice input 0': {
+            t: 'Data',
+            d: 'The numbers of the sample, typed or pasted, a column of a spreadsheet as well.',
+            k: ''
+        },
+        'choice input 1': {
+            t: 'Summary',
+            d: 'The mean, standard deviation and size of the sample, as a book gives them.',
+            k: ''
+        },
+        'choice pool 0': {
+            t: 'Welch',
+            d: 'The spreads of the two samples may differ: its degrees of freedom by Welch and Satterthwaite. The usual choice.',
+            k: ''
+        },
+        'choice pool 1': {
+            t: 'Pooled',
+            d: 'The two samples are taken to have the same spread: one standard deviation of both, n₁ + n₂ – 2 degrees of freedom.',
+            k: ''
+        },
         'table copy': {
             t: 'Copy table',
             d: 'Copies the table with its heads, a tab between the numbers, all their digits: it pastes into a spreadsheet, a number in each cell.',
+            k: ''
+        },
+        'card reset': {
+            t: 'Reset',
+            d: 'Empties every box of the card, to start again. What is chosen stays as it is.',
             k: ''
         },
         'card example': {
@@ -318,6 +364,74 @@
             t: 'Close the chemistry',
             d: 'What you typed, and the element chosen, stay for the next time.',
             k: 'Esc'
+        },
+        'phys': {
+            t: 'Physics',
+            d: 'Electronics, from the resistor colour code to transistors and the 555; motion and rotation; forces, energy and fields; ' +
+                'waves, light and sound; heat and fluids; and modern physics, from E = mc² to decay. ' +
+                'Click a number to put it in.',
+            k: ''
+        },
+        'phys close': {
+            t: 'Close the physics',
+            d: 'What you typed stays for the next time.',
+            k: 'Esc'
+        },
+        'phys tab motion': {
+            t: 'Motion',
+            d: 'Steady acceleration from any three of s, u, v, a and t, its speed drawn; a projectile\'s flight, drawn; relative velocity, and a boat ' +
+                'crossing a river; circular motion; orbits by Kepler\'s third law, an ellipse drawn; the rocket equation; pendulums and springs; rotation, the moment of ' +
+                'inertia of a shape, its spin and its roll; and the centre of mass of up to four masses.',
+            k: ''
+        },
+        'phys tab forces': {
+            t: 'Forces',
+            d: 'F = ma, the inclined plane with friction, masses over a pulley, collisions, impulse, kinetic and potential energy, work and power, torque and levers, ' +
+                'gravitation and the Schwarzschild radius, springs, drag and terminal velocity, Coulomb\'s law, the magnetic force, the field of a wire, a solenoid or a loop, ' +
+                'and induction.',
+            k: ''
+        },
+        'phys tab circuits': {
+            t: 'Electronics',
+            d: 'The resistor colour code both ways, parts in series and parallel, Ohm\'s law, a wire\'s resistance and its AWG, the divider and Thévenin, the Wheatstone bridge, LED resistors, ' +
+                'capacitors, RC and RL, parallel plates, transformers and AC, three-phase power, impedance and resonance of R, L and C, the cost of electricity, battery life; ' +
+                'diodes and rectifiers with their ripple; transistors switching and biased, MOSFETs, Zeners, the LM317, op-amps and the 555. ' +
+                'A part\'s value as it is written: 4.7k, 4k7, 100n; a resistor to buy, of E12.',
+            k: ''
+        },
+        'phys tab waves': {
+            t: 'Waves',
+            d: 'v = fλ, standing waves of strings and pipes, beats, lenses and mirrors, the lensmaker\'s equation, refraction and the critical angle, interference through two slits ' +
+                'or a grating, one slit and the resolution of a lens, polarisation, the Doppler effect of sound and of light, light and photons, and sound in decibels.',
+            k: ''
+        },
+        'phys tab matter': {
+            t: 'Matter',
+            d: 'Heat: Q = mcΔT from any three, latent heat, mixing, thermal expansion, conduction, radiation, Newton\'s cooling, the dew point, the speeds of gas molecules, ' +
+                'an ideal gas isothermal, isobaric, isochoric or adiabatic, and heat engines. Solids: stress and strain. Fluids: density, pressure, ' +
+                'the pressure at a depth, buoyancy, flow in a pipe, the Reynolds number with the friction of a pipe, and Stokes\' law.',
+            k: ''
+        },
+        'phys tab modern': {
+            t: 'Modern',
+            d: 'E = mc², binding energy, the Q-value of a reaction, the photoelectric effect, de Broglie wavelengths, the uncertainty principle, a particle in a box, Compton scattering, ' +
+                'tunnelling, special relativity, hydrogen\'s lines and Bohr\'s orbits, and radioactive decay.',
+            k: ''
+        },
+        'formula physics': {
+            t: 'In Physics',
+            d: 'Opens the card of the Physics panel that works this out, with what you typed in it: there, any of its letters from the others.',
+            k: ''
+        },
+        'choice stick 0': {
+            t: 'Elastic',
+            d: 'They bounce apart, as billiard balls do, and no kinetic energy is lost.',
+            k: ''
+        },
+        'choice stick 1': {
+            t: 'Stick together',
+            d: 'They go on as one: momentum is kept, and as much kinetic energy as can be is lost.',
+            k: ''
         },
         'panel big': {
             t: 'Pop out',
@@ -487,6 +601,10 @@
         'chem fact isotopes': { t: 'Isotopes', d: 'Its stable isotopes, the commonest first; with none stable, those found in nature, or its longest-lived one and its half-life.' },
         'chem fact story': { t: 'Name', d: 'Where its name comes from, and how it was found.' },
         'chem fact uses': { t: 'Uses', d: 'What it is used for.' },
+        'chem fact spectrum': { t: 'Spectrum', d: 'The light of its atoms as a gas, from violet at 380 nm to red at 750: absorption, white light shone through it, ' +
+            'dark lines across the rainbow where it takes colours out; emission, heated or in a spark, those same colours alone, bright on black. ' +
+            'Each element has lines of its own, as a fingerprint: so helium was found in the Sun before on Earth. Its strongest lines, as NIST lists them, ' +
+            'the stronger the wider; of an element whose atom has none here, its ion\'s. Click: the other one.' },
         // its kind, pointed at: what the elements of each family are like
         'chem kind alkali': { t: 'Alkali metal', d: 'Group 1 but hydrogen: soft metals that react hard with water, giving hydroxides and hydrogen. One outer electron, lost as a 1+ ion.' },
         'chem kind alkaline': { t: 'Alkaline earth metal', d: 'Group 2: reactive metals, less than the alkali metals. Two outer electrons, lost as a 2+ ion.' },
@@ -708,7 +826,30 @@
             t: 'Statistics',
             d: 'Type or paste a list of numbers, a column from a spreadsheet as well, for its mean, standard ' +
                 'deviation, sum, quartiles, median and more, with a histogram and a box plot. The Pairs tab takes x and y ' +
-                'on each line, for the line of best fit and the correlation.',
+                'on each line, for the curve of best fit and the correlation; the Tests tab tests hypotheses.',
+            k: ''
+        },
+        'stats tab list': {
+            t: 'List',
+            d: 'A list of numbers: its count, sum, mean, standard deviations, quartiles, median and more, with a histogram and a box plot.',
+            k: ''
+        },
+        'stats tab pairs': {
+            t: 'Pairs',
+            d: 'x and y on each line: their means, deviations and sums, the correlation, and the curve of best fit of the kind chosen, drawn through them.',
+            k: ''
+        },
+        'stats tab tests': {
+            t: 'Tests',
+            d: 'Tests of hypotheses, as a TI-84\'s STAT TESTS: t and z of one sample or two, paired t, proportions, χ² of goodness of fit and of ' +
+                'independence, ANOVA and correlation, each with its p-value and whether to reject H₀.',
+            k: ''
+        },
+        'stats fit': {
+            t: 'Fit',
+            d: 'The curve fitted to the pairs by least squares: a line, y = a + bx; quadratic; cubic; exponential, y = a · bˣ; power, y = a · xᵇ; ' +
+                'logarithmic, y = a + b ln x; or logistic, y = c / (1 + a e^(–bx)). Exponential, power and logarithmic are fitted as a line of their ' +
+                'logarithms, as calculators fit them.',
             k: ''
         },
         'stats close': {
@@ -859,11 +1000,35 @@
         },
         'pairs chart': {
             t: 'Scatter plot',
-            d: 'Each pair as a dot, x across and y up, with the line of best fit through them.'
+            d: 'Each pair as a dot, x across and y up, with the curve of best fit through them.'
         },
         'pairs sumy2': {
             t: 'Sum of squares of y, Σy<sup>2</sup>',
             d: 'Each y squared, then added up.'
+        },
+        'pairs rho': {
+            t: 'Spearman\'s ρ',
+            d: 'The correlation of the ranks of x and of y, from −1 to 1: how far y goes up, or down, as x goes up, in a line or not.'
+        },
+        'pairs fa': {
+            t: 'a',
+            d: 'The number a of the curve fitted, in its equation above the results.'
+        },
+        'pairs fb': {
+            t: 'b',
+            d: 'The number b of the curve fitted, in its equation above the results.'
+        },
+        'pairs fc': {
+            t: 'c',
+            d: 'The number c of the curve fitted, in its equation above the results.'
+        },
+        'pairs fd': {
+            t: 'd',
+            d: 'The number d of the curve fitted, in its equation above the results.'
+        },
+        'pairs fr2': {
+            t: 'Coefficient of determination, r<sup>2</sup>',
+            d: 'The share of how y varies that the curve accounts for, from 0 to 1; of an exponential, power or logarithmic curve, that of the line of its logarithms.'
         },
 
         // the history
@@ -877,6 +1042,22 @@
             t: 'Close the history',
             d: 'A click anywhere outside it closes it as well.',
             k: 'Esc'
+        },
+        'search': {
+            t: 'Search',
+            d: 'Every tool: its tabs and cards, the formulas and constants, the examples of the graph, the elements and the units, ' +
+                'by their names and their tips. Enter or a click opens the one found.',
+            k: 'Ctrl+K'
+        },
+        'search close': {
+            t: 'Close the search',
+            d: 'A click anywhere outside it closes it as well.',
+            k: 'Esc'
+        },
+        'search big': {
+            t: 'Pop out',
+            d: 'The search in the big window, beside the rail of the tools, with what you typed.',
+            k: ''
         },
         'history export': {
             t: 'Export the history',

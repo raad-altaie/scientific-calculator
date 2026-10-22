@@ -18,7 +18,13 @@
                 { s: 'ft', t: 'feet', f: 0.3048 },
                 { s: 'yd', t: 'yards', f: 0.9144 },
                 { s: 'mi', t: 'miles', f: 1609.344 },
-                { s: 'nmi', t: 'nautical miles', f: 1852 }
+                { s: 'nmi', t: 'nautical miles', f: 1852 },
+                { s: 'µm', t: 'micrometers', f: 1e-6 },
+                { s: 'nm', t: 'nanometers', f: 1e-9 },
+                { s: 'Å', t: 'angstroms', f: 1e-10 },
+                { s: 'au', t: 'astronomical units', f: 149597870700 },
+                { s: 'ly', t: 'light-years', f: 9460730472580800 },
+                { s: 'pc', t: 'parsecs', f: 149597870700 * 648000 / Math.PI }
             ]
         },
         {
@@ -60,7 +66,9 @@
                 { s: 'oz', t: 'ounces', f: 0.028349523125 },
                 { s: 'lb', t: 'pounds', f: 0.45359237 },
                 { s: 'st', t: 'stones', f: 6.35029318 },
-                { s: 'ton', t: 'short tons (US)', f: 907.18474 }
+                { s: 'ton', t: 'short tons (US)', f: 907.18474 },
+                { s: 'µg', t: 'micrograms', f: 1e-9 },
+                { s: 'ct', t: 'carats', f: 0.0002 }
             ]
         },
         {
@@ -95,7 +103,9 @@
                 { s: 'h', t: 'hours', f: 3600 },
                 { s: 'd', t: 'days', f: 86400 },
                 { s: 'wk', t: 'weeks', f: 604800 },
-                { s: 'yr', t: 'years (365.25 days)', f: 31557600 }
+                { s: 'yr', t: 'years (365.25 days)', f: 31557600 },
+                { s: 'µs', t: 'microseconds', f: 1e-6 },
+                { s: 'ns', t: 'nanoseconds', f: 1e-9 }
             ]
         },
         {
@@ -120,7 +130,9 @@
                 { s: 'atm', t: 'atmospheres', f: 101325 },
                 { s: 'psi', t: 'pounds per square inch', f: 6894.757293168361 },
                 { s: 'mmHg', t: 'millimeters of mercury', f: 133.322387415 },
-                { s: 'inHg', t: 'inches of mercury', f: 3386.388640341 }
+                { s: 'inHg', t: 'inches of mercury', f: 3386.388640341 },
+                { s: 'MPa', t: 'megapascals', f: 1e6 },
+                { s: 'Torr', t: 'torr', f: 101325 / 760 }
             ]
         },
         {
@@ -132,7 +144,8 @@
                 { s: 'Wh', t: 'watt-hours', f: 3600 },
                 { s: 'kWh', t: 'kilowatt-hours', f: 3.6e6 },
                 { s: 'BTU', t: 'British thermal units', f: 1055.05585262 },
-                { s: 'eV', t: 'electronvolts', f: 1.602176634e-19 }
+                { s: 'eV', t: 'electronvolts', f: 1.602176634e-19 },
+                { s: 'MJ', t: 'megajoules', f: 1e6 }
             ]
         },
         {
@@ -166,6 +179,161 @@
                 },
                 { s: 'mpg', t: 'miles per gallon (US)', f: 1.609344 / 3.785411784 },
                 { s: 'mpg', t: 'miles per gallon (UK)', f: 1.609344 / 4.54609 }
+            ]
+        },
+        {
+            // the pound-force and the kilogram-force are the pound and the kilogram under standard gravity, 9.80665 m/s²
+            c: 'Force', list: [
+                { s: 'N', t: 'newtons', f: 1 },
+                { s: 'kN', t: 'kilonewtons', f: 1000 },
+                { s: 'mN', t: 'millinewtons', f: 0.001 },
+                { s: 'dyn', t: 'dynes', f: 1e-5 },
+                { s: 'kgf', t: 'kilograms-force', f: 9.80665 },
+                { s: 'lbf', t: 'pounds-force', f: 0.45359237 * 9.80665 },
+                { s: 'ozf', t: 'ounces-force', f: 0.028349523125 * 9.80665 }
+            ]
+        },
+        {
+            c: 'Torque', list: [
+                { s: 'N·m', t: 'newton meters', f: 1 },
+                { s: 'N·cm', t: 'newton centimeters', f: 0.01 },
+                { s: 'kN·m', t: 'kilonewton meters', f: 1000 },
+                { s: 'kgf·m', t: 'kilogram-force meters', f: 9.80665 },
+                { s: 'lbf·ft', t: 'pound-feet', f: 0.45359237 * 9.80665 * 0.3048 },
+                { s: 'lbf·in', t: 'pound-inches', f: 0.45359237 * 9.80665 * 0.0254 },
+                { s: 'ozf·in', t: 'ounce-inches', f: 0.028349523125 * 9.80665 * 0.0254 }
+            ]
+        },
+        {
+            c: 'Density', list: [
+                { s: 'kg/m<sup>3</sup>', t: 'kilograms per cubic meter', f: 1 },
+                { s: 'g/cm<sup>3</sup>', t: 'grams per cubic centimeter', f: 1000 },
+                { s: 'g/mL', t: 'grams per milliliter', f: 1000 },
+                { s: 'g/L', t: 'grams per liter', f: 1 },
+                { s: 'kg/L', t: 'kilograms per liter', f: 1000 },
+                { s: 'lb/ft<sup>3</sup>', t: 'pounds per cubic foot', f: 0.45359237 / 0.028316846592 },
+                { s: 'lb/in<sup>3</sup>', t: 'pounds per cubic inch', f: 0.45359237 / 0.000016387064 },
+                { s: 'lb/gal', t: 'pounds per gallon (US)', f: 0.45359237 / 0.003785411784 }
+            ]
+        },
+        {
+            c: 'Frequency', list: [
+                { s: 'Hz', t: 'hertz', f: 1 },
+                { s: 'kHz', t: 'kilohertz', f: 1e3 },
+                { s: 'MHz', t: 'megahertz', f: 1e6 },
+                { s: 'GHz', t: 'gigahertz', f: 1e9 },
+                { s: 'rpm', t: 'revolutions per minute', f: 1 / 60 },
+                { s: 'rad/s', t: 'radians per second', f: 1 / (2 * Math.PI) }
+            ]
+        },
+        {
+            c: 'Acceleration', list: [
+                { s: 'm/s<sup>2</sup>', t: 'meters per second squared', f: 1 },
+                { s: 'cm/s<sup>2</sup>', t: 'centimeters per second squared', f: 0.01 },
+                { s: 'ft/s<sup>2</sup>', t: 'feet per second squared', f: 0.3048 },
+                { s: 'in/s<sup>2</sup>', t: 'inches per second squared', f: 0.0254 },
+                { s: 'g₀', t: 'standard gravity', f: 9.80665 }
+            ]
+        },
+        {
+            c: 'Flow rate', list: [
+                { s: 'L/s', t: 'liters per second', f: 1 },
+                { s: 'L/min', t: 'liters per minute', f: 1 / 60 },
+                { s: 'L/h', t: 'liters per hour', f: 1 / 3600 },
+                { s: 'mL/min', t: 'milliliters per minute', f: 0.001 / 60 },
+                { s: 'm<sup>3</sup>/s', t: 'cubic meters per second', f: 1000 },
+                { s: 'm<sup>3</sup>/h', t: 'cubic meters per hour', f: 1000 / 3600 },
+                { s: 'gal/min', t: 'gallons per minute (US)', f: 3.785411784 / 60 },
+                { s: 'gal/h', t: 'gallons per hour (US)', f: 3.785411784 / 3600 },
+                { s: 'ft<sup>3</sup>/min', t: 'cubic feet per minute', f: 28.316846592 / 60 },
+                { s: 'ft<sup>3</sup>/s', t: 'cubic feet per second', f: 28.316846592 }
+            ]
+        },
+        {
+            c: 'Electric current', list: [
+                { s: 'A', t: 'amperes', f: 1 },
+                { s: 'mA', t: 'milliamperes', f: 0.001 },
+                { s: 'µA', t: 'microamperes', f: 1e-6 },
+                { s: 'kA', t: 'kiloamperes', f: 1000 }
+            ]
+        },
+        {
+            c: 'Voltage', list: [
+                { s: 'V', t: 'volts', f: 1 },
+                { s: 'mV', t: 'millivolts', f: 0.001 },
+                { s: 'µV', t: 'microvolts', f: 1e-6 },
+                { s: 'kV', t: 'kilovolts', f: 1000 },
+                { s: 'MV', t: 'megavolts', f: 1e6 }
+            ]
+        },
+        {
+            // a battery's charge: mAh and Ah; e, the charge of one electron, exact since 2019
+            c: 'Electric charge', list: [
+                { s: 'C', t: 'coulombs', f: 1 },
+                { s: 'mC', t: 'millicoulombs', f: 0.001 },
+                { s: 'µC', t: 'microcoulombs', f: 1e-6 },
+                { s: 'mAh', t: 'milliampere-hours', f: 3.6 },
+                { s: 'Ah', t: 'ampere-hours', f: 3600 },
+                { s: 'e', t: 'elementary charges', f: 1.602176634e-19 }
+            ]
+        },
+        {
+            c: 'Resistance', list: [
+                { s: 'Ω', t: 'ohms', f: 1 },
+                { s: 'mΩ', t: 'milliohms', f: 0.001 },
+                { s: 'kΩ', t: 'kiloohms', f: 1e3 },
+                { s: 'MΩ', t: 'megaohms', f: 1e6 },
+                { s: 'GΩ', t: 'gigaohms', f: 1e9 }
+            ]
+        },
+        {
+            c: 'Capacitance', list: [
+                { s: 'F', t: 'farads', f: 1 },
+                { s: 'mF', t: 'millifarads', f: 0.001 },
+                { s: 'µF', t: 'microfarads', f: 1e-6 },
+                { s: 'nF', t: 'nanofarads', f: 1e-9 },
+                { s: 'pF', t: 'picofarads', f: 1e-12 }
+            ]
+        },
+        {
+            c: 'Inductance', list: [
+                { s: 'H', t: 'henries', f: 1 },
+                { s: 'mH', t: 'millihenries', f: 0.001 },
+                { s: 'µH', t: 'microhenries', f: 1e-6 },
+                { s: 'nH', t: 'nanohenries', f: 1e-9 }
+            ]
+        },
+        {
+            // the gauss of the CGS units is 10⁻⁴ tesla; the Earth's field is about 50 µT, half a gauss
+            c: 'Magnetic field', list: [
+                { s: 'T', t: 'teslas', f: 1 },
+                { s: 'mT', t: 'milliteslas', f: 0.001 },
+                { s: 'µT', t: 'microteslas', f: 1e-6 },
+                { s: 'nT', t: 'nanoteslas', f: 1e-9 },
+                { s: 'G', t: 'gauss', f: 1e-4 },
+                { s: 'mG', t: 'milligauss', f: 1e-7 }
+            ]
+        },
+        {
+            // a quantity of motion, mass times speed
+            c: 'Momentum', list: [
+                { s: 'kg·m/s', t: 'kilogram meters per second', f: 1 },
+                { s: 'g·cm/s', t: 'gram centimeters per second', f: 1e-5 },
+                { s: 'N·s', t: 'newton seconds', f: 1 },
+                { s: 'lb·ft/s', t: 'pound feet per second', f: 0.45359237 * 0.3048 },
+                { s: 'eV/c', t: 'electronvolts over c', f: 1.602176634e-19 / 299792458 }
+            ]
+        },
+        {
+            // of a source: the becquerel is one decay each second; the curie is a gram of radium-226's, about
+            c: 'Radioactivity', list: [
+                { s: 'Bq', t: 'becquerels', f: 1 },
+                { s: 'kBq', t: 'kilobecquerels', f: 1e3 },
+                { s: 'MBq', t: 'megabecquerels', f: 1e6 },
+                { s: 'GBq', t: 'gigabecquerels', f: 1e9 },
+                { s: 'Ci', t: 'curies', f: 3.7e10 },
+                { s: 'mCi', t: 'millicuries', f: 3.7e7 },
+                { s: 'µCi', t: 'microcuries', f: 3.7e4 }
             ]
         }
     ];

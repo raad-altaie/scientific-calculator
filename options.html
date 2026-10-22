@@ -119,10 +119,10 @@
                     </svg>
                 </span>
                 <div class="option-text">
-                    <h3>Variables, formulas and constants</h3>
-                    <p>A button at the top left of the display. It opens on Variables, the ten variables A to J and what
-                        each holds, then well-known formulas of geometry, physics, money and more, and constants of
-                        math and science, all searchable. Fill in a formula's letters to put it into the display,
+                    <h3>Formulas, constants and variables</h3>
+                    <p>A button at the top left of the display. Well-known formulas of geometry, physics, money and more,
+                        and constants of math and science, all searchable, then the ten variables A to J and what each
+                        holds; it opens on Formulas. Fill in a formula's letters to put it into the display,
                         where you can still change it.</p>
                 </div>
                 <label class="switch" title="Formulas and constants">
@@ -140,9 +140,12 @@
                 <div class="option-text">
                     <h3>Converter</h3>
                     <p>A button at the top left of the display that converts units of length, area, volume, mass,
-                        temperature, speed, time, data, pressure, energy, power, angles and fuel economy. The result
+                        temperature, speed, time, data, pressure, energy, power, angles, fuel economy, force, torque,
+                        density, frequency, acceleration, flow rate, current, voltage, charge, resistance, capacitance,
+                        inductance, magnetic field, momentum and radioactivity. The result
                         shown is the value to start from; click a converted value to put it into the display. Its
-                        Dates tab counts the days between two dates and moves a date on by years, months and days.</p>
+                        Dates tab counts the days between two dates, moves a date on by years, months and days, and
+                        shows a time in other time zones.</p>
                 </div>
                 <label class="switch" title="Converter">
                     <input type="checkbox" id="panel-conv">
@@ -202,7 +205,8 @@
                         polynomial, two or three linear equations or two curves, finds turning points, integrals,
                         slopes, sums and products to ∞, limits, Taylor series, areas between curves, arc lengths and
                         differential equations, the chances of the normal, t, χ², F, binomial, Poisson and other
-                        distributions, confidence intervals, and money over time, NPV and IRR, loans and savings, APR and APY, bonds, depreciation, break-even, inflation and percentage change.</p>
+                        distributions, confidence intervals, and money over time, NPV and IRR, loans and savings, APR and APY, bonds, depreciation, break-even, inflation and percentage change;
+                        and geometry: a triangle of any three of its sides and angles, shapes, solids, points and lines, and polygons.</p>
                 </div>
                 <label class="switch" title="Solve">
                     <input type="checkbox" id="panel-solve">
@@ -234,14 +238,38 @@
             <div class="option">
                 <span class="option-icon screen-icon">
                     <svg viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M1 8h3l1-3 2 6 2-6 2 6 1-3h3" stroke-width="1.35"></path>
+                    </svg>
+                </span>
+                <div class="option-text">
+                    <h3>Physics</h3>
+                    <p>A button at the top left of the display for electronics, from the resistor colour code and Ohm's law to LED
+                        resistors, wires, batteries, capacitors, transistors, op-amps and the 555; motion at a steady acceleration,
+                        projectiles with their path drawn, circular motion, pendulums and rotation; forces, collisions, impulse,
+                        energy, torque and levers, gravitation, drag, charges, magnetic fields and induction; waves, standing waves,
+                        lenses, refraction, interference, polarisation, the Doppler effect and photons; heat, gas molecules, heat
+                        engines, stress and fluids; and E = mc², binding energy, the photoelectric effect, relativity, quantum
+                        physics from the uncertainty principle to tunnelling, hydrogen's spectrum and radioactive decay. Many
+                        cards draw what they work out.</p>
+                </div>
+                <label class="switch" title="Physics">
+                    <input type="checkbox" id="panel-phys">
+                    <span></span>
+                </label>
+            </div>
+            <div class="option">
+                <span class="option-icon screen-icon">
+                    <svg viewBox="0 0 16 16" aria-hidden="true">
                         <path d="M3.5 12.9V8.8M8 12.9V3.4M12.5 12.9V6.6" stroke-width="1.8"></path>
                     </svg>
                 </span>
                 <div class="option-text">
                     <h3>Statistics</h3>
                     <p>A button at the top left of the display: type or paste a list of numbers for its count, sum,
-                        mean, standard deviation, quartiles, median and more, with a histogram and a box plot; or pairs
-                        of numbers for their line of best fit and correlation.</p>
+                        mean, standard deviation, quartiles, median and more, with a histogram and a box plot; pairs
+                        of numbers for their correlation and a curve fitted to them, a line, quadratic, cubic, exponential,
+                        power, logarithmic or logistic; and tests of hypotheses: t and z, paired t, proportions, χ² of
+                        goodness of fit and of independence, ANOVA and correlation.</p>
                 </div>
                 <label class="switch" title="Statistics">
                     <input type="checkbox" id="panel-stats">
@@ -262,10 +290,10 @@
                 <li><kbd class="k k-red">DEL</kbd> button (or Backspace) to take back the last key you pressed, one key at a time.</li>
                 <li>Cursor: click into the equation, or use the arrow keys, to fix a number or an
                     operator in the middle of it. Back at the end, the calculator goes on as before.</li>
-                <li>Variables, formulas and constants: the variables A to J, some hundred formulas to fill in and sixty
-                    constants of math and science. See the "Variables, Formulas and Constants" section below.</li>
-                <li>Converter: units of length, area, volume, mass, temperature and more, and dates. See the
-                    "Converter" section below.</li>
+                <li>Formulas, constants and variables: some hundred formulas to fill in, sixty constants of math and
+                    science and the variables A to J. See the "Formulas, Constants and Variables" section below.</li>
+                <li>Converter: units of length, area, volume, mass, temperature, force, density, current and more, dates and
+                    time zones. See the "Converter" section below.</li>
                 <li>Graph: functions, equations, inequalities, sequences, slope fields and points drawn, with their roots, highs, lows and
                     crossings. See the "Graph" section below.</li>
                 <li>Numbers: matrices up to 10 × 10 and their eigenvalues, vectors, complex numbers, bases and bits, text and its
@@ -273,12 +301,15 @@
                     See the "Numbers" section below.</li>
                 <li>Solve: every root of an equation, in exact form as well, inequalities, turning points,
                     polynomials, linear systems, two curves, integrals, slopes, sums, limits, Taylor series,
-                    differential equations, probability, confidence intervals, money over time, NPV and IRR, loans and savings, bonds and depreciation. See the "Solve" section below.</li>
+                    differential equations, probability, confidence intervals, money over time, NPV and IRR, loans and savings, bonds and depreciation, and geometry. See the "Solve" section below.</li>
                 <li>Statistics: count, sum, mean, standard deviation, quartiles, median and more of a list of numbers,
-                    and the line of best fit of pairs of them. See the "Statistics" section below.</li>
+                    the curve of best fit of pairs of them, and tests of hypotheses. See the "Statistics" section below.</li>
                 <li>Chemistry: the periodic table, each element's data and its atom drawn, popped out as big as the page; molar mass,
                     equations balanced, amounts and the limiting reactant, empirical formulas, molarity, dilution, pH, buffers,
                     the gas laws, heat and half-life.</li>
+                <li>Physics: circuits and electronics, transistors and the 555; motion and rotation, forces, collisions, energy, torque, gravitation,
+                    charges, magnets and induction; waves, interference and light; heat, engines and fluids; and modern and quantum physics, E = mc²,
+                    binding energy, relativity, uncertainty, tunnelling and decay; many drawn. See the "Physics" section below.</li>
                 <li><kbd class="k">mod</kbd>, <kbd class="k">gcd</kbd> and <kbd class="k">lcm</kbd> on the <kbd class="k">2nd</kbd> layer of <kbd class="k">%</kbd>, <kbd class="k"><sup>n</sup>C<sub>r</sub></kbd> and <kbd class="k"><sup>n</sup>P<sub>r</sub></kbd>.</li>
                 <li><kbd class="k">floor</kbd> and <kbd class="k">ceil</kbd> on the <kbd class="k">2nd</kbd> layer of <kbd class="k">abs</kbd> and <kbd class="k">x!</kbd>, side by side, and <kbd class="k">round</kbd> on that of <kbd class="k">Rand</kbd>: a number to the whole number below or above it, and to the nearest, half away from 0. They can be pasted too, with trunc, which goes toward 0: floor(7.5) = 7.</li>
                 <li><kbd class="k">10<sup>x</sup></kbd>, <kbd class="k">e</kbd> and <kbd class="k">log<sub>y</sub></kbd> (the logarithm to any base: 8 log<sub>y</sub> 2 = 3) on the <kbd class="k">2nd</kbd> layer of <kbd class="k">log</kbd>, <kbd class="k">&pi;</kbd> and <kbd class="k">y<sup>x</sup></kbd>.</li>
@@ -301,9 +332,13 @@
                     You can paste a whole equation, such as 2 + 3 × sin(30), not only a number.</li>
                 <li>Ctrl+Z (⌘Z on a Mac) undoes the last change to the equation: a key, DEL, a paste or a mode.
                     Ctrl+Shift+Z redoes it.</li>
+                <li>Search, the magnifier beside the history at the top left of the display, and under the calculator on the rail
+                    of the tools, finds anything in them: a card, a formula, a constant, an example of the graph, an element or a
+                    group of units, by its name, what it does or its tips. Enter or a click goes there, with the card open: in its
+                    panel over the keys, or popped out beside the rail; the arrows go along the list. Ctrl+K (⌘K on a Mac) opens it. With every tool turned off there is nothing to find, and the search goes.</li>
                 <li>Ten letters, A to J, each keep a value, as on a TI or a Casio. Alt+A (Option+A on a Mac) is
                     STO→ A: type 5 + 3, press Alt+A, and 8 is kept in A; <kbd class="k">&gt;</kbd> then Shift+A does the same. Shift+A to Shift+J put a letter
-                    in the equation, 2A + B, worked out with what it holds. The Variables tab, the first tab of the formulas and the one it opens on, lists them, and a
+                    in the equation, 2A + B, worked out with what it holds. The Variables tab, the last tab of the formulas, lists them, and a
                     right-click on the display, a value of a panel or the history has Store in Var; on the display, Insert Var puts one in. They work in pasted text,
                     the graph, the solver, and every box that takes a number: a formula's, the converter's, the graph's and the
                     numbers'; hover a box to see what its variables hold. EE shows as ᴇ, 5ᴇ3, so 2E is 2 × E.</li>
@@ -325,19 +360,12 @@
         </div>
 
         <div class="features" data-tab="guide">
-            <h2 class="logo title sub">Variables, Formulas and Constants</h2>
-            <p>Click <i>f</i>x at the top left of the display. It has three tabs, Variables, Formulas and Constants. It
-                opens on Variables the first time, then on the tab you used last; Reset all puts it back on Variables. Formulas
+            <h2 class="logo title sub">Formulas, Constants and Variables</h2>
+            <p>Click <i>f</i>x at the top left of the display. It has three tabs, Formulas, Constants and Variables. It
+                opens on Formulas the first time, then on the tab you used last; Reset all puts it back on Formulas. Formulas
                 and Constants each have a search: type a few words, area circle or interest, and only what has them
                 all is listed. Enter in the search opens the first one found.</p>
             <ul>
-                <li>Variables has a card for each of the ten variables, A to J, as the keys of a TI or a Casio have. Type a
-                    value in its box, press STO to keep the result of the line in it, or its arrow to put it in the
-                    equation, where it stays A and is worked out with what A holds then. Clear all sets every one back
-                    to 0. The keys are Alt+A (Option+A on a Mac) to store and Shift+A to put in, and a right-click has
-                    Store in Var and Insert Var.</li>
-                <li>Any box that takes a number takes A to J as well, a formula's, the converter's, the graph's and
-                    the numbers': 2A is 2 × A. Rest the pointer on one to see what its variables hold.</li>
                 <li>Some hundred formulas, by group: algebra, geometry, trigonometry, motion and forces, matter and
                     energy, waves and light, electricity, chemistry, statistics, money and everyday ones. The
                     quadratic formula, the volume of a sphere, the law of cosines, Newton's second law, Ohm's law,
@@ -354,33 +382,46 @@
                     roots: b² − 4ac is below 0."</li>
                 <li>A formula with angles takes them in the unit in use, Deg, Rad or Grad, and says so under its
                     boxes.</li>
-                <li>Some sixty constants, by group: math, universal, atoms and particles, heat and chemistry, and
+                <li>A formula of physics has In Physics beside Insert: its card in the Physics panel opens with what you
+                    typed, where any of its letters is worked out from the others.</li>
+                <li>Some eighty constants, by group: math, universal, atoms and particles, heat and chemistry, and
                     Earth and space. π, e and the golden ratio, the speed of light, the Planck, Avogadro and
                     Boltzmann constants, the mass of the Earth, the Moon, Mars and the Sun, a light-year and more,
                     those of physics from CODATA 2022. Each shows its symbol, its value and its unit; click one to
                     put it into the equation as a number, in full and not only the 12 digits shown.</li>
+                <li>Variables has a card for each of the ten variables, A to J, as the keys of a TI or a Casio have. Type a
+                    value in its box, press STO to keep the result of the line in it, or its arrow to put it in the
+                    equation, where it stays A and is worked out with what A holds then. Clear all sets every one back
+                    to 0. The keys are Alt+A (Option+A on a Mac) to store and Shift+A to put in, and a right-click has
+                    Store in Var and Insert Var.</li>
+                <li>Any box that takes a number takes A to J as well, a formula's, the converter's, the graph's and
+                    the numbers': 2A is 2 × A. Rest the pointer on one to see what its variables hold.</li>
             </ul>
         </div>
 
         <div class="features" data-tab="guide">
             <h2 class="logo title sub">Converter</h2>
-            <p>Click the arrows at the top left of the display. Pick what to convert and the unit your value is in,
-                and the list shows it in all the other units of its kind at once, worked out as you type.</p>
+            <p>Click the arrows at the top left of the display. Each kind of unit has a card, as the tools of the
+                solver have: open one, type a value and pick its unit, and the card shows it in all the other units of
+                its kind at once, worked out as you type. The search above the cards finds a kind by its name, or by
+                the name or symbol of a unit: mile finds Length, and opens it from miles.</p>
             <ul>
-                <li>Thirteen kinds: length, area, volume, mass, temperature, speed, time, data, pressure, energy,
-                    power, angles and fuel economy. From millimeters to nautical miles, teaspoons to US and UK
-                    gallons, kilobytes to tebibytes, calories to kilowatt-hours, horsepower, knots, and miles per
-                    gallon to liters per 100 km.</li>
+                <li>Twenty-eight kinds: length, area, volume, mass, temperature, speed, time, data, pressure, energy,
+                    power, angles, fuel economy, force, torque, density, frequency, acceleration, flow rate, electric
+                    current, voltage, electric charge, resistance, capacitance, inductance, magnetic field, momentum
+                    and radioactivity. From nanometers to light-years, teaspoons to US and UK
+                    gallons, kilobytes to tebibytes, calories to kilowatt-hours, horsepower, knots, miles per
+                    gallon to liters per 100 km, pound-feet to newton meters, and mAh to coulombs.</li>
                 <li>The result in the display is the value to start from.</li>
-                <li>Click a converted value, or press Enter for the first one, to put it into the equation.
+                <li>Click a converted value to put it into the equation. An empty value is 1.
                     Right-click one to copy it, alone or with its unit.</li>
                 <li>Exact where a unit is defined exactly: an inch is 2.54 cm, a pound 0.45359237 kg. Very large and
                     very small values are shown as powers of 10.</li>
                 <li>An angle can be typed and shown in degrees, minutes and seconds, 36°52′11″, as well as in
                     degrees, radians, gradians and turns.</li>
-                <li>The kind, the units and the value stay for the next time.</li>
+                <li>The card open, and the value and unit of each card, stay for the next time.</li>
             </ul>
-            <p>The Dates tab beside Units has three cards, each opened with a click. Dates are written as your
+            <p>The Dates tab beside Units has four cards, each opened with a click. Dates are written as your
                 region writes them, 14/10/2026 in the UK and France, 14.10.2026 in Germany, 10/14/2026 in the US,
                 and typed so, or as 14 Oct 2026 or 2026-10-14. A click in a box of a date, its button or the arrow
                 down opens its calendar, its weeks starting on your region's first day; an empty box is today. In
@@ -397,6 +438,9 @@
                     being Tuesday 14 November 2023, 22:13:20 UTC, one of 13 digits being of milliseconds, in UTC, in the
                     time here and in ISO 8601. Date → Unix: the timestamp of a date and a time, 14:30 or 2:30 pm, in
                     UTC or the time here.</li>
+                <li>Time zones: the time now, to type over, and the same time in another place: pick From and To in
+                    their lists, which a letter jumps along. 9:00 in New York is 22:00 in Tokyo, with each offset from
+                    UTC and how far ahead or behind it is; summer time is as each place has it today.</li>
                 <li>Click a number among the results to put it into the equation. The tab and the dates stay for
                     the next time.</li>
             </ul>
@@ -471,13 +515,14 @@
             <h2 class="logo title sub">Numbers</h2>
             <p>Click the brackets with an i at the top left of the display. It has cards as the solver has, on four
                 tabs. Click a result, or a number of a matrix, to put it into your calculation; rest the pointer on a result
-                to see it in full, with Insert and Copy.</p>
+                to see it in full, with Insert and Copy. Each card's Example types one in to start from, and where it is
+                drawn, its drawing comes first: two vectors as arrows, complex numbers on the plane, a number rounded on its line.</p>
             <ul>
                 <li>Matrix has a matrix of up to 10 × 10, its determinant, rank, inverse, transpose and power n, and
                     the sum and products of two; its eigenvalues, real or complex, its characteristic polynomial and
                     its eigenvectors; A x = b, linear equations of up to ten unknowns, all of their answers where
                     there are many, x = p + t v, and the nearest by least squares where there are none; its rows
-                    reduced, its rank and null space; P A = L U and A = Q R. From 6 columns on its boxes and its results are smaller, to fit the card, each number of a result to as many digits as fit, the whole of it shown as you point at it; the eigenvalues of a matrix larger than 4 × 4 are found by the QR algorithm, and where a matrix is badly conditioned, as the 10 × 10 Hilbert matrix is, the note says how few digits of its inverse, determinant or answers can be trusted. A whole matrix pastes into a box of one, from there right and down: a block of cells copied from a spreadsheet, lines of numbers, or [1 2; 3 4] and [[1, 2], [3, 4]], the matrix made as big as it needs to be; and Copy on a matrix of results copies it, to paste into a spreadsheet or back into a box for the next step; each card's Example types in one to start from. And of two vectors, 1, 2, 3, their dot
+                    reduced, its rank and null space; P A = L U and A = Q R. From 6 columns on its boxes and its results are smaller, to fit the card, each number of a result to as many digits as fit, the whole of it shown as you point at it; the eigenvalues of a matrix larger than 4 × 4 are found by the QR algorithm, and where a matrix is badly conditioned, as the 10 × 10 Hilbert matrix is, the note says how few digits of its inverse, determinant or answers can be trusted. A whole matrix pastes into a box of one, from there right and down: a block of cells copied from a spreadsheet, lines of numbers, or [1 2; 3 4] and [[1, 2], [3, 4]], the matrix made as big as it needs to be; and Copy on a matrix of results copies it, to paste into a spreadsheet or back into a box for the next step. And of two vectors, 1, 2, 3, their dot
                     and cross products, lengths, the angle between them and the projection of one on the
                     other.</li>
                 <li>Complex works out a complex number, (2 + 3i)(1 – i), sqrt(-4) or 2∠30 in polar form, for its
@@ -516,7 +561,10 @@
             <h2 class="logo title sub">Solve</h2>
             <p>Click x= at the top left of the display. Each tool is a card: open it, type in its boxes, and it is
                 worked out as you type. Click a result to put it into your calculation, or rest the pointer on it to see it
-                in full, with Insert and Copy.</p>
+                in full, with Insert and Copy. Example types one in to start from. A graph comes first in the results: an
+                equation's two sides and its roots, where an inequality holds shaded, two curves crossing, the area of an
+                integral, the tangent, a limit, a series against its function, each term of a sum; a distribution with its chance
+                shaded, the bars of a count; and a loan, savings, a bond or an asset over the years.</p>
             <ul>
                 <li>Solve finds every root of an equation of x, x^3 = 2x + 1 or sin(x) = 0.5 (From and To say where
                     to look), where an inequality holds, x^2 – 4 &gt; 0 as x &lt; –2 or x &gt; 2 and in intervals,
@@ -532,6 +580,14 @@
                     (1 + 1/x)^x at inf; its Taylor series about a, sin x as x – x³/6 + x⁵/120 – …; the area between
                     two curves and the length of one from a to b; and y at x of a differential equation, y′ = x + y
                     with y(0) = 1.</li>
+                <li>Geometry has a triangle of any three of its sides and angles, one a side at least, each angle A across
+                    from its side a: the rest, its area, perimeter, heights and the radii of its circles inside and round
+                    it, and it drawn; two sides and an angle not between them may make two triangles, which are both given.
+                    And the area and perimeter of a circle, rectangle, trapezoid, ellipse, sector or regular polygon; the
+                    volume and surface of a sphere, cylinder, cone, box or square pyramid; the distance, midpoint and line
+                    of two points; the circle through three points; and the area, perimeter and centroid of a polygon of its
+                    corners. Each is drawn to scale first, with its sizes or points named, a solid seen a little from
+                    above. Angles are in the unit in use, Deg, Rad or Grad.</li>
                 <li>Probability has the normal distribution's chances, density and inverse; Student's t, χ² and F,
                     their chances, p-values and the value for a chance; binomial, Poisson, geometric and
                     hypergeometric chances; exponential and uniform ones; confidence intervals of a mean and of a
@@ -553,13 +609,23 @@
                 <li>List gives the count, the sum and the sum of squares, the mean, the standard deviation of a
                     population (σ) and of a sample (s), the variance s², min, the quartiles Q1 and Q3, the median, max,
                     the range, the interquartile range and the mode. The quartiles are found as a TI-84 finds them:
-                    the medians of the halves below and above the median, the median in neither. Under the results, a
+                    the medians of the halves below and above the median, the median in neither. Above the results, a
                     histogram of the numbers and their box plot.</li>
                 <li>Pairs takes x and y on each line, 1 2 or 1, 2, or two columns pasted from a spreadsheet, for
-                    their means, standard deviations, sums, Σxy and covariance, and the line of best fit by least
-                    squares, y = a + bx, with its slope, intercept, correlation r and r². The line is in the note under
-                    the box, and drawn through the pairs under the results.</li>
-                <li>Each tab keeps its own numbers, and both stay for the next time.</li>
+                    their means, standard deviations, sums, Σxy and covariance, Spearman's ρ, and the curve of best fit
+                    by least squares of the kind chosen under the box: linear, y = a + bx, with its slope, intercept,
+                    correlation r and r²; quadratic; cubic; exponential, y = a · bˣ; power, y = a · xᵇ; logarithmic,
+                    y = a + b ln x; or logistic, y = c / (1 + a e^(–bx)). Its equation is beside the choice, and it is
+                    drawn through the pairs above the results.</li>
+                <li>Tests has a card for each test of a hypothesis, as a TI-84's STAT TESTS: the t-test of one sample,
+                    of its numbers or of its mean, s and n; the t-test of two samples, Welch's or pooled; the paired
+                    t-test, a pair on each line; the z-test; the z-test of one proportion and of two; χ² of goodness of
+                    fit, the expected as counts or a ratio, 9:3:3:1; χ² of independence of a table pasted; one-way ANOVA,
+                    a group on each line; and the correlation test, with Spearman's ρ. Each gives its statistic, p-value
+                    and degrees of freedom, whether to reject H₀ at α, ≠, &lt; or &gt;, and the interval of what it tests;
+                    first, its statistic drawn on its distribution, the p-value shaded, and of the correlation test the pairs
+                    and their line. Example types one in.</li>
+                <li>Each tab keeps its own numbers, and all stay for the next time.</li>
             </ul>
 
             <h2 class="logo title sub">Chemistry</h2>
@@ -575,16 +641,71 @@
                     to element. Pop out shows the table as big as the page, each element with its number, name and mass;
                     in the extension, in a window of its own.</li>
                 <li>Mass: the molar mass of a formula, CuSO4·5H2O, Ca(OH)2 or K4[Fe(CN)6], and the percent of each
-                    element; grams, moles and particles of a substance; and the empirical formula of a composition,
-                    C 40, H 6.71, O 53.29, with its molecular formula from a molar mass.</li>
+                    element, drawn as a bar; grams, moles and particles of a substance; and the empirical formula of a composition,
+                    C 40, H 6.71, O 53.29, with its molecular formula from a molar mass, its atoms drawn as a bar.</li>
                 <li>Reactions: an equation balanced, Fe + O2 = Fe2O3, ions with their charge, Fe^3+, and e- for an
                     electron, with what kind of reaction it is; the amounts of a reaction from the amount of one formula,
                     and of two reactants or more the limiting one, what is left of the others, and a percent yield;
-                    heat, q = mcΔT; and half-life.</li>
+                    heat, q = mcΔT; and half-life, its curve drawn.</li>
                 <li>Solutions: molarity, dilution, pH, pOH, [H⁺] and [OH⁻], weak acids and bases from K<sub>a</sub> or
-                    K<sub>b</sub>, and buffers.</li>
+                    K<sub>b</sub>, and buffers, each pH shown on the scale in the colours of universal indicator.</li>
                 <li>Gases: the ideal gas law, PV = nRT, in atm, kPa, mmHg or bar, with the mass and density of a gas; and
                     the combined gas law. Leave the one to work out empty.</li>
+            </ul>
+
+            <h2 class="logo title sub">Physics</h2>
+            <p>Click the resistor at the top left of the display. Each tool is a card, as the solver has; numbers are in SI
+                units, m, kg, s, N and J, unless the card says. Click a result to put it into your calculation.</p>
+            <ul>
+                <li>Motion: steady acceleration, any three of s, u, v, a and t giving the other two, both answers where a
+                    speed may go either way; a projectile's time, range, height and landing speed, from a height as well,
+                    its path drawn; the speed against time drawn; relative velocity of two things, drawn, and a boat crossing a river, its path
+                    drawn; circular motion from its speed, period or rpm, drawn; orbits by Kepler's third law, of a height, a period or an ellipse,
+                    with the speeds nearest and farthest, the orbit drawn to scale; the rocket equation, from the exhaust speed or I<sub>sp</sub>,
+                    with the thrust, its speed drawn as it burns; pendulums and springs,
+                    with an amplitude their fastest, the swing drawn; rotation, the moment of inertia of a rod, disc, ring or ball, its energy,
+                    angular momentum and its speed rolled down a slope; and the centre of mass of up to four masses, with their moment of
+                    inertia, drawn.</li>
+                <li>Forces: F = ma; a mass on a slope with friction, and whether it slides, drawn; two masses over a pulley, both hanging,
+                    one on a table or on a slope, with friction and the pulley's mass, drawn; collisions, elastic or
+                    sticking together; impulse and the average force; kinetic and potential energy; work and power; torque,
+                    and levers balanced, drawn; gravitation, with the gravity, orbit and escape speed of a planet, and its Schwarzschild radius; springs, drawn; drag
+                    and terminal velocity, the speed drawn; Coulomb's law; the force of a magnetic field on a moving charge, with the circle it
+                    goes round, or on a wire; the field of a wire, a solenoid or a loop, and the force between two wires; and
+                    induction, in a coil, a moving rod or a generator.</li>
+                <li>Electronics: the resistor colour code of 4, 5 or 6 bands, chosen by colour, and the colours of a
+                    resistance, the resistor drawn; resistors, capacitors or coils in series and parallel, 100 + 220 || 330;
+                    Ohm's law and power from any two; a wire's resistance, of its metal, length and diameter or its AWG; the voltage
+                    divider, with a load, and as a source by Thévenin; a Wheatstone bridge, balanced or not, drawn; the resistor for LEDs; a capacitor's charge and energy from any two; RC and RL
+                    circuits, their curves drawn; parallel plates; transformers, RMS and peak, and LC resonance; three-phase power, in star or delta, its waves drawn; the impedance of
+                    R, L and C in series or parallel, its phase, resonance, Q and bandwidth, |Z| drawn; the cost of
+                    electricity; and how long a battery lasts. A diode by Shockley's equation, its curve drawn; a rectifier, a bridge or
+                    one diode, smoothed by a capacitor, its ripple drawn. Transistors switching a load, with the base resistor, and biased
+                    by a divider, with the operating point; MOSFETs as switches; Zener regulators; the LM317, its resistors for a voltage, of E12 and E24, or as a
+                    steady current, with the heat in it; op-amp gain, a wave in and out drawn; and the 555,
+                    astable or monostable, its output drawn. A resistor to buy is the nearest of E12. A part's value is typed as it is written:
+                    4.7k, 4k7, 470R, 100n, 2.2µ.</li>
+                <li>Waves: v = fλ, the wave drawn; standing waves on a string or in an open or closed pipe, drawn; beats of two notes, drawn; thin lenses and mirrors,
+                    with the image and its rays drawn; the lensmaker's equation, the lens and its focus drawn; refraction and the critical angle, the ray drawn; interference through
+                    two slits or a grating, the fringes drawn in their colour; one slit, its dark fringes and the width of its middle, and the
+                    resolution of a round lens by Rayleigh, two points just told apart, drawn in their colour; polarisation, Malus's law and Brewster's angle, drawn;
+                    the Doppler effect, its waves drawn, and of light by relativity, its redshift drawn; light of a wavelength, frequency or energy, its colour and where it is among the kinds
+                    of light; and sound in decibels, among sounds from a whisper to a concert.</li>
+                <li>Matter: Q = mcΔT from any three; latent heat, of melting and boiling; the temperature two things mixed
+                    end at; thermal expansion of a length or a volume; conduction through a wall, by Fourier's law; the
+                    radiation of a hot body, with the wavelength it shines brightest at, its spectrum drawn; Newton's law of cooling, of k or a reading, the time to a temperature, the curve drawn; the dew point and humidity, on the curve of the most air holds; the speeds of a gas's
+                    molecules, drawn; an ideal gas taken isothermal, isobaric, isochoric or adiabatic, with the work, the heat and the
+                    change in its energy, its path drawn on a PV diagram; heat engines, Carnot's efficiency, and fridges and heat pumps; stress, strain and Young's
+                    modulus; density and pressure, from any two;
+                    the pressure at a depth; buoyancy, and whether it floats; the flow in a pipe that narrows; the Reynolds number, laminar
+                    or turbulent, with the pressure lost to friction along a pipe by Colebrook's f, the speed across it drawn; and Stokes' law, a small ball's last speed through a fluid, its forces drawn.</li>
+                <li>Modern: E = mc²; the binding energy of a nucleus, against the curve of all; the Q-value of a reaction or a decay, the two parts of a decay drawn flying apart; the photoelectric effect, with the stopping voltage and threshold, drawn; the de Broglie
+                    wavelength of an electron, a proton, a neutron or a mass; the uncertainty principle, of place and momentum
+                    or of energy and time; a particle in a box, with its levels and the light between them, drawn; Compton scattering;
+                    quantum tunnelling through a barrier, worked out in full, drawn; special relativity, γ, time and length, γ drawn; the lines
+                    of hydrogen, with their series and colour, and Bohr's levels, orbits and speeds, the fall drawn; and radioactive
+                    decay, with the activity, its curve drawn.</li>
+                <li>Angles are in the unit in use, Deg, Rad or Grad. What you typed stays for the next time.</li>
             </ul>
         </div>
 
@@ -1180,7 +1301,7 @@
         <div class="features" data-tab="guide">
             <h2 class="logo title">For Schools and Organizations</h2>
             <p>Administrators can disable specific calculator features that students are not permitted to use or during exams,
-                including formulas, the unit converter, graphing, statistics, the solver, the numbers, Detached Mode,
+                including formulas, the unit converter, graphing, statistics, the solver, the numbers, the chemistry, the physics, Detached Mode,
                 and the option to display the calculator button on every website. These settings can be configured centrally for all managed students
                 through the Google Admin Console or Chrome policies.</p>
             <p>Once a feature is disabled, it is immediately removed from the calculator, and students cannot

@@ -34,7 +34,7 @@ const chemMin = { width: 744, height: 700 };
 
 // each other panel's own window, opened by its pop out button: the same page, popup.html?panel=solve, with only
 // that panel; by the policy that turns the panel off
-const panelPolicies = { stats: "statistics", fx: "formulas", conv: "converter", solve: "solve", numbers: "numbers" };
+const panelPolicies = { stats: "statistics", fx: "formulas", conv: "converter", solve: "solve", numbers: "numbers", phys: "physics" };
 const panelUrl = (key) => chrome.runtime.getURL("popup.html?panel=" + key);
 
 // their least size: an iPad mini's width, as in popup.js

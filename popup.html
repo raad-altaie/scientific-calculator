@@ -228,11 +228,26 @@
                                 <text transform="translate(8 11.24) scale(0.88 1)" fill="currentColor" stroke="currentColor" stroke-width="0.1" font-size="9" font-weight="700" font-family="Play, sans-serif" text-anchor="middle">Fe</text>
                             </svg>
                         </div>
+                        <!-- physics: electronics, motion, forces, waves, matter and modern physics. A resistor -->
+                        <div class="calc-phys-btn" hidden>
+                            <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
+                                stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 8h3l1-3 2 6 2-6 2 6 1-3h3" stroke-width="1.35" />
+                            </svg>
+                        </div>
                         <!-- statistics of a list of numbers -->
                         <div class="calc-stat-btn" hidden>
                             <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
                                 stroke-width="1.8" stroke-linecap="round">
                                 <path d="M3.5 12.9V8.8M8 12.9V3.4M12.5 12.9V6.6" />
+                            </svg>
+                        </div>
+                        <!-- the search of all the tools, as the rail's (main.js) -->
+                        <div class="calc-find-btn" role="button" aria-label="Search" aria-haspopup="dialog">
+                            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor"
+                                stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="7" cy="7" r="4.6" />
+                                <path d="M10.4 10.4L14 14" />
                             </svg>
                         </div>
                     </div>
@@ -433,6 +448,7 @@
                 <span class="calc-solve-tabs">
                     <span class="calc-solve-tab" data-tab="list">List</span>
                     <span class="calc-solve-tab" data-tab="pairs">Pairs</span>
+                    <span class="calc-solve-tab" data-tab="tests">Tests</span>
                 </span>
                 <!-- what is between the numbers: found by itself, or the one chosen -->
                 <span class="calc-stats-by-label">Separator</span>
@@ -449,11 +465,23 @@
             <textarea class="calc-stats-input" spellcheck="false" maxlength="20000"
                 placeholder="Type or paste numbers: 4 8 15 16 23 42"></textarea>
             <div class="calc-stats-note"></div>
-            <!-- the results, and a chart of the numbers under them -->
-            <div class="calc-stats-out">
-                <div class="calc-stats-grid"></div>
-                <div class="calc-stats-chart"></div>
+            <!-- the pairs only: the kind of curve fitted to them, and its equation -->
+            <div class="calc-stats-fitrow">
+                <span class="calc-stats-by-label">Fit</span>
+                <div class="calc-conv-pick calc-stats-fitpick" tabindex="0" role="combobox" aria-haspopup="listbox"
+                    aria-expanded="false" aria-label="Fit" title="The curve fitted to the pairs">
+                    <span class="calc-conv-chosen"></span>
+                    <div class="calc-conv-menu" role="listbox" hidden></div>
+                </div>
+                <span class="calc-stats-eq"></span>
             </div>
+            <!-- a chart of the numbers, and the results under it -->
+            <div class="calc-stats-out">
+                <div class="calc-stats-chart"></div>
+                <div class="calc-stats-grid"></div>
+            </div>
+            <!-- the Tests tab: a card for each test, as the solver has, in place of the list and its results -->
+            <div class="calc-sv-list calc-stats-tests"></div>
         </div>
 
         <!-- the graph of y = a function of x, over the keys like the history -->
@@ -538,6 +566,7 @@
                 <span class="calc-solve-tabs">
                     <span class="calc-solve-tab" data-tab="solve">Solve</span>
                     <span class="calc-solve-tab" data-tab="calculus">Calculus</span>
+                    <span class="calc-solve-tab" data-tab="geometry">Geometry</span>
                     <span class="calc-solve-tab" data-tab="chance">Probability</span>
                     <span class="calc-solve-tab" data-tab="finance">Finance</span>
                 </span>
@@ -556,6 +585,24 @@
                     <span class="calc-solve-tab" data-tab="complex">Complex</span>
                     <span class="calc-solve-tab" data-tab="whole">Integer</span>
                     <span class="calc-solve-tab" data-tab="computer">Computer</span>
+                </span>
+                <!-- pop out: the panel as big as the page, or in a window of its own; pop in: back in the calculator -->
+                <span class="calc-panel-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-panel-grow" d="M10 2h4v4M6.5 9.5L14 2" /><path class="calc-panel-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
+                <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
+            </div>
+            <div class="calc-sv-list"></div>
+        </div>
+
+        <!-- physics, over the keys like the history: a card for each tool, as the solver has -->
+        <div class="calc-past calc-phys">
+            <div class="calc-past-head">
+                <span class="calc-solve-tabs">
+                    <span class="calc-solve-tab" data-tab="circuits">Electronics</span>
+                    <span class="calc-solve-tab" data-tab="motion">Motion</span>
+                    <span class="calc-solve-tab" data-tab="forces">Forces</span>
+                    <span class="calc-solve-tab" data-tab="waves">Waves</span>
+                    <span class="calc-solve-tab" data-tab="matter">Matter</span>
+                    <span class="calc-solve-tab" data-tab="modern">Modern</span>
                 </span>
                 <!-- pop out: the panel as big as the page, or in a window of its own; pop in: back in the calculator -->
                 <span class="calc-panel-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-panel-grow" d="M10 2h4v4M6.5 9.5L14 2" /><path class="calc-panel-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
@@ -615,9 +662,9 @@
         <div class="calc-past calc-fx">
             <div class="calc-past-head">
                 <span class="calc-fx-tabs">
-                    <span class="calc-fx-tab" data-tab="vars">Variables</span>
                     <span class="calc-fx-tab" data-tab="formulas">Formulas</span>
                     <span class="calc-fx-tab" data-tab="constants">Constants</span>
+                    <span class="calc-fx-tab" data-tab="vars">Variables</span>
                 </span>
                 <!-- pop out: the panel as big as the page, or in a window of its own; pop in: back in the calculator -->
                 <span class="calc-panel-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-panel-grow" d="M10 2h4v4M6.5 9.5L14 2" /><path class="calc-panel-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
@@ -627,7 +674,7 @@
             <div class="calc-fx-list"></div>
         </div>
 
-        <!-- the converter of units, over the keys like the history; and of dates, a card for each tool, as the solver has -->
+        <!-- the converter: a card for each group of units, and for each tool of the dates, as the solver has, over the keys like the history -->
         <div class="calc-past calc-conv">
             <div class="calc-past-head">
                 <span class="calc-solve-tabs">
@@ -638,24 +685,11 @@
                 <span class="calc-panel-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-panel-grow" d="M10 2h4v4M6.5 9.5L14 2" /><path class="calc-panel-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
                 <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
             </div>
-            <!-- lists drawn as the calculator draws, not by the browser -->
-            <div class="calc-conv-pick calc-conv-group" tabindex="0" role="combobox" aria-haspopup="listbox"
-                aria-expanded="false" aria-label="What to convert">
-                <span class="calc-conv-chosen"></span>
-                <div class="calc-conv-menu" role="listbox" hidden></div>
-            </div>
-            <div class="calc-conv-from">
-                <input class="calc-conv-value" type="text" autocapitalize="characters" spellcheck="false" autocomplete="off"
-                    maxlength="40" aria-label="Value">
-                <div class="calc-conv-pick calc-conv-unit" tabindex="0" role="combobox" aria-haspopup="listbox"
-                    aria-expanded="false" aria-label="From">
-                    <span class="calc-conv-chosen"></span>
-                    <div class="calc-conv-menu" role="listbox" hidden></div>
-                </div>
-            </div>
-            <div class="calc-conv-note"></div>
-            <div class="calc-conv-list"></div>
-            <div class="calc-sv-list"></div>
+            <!-- the search of the units, and a card for each group of them; the dates' cards on their tab, as the solver has -->
+            <input class="calc-fx-search calc-conv-search" type="text" spellcheck="false" autocomplete="off" maxlength="40"
+                placeholder="Search units" aria-label="Search units">
+            <div class="calc-sv-list calc-conv-units"></div>
+            <div class="calc-sv-list calc-conv-datelist" hidden></div>
         </div>
 
         <!-- what a key above the digits does, while the pointer rests on it -->
@@ -673,6 +707,18 @@
             </div>
             <div class="calc-past-list"></div>
         </div>
+
+        <!-- the search, over the keys like the history: its box and list are the rail's (.calc-find), moved in (main.js) -->
+        <div class="calc-past calc-find-panel" role="dialog" aria-label="Search">
+            <div class="calc-past-head">
+                <span class="calc-solve-tabs">
+                    <span class="calc-solve-tab calc-on">Search</span>
+                </span>
+                <!-- pop out: the search in the big window, beside the rail of the tools -->
+                <span class="calc-panel-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-panel-grow" d="M10 2h4v4M6.5 9.5L14 2" /><path class="calc-panel-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
+                <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
+            </div>
+        </div>
     </div>
     <!-- popped out, the bar above the panel's head, and above the calculator in a tool's own window: the calculator,
          and each tool shown at the top left of the display, by its icon and name, to go to; main.js adds the tools,
@@ -680,10 +726,24 @@
          alone on a narrow one. Beside the calculator, not in it: there it would be scaled with it -->
     <nav class="calc-go" aria-label="Tools">
         <span class="calc-go-item" data-go="calc" role="button" tabindex="0" aria-label="Calculator" title="Calculator"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="1.8" width="10" height="12.4" rx="1.6" /><path d="M5.4 4.4h5.2v2.2H5.4z" /><path d="M5.6 9.2h.01M8 9.2h.01M10.4 9.2h.01M5.6 11.6h.01M8 11.6h.01M10.4 11.6h.01" stroke-width="1.9" /></svg><span>Calculator</span></span>
+        <!-- under it: the search of all the tools, and Ctrl+K (main.js) -->
+        <span class="calc-go-item calc-go-find" role="button" tabindex="0" aria-label="Search" aria-haspopup="dialog" title="Search"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="4.6" /><path d="M10.4 10.4L14 14" /></svg><span>Search</span></span>
         <!-- at the bottom: the options, and the guide, on their tabs of the page the ? of the calculator opens -->
         <span class="calc-go-item calc-go-opt" data-tab="options" role="button" tabindex="0" aria-label="Options" title="Options"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4.5h3.2M8.4 4.5H14M2 11.5h7.2M12.4 11.5H14" /><circle cx="6.8" cy="4.5" r="1.6" /><circle cx="10.8" cy="11.5" r="1.6" /></svg><span>Options</span></span>
         <span class="calc-go-item calc-go-opt" data-tab="guide" role="button" tabindex="0" aria-label="Guide" title="Guide"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.2" /><path d="M6.2 6.3a1.85 1.85 0 0 1 3.6.55c0 1.25-1.8 1.6-1.8 2.75" /><path d="M8 11.7h.01" stroke-width="1.9" /></svg><span>Guide</span></span>
     </nav>
+    <!-- Search of the rail, over all of the window: a box, and what it finds, the best first; main.js fills it -->
+    <div class="calc-find" hidden>
+        <div class="calc-find-box" role="dialog" aria-label="Search">
+            <label class="calc-find-bar">
+                <svg viewBox="0 0 16 16" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="4.6" /><path d="M10.4 10.4L14 14" /></svg>
+                <input class="calc-find-input" type="text" spellcheck="false" autocomplete="off" maxlength="60" role="combobox" aria-expanded="true" aria-controls="calc-find-list"
+                    aria-autocomplete="list" placeholder="Search cards, formulas, constants, elements, units" aria-label="Search">
+                <kbd>Esc</kbd>
+            </label>
+            <div class="calc-find-list" id="calc-find-list" role="listbox" aria-label="Found"></div>
+        </div>
+    </div>
     <!-- a tool's own window on its Calculator tab only (main.js): pop in and close at the top right, where every
          tool popped out has them, without a bar under them -->
     <div class="calc-home-acts">
@@ -702,6 +762,7 @@
     <script src="js/maths.js"></script>
     <script src="js/units.js"></script>
     <script src="js/chem.js"></script>
+    <script src="js/physics.js"></script>
     <script src="js/policy.js"></script>
     <script src="js/main.js"></script>
     <script src="js/popup.js"></script>

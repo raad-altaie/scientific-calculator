@@ -137,6 +137,21 @@ Formulas.formulas.forEach(function (group) {
     });
 })();
 
+// a formula's card of the Physics panel: its boxes of the formula's own letters, and every formula named in it found
+(function () {
+    var linked = 0;
+    Formulas.formulas.forEach(function (group) {
+        group.list.forEach(function (f) {
+            var letters = f.v.map(function (v) { return v[0]; });
+            if (!f.p) return;
+            linked++;
+            check(typeof f.p[0] === 'string' && Object.keys(f.p[1]).length && Object.keys(f.p[1]).every(function (k) { return letters.indexOf(k) > -1; }),
+                f.t + ': In Physics of its own letters', JSON.stringify(f.p));
+        });
+    });
+    check(linked === 57, 'In Physics: every formula named in it found', linked);
+})();
+
 Formulas.constants.forEach(function (group) {
     group.list.forEach(function (k) {
         check(isFinite(k.v) && typeof k.v === 'number', k.t + ': a number');
