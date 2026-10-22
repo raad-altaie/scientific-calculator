@@ -656,7 +656,7 @@
         'chem fact ie': { t: 'Ionization energy', d: 'The energy to take the outermost electron from each atom of a mole of it, as a gas: the first ionization energy.' },
         'chem fact state': { t: 'State', d: 'Solid, liquid or gas at 20 °C and 1 atm.' },
         'chem fact radius': { t: 'Atomic radius', d: 'How big its atom is: its van der Waals radius, in picometres, 10⁻¹² m.' },
-        'chem fact affinity': { t: 'Electron affinity', d: 'The energy given off as each atom of a mole of it, as a gas, takes an electron.' },
+        'chem fact affinity': { t: 'Electron affinity', d: 'The energy given off as each atom of a mole of it, as a gas, takes an electron. Below 0, the ion it would make falls apart: an estimate.' },
         'chem fact ions': { t: 'Common ions', d: 'The ions it most often forms, with their charges.' },
         'chem fact protons': { t: 'Protons', d: 'In the nucleus, as many as the atomic number.' },
         'chem fact electrons': { t: 'Electrons', d: 'Round the nucleus of the neutral atom, as many as its protons.' },
@@ -668,6 +668,17 @@
         'chem fact isotopes': { t: 'Isotopes', d: 'Its stable isotopes, the commonest first; with none stable, those found in nature, or its longest-lived one and its half-life.' },
         'chem fact story': { t: 'Name', d: 'Where its name comes from, and how it was found.' },
         'chem fact uses': { t: 'Uses', d: 'What it is used for.' },
+        'chem fact covalent': { t: 'Covalent radius', d: 'Half the length of a single bond between two of its atoms, in picometres: how big its atom is in a molecule, smaller than its van der Waals radius.' },
+        'chem fact fusion': { t: 'Heat of fusion', d: 'The energy to melt a mole of it at its melting point, with no change of temperature.' },
+        'chem fact vaporization': { t: 'Heat of vaporization', d: 'The energy to boil a mole of it at its boiling point, with no change of temperature.' },
+        'chem fact conductivity': { t: 'Thermal conductivity', d: 'How well heat flows through it: watts through a metre of it for each kelvin between its ends, across a square metre. Silver and copper the most, the gases the least.' },
+        'chem fact resistivity': { t: 'Electrical resistivity', d: 'How much it resists a current, at 20 °C: R = ρL/A. Small for metals, silver\'s 1.6 × 10⁻⁸ Ω·m the least; huge for an insulator such as sulfur.' },
+        'chem fact mohs': { t: 'Mohs hardness', d: 'How hard it is, by what it scratches and is scratched by, from talc\'s 1 to diamond\'s 10.' },
+        'chem fact cas': { t: 'CAS number', d: 'Its number in the Chemical Abstracts Service\'s registry, which names each substance once: to look it up anywhere.' },
+        'chem fact magnetic': { t: 'Magnetism', d: 'How it acts in a magnetic field: ferromagnetic, as iron, a magnet itself; paramagnetic, drawn in weakly; diamagnetic, pushed out weakly; antiferromagnetic, its atoms\' magnetism cancelling.' },
+        'chem fact crystal': { t: 'Crystal structure', d: 'How its atoms are packed in the solid, the repeating pattern of its crystal: of the form usual at room temperature.' },
+        'chem fact abundance': { t: 'Abundance in the crust', d: 'How much of the Earth\'s crust it is, in mg/kg, parts per million by mass: oxygen nearly half, then silicon. Traces only: a few atoms at a time, made in uranium and thorium ores; synthetic: made only in the laboratory.' },
+        'chem fact appearance': { t: 'Appearance', d: 'What it looks like, pure, at room temperature.' },
         'chem fact spectrum': { t: 'Spectrum', d: 'The light of its atoms as a gas, from violet at 380 nm to red at 750: absorption, white light shone through it, ' +
             'dark lines across the rainbow where it takes colours out; emission, heated or in a spark, those same colours alone, bright on black. ' +
             'Each element has lines of its own, as a fingerprint: so helium was found in the Sun before on Earth. Its strongest lines, as NIST lists them, ' +

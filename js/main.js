@@ -7790,11 +7790,23 @@
             return last.getBoundingClientRect().right - first.getBoundingClientRect().left + 10 * scale() > room + 0.5;
         }
 
+        // a badge that fits in its share of the room is kept whole: only the long ones are cut
+        function share(row) {
+            var room = row.parentNode.getBoundingClientRect().width / row.children.length - 10 * scale(); // less the 5px each side of a badge
+            [].forEach.call(row.children, function (pill) {
+                pill.style.flexShrink = pill.getBoundingClientRect().width <= room ? 0 : '';
+            });
+        }
+
         function fitPills() {
             [].forEach.call(list.querySelectorAll('.calc-sv-eq > span'), function (row) {
                 var size = 15;
+                if (row.closest('[hidden]')) return; // not shown: fitted as it is shown again
                 row.style.fontSize = '';
+                row.classList.add('calc-sv-fit'); // each badge as wide as all of it, to measure; then cut with … if need be
                 while (size > 10 && crowded(row)) row.style.fontSize = --size + 'px';
+                share(row);
+                row.classList.remove('calc-sv-fit');
             });
         }
 
@@ -8267,6 +8279,7 @@
             load: load,
             clear: clear,
             keep: keep,
+            fit: fitPills, // the badges fitted again, once something else has put others in
             tab: function () { return tab; },
             setTab: function (t) {
                 tab = t;
@@ -15109,22 +15122,22 @@
         // the dark letters: electronegativity blue to red, ionization energy green to purple, the melting
         // point cold blue to hot red, density pale sand to brown
         CHEM_HEAT = {
-            en: { of: function (e) { return e.en; }, lo: 0.7, hi: 4, label: 'Pauling', ends: [0.7, 3.98], fixed: 2,
+            en: { of: function (e) { return chemKnown(e, 'en'); }, lo: 0.7, hi: 4, label: 'Pauling', ends: [0.7, 3.98], fixed: 2,
                 colours: [[212, 70, 76], [168, 48, 68], [50, 78, 70], [14, 70, 63]] },
-            ie: { of: function (e) { return e.ie; }, lo: 375, hi: 2373, unit: 'e', ends: [375.7, 2372.3],
+            ie: { of: function (e) { return chemKnown(e, 'ie'); }, lo: 375, hi: 2373, unit: 'e', ends: [375.7, 2372.3],
                 colours: [[130, 45, 76], [185, 50, 70], [225, 58, 75], [275, 45, 71]] },
-            mp: { of: function (e) { return e.mp; }, lo: -260, hi: 3550, unit: 't', ends: [-259.16, 3550],
+            mp: { of: function (e) { return chemKnown(e, 'mp'); }, lo: -260, hi: 3550, unit: 't', ends: [-259.16, 3550],
                 colours: [[205, 75, 74], [50, 85, 78], [26, 85, 66], [2, 72, 60]] },
-            density: { of: function (e) { return e.density === null ? null : Math.sqrt(e.density); }, back: function (v) { return v * v; }, lo: 0, hi: 4.76, unit: 'd', ends: [0, 22.59],
+            density: { of: function (e) { return chemKnown(e, 'density') === null ? null : Math.sqrt(e.density); }, back: function (v) { return v * v; }, lo: 0, hi: 4.76, unit: 'd', ends: [0, 22.59],
                 colours: [[45, 45, 86], [35, 40, 72], [25, 35, 60]] },
             // popped out only, in the table's own pastels: the boiling point as the melting point, cold to hot; the
             // radius aqua to lavender, small to big; the affinity pale yellow to green; the mass peach to coral,
             // light to heavy; the year found sand to violet, ancient to new, those known since ancient times at its start
-            bp: { of: function (e) { return e.bp; }, lo: -270, hi: 5930, unit: 't', ends: [-268.93, 5930],
+            bp: { of: function (e) { return chemKnown(e, 'bp'); }, lo: -270, hi: 5930, unit: 't', ends: [-268.93, 5930],
                 colours: [[205, 75, 74], [50, 85, 78], [26, 85, 66], [2, 72, 60]] },
-            radius: { of: function (e) { return e.radius; }, lo: 120, hi: 348, label: 'pm', ends: [120, 348], fixed: 0,
+            radius: { of: function (e) { return chemKnown(e, 'radius'); }, lo: 120, hi: 348, label: 'pm', ends: [120, 348], fixed: 0,
                 colours: [[165, 59, 78], [217, 88, 83], [253, 75, 84]] },
-            affinity: { of: function (e) { return e.affinity; }, lo: 0, hi: 349, unit: 'e', ends: [7.6, 349],
+            affinity: { of: function (e) { return chemKnown(e, 'affinity'); }, lo: 0, hi: 349, unit: 'e', ends: [7.6, 349],
                 colours: [[50, 90, 84], [86, 58, 76], [142, 44, 69]] },
             mass: { of: function (e) { return e.mass; }, lo: 1, hi: 294, label: 'g/mol', ends: [1.008, 294],
                 colours: [[35, 93, 89], [31, 94, 73], [5, 81, 73]] },
@@ -15147,7 +15160,10 @@
             'Density': 'density', 'Group': 'group', 'Period': 'period', 'Protons': 'protons', 'Electrons': 'electrons', 'Neutrons': 'neutrons',
             'Electron configuration': 'config', 'Shells': 'shells', 'Block': 'block', 'Outer-shell electrons': 'outer', 'Unpaired electrons': 'unpaired',
             'Atomic radius': 'radius', 'Electron affinity': 'affinity', 'Common ions': 'ions', 'Oxidation states': 'ox', 'State at 20 °C': 'state',
-            'Specific heat': 'heat', 'Discovered': 'year', 'Isotopes': 'isotopes', 'Name': 'story', 'History': 'story', 'Uses': 'uses' },
+            'Specific heat': 'heat', 'Discovered': 'year', 'Isotopes': 'isotopes', 'Name': 'story', 'History': 'story', 'Uses': 'uses',
+            'Covalent radius': 'covalent', 'Heat of fusion': 'fusion', 'Heat of vaporization': 'vaporization', 'Thermal conductivity': 'conductivity',
+            'Electrical resistivity': 'resistivity', 'Mohs hardness': 'mohs', 'CAS number': 'cas', 'Magnetism': 'magnetic', 'Crystal structure': 'crystal',
+            'Abundance in the crust': 'abundance', 'Appearance': 'appearance' },
         chemTemp = 20, // the temperature the table shows the states at, °C: its slider in the State colours
         chemSliding = false, // a knob of the slider dragged: no tips meanwhile
         chemCut = {}, // of each number of CHEM_HEAT, its slider: [from, to] on its scale, the elements outside dimmed, null an open end; none, all bright
@@ -15161,6 +15177,11 @@
         });
 
     // the class of an element's colour, as the table is coloured now
+    // a value of an element as it is measured: null where it is only predicted, which the colours of the table leave out
+    function chemKnown(e, k) {
+        return e.predicted[k] ? null : e[k];
+    }
+
     function chemClass(e) {
         return chemBy === 'cat' ? 'calc-pt-' + e.cat : chemBy === 'state' ? 'calc-pt-' + (chemStateOf(e) || 'unknown') : chemBy === 'block' ? 'calc-pt-' + e.block + 'b' :
             CHEM_HEAT[chemBy].of(e) === null ? 'calc-pt-unknown' : '';
@@ -15169,7 +15190,8 @@
     // Solid, liquid or gas at the temperature of the slider, at 1 atm, from its melting and boiling points. With
     // no melting point it goes from solid straight to gas, as arsenic does, but helium, which is liquid down to 0 K
     function chemStateOf(e) {
-        if (e.mp === null && e.bp === null) return e.state;
+        if (e.mp === null && e.bp === null || e.state === null) return e.state; // the heaviest not known, their points only predicted
+        if (e.bp === null && e.predicted.mp) return e.state; // only a melting point predicted, nothing of where it boils: as it is known
         if (e.bp !== null && chemTemp >= e.bp) return 'gas';
         if (e.mp === null) return e.z === 2 ? 'liquid' : 'solid';
         return chemTemp < e.mp ? 'solid' : 'liquid';
@@ -15472,11 +15494,11 @@
         gap.innerHTML = '<div class="calc-pt-big calc-pt-el ' + chemClass(e) + '" data-show="' + e.z + '" style="' + chemHeat(e) + '" role="button" aria-label="All of ' + e.name + '"><span class="calc-pt-z" data-pt="z">' + e.z + '</span>' +
             // popped out, the tile has room for more, as on a printed table: the electronegativity and the oxidation
             // states at the top right, the name under the symbol, the configuration at the foot
-            '<span class="calc-pt-more calc-pt-en" data-pt="en">' + (e.en === null ? '' : local(String(e.en))) + '</span>' +
+            '<span class="calc-pt-more calc-pt-en" data-pt="en">' + (e.en === null ? '' : (e.predicted.en ? '≈' : '') + local(String(e.en))) + '</span>' +
             '<span class="calc-pt-more calc-pt-ox" data-pt="ox" data-full="' + (e.ox || '').split(' ').join(', ') + '">' + (e.ox || '').split(' ').join('<br>') + '</span>' +
             '<b data-pt="symbol">' + e.s + '</b><span class="calc-pt-more calc-pt-full" data-pt="name">' + e.name + '</span>' + chemMassHtml(e) +
             '<span class="calc-pt-more calc-pt-conf" data-pt="config">' + e.config + '</span></div>' +
-            '<div class="calc-pt-about"><span class="calc-pt-title" data-pt="name">' + e.name + '</span><span data-pt="kind" data-kind="' + e.cat + '">' + cat + '</span><span class="calc-pt-cfg" data-pt="config">' + e.config + '</span>' +
+            '<div class="calc-pt-about"><span class="calc-pt-title" data-pt="name">' + e.name + '</span><span data-pt="kind" data-kind="' + e.cat + '">' + cat + '</span>' + chemLine(e) +
             // and beside it, what the tile has no room for, a label over each value
             '<dl class="calc-pt-facts">' + [
                 ['Mass', e.unstable ? e.mass : chemIn('m', e.mass), e.unstable ? 'mass number' : 'g/mol', 'mass'], ['Group', e.group, '', 'group'], ['Period', e.period, '', 'period'], ['Block', e.block, '', 'block'],
@@ -15485,7 +15507,7 @@
                 ['State', e.state ? e.state.charAt(0).toUpperCase() + e.state.slice(1) : null, '', 'state'], ['Radius', e.radius, 'pm', 'radius'],
                 ['Affinity', chemIn('e', e.affinity), chemUnitName('e'), 'affinity'], ['Ions', e.ions, '', 'ions']
             ].map(function (f) {
-                var v = f[1] === null || f[1] === undefined ? '–' : typeof f[1] === 'number' ? local(String(f[1])) : f[1];
+                var v = f[1] === null || f[1] === undefined ? '–' : (e.predicted[f[3]] ? '≈' : '') + (typeof f[1] === 'number' ? local(String(f[1])) : f[1]);
                 return '<div data-pt="' + f[3] + '" data-full="' + (v === '–' ? '' : v + (f[2] && f[2] !== 'mass number' ? ' ' + f[2] : '')) + '"><dt>' + f[0] + (f[2] ? ' <i>' + f[2] + '</i>' : '') + '</dt><dd>' + v + '</dd></div>';
             }).join('') + '</dl></div>';
         chemDimBig();
@@ -15499,10 +15521,15 @@
             ['Boiling point', chemIn('t', e.bp), chemUnitName('t'), false, 't'],
             ['Density', chemIn('d', e.density), chemUnitName('d') + (e.state === 'gas' ? ' at 0 °C' : ''), false, 'd'], ['Group', e.group], ['Period', e.period],
             ['Protons', e.z], ['Electrons', e.z], ['Neutrons', Math.round(e.mass) - e.z],
-            ['Electron configuration', e.config, '', true], ['Shells', e.shells.join(', '), 'K L M …'], ['Block', e.block],
+            ['Electron configuration', e.config, '', true], ['Shells', e.shells.join(', '), 'K L M …', true], ['Block', e.block],
             ['Outer-shell electrons', e.shells[e.shells.length - 1]], ['Unpaired electrons', chemUnpaired(e.config)],
-            ['Atomic radius', e.radius, 'pm'], ['Electron affinity', chemIn('e', e.affinity), chemUnitName('e'), false, 'e'],
-            ['Common ions', e.ions || '–', '', true], ['Oxidation states', e.ox || '–', '', true], ['State at 20 °C', e.state ? e.state.charAt(0).toUpperCase() + e.state.slice(1) : 'Not known'], ['Specific heat', e.heat, 'J/(g·K)'],
+            // the small tiles in threes, so each row is full before a wide one
+            ['Atomic radius', e.radius, 'pm'], ['Covalent radius', e.covalent, 'pm'], ['Electron affinity', chemIn('e', e.affinity), chemUnitName('e'), false, 'e'],
+            ['State at 20 °C', e.state ? e.state.charAt(0).toUpperCase() + e.state.slice(1) : 'Not known'], ['Specific heat', e.heat, 'J/(g·K)'], ['Mohs hardness', e.mohs],
+            ['Common ions', e.ions || '–', '', true], ['Oxidation states', e.ox || '–', '', true],
+            ['Heat of fusion', e.fusion, 'kJ/mol'], ['Heat of vaporization', e.vaporization, 'kJ/mol'], ['Thermal conductivity', e.conductivity, 'W/(m·K)'],
+            ['Electrical resistivity', e.resistivity, 'Ω·m at 20 °C', false, '', false, true], ['Abundance in the crust', e.abundance, typeof e.abundance === 'number' ? 'mg/kg' : '', false, '', false, true], ['CAS number', e.cas],
+            ['Magnetism', e.magnetic, '', true], ['Crystal structure', e.crystal, '', true], ['Appearance', e.appearance, '', true],
             // in words, each on its own line: when and by whom it was found, its isotopes, its name, its uses
             ['Discovered', (e.year === 0 ? 'In ancient times' : e.year) + (e.foundBy ? ', by ' + e.foundBy : '') + (e.isolatedBy ? '; isolated by ' + e.isolatedBy : ''), '', true, '', true],
             ['Isotopes', e.isotopes || '–', '', true, '', true],
@@ -15511,12 +15538,73 @@
         chemInfo.classList.toggle('calc-pt-new', String(z) !== chemInfo.dataset.z); // its details come in with a move, once for each element
         chemInfo.dataset.z = z;
         chemInfo.innerHTML = '<span class="calc-pt-hide" role="button" aria-label="Close the card"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span><div class="calc-pt-head"><div class="calc-pt-big calc-pt-el ' + chemClass(e) + '" style="' + chemHeat(e) + '"><span class="calc-pt-z" data-pt="z">' + e.z + '</span><b data-pt="symbol">' + e.s +
-            '</b>' + chemMassHtml(e) + '</div><div class="calc-pt-about"><span class="calc-pt-title" data-pt="name">' + e.name + '</span><span data-pt="kind" data-kind="' + e.cat + '">' + cat + '</span><span data-pt="config">' + e.config +
+            '</b>' + chemMassHtml(e) + '</div><div class="calc-pt-about"><span class="calc-pt-title" data-pt="name">' + e.name + '</span><span data-pt="kind" data-kind="' + e.cat + '">' + cat +
             '</span><span data-pt="shells" data-full="' + e.shells.join(', ') + '">Shells ' + e.shells.join(', ') + '</span></div></div><div class="calc-pt-body">' + chemAtom(e) + '<div class="calc-sv-grid calc-pt-tiles">' + chemSpectrum(e) + tiles.map(function (t, i) {
-            var num = typeof t[1] === 'number' && !(t[0] === 'Found'), known = t[1] !== null && t[1] !== undefined;
-            return '<div class="calc-sv-tile' + (num && known ? '' : ' calc-none') + (t[3] ? ' calc-sv-wide' : '') + (t[5] ? ' calc-pt-text' : '') + '" style="--i: ' + i + '" data-fact="' + CHEM_FACTS[t[0]] + '"' + (num && known ? ' data-v="' + t[1] + '"' : '') + '><span class="calc-sv-label">' + t[0] +
-                (t[2] ? ' <i' + (t[4] ? ' class="calc-pt-unit" data-unit="' + t[4] + '" role="button"' : '') + '>' + t[2] + '</i>' : '') + '</span><span class="calc-sv-value">' + (!known ? '–' : num ? statsValue(t[1]).html : t[1]) + '</span></div>';
+            var num = typeof t[1] === 'number' && !(t[0] === 'Found'), known = t[1] !== null && t[1] !== undefined, guess = known && e.predicted[CHEM_FACTS[t[0]]];
+            return '<div class="calc-sv-tile' + (num && known ? '' : ' calc-none') + (t[3] ? ' calc-sv-wide' : '') + (t[5] ? ' calc-pt-text' : '') + (known && !num && !t[3] && String(t[1]).length > 9 ? ' calc-pt-wrap' : '') +
+                '" style="--i: ' + i + '" data-fact="' + CHEM_FACTS[t[0]] + '"' + (num && known ? ' data-v="' + t[1] + '"' : '') + '><span class="calc-sv-label">' + t[0] +
+                (t[2] ? ' <i' + (t[4] ? ' class="calc-pt-unit" data-unit="' + t[4] + '" role="button"' : '') + '>' + t[2] + '</i>' : '') + (guess ? ' <i class="calc-pt-guess">predicted</i>' : '') + '</span><span class="calc-sv-value">' + (!known ? '–' : num ? (t[6] ? chemSci(t[1]) : statsValue(t[1]).html) : t[1]) + '</span></div>';
         }).join('') + '</div></div>';
+        chemRows();
+    }
+
+    // No room left empty at the end of a row: in each run of small tiles between wide ones that does not fill its last row
+    // (three to a row in the popup, two popped out), those with the longest values made wide, the whole row, at the start
+    // of the run, by the wide one before it: the shells under the configuration. Done again as the columns change
+    function chemRows() {
+        var grid = chemInfo.querySelector('.calc-pt-tiles'), cols, tiles, run = [];
+        if (!grid || !grid.offsetWidth) return;
+        cols = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length;
+        if (+grid.dataset.cols === cols) return; // as they are: moved again, the tiles would rise in again
+        grid.dataset.cols = cols;
+        tiles = [].slice.call(grid.children).sort(function (a, b) { return a.style.getPropertyValue('--i') - b.style.getPropertyValue('--i'); });
+        tiles.forEach(function (t) { // as they were first
+            t.classList.remove('calc-pt-grown');
+            grid.appendChild(t);
+        });
+        function settle() {
+            var grow = run.slice().sort(function (a, b) { return b.lastChild.textContent.length - a.lastChild.textContent.length; }).slice(0, run.length % cols),
+                first = run[0];
+            grow.forEach(function (t) {
+                t.classList.add('calc-pt-grown');
+                if (t !== first) grid.insertBefore(t, first);
+            });
+            run = [];
+        }
+        tiles.forEach(function (t) {
+            if (t.classList.contains('calc-sv-wide')) settle(); else run.push(t);
+        });
+        settle();
+    }
+
+    // popped out or in, or the window narrower: its columns change with the card's width
+    if (window.ResizeObserver) new ResizeObserver(chemRows).observe(chemInfo);
+
+    // Under the name above the table, what is most useful of it as the table is coloured: the number it is coloured by, to
+    // read as the pointer goes over the table; coloured by kind, block or state, its state at 20 °C and where that ends,
+    // where it melts, or boils
+    function chemLine(e) {
+        var by = chemBy, h = CHEM_HEAT[by], v, text, state, NAMES = { en: 'Electronegativity', ie: 'Ionization energy', mp: 'Melts at', bp: 'Boils at',
+            density: 'Density', radius: 'Atomic radius', affinity: 'Electron affinity', mass: 'Mass', year: 'Discovered' };
+        if (h) {
+            v = by === 'year' ? (e.year === 0 ? 'in ancient times' : e.year) : by === 'mass' ? (e.unstable ? e.mass + ' (mass number)' : local(String(chemIn('m', e.mass))) + ' g/mol') :
+                e[by] === null ? 'not known' : (e.predicted[by] ? '≈' : '') + local(String(h.unit ? chemIn(h.unit, e[by]) : e[by])).replace('-', '−') + ' ' + (h.unit ? chemUnitName(h.unit) : h.label);
+            text = NAMES[by] + ' ' + v;
+        } else {
+            state = chemBy === 'state' ? chemStateOf(e) : e.state; // coloured by state, at the temperature of its slider
+            by = state === 'solid' && e.mp !== null ? 'mp' : 'bp';
+            text = !state ? 'State not known' : state.charAt(0).toUpperCase() + state.slice(1) +
+                (chemBy === 'state' && chemTemp !== 20 ? ' at ' + chemTempText() : '') + (e[by] === null ? '' : (by === 'mp' ? ' · melts at ' : ' · boils at ') +
+                (e.predicted[by] ? '≈' : '') + local(String(chemIn('t', e[by]))).replace('-', '−') + ' ' + chemUnitName('t'));
+            by = 'state';
+        }
+        return '<span class="calc-pt-line" data-pt="' + by + '">' + text + '</span>';
+    }
+
+    // a number very big or very small as a × 10ⁿ, as the converter writes it: a resistivity, an abundance
+    function chemSci(v) {
+        var parts = (+v).toExponential().split('e'), a = Math.abs(v);
+        return a && (a >= 1e6 || a < 1e-3) ? local(String(+(+parts[0]).toPrecision(4))) + ' × 10<sup>' + +parts[1] + '</sup>' : local(String(+(+v).toPrecision(6)));
     }
 
     function chemTabs() {
@@ -15732,6 +15820,7 @@
         [[chemGrid.querySelector('.calc-pt-gap .calc-pt-big'), shown], [chemInfo.querySelector('.calc-pt-big'), chemAt]].forEach(function (b) {
             if (b[0]) b[0].className = 'calc-pt-big calc-pt-el ' + chemClass(CalcChem.elements[b[1] - 1]);
         });
+        if (chemGrid.querySelector('.calc-pt-gap .calc-pt-line')) chemGrid.querySelector('.calc-pt-gap .calc-pt-line').outerHTML = chemLine(CalcChem.elements[shown - 1]); // its state at it
     }
 
     // A knob dragged, or the line pressed: the knob nearest, or the one on the side pressed, comes there
@@ -16261,6 +16350,7 @@
         });
         convUnits.classList.toggle('calc-none-found', !convShown().length);
         if (q && convShown().length) convShown()[0].classList.add('calc-lit');
+        unitCards.fit(); // the names of the units found, in their badges
     }
 
     // the rows the search shows

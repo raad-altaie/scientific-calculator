@@ -1668,26 +1668,9 @@
         grid-column: 2;
         grid-row: 1 / -1;
         width: 12px;
-        margin-left: -8px;
+        margin-left: 1px; /* just past the column at its left, as the converter's, not over its scrollbar */
         cursor: col-resize;
         touch-action: none;
-    }
-
-    #calculator.calc-big .calc-graph-split::after {
-        content: '';
-        display: block;
-        width: 2px;
-        height: 100%;
-        margin: 0 auto;
-        border-radius: 1px;
-        background: #8aa0b5;
-        opacity: 0;
-        transition: opacity 0.15s;
-    }
-
-    #calculator.calc-big .calc-graph-split:hover::after,
-    #calculator.calc-big .calc-graph-split.calc-on::after {
-        opacity: 1;
     }
 
     /* the plot's buttons, and save, bigger too */
@@ -1733,6 +1716,71 @@
 
 #calculator.calc-big .calc-graph-pop {
     font-size: calc(15px * var(--calc-pop, 1));
+}
+
+/* beside the plot, the examples as the converter's cards beside their card: their words at their own size, not
+   zoomed as the boxes; the search as wide as the cards, the cards' corners as round and as far apart */
+@media (min-width: 760px) {
+    #calculator.calc-big .calc-graph-examples {
+        zoom: var(--calc-pop, 1);
+    }
+
+    #calculator.calc-big .calc-gx-search {
+        margin: 12px 14px 8px 16px;
+        padding: 7px 11px;
+        border-radius: 6px;
+    }
+
+    #calculator.calc-big .calc-gx-list {
+        padding: 4px 8px 12px 16px;
+    }
+
+    #calculator.calc-big .calc-gx-item {
+        margin-bottom: 8px;
+        border-radius: 8px;
+    }
+
+    #calculator.calc-big .calc-gx-row {
+        border-radius: 8px;
+    }
+
+    /* as tall as the converter's, with their badges */
+    #calculator.calc-big .calc-gx-val {
+        padding-top: 20px;
+        padding-bottom: 8px;
+    }
+
+    /* the boxes of the curves as the converter's search: not zoomed, as tall, as round, as far from the edges;
+       their × at its own size then, and the points and the sliders under them as far in */
+    #calculator.calc-big .calc-graph-fns {
+        zoom: var(--calc-pop, 1);
+        margin: 12px 14px 0 16px;
+        --calc-x: 24px;
+        --calc-x-icon: 13px;
+        --calc-x-round: 5px;
+    }
+
+    #calculator.calc-big .calc-graph-fns.calc-graph-many {
+        margin: 10px 12px 0 14px; /* less the 2px for the ring of the focus */
+    }
+
+    #calculator.calc-big .calc-graph-fn {
+        padding: 0 11px;
+    }
+
+    #calculator.calc-big .calc-graph-input {
+        padding: 7px 0;
+    }
+
+    #calculator.calc-big .calc-graph-cells {
+        margin-right: calc(14px / 1.15);
+        margin-left: calc(30px / 1.15);
+    }
+
+    #calculator.calc-big .calc-graph-sliders {
+        margin-right: calc(14px / 1.15);
+        margin-left: calc(16px / 1.15);
+    }
 }
 
 /* the line between the columns is only for the big graph on a wide page */
@@ -2177,6 +2225,30 @@
 #calculator .calc-sv-pill > span {
     display: inline-block;
     transform: translateY(-0.5px);
+}
+
+/* in a card's row, a badge too long for its room cut with … inside it, its background kept to its end; while they
+   are measured to fit (main.js fitPills), each as wide as all of it */
+#calculator .calc-sv-eq > span:has(> .calc-sv-pill) {
+    display: flex;
+}
+
+#calculator .calc-sv-eq > span.calc-sv-fit {
+    display: block;
+}
+
+#calculator .calc-sv-eq > span > .calc-sv-pill {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#calculator .calc-sv-eq > span > .calc-sv-pill > span {
+    display: inline;
+    position: relative;
+    top: -0.5px;
+    transform: none;
 }
 
 /* the symbol of a constant, and the letter of a formula by its box */
@@ -5979,6 +6051,13 @@
     white-space: normal;
 }
 
+/* a few words in a small tile, as a range or a note: on two lines if need be */
+#calculator .calc-pt-wrap .calc-sv-value {
+    font-size: 14px;
+    line-height: 18px;
+    white-space: normal;
+}
+
 #calculator.calc-chem-big .calc-pt-text .calc-sv-value {
     font-size: 15px;
     line-height: 21px;
@@ -6141,11 +6220,17 @@
     font-size: 10px;
 }
 
+/* a value only predicted, not measured: said after its unit, in a warmer colour */
+#calculator .calc-pt-tiles .calc-sv-label .calc-pt-guess {
+    color: #8a6420;
+    font-style: italic;
+}
+
 #calculator .calc-pt-tiles .calc-sv-value {
     font-size: 15px;
 }
 
-#calculator .calc-pt-tiles .calc-sv-wide {
+#calculator .calc-pt-tiles :is(.calc-sv-wide, .calc-pt-grown) {
     grid-column: 1 / -1;
 }
 
@@ -6516,7 +6601,7 @@
     justify-content: center;
     box-sizing: border-box;
     padding: calc(9vh + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
-    background: rgba(22, 32, 44, 0.5);
+    background: rgba(22, 32, 44, 0.65);
     font-family: 'Play', 'Russo One', sans-serif;
     text-align: left;
     -webkit-user-select: none;
@@ -6579,8 +6664,9 @@
     user-select: text;
 }
 
+/* fainter than the other searches' */
 .calc-find-input::placeholder {
-    color: #5b7768;
+    color: #728d7e;
 }
 
 .calc-find-bar kbd {
@@ -6635,10 +6721,13 @@
     cursor: pointer;
 }
 
-/* the one Enter goes to: darker, ringed */
+/* the one Enter goes to, or under the pointer: darker, as a card is; darker still as it is pressed */
 .calc-find-item.calc-on {
     background: #a3bdaf;
-    box-shadow: inset 0 0 0 2px #e2eee7;
+}
+
+.calc-find-item:active {
+    background: #98b3a5;
 }
 
 /* the icon of its tool, as on the rail */
@@ -7213,7 +7302,7 @@
     line-height: 1.1;
 }
 
-#calculator.calc-chem-big .calc-pt-gap .calc-pt-cfg {
+#calculator.calc-chem-big .calc-pt-gap .calc-pt-line {
     display: none;
 }
 
@@ -7563,7 +7652,7 @@
         line-height: 16px;
     }
 
-    #calculator.calc-chem-big .calc-pt-gap .calc-pt-cfg {
+    #calculator.calc-chem-big .calc-pt-gap .calc-pt-line {
         display: block;
     }
 
@@ -7642,12 +7731,12 @@
     --calc-side: min(var(--calc-side-w, 376px), max(376px, min(50%, 100% - 456px)));
 }
 
-/* at the left of the page, as the big graph's boxes: the rows 340px, 8px, the scrollbar 6px */
+/* at the left of the page, as the big graph's boxes: the rows 346px, 8px, the scrollbar 6px */
 #calculator.calc-panel-big .calc-big-on :is(.calc-sv-list, .calc-fx-list).calc-side {
     width: var(--calc-side);
     max-width: none;
     margin-left: 0;
-    padding: 12px 8px 12px 22px;
+    padding: 12px 8px 12px 16px;
     overflow-x: hidden; /* dragged wider, the one chosen, a little bigger, has no scrollbar under the list */
 }
 
@@ -7669,12 +7758,15 @@
     touch-action: none;
 }
 
-#calculator .calc-side-split::after {
+/* the line, of the big graph's columns as well: at the left of the room to drag, just past the list, not on what is
+   beside it */
+#calculator .calc-side-split::after,
+#calculator .calc-graph-split::after {
     content: '';
     display: block;
     width: 2px;
     height: 100%;
-    margin: 0 auto;
+    margin-left: 1px;
     border-radius: 1px;
     background: #8aa0b5;
     opacity: 0;
@@ -7682,6 +7774,8 @@
 }
 
 #calculator .calc-side-split:hover::after,
+#calculator .calc-graph-split:hover::after,
+#calculator .calc-graph-split.calc-on::after,
 #calculator .calc-side-split.calc-on::after {
     opacity: 1;
 }
@@ -7737,7 +7831,7 @@
     box-sizing: border-box;
     width: calc(100% - var(--calc-side) - 36px);
     max-height: calc(100% - 73px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-    margin-left: calc(var(--calc-side) - 8px);
+    margin-left: calc(var(--calc-side) - 2px);
     padding: 0 20px 16px;
     overflow-x: hidden;
     overflow-y: auto;
@@ -7952,11 +8046,11 @@
        list under it, apart from it, the cards scrolling in the list alone and not behind the search */
     #calculator.calc-panel-big .calc-fx.calc-big-on:has(.calc-fx-list.calc-side) .calc-fx-search,
     #calculator.calc-panel-big .calc-conv.calc-big-on:has(.calc-conv-units.calc-side) .calc-conv-search {
-        width: calc(var(--calc-side) - 36px);
+        width: calc(var(--calc-side) - 30px);
         max-width: none;
         margin-top: 12px;
         margin-bottom: 8px;
-        margin-left: 22px;
+        margin-left: 16px;
     }
 
     /* room at the top for the one chosen, a little bigger */

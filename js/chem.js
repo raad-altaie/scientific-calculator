@@ -5,7 +5,8 @@
 // An element: [symbol, name, standard atomic weight (IUPAC; of one with no stable isotope, the mass
 // number of its longest-lived), Pauling electronegativity, melting point °C, boiling point °C,
 // density g/cm³ (of a gas at 0 °C and 1 atm), common oxidation states, year found (0 known since
-// ancient times), first ionization energy kJ/mol]. null where it is not known
+// ancient times), first ionization energy kJ/mol]. null where it is not known. Of the heaviest, the values
+// Wikipedia gives as predicted, each marked so in PREDICTED
 (function (root) {
     'use strict';
 
@@ -94,68 +95,213 @@
         ['Pb', 'Lead', 207.2, 2.33, 327.46, 1749, 11.34, '+2 +4', 0, 715.6],
         ['Bi', 'Bismuth', 208.98, 2.02, 271.4, 1564, 9.78, '+3 +5', 1753, 703],
         ['Po', 'Polonium', 209, 2.0, 254, 962, 9.196, '+2 +4', 1898, 812.1],
-        ['At', 'Astatine', 210, 2.2, 302, null, null, '−1 +1', 1940, 899.0],
+        ['At', 'Astatine', 210, 2.2, 302, null, 8.93, '−1 +1', 1940, 899.0],
         ['Rn', 'Radon', 222, 2.2, -71, -61.7, 0.00973, '0 +2', 1899, 1037],
-        ['Fr', 'Francium', 223, 0.79, null, null, null, '+1', 1939, 393],
+        ['Fr', 'Francium', 223, 0.79, 27, null, 2.458, '+1', 1939, 393],
         ['Ra', 'Radium', 226, 0.9, 700, 1737, 5.5, '+2', 1898, 509.3],
         ['Ac', 'Actinium', 227, 1.1, 1050, 3198, 10.07, '+3', 1899, 499],
         ['Th', 'Thorium', 232.04, 1.3, 1750, 4788, 11.7, '+4', 1829, 587],
-        ['Pa', 'Protactinium', 231.04, 1.5, 1572, null, 15.37, '+5', 1913, 568],
+        ['Pa', 'Protactinium', 231.04, 1.5, 1572, 4027, 15.37, '+5', 1913, 568],
         ['U', 'Uranium', 238.03, 1.38, 1132.2, 4131, 19.1, '+3 +4 +5 +6', 1789, 597.6],
         ['Np', 'Neptunium', 237, 1.36, 644, 3902, 20.45, '+3 +4 +5 +6', 1940, 604.5],
         ['Pu', 'Plutonium', 244, 1.28, 639.4, 3228, 19.816, '+3 +4 +5 +6', 1940, 584.7],
         ['Am', 'Americium', 243, 1.13, 1176, 2607, 12, '+3', 1944, 578],
         ['Cm', 'Curium', 247, 1.28, 1340, 3110, 13.51, '+3', 1944, 581],
-        ['Bk', 'Berkelium', 247, 1.3, 986, null, 14.78, '+3 +4', 1949, 601],
-        ['Cf', 'Californium', 251, 1.3, 900, null, 15.1, '+3', 1950, 608],
-        ['Es', 'Einsteinium', 252, 1.3, 860, null, 8.84, '+3', 1952, 619],
-        ['Fm', 'Fermium', 257, 1.3, null, null, null, '+3', 1952, 627],
-        ['Md', 'Mendelevium', 258, 1.3, null, null, null, '+2 +3', 1955, 635],
-        ['No', 'Nobelium', 259, 1.3, null, null, null, '+2 +3', 1958, 642],
-        ['Lr', 'Lawrencium', 266, 1.3, null, null, null, '+3', 1961, 478.6],
-        ['Rf', 'Rutherfordium', 267, null, null, null, null, '+4', 1964, 580],
-        ['Db', 'Dubnium', 268, null, null, null, null, '+5', 1968, null],
-        ['Sg', 'Seaborgium', 269, null, null, null, null, '+6', 1974, null],
-        ['Bh', 'Bohrium', 270, null, null, null, null, '+7', 1981, null],
-        ['Hs', 'Hassium', 269, null, null, null, null, '+8', 1984, null],
-        ['Mt', 'Meitnerium', 278, null, null, null, null, null, 1982, null],
-        ['Ds', 'Darmstadtium', 281, null, null, null, null, null, 1994, null],
-        ['Rg', 'Roentgenium', 282, null, null, null, null, null, 1994, null],
-        ['Cn', 'Copernicium', 285, null, null, null, null, null, 1996, null],
-        ['Nh', 'Nihonium', 286, null, null, null, null, null, 2004, null],
-        ['Fl', 'Flerovium', 289, null, null, null, null, null, 1998, null],
-        ['Mc', 'Moscovium', 290, null, null, null, null, null, 2003, null],
-        ['Lv', 'Livermorium', 293, null, null, null, null, null, 2000, null],
-        ['Ts', 'Tennessine', 294, null, null, null, null, null, 2010, null],
-        ['Og', 'Oganesson', 294, null, null, null, null, null, 2002, null]
+        ['Bk', 'Berkelium', 247, 1.3, 986, 2627, 14.78, '+3 +4', 1949, 601],
+        ['Cf', 'Californium', 251, 1.3, 900, 1470, 15.1, '+3', 1950, 608],
+        ['Es', 'Einsteinium', 252, 1.3, 860, 996, 8.84, '+3', 1952, 619],
+        ['Fm', 'Fermium', 257, 1.3, 1500, null, 9.7, '+3', 1952, 627],
+        ['Md', 'Mendelevium', 258, 1.3, 800, null, 10.3, '+2 +3', 1955, 635],
+        ['No', 'Nobelium', 259, 1.3, 800, null, 9.9, '+2 +3', 1958, 642],
+        ['Lr', 'Lawrencium', 266, 1.3, 1600, null, 14.4, '+3', 1961, 478.6],
+        ['Rf', 'Rutherfordium', 267, null, 2100, 5500, 17, '+4', 1964, 580],
+        ['Db', 'Dubnium', 268, null, null, null, 21.6, '+5', 1968, 665],
+        ['Sg', 'Seaborgium', 269, null, null, null, 23.5, '+6', 1974, 757],
+        ['Bh', 'Bohrium', 270, null, null, null, 26.5, '+7', 1981, 740],
+        ['Hs', 'Hassium', 269, null, null, null, 28, '+8', 1984, 730],
+        ['Mt', 'Meitnerium', 278, null, null, null, 27.5, '+1 +3 +6', 1982, 800],
+        ['Ds', 'Darmstadtium', 281, null, null, null, 26.5, '0 +2 +4', 1994, 960],
+        ['Rg', 'Roentgenium', 282, null, null, null, 23, '+3', 1994, 1020],
+        ['Cn', 'Copernicium', 285, null, 10, 67, 14, '0 +2', 1996, 1155],
+        ['Nh', 'Nihonium', 286, null, 430, 1130, 16, '+1 +3', 2004, 704.9],
+        ['Fl', 'Flerovium', 289, null, 11, null, 11.4, '+2', 1998, 832.2],
+        ['Mc', 'Moscovium', 290, null, 400, 1100, 13.5, '+1 +3', 2003, 538.3],
+        ['Lv', 'Livermorium', 293, null, 435, 812, 12.9, '+2', 2000, 663.9],
+        ['Ts', 'Tennessine', 294, null, 450, 610, 7.2, '+1 +3', 2010, 742.9],
+        ['Og', 'Oganesson', 294, null, 52, 177, 7.2, '+2 +4', 2002, 860.1]
     ];
 
-    // Of each element in its order, from PubChem's periodic table: its van der Waals radius in pm, and its
-    // electron affinity in kJ/mol (PubChem's eV × 96.485). null where it is not known, and where the ion
-    // it would make is not stable
+    // Of each element in its order, from PubChem's periodic table: its van der Waals radius in pm (of Fm to Lr, Wikipedia's),
+    // and its electron affinity in kJ/mol (PubChem's eV × 96.485; where PubChem has none, or an older value since
+    // measured again, Wikipedia's data page: below 0 where the ion it would make falls apart). null where it is not known
     var RADIUS = [
         120, 140, 182, 153, 192, 170, 155, 152, 135, 154, 227, 173, 184, 210, 180, 180, 175, 188, 275, 231,
         211, 187, 179, 189, 197, 194, 192, 163, 140, 139, 187, 211, 185, 190, 183, 202, 303, 249, 219, 186,
         207, 209, 209, 207, 195, 202, 172, 158, 193, 217, 206, 206, 198, 216, 343, 268, 240, 235, 239, 229,
         236, 229, 233, 237, 221, 229, 216, 235, 227, 242, 221, 212, 217, 210, 217, 216, 202, 209, 166, 209,
-        196, 202, 207, 197, 202, 220, 348, 283, 260, 237, 243, 240, 221, 243, 244, 245, 244, 245, 245, null,
-        null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null
+        196, 202, 207, 197, 202, 220, 348, 283, 260, 237, 243, 240, 221, 243, 244, 245, 244, 245, 245, 245,
+        246, 246, 246, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null
     ];
 
     var AFFINITY = [
-        72.7, null, 59.6, null, 26.7, 121.9, null, 141, 322.2, null, 52.9, null, 42.5, 133.6,
-        72, 200.4, 349, null, 48.3, null, 18.1, 7.6, 50.7, 64.3, null, 15.7, 63.8, 111.5,
-        118.5, null, 28.9, 130.3, 78.2, 195, 324.7, null, 45.2, null, 29.6, 41.1, 86.2, 72,
-        53.1, 101.3, 109.7, 53.7, 125.6, null, 28.9, 115.8, 103.2, 190.2, 295.1, null, 45.5, null,
-        48.2, 48.2, null, null, null, null, null, null, null, null, null, null, null, null,
-        null, null, 31.1, 78.6, 14.5, 106.1, 151, 205.3, 222.8, null, 19.3, 34.7, 91.3, 183.3,
-        270.2, null, 45.3, null, null, null, null, null, null, null, null, null, null, null,
-        null, null, null, null, null, null, null, null, null, null, null, null, null, null,
-        null, null, null, null, null, null
+        72.7, -48, 59.6, -48, 26.7, 121.9, -6.8, 141, 328.16, -116, 52.9, -40, 42.5, 133.6,
+        72, 200.4, 349, -96, 48.3, 2.37, 18.1, 7.6, 50.7, 64.3, -50, 15.7, 63.8, 111.5,
+        118.5, -58, 28.9, 118.94, 78.2, 195, 324.7, -96, 45.2, 5.02, 29.6, 41.1, 86.2, 72,
+        53.1, 101.3, 109.7, 53.7, 125.6, -68, 28.9, 107.3, 103.2, 190.2, 295.1, -77, 45.5, 13.95,
+        53.8, 57.91, 10.54, 9.41, 12.45, 15.63, 11.2, 20.5, 12.67, 1.45, 32.61, 30.1, 99, -1.93,
+        23.04, 17.18, 31.1, 78.6, 5.83, 106.1, 151, 205.3, 222.8, -48, 30.88, 34.7, 91.3, 136,
+        233.09, -68, 45.3, 9.65, 33.77, 58.63, 53.03, 30.39, 45.85, -48.33, 9.93, 27.17, -165.24, -97.31,
+        -28.6, 33.96, 93.91, -223.22, -30.04, null, null, null, null, null, null, null, 151, null,
+        66.6, null, 35.3, 74.9, 165.9, 7.72
     ];
 
+    // Of each element in its order, from its Wikipedia infobox (which cites the CRC Handbook and others): its crystal
+    // structure, its covalent radius in pm (Cordero's; for the heaviest, Pyykkö's), its magnetism, its Mohs hardness, its
+    // heats of fusion and of vaporization in kJ/mol, its thermal conductivity in W/(m·K), its electrical resistivity in
+    // Ω·m at 20 °C, and its appearance and CAS number; and its abundance in the Earth's crust in mg/kg (Wikipedia's data
+    // page, from the CRC Handbook). A range or a note in words where one number does not say it. null where it is not known
+    var PROPS = [
+        ['Hexagonal', 31, 'Diamagnetic', null, 0.117, 0.904, 0.1805, null, 1400, 'Colourless gas', '1333-74-0'],
+        ['Hexagonal close-packed', 28, 'Diamagnetic', null, 0.0138, 0.0829, 0.1513, null, 0.008, 'Colourless gas; glows grey in an electric field', '7440-59-7'],
+        ['Body-centred cubic', 128, 'Paramagnetic', 0.6, 3, 136, 84.8, 9.28e-8, 20, 'Silvery-white metal', '7439-93-2'],
+        ['Hexagonal close-packed', 96, 'Diamagnetic', 6, 12.2, 292, 200, 3.6e-8, 2.8, 'White-grey metal', '7440-41-7'],
+        ['Rhombohedral', 84, 'Diamagnetic', 9.5, 50.2, 508, 27.4, 1000000, 10, 'Black-brown', '7440-42-8'],
+        ['Graphite: simple hexagonal; diamond: diamond cubic', 76, 'Diamagnetic', '1–2 (graphite); 10 (diamond)', 117, null, '119–165 (graphite)', 7.837e-6, 200, 'Graphite: black, metallic-looking; diamond: clear', '7440-44-0'],
+        ['Hexagonal', 71, 'Diamagnetic', null, 0.72, 5.57, 0.02583, null, 19, 'Colourless gas', '7727-37-9'],
+        ['Cubic', 66, 'Paramagnetic', null, 0.444, 6.82, 0.02658, null, 461000, 'Colourless gas; pale blue as a liquid and a solid', '7782-44-7'],
+        ['Cubic', 64, 'Diamagnetic', null, 0.51, 6.51, 0.02591, null, 585, 'Very pale yellow gas; bright yellow liquid', '7782-41-4'],
+        ['Face-centred cubic', 58, 'Diamagnetic', null, 0.335, 1.71, 0.0491, null, 0.005, 'Colourless gas; glows orange-red in an electric field', '7440-01-9'],
+        ['Body-centred cubic', 166, 'Paramagnetic', 0.5, 2.6, 97.42, 142, 4.77e-8, 23600, 'Silvery-white metal', '7440-23-5'],
+        ['Hexagonal close-packed', 141, 'Paramagnetic', '1–2.5', 8.48, 128, 156, 4.39e-8, 23300, 'Shiny grey metal', '7439-95-4'],
+        ['Face-centred cubic', 121, 'Paramagnetic', 2.75, 10.71, 284, 237, 2.65e-8, 82300, 'Silvery-grey metal', '7429-90-5'],
+        ['Diamond cubic', 111, 'Diamagnetic', 6.5, 50.21, 383, 149, 2300, 282000, 'Crystalline, reflective, with bluish faces', '7440-21-3'],
+        ['White (α): body-centred cubic', 107, 'Diamagnetic', 0.5, 0.66, 51.9, 0.236, null, 1050, 'White, red and violet waxy; black metallic-looking', '7723-14-0'],
+        ['α-S₈: orthorhombic', 105, 'Diamagnetic', 2, 1.727, 45, 0.205, 2e15, 350, 'Lemon-yellow solid', '7704-34-9'],
+        ['Orthorhombic', 102, 'Diamagnetic', null, 6.406, 20.41, 0.0089, null, 145, 'Pale yellow-green gas', '7782-50-5'],
+        ['Face-centred cubic', 106, 'Diamagnetic', null, 1.18, 6.53, 0.01772, null, 3.5, 'Colourless gas; glows lilac in an electric field', '7440-37-1'],
+        ['Body-centred cubic', 203, 'Paramagnetic', 0.4, 2.33, 76.9, 102.5, 7.2e-8, 20900, 'Silvery-white metal', '7440-09-7'],
+        ['Face-centred cubic', 176, 'Diamagnetic', 1.75, 8.54, 154.7, 201, 3.36e-8, 41500, 'Dull grey-silver metal, a pale yellow tint', '7440-70-2'],
+        ['Hexagonal close-packed', 170, 'Paramagnetic', null, 14.1, 332.7, 15.8, 5.62e-7, 22, 'Silvery-white metal', '7440-20-2'],
+        ['Hexagonal close-packed', 160, 'Paramagnetic', 6, 14.15, 425, 21.9, 4.2e-7, 5650, 'Silvery grey-white metal', '7440-32-6'],
+        ['Body-centred cubic', 153, 'Paramagnetic', 6.7, 21.5, 444, 30.7, 1.97e-7, 120, 'Blue-silver-grey metal', '7440-62-2'],
+        ['Body-centred cubic', 139, 'Antiferromagnetic', 8.5, 21, 347, 93.9, 1.25e-7, 102, 'Silvery metal', '7440-47-3'],
+        ['α-Mn: body-centred cubic', '139 low spin, 161 high spin', 'Paramagnetic', 6, 12.91, 221, 7.81, 1.44e-6, 950, 'Silvery metal', '7439-96-5'],
+        ['α-Fe: body-centred cubic', '132 low spin, 152 high spin', 'Ferromagnetic', 4, 13.81, 340, 80.4, 9.61e-8, 56300, 'Lustrous metal, a greyish tinge', '7439-89-6'],
+        ['Hexagonal close-packed', '126 low spin, 150 high spin', 'Ferromagnetic', 5, 16.06, 377, 100, 6.24e-8, 25, 'Hard, lustrous bluish-grey metal', '7440-48-4'],
+        ['Face-centred cubic', 124, 'Ferromagnetic', 4, 17.48, 379, 90.9, 6.93e-8, 84, 'Lustrous silvery metal, a gold tinge', '7440-02-0'],
+        ['Face-centred cubic', 132, 'Diamagnetic', 3, 13.26, 300.4, 401, 1.678e-8, 60, 'Red-orange metal', '7440-50-8'],
+        ['Hexagonal close-packed', 122, 'Diamagnetic', 2.5, 7.32, 115, 116, 5.9e-8, 70, 'Silver-grey metal', '7440-66-6'],
+        ['Base-centred orthorhombic', 122, 'Diamagnetic', 1.5, 5.59, 256, 40.6, 2.7e-7, 19, 'Silvery-blue metal', '7440-55-3'],
+        ['Diamond cubic', 122, 'Diamagnetic', 6, 36.94, 334, 60.2, 1, 1.5, 'Greyish-white', '7440-56-4'],
+        ['Grey: rhombohedral', 119, 'Diamagnetic', 3.5, 24.44, 34.76, 50.2, 3.33e-7, 1.8, 'Metallic grey', '7440-38-2'],
+        ['Grey: hexagonal', 120, 'Diamagnetic', 2, 6.69, 95.48, 0.519, null, 0.05, 'Grey and metallic-looking, red, or vitreous black', '7782-49-2'],
+        ['Orthorhombic', 120, 'Diamagnetic', null, 10.571, 29.96, 0.122, 78000000000, 2.4, 'Red-brown liquid', '7726-95-6'],
+        ['Face-centred cubic', 116, 'Diamagnetic', null, 1.64, 9.08, 0.00943, null, 0.0001, 'Colourless gas; glows whitish in an electric field', '7439-90-9'],
+        ['Body-centred cubic', 220, 'Paramagnetic', 0.3, 2.19, 69, 58.2, 1.28e-7, 90, 'Grey-white metal', '7440-17-7'],
+        ['Face-centred cubic', 195, 'Paramagnetic', 1.5, 7.43, 141, 35.4, 1.32e-7, 370, 'Silvery-white metal, a pale yellow tint', '7440-24-6'],
+        ['Hexagonal close-packed', 190, 'Paramagnetic', null, 11.42, 363, 17.2, 5.96e-7, 33, 'Silvery-white metal', '7440-65-5'],
+        ['Hexagonal close-packed', 175, 'Paramagnetic', 5, 14, 591, 22.6, 4.21e-7, 165, 'Silvery-white metal', '7440-67-7'],
+        ['Body-centred cubic', 164, 'Paramagnetic', 6, 30, 689.9, 53.7, 1.52e-7, 20, 'Grey metal, bluish when oxidized', '7440-03-1'],
+        ['Body-centred cubic', 154, 'Paramagnetic', 5.5, 37.48, 598, 138, 5.34e-8, 1.2, 'Grey metal', '7439-98-7'],
+        ['Hexagonal close-packed', 147, 'Paramagnetic', null, 33.29, 585.2, 50.6, 2e-7, 'Traces only', 'Shiny grey metal', '7440-26-8'],
+        ['Hexagonal close-packed', 146, 'Paramagnetic', 6.5, 38.59, 619, 117, 7.1e-8, 0.001, 'Silvery-white metal', '7440-18-8'],
+        ['Face-centred cubic', 142, 'Paramagnetic', 6, 26.59, 493, 150, 4.33e-8, 0.001, 'Silvery-white metal', '7440-16-6'],
+        ['Face-centred cubic', 139, 'Paramagnetic', 4.75, 16.74, 358, 71.8, 1.054e-7, 0.015, 'Silvery-white metal', '7440-05-3'],
+        ['Face-centred cubic', 145, 'Diamagnetic', 2.5, 11.28, 254, 429, 1.587e-8, 0.075, 'Lustrous white metal', '7440-22-4'],
+        ['Hexagonal close-packed', 144, 'Diamagnetic', 2, 6.21, 99.87, 96.6, 7.27e-8, 0.15, 'Silvery bluish-grey metal', '7440-43-9'],
+        ['Body-centred tetragonal', 142, 'Diamagnetic', 1.2, 3.281, 231.8, 81.8, 8.37e-8, 0.25, 'Silvery lustrous grey metal', '7440-74-6'],
+        ['White (β): body-centred tetragonal; grey (α): diamond cubic', 139, 'White tin paramagnetic; grey tin diamagnetic', 1.5, 7.03, 296.1, 66.8, 1.15e-7, 2.3, 'Silvery-white (white tin); grey (grey tin)', '7440-31-5'],
+        ['Rhombohedral', 139, 'Diamagnetic', 3, 19.79, 193.43, 24.4, 4.17e-7, 0.2, 'Silvery lustrous grey', '7440-36-0'],
+        ['Hexagonal', 138, 'Diamagnetic', 2.25, 17.49, 114.1, '1.97–3.38', null, 0.001, 'Silvery lustrous grey; brown-black as a powder', '13494-80-9'],
+        ['Base-centred orthorhombic', 139, 'Diamagnetic', null, 15.52, 41.57, 0.449, 13000000, 0.45, 'Lustrous grey-black solid; violet gas', '7553-56-2'],
+        ['Face-centred cubic', 140, 'Diamagnetic', null, 2.27, 12.64, 0.00565, null, 3e-5, 'Colourless gas; glows blue in an electric field', '7440-63-3'],
+        ['Body-centred cubic', 244, 'Paramagnetic', 0.2, 2.09, 63.9, 35.9, 2.05e-7, 3, 'Pale gold metal', '7440-46-2'],
+        ['Body-centred cubic', 215, 'Paramagnetic', 1.25, 7.12, 142, 18.4, 3.32e-7, 425, 'Silvery-grey metal, a pale yellow tint', '7440-39-3'],
+        ['α: double hexagonal close-packed', 207, 'Paramagnetic', 2.5, 6.2, 400, 13.4, 6.15e-7, 39, 'Silvery-white metal', '7439-91-0'],
+        ['β: double hexagonal close-packed', 204, 'Paramagnetic', 2.5, 5.46, 398, 11.3, 8.28e-7, 66.5, 'Silvery-white metal', '7440-45-1'],
+        ['Double hexagonal close-packed', 203, 'Paramagnetic', null, 6.89, 331, 12.5, 7e-7, 9.2, 'Greyish-white metal', '7440-10-0'],
+        ['Double hexagonal close-packed', 201, 'Paramagnetic; antiferromagnetic below 20 K', null, 7.14, 289, 16.5, 6.43e-7, 41.5, 'Silvery-white metal', '7440-00-8'],
+        ['Double hexagonal close-packed', 199, 'Paramagnetic', null, 7.13, 289, 17.9, 7.5e-7, 'Traces only', 'Metallic', '7440-12-2'],
+        ['Rhombohedral', 198, 'Paramagnetic', null, 8.62, 192, 13.3, 9.4e-7, 7.05, 'Silvery-white metal', '7440-19-9'],
+        ['Body-centred cubic', 198, 'Paramagnetic', null, 9.21, 176, 13.9, 9e-7, 2, 'Silvery-white metal, a pale yellow tint', '7440-53-1'],
+        ['Hexagonal close-packed', 196, 'Ferromagnetic below 293 K (20 °C), paramagnetic above', null, 10.05, 301.3, 10.6, 1.31e-6, 6.2, 'Silvery-white metal', '7440-54-2'],
+        ['Hexagonal close-packed', 194, 'Paramagnetic at room temperature', null, 10.15, 391, 11.1, 1.15e-6, 1.2, 'Silvery-white metal', '7440-27-9'],
+        ['Hexagonal close-packed', 192, 'Paramagnetic at room temperature', null, 11.06, 280, 10.7, 9.26e-7, 5.2, 'Silvery-white metal', '7429-91-6'],
+        ['Hexagonal close-packed', 192, 'Paramagnetic', null, 17, 251, 16.2, 8.14e-7, 1.3, 'Silvery-white metal', '7440-60-0'],
+        ['Hexagonal close-packed', 189, 'Paramagnetic at room temperature', null, 19.9, 280, 14.5, 8.6e-7, 3.5, 'Silvery-white metal', '7440-52-0'],
+        ['Hexagonal close-packed', 190, 'Paramagnetic', null, 16.84, 191, 16.9, 6.76e-7, 0.52, 'Silvery-grey metal', '7440-30-4'],
+        ['Face-centred cubic', 187, 'Paramagnetic', null, 7.66, 129, 38.5, 2.5e-7, 3.2, 'Silvery-white metal, a pale yellow tint', '7440-64-4'],
+        ['Hexagonal close-packed', 187, 'Paramagnetic', null, 22, 414, 16.4, 5.82e-7, 0.8, 'Silvery-white metal', '7439-94-3'],
+        ['Hexagonal close-packed', 175, 'Paramagnetic', 5.5, 27.2, 648, 23, 3.31e-7, 3, 'Steel-grey metal', '7440-58-6'],
+        ['Body-centred cubic', 170, 'Paramagnetic', 6.5, 36.57, 753, 57.5, 1.31e-7, 2, 'Grey-blue metal', '7440-25-7'],
+        ['Body-centred cubic', 162, 'Paramagnetic', 7.5, 52.31, 774, 173, 5.28e-8, 1.25, 'Lustrous greyish-white metal', '7440-33-7'],
+        ['Hexagonal close-packed', 151, 'Paramagnetic', 7, 60.43, 704, 48, 1.93e-7, 0.0007, 'Silvery-grey metal', '7440-15-5'],
+        ['Hexagonal close-packed', 144, 'Paramagnetic', 7, 57.851, 378, 87.6, 8.12e-8, 0.0015, 'Silvery metal, a blue cast', '7440-04-2'],
+        ['Face-centred cubic', 141, 'Paramagnetic', 6.5, 41.12, 564, 147, 4.71e-8, 0.001, 'Silvery-white metal', '7439-88-5'],
+        ['Face-centred cubic', 136, 'Paramagnetic', 3.5, 22.17, 510, 71.6, 1.05e-7, 0.005, 'Silvery-white metal', '7440-06-4'],
+        ['Face-centred cubic', 136, 'Diamagnetic', 2.5, 12.55, 342, 318, 2.214e-8, 0.004, 'Metallic yellow', '7440-57-5'],
+        ['Rhombohedral', 132, 'Diamagnetic', null, 2.29, 59.11, 8.3, 9.61e-7, 0.085, 'Shiny silvery liquid', '7439-97-6'],
+        ['Hexagonal close-packed', 145, 'Diamagnetic', 1.2, 4.14, 165, 46.1, 1.8e-7, 0.85, 'Silvery-white metal', '7440-28-0'],
+        ['Face-centred cubic', 146, 'Diamagnetic', 1.5, 4.77, 179.5, 35.3, 2.08e-7, 14, 'Metallic grey', '7439-92-1'],
+        ['Rhombohedral', 148, 'Diamagnetic', 2.25, 11.3, 179, 7.97, 1.29e-6, 0.0085, 'Lustrous brownish-silver metal', '7440-69-9'],
+        ['α-Po: simple cubic', 140, 'Nonmagnetic', null, 13, 102.91, 20, 4e-7, 2e-10, 'Silvery metal', '7440-08-6'],
+        ['Face-centred cubic', 150, null, null, null, null, null, null, 'Traces only', 'Probably metallic', '7440-68-8'],
+        ['Face-centred cubic', 150, 'Nonmagnetic', null, 3.247, 18.1, 0.00361, null, 4e-13, 'Colourless gas', '10043-92-2'],
+        ['Body-centred cubic', 260, 'Paramagnetic', null, null, null, 15, 3e-6, 'Traces only', null, '7440-73-5'],
+        ['Body-centred cubic', 221, 'Nonmagnetic', null, 8.5, 113, 18.6, 1e-6, 9e-7, 'Silvery-white metal', '7440-14-4'],
+        ['Face-centred cubic', 215, null, null, 14, 400, 12, null, 5.5e-10, 'Silvery-white metal, glowing pale blue in the dark', '7440-34-8'],
+        ['Face-centred cubic', 206, 'Paramagnetic', 3, 13.81, 514, 54, 1.57e-7, 9.6, 'Silvery metal', '7440-29-1'],
+        ['Body-centred tetragonal', 200, 'Paramagnetic', null, 12.34, 481, 47, 1.77e-7, 1.4e-6, 'Bright silvery metal', '7440-13-3'],
+        ['Orthorhombic', 196, 'Paramagnetic', null, 9.14, 417.1, 27.5, 2.8e-7, 2.7, 'Silvery-grey metal, a black oxide forming in air', '7440-61-1'],
+        ['Orthorhombic', 190, 'Paramagnetic', null, 5.19, 336, 6.3, 1.22e-6, 'Traces only', 'Silvery metal', '7439-99-8'],
+        ['Monoclinic', 187, 'Paramagnetic', null, 2.82, 333.5, 6.74, 1.46e-6, 'Traces only', 'Silvery-white metal, dark grey as it tarnishes', '7440-07-5'],
+        ['Double hexagonal close-packed', 180, 'Paramagnetic', null, 14.39, null, 10, 6.9e-7, 'None: synthetic', 'Silvery-white metal', '7440-35-9'],
+        ['Double hexagonal close-packed', 169, 'Antiferromagnetic below 52 K, paramagnetic above', null, 13.85, null, null, 1.25e-6, 'None: synthetic', 'Silvery metal, glowing purple in the dark', '7440-51-9'],
+        ['Double hexagonal close-packed', 168, 'Paramagnetic', null, 7.92, null, 10, null, 'None: synthetic', 'Silvery metal', '7440-40-6'],
+        ['Double hexagonal close-packed', 168, null, '3–4', null, null, null, null, 'None: synthetic', 'Silvery metal', '7440-71-3'],
+        ['Face-centred cubic', 165, 'Paramagnetic', null, null, null, null, null, 'None: synthetic', 'Silvery metal, glowing blue in the dark', '7429-92-7'],
+        ['Face-centred cubic', 167, null, null, null, null, null, null, 'None: synthetic', null, '7440-72-4'],
+        ['Face-centred cubic', 173, null, null, null, null, null, null, 'None: synthetic', null, '7440-11-1'],
+        ['Face-centred cubic', 176, null, null, null, null, null, null, 'None: synthetic', null, '10028-14-5'],
+        ['Hexagonal close-packed', 161, null, null, null, null, null, null, 'None: synthetic', 'Silvery', '22537-19-5'],
+        ['Hexagonal close-packed', 157, null, null, null, null, null, null, 'None: synthetic', null, '53850-36-5'],
+        ['Body-centred cubic', 149, null, null, null, null, null, null, 'None: synthetic', null, '53850-35-4'],
+        ['Body-centred cubic', 143, null, null, null, null, null, null, 'None: synthetic', null, '54038-81-2'],
+        ['Hexagonal close-packed', 141, null, null, null, null, null, null, 'None: synthetic', null, '54037-14-8'],
+        ['Hexagonal close-packed', 134, null, null, null, null, null, null, 'None: synthetic', null, '54037-57-9'],
+        ['Face-centred cubic', 129, 'Paramagnetic', null, null, null, null, null, 'None: synthetic', null, '54038-01-6'],
+        ['Body-centred cubic', 128, null, null, null, null, null, null, 'None: synthetic', null, '54083-77-1'],
+        ['Body-centred cubic', 121, null, null, null, null, null, null, 'None: synthetic', null, '54386-24-2'],
+        ['Hexagonal close-packed', 122, null, null, null, null, null, null, 'None: synthetic', null, '54084-26-3'],
+        ['Hexagonal close-packed', '172–180', null, null, 7.61, 130, null, null, 'None: synthetic', null, '54084-70-7'],
+        [null, '171–177', null, null, null, 38, null, null, 'None: synthetic', null, '54085-16-4'],
+        [null, '156–158', null, null, 5.94, 138, null, null, 'None: synthetic', null, '54085-64-2'],
+        [null, '162–166', null, null, 7.61, 42, null, null, 'None: synthetic', null, '54100-71-9'],
+        [null, '156–157', null, null, null, null, null, null, 'None: synthetic', 'Semimetallic', '54101-14-3'],
+        ['Face-centred cubic', 157, null, null, null, null, null, null, 'None: synthetic', 'Metallic', '54144-19-3']
+    ];
+
+    // the values that are predicted, or estimated, not measured: of the heaviest elements, made a few atoms at a time, and of
+    // some others, as Wikipedia marks them; and the electron affinities of the atoms whose ion falls apart, below 0
+    var PREDICTED = {
+        At: 'mp density crystal appearance', Rn: 'crystal affinity',
+        Fr: 'mp density heat covalent crystal conductivity resistivity affinity', Ra: 'affinity', Ac: 'bp affinity', Pa: 'affinity',
+        Np: 'bp affinity', Pu: 'affinity', Am: 'bp affinity', Cm: 'affinity', Bk: 'fusion affinity', Cf: 'bp affinity', Es: 'bp affinity',
+        Fm: 'mp density crystal affinity', Md: 'mp density crystal affinity', No: 'mp density en crystal affinity',
+        Lr: 'mp density en crystal appearance affinity', Rf: 'mp bp density ie covalent crystal', Db: 'density ie covalent crystal',
+        Sg: 'density ie covalent crystal', Bh: 'density ie covalent crystal', Hs: 'density ie covalent crystal',
+        Mt: 'density ox ie covalent crystal magnetic', Ds: 'density ox ie covalent crystal', Rg: 'density ox ie covalent crystal affinity',
+        Cn: 'mp bp density ie covalent crystal', Nh: 'mp bp density ox ie covalent crystal fusion vaporization affinity',
+        Fl: 'mp density ox ie covalent vaporization', Mc: 'mp bp density ox ie covalent fusion vaporization affinity',
+        Lv: 'mp bp density ox ie covalent fusion vaporization affinity', Ts: 'mp bp density ox ie covalent appearance affinity',
+        Og: 'mp bp density ox ie covalent crystal appearance affinity', He: 'affinity', Be: 'affinity', N: 'affinity', Ne: 'affinity',
+        Mg: 'affinity', Ar: 'affinity', Mn: 'affinity', Zn: 'affinity', Kr: 'affinity', Cd: 'affinity', Xe: 'affinity', Yb: 'affinity',
+        Hg: 'affinity', Po: 'affinity', Pm: 'resistivity', Eu: 'conductivity'
+    };
+
     // Of each element in its order: what it is used for and where its name, or its making, comes from (PubChem, from
-    // the Jefferson Lab and the CRC Handbook); its specific heat in J/(g·K) (Wikipedia, from the CRC Handbook); who
+    // the Jefferson Lab and the CRC Handbook); its specific heat in J/(g·K) (Wikipedia, from the CRC Handbook; of Tc, Po, Fr, Np,
+    // Pu and Am, the molar heat capacity Wikipedia gives ÷ its mass); who
     // observed it first and who isolated it, where not the same (Wikipedia's timeline of the discoveries); and its
     // isotopes: the stable ones, most abundant first, or its longest-lived (Wikipedia, from the NUBASE table).
     // null where it is not known
@@ -202,7 +348,7 @@
         ['Zirconium is a corrosion resistant metal that is used in high performance pumps and valves. Since it also does not easily absorb neutrons, zirconium is widely used in nuclear reactors.', 'The name derives from the Arabic zargun for "gold-like". It was discovered in zirconia by the German chemist Martin-Heinrich Klaproth in 1789.', 0.278, 'Martin Heinrich Klaproth', 'Jöns Jakob Berzelius', '4 stable: ⁹⁰Zr, ⁹⁴Zr, ⁹²Zr, ⁹¹Zr; in nature also radioactive ⁹⁶Zr'],
         ['Niobium is used as an alloying agent and for jewelry, but perhaps its most interesting applications are in the field of superconductivity.', 'The name derives from the Greek mythological character Niobe, who was the daughter of Tantalus, because the elements niobium and tantalum were originally thought to be identical.', 0.265, 'Charles Hatchett', 'Christian Wilhelm Blomstrand', '1 stable: ⁹³Nb'],
         ['Molybdenum has a high melting point and is used to make the electrodes of electrically heated glass furnaces. Some electrical filaments are also made from molybdenum.', 'The name derives from the Greek molybdos for "lead". The ancients used the term "lead" for any black mineral that leaves a mark on paper.', 0.251, 'Carl Wilhelm Scheele', 'Peter Jacob Hjelm', '6 stable: ⁹⁸Mo, ⁹⁶Mo, ⁹⁵Mo, ⁹²Mo, ⁹⁷Mo, ⁹⁴Mo; in nature also radioactive ¹⁰⁰Mo'],
-        ['Small amounts of technetium can retard the corrosion of steel, although this protection can only be applied to closed systems due to technetium\'s radioactivity.', 'Technetium was the first artificially produced element. It was isolated by Carlo Perrier and Emilio Segrè in 1937.', null, 'Carlo Perrier and Emilio Segrè', 'S. Fried', 'None stable; longest-lived ⁹⁷Tc, half-life 4.21×10⁶ years'],
+        ['Small amounts of technetium can retard the corrosion of steel, although this protection can only be applied to closed systems due to technetium\'s radioactivity.', 'Technetium was the first artificially produced element. It was isolated by Carlo Perrier and Emilio Segrè in 1937.', 0.248, 'Carlo Perrier and Emilio Segrè', 'S. Fried', 'None stable; longest-lived ⁹⁷Tc, half-life 4.21×10⁶ years'],
         ['Ruthenium is primarily used as an alloying agent. Adding 0.1% ruthenium to titanium makes titanium 100 times more resistant to corrosion.', 'The name derives from the Latin ruthenia for the old name of Russia.', 0.238, 'Karl Ernst Claus', null, '7 stable: ¹⁰²Ru, ¹⁰⁴Ru, ¹⁰¹Ru, ⁹⁹Ru, ¹⁰⁰Ru, ⁹⁶Ru, ⁹⁸Ru'],
         ['Rhodium is used to make electrical contacts, as jewelry and in catalytic converters, but is most frequently used as an alloying agent in other materials, such as platinum and palladium.', 'The name derives from the Greek rhodon for rose because of the rose color of dilute solutions of its salts.', 0.243, 'William Hyde Wollaston', null, '1 stable: ¹⁰³Rh'],
         ['Palladium is used to make springs for watches, surgical instruments, electrical contacts and dental fillings and crowns.', 'The name derives from the second largest asteroid of the solar system Pallas (named after the goddess of wisdom and arts—Pallas Athene).', 0.244, 'William Hyde Wollaston', null, '6 stable: ¹⁰⁶Pd, ¹⁰⁸Pd, ¹⁰⁵Pd, ¹¹⁰Pd, ¹⁰⁴Pd, ¹⁰²Pd'],
@@ -226,7 +372,7 @@
         ['Gadolinium has the greatest ability to capture thermal neutrons of all known elements and can be used as control rods for nuclear reactors.', 'The name derives from the mineral gadolinite, in which it was found, and that had been named for the Finnish rare earth chemist Johan Gadolin.', 0.236, 'J. C. G. de Marignac', 'Félix Trombe', '6 stable: ¹⁵⁸Gd, ¹⁶⁰Gd, ¹⁵⁶Gd, ¹⁵⁷Gd, ¹⁵⁵Gd, ¹⁵⁴Gd; in nature also radioactive ¹⁵²Gd'],
         ['Terbium is used to dope some types of solid-state devices and along with zirconium dioxide (ZrO2), as a crystal stabilizer in fuel cells that operate at high temperatures.', 'The name derives from the village of Ytterby in Sweden, where the mineral ytterbite (the source of terbium) was first found.', 0.182, 'Carl Gustaf Mosander', 'Wilhelm Klemm and H. Bommer', '1 stable: ¹⁵⁹Tb'],
         ['There are no commercial applications for dysprosium. Since it easily absorbs neutrons and has a high melting point, dysprosium might be alloyed with steel for use in nuclear reactors.', 'The name derives from the Greek dysprositos for "hard to get at", owing to the difficulty in separating this rare earth element from a holmium mineral in which it was found.', 0.17, 'P.E.L. de Boisbaudran', 'Wilhelm Klemm and H. Bommer', '7 stable: ¹⁶⁴Dy, ¹⁶²Dy, ¹⁶³Dy, ¹⁶¹Dy, ¹⁶⁰Dy, ¹⁵⁸Dy, ¹⁵⁶Dy'],
-        [null, 'The name derives from the Latin holmia for Stockholm.', 0.165, 'Jacques-Louis Soret and Marc Delafontaine', 'H. Bommer', '1 stable: ¹⁶⁵Ho'],
+        ['Holmium has the greatest magnetic strength of any element, so it is used in the pole pieces of the strongest static magnets. It is also used in holmium lasers, in medicine and dentistry, and to absorb neutrons in nuclear reactors.', 'The name derives from the Latin holmia for Stockholm.', 0.165, 'Jacques-Louis Soret and Marc Delafontaine', 'H. Bommer', '1 stable: ¹⁶⁵Ho'],
         ['Erbium is alloyed with vanadium to make it softer and easier to shape. Erbium is added to fiber optic cables as a doping agent where it is used as a signal amplifier.', 'The name derives from the Swedish town of Ytterby, where the ore gadolinite (in which it was found) was first mined.', 0.168, 'Carl Gustaf Mosander', 'Wilhelm Klemm and H. Bommer', '6 stable: ¹⁶⁶Er, ¹⁶⁸Er, ¹⁶⁷Er, ¹⁷⁰Er, ¹⁶⁴Er, ¹⁶²Er'],
         ['Thulium is the least abundant of the naturally occurring rare earth elements. Metallic thulium is relatively expensive and has only recently become available.', 'The name derives from Thule, the earliest name for the northernmost part of the civilized world—Scandinavia.', 0.16, 'Per Theodor Cleve', 'Wilhelm Klemm and H. Bommer', '1 stable: ¹⁶⁹Tm'],
         ['Ytterbium has few uses. It can be alloyed with stainless steel to improve some of its mechanical properties and used as a doping agent in fiber optic cable where it can be used as an amplifier.', 'The name derives from the Swedish village of Ytterby where the mineral ytterbite (the source of ytterbium) was originally found.', 0.155, 'Jean Charles Galissard de Marignac', 'Wilhelm Klemm and H. Bommer', '7 stable: ¹⁷⁴Yb, ¹⁷²Yb, ¹⁷³Yb, ¹⁷¹Yb, ¹⁷⁶Yb, ¹⁷⁰Yb, ¹⁶⁸Yb'],
@@ -243,20 +389,20 @@
         ['There are no uses for metallic thallium since pure thallium quickly combines with oxygen and water vapor from the atmosphere, forming a black, powdery substance.', 'The name derives from the Greek thallos for "green shoot" or "twig" because of the bright green line in its spectrum.', 0.129, 'William Crookes', 'Claude-Auguste Lamy', '2 stable: ²⁰⁵Tl, ²⁰³Tl'],
         ['Lead is a soft, malleable and corrosion resistant material. The ancient Romans used lead to make water pipes, some of which are still in use today.', 'The name derives from the Anglo-Saxon lead, which is of unknown origin. The element was known from prehistoric times.', 0.129, 'Asia Minor', null, '4 stable: ²⁰⁸Pb, ²⁰⁶Pb, ²⁰⁷Pb, ²⁰⁴Pb'],
         ['Pure bismuth is a white, brittle metal with a slight pink color. Bismuth is usually mixed with other metals, such as lead, tin, iron or cadmium to form low-melting alloys.', 'The name derives from the German weisse masse for "white mass" from the colour of its oxides. The ancients did not distinguish bismuth from lead.', 0.122, 'European alchemists and Inca civilisation', null, 'None stable; found in nature as ²⁰⁹Bi'],
-        ['Polonium can be used to eliminate static electricity in machinery that is caused by processes such as the rolling of paper, wire or sheet metal, although other materials which emit beta particles are more commonly used for this purpose.', 'Polonium was discovered by Marie Sklodowska Curie, a Polish chemist, in 1898.', null, 'P. and Marie Curie', 'W. H. Beamer and C. R. Maxwell', 'None stable; longest-lived ²⁰⁹Po, half-life 124 years'],
+        ['Polonium can be used to eliminate static electricity in machinery that is caused by processes such as the rolling of paper, wire or sheet metal, although other materials which emit beta particles are more commonly used for this purpose.', 'Polonium was discovered by Marie Sklodowska Curie, a Polish chemist, in 1898.', 0.126, 'P. and Marie Curie', 'W. H. Beamer and C. R. Maxwell', 'None stable; longest-lived ²⁰⁹Po, half-life 124 years'],
         ['Due to the small amounts produced and its short half-life, there are currently no uses for astatine outside of basic scientific research.', 'Astatine was produced by Dale R. Carson, K.R. MacKenzie and Emilio Segrè by bombarding an isotope of bismuth, bismuth-209, with alpha particles that had been accelerated in a device called a cyclotron.', null, 'Dale R. Corson, Kenneth Ross MacKenzie and Emilio Segrè', null, 'None stable; longest-lived ²¹⁰At, half-life 8.1 hours'],
         ['Small amounts of radon are sometimes used by hospitals to treat some forms of cancer. Radon fluoride (RnF) is the only confirmed compound of radon.', 'Radon was discovered by Friedrich Ernst Dorn, a German chemist, in 1900 while studying radium\'s decay chain.', 0.094, 'Ernest Rutherford and Robert B. Owens', 'William Ramsay and Robert Whytlaw-Gray', 'None stable; longest-lived ²²²Rn, half-life 3.823 days'],
-        ['Due to the small amounts produced and its short half-life, there are currently no uses for francium outside of basic scientific research.', 'Francium was discovered by Marguerite Catherine Perey, a French chemist, in 1939 while analyzing actinium\'s decay sequence.', null, 'Marguerite Perey', null, 'None stable; longest-lived ²²³Fr, half-life 22 minutes'],
+        ['Due to the small amounts produced and its short half-life, there are currently no uses for francium outside of basic scientific research.', 'Francium was discovered by Marguerite Catherine Perey, a French chemist, in 1939 while analyzing actinium\'s decay sequence.', 0.143, 'Marguerite Perey', null, 'None stable; longest-lived ²²³Fr, half-life 22 minutes'],
         ['The Curie, a unit used to describe the activity of a radioactive substance, is based on radium-226.', 'Radium was discovered by Marie Sklodowska Curie, a Polish chemist, and Pierre Curie, a French chemist, in 1898.', null, 'P. and Marie Curie', 'Marie Curie and André-Louis Debierne', 'None stable; longest-lived ²²⁶Ra, half-life 1.6×10³ years'],
         ['Actinium has no significant commercial applications, although it is used in the production of neutrons.', 'Actinium was discovered in 1899 by André-Louis Debierne, a French chemist, while experimenting with new methods of separating rare earth oxides.', 0.12, 'Friedrich Oskar Giesel', 'Joseph G. Stites, Murrell L. Salutsky, Bob D. Stone', 'None stable; longest-lived ²²⁷Ac, half-life 21.772 years'],
         ['Thorium is used as an alloying agent to improve magnesium\'s strength at high temperatures. Thorium is also used to coat tungsten filaments used in electronic devices, such at television sets.', 'The name derives from Thor, the Scandinavian god of thunder.', 0.113, 'Jöns Jakob Berzelius', 'D. Lely, Jr. and L. Hamburger', 'None stable; found in nature as ²³²Th'],
         ['Due to its scarcity, high radioactivity and toxicity, there are currently no uses for protactinium outside of basic scientific research.', 'The name derives from the Greek protos (first) for preceding the element actinium, because its most common isotope (231Pa) decays to 227Ac by loss of an alpha particle.', null, 'Kasimir Fajans and Oswald Helmuth Göhring', 'Aristid von Grosse', 'None stable; longest-lived ²³¹Pa, half-life 3.27×10⁴ years'],
         ['Since it is naturally radioactive, uranium, usually in the form of uranium dioxide (UO2), is most commonly used in the nuclear power industry to generate electricity.', 'The name derives from the planet Uranus, which in Roman mythology was "Father Heaven".', 0.116, 'Martin Heinrich Klaproth', 'Eugène-Melchior Péligot', 'None stable; found in nature as ²³⁸U, ²³⁵U'],
-        ['Neptunium\'s most stable isotope, neptunium-237, has a half-life of about 2,144,000 years. It decays into protactinium-233 through alpha decay.', 'Neptunium was first produced by Edwin M. McMillian and Philip H. Abelson, working at the University of California, Berkeley, in 1940.', null, 'Edwin McMillan and Philip H. Abelson', 'S. Fried', 'None stable; longest-lived ²³⁷Np, half-life 2.14×10⁶ years'],
-        ['Only two of plutonium\'s isotopes, plutonium-238 and plutonium-239, have found uses outside of basic research.', 'Plutonium was first produced by Glenn T. Seaborg, Joseph W. Kennedy, Edward M. McMillan and Arthur C. Wohl by bombarding an isotope of uranium, uranium-238, with deuterons that had been accelerated in a device called a cyclotron.', null, 'Glenn T. Seaborg, Arthur Wahl, Joseph W. Kennedy and Edwin McMillan', 'H. L. Baumbach, S. Fried, P. L. Kirk and R. S. Rosenfels', 'None stable; longest-lived ²⁴⁴Pu, half-life 8.13×10⁷ years'],
-        ['Americium can be produced in kilogram quantities and has a few practical uses. It is used in smoke detectors and can be used as a portable source of gamma rays.', 'Americium was discovered in 1944 by the American scientists Glenn T. Seaborg, Ralph A. James, Leon O. Morgan and Albert Ghiorso.', null, 'G. T. Seaborg, R. A. James, Leon O. Morgan and A. Ghiorso', 'Edgar F. Westrum Jr. and LeRoy Eyring', 'None stable; longest-lived ²⁴³Am, half-life 7.35×10³ years'],
+        ['Neptunium\'s most stable isotope, neptunium-237, has a half-life of about 2,144,000 years. It decays into protactinium-233 through alpha decay.', 'Neptunium was first produced by Edwin M. McMillian and Philip H. Abelson, working at the University of California, Berkeley, in 1940.', 0.124, 'Edwin McMillan and Philip H. Abelson', 'S. Fried', 'None stable; longest-lived ²³⁷Np, half-life 2.14×10⁶ years'],
+        ['Only two of plutonium\'s isotopes, plutonium-238 and plutonium-239, have found uses outside of basic research.', 'Plutonium was first produced by Glenn T. Seaborg, Joseph W. Kennedy, Edward M. McMillan and Arthur C. Wohl by bombarding an isotope of uranium, uranium-238, with deuterons that had been accelerated in a device called a cyclotron.', 0.145, 'Glenn T. Seaborg, Arthur Wahl, Joseph W. Kennedy and Edwin McMillan', 'H. L. Baumbach, S. Fried, P. L. Kirk and R. S. Rosenfels', 'None stable; longest-lived ²⁴⁴Pu, half-life 8.13×10⁷ years'],
+        ['Americium can be produced in kilogram quantities and has a few practical uses. It is used in smoke detectors and can be used as a portable source of gamma rays.', 'Americium was discovered in 1944 by the American scientists Glenn T. Seaborg, Ralph A. James, Leon O. Morgan and Albert Ghiorso.', 0.115, 'G. T. Seaborg, R. A. James, Leon O. Morgan and A. Ghiorso', 'Edgar F. Westrum Jr. and LeRoy Eyring', 'None stable; longest-lived ²⁴³Am, half-life 7.35×10³ years'],
         ['Since only milligram amounts of curium have ever been produced, there are currently no commercial applications for it, although it might be used in radioisotope thermoelectric generators in the future.', 'Curium was first produced by Glenn T. Seaborg, Ralph A. James and Albert Ghiorso, working at the University of California, Berkeley, in 1944.', null, 'Glenn T. Seaborg, Ralph A. James and Albert Ghiorso', 'J. C. Wallmann, W. W. T. Crane and B. B. Cunningham', 'None stable; longest-lived ²⁴⁷Cm, half-life 1.56×10⁷ years'],
-        [null, 'Berkelium was first produced by Stanley G. Thompson, Glenn T. Seaborg, Kenneth Street, Jr. and Albert Ghiorso working at the University of California, Berkeley, in December, 1949.', null, 'Stanley G. Thompson, A. Ghiorso and G. T. Seaborg (University of California, Berkeley)', 'J. R. Peterson, J. A. Fahey, and R. D. Baybarz', 'None stable; longest-lived ²⁴⁷Bk, half-life 1.38×10³ years'],
+        ['Since only small amounts of berkelium have ever been made, it has no uses outside of basic scientific research. It is the target from which heavier elements are made: tennessine was first made from berkelium-249 in 2009.', 'Berkelium was first produced by Stanley G. Thompson, Glenn T. Seaborg, Kenneth Street, Jr. and Albert Ghiorso working at the University of California, Berkeley, in December, 1949.', null, 'Stanley G. Thompson, A. Ghiorso and G. T. Seaborg (University of California, Berkeley)', 'J. R. Peterson, J. A. Fahey, and R. D. Baybarz', 'None stable; longest-lived ²⁴⁷Bk, half-life 1.38×10³ years'],
         ['Californium-252, an isotope with a half-life of about 2.6 years, is a very strong neutron source. One microgram (0.000001 grams) of californium-252 produces 170,000,000 neutrons per minute.', 'Californium was first produced by Stanley G. Thompson, Glenn T. Seaborg, Kenneth Street, Jr. and Albert Ghiorso working at the University of California, Berkeley, in 1950.', null, 'S. G. Thompson, Kenneth Street, Jr., A. Ghiorso and G. T. Seaborg (University of California, Berkeley)', 'R. G. Haire and R. D. Baybarz', 'None stable; longest-lived ²⁵¹Cf, half-life 900 years'],
         ['Since only small amounts of einsteinium have ever been produced, it currently has no uses outside of basic scientific research.', 'Einsteinium was discovered by a team of scientists led by Albert Ghiorso in 1952 while studying the radioactive debris produced by the detonation of the first hydrogen bomb.', null, 'A. Ghiorso et al. (Argonne Laboratory, Los Alamos Laboratory and University of California, Berkeley)', 'R. G. Haire and R. D. Baybarz', 'None stable; longest-lived ²⁵²Es, half-life 1.293 years'],
         ['Due to the small amounts produced and its short half-life, there are currently no uses for fermium outside of basic scientific research.', 'Fermium was discovered by a team of scientists led by Albert Ghiorso in 1952 while studying the radioactive debris produced by the detonation of the first hydrogen bomb.', null, 'A. Ghiorso et al. (Argonne Laboratory, Los Alamos Laboratory and University of California, Berkeley)', null, 'None stable; longest-lived ²⁵⁷Fm, half-life 100.5 days'],
@@ -290,7 +436,10 @@
         Cs: 'Cs⁺', Ba: 'Ba²⁺', La: 'La³⁺', Ce: 'Ce³⁺ Ce⁴⁺', Pr: 'Pr³⁺', Nd: 'Nd³⁺', Pm: 'Pm³⁺', Sm: 'Sm²⁺ Sm³⁺',
         Eu: 'Eu²⁺ Eu³⁺', Gd: 'Gd³⁺', Tb: 'Tb³⁺', Dy: 'Dy³⁺', Ho: 'Ho³⁺', Er: 'Er³⁺', Tm: 'Tm³⁺', Yb: 'Yb²⁺ Yb³⁺',
         Lu: 'Lu³⁺', Pt: 'Pt²⁺ Pt⁴⁺', Au: 'Au⁺ Au³⁺', Hg: 'Hg₂²⁺ Hg²⁺', Tl: 'Tl⁺ Tl³⁺', Pb: 'Pb²⁺ Pb⁴⁺', Bi: 'Bi³⁺', Fr: 'Fr⁺',
-        Ra: 'Ra²⁺', Ac: 'Ac³⁺', Th: 'Th⁴⁺', U: 'U⁴⁺ UO₂²⁺', Pu: 'Pu⁴⁺'
+        Ra: 'Ra²⁺', Ac: 'Ac³⁺', Th: 'Th⁴⁺', U: 'U⁴⁺ UO₂²⁺', Pu: 'Pu⁴⁺',
+        Ge: 'Ge⁴⁺', Nb: 'Nb⁵⁺', Mo: 'MoO₄²⁻', Tc: 'TcO₄⁻', Ru: 'Ru³⁺', Rh: 'Rh³⁺', Hf: 'Hf⁴⁺', Ta: 'Ta⁵⁺', W: 'WO₄²⁻', Re: 'ReO₄⁻',
+        Os: 'Os⁴⁺', Ir: 'Ir³⁺', Po: 'Po²⁺ Po⁴⁺', At: 'At⁻', Pa: 'Pa⁵⁺', Np: 'Np⁴⁺ NpO₂⁺', Am: 'Am³⁺', Cm: 'Cm³⁺', Bk: 'Bk³⁺ Bk⁴⁺', Cf: 'Cf³⁺',
+        Es: 'Es³⁺', Fm: 'Fm³⁺', Md: 'Md²⁺ Md³⁺', No: 'No²⁺', Lr: 'Lr³⁺'
     };
 
     // the groups of the elements, each with its colour on the table
@@ -405,7 +554,11 @@
             config: configOf(z),
             shells: shellsOf(z),
             radius: RADIUS[i], affinity: AFFINITY[i], ions: IONS[e[0]] || null,
-            uses: MORE[i][0], story: MORE[i][1], heat: MORE[i][2], foundBy: MORE[i][3], isolatedBy: MORE[i][4], isotopes: MORE[i][5]
+            uses: MORE[i][0], story: MORE[i][1], heat: MORE[i][2], foundBy: MORE[i][3], isolatedBy: MORE[i][4], isotopes: MORE[i][5],
+            crystal: PROPS[i][0], covalent: PROPS[i][1], magnetic: PROPS[i][2], mohs: PROPS[i][3], fusion: PROPS[i][4], vaporization: PROPS[i][5],
+            conductivity: PROPS[i][6], resistivity: PROPS[i][7], abundance: PROPS[i][8], appearance: PROPS[i][9], cas: PROPS[i][10],
+            // the fields whose values are predicted, each true
+            predicted: (PREDICTED[e[0]] || '').split(' ').reduce(function (o, k) { if (k) o[k] = true; return o; }, {})
         };
     });
 

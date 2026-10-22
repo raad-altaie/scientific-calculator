@@ -97,7 +97,8 @@ check(Chem.empirical('Xx 5').error === 'element', 'an element that is not');
 
 // the radius, the electron affinity and the ions of an element
 check(Chem.bySymbol.Na.radius === 227 && Chem.bySymbol.Cs.radius === 343 && Chem.bySymbol.Og.radius === null, 'radius: Na 227 pm, Cs 343, Og not known');
-check(near(Chem.bySymbol.Cl.affinity, 349, 0.5) && Chem.bySymbol.Ne.affinity === null, 'affinity: Cl 349 kJ/mol, Ne none', Chem.bySymbol.Cl.affinity);
+check(near(Chem.bySymbol.Cl.affinity, 349, 0.5) && Chem.bySymbol.Ne.affinity < 0 && Chem.bySymbol.Ne.predicted.affinity && !Chem.bySymbol.Cl.predicted.affinity,
+    'affinity: Cl 349 kJ/mol, Ne below 0, an estimate', Chem.bySymbol.Cl.affinity);
 check(Chem.bySymbol.Fe.ions === 'Fe²⁺ Fe³⁺' && Chem.bySymbol.C.ions === null, 'ions: Fe²⁺ Fe³⁺, C none');
 
 // solubility: the ions found by the atoms, in either order, and by the charges
@@ -177,6 +178,15 @@ check(Chem.names('no such thing').error === 'unknown' && Chem.names('C6H5OH').er
 
 // what is known of each element in words: its specific heat, who found it, its isotopes
 check(near(Chem.bySymbol.Fe.heat, 0.449) && near(Chem.bySymbol.H.heat, 14.304) && Chem.bySymbol.Og.heat === null, 'specific heat: Fe 0.449, H 14.304 J/(g·K), Og not known');
+
+// what else is known of an element: its crystal, covalent radius, magnetism, hardness, heats, conductivities, abundance, look and CAS
+check(Chem.bySymbol.Fe.crystal === 'α-Fe: body-centred cubic' && Chem.bySymbol.Na.covalent === 166 && Chem.bySymbol.Fe.magnetic === 'Ferromagnetic' &&
+    Chem.bySymbol.W.mohs === 7.5 && near(Chem.bySymbol.Fe.fusion, 13.81) && Chem.bySymbol.Fe.vaporization === 340 && Chem.bySymbol.Cu.conductivity === 401 &&
+    near(Chem.bySymbol.Ag.resistivity, 1.587e-8, 1e-11) && Chem.bySymbol.O.abundance === 461000 && Chem.bySymbol.Au.appearance === 'Metallic yellow' &&
+    Chem.bySymbol.Fe.cas === '7439-89-6', 'more of an element: Fe bcc, ferromagnetic; Na covalent 166 pm; W Mohs 7.5; Cu 401 W/(m·K); Ag 1.587e-8 Ω·m; O 461 000 mg/kg');
+check(Chem.bySymbol.Am.abundance === 'None: synthetic' && Chem.elements.every(function (e) { return !!e.cas; }), 'abundance in words where none is found; a CAS number for every element');
+check(Chem.bySymbol.Og.predicted.bp && Chem.bySymbol.Og.bp === 177 && !Chem.bySymbol.Fe.predicted.bp && Object.keys(Chem.bySymbol.Fe.predicted).length === 0,
+    'predicted: Og\'s boiling point marked so, none of iron\'s');
 check(Chem.bySymbol.O.foundBy === 'Carl Wilhelm Scheele' && Chem.bySymbol.Na.isolatedBy === 'Humphry Davy', 'found by Scheele; sodium isolated by Davy');
 check(Chem.bySymbol.Fe.isotopes === '4 stable: ⁵⁶Fe, ⁵⁴Fe, ⁵⁷Fe, ⁵⁸Fe' && /^None stable; longest-lived ⁹⁷Tc/.test(Chem.bySymbol.Tc.isotopes), 'isotopes: Fe stable, most abundant first; Tc its longest-lived');
 check(Chem.elements.every(function (e) { return e.isotopes && e.story && e.foundBy; }), 'every element has its isotopes, its name or history, and its finder');
