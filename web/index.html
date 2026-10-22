@@ -162,6 +162,14 @@
                                 <path d="M8 5.2v3l2 1.3" />
                             </svg>
                         </div>
+                        <!-- the search of all the tools, as the rail's (main.js) -->
+                        <div class="calc-find-btn" role="button" aria-label="Search" aria-haspopup="dialog">
+                            <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
+                                stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="7" cy="7" r="4.6" />
+                                <path d="M10.4 10.4L14 14" />
+                            </svg>
+                        </div>
                         <!-- formulas and constants -->
                         <div class="calc-fx-btn" hidden>
                             <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor"
@@ -637,9 +645,9 @@
         <div class="calc-past calc-fx">
             <div class="calc-past-head">
                 <span class="calc-fx-tabs">
-                    <span class="calc-fx-tab" data-tab="vars">Variables</span>
                     <span class="calc-fx-tab" data-tab="formulas">Formulas</span>
                     <span class="calc-fx-tab" data-tab="constants">Constants</span>
+                    <span class="calc-fx-tab" data-tab="vars">Variables</span>
                 </span>
                 <!-- pop out: the panel as big as the page, or in a window of its own; pop in: back in the calculator -->
                 <span class="calc-panel-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-panel-grow" d="M10 2h4v4M6.5 9.5L14 2" /><path class="calc-panel-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
@@ -649,7 +657,7 @@
             <div class="calc-fx-list"></div>
         </div>
 
-        <!-- the converter of units, over the keys like the history; and of dates, a card for each tool, as the solver has -->
+        <!-- the converter: a card for each group of units, and for each tool of the dates, as the solver has, over the keys like the history -->
         <div class="calc-past calc-conv">
             <div class="calc-past-head">
                 <span class="calc-solve-tabs">
@@ -660,24 +668,11 @@
                 <span class="calc-panel-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-panel-grow" d="M10 2h4v4M6.5 9.5L14 2" /><path class="calc-panel-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
                 <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
             </div>
-            <!-- lists drawn as the calculator draws, not by the browser -->
-            <div class="calc-conv-pick calc-conv-group" tabindex="0" role="combobox" aria-haspopup="listbox"
-                aria-expanded="false" aria-label="What to convert">
-                <span class="calc-conv-chosen"></span>
-                <div class="calc-conv-menu" role="listbox" hidden></div>
-            </div>
-            <div class="calc-conv-from">
-                <input class="calc-conv-value" type="text" autocapitalize="characters" spellcheck="false" autocomplete="off"
-                    maxlength="40" aria-label="Value">
-                <div class="calc-conv-pick calc-conv-unit" tabindex="0" role="combobox" aria-haspopup="listbox"
-                    aria-expanded="false" aria-label="From">
-                    <span class="calc-conv-chosen"></span>
-                    <div class="calc-conv-menu" role="listbox" hidden></div>
-                </div>
-            </div>
-            <div class="calc-conv-note"></div>
-            <div class="calc-conv-list"></div>
-            <div class="calc-sv-list"></div>
+            <!-- the search of the units, and a card for each group of them; the dates' cards on their tab, as the solver has -->
+            <input class="calc-fx-search calc-conv-search" type="text" spellcheck="false" autocomplete="off" maxlength="40"
+                placeholder="Search units" aria-label="Search units">
+            <div class="calc-sv-list calc-conv-units"></div>
+            <div class="calc-sv-list calc-conv-datelist" hidden></div>
         </div>
 
         <!-- what a key above the digits does, while the pointer rests on it -->
@@ -695,6 +690,18 @@
             </div>
             <div class="calc-past-list"></div>
         </div>
+
+        <!-- the search, over the keys like the history: its box and list are the rail's (.calc-find), moved in (main.js) -->
+        <div class="calc-past calc-find-panel" role="dialog" aria-label="Search">
+            <div class="calc-past-head">
+                <span class="calc-solve-tabs">
+                    <span class="calc-solve-tab calc-on">Search</span>
+                </span>
+                <!-- pop out: the search in the big window, beside the rail of the tools -->
+                <span class="calc-panel-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-panel-grow" d="M10 2h4v4M6.5 9.5L14 2" /><path class="calc-panel-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
+                <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
+            </div>
+        </div>
     </div>
     <!-- popped out, the bar above the panel's head, and above the calculator in a tool's own window: the calculator,
          and each tool shown at the top left of the display, by its icon and name, to go to; main.js adds the tools,
@@ -702,10 +709,24 @@
          alone on a narrow one. Beside the calculator, not in it: there it would be scaled with it -->
     <nav class="calc-go" aria-label="Tools">
         <span class="calc-go-item" data-go="calc" role="button" tabindex="0" aria-label="Calculator" title="Calculator"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="1.8" width="10" height="12.4" rx="1.6" /><path d="M5.4 4.4h5.2v2.2H5.4z" /><path d="M5.6 9.2h.01M8 9.2h.01M10.4 9.2h.01M5.6 11.6h.01M8 11.6h.01M10.4 11.6h.01" stroke-width="1.9" /></svg><span>Calculator</span></span>
+        <!-- under it: the search of all the tools, and Ctrl+K (main.js) -->
+        <span class="calc-go-item calc-go-find" role="button" tabindex="0" aria-label="Search" aria-haspopup="dialog" title="Search"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="4.6" /><path d="M10.4 10.4L14 14" /></svg><span>Search</span></span>
         <!-- at the bottom: the options, and the guide, on their tabs of the page the ? of the calculator opens -->
         <span class="calc-go-item calc-go-opt" data-tab="options" role="button" tabindex="0" aria-label="Options" title="Options"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4.5h3.2M8.4 4.5H14M2 11.5h7.2M12.4 11.5H14" /><circle cx="6.8" cy="4.5" r="1.6" /><circle cx="10.8" cy="11.5" r="1.6" /></svg><span>Options</span></span>
         <span class="calc-go-item calc-go-opt" data-tab="guide" role="button" tabindex="0" aria-label="Guide" title="Guide"><svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.2" /><path d="M6.2 6.3a1.85 1.85 0 0 1 3.6.55c0 1.25-1.8 1.6-1.8 2.75" /><path d="M8 11.7h.01" stroke-width="1.9" /></svg><span>Guide</span></span>
     </nav>
+    <!-- Search of the rail, over all of the window: a box, and what it finds, the best first; main.js fills it -->
+    <div class="calc-find" hidden>
+        <div class="calc-find-box" role="dialog" aria-label="Search">
+            <label class="calc-find-bar">
+                <svg viewBox="0 0 16 16" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="7" r="4.6" /><path d="M10.4 10.4L14 14" /></svg>
+                <input class="calc-find-input" type="text" spellcheck="false" autocomplete="off" maxlength="60" role="combobox" aria-expanded="true" aria-controls="calc-find-list"
+                    aria-autocomplete="list" placeholder="Search cards, formulas, constants, elements, units" aria-label="Search">
+                <kbd>Esc</kbd>
+            </label>
+            <div class="calc-find-list" id="calc-find-list" role="listbox" aria-label="Found"></div>
+        </div>
+    </div>
     <!-- a tool's own window on its Calculator tab only (main.js): pop in and close at the top right, where every
          tool popped out has them, without a bar under them -->
     <div class="calc-home-acts">
@@ -790,10 +811,10 @@
                     </svg>
                 </span>
                 <div class="option-text">
-                    <h3>Variables, formulas and constants</h3>
-                    <p>A button at the top left of the display. It opens on Variables, the ten variables A to J and what
-                        each holds, then well-known formulas of geometry, physics, money and more, and constants of
-                        math and science, all searchable. Fill in a formula's letters to put it into the display,
+                    <h3>Formulas, constants and variables</h3>
+                    <p>A button at the top left of the display. Well-known formulas of geometry, physics, money and more,
+                        and constants of math and science, all searchable, then the ten variables A to J and what each
+                        holds; it opens on Formulas. Fill in a formula's letters to put it into the display,
                         where you can still change it.</p>
                 </div>
                 <label class="switch" title="Formulas and constants">
@@ -960,8 +981,8 @@
                 <li><kbd class="k k-red">DEL</kbd> button (or Backspace) to take back the last key you pressed, one key at a time.</li>
                 <li>Cursor: click into the equation, or use the arrow keys, to fix a number or an
                     operator in the middle of it. Back at the end, the calculator goes on as before.</li>
-                <li>Variables, formulas and constants: the variables A to J, some hundred formulas to fill in and sixty
-                    constants of math and science. See the "Variables, Formulas and Constants" section below.</li>
+                <li>Formulas, constants and variables: some hundred formulas to fill in, sixty constants of math and
+                    science and the variables A to J. See the "Formulas, Constants and Variables" section below.</li>
                 <li>Converter: units of length, area, volume, mass, temperature, force, density, current and more, dates and
                     time zones. See the "Converter" section below.</li>
                 <li>Graph: functions, equations, inequalities, sequences, slope fields and points drawn, with their roots, highs, lows and
@@ -1002,9 +1023,13 @@
                     You can paste a whole equation, such as 2 + 3 × sin(30), not only a number.</li>
                 <li>Ctrl+Z (⌘Z on a Mac) undoes the last change to the equation: a key, DEL, a paste or a mode.
                     Ctrl+Shift+Z redoes it.</li>
+                <li>Search, the magnifier beside the history at the top left of the display, and under the calculator on the rail
+                    of the tools, finds anything in them: a card, a formula, a constant, an example of the graph, an element or a
+                    group of units, by its name, what it does or its tips. Enter or a click goes there, with the card open: in its
+                    panel over the keys, or popped out beside the rail; the arrows go along the list. Ctrl+K (⌘K on a Mac) opens it.</li>
                 <li>Ten letters, A to J, each keep a value, as on a TI or a Casio. Alt+A (Option+A on a Mac) is
                     STO→ A: type 5 + 3, press Alt+A, and 8 is kept in A; <kbd class="k">&gt;</kbd> then Shift+A does the same. Shift+A to Shift+J put a letter
-                    in the equation, 2A + B, worked out with what it holds. The Variables tab, the first tab of the formulas and the one it opens on, lists them, and a
+                    in the equation, 2A + B, worked out with what it holds. The Variables tab, the last tab of the formulas, lists them, and a
                     right-click on the display, a value of a panel or the history has Store in Var; on the display, Insert Var puts one in. They work in pasted text,
                     the graph, the solver and the boxes of a formula. EE shows as ᴇ, 5ᴇ3, so 2E is 2 × E.</li>
                 <li>Dynamic font-size in display to keep numbers as readable as possible. An equation that is still
@@ -1019,19 +1044,12 @@
         </div>
 
         <div class="features" data-tab="guide">
-            <h2 class="logo title sub">Variables, Formulas and Constants</h2>
-            <p>Click <i>f</i>x at the top left of the display. It has three tabs, Variables, Formulas and Constants. It
-                opens on Variables the first time, then on the tab you used last; Reset all puts it back on Variables. Formulas
+            <h2 class="logo title sub">Formulas, Constants and Variables</h2>
+            <p>Click <i>f</i>x at the top left of the display. It has three tabs, Formulas, Constants and Variables. It
+                opens on Formulas the first time, then on the tab you used last; Reset all puts it back on Formulas. Formulas
                 and Constants each have a search: type a few words, area circle or interest, and only what has them
                 all is listed. Enter in the search opens the first one found.</p>
             <ul>
-                <li>Variables has a card for each of the ten variables, A to J, as the keys of a TI or a Casio have. Type a
-                    value in its box, press STO to keep the result of the line in it, or its arrow to put it in the
-                    equation, where it stays A and is worked out with what A holds then. Clear all sets every one back
-                    to 0. The keys are Alt+A (Option+A on a Mac) to store and Shift+A to put in, and a right-click has
-                    Store in Var and Insert Var.</li>
-                <li>Any box that takes a number takes A to J as well, a formula's, the converter's, the graph's and
-                    the numbers': 2A is 2 × A. Rest the pointer on one to see what its variables hold.</li>
                 <li>Some hundred formulas, by group: algebra, geometry, trigonometry, motion and forces, matter and
                     energy, waves and light, electricity, chemistry, statistics, money and everyday ones. The
                     quadratic formula, the volume of a sphere, the law of cosines, Newton's second law, Ohm's law,
@@ -1055,13 +1073,22 @@
                     Boltzmann constants, the mass of the Earth, the Moon, Mars and the Sun, a light-year and more,
                     those of physics from CODATA 2022. Each shows its symbol, its value and its unit; click one to
                     put it into the equation as a number, in full and not only the 12 digits shown.</li>
+                <li>Variables has a card for each of the ten variables, A to J, as the keys of a TI or a Casio have. Type a
+                    value in its box, press STO to keep the result of the line in it, or its arrow to put it in the
+                    equation, where it stays A and is worked out with what A holds then. Clear all sets every one back
+                    to 0. The keys are Alt+A (Option+A on a Mac) to store and Shift+A to put in, and a right-click has
+                    Store in Var and Insert Var.</li>
+                <li>Any box that takes a number takes A to J as well, a formula's, the converter's, the graph's and
+                    the numbers': 2A is 2 × A. Rest the pointer on one to see what its variables hold.</li>
             </ul>
         </div>
 
         <div class="features" data-tab="guide">
             <h2 class="logo title sub">Converter</h2>
-            <p>Click the arrows at the top left of the display. Pick what to convert and the unit your value is in,
-                and the list shows it in all the other units of its kind at once, worked out as you type.</p>
+            <p>Click the arrows at the top left of the display. Each kind of unit has a card, as the tools of the
+                solver have: open one, type a value and pick its unit, and the card shows it in all the other units of
+                its kind at once, worked out as you type. The search above the cards finds a kind by its name, or by
+                the name or symbol of a unit: mile finds Length, and opens it from miles.</p>
             <ul>
                 <li>Twenty-eight kinds: length, area, volume, mass, temperature, speed, time, data, pressure, energy,
                     power, angles, fuel economy, force, torque, density, frequency, acceleration, flow rate, electric
@@ -1070,13 +1097,13 @@
                     gallons, kilobytes to tebibytes, calories to kilowatt-hours, horsepower, knots, miles per
                     gallon to liters per 100 km, pound-feet to newton meters, and mAh to coulombs.</li>
                 <li>The result in the display is the value to start from.</li>
-                <li>Click a converted value, or press Enter for the first one, to put it into the equation.
+                <li>Click a converted value to put it into the equation. An empty value is 1.
                     Right-click one to copy it, alone or with its unit.</li>
                 <li>Exact where a unit is defined exactly: an inch is 2.54 cm, a pound 0.45359237 kg. Very large and
                     very small values are shown as powers of 10.</li>
                 <li>An angle can be typed and shown in degrees, minutes and seconds, 36°52′11″, as well as in
                     degrees, radians, gradians and turns.</li>
-                <li>The kind, the units and the value stay for the next time.</li>
+                <li>The card open, and the value and unit of each card, stay for the next time.</li>
             </ul>
             <p>The Dates tab beside Units has four cards, each opened with a click. Dates are written as your
                 region writes them, 14/10/2026 in the UK and France, 14.10.2026 in Germany, 10/14/2026 in the US,

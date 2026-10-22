@@ -137,6 +137,11 @@ document.addEventListener('calc-options', (event) => {
     }
 });
 
+// Search of the rail opens over the page: the options open over it close
+document.addEventListener('calc-find', () => {
+    if (document.body.classList.contains('options-open')) showOptions(false);
+});
+
 // whether the clipboard holds text, for the menu to show Paste: read only where the browser
 // allows it already; asked for nothing, it cannot tell, and the calculator shows Paste
 document.addEventListener('calc-clipboard', (event) => {

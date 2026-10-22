@@ -238,7 +238,7 @@ function open(page, panel) {
 }
 
 function buttons(page) { // the buttons at the top left that are shown
-    return page.calc('[].filter.call(document.querySelector(".calc-tools").children, function (b) { return !b.hidden; })' +
+    return page.calc('[].filter.call(document.querySelector(".calc-tools").children, function (b) { return !b.hidden && !b.classList.contains("calc-find-btn"); })' +
         '.map(function (b) { return b.className.split(" ")[0]; }).join(" ")');
 }
 
@@ -293,8 +293,7 @@ async function calculator(page, at) {
     // the panel: the search has the keys, the result in the display starts the first box
     await page.click('.calc-fx-btn');
     check(await open(page, '.calc-fx'), t + 'f(x) opens the panel');
-    check(await page.calc('document.querySelector(".calc-fx-tab.calc-on").dataset.tab') === 'vars' &&
-        await page.calc('document.querySelectorAll(".calc-var").length') === 10, t + 'it opens on Variables at first');
+    check(await page.calc('document.querySelector(".calc-fx-tab.calc-on").dataset.tab') === 'formulas', t + 'it opens on Formulas at first');
     await page.click('.calc-fx-tab[data-tab="formulas"]');
     check(await page.calc('document.activeElement.className') === 'calc-fx-search', t + 'the search has the focus');
     // the formulas are even: one height, each at the same place of its card, clear of its name
@@ -2489,9 +2488,11 @@ async function modeKey(page, at) {
     await page.type('\x1b');
     await pasted('2.500,5 + 1.250 =');
     check(await page.calc(raw) === '3.750,5', t + 'a pasted equation written so', await page.calc(raw));
-    await page.calc('(function (i) { i.value = "-1.2,3-4k5"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-conv-value"))');
-    check(await page.calc('document.querySelector(".calc-conv-value").value') === '-1,2345', t + 'a number box: one comma, a point typed is it',
-        await page.calc('document.querySelector(".calc-conv-value").value'));
+    await page.click('.calc-conv-btn');
+    await page.calc('(function (i) { i.value = "-1.2,3-4k5"; i.dispatchEvent(new Event("input", { bubbles: true })); })(document.querySelector(".calc-conv-units .calc-sv-item.calc-on input"))');
+    check(await page.calc('document.querySelector(".calc-conv-units .calc-sv-item.calc-on input").value') === '-1,2345', t + 'a number box: one comma, a point typed is it',
+        await page.calc('document.querySelector(".calc-conv-units .calc-sv-item.calc-on input").value'));
+    await page.key('Escape', 27);
     // a letter of a formula: typed with the comma, and 1,234 for it is 1.234 in the equation, not 1234
     await page.type('\x1b');
     await page.click('.calc-fx-btn');
@@ -2687,11 +2688,11 @@ async function letters(page, at) {
 
     // the converter takes a letter as its value: a typed is A, -5 m in feet
     await page.click('.calc-conv-btn');
-    await page.calc('(function (i) { i.value = ""; i.focus(); })(document.querySelector(".calc-conv-value"))');
+    await page.calc('(function (i) { i.value = ""; i.focus(); })(document.querySelector(".calc-conv-units .calc-sv-item.calc-on input"))');
     await page.type('a');
-    check(await page.calc('document.querySelector(".calc-conv-value").value') === 'A' &&
-        !await page.calc('document.querySelector(".calc-conv-value").classList.contains("calc-bad")'), t + 'a in the converter is A, a value it reads',
-        await page.calc('document.querySelector(".calc-conv-value").value'));
+    check(await page.calc('document.querySelector(".calc-conv-units .calc-sv-item.calc-on input").value') === 'A' &&
+        !await page.calc('document.querySelector(".calc-conv-units .calc-sv-item.calc-on input").classList.contains("calc-bad")'), t + 'a in the converter is A, a value it reads',
+        await page.calc('document.querySelector(".calc-conv-units .calc-sv-item.calc-on input").value'));
     await page.key('Escape', 27);
 
     // and so does a number box of the graph: the table's step b typed is B, 3; a word is not a number
@@ -2804,14 +2805,14 @@ async function otherLayouts(page, at) {
     // the boxes of the panels too: ٥ of the digit row types 5 in the converter, ش with Shift types A, and a pasted ٣٫٥ reads 3.5
     await page.fresh(at, {});
     await page.click('.calc-conv-btn');
-    await page.calc('(function (i) { i.value = ""; i.focus(); })(document.querySelector(".calc-conv-value"))');
+    await page.calc('(function (i) { i.value = ""; i.focus(); })(document.querySelector(".calc-conv-units .calc-sv-item.calc-on input"))');
     await physical('Digit5', '٥', 53);
     await physical('KeyA', 'ش', 65, true);
-    check(await page.calc('document.querySelector(".calc-conv-value").value') === '5A', t + 'in the converter ٥ types 5 and Shift+ش types A',
-        await page.calc('document.querySelector(".calc-conv-value").value'));
-    await page.calc('(function (i) { i.value = "٣٫٥"; i.dispatchEvent(new Event("input", { bubbles: true })); })(document.querySelector(".calc-conv-value"))');
-    check(await page.calc('document.querySelector(".calc-conv-value").value') === '3.5', t + 'and the digits and point of ٣٫٥ are read as 3.5',
-        await page.calc('document.querySelector(".calc-conv-value").value'));
+    check(await page.calc('document.querySelector(".calc-conv-units .calc-sv-item.calc-on input").value') === '5A', t + 'in the converter ٥ types 5 and Shift+ش types A',
+        await page.calc('document.querySelector(".calc-conv-units .calc-sv-item.calc-on input").value'));
+    await page.calc('(function (i) { i.value = "٣٫٥"; i.dispatchEvent(new Event("input", { bubbles: true })); })(document.querySelector(".calc-conv-units .calc-sv-item.calc-on input"))');
+    check(await page.calc('document.querySelector(".calc-conv-units .calc-sv-item.calc-on input").value') === '3.5', t + 'and the digits and point of ٣٫٥ are read as 3.5',
+        await page.calc('document.querySelector(".calc-conv-units .calc-sv-item.calc-on input").value'));
     await page.key('Escape', 27);
 
     // a script with two cases, Russian's, has its case for the letter: И with Shift on the B key is B
@@ -2842,8 +2843,8 @@ async function degreesMinutes(page, at) {
     }
 
     function input(text) {
-        return page.calc('(function (i) { i.value = ' + JSON.stringify(text) + '; i.dispatchEvent(new Event("input")); })' +
-            '(document.querySelector(".calc-conv-value"))');
+        return page.calc('(function (i) { i.value = ' + JSON.stringify(text) + '; i.dispatchEvent(new Event("input", { bubbles: true })); })' +
+            '(document.querySelector(".calc-conv-units .calc-sv-item.calc-on input"))');
     }
 
     await page.fresh(at, {});
@@ -2889,15 +2890,15 @@ async function degreesMinutes(page, at) {
 
     // the converter: degrees, minutes and seconds among the angles; typed so, in degrees in Rad as well
     await page.click('.calc-conv-btn');
-    await choose(page, '.calc-conv-group', 'Angle');
-    await choose(page, '.calc-conv-unit', 'degrees');
+    await chooseGroup(page, 'Angle');
+    await choose(page, '.calc-conv-units .calc-sv-item.calc-on .calc-sv-pick', 'degrees');
     await input('36.86989764584');
     check(await converted(page, 'degrees, minutes, seconds') === '36°52′11.63″', t + 'the converter shows 36°52′11.63″',
         await converted(page, 'degrees, minutes, seconds'));
-    await choose(page, '.calc-conv-unit', 'degrees, minutes, seconds');
+    await choose(page, '.calc-conv-units .calc-sv-item.calc-on .calc-sv-pick', 'degrees, minutes, seconds');
     await input('12°30′');
     check(await converted(page, 'degrees') === '12.5', t + '12°30′ is 12.5° in Rad', await converted(page, 'degrees'));
-    await choose(page, '.calc-conv-unit', 'radians');
+    await choose(page, '.calc-conv-units .calc-sv-item.calc-on .calc-sv-pick', 'radians');
     await input('180°');
     check(await converted(page, 'degrees') === '180', t + '180° typed for radians is π radians', await converted(page, 'degrees'));
     await page.key('Escape', 27);
@@ -2940,14 +2941,29 @@ async function choose(page, list, text) {
     await page.click(list + ' .calc-conv-item[data-i="' + i + '"]');
 }
 
+// a group of the converter, by its name: its card opened, if it is not
+async function chooseGroup(page, name) {
+    var i = await page.calc('[].map.call(document.querySelectorAll(".calc-conv-units .calc-sv-item .calc-sv-name"), function (c) { return c.textContent; })' +
+        '.indexOf(' + JSON.stringify(name) + ')');
+    check(i > -1, 'the converter has a card of ' + name);
+    if (!await page.calc('document.querySelectorAll(".calc-conv-units .calc-sv-item")[' + i + '].classList.contains("calc-on")')) {
+        await page.click('.calc-conv-units .calc-sv-item:nth-child(' + (i + 1) + ') .calc-sv-row');
+    }
+}
+
+// the group of the card open
+function openGroup(page) {
+    return page.calc('(document.querySelector(".calc-conv-units .calc-sv-item.calc-on .calc-sv-name") || {}).textContent');
+}
+
 function chosen(page, list) {
     return page.calc('document.querySelector(' + JSON.stringify(list + ' .calc-conv-chosen') + ').textContent');
 }
 
-function converted(page, name) { // the value shown for a unit, by its name
-    return page.calc('(function (r) { return r ? r.querySelector(".calc-conv-num").textContent : null; })(' +
-        '[].filter.call(document.querySelectorAll(".calc-conv-row"), function (r) { return r.querySelector(".calc-conv-name").textContent === ' +
-        JSON.stringify(name) + '; })[0])');
+function converted(page, name) { // the value shown for a unit, by its name: its tile, of the card open, is its name (its symbol)
+    return page.calc('(function (r) { return r ? r.querySelector(".calc-sv-value").textContent : null; })(' +
+        '[].filter.call(document.querySelectorAll(".calc-conv-units .calc-sv-item.calc-on .calc-sv-tile"), function (r) { return r.querySelector(".calc-sv-label").textContent.toLowerCase().indexOf(' +
+        JSON.stringify(name.toLowerCase() + ' (') + ') === 0; })[0])');
 }
 
 async function converter(page, at) {
@@ -2962,40 +2978,40 @@ async function converter(page, at) {
     await page.type('5\r');
     await page.click('.calc-conv-btn');
     check(await open(page, '.calc-conv'), t + 'the arrows open the converter');
-    check(await page.calc('document.activeElement.className') === 'calc-conv-value', t + 'the value has the focus');
+    check(await page.calc('document.activeElement === document.querySelector(".calc-conv-units .calc-sv-item.calc-on input")'), t + 'the value has the focus');
     check(await page.calc('document.activeElement.value') === '5', t + 'and starts with the result, 5');
-    await choose(page, '.calc-conv-group', 'Length');
-    await choose(page, '.calc-conv-unit', 'kilometers');
+    await chooseGroup(page, 'Length');
+    await choose(page, '.calc-conv-units .calc-sv-item.calc-on .calc-sv-pick', 'kilometers');
     check(await converted(page, 'miles') === '3.10685596119', t + '5 km is 3.10685596119 mi', await converted(page, 'miles'));
     check(await converted(page, 'kilometers') === null, t + 'its own unit is not in the list');
 
     // only a number can be typed in it, and typing in it presses no keys
-    await page.calc('document.querySelector(".calc-conv-value").select()');
+    await page.calc('document.querySelector(".calc-conv-units .calc-sv-item.calc-on input").select()');
     await page.type('6');
     check(await shown(page) === '5', t + 'typing in the value presses no keys', await shown(page));
     check(await converted(page, 'meters') === '6,000', t + '6 km is 6,000 m', await converted(page, 'meters'));
     await page.type('k*+#');
-    check(await page.calc('document.querySelector(".calc-conv-value").value') === '6', t + 'letters beyond A to J and signs are not taken',
-        await page.calc('document.querySelector(".calc-conv-value").value'));
-    await page.calc('(function (i) { i.value = "-1.2.3-4k5"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-conv-value"))');
-    check(await page.calc('document.querySelector(".calc-conv-value").value') === '-1.2345', t + 'one point and a minus first only',
-        await page.calc('document.querySelector(".calc-conv-value").value'));
-    await page.calc('(function (i) { i.value = "6"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-conv-value"))');
+    check(await page.calc('document.querySelector(".calc-conv-units .calc-sv-item.calc-on input").value') === '6', t + 'letters beyond A to J and signs are not taken',
+        await page.calc('document.querySelector(".calc-conv-units .calc-sv-item.calc-on input").value'));
+    await page.calc('(function (i) { i.value = "-1.2.3-4k5"; i.dispatchEvent(new Event("input", { bubbles: true })); })(document.querySelector(".calc-conv-units .calc-sv-item.calc-on input"))');
+    check(await page.calc('document.querySelector(".calc-conv-units .calc-sv-item.calc-on input").value') === '-1.2345', t + 'one point and a minus first only',
+        await page.calc('document.querySelector(".calc-conv-units .calc-sv-item.calc-on input").value'));
+    await page.calc('(function (i) { i.value = "6"; i.dispatchEvent(new Event("input", { bubbles: true })); })(document.querySelector(".calc-conv-units .calc-sv-item.calc-on input"))');
 
-    // Enter puts in the first value, the meters
-    await page.type('\r');
-    check(!await open(page, '.calc-conv') && await shown(page) === '6000', t + 'Enter puts in 6000 m', await shown(page));
+    // a click on a value puts it in: the meters
+    await page.click('.calc-conv-units .calc-sv-item.calc-on .calc-sv-tile[data-r="0"]');
+    check(!await open(page, '.calc-conv') && await shown(page) === '6000', t + 'a click puts in 6000 m', await shown(page));
     check(await page.calc('document.querySelector(".calc-log").textContent.trim()') === '', t + 'and presses no = after it',
         await page.calc('document.querySelector(".calc-log").textContent'));
 
     // the units of a group are its own; a click puts a value in
     await page.click('.calc-conv-btn');
-    check(await page.calc('document.querySelector(".calc-conv-value").value') === '6000', t + 'the new result starts it', await page.calc('document.querySelector(".calc-conv-value").value') + ' / ' + await shown(page));
-    await choose(page, '.calc-conv-group', 'Temperature');
-    await choose(page, '.calc-conv-unit', 'Fahrenheit');
-    await page.calc('(function (i) { i.value = "212"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-conv-value"))');
+    check(await page.calc('document.querySelector(".calc-conv-units .calc-sv-item.calc-on input").value') === '6000', t + 'the new result starts it', await page.calc('document.querySelector(".calc-conv-units .calc-sv-item.calc-on input").value') + ' / ' + await shown(page));
+    await chooseGroup(page, 'Temperature');
+    await choose(page, '.calc-conv-units .calc-sv-item.calc-on .calc-sv-pick', 'Fahrenheit');
+    await page.calc('(function (i) { i.value = "212"; i.dispatchEvent(new Event("input", { bubbles: true })); })(document.querySelector(".calc-conv-units .calc-sv-item.calc-on input"))');
     check(await converted(page, 'Celsius') === '100', t + '212 °F is 100 °C', await converted(page, 'Celsius'));
-    await page.hover('.calc-conv-row[data-i="0"]');
+    await page.hover('.calc-conv-units .calc-sv-item.calc-on .calc-sv-tile[data-r="0"]');
     check(await page.until('!document.querySelector(".calc-peek").hidden && /^Celsius/.test(document.querySelector(".calc-peek").textContent)', 2500) &&
         await page.calc('document.querySelector(".calc-peek .calc-peek-value").textContent') === '100' &&
         await page.calc('document.querySelectorAll(".calc-peek .calc-peek-act").length') === 2, t + 'a value has its tip: its unit, the value, Insert and Copy');
@@ -3006,43 +3022,50 @@ async function converter(page, at) {
     // kept for the next time: the group, its unit, and the unit of the other groups
     await page.go(page.base + at);
     await page.click('.calc-conv-btn');
-    check(await chosen(page, '.calc-conv-group') === 'Temperature' && /^Fahrenheit/.test(await chosen(page, '.calc-conv-unit')),
+    check(await openGroup(page) === 'Temperature' && /^Fahrenheit/.test(await chosen(page, '.calc-conv-units .calc-sv-item.calc-on .calc-sv-pick')),
         t + 'the group and unit are kept');
-    await choose(page, '.calc-conv-group', 'Length');
-    check(/^kilometers/.test(await chosen(page, '.calc-conv-unit')), t + 'and the unit of Length too');
+    await chooseGroup(page, 'Length');
+    check(/^kilometers/.test(await chosen(page, '.calc-conv-units .calc-sv-item.calc-on .calc-sv-pick')), t + 'and the unit of Length too');
 
     // the lists by the keys: an arrow opens one and goes along it, Enter chooses,
     // Esc closes the list and not the panel; typing in it presses no keys
-    await page.calc('document.querySelector(".calc-conv-unit").focus()');
+    await page.calc('document.querySelector(".calc-conv-units .calc-sv-item.calc-on .calc-sv-pick").focus()');
     await page.key('ArrowDown', 40);
-    check(!await page.calc('document.querySelector(".calc-conv-unit .calc-conv-menu").hidden'), t + 'an arrow opens the list');
+    check(!await page.calc('document.querySelector(".calc-conv-units .calc-sv-item.calc-on .calc-sv-pick .calc-conv-menu").hidden'), t + 'an arrow opens the list');
     await page.key('ArrowDown', 40);
     await page.key('Enter', 13);
-    check(/^inches/.test(await chosen(page, '.calc-conv-unit')), t + 'the next one, inches, is chosen', await chosen(page, '.calc-conv-unit'));
-    check(await page.calc('document.activeElement.className') === 'calc-conv-value', t + 'and the value has the focus again');
-    await page.calc('document.querySelector(".calc-conv-group").focus()');
+    check(/^inches/.test(await chosen(page, '.calc-conv-units .calc-sv-item.calc-on .calc-sv-pick')), t + 'the next one, inches, is chosen', await chosen(page, '.calc-conv-units .calc-sv-item.calc-on .calc-sv-pick'));
+    check(await page.calc('document.activeElement === document.querySelector(".calc-conv-units .calc-sv-item.calc-on .calc-sv-pick")'), t + 'and the list keeps the focus, as a card\'s does');
+    // the search above the cards: a key in it presses none of the calculator; it finds the groups with a word in
+    // their name, or in the name of a unit, which the card shows, and starts from
+    await page.click('.calc-conv-search');
+    await page.type('mile');
+    check(await shown(page) === '100', t + 'a key in the search presses none of the calculator', await shown(page));
+    check(await page.calc('[].map.call(document.querySelectorAll(".calc-conv-units .calc-sv-row:not([hidden]) .calc-sv-name"), function (c) { return c.textContent; }).join("|")') ===
+        'Length|Area|Speed|Fuel economy', t + 'mile finds the groups with miles in them',
+        await page.calc('[].map.call(document.querySelectorAll(".calc-conv-units .calc-sv-row:not([hidden]) .calc-sv-name"), function (c) { return c.textContent; }).join("|")'));
+    await page.key('ArrowDown', 40);
     await page.key('Enter', 13);
-    await page.key('Escape', 27);
-    check(await page.calc('document.querySelector(".calc-conv-group .calc-conv-menu").hidden') && await open(page, '.calc-conv'),
-        t + 'Esc closes the list, and the panel stays');
-    await page.type('7');
-    check(await shown(page) === '100', t + 'a key on a list presses none of the calculator', await shown(page));
-    await page.click('.calc-conv-group .calc-conv-chosen');
-    await page.click('.calc-conv-note');
-    check(await page.calc('document.querySelector(".calc-conv-group .calc-conv-menu").hidden'), t + 'a press beside the list closes it');
+    check(await openGroup(page) === 'Area' && /^square miles/.test(await chosen(page, '.calc-conv-units .calc-sv-item.calc-on .calc-sv-pick')) &&
+        await page.calc('document.activeElement === document.querySelector(".calc-conv-units .calc-sv-item.calc-on input")'), t + 'an arrow and Enter open Area, from square miles, the value in focus',
+        await openGroup(page) + ' / ' + await chosen(page, '.calc-conv-units .calc-sv-item.calc-on .calc-sv-pick'));
+    await page.calc('(function (i) { i.value = "zzzz"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-conv-search"))');
+    check(await page.calc('document.querySelectorAll(".calc-conv-units .calc-sv-row:not([hidden])").length') === 0 &&
+        await page.calc('document.querySelector(".calc-conv-units").classList.contains("calc-none-found")'), t + 'nothing found says so');
+    await page.calc('(function (i) { i.value = ""; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-conv-search"))');
+    check(await page.calc('document.querySelectorAll(".calc-conv-units .calc-sv-row:not([hidden])").length') > 20, t + 'and all of them again with none');
 
     // no value: 0 L/100 km has no km/L
-    await choose(page, '.calc-conv-group', 'Fuel economy');
-    await choose(page, '.calc-conv-unit', 'liters per 100 km');
-    await page.calc('(function (i) { i.value = "0"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-conv-value"))');
+    await chooseGroup(page, 'Fuel economy');
+    await choose(page, '.calc-conv-units .calc-sv-item.calc-on .calc-sv-pick', 'liters per 100 km');
+    await page.calc('(function (i) { i.value = "0"; i.dispatchEvent(new Event("input", { bubbles: true })); })(document.querySelector(".calc-conv-units .calc-sv-item.calc-on input"))');
     check(await converted(page, 'kilometers per liter') === '–', t + '0 L/100 km has no km/L');
-    await page.click('.calc-conv-row[data-i="0"]');
+    await page.click('.calc-conv-units .calc-sv-item.calc-on .calc-sv-tile[data-r="0"]');
     check(await open(page, '.calc-conv'), t + 'and a click on it puts nothing in');
-    await page.hover('.calc-conv-note'); // a click puts a tip away till the pointer leaves
-    await page.hover('.calc-conv-row.calc-none');
-    check(await page.until('!document.querySelector(".calc-peek").hidden && /^Kilometers per literNo value/.test(document.querySelector(".calc-peek").textContent)', 2500) &&
-        await page.calc('document.querySelectorAll(".calc-peek .calc-peek-act").length') === 0,
-        t + 'its tip still says what it is, and that it has no value, with no buttons');
+    await page.hover('.calc-conv-units .calc-sv-item.calc-on .calc-sv-note'); // a click puts a tip away till the pointer leaves
+    await page.hover('.calc-conv-units .calc-sv-item.calc-on .calc-sv-tile.calc-none');
+    await sleep(1500);
+    check(await page.calc('document.querySelector(".calc-peek").hidden'), t + 'it has no tip of a value, as a card\'s with none');
 
     // one panel at a time; Esc closes it
     await page.click('.calc-fx-btn');
@@ -3056,8 +3079,8 @@ async function converter(page, at) {
     await page.click('.calc-conv-btn');
     check(await open(page, '.calc-conv') && await page.calc('document.activeElement.tagName') === 'BODY',
         t + 'on a touch screen the value is left without the focus', await page.calc('document.activeElement.tagName'));
-    await page.click('.calc-conv-value');
-    check(await page.calc('document.activeElement.className') === 'calc-conv-value', t + 'a touch on it gives it the focus');
+    await page.click('.calc-conv-units .calc-sv-item.calc-on input');
+    check(await page.calc('document.activeElement === document.querySelector(".calc-conv-units .calc-sv-item.calc-on input")'), t + 'a touch on it gives it the focus');
     await page.key('Escape', 27);
     await page.send('Emulation.setTouchEmulationEnabled', { enabled: false });
 }
@@ -3065,7 +3088,7 @@ async function converter(page, at) {
 // The converter's dates: a tab beside the units, its cards as the solver's; the time between two
 // dates and a date moved on, a value put in with a click; the tab and the dates kept
 async function convDates(page, at) {
-    var t = at + ': dates: ', on = '.calc-conv .calc-sv-item.calc-on',
+    var t = at + ': dates: ', on = '.calc-conv-datelist .calc-sv-item.calc-on',
         tiles = '[].map.call(document.querySelectorAll("' + on + ' .calc-sv-tile:not(.calc-sv-drawn)"), function (e) {' +
             ' return e.querySelector(".calc-sv-label").textContent + "=" + e.lastChild.textContent; }).join(" | ")',
         note = 'document.querySelector("' + on + ' .calc-sv-note").textContent',
@@ -3080,9 +3103,9 @@ async function convDates(page, at) {
     await page.click('.calc-conv-btn');
     check(await page.calc('[].map.call(document.querySelectorAll(".calc-conv .calc-solve-tab"), function (e) { return e.textContent; }).join(" ")') === 'Units Dates' &&
         await page.calc('document.querySelector(".calc-conv .calc-solve-tab.calc-on").dataset.tab') === 'units', t + 'two tabs, Units on at first');
-    check(await seen('.calc-conv-list') && !await seen('.calc-conv .calc-sv-list'), t + 'the units shown, the dates not');
+    check(await seen('.calc-conv-units') && !await seen('.calc-conv-datelist'), t + 'the units shown, the dates not');
     await page.click('.calc-conv .calc-solve-tab[data-tab="dates"]');
-    check(!await seen('.calc-conv-list') && !await seen('.calc-conv-group') && await seen('.calc-conv .calc-sv-list'), t + 'Dates shows its cards in place of the units');
+    check(!await seen('.calc-conv-units') && !await seen('.calc-conv-search') && await seen('.calc-conv-datelist'), t + 'Dates shows its cards in place of the units');
     check(await page.calc('document.querySelector("' + on + ' .calc-sv-name").textContent') === 'Time between dates' &&
         await page.calc('document.querySelectorAll("' + on + ' .calc-sv-date input").length') === 2, t + 'Time between dates open at first, with two dates');
     check(await page.calc('(function (i) { return i.value === "" && i.placeholder === "Today"; })(document.querySelector("' + on + ' input"))') &&
@@ -3159,7 +3182,7 @@ async function convDates(page, at) {
         await page.calc('document.querySelector("' + on + ' input").value') === '2026-10-12', t + 'the tab and the dates are kept');
 
     // a date moved on: a month from 31 January 2024 is 29 February
-    await page.click('.calc-conv .calc-sv-item:nth-child(2) .calc-sv-row');
+    await page.click('.calc-conv-datelist .calc-sv-item:nth-child(2) .calc-sv-row');
     check(await page.calc('document.querySelectorAll("' + on + ' input").length') === 4, t + 'Add or subtract time: a date and years, months and days');
     await set(0, '2024-01-31');
     await set(2, '1');
@@ -3174,7 +3197,7 @@ async function convDates(page, at) {
     check(/^Before the year 1 or after 9999/.test(await page.calc(note)), t + 'nor past 9999', await page.calc(note));
 
     // Unix time: a timestamp's date and time, of milliseconds too, and the timestamp of a date
-    await page.click('.calc-conv .calc-sv-item:nth-child(4) .calc-sv-row');
+    await page.click('.calc-conv-datelist .calc-sv-item:nth-child(4) .calc-sv-row');
     check(await page.calc('[].map.call(document.querySelectorAll("' + on + ' input"), function (i) { return i.dataset.k; }).join()') === 'ts',
         t + 'Unix time: Unix → Date at first, a box of the timestamp alone');
     await set(0, '1700000000');
@@ -3206,7 +3229,7 @@ async function convDates(page, at) {
 
     // the units again, the value with the focus; Esc closes it
     await page.click('.calc-conv .calc-solve-tab[data-tab="units"]');
-    check(await seen('.calc-conv-list') && !await seen('.calc-conv .calc-sv-list') && await page.calc('document.activeElement.className') === 'calc-conv-value',
+    check(await seen('.calc-conv-units') && !await seen('.calc-conv-datelist') && await page.calc('document.activeElement === document.querySelector(".calc-conv-units .calc-sv-item.calc-on input")'),
         t + 'Units again, the value with the focus');
     await page.key('Escape', 27);
     check(!await open(page, '.calc-conv'), t + 'Esc closes it');
@@ -3217,8 +3240,8 @@ async function convDates(page, at) {
     await page.click('.calc-conv-btn');
     check(await page.calc('document.querySelector(".calc-conv .calc-solve-tab.calc-on").dataset.tab') === 'units', t + 'Reset all shows Units again');
     await page.click('.calc-conv .calc-solve-tab[data-tab="dates"]');
-    check(!await page.calc('document.querySelector(".calc-conv .calc-sv-item.calc-on")'), t + 'Reset all closes the card of the dates open');
-    await page.click('.calc-conv .calc-sv-item:nth-child(1) .calc-sv-row');
+    check(!await page.calc('document.querySelector(".calc-conv-datelist .calc-sv-item.calc-on")'), t + 'Reset all closes the card of the dates open');
+    await page.click('.calc-conv-datelist .calc-sv-item:nth-child(1) .calc-sv-row');
     check(/ \| Days=0 \| /.test(await page.calc(tiles)), t + 'Reset all puts the dates back to today', await page.calc(tiles));
     await page.key('Escape', 27);
 }
@@ -3333,7 +3356,7 @@ async function pick(page, name) {
 
 // the menu of a right click: on the display, in the boxes and on the values of the panels
 async function menus(page, at) {
-    var t = at + ": ", k, box = 'document.querySelector(".calc-conv-value")';
+    var t = at + ": ", k, box = 'document.querySelector(".calc-conv-units .calc-sv-item.calc-on input")';
 
     await page.fresh(at, {});
     await page.rightClick('#box');
@@ -3345,18 +3368,18 @@ async function menus(page, at) {
 
     // a box of a panel: the menu of the calculator, not the browser's
     await page.click('.calc-conv-btn');
-    await page.calc('(function (i) { i.value = "12"; i.dispatchEvent(new Event("input")); i.select(); })(' + box + ')');
+    await page.calc('(function (i) { i.value = "12"; i.dispatchEvent(new Event("input", { bubbles: true })); i.select(); })(' + box + ')');
     await page.calc('window.shown = null, document.addEventListener("contextmenu", function (e) {' +
         ' setTimeout(function () { window.shown = !e.defaultPrevented; }); })');
-    await page.rightClick('.calc-conv-value');
+    await page.rightClick('.calc-conv-units .calc-sv-item.calc-on input');
     check(await page.calc('window.shown') === false, t + 'in a box the menu of the browser stays away');
     check(/^Cut\|Copy\|Paste\|Select all$/.test(await menu(page)), t + 'a box with its text selected has Cut, Copy, Paste and Select all',
         await menu(page));
     await pick(page, 'Cut');
     check(await page.calc(box + '.value') === '' && await open(page, '.calc-conv'), t + 'Cut takes what is selected; the panel stays open',
         await page.calc(box + '.value'));
-    check(await converted(page, 'feet') === '–', t + 'and the list follows');
-    await page.rightClick('.calc-conv-value');
+    check(await converted(page, 'feet') === '3.28083989501', t + 'and the values follow: empty, it is 1 m', await converted(page, 'feet'));
+    await page.rightClick('.calc-conv-units .calc-sv-item.calc-on input');
     check(await menu(page) === '(Cut)|(Copy)|Paste|(Select all)', t + 'an empty box only has Paste', await menu(page));
     await page.click('.calc-menu-box > .calc-off');
     check(await menu(page) !== '', t + 'a line that cannot be done does nothing');
@@ -3364,8 +3387,8 @@ async function menus(page, at) {
     // Paste: the page around the calculator reads the clipboard and gives the text back
     await paste(page, '3\n');
     check(await page.until('((document.getElementById("calc-iframe") || {}).contentDocument || document)' +
-        '.querySelector(".calc-conv-value").value === "3"'), t + 'Paste goes into the box', await page.calc(box + '.value'));
-    check(await shown(page) === '0' && await converted(page, 'feet') !== '–', t + 'not into the equation; the list follows');
+        '.querySelector(".calc-conv-units .calc-sv-item.calc-on input").value === "3"'), t + 'Paste goes into the box', await page.calc(box + '.value'));
+    check(await shown(page) === '0' && await converted(page, 'feet') === '9.84251968504', t + 'not into the equation; the values follow', await converted(page, 'feet'));
     await page.rightClick('.calc-past.calc-conv .calc-past-head span');
     check(await menu(page) === '(Cut)|(Copy)|Paste|Select all', t + 'beside the box, the menu of the box', await menu(page));
     await pick(page, 'Select all');
@@ -3374,15 +3397,15 @@ async function menus(page, at) {
 
     // a value of the converter
     await page.calc('document.addEventListener("copy", function (e) { window.copied = e.clipboardData.getData("text/plain"); })');
-    await page.rightClick('.calc-conv-row[data-i="2"] .calc-conv-num');
+    await page.rightClick('.calc-conv-units .calc-sv-item.calc-on .calc-sv-tile[data-r="1"] .calc-sv-value');
     check(await menu(page) === 'Copy|Copy with unit|Insert|Store in Var', t + 'a value has Copy, Copy with unit and Insert', await menu(page));
     await pick(page, 'Copy with unit');
     check(await page.calc('window.copied') === '300 cm' && await open(page, '.calc-conv'), t + 'Copy with unit takes 300 cm',
         await page.calc('window.copied'));
-    await page.rightClick('.calc-conv-row[data-i="2"]');
+    await page.rightClick('.calc-conv-units .calc-sv-item.calc-on .calc-sv-tile[data-r="1"]');
     await pick(page, 'Copy');
     check(await page.calc('window.copied') === '300', t + 'Copy the number alone', await page.calc('window.copied'));
-    await page.rightClick('.calc-conv-row[data-i="2"]');
+    await page.rightClick('.calc-conv-units .calc-sv-item.calc-on .calc-sv-tile[data-r="1"]');
     await pick(page, 'Insert');
     check(!await open(page, '.calc-conv') && await value(page) === 300, t + 'Insert puts 3 m in as 300 cm', await shown(page));
 
@@ -3438,7 +3461,7 @@ async function menus(page, at) {
     check(await page.calc('document.querySelector(".calc-hist").hidden'), t + 'which empties it');
 
     // what is selected has the shade of the calculator, in a box as in the display
-    check(await page.calc('[document.getElementById("box"), document.querySelector(".calc-conv-value"), ' +
+    check(await page.calc('[document.getElementById("box"), document.querySelector(".calc-conv-units .calc-sv-item.calc-on input"), ' +
         'document.querySelector(".calc-stats-input"), document.querySelector(".calc-fx-search")].every(function (el) {' +
         ' return getComputedStyle(el, "::selection").backgroundColor === "rgba(31, 51, 60, 0.16)"; })'),
         t + 'selected text has the same shade everywhere');
@@ -3808,6 +3831,106 @@ async function options(page) {
 
 // An administrator's policy, which policy.js reads from chrome.storage.managed: the browser
 // is a stub here, with the policy it holds and the listeners told of a change of it
+// Search on the rail, under the calculator, in the tools' own windows only: it finds a card, a formula, an element,
+// and goes there, the card open; another tool's window is asked for, and opens what was found
+async function search(page) {
+    var t = 'search: ', script, found,
+        stub = 'window.sent = []; window.close = function () { window.sent.push("close"); };' +
+            ' Object.defineProperty(window, "chrome", { configurable: true, value:' +
+            ' { runtime: { sendMessage: function (m) { window.sent.push(m); return Promise.resolve(); } } } });',
+        names = 'Array.prototype.map.call(document.querySelectorAll(".calc-find-item"), function (e) { return e.querySelector(".calc-find-name").textContent; }).join(", ")',
+        openCard = function (panel) { return '(document.querySelector(".' + panel + ' .calc-sv-item.calc-on .calc-sv-name") || {}).textContent'; };
+
+    // in the calculator too, beside the history, and Ctrl+K: what is found opens in its panel over the keys
+    await page.fresh('/popup.html', {});
+    check(await page.ev('document.querySelector(".calc-hist").nextElementSibling.classList.contains("calc-find-btn") && document.querySelector(".calc-find-btn").offsetWidth > 0 &&' +
+        ' !document.querySelector(".calc-go-find").offsetWidth'), t + 'beside the history in the calculator, no rail');
+    await page.click('.calc-find-btn');
+    check(await page.ev('document.querySelector(".calc-find-panel").classList.contains("calc-open") && document.querySelector(".calc-find").hidden &&' +
+        ' document.activeElement === document.querySelector(".calc-find-panel .calc-find-input")'), t + 'it opens from the calculator, a panel over the keys');
+    check(await page.ev('document.querySelector(".calc-find-panel .calc-solve-tab").textContent === "Search" && !!document.querySelector(".calc-find-panel .calc-panel-size") &&' +
+        ' document.querySelectorAll(".calc-find-panel .calc-find-icon svg").length === 8 && !document.querySelector(".calc-find-panel .calc-find-where")'),
+        t + 'its head: Search, pop out and close; the tools listed with their icons');
+    await page.type('ohm');
+    await page.type('\r');
+    check(await page.ev(openCard('calc-phys')) === 'Ohm\'s law and power' && await page.ev('document.querySelector(".calc-phys").classList.contains("calc-open") && !document.querySelector(".calc-find-panel").classList.contains("calc-open")'),
+        t + 'a card opens in its panel over the keys', await page.ev(openCard('calc-phys')));
+    await page.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'k', code: 'KeyK', windowsVirtualKeyCode: 75, modifiers: 2 });
+    await sleep(60);
+    check(await page.ev('document.querySelector(".calc-find-panel").classList.contains("calc-open") && !document.querySelector(".calc-phys").classList.contains("calc-open")'), t + 'Ctrl+K opens it in the calculator, the other panel closed');
+    await page.type('fe');
+    await page.type('\r');
+    check(await page.ev('document.querySelector(".calc-chem").classList.contains("calc-open") && !document.querySelector(".calc-find-panel").classList.contains("calc-open")'),
+        t + 'an element opens the table');
+    await page.click('.calc-find-btn');
+    await page.type('golden ratio');
+    await page.type('\r');
+    check(await page.ev('document.querySelector(".calc-fx").classList.contains("calc-open") && /golden/i.test(document.querySelector(".calc-fx-list").textContent)'), t + 'a constant opens the formulas');
+    await page.click('.calc-find-btn');
+    await page.key('Escape', 27);
+    check(await page.ev('!document.querySelector(".calc-find-panel").classList.contains("calc-open")'), t + 'Esc closes it in the calculator');
+    await page.click('.calc-find-btn');
+    await page.click('.calc-find-panel .calc-past-close');
+    check(await page.ev('!document.querySelector(".calc-find-panel").classList.contains("calc-open")'), t + 'its x closes it');
+
+    await page.send('Page.enable');
+    script = (await page.send('Page.addScriptToEvaluateOnNewDocument', { source: stub })).result.identifier;
+
+    // pop out: the big window asked for, on its Calculator tab, which opens the search with what was typed
+    await page.go(page.base + '/popup.html');
+    await page.click('.calc-find-btn');
+    await page.type('ohm');
+    await page.click('.calc-find-panel .calc-panel-size');
+    found = await page.ev('localStorage.getItem("findOpen")');
+    check(/"open-home"/.test(await page.ev('JSON.stringify(window.sent)')) && /"q":"ohm"/.test(found), t + 'pop out asks for the big window', found);
+    await page.go(page.base + '/popup.html?calc', [1100, 760]);
+    check(await page.until('!document.querySelector(".calc-find").hidden && document.querySelector(".calc-find-input").value === "ohm"') &&
+        await page.ev('localStorage.getItem("findOpen") === null && document.querySelector(".calc-find-box").contains(document.querySelector(".calc-find-list"))'),
+        t + 'which opens the search beside the rail, with what was typed');
+
+    await page.go(page.base + '/popup.html?panel=phys', [1100, 760]);
+    check(await page.ev('document.querySelector(".calc-go-find").previousElementSibling.dataset.go === "calc" && document.querySelector(".calc-go-find").offsetWidth > 0'),
+        t + 'on the rail, under the calculator');
+    await page.click('.calc-go-find');
+    check(await page.ev('!document.querySelector(".calc-find").hidden && document.activeElement === document.querySelector(".calc-find-input")'), t + 'it opens, to type in');
+    check(await page.ev(names) === 'Formulas, Converter, Graph, Numbers, Solver, Chemistry, Physics, Statistics', t + 'the tools, while nothing is typed', await page.ev(names));
+    await page.type('ohm');
+    check(/^Ohm's law and power, Ohm's law/.test(await page.ev(names)), t + 'the card first, then the formula', await page.ev(names));
+    await page.type('\r');
+    check(await page.ev(openCard('calc-phys')) === 'Ohm\'s law and power' && await page.ev('document.querySelector(".calc-find").hidden') &&
+        await page.ev('JSON.stringify(window.sent)') === '[]', t + 'in the same tool, its card opens, no window asked for', await page.ev('JSON.stringify(window.sent)'));
+    await page.click('.calc-go-find');
+    await page.type('fe');
+    check(/^Iron, /.test(await page.ev(names)), t + 'an element by its symbol first', await page.ev(names));
+    // by the tips too: of a choice of a card, BGN of the payments at the start, and of a tab
+    await page.ev('(function (i) { i.value = "bgn"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-find-input"))');
+    check(/Time value of money/.test(await page.ev(names)), t + 'a card by the tip of one of its choices', await page.ev(names));
+    await page.ev('(function (i) { i.value = "hypotheses"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-find-input"))');
+    check(/^Tests/.test(await page.ev(names)), t + 'a tab by its tip', await page.ev(names));
+    await page.key('Escape', 27);
+    check(await page.ev('document.querySelector(".calc-find").hidden'), t + 'Esc closes it');
+
+    // Ctrl+K, and another tool: its window is asked for, and opens what was found
+    await page.send('Input.dispatchKeyEvent', { type: 'rawKeyDown', key: 'k', code: 'KeyK', windowsVirtualKeyCode: 75, modifiers: 2 });
+    await sleep(60);
+    check(await page.ev('!document.querySelector(".calc-find").hidden'), t + 'Ctrl+K opens it');
+    await page.type('paired');
+    await page.key('ArrowDown', 40);
+    await page.key('ArrowUp', 38);
+    await page.type('\r');
+    found = await page.ev('localStorage.getItem("found")');
+    check(/"go-window","to":"stats"/.test(await page.ev('JSON.stringify(window.sent)')) && /"id":"paired"/.test(found), t + 'another tool\'s window asked for', found);
+    await page.go(page.base + '/popup.html?panel=stats', [1100, 760]);
+    check(await page.until(openCard('calc-stats') + ' === "Paired t-test"') && await page.ev('localStorage.getItem("found")') === null,
+        t + 'which opens the card, on its tab', await page.ev(openCard('calc-stats')));
+
+    // a window of the tool open already hears it, as the extension brings it up
+    await page.ev('(function (v) { localStorage.setItem("found", v); dispatchEvent(new StorageEvent("storage", { key: "found", newValue: v })); })' +
+        '(JSON.stringify({ hit: { go: "stats", kind: "tab", tab: "pairs" }, at: Date.now() }))');
+    check(await page.until('document.querySelector(".calc-stats .calc-solve-tab.calc-on").dataset.tab === "pairs"'), t + 'an open window takes it');
+    await page.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: script });
+}
+
 async function adminPolicy(page) {
     var t = 'policy: ', script, shut = 'document.defaultView.shut.length',
         stub = 'window.managed = { graph: false, detachedMode: false }; window.changed = []; window.shut = [];' +
@@ -3915,6 +4038,7 @@ async function adminPolicy(page) {
         await graphMany(page, '/popup.html');
         await graphSlide(page, '/popup.html');
         await graphBig(page, '/popup.html');
+        await search(page);
         await menus(page, '/popup.html');
         await options(page);
         await adminPolicy(page);

@@ -123,6 +123,7 @@
 }
 
 #calculator .calc-hist,
+#calculator .calc-find-btn,
 #calculator .calc-stat-btn,
 #calculator .calc-fx-btn,
 #calculator .calc-conv-btn,
@@ -144,12 +145,19 @@
     display: none;
 }
 
+/* beside the rail, which has its own */
+#calculator.calc-home .calc-find-btn {
+    display: none;
+}
+
 #calculator .calc-tools svg {
     display: block;
 }
 
 #calculator .calc-hist:hover,
 #calculator .calc-hist.calc-on,
+#calculator .calc-find-btn:hover,
+#calculator .calc-find-btn.calc-on,
 #calculator .calc-stat-btn:hover,
 #calculator .calc-stat-btn.calc-on,
 #calculator .calc-fx-btn:hover,
@@ -171,6 +179,7 @@
 }
 
 #calculator .calc-hist:active,
+#calculator .calc-find-btn:active,
 #calculator .calc-stat-btn:active,
 #calculator .calc-fx-btn:active,
 #calculator .calc-conv-btn:active,
@@ -3082,13 +3091,32 @@
 
 /* ---------- converter ---------- */
 
-/* its two tabs: the units, or the dates in cards, as the solver has them */
-#calculator .calc-conv:not(.calc-conv-dates) .calc-sv-list,
-#calculator .calc-conv-dates .calc-conv-group,
-#calculator .calc-conv-dates .calc-conv-from,
-#calculator .calc-conv-dates .calc-conv-note,
-#calculator .calc-conv-dates .calc-conv-list {
+/* its two tabs: the units, or the dates, each a list of cards as the solver has; the search above the units. Its
+   list beside the card shown too, popped out (below) */
+#calculator .calc-conv .calc-sv-list[hidden],
+#calculator .calc-conv-units .calc-sv-item[hidden],
+#calculator .calc-conv-units .calc-sv-row[hidden] {
     display: none;
+}
+
+/* under the search, no room above its cards but the search's own */
+#calculator .calc-conv-search + .calc-conv-units {
+    padding-top: 0;
+}
+
+/* the card the arrows are on in the search, which Enter opens */
+#calculator .calc-conv-units .calc-sv-row.calc-lit {
+    background: #a3bdaf;
+}
+
+/* nothing found */
+#calculator .calc-conv-units.calc-none-found::before {
+    content: 'No group or unit found.';
+    display: block;
+    padding: 6px 4px;
+    color: #acb4c1;
+    font-size: 12px;
+    line-height: 15px;
 }
 
 /* a box of a date: its button for the calendar inside it, at the right */
@@ -3296,9 +3324,8 @@
     background: #98b3a5;
 }
 
-/* what to convert, and the value with its unit: boxes like the search */
-#calculator .calc-conv-pick,
-#calculator .calc-conv-value {
+/* a list to choose from: a box like the search */
+#calculator .calc-conv-pick {
     min-width: 0;
     border: 0;
     border-radius: 5px;
@@ -3329,45 +3356,16 @@
     text-overflow: ellipsis;
 }
 
-#calculator .calc-conv-group {
-    margin: 8px 8px 0;
-    font-weight: 700;
-}
-
-#calculator .calc-conv-from {
-    display: flex;
-    gap: 7px;
-    margin: 7px 8px 9px;
-}
-
-#calculator .calc-conv-value {
-    flex: 1;
-    padding: 5px 9px;
-    font-size: 16px;
-    -webkit-user-select: text;
-    user-select: text;
-}
-
-#calculator .calc-conv-unit {
-    flex: 0 1 50%;
-}
-
 #calculator .calc-conv-pick:hover,
 #calculator .calc-conv-pick.calc-on {
     background-color: #b3cdbf;
 }
 
-#calculator .calc-conv-pick:focus,
-#calculator .calc-conv-value:focus {
+#calculator .calc-conv-pick:focus {
     box-shadow: 0 0 0 2px #c9e0d3;
 }
 
-#calculator .calc-conv-value:focus {
-    background: #b3cdbf;
-}
-
-/* the open list: a piece of display under it, at least as wide; the one of the
-   unit grows to the left, where there is room */
+/* the open list: a piece of display under it, at least as wide */
 #calculator .calc-conv-menu {
     position: absolute;
     z-index: 2;
@@ -3383,13 +3381,6 @@
     box-shadow: 0 0 0 1px #8eab9b, 0 6px 18px rgba(0, 0, 0, 0.45);
     font-weight: 400;
     cursor: default;
-}
-
-#calculator .calc-conv-unit .calc-conv-menu {
-    left: auto;
-    right: 0;
-    width: max-content;
-    max-width: 280px;
 }
 
 /* where there is more room over its box than under it */
@@ -3436,121 +3427,6 @@
 #calculator .calc-conv-chosen sup {
     font-size: 9px;
     line-height: 0;
-}
-
-/* not a number the calculator can read */
-#calculator .calc-conv-value.calc-bad {
-    box-shadow: 0 0 0 2px #d86672;
-}
-
-/* what to do, or why nothing is shown */
-#calculator .calc-conv-note {
-    min-height: 15px;
-    margin: 6px 12px 4px;
-    overflow: hidden;
-    color: #acb4c1;
-    font-size: 12px;
-    line-height: 15px;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-}
-
-#calculator .calc-conv-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 0 8px;
-}
-
-#calculator .calc-conv-list::-webkit-scrollbar {
-    width: 6px;
-}
-
-#calculator .calc-conv-list::-webkit-scrollbar-thumb {
-    background: #6b8196;
-    border-radius: 3px;
-}
-
-/* the value in another unit: its symbol over its name, and the value; a click puts it in */
-#calculator .calc-conv-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 6px;
-    padding: 4px 9px 3px;
-    border-radius: 5px;
-    background: #b6d1c2;
-    color: #000;
-    cursor: pointer;
-}
-
-#calculator .calc-conv-row:hover {
-    background: #a3bdaf;
-}
-
-#calculator .calc-conv-row:active {
-    background: #98b3a5;
-}
-
-/* no value: nothing to put in */
-#calculator .calc-conv-row.calc-none {
-    cursor: default;
-    background: #b6d1c2;
-}
-
-#calculator .calc-conv-col {
-    flex: 0 1 auto;
-    min-width: 60px;
-}
-
-#calculator .calc-conv-sym,
-#calculator .calc-conv-name,
-#calculator .calc-conv-num {
-    display: block;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-}
-
-#calculator .calc-conv-sym {
-    font-size: 14px;
-    line-height: 18px;
-}
-
-#calculator .calc-conv-name {
-    color: #33443b;
-    font-size: 11px;
-    line-height: 14px;
-}
-
-/* the value takes the room left, and keeps its digits first */
-#calculator .calc-conv-num {
-    flex: 1 0 auto;
-    max-width: 70%;
-    margin-left: auto;
-    font-size: 17px;
-    line-height: 22px;
-    text-align: right;
-}
-
-#calculator .calc-conv-sym sup,
-#calculator .calc-conv-num sup {
-    font-size: 9px;
-    line-height: 0;
-}
-
-/* insert, as a constant has it: its room at the right of every row is kept, so the
-   values do not move; it shows while the pointer is over a row that has a value */
-#calculator .calc-conv-row .calc-fx-put {
-    flex: none;
-    width: 18px;
-    height: 18px;
-    margin: 0 -6px 0 -8px; /* close to the value and to the edge */
-    opacity: 0.45;
-    visibility: hidden;
-}
-
-#calculator .calc-conv-row:not(.calc-none):hover .calc-fx-put {
-    visibility: visible;
 }
 
 /* ---------- the letters A to J, the Variables tab of the formulas ---------- */
@@ -4886,6 +4762,34 @@
     font-size: 13px;
 }
 
+/* what is under its name: too long, it scrolls, no higher than the room by its key (--room, of main.js)
+   nor than this; the tip then takes the pointer, to scroll it */
+#calculator .calc-tip-body {
+    max-height: min(220px, var(--room, 220px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+#calculator .calc-tip.calc-tip-scrolls {
+    pointer-events: auto;
+}
+
+#calculator .calc-tip-scrolls .calc-tip-body {
+    margin-right: -6px;
+    padding-right: 6px;
+    scrollbar-width: thin;
+    scrollbar-color: #4d6b80 transparent;
+}
+
+#calculator .calc-tip-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+#calculator .calc-tip-body::-webkit-scrollbar-thumb {
+    background: #4d6b80;
+    border-radius: 3px;
+}
+
 /* the function 2nd gave the key */
 #calculator .calc-tip-2nd {
     padding: 0 4px;
@@ -4948,6 +4852,10 @@
     width: 16.172px;
     height: 8.086px;
     margin-left: -8.086px;
+}
+
+#calculator:is(.calc-panel-big, .calc-big) .calc-tip-body {
+    max-height: min(320px, var(--room, 320px));
 }
 
 #calculator:is(.calc-panel-big, .calc-big) .calc-tip-head {
@@ -5973,7 +5881,7 @@
    to go (main.js, goTo), as a mail app has. The bars across the top are the tools' own tabs alone, and the plot, the
    table and the cards keep all of the height. Each tool its icon, in a box with corners a little round, lit as it
    is pointed at, the one shown in the blue of the bar of the tabs, lighter; its name under it on a wide page,
-   alone its icon on a narrow one. The calculator first, a faint line under it. It is beside the calculator, not in
+   alone its icon on a narrow one. The calculator first, then Search, a faint line under them. It is beside the calculator, not in
    it, which may be scaled */
 .calc-go {
     display: none;
@@ -6083,11 +5991,11 @@
     cursor: default;
 }
 
-.calc-go .calc-go-item[data-go="calc"] {
+.calc-go .calc-go-find {
     margin-bottom: 9px;
 }
 
-.calc-go .calc-go-item[data-go="calc"]::before {
+.calc-go .calc-go-find::before {
     content: '';
     position: absolute;
     right: 5px;
@@ -6169,11 +6077,11 @@
         padding: 7px 3px 5px; /* a little room round the name */
     }
 
-    .calc-go .calc-go-item[data-go="calc"] {
+    .calc-go .calc-go-find {
         margin-bottom: 9px;
     }
 
-    .calc-go .calc-go-item:is([data-go="calc"], [data-tab="options"])::before {
+    .calc-go .calc-go-item:is(.calc-go-find, [data-tab="options"])::before {
         right: 8px;
         left: 8px;
     }
@@ -6230,12 +6138,12 @@
         box-sizing: border-box;
     }
 
-    .calc-go .calc-go-item[data-go="calc"] {
+    .calc-go .calc-go-find {
         margin-bottom: 0;
         margin-right: 9px;
     }
 
-    .calc-go .calc-go-item[data-go="calc"]::before {
+    .calc-go .calc-go-find::before {
         top: 6px;
         right: -7px;
         bottom: 6px;
@@ -6264,6 +6172,328 @@
         top: calc(40px + env(safe-area-inset-top));
         padding-top: 4px;
     }
+}
+
+/* Search of the rail open: lit as the tool shown is */
+.calc-go .calc-go-item.calc-find-on {
+    opacity: 1;
+    background: #4e6378;
+    color: #fff;
+}
+
+/* Search of the rail, and of the button beside the history (main.js): over all of the window, darkened, a box at the top in the middle in the calculator's
+   blue, as the palette of a code editor; its search in the green of the display, what it finds under it, each on a
+   piece of display as the cards are, its name, where it is at the right, and its formula under it. Not zoomed with the
+   tools, as it is over them */
+.calc-find {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 40; /* over the options of the rail as well */
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    box-sizing: border-box;
+    padding: calc(9vh + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+    background: rgba(22, 32, 44, 0.5);
+    font-family: 'Play', 'Russo One', sans-serif;
+    text-align: left;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.calc-find[hidden] {
+    display: none;
+}
+
+.calc-find-box {
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    width: 700px;
+    max-width: 100%;
+    max-height: 100%;
+    overflow: hidden;
+    border: 2px solid #4d5368;
+    border-radius: 14px;
+    background: #3a5872;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+    color: #d3d9e2;
+}
+
+.calc-find-bar {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 10px;
+    margin: 14px;
+    padding: 0 14px;
+    border-radius: 9px;
+    background: #a9c4b5;
+    color: #33443b;
+    cursor: text;
+}
+
+.calc-find-bar:focus-within {
+    background: #b3cdbf;
+    box-shadow: 0 0 0 2px #c9e0d3;
+}
+
+.calc-find-bar svg {
+    flex: none;
+    opacity: 0.75;
+}
+
+/* 16px at least, or a phone zooms in on it as it is typed in */
+.calc-find-input {
+    flex: 1;
+    min-width: 0;
+    padding: 13px 0;
+    border: 0;
+    outline: none;
+    background: transparent;
+    color: #000;
+    font: 19px/24px 'Play', 'Russo One', sans-serif;
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+.calc-find-input::placeholder {
+    color: #5b7768;
+}
+
+.calc-find-bar kbd {
+    flex: none;
+    padding: 1px 6px;
+    border: 1px solid rgba(51, 68, 59, 0.4);
+    border-radius: 5px;
+    font: 12px/16px 'Play', 'Russo One', sans-serif;
+}
+
+.calc-find-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0 14px 14px;
+}
+
+.calc-find-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.calc-find-list::-webkit-scrollbar-thumb {
+    border-radius: 3px;
+    background: #6b8196;
+}
+
+.calc-find-head {
+    margin: 2px 2px 8px;
+    color: #acb4c1;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.calc-find-none {
+    margin: 16px 4px 8px;
+    color: #acb4c1;
+    font-size: 15px;
+    text-align: center;
+}
+
+.calc-find-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 6px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: #b6d1c2;
+    color: #000;
+    cursor: pointer;
+}
+
+/* the one Enter goes to: darker, ringed */
+.calc-find-item.calc-on {
+    background: #a3bdaf;
+    box-shadow: inset 0 0 0 2px #e2eee7;
+}
+
+/* the icon of its tool, as on the rail */
+.calc-find-icon {
+    flex: none;
+    color: #33443b;
+    opacity: 0.7;
+}
+
+.calc-find-icon svg {
+    display: block;
+    width: 18px;
+    height: 18px;
+}
+
+.calc-find-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.calc-find-top {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+}
+
+.calc-find-name,
+.calc-find-where,
+.calc-find-sub {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.calc-find-name {
+    flex: 1;
+    min-width: 0;
+    font-size: 17px;
+    line-height: 23px;
+}
+
+.calc-find-where {
+    flex: none;
+    max-width: 45%;
+    color: #4d6157;
+    font-size: 13px;
+}
+
+.calc-find-sub {
+    display: block;
+    margin-top: 2px;
+    color: #33443b;
+    font-size: 14px;
+    line-height: 20px;
+}
+
+.calc-find-item :is(sup, sub) {
+    font-size: 0.75em;
+    line-height: 0;
+}
+
+.calc-find-gap {
+    margin: 0 7px;
+    font-style: normal;
+    opacity: 0.55;
+}
+
+/* a formula on one line: a fraction as (a)/(b), a root as √(…) */
+.calc-find-sub .calc-fr > span::before {
+    content: '(';
+}
+
+.calc-find-sub .calc-fr > span::after {
+    content: ')';
+}
+
+.calc-find-sub .calc-fr > span + span::before {
+    content: '/(';
+}
+
+.calc-find-sub .calc-root::before {
+    content: '√(';
+}
+
+.calc-find-sub .calc-root::after {
+    content: ')';
+}
+
+/* on a phone, under the bar across the top, a little nearer it */
+@media (max-width: 743px) {
+    .calc-find {
+        padding-top: calc(48px + env(safe-area-inset-top));
+        padding-right: calc(8px + env(safe-area-inset-right));
+        padding-left: calc(8px + env(safe-area-inset-left));
+    }
+}
+
+/* From the calculator, not popped out: a panel over the keys as the history is, smaller, as the calculator is; its box
+   and list moved into it (main.js) */
+#calculator .calc-find-panel {
+    padding-bottom: 0;
+}
+
+#calculator .calc-find-panel .calc-find-bar {
+    gap: 7px;
+    margin: 8px 8px 6px;
+    padding: 0 9px;
+    border-radius: 7px;
+}
+
+#calculator .calc-find-panel .calc-find-bar svg {
+    width: 14px;
+    height: 14px;
+}
+
+#calculator .calc-find-panel .calc-find-input {
+    padding: 6px 0;
+    font-size: 16px; /* not less, or a phone zooms in on it */
+    line-height: 20px;
+}
+
+#calculator .calc-find-panel .calc-find-bar kbd {
+    padding: 0 4px;
+    font-size: 10px;
+    line-height: 14px;
+}
+
+#calculator .calc-find-panel .calc-find-list {
+    padding: 0 8px 8px;
+}
+
+#calculator .calc-find-panel .calc-find-head {
+    margin: 0 2px 5px;
+    font-size: 11px;
+}
+
+#calculator .calc-find-panel .calc-find-none {
+    margin: 10px 4px 6px;
+    font-size: 13px;
+}
+
+#calculator .calc-find-panel .calc-find-item {
+    gap: 8px;
+    margin-bottom: 4px;
+    padding: 5px 8px;
+    border-radius: 6px;
+}
+
+#calculator .calc-find-panel .calc-find-icon svg {
+    width: 14px;
+    height: 14px;
+}
+
+#calculator .calc-find-panel .calc-find-top {
+    gap: 8px;
+}
+
+#calculator .calc-find-panel .calc-find-name {
+    font-size: 13px;
+    line-height: 17px;
+}
+
+#calculator .calc-find-panel .calc-find-where {
+    font-size: 10px;
+}
+
+#calculator .calc-find-panel .calc-find-sub {
+    margin-top: 1px;
+    font-size: 11px;
+    line-height: 15px;
+}
+
+#calculator .calc-find-panel .calc-find-gap {
+    margin: 0 5px;
 }
 
 /* with a faint line under it, as under the table's own window; pop in and close at the top right where the
@@ -7024,12 +7254,55 @@
     gap: 8px;
 }
 
-/* where the cards were in the middle of the page, no wider than 1280px: the rows 340px, 8px, the scrollbar 6px */
+/* the list's width: as wide as the line beside it is dragged (--calc-side-w, main.js sideWidth), else 376px; as
+   the window narrows, never more than half of it nor what leaves the card 420px, and never less for it than 376px.
+   Where it is used, the % of the panel */
+#calculator {
+    --calc-side: min(var(--calc-side-w, 376px), max(376px, min(50%, 100% - 456px)));
+}
+
+/* at the left of the page, as the big graph's boxes: the rows 340px, 8px, the scrollbar 6px */
 #calculator.calc-panel-big .calc-big-on :is(.calc-sv-list, .calc-fx-list).calc-side {
-    width: 376px;
+    width: var(--calc-side);
     max-width: none;
-    margin-left: max(0px, (100% - 1280px) / 2);
+    margin-left: 0;
     padding: 12px 8px 12px 22px;
+    overflow-x: hidden; /* dragged wider, the one chosen, a little bigger, has no scrollbar under the list */
+}
+
+/* the line between the list and the card, as the big graph's: over the room between them, from under the head,
+   shown as it is pointed at or dragged; only with the list beside the card */
+#calculator .calc-side-split {
+    display: none;
+}
+
+#calculator.calc-panel-big .calc-big-on:has(> .calc-side) > .calc-side-split {
+    display: block;
+    position: absolute;
+    z-index: 1;
+    top: 34px;
+    bottom: 10px;
+    left: calc(var(--calc-side) + 1px);
+    width: 12px;
+    cursor: col-resize;
+    touch-action: none;
+}
+
+#calculator .calc-side-split::after {
+    content: '';
+    display: block;
+    width: 2px;
+    height: 100%;
+    margin: 0 auto;
+    border-radius: 1px;
+    background: #8aa0b5;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+#calculator .calc-side-split:hover::after,
+#calculator .calc-side-split.calc-on::after {
+    opacity: 1;
 }
 
 #calculator .calc-side > :is(.calc-sv-item, .calc-fx-item) {
@@ -7076,14 +7349,14 @@
 }
 
 /* out of the list, in the panel: it stays where it is as the list scrolls, its top with the list's first row
-   (where it would be, in the list), 14px past the scrollbar, its right side where the cards' room ends; taller
-   than the window, it scrolls itself */
+   (where it would be, in the list), 14px past the scrollbar, its right side 22px from the page's, as the list's
+   left: the whole width the list leaves it; taller than the window, it scrolls itself */
 #calculator .calc-side :is(.calc-sv-form, .calc-fx-form) {
     position: absolute;
     box-sizing: border-box;
-    width: calc(min(100%, 1280px) - 412px);
+    width: calc(100% - var(--calc-side) - 36px);
     max-height: calc(100% - 73px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-    margin-left: 368px;
+    margin-left: calc(var(--calc-side) - 8px);
     padding: 0 20px 16px;
     overflow-x: hidden;
     overflow-y: auto;
@@ -7178,7 +7451,7 @@
     line-height: 18px;
 }
 
-#calculator.calc-panel-big .calc-big-on :is(.calc-fx-search, .calc-conv-value) {
+#calculator.calc-panel-big .calc-big-on .calc-fx-search {
     padding: 7px 11px;
     border-radius: 6px;
     font-size: 14px;
@@ -7293,64 +7566,26 @@
     padding-bottom: 3px;
 }
 
-/* The units popped out: no wider than reads well, in the middle; on a wide page the values in two columns */
-#calculator.calc-panel-big .calc-conv.calc-big-on :is(.calc-conv-group, .calc-conv-from, .calc-conv-note, .calc-conv-list) {
-    width: calc(100% - 44px);
-    max-width: 960px;
-    margin-right: auto;
-    margin-left: auto;
-    box-sizing: border-box;
-}
-
-#calculator.calc-panel-big .calc-conv.calc-big-on .calc-conv-group {
-    margin-top: 8px;
-}
-
-/* on a phone or a small tablet, in one column, as little room as popped in */
-@media (max-width: 759px) {
-    #calculator.calc-panel-big .calc-conv.calc-big-on :is(.calc-conv-group, .calc-conv-from) {
-        width: calc(100% - 16px);
-    }
-
-    #calculator.calc-panel-big .calc-conv.calc-big-on .calc-conv-note {
-        width: calc(100% - 24px);
-    }
-
-    #calculator.calc-panel-big .calc-conv.calc-big-on .calc-conv-list {
-        width: 100%;
-    }
-}
-
-@media (min-width: 760px) {
-    #calculator.calc-panel-big .calc-conv:not(.calc-conv-dates).calc-big-on .calc-conv-list {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        align-content: start;
-        gap: 8px 16px;
-        padding: 4px 0 8px;
-    }
-
-    #calculator.calc-panel-big .calc-conv.calc-big-on .calc-conv-row {
-        margin: 0;
-    }
-
-    /* the search of the formulas above their list, as wide as it, its top with the card's: the list under it,
-       apart from it, the formulas scrolling in the list alone and not behind the search */
-    #calculator.calc-panel-big .calc-fx.calc-big-on:has(.calc-fx-list.calc-side) .calc-fx-search {
-        width: 340px;
+    /* the search of the formulas, and of the units, above their list, as wide as it, its top with the card's: the
+       list under it, apart from it, the cards scrolling in the list alone and not behind the search */
+    #calculator.calc-panel-big .calc-fx.calc-big-on:has(.calc-fx-list.calc-side) .calc-fx-search,
+    #calculator.calc-panel-big .calc-conv.calc-big-on:has(.calc-conv-units.calc-side) .calc-conv-search {
+        width: calc(var(--calc-side) - 36px);
         max-width: none;
         margin-top: 12px;
         margin-bottom: 8px;
-        margin-left: calc(max(0px, (100% - 1280px) / 2) + 22px);
+        margin-left: 22px;
     }
 
     /* room at the top for the one chosen, a little bigger */
-    #calculator.calc-panel-big .calc-fx.calc-big-on .calc-fx-list.calc-side {
+    #calculator.calc-panel-big .calc-fx.calc-big-on .calc-fx-list.calc-side,
+    #calculator.calc-panel-big .calc-conv.calc-big-on .calc-conv-units.calc-side {
         padding-top: 4px;
     }
 
     /* the card up by the search (32px), the room under it and the list's own: its top with the search's */
-    #calculator .calc-fx-list.calc-side .calc-fx-form {
+    #calculator .calc-fx-list.calc-side .calc-fx-form,
+    #calculator .calc-conv-units.calc-side .calc-sv-form {
         margin-top: -44px;
     }
 

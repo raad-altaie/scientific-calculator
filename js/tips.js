@@ -110,9 +110,9 @@
 
         // the formulas and constants
         'formulas': {
-            t: 'Vars, formulas and constants',
-            d: 'The letters A to J, each holding a value to use in the equation. Well-known formulas: fill in their letters to put the equation into the display, where you can ' +
-                'still change it before =. And constants of math and science, to put in as a number. Search to find one.',
+            t: 'Formulas, constants and vars',
+            d: 'Well-known formulas: fill in their letters to put the equation into the display, where you can still change it before =. ' +
+                'Constants of math and science, to put in as a number. Search to find one. And the letters A to J, each holding a value to use in the equation.',
             k: ''
         },
         'STO': {
@@ -362,11 +362,9 @@
         },
         'phys': {
             t: 'Physics',
-            d: 'Circuits and electronics, from the resistor colour code to wires, batteries, transistors, LEDs and the 555; motion, projectiles, ' +
-                'circular motion, pendulums and rotation; forces, slopes, collisions, impulse, energy, torque, gravitation, drag, charges, magnetic ' +
-                'fields and induction; waves, standing waves, lenses, refraction, interference, polarisation, the Doppler effect, photons and decibels; ' +
-                'heat, gas molecules, engines, stress and fluids; and modern and quantum physics, from E = mc² and binding energy to the uncertainty ' +
-                'principle, tunnelling and decay. Many draw what they work out. Click a number to put it in.',
+            d: 'Electronics, from the resistor colour code to transistors and the 555; motion and rotation; forces, energy and fields; ' +
+                'waves, light and sound; heat and fluids; and modern physics, from E = mc² to decay. ' +
+                'Click a number to put it in.',
             k: ''
         },
         'phys close': {
@@ -1037,6 +1035,22 @@
             t: 'Close the history',
             d: 'A click anywhere outside it closes it as well.',
             k: 'Esc'
+        },
+        'search': {
+            t: 'Search',
+            d: 'Every tool: its tabs and cards, the formulas and constants, the examples of the graph, the elements and the units, ' +
+                'by their names and their tips. Enter or a click opens the one found.',
+            k: 'Ctrl+K'
+        },
+        'search close': {
+            t: 'Close the search',
+            d: 'A click anywhere outside it closes it as well.',
+            k: 'Esc'
+        },
+        'search big': {
+            t: 'Pop out',
+            d: 'The search in the big window, beside the rail of the tools, with what you typed.',
+            k: ''
         },
         'history export': {
             t: 'Export the history',
