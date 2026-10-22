@@ -826,7 +826,7 @@
             '.calc-graph-fn > .calc-graph-swatch, ' +
             '.calc-sto, .calc-var-btn, .calc-var-clear, .calc-fx-phys, input, textarea, ' +
             '.calc-stats-chart, .calc-hist, .calc-find-btn, .calc-past-export, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit, .calc-help, .calc-open-big, ' +
-            '.calc-solve .calc-solve-tab, .calc-chem .calc-solve-tab, .calc-stats .calc-solve-tab, .calc-phys .calc-solve-tab, .calc-stats-fitpick, .calc-chem [data-pt], .calc-sv-opt, .calc-sv-copy, .calc-sv-example') || letterIn(target);
+            '.calc-solve .calc-solve-tab, .calc-chem .calc-solve-tab, .calc-stats .calc-solve-tab, .calc-phys .calc-solve-tab, .calc-stats-fitpick, .calc-chem [data-pt], .calc-sv-opt, .calc-sv-copy, .calc-sv-example, .calc-sv-reset') || letterIn(target);
         if (key === tipKey) return;
         hideTip();
         tipKey = key;
@@ -4717,6 +4717,7 @@
             return;
         }
         if (!item) {
+            if (e.target.closest('.calc-sv-reset')) resetFormula(e.target.closest('.calc-fx-form'));
             if (e.target.closest('.calc-fx-insert')) insertFormula(e.target.closest('.calc-fx-item'));
             if (e.target.closest('.calc-fx-phys')) formulaInPhysics(e.target.closest('.calc-fx-item'));
             return;
@@ -4773,7 +4774,26 @@
         e.target.classList.remove('calc-bad');
         note.classList.remove('calc-fx-warn'); // a value changed: the usual note again
         note.innerHTML = note.dataset.usual;
+        fxResetShown(e.target.closest('.calc-fx-form'));
     }, false);
+
+    // Reset of a formula, once something is in its boxes
+    function fxResetShown(form) {
+        form.querySelector('.calc-sv-reset').hidden = ![].some.call(form.querySelectorAll('.calc-fx-fields input'), function (input) { return input.value.trim(); });
+    }
+
+    // every box of a formula emptied, its note as it was, the first box to type in
+    function resetFormula(form) {
+        var note = form.querySelector('.calc-fx-note');
+        [].forEach.call(form.querySelectorAll('.calc-fx-fields input'), function (input) {
+            input.value = '';
+            input.classList.remove('calc-bad');
+        });
+        note.classList.remove('calc-fx-warn');
+        note.innerHTML = note.dataset.usual;
+        fxResetShown(form);
+        focusBox(form.querySelector('.calc-fx-fields input'));
+    }
 
     // a letter's value typed in its box, kept as it is left; a box made empty is 0, and what is no
     // number shows what the letter holds again
@@ -4959,6 +4979,7 @@
         form.className = 'calc-fx-form';
         form.innerHTML = '<div class="calc-sv-side-head"><span class="calc-sv-side-name">' + f.t + '</span>' + item.querySelector('.calc-fx-f').outerHTML + // beside the list, at its top
             '<p class="calc-sv-side-d">' + f.d + '</p></div>' +
+            '<div class="calc-sv-top"><span class="calc-sv-reset" role="button" hidden>Reset' + RESET_ICON + '</span></div>' + // as the cards of the other panels have
             '<div class="calc-fx-fields">' + f.v.map(function (v) {
             return '<label class="calc-fx-var"><span class="calc-fx-sym">' + v[1] + '</span>' +
                 // a keyboard with letters, for A to J as well as numbers
@@ -4974,6 +4995,7 @@
         if (!engine.edit && !engine.error && (engine.done || engine.plain()) && +engine.value) {
             first.value = local(+(+engine.value).toPrecision(13));
         }
+        fxResetShown(form);
         if (!quiet && focusBox(first)) first.select();
         item.firstChild.scrollIntoView({ block: 'nearest' }); // its row: beside the list, the card itself is not in it
     }
@@ -5074,6 +5096,7 @@
         if (el.classList.contains('calc-past-close')) return CalcTips['formulas close'];
         if (el.classList.contains('calc-var-clear')) return CalcTips['letters clear'];
         if (el.classList.contains('calc-fx-phys')) return CalcTips['formula physics'];
+        if (el.classList.contains('calc-sv-reset')) return CalcTips['card reset'];
         if (el.closest('.calc-var')) return letterTip(el);
         if (!el.classList.contains('calc-fx-row')) return null;
         it = fxItems[fxTab][+item.dataset.i].item;
@@ -7534,7 +7557,9 @@
         calLit = 0, // the day lit, whose month is shown
         CAL_FIRST = CalcMaths.dayFrom(1, 1, 1), CAL_LAST = CalcMaths.dayFrom(9999, 12, 31),
         CALENDAR_ICON = '<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">' +
-            '<rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>';
+            '<rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>',
+        RESET_ICON = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">' +
+            '<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>'; // an arrow curling back
 
     calendar.className = 'calc-cal';
     calendar.hidden = true;
@@ -7803,6 +7828,7 @@
             form.className = 'calc-sv-form';
             form.innerHTML = (now.side && now.side() ? '<div class="calc-sv-side-head"><span class="calc-sv-side-name">' + tool.t + '</span><span class="calc-sv-f calc-sv-val">' + pills(tool.f) +
                 '</span><p class="calc-sv-side-d">' + tool.d + '</p></div>' : '') + // beside the list, its name, formula and what it does at its top
+                '<div class="calc-sv-top"><span class="calc-sv-reset" role="button" hidden>Reset' + RESET_ICON + '</span></div>' +
                 '<div class="calc-sv-boxes"></div><div class="calc-sv-note"></div>' + (tool.again ? '<span class="calc-sv-again">Again</span>' : '') +
                 (tool.example ? '<span class="calc-sv-again calc-sv-example" role="button">Example</span>' : '') +
                 '<div class="calc-sv-results">Results</div><div class="calc-sv-grid"></div>';
@@ -7919,6 +7945,7 @@
                 n[f.k] = v;
             });
             out = tool.run(n, raw);
+            item.querySelector('.calc-sv-reset').hidden = !fields.some(function (f) { return !f.head && !f.choice && !f.pick && raw[f.k]; }); // Reset once something is typed
             if (item.querySelector('.calc-sv-example')) { // Example while the boxes are empty: it would type over what is in them
                 item.querySelector('.calc-sv-example').hidden = fields.some(function (f) { return !f.head && !f.choice && raw[f.k]; });
             }
@@ -8044,6 +8071,7 @@
             if (row && now.side && now.side() && row.parentNode.classList.contains('calc-on')) return; // beside the list it stays open
             if (row) return openTool(row.parentNode.classList.contains('calc-on') ? null : row.parentNode);
             if (e.target.closest('.calc-sv-example')) return example(e.target.closest('.calc-sv-item'));
+            if (e.target.closest('.calc-sv-reset')) return reset(e.target.closest('.calc-sv-item'));
             if (e.target.closest('.calc-sv-again')) {
                 svAgain = true;
                 run();
@@ -8062,6 +8090,21 @@
             refresh();
             saveState();
         }, false);
+
+        // every box of a card emptied, at the top of it: its ways chosen and its lists stay as they are
+        function reset(item) {
+            var tool = tools[tab][+item.dataset.i], kept = values[tool.id] || {};
+            fieldsOf(tool, rawOf(tool)).forEach(function (f) {
+                if (!f.head && !f.choice && !f.pick) delete kept[f.k];
+            });
+            Object.keys(kept).forEach(function (k) {
+                if (k.charAt(0) === '@') delete kept[k]; // what was typed in the other ways of the card
+            });
+            boxes(tool, item);
+            run();
+            keep();
+            item.querySelector('.calc-sv-boxes input, .calc-sv-boxes textarea') && focusBox(item.querySelector('.calc-sv-boxes input, .calc-sv-boxes textarea'));
+        }
 
         // a card's example in its boxes, in place of what was typed, with the decimal mark in use
         function example(item) {
@@ -8255,6 +8298,7 @@
                 var tool, open;
                 if (el.classList.contains('calc-sv-opt')) return CalcTips['choice ' + el.parentNode.dataset.k + ' ' + el.dataset.c] || null;
                 if (el.classList.contains('calc-sv-example')) return CalcTips['card example'];
+                if (el.classList.contains('calc-sv-reset')) return CalcTips['card reset'];
                 if (el.classList.contains('calc-sv-copy')) return CalcTips[el.classList.contains('calc-sv-copy-t') ? 'text copy' : el.classList.contains('calc-sv-copy-m') ? 'matrix copy' : 'table copy'];
                 if (!el.classList.contains('calc-sv-row')) return null;
                 tool = tools[tab][+el.parentNode.dataset.i];

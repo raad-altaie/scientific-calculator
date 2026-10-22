@@ -317,6 +317,11 @@
             d: 'Copies the table with its heads, a tab between the numbers, all their digits: it pastes into a spreadsheet, a number in each cell.',
             k: ''
         },
+        'card reset': {
+            t: 'Reset',
+            d: 'Empties every box of the card, to start again. What is chosen stays as it is.',
+            k: ''
+        },
         'card example': {
             t: 'Example',
             d: 'Types an example in the boxes, in place of what is there, to see what the card does: then change any number of it.',

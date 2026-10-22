@@ -242,9 +242,9 @@ html:has(.options-open),
     }
 }
 
-/* there is no window to close: pop in alone */
-.calc-home-acts > .calc-home-close {
-    display: none;
+/* there is no window to close, nor pop in: Standard is chosen in the options */
+.calc-home-acts {
+    display: none !important;
 }
 
 /* the ? of the rail of a tool popped out: the options over it, at every width, over the rail as well */

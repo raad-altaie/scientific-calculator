@@ -116,7 +116,7 @@
 #calculator .calc-tools {
     position: absolute;
     z-index: 2;
-    left: 4px;
+    left: 6px;
     top: 3px;
     display: flex;
     gap: 5px;
@@ -2802,7 +2802,13 @@
 #calculator .calc-sv-choice:has(.calc-band) {
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
-    gap: 2px;
+    gap: 2px clamp(3px, 1.6%, 8px); /* apart a little more as the card is wider */
+}
+
+/* the rows of a card of colours, the colours and Find and Bands too: more room above and below them than a box has.
+   Their line is no box of its own in the grid of the boxes (display: contents), so the room is the choice's */
+#calculator .calc-sv-fields:has(.calc-band) .calc-sv-choice {
+    margin: 3px 0;
 }
 
 /* little room round the colour, never so much it has none: popped out, a little more */
@@ -2813,7 +2819,7 @@
 }
 
 #calculator.calc-panel-big .calc-big-on .calc-sv-choice:has(.calc-band) {
-    gap: 3px;
+    row-gap: 3px;
 }
 
 #calculator.calc-panel-big .calc-big-on .calc-sv-opt:has(.calc-band) {
@@ -3025,6 +3031,7 @@
 #calculator .calc-sv-bitrow {
     display: flex;
     align-items: center;
+    justify-content: center; /* in the middle where the row has room to spare */
     margin: 2px 0;
 }
 
@@ -3054,6 +3061,11 @@
 
 #calculator .calc-sv-bit.calc-sv-nib {
     margin-left: 3.5px; /* 4px from the bit before, with its 0.5px */
+}
+
+/* the wide window has room to spare: a little more between the groups of 4 */
+#calculator.calc-panel-big .calc-big-on .calc-sv-bit.calc-sv-nib {
+    margin-left: 7.5px;
 }
 
 #calculator .calc-sv-bit:hover {
@@ -3091,6 +3103,39 @@
 /* Example: in the middle between the boxes over it and the line of Results under it */
 #calculator .calc-sv-example {
     margin-top: 14.5px; /* as far as the line under it: Results' 8px, and half its 13px */
+}
+
+/* Reset: at the top of a card, at the right, small, once something is typed */
+#calculator .calc-sv-top {
+    display: flex;
+    justify-content: flex-end;
+}
+
+#calculator .calc-sv-reset {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin: -5px 0 6px; /* in the middle between the head of the card and its boxes: 6px above and below */
+    padding: 0 6px;
+    border-radius: 4px;
+    background: rgba(58, 88, 114, 0.1); /* a faint shade of the blue of the buttons */
+    color: #33443b;
+    font-size: 11px;
+    line-height: 17px;
+    opacity: 0.7;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+#calculator .calc-sv-reset:hover {
+    background: rgba(58, 88, 114, 0.2);
+    opacity: 1;
+}
+
+/* nothing typed: not there, but its room kept, so the boxes do not move as it comes */
+#calculator .calc-sv-reset[hidden] {
+    visibility: hidden;
 }
 
 /* Example, once something is typed */

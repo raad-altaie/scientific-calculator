@@ -3841,10 +3841,10 @@ async function search(page) {
         names = 'Array.prototype.map.call(document.querySelectorAll(".calc-find-item"), function (e) { return e.querySelector(".calc-find-name").textContent; }).join(", ")',
         openCard = function (panel) { return '(document.querySelector(".' + panel + ' .calc-sv-item.calc-on .calc-sv-name") || {}).textContent'; };
 
-    // in the calculator too, beside the history, and Ctrl+K: what is found opens in its panel over the keys
+    // in the calculator too, last of the icons beside the history, and Ctrl+K: what is found opens in its panel over the keys
     await page.fresh('/popup.html', {});
-    check(await page.ev('document.querySelector(".calc-hist").nextElementSibling.classList.contains("calc-find-btn") && document.querySelector(".calc-find-btn").offsetWidth > 0 &&' +
-        ' !document.querySelector(".calc-go-find").offsetWidth'), t + 'beside the history in the calculator, no rail');
+    check(await page.ev('document.querySelector(".calc-tools").lastElementChild.classList.contains("calc-find-btn") && document.querySelector(".calc-find-btn").offsetWidth > 0 &&' +
+        ' !document.querySelector(".calc-go-find").offsetWidth'), t + 'last of the icons at the top left in the calculator, no rail');
     await page.click('.calc-find-btn');
     check(await page.ev('document.querySelector(".calc-find-panel").classList.contains("calc-open") && document.querySelector(".calc-find").hidden &&' +
         ' document.activeElement === document.querySelector(".calc-find-panel .calc-find-input")'), t + 'it opens from the calculator, a panel over the keys');
