@@ -131,7 +131,8 @@
 #calculator .calc-solve-btn,
 #calculator .calc-numbers-btn,
 #calculator .calc-chem-btn,
-#calculator .calc-phys-btn {
+#calculator .calc-phys-btn,
+#calculator .calc-bio-btn {
     padding: 2px;
     border-radius: 4px;
     color: #1f333c;
@@ -173,7 +174,9 @@
 #calculator .calc-chem-btn:hover,
 #calculator .calc-chem-btn.calc-on,
 #calculator .calc-phys-btn:hover,
-#calculator .calc-phys-btn.calc-on {
+#calculator .calc-phys-btn.calc-on,
+#calculator .calc-bio-btn:hover,
+#calculator .calc-bio-btn.calc-on {
     opacity: 0.9;
     background: #a3bdaf;
 }
@@ -187,7 +190,8 @@
 #calculator .calc-solve-btn:active,
 #calculator .calc-numbers-btn:active,
 #calculator .calc-chem-btn:active,
-#calculator .calc-phys-btn:active {
+#calculator .calc-phys-btn:active,
+#calculator .calc-bio-btn:active {
     opacity: 0.75;
 }
 
@@ -1855,16 +1859,16 @@
     padding: 0 4px;
 }
 
-/* the physics' six, Electronics the longest of any panel's, closer still */
-#calculator:not(.calc-big):not(.calc-panel-big) .calc-phys .calc-past-head .calc-solve-tabs {
+/* the physics' six, Electronics the longest of any panel's, closer still; and the biology's six */
+#calculator:not(.calc-big):not(.calc-panel-big) :is(.calc-phys, .calc-bio) .calc-past-head .calc-solve-tabs {
     gap: 2px;
 }
 
-#calculator:not(.calc-big):not(.calc-panel-big) .calc-phys > .calc-past-head {
+#calculator:not(.calc-big):not(.calc-panel-big) :is(.calc-phys, .calc-bio) > .calc-past-head {
     gap: 4px;
 }
 
-#calculator:not(.calc-panel-big) .calc-phys .calc-past-head .calc-solve-tab {
+#calculator:not(.calc-panel-big) :is(.calc-phys, .calc-bio) .calc-past-head .calc-solve-tab {
     padding: 0 3px;
 }
 
@@ -2599,6 +2603,234 @@
 #calculator .calc-sv-plot .calc-sv-bold {
     font-weight: bold;
     fill: #33443b;
+}
+
+/* the drawings of the biology: a square of a cross, the counts expected outlined, a chromosome, a gel and its bands,
+   tubes, a plate and its colonies, the codon wheel, its codons and amino acids to click, the one asked ringed red */
+#calculator .calc-sv-shape .calc-bio-sq {
+    stroke: #8eab9b;
+    stroke-width: 1;
+}
+
+#calculator .calc-sv-shape .calc-bio-empty {
+    fill: none;
+}
+
+#calculator .calc-sv-shape .calc-bio-expect {
+    fill: none;
+    stroke: #22476a;
+    stroke-width: 1.2;
+    stroke-dasharray: 3 2;
+}
+
+#calculator .calc-sv-shape .calc-bio-chrom {
+    fill: #d3e5da;
+    stroke: #33443b;
+    stroke-width: 1;
+}
+
+#calculator .calc-sv-shape .calc-bio-ring {
+    fill: #e4efe8;
+    stroke: #8eab9b;
+    stroke-width: 1;
+}
+
+#calculator .calc-sv-shape .calc-bio-cell {
+    stroke: #ffffff;
+    stroke-width: 0.8;
+    cursor: pointer;
+}
+
+#calculator .calc-sv-shape .calc-bio-cell:hover {
+    opacity: 0.75;
+}
+
+/* the words on them are not outlined, and a click goes through a letter to its codon */
+#calculator .calc-sv-shape .calc-bio-cell text {
+    stroke: none;
+}
+
+#calculator .calc-bio-wheel text {
+    pointer-events: none;
+}
+
+#calculator .calc-sv-shape .calc-bio-lit {
+    stroke: #b0414d;
+    stroke-width: 2.2;
+}
+
+#calculator .calc-sv-shape .calc-bio-well {
+    fill: #46564d;
+}
+
+#calculator .calc-sv-shape .calc-bio-band {
+    fill: #f6c35b;
+}
+
+#calculator .calc-sv-plot .calc-bio-arc {
+    stroke-width: 7;
+    stroke-linecap: butt;
+}
+
+#calculator .calc-sv-shape .calc-bio-tube {
+    fill: none;
+    stroke: #33443b;
+    stroke-width: 1.3;
+}
+
+#calculator .calc-sv-shape .calc-bio-tube-in {
+    fill: #e4efe8;
+}
+
+#calculator .calc-sv-shape .calc-bio-agar {
+    fill: #f2e2b8;
+    stroke: #8a7550;
+    stroke-width: 1.5;
+}
+
+#calculator .calc-sv-shape .calc-bio-colony {
+    fill: #fbf7ea;
+    stroke: #a08a5c;
+    stroke-width: 0.6;
+}
+
+#calculator .calc-sv-shape .calc-bio-whisker {
+    fill: none;
+    stroke: #b0414d;
+    stroke-width: 1.6;
+}
+
+#calculator .calc-sv-shape .calc-bio-paper {
+    fill: #fbf7ea;
+    stroke: #a8b8ae;
+    stroke-width: 1;
+}
+
+#calculator .calc-sv-shape .calc-bio-field {
+    fill: #f4f8f5;
+    stroke: #33443b;
+    stroke-width: 1.5;
+}
+
+#calculator .calc-sv-shape .calc-bio-cellc {
+    fill: #d3e5da;
+    stroke: #22476a;
+    stroke-width: 0.8;
+}
+
+#calculator .calc-sv-shape .calc-bio-sol {
+    fill: #cfe8ec;
+    stroke: #8eab9b;
+    stroke-width: 1;
+}
+
+#calculator .calc-sv-shape .calc-bio-cellr {
+    fill: #d3e5da;
+    stroke: #22476a;
+    stroke-width: 1.5;
+}
+
+#calculator .calc-sv-shape .calc-bio-rbc {
+    fill: #c9545c;
+    stroke: #8f2f37;
+    stroke-width: 1.2;
+}
+
+#calculator .calc-sv-shape .calc-bio-dimple {
+    fill: #e07b82;
+}
+
+#calculator .calc-sv-shape .calc-bio-powder {
+    fill: #fbf7ea;
+    stroke: #a09a8a;
+    stroke-width: 1;
+}
+
+#calculator .calc-sv-shape .calc-bio-lcd {
+    fill: #9fe0a8;
+    font-size: 10px;
+}
+
+/* the codon wheel, as tall as it is wide: no bigger than the popup's, popped out */
+#calculator .calc-sv-shape.calc-bio-wheel {
+    max-width: 340px;
+}
+
+/* a sequence among the results, of letters of one width, as many to a line as fit */
+#calculator .calc-sv-tile .calc-bio-seq {
+    font: 12px/17px ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    letter-spacing: 0.02em;
+}
+
+/* an alignment, its three lines kept as they are, scrolling across where the card is narrower */
+#calculator .calc-sv-tile .calc-bio-aln {
+    display: block;
+    overflow-x: auto;
+    white-space: pre;
+    font-size: 11px;
+    line-height: 14px;
+}
+
+/* a pedigree's people and the lines between them, one with it filled; a dot plot's frame and the alignment's path over it;
+   guides and motifs along a strand; SDS-PAGE's pale gel and its stained bands; a plate, its wells empty or with medium */
+#calculator .calc-sv-shape .calc-bio-person {
+    fill: #fbfdfc;
+    stroke: #33443b;
+    stroke-width: 1.3;
+}
+
+#calculator .calc-sv-shape .calc-bio-ill {
+    fill: #46564d;
+}
+
+#calculator .calc-sv-shape .calc-bio-line {
+    fill: none;
+    stroke: #33443b;
+    stroke-width: 1.1;
+}
+
+#calculator .calc-sv-shape .calc-bio-frame {
+    fill: #f4f8f5;
+    stroke: #8eab9b;
+    stroke-width: 1;
+}
+
+#calculator .calc-sv-shape .calc-bio-path {
+    stroke-width: 1.3;
+    opacity: 0.75;
+}
+
+#calculator .calc-sv-shape .calc-bio-mark {
+    stroke-width: 2.6;
+    stroke-linecap: butt;
+}
+
+#calculator .calc-sv-shape .calc-bio-page {
+    fill: #eef2f8;
+    stroke: #a8b8ae;
+    stroke-width: 1;
+}
+
+#calculator .calc-sv-shape .calc-bio-pband {
+    fill: #3b5ba5;
+}
+
+#calculator .calc-sv-shape .calc-bio-hole {
+    fill: #f4f8f5;
+    stroke: #8eab9b;
+    stroke-width: 1.2;
+}
+
+#calculator .calc-sv-shape .calc-bio-well-e {
+    fill: #fbfdfc;
+    stroke: #a8b8ae;
+    stroke-width: 1;
+}
+
+#calculator .calc-sv-shape .calc-bio-medium {
+    fill: #f1b9b0;
+    stroke: #c98276;
+    stroke-width: 1;
 }
 
 /* a time zone's time, big, and its day under it, smaller */

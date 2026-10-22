@@ -2,11 +2,11 @@
 // Online, every file comes from the server, so an update shows at once and the
 // files are never a mix of two versions; the cache is used only without a connection,
 // or on one too slow to wait for (SLOW, below).
-const CACHE = 'calculator-v83';
+const CACHE = 'calculator-v85';
 const FILES = [
     './', 'index.html', 'manifest.webmanifest',
     'css/style.css', 'css/options.css', 'css/site.css',
-    'js/app.js', 'js/engine.js', 'js/formulas.js', 'js/maths.js', 'js/main.js', 'js/options.js', 'js/tips.js', 'js/units.js', 'js/chem.js', 'js/physics.js',
+    'js/app.js', 'js/engine.js', 'js/formulas.js', 'js/maths.js', 'js/main.js', 'js/options.js', 'js/tips.js', 'js/units.js', 'js/chem.js', 'js/physics.js', 'js/biology.js',
     'fonts/Play-Regular.ttf', 'fonts/Play-Bold.ttf',
     'imgs/icon.png', 'imgs/icon128.png', 'imgs/icon-192.png', 'imgs/icon-512.png',
     'imgs/icon-maskable-512.png', 'imgs/apple-touch-icon.png', 'imgs/og-image.png'

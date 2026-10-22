@@ -5,7 +5,7 @@
 // It is kept in localStorage too, as "policy": the calculator reads it there as it opens,
 // before the browser has answered, and the other open pages hear a change as a storage event
 const CalcPolicy = (() => {
-    const keys = ['formulas', 'converter', 'graph', 'statistics', 'solve', 'numbers', 'chemistry', 'physics', 'detachedMode', 'pageButton', 'pageMaths'];
+    const keys = ['formulas', 'converter', 'graph', 'statistics', 'solve', 'numbers', 'chemistry', 'physics', 'biology', 'detachedMode', 'pageButton', 'pageMaths'];
     const listeners = [];
 
     const read = () => {

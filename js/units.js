@@ -335,6 +335,104 @@
                 { s: 'mCi', t: 'millicuries', f: 3.7e7 },
                 { s: 'µCi', t: 'microcuries', f: 3.7e4 }
             ]
+        },
+        {
+            // the energy radiation leaves in a kilogram: the gray, 1 J/kg; the rad of the CGS units a hundredth of it
+            c: 'Absorbed dose', list: [
+                { s: 'Gy', t: 'grays', f: 1 },
+                { s: 'mGy', t: 'milligrays', f: 1e-3 },
+                { s: 'µGy', t: 'micrograys', f: 1e-6 },
+                { s: 'rad', t: 'rads', f: 0.01 },
+                { s: 'mrad', t: 'millirads', f: 1e-5 }
+            ]
+        },
+        {
+            // a dose weighed by the harm of its radiation: the sievert; the rem a hundredth of it
+            c: 'Equivalent dose', list: [
+                { s: 'Sv', t: 'sieverts', f: 1 },
+                { s: 'mSv', t: 'millisieverts', f: 1e-3 },
+                { s: 'µSv', t: 'microsieverts', f: 1e-6 },
+                { s: 'rem', t: 'rems', f: 0.01 },
+                { s: 'mrem', t: 'millirems', f: 1e-5 }
+            ]
+        },
+        {
+            // of the lab: moles in a liter
+            c: 'Molarity', list: [
+                { s: 'M', t: 'molar', f: 1 },
+                { s: 'mM', t: 'millimolar', f: 1e-3 },
+                { s: 'µM', t: 'micromolar', f: 1e-6 },
+                { s: 'nM', t: 'nanomolar', f: 1e-9 },
+                { s: 'pM', t: 'picomolar', f: 1e-12 },
+                { s: 'fM', t: 'femtomolar', f: 1e-15 }
+            ]
+        },
+        {
+            // a mass in a volume, as of DNA or a protein; 1% w/v is 1 g in 100 mL
+            c: 'Mass concentration', list: [
+                { s: 'g/L', t: 'grams per liter', f: 1 },
+                { s: 'mg/mL', t: 'milligrams per milliliter', f: 1 },
+                { s: 'µg/mL', t: 'micrograms per milliliter', f: 1e-3 },
+                { s: 'ng/µL', t: 'nanograms per microliter', f: 1e-3 },
+                { s: 'ng/mL', t: 'nanograms per milliliter', f: 1e-6 },
+                { s: 'pg/mL', t: 'picograms per milliliter', f: 1e-9 },
+                { s: 'mg/L', t: 'milligrams per liter', f: 1e-3 },
+                { s: 'mg/dL', t: 'milligrams per deciliter', f: 1e-2 },
+                { s: 'g/dL', t: 'grams per deciliter', f: 10 },
+                { s: '% w/v', t: 'percent, weight in volume', f: 10 }
+            ]
+        },
+        {
+            // moles, and the molecules they are: a mole is Avogadro's number of them
+            c: 'Amount of substance', list: [
+                { s: 'mol', t: 'moles', f: 1 },
+                { s: 'mmol', t: 'millimoles', f: 1e-3 },
+                { s: 'µmol', t: 'micromoles', f: 1e-6 },
+                { s: 'nmol', t: 'nanomoles', f: 1e-9 },
+                { s: 'pmol', t: 'picomoles', f: 1e-12 },
+                { s: 'fmol', t: 'femtomoles', f: 1e-15 },
+                { s: 'molecules', t: 'molecules', f: 1 / 6.02214076e23 }
+            ]
+        },
+        {
+            // the mass of a molecule: a dalton is a twelfth of a carbon-12 atom's, as a gram a mole is
+            c: 'Molecular mass', list: [
+                { s: 'Da', t: 'daltons', f: 1 },
+                { s: 'kDa', t: 'kilodaltons', f: 1e3 },
+                { s: 'MDa', t: 'megadaltons', f: 1e6 },
+                { s: 'g/mol', t: 'grams per mole', f: 1 },
+                { s: 'u', t: 'unified atomic mass units', f: 1 }
+            ]
+        },
+        {
+            // the length of DNA or RNA, and of a protein's gene: a codon is 3 bases
+            c: 'Sequence length', list: [
+                { s: 'bp', t: 'base pairs', f: 1 },
+                { s: 'kb', t: 'kilobases', f: 1e3 },
+                { s: 'Mb', t: 'megabases', f: 1e6 },
+                { s: 'Gb', t: 'gigabases', f: 1e9 },
+                { s: 'codons', t: 'codons', f: 3 }
+            ]
+        },
+        {
+            // how fast an enzyme works: a unit, U, turns over a µmol a minute; the katal a mole a second
+            c: 'Enzyme activity', list: [
+                { s: 'U', t: 'units', f: 1 },
+                { s: 'mU', t: 'milliunits', f: 1e-3 },
+                { s: 'kat', t: 'katals', f: 6e7 },
+                { s: 'µkat', t: 'microkatals', f: 60 },
+                { s: 'nkat', t: 'nanokatals', f: 0.06 }
+            ]
+        },
+        {
+            // cells, colonies (CFU) or copies in a volume
+            c: 'Count per volume', list: [
+                { s: '/mL', t: 'per milliliter', f: 1 },
+                { s: '/µL', t: 'per microliter', f: 1e3 },
+                { s: '/L', t: 'per liter', f: 1e-3 },
+                { s: '/mm<sup>3</sup>', t: 'per cubic millimeter', f: 1e3 },
+                { s: '/m<sup>3</sup>', t: 'per cubic meter', f: 1e-6 }
+            ]
         }
     ];
 

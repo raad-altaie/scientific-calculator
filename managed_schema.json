@@ -41,6 +41,11 @@
             "description": "false turns off the physics tools, of electronics, motion, forces, waves, matter and modern physics, for everyone, and its option cannot turn it on.",
             "type": "boolean"
         },
+        "biology": {
+            "title": "Biology",
+            "description": "false turns off the biology tools, of genetics, DNA, proteins, the lab, cells and ecology, for everyone, and its option cannot turn it on.",
+            "type": "boolean"
+        },
         "detachedMode": {
             "title": "Detached Mode",
             "description": "false turns off the calculator in a window of its own, and with it the calculator button on every website and the instant answers on every website, which open that window.",

@@ -152,6 +152,21 @@ Formulas.formulas.forEach(function (group) {
     check(linked === 57, 'In Physics: every formula named in it found', linked);
 })();
 
+// and of the Biology panel, the same
+(function () {
+    var linked = 0;
+    Formulas.formulas.forEach(function (group) {
+        group.list.forEach(function (f) {
+            var letters = f.v.map(function (v) { return v[0]; });
+            if (!f.b) return;
+            linked++;
+            check(typeof f.b[0] === 'string' && Object.keys(f.b[1]).length && Object.keys(f.b[1]).every(function (k) { return letters.indexOf(k) > -1; }),
+                f.t + ': In Biology of its own letters', JSON.stringify(f.b));
+        });
+    });
+    check(linked === 31, 'In Biology: every formula named in it found', linked);
+})();
+
 Formulas.constants.forEach(function (group) {
     group.list.forEach(function (k) {
         check(isFinite(k.v) && typeof k.v === 'number', k.t + ': a number');

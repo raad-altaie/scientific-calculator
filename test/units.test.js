@@ -131,7 +131,19 @@ Units.units.forEach(function (group, g) {
     ['Momentum', 'gram centimeters per second', 'kilogram meters per second', 1e5, 1],
     ['Momentum', 'pound feet per second', 'newton seconds', 1, 0.138254954376],
     ['Radioactivity', 'curies', 'gigabecquerels', 1, 37],
-    ['Radioactivity', 'microcuries', 'kilobecquerels', 1, 37]
+    ['Radioactivity', 'microcuries', 'kilobecquerels', 1, 37],
+    ['Absorbed dose', 'rads', 'grays', 100, 1],
+    ['Equivalent dose', 'rems', 'millisieverts', 1, 10],
+    ['Molarity', 'millimolar', 'nanomolar', 1, 1e6],
+    ['Mass concentration', 'nanograms per microliter', 'micrograms per milliliter', 1, 1],
+    ['Mass concentration', 'percent, weight in volume', 'grams per liter', 0.9, 9],
+    ['Mass concentration', 'milligrams per deciliter', 'milligrams per liter', 1, 10],
+    ['Amount of substance', 'picomoles', 'molecules', 1, 6.02214076e11],
+    ['Molecular mass', 'kilodaltons', 'grams per mole', 66.5, 66500],
+    ['Sequence length', 'kilobases', 'codons', 3, 1000],
+    ['Enzyme activity', 'katals', 'units', 1, 6e7],
+    ['Enzyme activity', 'units', 'nanokatals', 1, 1e3 / 60],
+    ['Count per volume', 'per microliter', 'per milliliter', 5, 5000]
 ].forEach(function (c) {
     var got = convert(c[0], c[1], c[2], c[3]);
     // a value written to fewer digits is checked to them
