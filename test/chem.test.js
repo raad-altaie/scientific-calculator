@@ -1,6 +1,6 @@
 // Run with: node test/chem.test.js
 // The elements and the chemistry of chem.js: molar masses, equations balanced, amounts and the
-// limiting reactant, empirical formulas, oxidation numbers and redox, and names
+// limiting reactant, empirical formulas, oxidation numbers and redox, and names; gases and water's vapour
 'use strict';
 
 var Chem = require('../js/chem.js'),
@@ -206,6 +206,24 @@ check(Chem.spectrum('H').every(function (l, i, all) {
     return Math.abs(l.nm * 1.000277 - vac) < 0.05;
 }), 'hydrogen: Balmer\'s lines, n 8 to 3');
 check(Chem.spectrum('Na').filter(function (l) { return l.k === 3; }).map(function (l) { return l.nm; }).join() === '589,589.59', 'sodium: its D lines the strongest');
+
+// gases: a list of them, water's vapour and where it boils, which formulas are gases, γ, and the gases of a molar mass
+check(JSON.stringify(Chem.readGases('N2 0.78, O2 0.21, Ar 1%').list) === '[{"t":"N2","v":0.78},{"t":"O2","v":0.21},{"t":"Ar","v":0.01}]' &&
+    JSON.stringify(Chem.readGases('N2 0,78; O2 0,21', true).list) === '[{"t":"N2","v":0.78},{"t":"O2","v":0.21}]' && Chem.readGases('N2').error === 'N2' && Chem.readGases(' , ').error === '',
+    'readGases: each gas and a number, a decimal comma; what is not read');
+check(JSON.stringify(Chem.readAmounts('C3H8 10 L, O2 500 mL', false, true).list) === '[{"t":"C3H8","v":10,"unit":"l"},{"t":"O2","v":500,"unit":"ml"}]' &&
+    Chem.readAmounts('C3H8 10 L').error === 'C3H8 10 L', 'readAmounts: litres only where asked for');
+check(Math.abs(Chem.waterVapour(25) - 23.76) < 0.1 && Math.abs(Chem.waterVapour(100) - 760) < 0.5 && Math.abs(Chem.waterVapour(20) - 17.54) < 0.1 &&
+    isNaN(Chem.waterVapour(-1)) && isNaN(Chem.waterVapour(101)), 'waterVapour: 23.76 mmHg at 25 °C, 760 at 100 °C, as tables give; none where water is not liquid', Chem.waterVapour(25));
+check(Math.abs(Chem.waterBoils(760) - 100) < 0.01 && Math.abs(Chem.waterBoils(1520) - 120.2) < 1 && Math.abs(Chem.waterBoils(Chem.waterVapour(70)) - 70) < 1e-9 &&
+    isNaN(Chem.waterBoils(0)) && isNaN(Chem.waterBoils(1e6)) && isNaN(Chem.waterBoils(0.003)) && isNaN(Chem.waterBoils(1e9)), 'waterBoils: 100 °C at 1 atm, some 120 °C at 2; none past the critical point', Chem.waterBoils(1520));
+check(Chem.isGas('O2', 25) && Chem.isGas('CH4', 25) && !Chem.isGas('H2O', 25) && Chem.isGas('H2O', 100) && !Chem.isGas('KCl', 25) && Chem.isGas('H2O(g)', 25) && !Chem.isGas('CO2(aq)', 25),
+    'isGas: the common gases; water from 100 °C; a state written decides');
+check(JSON.stringify(Chem.gasOf('Air')) === '{"M":28.965,"gamma":1.4,"air":true}' && Chem.gasOf('CO2').gamma === 1.289 && !Chem.gasOf('CO2').guessed &&
+    Chem.gasOf('HBr').gamma === 1.4 && Chem.gasOf('HBr').guessed && Math.abs(Chem.gasOf('SF6').gamma - 4 / 3) < 1e-12 && Chem.gasOf('Xx').error === 'element',
+    'gasOf: air, a γ kept, or guessed from the atoms');
+check(Chem.gasesNear(32, 0.01).map(function (g) { return g.t; }).join() === 'O2,SiH4' && Chem.gasesNear(28, 0.01).map(function (g) { return g.t; }).join() === 'CO,N2,C2H4' &&
+    Chem.gasesNear(29, 0.01)[0].t === 'air' && !Chem.gasesNear(500, 0.03).length, 'gasesNear: the nearest first', JSON.stringify(Chem.gasesNear(28, 0.01)));
 
 console.log(failures ? failures + ' of ' + checks + ' checks failed' : 'all ' + checks + ' checks passed');
 process.exit(failures ? 1 : 0);

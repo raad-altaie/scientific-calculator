@@ -6518,7 +6518,10 @@
         apy = raw.apy ? n.apy : CalcMaths.effectiveRate(n.apr, n.m);
         if (isNaN(apr) || isNaN(apy)) return { rows: none, warn: true, note: raw.apr ? 'The rate a period, APR ÷ m, is above –100%.' : 'APY is above –100%.' };
         return {
-            rows: [{ l: 'APR %', v: apr }, { l: 'APY %', v: apy }, { l: 'A period %', v: n.m === Infinity ? NaN : CalcMaths.round(apr / n.m) }],
+            rows: drawnTile(apr > -100 && apr ? graphDrawing('APY against how often a year, by its log; all the time thin', 0, Math.log10(365), {
+                fs: [function (x) { return CalcMaths.effectiveRate(apr, Math.pow(10, x)); }, function () { return CalcMaths.effectiveRate(apr, Infinity); }],
+                y: CalcMaths.effectiveRate(apr, Infinity) > apr ? [apr - 0.15 * (CalcMaths.effectiveRate(apr, Infinity) - apr), CalcMaths.effectiveRate(apr, Infinity) + 0.6 * (CalcMaths.effectiveRate(apr, Infinity) - apr)] : undefined, marks: [[Math.log10(12), '12'], [Math.log10(365), '365']], dots: n.m === Infinity ? [] : [[Math.log10(Math.min(365, n.m)), apy]],
+                names: ['', 'APY %'] }) : '', 'APY and how often').concat([{ l: 'APR %', v: apr }, { l: 'APY %', v: apy }, { l: 'A period %', v: n.m === Infinity ? NaN : CalcMaths.round(apr / n.m) }]),
             note: n.m === Infinity ? 'Interest all the time: APY is e to the APR, less 1.' : 'Interest ' + local(String(n.m)) + ' times a year, of APR ÷ m each time.'
         };
     }
@@ -6580,6 +6583,15 @@
                 fields: [{ k: 'e', ph: '0xFF AND 0b1010', fn: true }, { k: 'bits', l: 'Bits', choice: ['8', '16', '32', '64', '128'], at: 2 }], run: runBits, example: { e: '0xFF AND 0b1010' } },
             { id: 'bitview', t: 'Bits', f: 'b<sub>7</sub> … b<sub>1</sub> b<sub>0</sub>', d: 'The bits of a whole number, each turned over with a click; how many are 1, the 0s before and after them, and the highest and lowest bit that is 1. Empty, it is 0, to click a number together.',
                 fields: [{ k: 'e', ph: '0', fn: true }, { k: 'bits', l: 'Bits', choice: ['8', '16', '32', '64', '128'], at: 2 }], run: runBitView, example: { e: '42' } },
+            { id: 'logic', t: 'Truth table', f: ['AB + C\'', 'Σm(1, 3, 5)'], d: 'A function of logic of up to 8 variables: A AND NOT B, AB + C\', two side by side ANDed and \' for NOT, (A + B)(A\' + C), ' +
+                'A XOR B, !a | b & c, NAND, NOR and XNOR; or of its rows, Σm(1, 3, 5) + d(7), d those that may be either, or ΠM(0, 2). F(A, B, C) = before it gives the variables their order. ' +
+                'Its truth table, its minterms and maxterms, and it made as small as it can be, by Quine and McCluskey, as a sum of products and as a product of sums; ' +
+                'of 2 to 4 variables its Karnaugh map drawn, each product ringed.',
+                fields: [{ k: 'e', ph: 'AB + A\'C + BC', fn: true }], run: runLogic, example: { e: 'AB + A\'C + BC' } },
+            { id: 'gray', t: 'Gray code', f: '5 = 0111 in Gray', d: 'A whole number in Gray code, each next one only a bit apart, as an encoder\'s disc is marked so it never reads a step wrong; ' +
+                'or the number of a Gray code, typed as 0b0111. Drawn, the codes about it, the bit that changes to each marked.',
+                fields: [{ k: 'way', l: 'Find', choice: ['Its Gray code', 'Its number'] }, { k: 'e', ph: '5', fn: true }, { k: 'bits', l: 'Bits', choice: ['8', '16', '32', '64'] }], run: runGray,
+                example: function (raw) { return { way: raw.way || '0', e: raw.way === '1' ? '0b0111' : '5' }; } },
             { id: 'float', t: 'IEEE 754', f: '0.1 = 0x3FB999999999999A', d: 'A number as a computer keeps it: a double of 64 bits and a float of 32, in hexadecimal; its sign, exponent and fraction; the number it is, to its last digit, and the gap to the next. Or the bits, 0x3FB999999999999A, for the number.',
                 fields: [{ k: 'x', ph: '0.1', fn: true }], run: runFloat, example: { x: '0.1' } },
             { id: 'anybase', t: 'Any base', f: 'FF.8<sub>16</sub> = 11111111.1<sub>2</sub>', d: 'A number in any base from 2 to 36 written in another, the digits after its point as well: 0.1 in base 10 is 0.0(0011) in base 2, the part in brackets coming again and again. A part in brackets may be typed too.',
@@ -6774,19 +6786,172 @@
         };
     }
 
+    // A function of logic: its products and sums made as small as they can be, its minterms and maxterms, its Karnaugh map
+    // of 2 to 4 variables, and its truth table, X where it may be either
+    function runLogic(n, raw) {
+        var f = raw.e ? CalcMaths.logic(raw.e) : null, r, k, terms, none = [{ l: 'Sum of products', v: NaN, wide: true }, { l: 'Product of sums', v: NaN, wide: true }];
+        if (!f) return { rows: none };
+        if (f.error) {
+            return { rows: none, bad: ['e'], warn: true, note: {
+                expression: (f.at < raw.e.length ? 'Not one at "' + raw.e.slice(f.at, f.at + 8) + '"' : 'It ends too soon') +
+                    ': variables as A, b or x1, with AND OR NOT XOR NAND NOR XNOR, + · \' and brackets; or Σm(1, 3) + d(7).',
+                many: 'Up to 8 variables.', vars: 'F(A, B, C) = names each of its variables once, all that are in it.', range: 'A row\'s number beyond its variables: of 3, they are 0 to 7.'
+            }[f.error] };
+        }
+        r = CalcMaths.minimize(f);
+        k = f.vars.length;
+        terms = function (s, list) { return s + '(' + list.join(', ') + ')'; };
+        return {
+            rows: drawnTile(karnaughDrawing(f, r.sopTerms), 'Karnaugh map').concat([
+                { l: 'Sum of products', text: f.name + ' = ' + r.sop, copy: r.sop, wide: true, wrap: true },
+                { l: 'Product of sums', text: f.name + ' = ' + r.pos, copy: r.pos, wide: true, wrap: true },
+                { l: 'Minterms', text: terms('Σm', r.ones) + (r.either.length ? ' + ' + terms('d', r.either) : ''), wide: true, wrap: true },
+                { l: 'Maxterms', text: terms('ΠM', r.zeros) + (r.either.length ? ' · ' + terms('D', r.either) : ''), wide: true, wrap: true },
+                { l: 'Truth table', m: f.out.map(function (o, row) {
+                    return f.vars.map(function (v, j) { return (row >> (k - 1 - j)) & 1; }).concat(o === null ? 'X' : o);
+                }), head: f.vars.concat(f.name) }
+            ]),
+            note: (r.either.length ? 'X: either, as suits the products. ' : '') + (k > 4 ? 'A Karnaugh map is drawn of 2 to 4 variables.' : k > 1 ? 'Each product ringed on its map.' : '')
+        };
+    }
+
+    // A Karnaugh map of 2 to 4 variables, the first ones down its side and the rest across, each in Gray code's order so
+    // that cells side by side, and at the ends, are a variable apart; each product of terms ringed in a colour of its own,
+    // in two or four pieces where it goes round the edges
+    function karnaughDrawing(f, terms) {
+        var k = f.vars.length, down = k >> 1, across = k - down, rows = 1 << down, cols = 1 << across, cell = 30, W = 300, gx, gy, i,
+            order = function (bits) { return bits === 1 ? [0, 1] : [0, 1, 3, 2]; }, rs, cs, body = '',
+            colours = ['#b0414d', '#2f6fd0', '#2e9e4f', '#e08a24', '#8e44ad', '#c9a227', '#1a9a9a', '#c4458f'];
+        if (k < 2 || k > 4) return '';
+        rs = order(down);
+        cs = order(across);
+        gx = (W - cols * cell) / 2 + 14;
+        gy = 30;
+        function code(v, bits) { return v.toString(2).padStart(bits, '0'); }
+        body += svgText(gx - 8, gy - 8, f.vars.slice(0, down).join('') + ' \\ ' + f.vars.slice(down).join(''), 'end', 'calc-sv-bold');
+        cs.forEach(function (c, j) { body += svgText(gx + (j + 0.5) * cell, gy - 8, code(c, across), 'middle'); });
+        rs.forEach(function (rw, a) {
+            body += svgText(gx - 8, gy + (a + 0.5) * cell + 4, code(rw, down), 'end');
+            cs.forEach(function (c, b) {
+                var o = f.out[(rw << across) | c], x = gx + b * cell, y = gy + a * cell;
+                if (o === 1) body += '<rect class="calc-sv-under" x="' + x + '" y="' + y + '" width="' + cell + '" height="' + cell + '"/>';
+                body += svgText(x + cell / 2, y + cell / 2 + 4.5, o === null ? 'X' : String(o), 'middle', o === 1 ? 'calc-sv-bold' : 'calc-sv-small');
+            });
+        });
+        for (i = 0; i <= rows; i++) body += '<path class="calc-sv-axis" d="M' + gx + ' ' + (gy + i * cell) + 'H' + (gx + cols * cell) + '"/>';
+        for (i = 0; i <= cols; i++) body += '<path class="calc-sv-axis" d="M' + (gx + i * cell) + ' ' + gy + 'V' + (gy + rows * cell) + '"/>';
+        // the places along a side a product is on, in runs side by side: round the end, two
+        function runs(on, n) {
+            var out = [];
+            if (on.every(Boolean)) return [[0, n - 1]];
+            on.forEach(function (x, j) {
+                if (!x) return;
+                if (out.length && out[out.length - 1][1] === j - 1) out[out.length - 1][1] = j;
+                else out.push([j, j]);
+            });
+            return out;
+        }
+        terms.forEach(function (t, g) {
+            var inset = 3 + (g % 3) * 2.5, colour = colours[g % colours.length], rm = (t[1] >> across) & (rows - 1), cm = t[1] & (cols - 1),
+                onRow = rs.map(function (rw) { return (rw & ~rm) === ((t[0] >> across) & (rows - 1)); }),
+                onCol = cs.map(function (c) { return (c & ~cm) === (t[0] & (cols - 1)); });
+            runs(onRow, rows).forEach(function (a) {
+                runs(onCol, cols).forEach(function (b) {
+                    body += '<rect x="' + fix(gx + b[0] * cell + inset) + '" y="' + fix(gy + a[0] * cell + inset) + '" width="' + fix((b[1] - b[0] + 1) * cell - 2 * inset) +
+                        '" height="' + fix((a[1] - a[0] + 1) * cell - 2 * inset) + '" rx="9" fill="none" stroke="' + colour + '" stroke-width="2"/>';
+                });
+            });
+        });
+        return svgOf('', W, gy + rows * cell + 6, 'Its Karnaugh map', body);
+    }
+
+    // A whole number in Gray code, or a Gray code's number: each in binary, decimal and hexadecimal, and the codes
+    // about it drawn
+    function runGray(n, raw) {
+        var bits = n.bits, back = raw.way === '1', r = raw.e ? CalcMaths.bitwise(raw.e, bits) : null, none = [{ l: back ? 'Number' : 'Gray code', v: NaN, wide: true }],
+            one = BigInt(1), u, g, num, binary, fits;
+        if (r && r.error) {
+            return { rows: none, bad: r.error === 'expression' ? ['e'] : [], warn: true, note: {
+                expression: 'A whole number, 5, 0xFF or 0b0111, or a calculation of them.',
+                zero: 'Division by 0.',
+                bits: 'Bits are 8, 16, 32 or 64.'
+            }[r.error] };
+        }
+        if (!r) return { rows: none };
+        u = BigInt.asUintN(bits, r.value);
+        fits = /^\s*\d+\s*$/.test(raw.e) && BigInt(raw.e) >> BigInt(bits) === BigInt(0); // a plain number below 2^bits is in range here, whose numbers have no sign
+        num = back ? CalcMaths.fromGray(u, bits) : u;
+        g = back ? u : CalcMaths.gray(u, bits);
+        binary = function (v) { return CalcMaths.inBase(v, bits, 2).replace(/((?:[01]{4} ){7}[01]{4}) /g, '$1<br>'); }; // of 64 bits, 32 to a line
+        return {
+            rows: drawnTile(grayDrawing(num, bits), 'The codes about it').concat([
+                { l: 'Gray code', text: binary(g), wide: true, bits: true }, { l: 'Number in binary', text: binary(num), wide: true, bits: true },
+                wholeTile('Number', num), wholeTile('Gray code as a number', g), { l: 'Gray in hexadecimal', text: CalcMaths.inBase(g, bits, 16) },
+                { l: 'Bit to change next', v: CalcMaths.bitCount(g ^ CalcMaths.gray(num + one, bits), bits).low } // of the last, the highest, round to 0
+            ]),
+            cols: 2, note: r.wrapped && !fits ? 'Out of ' + bits + ' bits: kept to them, as a computer does.' : 'A Gray code is the number XOR itself moved a bit right.'
+        };
+    }
+
+    // the Gray codes of the numbers about one, a row each, its own in bold, the bit that changed from the row above ringed red;
+    // of the lowest bits they need, from 4 to 16, each with its digit
+    function grayDrawing(num, bits) {
+        var two = BigInt(2), top = (BigInt(1) << BigInt(bits)) - BigInt(1), from = num < two ? BigInt(0) : num > top - two ? top - BigInt(4) : num - two,
+            list = [], i, w, cell, x0, body = '', last = null;
+        for (i = 0; i < 5; i++) list.push(from + BigInt(i));
+        w = Math.max(4, Math.min(16, list[4].toString(2).length));
+        cell = Math.min(26, Math.floor(220 / w));
+        x0 = (300 - w * cell) / 2 + 24;
+        body += svgText(x0 - 14, 12, 'n', 'end') + svgText(x0 + w * cell / 2, 12, 'Gray code' + (w < bits ? ', its last ' + w + ' bits' : ''), 'middle');
+        list.forEach(function (v, row) {
+            var gv = CalcMaths.gray(v, bits), s = BigInt.asUintN(w, gv).toString(2).padStart(w, '0'), y = 20 + row * 21, changed = last === null ? -1 : CalcMaths.bitCount(gv ^ last, bits).low;
+            body += svgText(x0 - 14, y + 13.5, String(v), 'end', v === num ? 'calc-sv-bold' : 'calc-sv-small');
+            s.split('').forEach(function (c, j) {
+                var x = x0 + j * cell;
+                body += '<rect class="' + (c === '1' ? 'calc-sv-bar' : 'calc-sv-under') + '" x="' + (x + 1) + '" y="' + y + '" width="' + (cell - 2) + '" height="18" rx="2"/>';
+                if (cell >= 12) body += svgText(x + cell / 2, y + 13, c, 'middle', 'calc-sv-small');
+                if (w - 1 - j === changed) body += '<rect class="calc-sv-curve" x="' + (x + 0.5) + '" y="' + (y - 0.5) + '" width="' + (cell - 1) + '" height="19" rx="2"/>';
+            });
+            last = gv;
+        });
+        return svgOf('', 300, 20 + 5 * 21 + 2, 'The Gray codes about it', body);
+    }
+
+    // bits as boxes, 32 to a row, each in the colour of its part, a key of the parts under them: parts [[name, how many, colour]];
+    // gap, a little room after every so many bits, as the bytes of an address
+    function bitsDrawing(label, bits, parts, gap) {
+        var W = 300, L = 8, cell = gap ? 8.3 : 8.875, rows = Math.ceil(bits.length / 32), body = '', at = 0, colour = [], i, x, y, H;
+        parts.forEach(function (p) { for (i = 0; i < p[1]; i++) colour.push(p[2]); });
+        for (i = 0; i < bits.length; i++) {
+            x = L + (i % 32) * cell + (gap ? Math.floor((i % 32) / gap) * 4 : 0);
+            y = 8 + Math.floor(i / 32) * 20;
+            body += '<rect class="calc-bio-sq" x="' + fix(x) + '" y="' + y + '" width="' + fix(cell) + '" height="16" fill="' + colour[i] + '"/>' +
+                svgText(x + cell / 2, y + 11.5, bits[i], 'middle', 'calc-sv-small calc-sv-sub' + (bits[i] === '1' ? ' calc-sv-bold' : ''));
+        }
+        H = 8 + rows * 20 + 6;
+        parts.forEach(function (p, k) {
+            var kx = L + k * 98;
+            body += '<rect class="calc-bio-sq" x="' + kx + '" y="' + H + '" width="10" height="10" fill="' + p[2] + '"/>' + svgText(kx + 14, H + 9, p[0]);
+            at += p[1];
+        });
+        return svgOf('', W, H + 16, label, body);
+    }
+
     // a number as a double and a float, their bits, and what each is to its last digit
     function runFloat(n, raw) {
-        var r = raw.x ? CalcMaths.float(raw.x, engine.comma, deg) : null, none = [{ l: 'Double, 64 bits', v: NaN }, { l: 'Float, 32 bits', v: NaN }];
+        var r = raw.x ? CalcMaths.float(raw.x, engine.comma, deg) : null, none = [{ l: 'Double, 64 bits', v: NaN }, { l: 'Float, 32 bits', v: NaN }], e;
         if (!r) return { rows: none };
         if (r.error) return { rows: none, bad: ['x'], warn: true, note: 'A number, 0.1, pi or 1e-7, inf or nan; or its bits, 0x3FB999999999999A for a double, 0x3DCCCCCD for a float.' };
+        e = r.bits.split(' ');
         return {
-            rows: [{ l: 'Number', v: r.x, wide: true }, { l: 'Double, 64 bits', text: '0x' + r.hex64, wide: true },
+            rows: drawnTile(bitsDrawing('Its ' + (e.join('').length) + ' bits: the sign, the exponent and the fraction', e.join(''), [['Sign', 1, '#f0b3b3'], ['Exponent, ' + e[1].length, e[1].length, '#bcd0e6'],
+                ['Fraction, ' + e[2].length, e[2].length, '#d3e5da']]), 'Its bits').concat([{ l: 'Number', v: r.x, wide: true }, { l: 'Double, 64 bits', text: '0x' + r.hex64, wide: true },
                 { l: 'Kept as a double', text: local(r.exact), wide: true, wrap: true },
                 { l: 'Sign', text: r.sign < 0 ? '–' : '+' }, { l: 'Exponent', v: r.exponent }, { l: 'Kind', text: r.kind },
                 { l: 'Sign · exponent · fraction', text: r.bits, wide: true, wrap: true, bits: true },
                 { l: 'Gap to the next', v: r.ulp, wide: true },
                 { l: 'As a float', v: r.float, wide: true }, { l: 'Float, 32 bits', text: '0x' + r.hex32, wide: true },
-                { l: 'Kept as a float', text: local(r.exact32), wide: true, wrap: true }],
+                { l: 'Kept as a float', text: local(r.exact32), wide: true, wrap: true }]),
             note: r.of === 32 ? 'The bits of a float, 32 of them: 16 hexadecimal digits are a double.' : r.kind === 'Subnormal' ? 'Subnormal: smaller than a double keeps to all its digits.' : ''
         };
     }
@@ -6797,15 +6962,35 @@
             { l: l, text: String(b), wide: true };
     }
 
+    // a factor tree: the number down a stem, its smallest prime split off to the left at each step, each prime ringed;
+    // of up to 10 primes in all, of a number not itself prime
+    function factorTree(n, factors) {
+        var primes = [], rest = n < 0 ? -n : n, W = 300, sx = 190, px = 120, step = 30, body = '', y, i;
+        factors.forEach(function (pe) { for (i = 0; i < pe[1]; i++) primes.push(pe[0]); });
+        if (primes.length < 2 || primes.length > 10) return '';
+        function ring(x, y, t) {
+            return '<rect x="' + fix(x - 4 - 3.2 * t.length) + '" y="' + fix(y - 11) + '" width="' + fix(8 + 6.4 * t.length) + '" height="15" rx="7.5" fill="none" stroke="#b0414d" stroke-width="1.4"/>';
+        }
+        body += svgText(sx, 16, String(rest), 'middle', 'calc-sv-small calc-sv-bold');
+        for (i = 0; i < primes.length - 1; i++) {
+            y = 16 + (i + 1) * step;
+            body += '<path class="calc-sv-seg calc-sv-thin" d="M' + sx + ' ' + (y - step + 5) + 'L' + px + ' ' + (y - 11) + 'M' + sx + ' ' + (y - step + 5) + 'V' + (y - 11) + '"/>';
+            rest = rest / primes[i];
+            body += ring(px, y, String(primes[i])) + svgText(px, y, String(primes[i]), 'middle', 'calc-sv-small calc-sv-red') +
+                (i === primes.length - 2 ? ring(sx, y, String(rest)) : '') + svgText(sx, y, String(rest), 'middle', i === primes.length - 2 ? 'calc-sv-small calc-sv-red' : 'calc-sv-small');
+        }
+        return svgOf('', W, 16 + primes.length * step - 12, 'Its factor tree, each prime ringed', body);
+    }
+
     function runFactors(n, raw) {
         var r = raw.n ? CalcMaths.factorize(raw.n, engine.comma, deg, 64) : null, none = [{ l: 'Prime factors', v: NaN, wide: true }], f;
         if (!r) return { rows: none };
         if (r.error) return { rows: none, bad: ['n'], warn: true, note: 'A whole number of up to 20 digits: 360, 2^10, 10!.' };
         f = r.factors.map(function (pe) { return pe[0] + (pe[1] > 1 ? '<sup>' + pe[1] + '</sup>' : ''); }).join(' × ');
         return {
-            rows: [{ l: 'Prime factors', text: f ? (r.n < 0 ? '–1 × ' : '') + f : '–', wide: true }, { l: 'Prime', text: r.prime ? 'Yes' : 'No' },
+            rows: drawnTile(r.prime ? '' : factorTree(r.n, r.factors), 'Its factor tree').concat([{ l: 'Prime factors', text: f ? (r.n < 0 ? '–1 × ' : '') + f : '–', wide: true }, { l: 'Prime', text: r.prime ? 'Yes' : 'No' },
                 { l: 'Divisors', v: r.count }, wholeTile('Sum of divisors', r.sum), wholeTile('Totient φ(n)', r.totient),
-                { l: 'Each divisor', text: r.divisors ? r.divisors.join(', ') : '–', wide: true, wrap: true }],
+                { l: 'Each divisor', text: r.divisors ? r.divisors.join(', ') : '–', wide: true, wrap: true }]),
             note: r.n === BigInt(0) ? 'Every whole number divides 0.' : r.n === BigInt(1) || r.n === BigInt(-1) ? 'No prime factors.' :
                 !r.divisors ? 'Too many divisors to list.' : r.n < 0 ? 'Of its size: the factors of a number below 0 are those of its size, times –1.' : ''
         };
@@ -6917,6 +7102,7 @@
             return z.im ? { l: l, text: complexText(z) } : { l: l, v: z.re };
         });
         rows.push({ l: 'Trace', v: CalcMaths.round(a.reduce(function (s, r, i) { return s + r[i]; }, 0)) }, { l: 'det(λI – A)', text: polyText(e.poly), wide: true });
+        if (e.values.length > 1) rows.push(planeTile(e.values, 0, 'Its eigenvalues on the plane'));
         e.vectors.forEach(function (v, i) {
             rows.push({ l: 'v<sub>' + (i + 1) + '</sub> of λ = ' + local(String(v.value)), m: [v.v] });
         });
@@ -7184,12 +7370,13 @@
         }[r.error] };
         if (r.v6) return runSubnet6(r);
         return {
-            rows: [{ l: 'Network', text: ip(r.network) + '/' + r.prefix, wide: true }, { l: 'Broadcast', text: ip(r.broadcast), wide: true },
+            rows: drawnTile(bitsDrawing('The address, its first ' + r.prefix + ' bits the network', CalcMaths.inBase(BigInt(r.address), 32, 2).replace(/ /g, ''),
+                [['Network, ' + r.prefix, r.prefix, '#bcd0e6'], ['Host, ' + (32 - r.prefix), 32 - r.prefix, '#d3e5da']], 8), 'Its bits').concat([{ l: 'Network', text: ip(r.network) + '/' + r.prefix, wide: true }, { l: 'Broadcast', text: ip(r.broadcast), wide: true },
                 { l: 'Mask', text: ip(r.mask), wide: true }, { l: 'Wildcard', text: ip(r.wildcard), wide: true },
                 { l: 'First host', text: ip(r.first), wide: true }, { l: 'Last host', text: ip(r.last), wide: true },
                 { l: 'Hosts', v: r.hosts }, { l: 'Addresses', v: r.all }, { l: 'Kind', text: r.kind, wide: true },
                 { l: 'Address in binary', text: CalcMaths.inBase(BigInt(r.address), 32, 2).replace(/ /g, '').replace(/(\d{8})(?=\d)/g, '$1.'), wide: true, bits: true },
-                { l: 'Mask in binary', text: CalcMaths.inBase(BigInt(r.mask), 32, 2).replace(/ /g, '').replace(/(\d{8})(?=\d)/g, '$1.'), wide: true, bits: true }],
+                { l: 'Mask in binary', text: CalcMaths.inBase(BigInt(r.mask), 32, 2).replace(/ /g, '').replace(/(\d{8})(?=\d)/g, '$1.'), wide: true, bits: true }]),
             note: !r.given ? 'Of the address alone, /32: add its prefix, /24, for its network.' : r.prefix === 31 ? 'A /31 links two hosts, both of them given out, by RFC 3021.' :
                 r.prefix === 32 ? 'A /32 is one address.' : 'Hosts are all its addresses but the first, the network, and the last, its broadcast.'
         };
@@ -7283,6 +7470,27 @@
         };
     }
 
+    // a fraction as pies: a whole one for each whole, up to 5, and one cut in b slices with the rest of t shaded, of b up to 60;
+    // of more, the part shaded alone
+    function pieDrawing(whole, rest, b) {
+        var W = 300, k = Math.min(Number(whole), 5), many = whole > BigInt(5), pies = k + (rest ? 1 : 0), R = pies > 4 ? 21 : 26, step, cy = 34, body = '', i, x, f = Number(rest) / Number(b), n = Number(b);
+        if (!pies) return '';
+        step = pies > 1 ? Math.min(2 * (R + 8), (W - 2 * R - 8) / (pies - 1)) : 0; // 5 or 6 smaller and closer, to stay on the canvas
+        function at(x, t) { return fix(x + R * Math.sin(2 * Math.PI * t)) + ' ' + fix(cy - R * Math.cos(2 * Math.PI * t)); }
+        for (i = 0; i < pies; i++) {
+            x = W / 2 - (pies - 1) * step / 2 + i * step;
+            if (i < k) body += '<circle cx="' + fix(x) + '" cy="' + cy + '" r="' + R + '" fill="#f0b3b3" stroke="#b0414d" stroke-width="1.2"/>';
+            else {
+                body += '<circle cx="' + fix(x) + '" cy="' + cy + '" r="' + R + '" fill="#d3e5da"/>' + (f > 0 && f < 1 ? '<path d="M' + fix(x) + ' ' + cy + 'L' + at(x, 0) + 'A' + R + ' ' + R + ' 0 ' + (f > 0.5 ? 1 : 0) + ' 1 ' +
+                    at(x, f) + 'Z" fill="#f0b3b3"/>' : '');
+                if (n <= 60) for (var j = 0; j < n; j++) body += '<path class="calc-sv-seg calc-sv-thin" d="M' + fix(x) + ' ' + cy + 'L' + at(x, j / n) + '" stroke-width="' + (n > 24 ? 0.5 : 0.9) + '"/>';
+                body += '<circle cx="' + fix(x) + '" cy="' + cy + '" r="' + R + '" fill="none" stroke="#b0414d" stroke-width="1.2"/>';
+            }
+        }
+        return svgOf('', W, 74, 'The fraction as pies, each whole one shaded', body + svgText(W / 2, 72, (many ? whole + ' whole, 5 drawn' : whole ? whole + ' whole' : '') +
+            (whole && rest ? ' and ' : '') + (rest ? rest + ' of ' + b : ''), 'middle'));
+    }
+
     function runFraction(n, raw) {
         var none = [{ l: 'Fraction', text: '–' }], r = raw.x ? CalcMaths.fractionOf(raw.x, engine.comma, deg) : null, t, b, whole, rest, cf, f, sign;
         if (!r) return { rows: none };
@@ -7303,11 +7511,11 @@
         rest = (t < BigInt(0) ? -t : t) % b;
         cf = CalcMaths.continued(t, b, 40);
         return {
-            rows: [{ l: 'Fraction', text: sign + (t < BigInt(0) ? -t : t) + (b === BigInt(1) ? '' : '/' + b) },
+            rows: drawnTile(pieDrawing(whole, rest, b), 'As pies').concat([{ l: 'Fraction', text: sign + (t < BigInt(0) ? -t : t) + (b === BigInt(1) ? '' : '/' + b) },
                 { l: 'Mixed', text: b === BigInt(1) || !whole ? '–' : sign + whole + ' ' + rest + '/' + b },
                 { l: 'Value', v: CalcMaths.about(t, b) },
                 { l: 'Decimal', text: local(CalcMaths.toBase(t, b, 10, 100)).replace('-', '–'), wide: true, wrap: true },
-                { l: 'Continued fraction', text: '[' + cf[0] + (cf.length > 1 ? '; ' + cf.slice(1).join(', ') : '') + ']', wide: true, wrap: true }]
+                { l: 'Continued fraction', text: '[' + cf[0] + (cf.length > 1 ? '; ' + cf.slice(1).join(', ') : '') + ']', wide: true, wrap: true }])
         };
     }
 
@@ -8034,7 +8242,8 @@
                 }).join('') + r.m.map(function (row, a) {
                     return row.map(function (x, b) { // to 10 digits, so a row of them fits, of more than 5 columns to as many characters as its cell has room for, the whole number in its title; or to its places, as money to the cent, but a table's first column, its years; a click puts it in whole
                         return '<span class="calc-sv-cell" data-a="' + a + '" data-b="' + b + '"' + (many ? ' title="' + local(String(x)) + '"' : '') + '>' +
-                            (r.places !== undefined && !(r.head && !b) ? placesValue(x, r.places) : statsValue(many ? fitted(x, r.m[0].length > 8 ? 5 : 7) : +x.toPrecision(10))).html + '</span>';
+                            (typeof x === 'string' ? x : (r.places !== undefined && !(r.head && !b) ? placesValue(x, r.places) : statsValue(many ? fitted(x, r.m[0].length > 8 ? 5 : 7) : +x.toPrecision(10))).html) + // a text, as X of a truth table
+                            '</span>';
                     }).join('');
                 }).join('') + '</span>' : '<span class="calc-sv-value">–</span>';
             } else {
@@ -8708,6 +8917,12 @@
                                 at: n === 4 ? [4, 7, 2, 6][i] : [4, 7, 0, 1, 0, 1][i] }; // 4.7 kΩ: of each count its own, as its bands are of other kinds
                         }));
                     }, cols: 1, run: runColours },
+                { id: 'smd', t: 'SMD resistor code', f: ['473 = 47 kΩ', '01C = 10 kΩ'], d: 'The resistance of a surface-mount resistor of the code on it: of 3 digits, 473 is 47 × 10³ Ω, ' +
+                    'of 4, 4702 is 470 × 10², R for the point, 4R7 or R47, and of EIA-96, 01C, the 1st value of E96, 100, × 100; 000 is a jumper. Or the codes of a resistance, as 4.7k. Drawn.',
+                    fields: function (raw) {
+                        return [{ k: 'find', l: 'Find', choice: ['The value', 'The codes'] }, raw.find === '1' ? { k: 'ohms', l: 'Ω', ph: '4.7k', text: true, aria: 'Resistance' } :
+                            { k: 'code', l: 'Code', ph: '473', text: true, aria: 'Code' }];
+                    }, cols: 1, run: runSmd, example: function (raw) { return raw.find === '1' ? { find: '1', ohms: '4.7k' } : { find: '0', code: '01C' }; } },
                 { id: 'network', t: 'Series and parallel', f: ['R<sub>1</sub> + R<sub>2</sub>', 'R<sub>1</sub> ∥ R<sub>2</sub>'], d: 'The value of resistors, capacitors or coils joined: + in series, || in parallel, which goes first, and brackets: ' +
                     '100 + 220 || 330, (1k + 2k2) || 4k7. Capacitors add in parallel.',
                     fields: [{ k: 'part', l: 'Of', choice: ['Resistors', 'Capacitors', 'Coils'] }, { k: 'n', l: 'Parts', ph: '100 + 220 || 330', text: true, cls: 'calc-sv-wide', aria: 'Parts' }],
@@ -8748,6 +8963,18 @@
                 { id: 'rl', t: 'RL circuit', f: ['τ = L/R', 'f<sub>c</sub> = R ÷ 2πL'], d: 'A resistor and a coil: the time constant, the frequency where a filter of them cuts off, and at a time t how far the current has risen.',
                     fields: [{ k: 'R', l: 'R', ph: '100', text: true }, { k: 'L', l: 'L', ph: '10m', text: true }, { k: 't', l: 't', ph: 's, optional', text: true }], cols: 3, run: runRl,
                     example: { R: '100', L: '10m' } },
+                { id: 'filter', t: 'Filter', f: ['f<sub>c</sub> = 1 ÷ 2πRC', 'Q = √(L/C) ÷ R'], d: 'A filter of R and C, or of R and L, of the first order; or of R, L and C in series, of the second, ' +
+                    'its output across C, L, R, or L and C: low-pass, high-pass, band-pass or band-stop. Where it is 3 dB down, its cut-off; its Q, its band and the peak it may have; ' +
+                    'and at a frequency f its gain and phase. Its gain drawn against f, of a log scale.',
+                    fields: function (raw) {
+                        var of = +raw.kind || 0;
+                        return [{ k: 'kind', l: 'Of', choice: ['RC', 'RL', 'RLC'] }, of === 2 ? { k: 'pass2', l: 'Pass', choice: ['Low', 'High', 'Band', 'Stop'] } : { k: 'pass', l: 'Pass', choice: ['Low', 'High'] },
+                            { k: 'R', l: 'R', ph: of === 0 ? '10k' : of === 1 ? '100' : '10', text: true }].concat(of ? [{ k: 'L', l: 'L', ph: of === 1 ? '10m' : '1m', text: true }] : [],
+                            of !== 1 ? [{ k: 'C', l: 'C', ph: of === 2 ? '1µ' : '100n', text: true }] : [], [{ k: 'f', l: 'f', ph: 'Hz, optional', text: true }]);
+                    }, cols: 2, run: runFilter,
+                    example: function (raw) {
+                        return Object.assign({ kind: raw.kind || '0', pass: raw.pass || '0', pass2: raw.pass2 || '0' }, [{ R: '10k', C: '100n', f: '1k' }, { R: '100', L: '10m', f: '1k' }, { R: '10', L: '1m', C: '1µ', f: '4k' }][+raw.kind || 0]);
+                    } },
                 { id: 'plates', t: 'Parallel plates', f: 'C = ε<sub>0</sub>ε<sub>r</sub>A ÷ d', d: 'A capacitor of two plates of area A a gap d apart, with ε<sub>r</sub> between them: air is 1, paper about 3, glass 5 to 10, water 80. ' +
                     'With a voltage, the field in the gap, the charge and the energy.',
                     fields: [{ k: 'A', l: 'A', ph: 'm²' }, { k: 'd', l: 'd', ph: 'm' }, { k: 'er', l: 'ε<sub>r</sub>', ph: '1', def: 1, name: 'εr' }, { k: 'V', l: 'V', ph: 'optional' }],
@@ -8837,7 +9064,19 @@
                     fields: function (raw) {
                         return [{ k: 'kind', l: 'It is', choice: ['Astable', 'Monostable'] }].concat(raw.kind === '1' ? [{ k: 'R1', l: 'R', ph: '100k', text: true, aria: 'R' }, { k: 'C', l: 'C', ph: '10µ', text: true }] :
                             [{ k: 'R1', l: 'R<sub>1</sub>', ph: '1k', text: true, aria: 'R1' }, { k: 'R2', l: 'R<sub>2</sub>', ph: '10k', text: true, aria: 'R2' }, { k: 'C', l: 'C', ph: '10µ', text: true }]);
-                    }, cols: 3, run: runTimer, example: function (raw) { return Object.assign({ kind: raw.kind || '0' }, [{ R1: '1k', R2: '10k', C: '10µ' }, { R1: '100k', C: '10µ' }][+raw.kind || 0]); } }
+                    }, cols: 3, run: runTimer, example: function (raw) { return Object.assign({ kind: raw.kind || '0' }, [{ R1: '1k', R2: '10k', C: '10µ' }, { R1: '100k', C: '10µ' }][+raw.kind || 0]); } },
+                { id: 'decibels', t: 'Decibels', f: ['dBm = 10 log(P ÷ 1 mW)', 'dBV = 20 log(V ÷ 1 V)'], d: 'A level in dBm, dBW, watts, dBV, dBmV, dBµV or volts RMS as each of the others, ' +
+                    'across an impedance Z: 50 Ω in radio, 75 in video and TV, 600 in old audio; with its voltage peak and peak to peak, and the current. Drawn among the levels of signals. ' +
+                    'Or a gain or a loss: in dB as a ratio of power and of voltage, or a ratio in dB.',
+                    fields: function (raw) {
+                        return [{ k: 'kind', l: 'Of', choice: ['A level', 'A gain'] }].concat(raw.kind === '1' ? [{ k: 'given', l: 'Given', choice: ['dB', 'Power ×', 'Voltage ×'] },
+                            { k: 'g', l: 'Value', ph: '3', text: true, aria: 'Value' }] :
+                            [{ k: 'unit', l: 'In', choice: CalcPhysics.LEVELS }, { k: 'x', l: 'Value', ph: '0', text: true, aria: 'Value' }, { k: 'z', l: 'Z', ph: '50', text: true }]);
+                    }, cols: 2, run: runDecibels,
+                    example: function (raw) {
+                        return raw.kind === '1' ? { kind: '1', given: raw.given || '0', g: ['3', '2', '10'][+raw.given || 0] } :
+                            { kind: '0', unit: raw.unit || '0', x: ['0', '-30', '1m', '0', '0', '60', '1'][+raw.unit || 0], z: '50' };
+                    } }
             ],
             motion: [
                 { id: 'suvat', t: 'Steady acceleration', f: ['v = u + at', 's = ut + ½at<sup>2</sup>', 'v<sup>2</sup> = u<sup>2</sup> + 2as'], d: 'Motion in a line at a steady acceleration: type any three of s, the way gone, u, the speed at first, v, ' +
@@ -9848,6 +10087,24 @@
                 (n.mp > 0 ? '; the pulley a disc, turning with it.' : ', nor the pulley.') + (of === 2 ? ' Angles in ' + unitWord() + '.' : '') };
     }
 
+    // two masses before and after they meet, each as big as its mass, an arrow over each of its speed, to scale
+    function collisionDrawing(m1, m2, u1, u2, v1, v2, stick) {
+        var W = 300, H = 128, top = Math.max(Math.abs(u1), Math.abs(u2), Math.abs(v1), Math.abs(v2)) || 1, big = Math.max(m1, m2), body = '';
+        function rad(m) { return 7 + 10 * Math.cbrt(m / big); }
+        function ball(x, y, m, v, k) {
+            var r = rad(m), len = 56 * v / top, ay = y - r - 7;
+            return '<circle cx="' + fix(x) + '" cy="' + y + '" r="' + fix(r) + '" fill="' + ['#f0b3b3', '#bcd0e6'][k] + '" stroke="' + ['#b0414d', '#22476a'][k] + '" stroke-width="1.2"/>' +
+                svgText(x, y + 4, ['1', '2'][k], 'middle', 'calc-sv-small calc-sv-bold') +
+                (Math.abs(len) >= 2 ? svgArrow(x, ay, x + len, ay, ['calc-sv-curve', 'calc-sv-seg'][k]) + svgText(x + len + (len > 0 ? 4 : -4), ay + 3.5, shortNum(v), len > 0 ? 'start' : 'end') :
+                    svgText(x, ay + 3, 'still', 'middle'));
+        }
+        body += svgText(8, 14, 'Before') + svgText(8, 76, 'After') + '<path class="calc-sv-ground" d="M8 ' + 58 + 'H' + (W - 8) + 'M8 ' + 120 + 'H' + (W - 8) + '"/>';
+        body += ball(95, 58 - rad(m1), m1, u1, 0) + ball(205, 58 - rad(m2), m2, u2, 1);
+        body += stick ? ball(150 - rad(m1), 120 - rad(m1), m1, v1, 0) + ball(150 + rad(m2), 120 - rad(m2), m2, v2, 1) :
+            ball(110, 120 - rad(m1), m1, v1, 0) + ball(190, 120 - rad(m2), m2, v2, 1);
+        return svgOf('', W, H, 'The two before and after, their speeds in m/s', body);
+    }
+
     function runCollision(n, raw) {
         var m1 = n.m1, m2 = n.m2, u1 = n.u1, u2 = n.u2, v1, v2, p = m1 * u1 + m2 * u2, ke0, ke1, none = ['v₁, m/s', 'v₂, m/s'];
         if (!raw.m1 && !raw.m2) return physNone(none);
@@ -9859,7 +10116,8 @@
         }
         ke0 = (m1 * u1 * u1 + m2 * u2 * u2) / 2;
         ke1 = (m1 * v1 * v1 + m2 * v2 * v2) / 2;
-        return { rows: physRows([['v₁, m/s', v1], ['v₂, m/s', v2], ['Momentum, kg·m/s', p], ['KE before, J', ke0], ['KE after, J', ke1], ['KE lost, J', Math.max(0, ke0 - ke1)]]), cols: 2,
+        return { rows: drawnTile(collisionDrawing(m1, m2, u1, u2, v1, v2, raw.stick === '1'), 'Before and after').concat(physRows([['v₁, m/s', v1], ['v₂, m/s', v2], ['Momentum, kg·m/s', p],
+            ['KE before, J', ke0], ['KE after, J', ke1], ['KE lost, J', Math.max(0, ke0 - ke1)]])), cols: 2,
             note: raw.stick === '1' ? 'Stuck together, they go on as one.' : 'Elastic: no kinetic energy is lost.' };
     }
 
@@ -9870,11 +10128,24 @@
         return { rows: physRows([['KE, J', n.m * n.v * n.v / 2], ['PE, J', n.m * n.g * n.h], ['Total, J', n.m * n.v * n.v / 2 + n.m * n.g * n.h], ['Speed at h = 0, m/s', Math.sqrt(Math.max(0, n.v * n.v + 2 * n.g * n.h))]]), cols: 2 };
     }
 
+    // a block pulled at θ along the ground, the force red, its part along the way dashed, and the way under it
+    function workDrawing(a) {
+        var W = 300, H = 110, x = 70, y = 70, len = 70, fx = len * Math.cos(a), fy = len * Math.sin(a), cx = x + 20, cy = y - 15;
+        return svgOf('', W, H, 'The force at θ to the way, the part of it along the way dashed', '<path class="calc-sv-ground" d="M8 ' + y + 'H' + (W - 8) + '"/>' +
+            '<rect x="' + x + '" y="' + (y - 30) + '" width="40" height="30" fill="#d3bc8f" stroke="#8a7550" stroke-width="1.2"/>' +
+            (Math.abs(fx) > 2 ? svgArrow(cx, cy, cx + fx, cy, 'calc-sv-seg', true) : '') + svgArrow(cx, cy, cx + fx, cy - fy, 'calc-sv-curve') +
+            svgText(cx + fx + (fx >= 0 ? 5 : -5), cy - fy + 4, 'F', fx >= 0 ? 'start' : 'end', 'calc-sv-small calc-sv-red') +
+            (Math.abs(fx) > 2 ? svgText(cx + fx + (fx > 0 ? 6 : -6), cy + 4, 'F cos θ', fx > 0 ? 'start' : 'end') : '') +
+            (Math.abs(Math.sin(a)) > 0.05 && Math.abs(fx) > 8 ? '<path class="calc-sv-guide" d="M' + (cx + 34 * Math.sign(fx)) + ' ' + cy + 'A34 34 0 0 ' + (fy * fx > 0 ? 0 : 1) + ' ' +
+                fix(cx + 34 * Math.cos(a)) + ' ' + fix(cy - 34 * Math.sin(a)) + '"/>' + svgText(cx + 42 * Math.cos(a / 2) * Math.sign(fx || 1), cy - 40 * Math.sin(a / 2) + 3, 'θ', 'middle') : '') +
+            svgArrow(x, y + 18, x + 160, y + 18, 'calc-sv-seg') + svgText(x + 166, y + 22, 'd'));
+    }
+
     function runWork(n, raw) {
         var W = n.F * n.d * Math.cos(toRadians(n.a)), none = ['W, J', 'P, W'];
         if (!raw.F && !raw.d) return physNone(none);
         if (!isFinite(W)) return Object.assign(physNone(none), { warn: true, note: 'Type the force and the way.' });
-        return { rows: physRows([['W, J', Math.abs(W) < 1e-12 * Math.abs(n.F * n.d) ? 0 : W]].concat(raw.t && n.t > 0 ? [['P, W', W / n.t]] : [])), cols: 2, note: raw.t ? '' : 'With a time, the power too.' };
+        return { rows: drawnTile(workDrawing(toRadians(n.a)), 'The force and the way').concat(physRows([['W, J', Math.abs(W) < 1e-12 * Math.abs(n.F * n.d) ? 0 : W]].concat(raw.t && n.t > 0 ? [['P, W', W / n.t]] : []))), cols: 2, note: raw.t ? '' : 'With a time, the power too.' };
     }
 
     function runGravity(n, raw) {
@@ -9883,8 +10154,9 @@
         if (!raw.m1 && !raw.r) return physNone(none);
         if (n.m1 > 0 && !raw.r) return { rows: physRows([['Schwarzschild r, m', rs]]), cols: 2, note: 'With r, the pull, the gravity and the orbits at r too.' };
         if (!(n.m1 > 0 && n.m2 > 0 && n.r > 0)) return Object.assign(physNone(none), { warn: true, note: 'The masses and r are above 0.' });
-        return { rows: physRows([['F, N', G_NEWTON * n.m1 * n.m2 / (n.r * n.r)], ['g at r, m/s²', G_NEWTON * n.m1 / (n.r * n.r)], ['Orbit speed, m/s', Math.sqrt(G_NEWTON * n.m1 / n.r)],
-            ['Orbit period, s', 2 * Math.PI * Math.sqrt(Math.pow(n.r, 3) / (G_NEWTON * n.m1))], ['Escape speed, m/s', Math.sqrt(2 * G_NEWTON * n.m1 / n.r)], ['Schwarzschild r, m', rs]]), cols: 2,
+        return { rows: drawnTile(graphDrawing('The pull against r, falling as its square', 0, 3 * n.r, { fs: [function (x) { return G_NEWTON * n.m1 * n.m2 / (x * x); }],
+            y: [0, 4 * G_NEWTON * n.m1 * n.m2 / (n.r * n.r)], dots: [[n.r, G_NEWTON * n.m1 * n.m2 / (n.r * n.r)]], names: ['r, m', 'F, N'] }), 'F and r').concat(physRows([['F, N', G_NEWTON * n.m1 * n.m2 / (n.r * n.r)], ['g at r, m/s²', G_NEWTON * n.m1 / (n.r * n.r)], ['Orbit speed, m/s', Math.sqrt(G_NEWTON * n.m1 / n.r)],
+            ['Orbit period, s', 2 * Math.PI * Math.sqrt(Math.pow(n.r, 3) / (G_NEWTON * n.m1))], ['Escape speed, m/s', Math.sqrt(2 * G_NEWTON * n.m1 / n.r)], ['Schwarzschild r, m', rs]])), cols: 2,
             warn: n.r <= rs, note: n.r <= rs ? 'r is inside its Schwarzschild radius: a black hole, that not even light leaves; Newton\'s law no longer holds.' :
                 'G = 6.6743 × 10⁻¹¹ N·m²/kg². Squeezed within its Schwarzschild radius, it would be a black hole.' };
     }
@@ -9915,10 +10187,26 @@
         if (!raw.q1 && !raw.q2) return physNone(none);
         if (!(isFinite(v.q1) && isFinite(v.q2) && n.r > 0)) return Object.assign(physNone(none), { warn: true, note: 'Both charges, and r above 0.' });
         F = COULOMB * v.q1 * v.q2 / (n.r * n.r);
-        rows = physRows([['F, N', Math.abs(F)]]);
+        rows = F ? drawnTile(graphDrawing((F < 0 ? 'The pull' : 'The push') + ' against r, falling as its square', 0, 3 * n.r, { fs: [function (x) { return Math.abs(COULOMB * v.q1 * v.q2) / (x * x); }],
+            y: [0, 4 * Math.abs(F)], dots: [[n.r, Math.abs(F)]], names: ['r, m', 'F, N'] }), 'F and r') : [];
+        rows = rows.concat(physRows([['F, N', Math.abs(F)]]));
         rows.push({ l: 'They', wide: true, text: F < 0 ? 'Pull together' : F > 0 ? 'Push apart' : 'Neither' });
         return { rows: rows.concat(physRows([['Field of q₁ at r, N/C', COULOMB * Math.abs(v.q1) / (n.r * n.r)], ['Potential of q₁ at r, V', COULOMB * v.q1 / n.r], ['Energy, J', COULOMB * v.q1 * v.q2 / n.r]])),
             cols: 2, note: 'In a vacuum, or air.' };
+    }
+
+    // a charge going round in a field out of the page, its dots: at the top, its centre below, for a charge above 0, at
+    // the bottom for one below; v along it, F to the centre
+    function circlingDrawing(neg, r) {
+        var W = 300, H = 130, cx = 150, cy = 65, R = 44, y = neg ? cy + R : cy - R, d = neg ? -1 : 1, body = '', i, j;
+        for (i = 20; i < W; i += 26) for (j = 12; j < H; j += 24) body += '<circle class="calc-sv-mid calc-sv-faint" cx="' + i + '" cy="' + j + '" r="1.6"/>';
+        body += '<circle class="calc-sv-curve calc-sv-dash" cx="' + cx + '" cy="' + cy + '" r="' + R + '"/><circle class="calc-sv-mid" cx="' + cx + '" cy="' + cy + '" r="2"/>' +
+            '<path class="calc-sv-guide" d="M' + cx + ' ' + cy + 'H' + (cx + R) + '"/>' + svgText(cx + R / 2, cy - 4, 'r', 'middle') +
+            svgArrow(cx, y, cx + 42, y, 'calc-sv-seg') + svgText(cx + 48, y + 4, 'v') +
+            svgArrow(cx, y, cx, y + d * 26, 'calc-sv-curve') + svgText(cx - 6, y + d * 18 + 3, 'F', 'end', 'calc-sv-small calc-sv-red') +
+            '<circle class="calc-sv-dot" cx="' + cx + '" cy="' + y + '" r="4.5"/>' + svgText(cx, y + 3, neg ? '−' : '+', 'middle', 'calc-sv-small calc-sv-sub') +
+            svgText(W - 8, H - 6, 'B out of the page', 'end') + svgText(8, H - 6, 'r ' + CalcPhysics.si(r, 'm'));
+        return svgOf('', W, H, 'The circle it goes round, F to its centre', body);
     }
 
     function runMagnetic(n, raw) {
@@ -9932,8 +10220,8 @@
         }
         if (!(v.B > 0 && v.v >= 0 && q > 0 && m > 0)) return Object.assign(physNone(none), { warn: true, note: 'B, q and m above 0, and v of 0 or more.' });
         T = 2 * Math.PI * m / (q * v.B);
-        return { rows: physRows([['F, N', q * v.v * v.B * Math.abs(s)], ['Radius, m', m * v.v * Math.abs(s) / (q * v.B)], ['T, s', T], ['f, Hz', 1 / T]]
-            .concat(Math.abs(s) < 1 - 1e-12 ? [['Pitch, m', v.v * Math.sqrt(1 - s * s) * T]] : [])), cols: 2,
+        return { rows: drawnTile(v.v > 0 && s ? circlingDrawing(raw.q ? v.q < 0 : true, m * v.v * Math.abs(s) / (q * v.B)) : '', 'Its circle').concat(physRows([['F, N', q * v.v * v.B * Math.abs(s)], ['Radius, m', m * v.v * Math.abs(s) / (q * v.B)], ['T, s', T], ['f, Hz', 1 / T]]
+            .concat(Math.abs(s) < 1 - 1e-12 ? [['Pitch, m', v.v * Math.sqrt(1 - s * s) * T]] : []))), cols: 2,
             note: raw.q || raw.m ? 'Across both v and B.' : 'Of an electron; across both v and B.' };
     }
 
@@ -10009,6 +10297,9 @@
             F = MU0 * v.I * v.I2 / (2 * Math.PI * v.r);
             rows = rows.concat(physRows([['Force a metre, N', Math.abs(F)]]), [{ l: 'The wires', wide: true, text: F > 0 ? 'Pull together' : F < 0 ? 'Push apart' : 'Neither' }]);
         }
+        if (of !== 1) rows = drawnTile(graphDrawing(of === 0 ? 'B against the distance from the wire' : 'B at the middle against the radius of the loop', 0, 3 * v.r, {
+            fs: [function (x) { return 1e6 * Math.abs(of === 2 ? MU0 * n.N * v.I / (2 * x) : MU0 * v.I / (2 * Math.PI * x)); }], y: [0, 5e6 * B], dots: [[v.r, 1e6 * B]], names: ['r, m', 'B, µT'] }),
+            'B and r').concat(rows);
         return { rows: rows, cols: 2, note: of === 0 ? 'Round the wire, by the right-hand grip rule; currents the same way pull together.' : of === 1 ? 'Inside, along its axis, of a solenoid long beside its width.' : 'At the middle, along its axis.' };
     }
 
@@ -10089,6 +10380,46 @@
             cols: 3, note: bands[0] === 0 ? 'A first band of black is not made: read it from the other end.' : '' };
     }
 
+    // SMD resistors as they are seen from above, black between their ends of tin, each its code on it in white, its name under it
+    function smdDrawing(chips) {
+        var W = 300, n = chips.length, w = n === 1 ? 120 : 80, gap = (W - n * w) / (n + 1), named = chips.some(function (c) { return c[1]; }), body = '';
+        chips.forEach(function (c, i) {
+            var x = gap + i * (w + gap), mid = x + w / 2, size = Math.min(20, 1.6 * (w - 34) / Math.max(3, c[0].length));
+            body += '<rect x="' + fix(x) + '" y="6" width="' + w + '" height="40" rx="3" style="fill: #b9bdc2; stroke: #8a8f95"/>' +
+                '<rect x="' + fix(x + 13) + '" y="6" width="' + (w - 26) + '" height="40" style="fill: #232323"/>' +
+                '<text x="' + fix(mid) + '" y="' + fix(26 + size * 0.36) + '" text-anchor="middle" style="fill: #f3f3f3; font-size: ' + fix(size) + 'px; letter-spacing: 1px">' + c[0] + '</text>' +
+                (c[1] ? svgText(mid, 62, c[1], 'middle') : '');
+        });
+        return svgOf('', W, named ? 68 : 52, 'The resistor', body);
+    }
+
+    // an SMD resistor's value of its code, or the codes of a value: of 3 digits, of 4 and of EIA-96, each rounded to what it can say
+    function runSmd(n, raw) {
+        var r, got, rows, none, code, text;
+        if (raw.find === '1') {
+            none = physNone(['3 digits', '4 digits', 'EIA-96']);
+            if (!raw.ohms) return Object.assign(none, { cols: 3 });
+            r = partValues(raw, ['ohms']).v.ohms;
+            got = CalcPhysics.toSmd(r);
+            if (!got) return Object.assign(none, { cols: 3, bad: ['ohms'], warn: true, note: 'A resistance above 0, as 4.7k, 4k7 or 470R.' });
+            rows = [['3 digits', got.three, 'Of 3, Ω'], ['4 digits', got.four, 'Of 4, Ω'], ['EIA-96', got.eia, 'Of EIA-96, Ω']];
+            return { rows: drawnTile(smdDrawing(rows.filter(function (c) { return c[1]; }).map(function (c) { return [c[1].code, c[0]]; })), 'Its codes').concat(
+                rows.map(function (c) { return c[1] ? { l: c[0], text: c[1].code } : { l: c[0], v: NaN }; }), rows.map(function (c) { return { l: c[2], v: c[1] ? c[1].ohms : NaN }; })), cols: 3,
+                note: '3 digits are of parts of 5%, 4 and EIA-96 of 1%, E96' + (rows.some(function (c) { return c[1] && c[1].ohms !== r; }) ? ': each rounded to what its code can say.' : '.') +
+                    (!got.three ? ' Of 3 marks, from 0.1 Ω to 99 GΩ.' : '') };
+        }
+        none = physNone(['Resistance', 'Ω']);
+        if (!raw.code) return Object.assign(none, { cols: 2 });
+        got = CalcPhysics.fromSmd(raw.code);
+        if (!got) return Object.assign(none, { cols: 2, bad: ['code'], warn: true, note: 'A code of 3 digits, 473, of 4, 4702, R for the point, 4R7, or of EIA-96, two digits and a letter, 01C.' });
+        code = raw.code.toUpperCase().replace(/\s+/g, '');
+        text = got.ohms ? CalcPhysics.si(got.ohms, 'Ω') + ' ± ' + got.tol + '%' : '0 Ω';
+        return { rows: drawnTile(smdDrawing([[code, '']]), 'The resistor').concat([{ l: 'Resistance', text: text, copy: text, wide: true }, { l: 'Ω', v: got.ohms }, { l: 'Its code', text: got.kind }],
+            got.tol ? physRows([['From, Ω', got.ohms * (1 - got.tol / 100)], ['To, Ω', got.ohms * (1 + got.tol / 100)]]) : []), cols: 2,
+            note: !got.ohms ? 'A jumper: a link of no resistance, 50 mΩ at most.' : got.also ? 'Of EIA-96 ' + code + ' would be ' + CalcPhysics.si(got.also.ohms, 'Ω') + ', but R for the point is far more usual.' :
+                'Usually made to ' + got.tol + '%' + (got.tol === 1 ? ', of E96.' : '.') };
+    }
+
     function runNetwork(n, raw) {
         var kind = ['R', 'C', 'L'][+raw.part || 0], unit = { R: 'Ω', C: 'F', L: 'H' }[kind], r;
         if (!raw.n) return { rows: [{ l: 'In all', v: NaN }] };
@@ -10112,12 +10443,13 @@
             case 'RP': I = Math.sqrt(P / R); V = Math.sqrt(P * R); break;
         }
         if (![V, I, R, P].every(isFinite)) return Object.assign(physNone(none), { cols: 2, warn: true, note: 'Divided by 0, or a power and a resistance not of the same sign: no answer.' });
-        return { rows: physRows([['V', V], ['I, A', I], ['R, Ω', R], ['P, W', P]]), cols: 2,
+        return { rows: physRows([['V', V], ['I, A', I], ['R, Ω', R], ['P, W', P]]).concat(drawnTile(graphDrawing('V against I, the box under it to I, V × I, the power', Math.min(0, 2 * I), Math.max(0, 2 * I), {
+            fs: [function (x) { return x * R; }], fill: [function () { return V; }, null, 0, I], dots: [[I, V]], names: ['I, A', 'V'] }), 'Its line, the power shaded')), cols: 2,
             note: CalcPhysics.si(V, 'V') + ', ' + CalcPhysics.si(I, 'A') + ', ' + CalcPhysics.si(R, 'Ω') + ', ' + CalcPhysics.si(P, 'W') + '.' };
     }
 
     function runDivider(n, raw) {
-        var p = partValues(raw, ['V', 'R1', 'R2', 'RL']), v = p.v, r2 = v.R2, out, th, bare, none = ['V out', 'I, A'];
+        var p = partValues(raw, ['V', 'R1', 'R2', 'RL']), v = p.v, r2 = v.R2, out, th, bare, lo, hi, none = ['V out', 'I, A'];
         if (p.bad.length) return Object.assign(physNone(none), { cols: 2, bad: p.bad, warn: true, note: 'A value, as 9, 10k or 4k7.' });
         if (!raw.V && !raw.R1 && !raw.R2) return Object.assign(physNone(none), { cols: 2 });
         if (!(isFinite(v.V) && v.R1 > 0 && v.R2 > 0 && (!raw.RL || v.RL > 0))) return Object.assign(physNone(none), { cols: 2, warn: true, note: 'Vin, and resistances above 0.' });
@@ -10125,8 +10457,18 @@
         out = v.V * r2 / (v.R1 + r2);
         th = v.R1 * v.R2 / (v.R1 + v.R2);
         bare = v.V * v.R2 / (v.R1 + v.R2);
-        return { rows: physRows([['V out', out], ['I, A', v.V / (v.R1 + r2)], ['Ratio', r2 / (v.R1 + r2)]].concat(raw.RL ? [['Without the load', bare]] : [],
-            [['R<sub>th</sub>, Ω', th], ['Most to a load, W', bare * bare / (4 * th)]])), cols: 2,
+        // the load from a hundredth of Rth to a hundred times, by its log, wider to take in a load typed
+        lo = Math.log10(th) - 2;
+        hi = Math.log10(th) + 2;
+        if (raw.RL) {
+            lo = Math.min(lo, Math.log10(v.RL) - 0.5);
+            hi = Math.max(hi, Math.log10(v.RL) + 0.5);
+        }
+        return { rows: drawnTile(graphDrawing('V out against the load, by its log, the line without one', lo, hi, {
+            fs: [function (x) { var r = 1 / (1 / v.R2 + Math.pow(10, -x)); return v.V * r / (v.R1 + r); }, function () { return bare; }],
+            marks: [[Math.log10(th), 'Rth ' + CalcPhysics.si(th, 'Ω')]].concat(raw.RL && Math.abs(Math.log10(v.RL / th)) > 0.6 ? [[Math.log10(v.RL), 'load']] : []),
+            dots: raw.RL ? [[Math.log10(v.RL), out]] : [], y: bare > 0 ? [0, 1.3 * bare] : bare < 0 ? [1.3 * bare, 0] : undefined, names: ['load', 'V out'] }), 'With a load').concat(physRows([['V out', out], ['I, A', v.V / (v.R1 + r2)], ['Ratio', r2 / (v.R1 + r2)]].concat(raw.RL ? [['Without the load', bare]] : [],
+            [['R<sub>th</sub>, Ω', th], ['Most to a load, W', bare * bare / (4 * th)]]))), cols: 2,
             note: CalcPhysics.si(out, 'V') + (raw.RL ? ', the load across R₂' : '') + '. To a load it is ' + CalcPhysics.si(bare, 'V') + ' behind ' + CalcPhysics.si(th, 'Ω') + ', R₁ ∥ R₂; ' +
                 'a load of ' + CalcPhysics.si(th, 'Ω') + ' takes the most.' };
     }
@@ -10195,6 +10537,76 @@
             note: 'τ = ' + CalcPhysics.si(tau, 's') + ', cut-off at ' + CalcPhysics.si(1 / (2 * Math.PI * tau), 'Hz') + '.' };
     }
 
+    // A filter's cut-off, Q and band, and its gain and phase at f; its gain drawn against f of a log scale, two decades either
+    // side of its cut-off or centre, each decade marked
+    function runFilter(n, raw) {
+        var of = +raw.kind || 0, pass = of === 2 ? +raw.pass2 || 0 : +raw.pass || 0, band = of === 2 && pass > 1, parts = ['R'].concat(of ? ['L'] : [], of !== 1 ? ['C'] : []),
+            p = partValues(raw, parts.concat('f')), v = p.v, r, rows, at, lf, x0, x1, ys = [], lo, hi, gain, marks, k, none = [band ? 'f₀, Hz' : 'Cut-off f, Hz', 'Q'];
+        if (p.bad.length) return Object.assign(physNone(none), { cols: 2, bad: p.bad, warn: true, note: 'A value, as 10k, 100n or 4.7µ.' });
+        if (!parts.some(function (q) { return raw[q]; })) return Object.assign(physNone(none), { cols: 2 });
+        r = CalcPhysics.filter(of, pass, v.R, v.L, v.C);
+        if (!r || (raw.f && !(v.f > 0))) return Object.assign(physNone(none), { cols: 2, warn: true, note: parts.join(', ').replace(/, (\w)$/, ' and $1') + (raw.f ? ', and f,' : '') + ' above 0.' });
+        rows = band ? [['f₀, Hz', r.f0], ['Q', r.q], ['Bandwidth, Hz', r.bw], ['From, Hz', r.lo], ['To, Hz', r.hi]] :
+            [['Cut-off f, Hz', r.fc]].concat(of === 2 ? [['f₀, Hz', r.f0], ['Q', r.q]] : [['τ, s', of ? v.L / v.R : v.R * v.C]], r.peak ? [['Peak at, Hz', r.peak[0]], ['Peak, dB', 20 * Math.log10(r.peak[1])]] : []);
+        if (raw.f) {
+            at = r.at(v.f);
+            rows.push(['Gain at f', at.gain], ['At f, dB', at.db], ['Phase at f', fromRadians(at.phase)]);
+        }
+        lf = Math.log10(band ? r.f0 : r.fc);
+        x0 = raw.f ? Math.min(lf - 2, Math.log10(v.f) - 0.3) : lf - 2;
+        x1 = raw.f ? Math.max(lf + 2, Math.log10(v.f) + 0.3) : lf + 2;
+        gain = function (x) { return Math.max(-80, r.at(Math.pow(10, x)).db); };
+        for (k = 0; k <= 80; k++) ys.push(gain(x0 + (x1 - x0) * k / 80));
+        lo = Math.max(-60, Math.min.apply(null, ys));
+        hi = Math.max(0, Math.max.apply(null, ys));
+        marks = [[lf, band ? 'f₀' : 'fc']];
+        for (k = Math.ceil(x0); k <= Math.floor(x1); k++) if (Math.abs(k - lf) > 0.45) marks.push([k, CalcPhysics.si(Math.pow(10, k), 'Hz').replace(/\s/g, '')]);
+        return { rows: physRows(rows).concat(drawnTile(graphDrawing('Its gain at each frequency', x0, x1, {
+            fs: [gain], y: [lo - 0.05 * (hi - lo), hi + 0.2 * (hi - lo)], marks: marks,
+            dots: raw.f ? [[Math.log10(v.f), gain(Math.log10(v.f))]] : [], names: ['f', 'dB'] }), 'Gain against f, in dB')), cols: 2,
+            note: (of < 2 ? 'Of the first order: 20 dB less each decade past its cut-off, where it is 3 dB down, half the power.' :
+                pass < 2 ? 'Of the second order: 40 dB less each decade past it' + (r.peak ? '; of Q above 0.707 it peaks first.' : '.') :
+                    pass === 2 ? 'Its band between the two frequencies 3 dB down, 20 dB less each decade beyond.' : 'At f₀ nothing gets through; 3 dB down at the ends of its band.') +
+                (raw.f ? ' Phase in ' + unitWord() + '.' : '') };
+    }
+
+    // where a level is among signals, in dBm: from as faint as a radio hears to a transmitter's kilowatt
+    function levelDrawing(dbm) {
+        var W = 300, id = 'calc-plot-' + (++plotIds), x = function (d) { return 10 + (W - 20) * (d + 120) / 180; }, at = x(Math.max(-120, Math.min(60, dbm))), body;
+        body = '<defs><linearGradient id="' + id + '"><stop offset="0" stop-color="#5bb05a"/><stop offset="0.55" stop-color="#f3d43a"/><stop offset="1" stop-color="#d7302b"/></linearGradient></defs>' +
+            '<rect x="10" y="10" width="' + (W - 20) + '" height="14" rx="3" fill="url(#' + id + ')"/>';
+        [[-120, '−120', 'start'], [-90, 'Weak'], [-50, 'Strong'], [0, '1 mW'], [30, '1 W'], [60, '1 kW', 'end']].forEach(function (q) { body += svgText(x(q[0]), 43, q[1], q[2] || 'middle'); });
+        return svgOf('', W, 48, 'Where it is among signals', body + '<path class="calc-sv-head calc-sv-head-red" d="M' + fix(at) + ' 24l-5 7h10Z"/><path class="calc-sv-curve" d="M' + fix(at) + ' 7V24"/>');
+    }
+
+    // A level in each of its units across an impedance, drawn among signals; or a gain or loss in dB and as ratios,
+    // drawn on the curves of each
+    function runDecibels(n, raw) {
+        var none, p, r, z;
+        if (raw.kind === '1') {
+            none = physNone(['dB', 'Power ×', 'Voltage ×']);
+            p = partValues(raw, ['g']);
+            if (p.bad.length) return Object.assign(none, { cols: 3, bad: p.bad, warn: true, note: 'A number, as 3, -6 or 0.5.' });
+            if (!raw.g) return Object.assign(none, { cols: 3 });
+            r = CalcPhysics.ratio(p.v.g, +raw.given || 0);
+            if (!r) return Object.assign(none, { cols: 3, warn: true, note: 'A ratio above 0.' });
+            return { rows: physRows([['dB', r.db], ['Power ×', r.power], ['Voltage ×', r.voltage]]).concat(drawnTile(graphDrawing('dB of each ratio', 0, Math.max(2, r.power, r.voltage) * 1.15, {
+                fs: [function (x) { return 10 * Math.log10(x); }, function (x) { return 20 * Math.log10(x); }], y: [Math.min(r.db, 0) - 6, Math.max(r.db, 0) + 6],
+                dots: [[r.power, r.db], [r.voltage, r.db]], names: ['×', 'dB'] }), 'dB of power, red, and of voltage, blue')), cols: 3,
+                note: (r.db > 0 ? 'A gain' : r.db < 0 ? 'A loss' : 'Neither') + ': 3 dB is about twice the power, 6 dB twice the voltage, 10 dB ten times the power.' };
+        }
+        none = physNone(['P, W', 'dBm']);
+        p = partValues(raw, ['x', 'z']);
+        z = raw.z ? p.v.z : 50;
+        if (p.bad.length) return Object.assign(none, { cols: 2, bad: p.bad, warn: true, note: 'A value, as 0, -30, 1m or 2.5.' });
+        if (!raw.x) return Object.assign(none, { cols: 2 });
+        r = CalcPhysics.level(p.v.x, +raw.unit || 0, z);
+        if (!r) return Object.assign(none, { cols: 2, warn: true, note: (raw.unit === '2' || raw.unit === '6' ? 'P or V above 0, and Z' : 'Z') + ' above 0.' });
+        return { rows: drawnTile(levelDrawing(r.dbm), 'Among signals, in dBm').concat(physRows([['P, W', r.w], ['dBm', r.dbm], ['dBW', r.dbw], ['V RMS', r.v], ['V peak', r.vpeak],
+            ['V peak to peak', r.vpp], ['dBV', r.dbv], ['dBmV', r.dbmv], ['dBµV', r.dbuv], ['I, A', r.i]])), cols: 2,
+            note: 'Across ' + CalcPhysics.si(z, 'Ω') + ', V and I as RMS of a sine wave; dBm of a milliwatt, dBµV of a microvolt.' };
+    }
+
     function runWire(n, raw) {
         var gauge = raw.size === '1', metal = METALS[+raw.metal || 0], p = partValues(raw, gauge ? ['rho', 'L', 'I'] : ['rho', 'L', 'd', 'I']), v = p.v, rho = raw.metal === '5' ? v.rho : metal[1],
             d = gauge ? CalcPhysics.awg(raw.d) : v.d, A, R, Rt, rows, none = ['R, Ω', 'A metre, Ω'];
@@ -10229,7 +10641,8 @@
         R = drop / I;
         buy = CalcPhysics.standard(R, 12, 1);
         got = drop / buy;
-        return { rows: physRows([['R, Ω', R], ['Buy, E12, Ω', buy], ['I with it, A', got], ['P in R, W', drop * got], ['P of each LED, W', v.Vf * got]]), cols: 2,
+        return { rows: drawnTile(stackDrawing('V supplied, shared by the LEDs and the resistor', [[(n.n > 1 ? n.n + ' LEDs ' : 'LED ') + shortNum(n.n * v.Vf) + ' V', n.n * v.Vf, '#f0b3b3'],
+            ['R ' + shortNum(drop) + ' V', drop, '#e3cf9c']]), 'Vs shared').concat(physRows([['R, Ω', R], ['Buy, E12, Ω', buy], ['I with it, A', got], ['P in R, W', drop * got], ['P of each LED, W', v.Vf * got]])), cols: 2,
             note: CalcPhysics.si(buy, 'Ω') + ' gives ' + CalcPhysics.si(got, 'A') + '; a resistor of ' + wattage(drop * got) + ' is enough.' };
     }
 
@@ -10248,7 +10661,8 @@
             case 'QE': V = 2 * E / Q; C = Q * Q / (2 * E); break;
         }
         if (![C, V, Q, E].every(isFinite) || !(C > 0) || E < 0) return Object.assign(physNone(none), { cols: 2, warn: true, note: 'C above 0 and E 0 or more, of the same sign as V and Q: no answer.' });
-        return { rows: physRows([['C, F', C], ['V', V], ['Q, C', Q], ['E, J', E]]), cols: 2,
+        return { rows: physRows([['C, F', C], ['V', V], ['Q, C', Q], ['E, J', E]]).concat(drawnTile(graphDrawing('Q against V, the area under it to V, ½QV, the energy', Math.min(0, 2 * V), Math.max(0, 2 * V), {
+            fs: [function (x) { return C * x; }], fill: [function (x) { return C * x; }, null, 0, V], dots: [[V, Q]], names: ['V', 'Q, C'] }), 'Its charge, the energy shaded')), cols: 2,
             note: CalcPhysics.si(C, 'F') + ', ' + CalcPhysics.si(V, 'V') + ', ' + CalcPhysics.si(Q, 'C') + ', ' + CalcPhysics.si(E, 'J') + '.' };
     }
 
@@ -10268,14 +10682,18 @@
             if (!raw.x) return Object.assign(physNone(none), { cols: 2 });
             if (!(v.x > 0)) return Object.assign(physNone(none), { cols: 2, warn: true, note: 'It is above 0.' });
             peak = [v.x, v.x * Math.SQRT2, v.x / 2][+raw.given || 0];
-            return { rows: physRows([['Peak', peak], ['RMS', peak / Math.SQRT2], ['Peak to peak', 2 * peak], ['Average, rectified', 2 * peak / Math.PI]]), cols: 2,
+            return { rows: physRows([['Peak', peak], ['RMS', peak / Math.SQRT2], ['Peak to peak', 2 * peak], ['Average, rectified', 2 * peak / Math.PI]]).concat(drawnTile(graphDrawing('A cycle, the RMS the line, the rectified average dashed', 0, 1, {
+                fs: [function (t) { return peak * Math.sin(2 * Math.PI * t); }, function () { return peak / Math.SQRT2; }, function () { return 2 * peak / Math.PI; }],
+                dots: [[0.25, peak]], names: ['t', 'V'] }), 'A cycle')), cols: 2,
                 note: 'Of a sine wave: mains of 230 V RMS peaks at 325 V.' };
         }
         if (of === 2) {
             if (!raw.L && !raw.C) return Object.assign(physNone(none), { cols: 2 });
             if (!(v.L > 0 && v.C > 0)) return Object.assign(physNone(none), { cols: 2, warn: true, note: 'L and C are above 0.' });
             f = 1 / (2 * Math.PI * Math.sqrt(v.L * v.C));
-            return { rows: physRows([['f, Hz', f], ['ω, rad/s', 2 * Math.PI * f], ['T, s', 1 / f], ['X<sub>L</sub> = X<sub>C</sub>, Ω', Math.sqrt(v.L / v.C)]]), cols: 2,
+            return { rows: physRows([['f, Hz', f], ['ω, rad/s', 2 * Math.PI * f], ['T, s', 1 / f], ['X<sub>L</sub> = X<sub>C</sub>, Ω', Math.sqrt(v.L / v.C)]]).concat(drawnTile(graphDrawing('XL rising, XC falling, meeting at f₀', 0, 3 * f, {
+                fs: [function (x) { return 2 * Math.PI * x * v.L; }, function (x) { return 1 / (2 * Math.PI * x * v.C); }], y: [0, 3 * Math.sqrt(v.L / v.C)],
+                marks: [[f, 'f₀']], dots: [[f, Math.sqrt(v.L / v.C)]], names: ['f', 'X, Ω'] }), 'X<sub>L</sub> and X<sub>C</sub>')), cols: 2,
                 note: 'It rings at ' + CalcPhysics.si(f, 'Hz') + '.' };
         }
         if (!raw.Np && !raw.Ns && !raw.Vp) return Object.assign(physNone(none), { cols: 2 });
@@ -10352,7 +10770,8 @@
         rows = [['Hours', h], ['Days', h / 24], ['Charge, C', n.C * 3.6]];
         if (raw.V) rows.push(['Energy, Wh', n.C * v.V / 1000], ['Energy, J', n.C * v.V * 3.6], ['Power, W', v.V * v.I]);
         if (raw.Ic) rows.push(['To charge, h', n.C / 1000 / v.Ic * 1.2]);
-        return { rows: physRows(rows), cols: 2, note: 'At a steady current, new; cold, old or drawn fast, it lasts less.' };
+        return { rows: physRows(rows).concat(drawnTile(graphDrawing('The hours it lasts at each current', 0, 3 * v.I, { fs: [function (x) { return n.C / 1000 / x; }], y: [0, 4 * h],
+            dots: [[v.I, h]], names: ['I, A', 'h'] }), 'Hours and current')), cols: 2, note: 'At a steady current, new; cold, old or drawn fast, it lasts less.' };
     }
 
     function runDiode(n, raw) {
@@ -10413,7 +10832,7 @@
     }
 
     function runBias(n, raw) {
-        var p = partValues(raw, ['V', 'R1', 'R2', 'Rc', 'Re']), v = p.v, r, rows, none = ['V<sub>CE</sub>', 'I<sub>C</sub>, A'];
+        var p = partValues(raw, ['V', 'R1', 'R2', 'Rc', 'Re']), v = p.v, r, rows, top, none = ['V<sub>CE</sub>', 'I<sub>C</sub>, A'];
         if (p.bad.length) return Object.assign(physNone(none), { cols: 3, bad: p.bad, warn: true, note: 'A value, as 12, 47k or 2.2k.' });
         if (!raw.V && !raw.R1 && !raw.R2) return Object.assign(physNone(none), { cols: 3 });
         r = CalcPhysics.bias(v.V, v.R1, v.R2, raw.Rc ? v.Rc : 0, raw.Re ? v.Re : 0, n.beta);
@@ -10421,6 +10840,11 @@
         rows = physRows([['V<sub>B</sub>', r.vb], ['V<sub>E</sub>', r.ve], ['V<sub>C</sub>', r.vc], ['V<sub>CE</sub>', r.vce], ['I<sub>B</sub>, A', r.ib], ['I<sub>C</sub>, A', r.ic]]);
         if (r.region === 'active' && raw.Re && v.Re > 0 && raw.Rc) rows = rows.concat(physRows([['Gain, about', -v.Rc / v.Re]]));
         rows.push({ l: 'It is', wide: true, text: { active: 'Active: it amplifies', saturated: 'Saturated: switched on fully', off: 'Off: V<sub>B</sub> below 0.7 V' }[r.region] });
+        top = v.V / ((raw.Rc ? v.Rc : 0) + (raw.Re ? v.Re : 0)); // the most Ic, the transistor a short: none without Rc or Re
+        if (isFinite(top)) {
+            rows = drawnTile(graphDrawing('Its load line, the operating point on it', 0, v.V, { fs: [function (x) { return (v.V - x) * top / v.V; }], y: [0, 1.15 * top],
+                marks: r.region === 'active' ? [[v.V / 2, '½VCC']] : [], dots: [[r.vce, r.ic]], names: ['VCE', 'IC'] }), 'The load line').concat(rows);
+        }
         return { rows: rows, cols: 3, note: r.region === 'active' ? 'For the widest swing, VCE near half of VCC, ' + CalcPhysics.si(v.V / 2, 'V') + '.' : '' };
     }
 
@@ -10433,18 +10857,22 @@
         if (raw.Vg && raw.Vth && isFinite(v.Vg) && v.Vth > 0) {
             rows.push({ l: 'The gate', wide: true, text: v.Vg <= v.Vth ? 'Off: V<sub>GS</sub> is not above V<sub>th</sub>' : v.Vg < 2.5 * v.Vth ? 'Partly on: R<sub>DS</sub> is far above its rating' : 'On fully' });
         }
+        rows = drawnTile(graphDrawing('The heat in it at each current', 0, 2 * v.I, { fs: [function (x) { return x * x * v.R; }], dots: [[v.I, P]], names: ['I, A', 'P, W'] }), 'Heat and current').concat(rows);
         return { rows: rows, cols: 2, note: 'RDS(on) as its datasheet gives it at your VGS: most at 10 V, logic-level ones at 4.5 V or less.' };
     }
 
     function runZener(n, raw) {
-        var p = partValues(raw, ['V', 'Vmax', 'Vz', 'IL', 'Iz']), v = p.v, IL = raw.IL ? v.IL : 0, Iz = raw.Iz ? v.Iz : 0.005, hi = raw.Vmax ? v.Vmax : v.V, R, buy, Pz, none = ['R, Ω', 'Buy, E12, Ω'];
+        var p = partValues(raw, ['V', 'Vmax', 'Vz', 'IL', 'Iz']), v = p.v, IL = raw.IL ? v.IL : 0, Iz = raw.Iz ? v.Iz : 0.005, hi = raw.Vmax ? v.Vmax : v.V, R, buy, Pz, most, none = ['R, Ω', 'Buy, E12, Ω'];
         if (p.bad.length) return Object.assign(physNone(none), { cols: 2, bad: p.bad, warn: true, note: 'A value, as 12, 5.1 or 20m.' });
         if (!raw.V && !raw.Vz) return Object.assign(physNone(none), { cols: 2 });
         if (!(v.Vz > 0 && v.V > v.Vz && hi >= v.V && IL >= 0 && Iz > 0)) return Object.assign(physNone(none), { cols: 2, warn: true, note: 'Vin above VZ, the highest not below Vin, IL 0 or more and IZ above 0.' });
         R = (v.V - v.Vz) / (IL + Iz);
         buy = CalcPhysics.standard(R, 12, -1);
         Pz = v.Vz * (hi - v.Vz) / buy;
-        return { rows: physRows([['R, Ω', R], ['Buy, E12, Ω', buy], ['P in the Zener, W', Pz], ['P in R, W', (hi - v.Vz) * (hi - v.Vz) / buy], ['I<sub>Z</sub> at the lowest, A', (v.V - v.Vz) / buy - IL]]),
+        most = (v.V - v.Vz) / buy; // the most current a load takes before the Zener lets go, at the lowest Vin
+        return { rows: drawnTile(graphDrawing('V out against the load current' + (hi > v.V ? ', at the highest Vin thin' : ''), 0, Math.max(1.6 * most, 1.2 * IL), {
+            fs: [function (x) { return Math.min(v.Vz, v.V - x * buy); }].concat(hi > v.V ? [function (x) { return Math.min(v.Vz, hi - x * buy); }] : []), y: [0, 1.25 * v.Vz],
+            marks: [[most, 'most']], dots: [[IL, Math.min(v.Vz, v.V - IL * buy)]], names: ['IL, A', 'V out'] }), 'It holds till').concat(physRows([['R, Ω', R], ['Buy, E12, Ω', buy], ['P in the Zener, W', Pz], ['P in R, W', (hi - v.Vz) * (hi - v.Vz) / buy], ['I<sub>Z</sub> at the lowest, A', (v.V - v.Vz) / buy - IL]])),
             cols: 2, note: 'The worst: at ' + CalcPhysics.si(hi, 'V') + ' with no load. A Zener of ' + (Pz * 2 <= 0.5 ? '½ W' : Pz * 2 <= 1.3 ? '1.3 W' : Pz * 2 <= 5 ? '5 W' : 'more than 5 W') + ' is enough.' };
     }
 
@@ -10867,7 +11295,8 @@
         else if (!raw.c) c = m * dT ? Q / (m * dT) : NaN;
         else dT = m * c ? Q / (m * c) : NaN;
         if (!isFinite(Q + m + c + dT)) return Object.assign(physNone(none), { cols: 2, warn: true, note: 'Divided by 0: no answer.' });
-        return { rows: physRows([['Q, J', Q], ['m, kg', m], ['c, J/(kg·K)', c], ['ΔT, K', dT], ['Q, kcal', Q / 4184], ['Q, kWh', Q / 3.6e6]]), cols: 2,
+        return { rows: drawnTile(graphDrawing('ΔT against the heat, its slope 1/mc', Math.min(0, 2 * Q), Math.max(0, 2 * Q), { fs: [function (x) { return x / (m * c); }], dots: [[Q, dT]],
+            names: ['Q, J', 'ΔT, K'] }), 'Warming').concat(physRows([['Q, J', Q], ['m, kg', m], ['c, J/(kg·K)', c], ['ΔT, K', dT], ['Q, kcal', Q / 4184], ['Q, kWh', Q / 3.6e6]])), cols: 2,
             note: Q < 0 ? 'Below 0: the heat it gives cooling.' : 'A change of 1 K is a change of 1 °C.' };
     }
 
@@ -10879,7 +11308,9 @@
         else if (!raw.m) m = L ? Q / L : NaN;
         else L = m ? Q / m : NaN;
         if (!isFinite(Q + m + L)) return Object.assign(physNone(none), { warn: true, note: 'Divided by 0: no answer.' });
-        return { rows: physRows([['Q, J', Q], ['m, kg', m], ['L, J/kg', L]]), cols: 3 };
+        return { rows: drawnTile(Q ? graphDrawing('Its temperature as the heat goes in: flat while it melts or boils', -0.5 * Math.abs(Q), 1.5 * Math.abs(Q), {
+            fs: [function (x) { return x < 0 ? x / Math.abs(Q) : x > Math.abs(Q) ? (x - Math.abs(Q)) / Math.abs(Q) : 0; }], bands: [[0, Math.abs(Q)]], y: [-0.6, 0.6],
+            marks: [[Math.abs(Q), CalcPhysics.si(Math.abs(Q), 'J')]], names: ['Q', 'T'] }) : '', 'Changing state').concat(physRows([['Q, J', Q], ['m, kg', m], ['L, J/kg', L]])), cols: 3 };
     }
 
     function runMixing(n, raw) {
@@ -10889,7 +11320,8 @@
             return Object.assign(physNone(none), { warn: true, note: 'Both masses and both c above 0, and both temperatures.' });
         }
         T = (a * n.T1 + b * n.T2) / (a + b);
-        return { rows: physRows([['T, °C', T], ['Heat, J', Math.abs(a * (T - n.T1))], ['Change of 1, K', T - n.T1], ['Change of 2, K', T - n.T2]]), cols: 2,
+        return { rows: drawnTile(graphDrawing('The two meeting at T, 1 red, as time goes', 0, 5, { fs: [function (t) { return T + (n.T1 - T) * Math.exp(-t); }, function (t) { return T + (n.T2 - T) * Math.exp(-t); }],
+            marks: [], dots: [[0, n.T1], [5, T]], pts: [[0, n.T2]], names: ['time', 'T'] }), 'Meeting').concat(physRows([['T, °C', T], ['Heat, J', Math.abs(a * (T - n.T1))], ['Change of 1, K', T - n.T1], ['Change of 2, K', T - n.T2]])), cols: 2,
             note: 'No heat lost, and neither melts nor boils. In kelvin as well, both typed so.' };
     }
 
@@ -11018,7 +11450,11 @@
             } else if (raw.Q && n.Q > 0) rows.push(['Work at most, J', n.Q * eta], ['Heat out at least, J', n.Q * (1 - eta)]);
             note = warn ? 'More than Carnot\'s: no engine between these can do it.' : 'No engine between them does better: a hotter TH or a colder TC does.';
         }
-        return { rows: physRows(rows), cols: 2, warn: warn, note: note };
+        return { rows: drawnTile(fridge ? stackDrawing('The heat into the warm, at best: the work and the heat from the cold', [['Work 1', 1, '#f0b3b3'], ['From the cold ' + shortNum(cop), cop, '#bcd0e6']]) :
+            raw.Q && raw.W && n.Q > 0 && n.W >= 0 && n.W <= n.Q ? stackDrawing('The heat in: the work, and the heat out; at best the work ' + shortNum(100 * eta) + '%', [['Work ' + shortNum(100 * n.W / n.Q) + '%', n.W, '#f0b3b3'],
+                ['Heat out ' + shortNum(100 - 100 * n.W / n.Q) + '%', n.Q - n.W, '#bcd0e6']]) :
+            stackDrawing('The heat in, at best: the work, and the heat out', [['Work ' + shortNum(100 * eta) + '%', eta, '#f0b3b3'], ['Heat out ' + shortNum(100 - 100 * eta) + '%', 1 - eta, '#bcd0e6']]),
+            'Where the heat goes').concat(physRows(rows)), cols: 2, warn: warn, note: note };
     }
 
     function runStress(n, raw) {
@@ -11034,7 +11470,10 @@
             if (raw.dL) E = e ? s / e : NaN;
             rows.push(['ε', e], ['Strain, %', 100 * e], raw.dL ? ['E, Pa', E] : ['ΔL, m', dL], ['Energy, J', n.F * dL / 2], ['k, N/m', E * n.A / n.L]);
         }
-        return { rows: physRows(rows), cols: 2, note: raw.dL || raw.E ? 'Within its elastic limit, as Hooke\'s law holds.' : 'With ΔL or E, the strain and the other too.' };
+        rows = physRows(rows);
+        if (e && isFinite(E)) rows = drawnTile(graphDrawing('σ against ε, the area under it the energy in each m³', Math.min(0, 1.5 * e), Math.max(0, 1.5 * e), { fs: [function (x) { return E * x / 1e6; }],
+            fill: [function (x) { return E * x / 1e6; }, null, 0, e], dots: [[e, s / 1e6]], names: ['ε', 'σ, MPa'] }), 'Stress and strain').concat(rows);
+        return { rows: rows, cols: 2, note: raw.dL || raw.E ? 'Within its elastic limit, as Hooke\'s law holds.' : 'With ΔL or E, the strain and the other too.' };
     }
 
     // of three letters related as a = b ÷ c, the one left empty from the two typed: [a, b, c], or a note why none
@@ -11066,8 +11505,23 @@
         var gauge = n.rho * n.g * n.h, none = ['Gauge, Pa', 'Absolute, Pa'];
         if (!raw.h) return physNone(none);
         if (!(n.h >= 0 && n.rho > 0 && n.g > 0 && n.P0 >= 0)) return Object.assign(physNone(none), { warn: true, note: 'h and P₀ of 0 or more, ρ and g above 0.' });
-        return { rows: physRows([['Gauge, Pa', gauge], ['Absolute, Pa', n.P0 + gauge], ['Absolute, atm', (n.P0 + gauge) / 101325]].concat(raw.A && n.A > 0 ? [['Force on A, N', gauge * n.A]] : [])),
+        return { rows: drawnTile(n.h > 0 ? graphDrawing('The pressure going down, absolute red, gauge thin', 0, 2 * n.h, { fs: [function (x) { return (n.P0 + n.rho * n.g * x) / 1000; }, function (x) { return n.rho * n.g * x / 1000; }],
+            dots: [[n.h, (n.P0 + gauge) / 1000]], pts: [[n.h, gauge / 1000]], names: ['h, m', 'P, kPa'] }) : '', 'P and depth')
+            .concat(physRows([['Gauge, Pa', gauge], ['Absolute, Pa', n.P0 + gauge], ['Absolute, atm', (n.P0 + gauge) / 101325]].concat(raw.A && n.A > 0 ? [['Force on A, N', gauge * n.A]] : []))),
             cols: 2, note: raw.A ? 'The force with air at P₀ behind it.' : 'Every 10 m of water is about 1 atm more.' };
+    }
+
+    // a block in a liquid: floating with so much of it under, on the bottom, or staying where it is; its weight down and
+    // the push up, to scale
+    function buoyancyDrawing(under, W0, up) {
+        var W = 300, H = 124, s = 44, x = 128, surface = 40, floor = H - 8, y = under < 1 ? surface - s * (1 - under) : under > 1 ? floor - s : surface + (floor - surface - s) / 2,
+            top = Math.max(W0, up), push = under < 1 ? W0 : up, cx = x + s / 2, cy = y + s / 2;
+        return svgOf('', W, H, 'It in the liquid, its weight and the push up', '<rect x="8" y="' + surface + '" width="' + (W - 16) + '" height="' + (floor - surface) + '" fill="#cfe8ec"/>' +
+            '<path class="calc-sv-ground" d="M8 ' + surface + 'H' + (W - 8) + 'M8 ' + floor + 'H' + (W - 8) + '"/>' +
+            '<rect x="' + x + '" y="' + fix(y) + '" width="' + s + '" height="' + s + '" fill="#d3bc8f" stroke="#8a7550" stroke-width="1.2"/>' +
+            svgArrow(cx - 8, cy, cx - 8, cy + 6 + 34 * W0 / top, 'calc-sv-curve') + svgArrow(cx + 8, cy, cx + 8, cy - 6 - 34 * push / top, 'calc-sv-seg') +
+            svgText(x - 6, cy + 4, 'Weight', 'end', 'calc-sv-small calc-sv-red') + svgText(x + s + 6, cy + 4, 'Push up') +
+            svgText(W - 10, surface - 6, under < 1 ? 'Floats, ' + shortNum(100 * under) + '% under' : under > 1 ? 'Sinks' : 'Stays where it is', 'end'));
     }
 
     function runBuoyancy(n, raw) {
@@ -11079,7 +11533,18 @@
         W = n.m * n.g;
         rows = physRows([['Its density, kg/m³', rho], ['Push up all under, N', up], ['Weight, N', W]]);
         rows.push({ l: 'It', wide: true, text: rho < n.rho ? 'Floats' : rho > n.rho ? 'Sinks' : 'Stays where it is' });
-        return { rows: rows.concat(physRows(rho < n.rho ? [['Under, %', 100 * rho / n.rho], ['To push it under, N', up - W]] : [['Seems under, N', W - up], ['Seems, kg', (W - up) / n.g]])), cols: 2 };
+        return { rows: drawnTile(buoyancyDrawing(rho / n.rho, W, up), 'In the liquid').concat(rows, physRows(rho < n.rho ? [['Under, %', 100 * rho / n.rho], ['To push it under, N', up - W]] :
+            [['Seems under, N', W - up], ['Seems, kg', (W - up) / n.g]])), cols: 2 };
+    }
+
+    // a pipe of one width into another, the water in it, an arrow in each part as long as its speed
+    function pipeDrawing(d1, d2, v1, v2, dP) {
+        var W = 300, H = 118, cy = 50, big = Math.max(d1, d2), h1 = Math.max(8, 72 * d1 / big) / 2, h2 = Math.max(8, 72 * d2 / big) / 2, top = Math.max(v1, v2), edge;
+        edge = 'M8 ' + fix(cy - h1) + 'H128L172 ' + fix(cy - h2) + 'H292M8 ' + fix(cy + h1) + 'H128L172 ' + fix(cy + h2) + 'H292';
+        return svgOf('', W, H, 'The pipe, the water faster where it is narrower', '<path d="M8 ' + fix(cy - h1) + 'H128L172 ' + fix(cy - h2) + 'H292V' + fix(cy + h2) + 'H172L128 ' + fix(cy + h1) + 'H8Z" fill="#cfe8ec"/>' +
+            '<path class="calc-sv-seg" d="' + edge + '"/>' + svgArrow(68 - 45 * v1 / top, cy, 68 + 45 * v1 / top, cy, 'calc-sv-curve') + svgArrow(232 - 45 * v2 / top, cy, 232 + 45 * v2 / top, cy, 'calc-sv-curve') +
+            svgText(68, H - 18, 'v₁ ' + shortNum(v1) + ' m/s', 'middle') + svgText(232, H - 18, 'v₂ ' + shortNum(v2) + ' m/s', 'middle') +
+            svgText(150, H - 4, (dP < 0 ? 'Pressure rises ' : 'Pressure falls ') + CalcPhysics.si(Math.abs(dP), 'Pa'), 'middle'));
     }
 
     function runFlow(n, raw) {
@@ -11090,7 +11555,7 @@
         a2 = Math.PI * n.d2 * n.d2 / 4;
         v2 = n.v1 * a1 / a2;
         dP = n.rho * (v2 * v2 - n.v1 * n.v1) / 2 + n.rho * n.g * n.h;
-        return { rows: physRows([['v<sub>2</sub>, m/s', v2], ['Flow, L/s', n.v1 * a1 * 1000], ['Flow, m³/s', n.v1 * a1], ['Pressure falls, Pa', dP], ['Pressure falls, kPa', dP / 1000]]), cols: 3,
+        return { rows: drawnTile(pipeDrawing(n.d1, n.d2, n.v1, v2, dP), 'The pipe').concat(physRows([['v<sub>2</sub>, m/s', v2], ['Flow, L/s', n.v1 * a1 * 1000], ['Flow, m³/s', n.v1 * a1], ['Pressure falls, Pa', dP], ['Pressure falls, kPa', dP / 1000]])), cols: 3,
             note: dP < 0 ? 'Below 0: the pressure rises, the pipe wider.' : 'Narrower, faster, and the pressure lower.' };
     }
 
@@ -11301,6 +11766,23 @@
             svgText((a + b) / 2, base - V * k - 5, 'V', 'middle') + '<path class="calc-sv-curve" d="' + d + '"/>');
     }
 
+    // a photon coming in, scattered off an electron at θ, its wave longer after, and the electron sent off at φ the other side
+    function comptonDrawing(t, l0, l1, e0) {
+        var W = 300, H = 136, ex = 150, ey = 72, w0 = 9, w1 = Math.min(30, w0 * l1 / l0), phi = t > 1e-9 ? Math.atan(1 / ((1 + e0 / 510.999) * Math.tan(t / 2))) : 0, body;
+        function wave(x0, y0, a, len, w) { // along a from x0, y0, len long, of wavelength w
+            var d = '', i, c = Math.cos(a), s = Math.sin(a);
+            for (i = 0; i <= len; i += 1) d += (i ? 'L' : 'M') + fix(x0 + c * i - s * 4 * Math.sin(2 * Math.PI * i / w)) + ' ' + fix(y0 + s * i + c * 4 * Math.sin(2 * Math.PI * i / w));
+            return '<path class="calc-sv-curve calc-sv-thin" d="' + d + '"/>';
+        }
+        body = '<path class="calc-sv-guide" d="M' + ex + ' ' + ey + 'H' + (W - 20) + '"/>' + wave(14, ey, 0, ex - 20, w0) + svgText(40, ey - 10, 'λ', 'middle', 'calc-sv-small calc-sv-red') +
+            wave(ex + 6 * Math.cos(-t), ey + 6 * Math.sin(-t), -t, 50, w1) + svgText(ex + 64 * Math.cos(-t) + 8 * Math.sin(t), ey + 64 * Math.sin(-t) + 4, 'λ′', Math.cos(t) < -0.3 ? 'end' : 'middle', 'calc-sv-small calc-sv-red') +
+            (t > 1e-9 ? '<path class="calc-sv-guide" d="M' + (ex + 26) + ' ' + ey + 'A26 26 0 ' + (t > Math.PI ? 1 : 0) + ' 0 ' + fix(ex + 26 * Math.cos(t)) + ' ' + fix(ey - 26 * Math.sin(t)) + '"/>' +
+                svgText(ex + 34 * Math.cos(t / 2), ey - 34 * Math.sin(t / 2) + 4, 'θ', 'middle') + svgArrow(ex, ey, ex + 50 * Math.cos(phi), ey + 50 * Math.sin(phi), 'calc-sv-seg') +
+                svgText(ex + 58 * Math.cos(phi), ey + 58 * Math.sin(phi) + 4, 'e⁻', 'start') : '') +
+            '<circle class="calc-sv-mid" cx="' + ex + '" cy="' + ey + '" r="3.5"/>';
+        return svgOf('', W, H, 'The photon in, scattered at θ, its wave longer, and the electron sent off', body);
+    }
+
     function runCompton(n, raw) {
         var l0 = raw.by === '1' ? PLANCK * LIGHT / (n.x * 1e3 * CHARGE) : n.x * 1e-12, t = raw.a ? toRadians(n.a) : Math.PI / 2, l1, e0, e1, none = ['λ′, pm', 'E′, keV'];
         if (!raw.x) return physNone(none);
@@ -11308,7 +11790,7 @@
         l1 = CalcPhysics.compton(l0, t);
         e0 = PLANCK * LIGHT / l0 / CHARGE / 1e3;
         e1 = PLANCK * LIGHT / l1 / CHARGE / 1e3;
-        return { rows: physRows([['λ′, pm', l1 * 1e12], ['Δλ, pm', (l1 - l0) * 1e12], ['E, keV', e0], ['E′, keV', e1], ['To the electron, keV', e0 - e1], ['Lost, %', 100 * (e0 - e1) / e0]]), cols: 2,
+        return { rows: drawnTile(comptonDrawing(t, l0, l1, e0), 'Scattered').concat(physRows([['λ′, pm', l1 * 1e12], ['Δλ, pm', (l1 - l0) * 1e12], ['E, keV', e0], ['E′, keV', e1], ['To the electron, keV', e0 - e1], ['Lost, %', 100 * (e0 - e1) / e0]])), cols: 2,
             note: 'At most, straight back, Δλ is 2h/mₑc, 4.85 pm.' };
     }
 
@@ -14582,6 +15064,7 @@
     // solver has. A formula is typed as it is written, CuSO4·5H2O, Ca(OH)2, Fe^3+; an equation with = or →
     var CHEM_PH = ['[H<sup>+</sup>]', '[OH<sup>–</sup>]', 'pH', 'pOH'],
         GAS_R = [0.082057366080960, 8.314462618, 62.363598221529, 0.08314462618], // L·unit/(mol·K): atm, kPa, mmHg, bar
+        GAS_PU = ['atm', 'kPa', 'mmHg', 'bar'], GAS_P = [1, 101.325, 760, 1.01325], // the units of a pressure, and how many of each an atm is
         // of each solvent of the freezing and boiling point, its formula on its button: Kf and Kb in °C·kg/mol, the points
         // it freezes and boils at, °C, and its name
         SOLVENTS = [[1.86, 0.512, 0, 100, 'Water'], [5.12, 2.53, 5.5, 80.1, 'Benzene'], [20.0, 2.79, 6.6, 80.7, 'Cyclohexane']],
@@ -14594,7 +15077,7 @@
                     run: runMoles, example: { f: 'H2O', m: '36' } },
                 { id: 'empirical', t: 'Empirical formula', f: ['CH<sub>2</sub>O', 'C<sub>6</sub>H<sub>12</sub>O<sub>6</sub>'], d: 'The simplest formula of a composition, the percent or grams of each element: C 40, H 6.71, O 53.29. With its molar mass, the molecular formula as well.',
                     fields: [{ k: 'c', l: 'Composition', ph: 'C 40, H 6.71, O 53.29', fn: true }, { k: 'M', l: 'Molar mass', ph: 'optional' }], run: runEmpirical,
-                    example: { c: 'C 40, H 6.71, O 53.29', M: '180.16' } }
+                    example: function () { return { c: listTyped(['C 40', 'H 6.71', 'O 53.29']), M: '180.16' }; } }
             ],
             reactions: [
                 { id: 'balance', t: 'Balance an equation', f: 'Fe + O<sub>2</sub> → Fe<sub>2</sub>O<sub>3</sub>', d: 'The smallest whole numbers in front of each formula, so each element and the charge are the same on both sides; and what kind of reaction it is. ' +
@@ -14603,7 +15086,7 @@
                 { id: 'stoich', t: 'Amounts and limiting reactant', f: ['g ⇄ mol', 'limiting', '% yield'], d: 'From the amount of one formula, all the others of the reaction. Of two reactants or more, the one that runs out first and what is left of the others; ' +
                     'of a product as well, its percent yield. Amounts in g, or with kg, mg or mol after them: Fe 10, O2 5 g.',
                     fields: [{ k: 'eq', l: 'Equation', ph: 'Fe + O2 = Fe2O3', fn: true }, { k: 'a', l: 'Amounts', ph: 'Fe 10 g, O2 5 g', fn: true }], run: runStoich,
-                    example: { eq: 'N2 + H2 = NH3', a: 'N2 28 g, H2 10 g, NH3 25 g' } },
+                    example: function () { return { eq: 'N2 + H2 = NH3', a: listTyped(['N2 28 g', 'H2 10 g', 'NH3 25 g']) }; } },
                 { id: 'worksheet', t: 'Worksheet', f: ['Practice', 'Answer key'], d: 'Equations to balance, or to name the kind of reaction of, at three levels, with the answers under them to check by. ' +
                     'Again for new ones; Copy for the questions or the answers, to print.',
                     fields: [{ k: 'ex', l: 'Exercise', choice: ['Balance', 'Kind', 'Both'] }, { k: 'lv', l: 'Level', choice: ['Easy', 'Medium', 'Hard'] },
@@ -14661,7 +15144,39 @@
                     fields: [{ k: 'p1', l: 'P<sub>1</sub>', name: 'P₁', ph: 'or' }, { k: 'v1', l: 'V<sub>1</sub>', name: 'V₁', ph: 'or' }, { k: 't1', l: 'T<sub>1</sub>', name: 'T₁', ph: 'or' },
                         { k: 'p2', l: 'P<sub>2</sub>', name: 'P₂', ph: 'or' }, { k: 'v2', l: 'V<sub>2</sub>', name: 'V₂', ph: 'or' }, { k: 't2', l: 'T<sub>2</sub>', name: 'T₂', ph: 'or' },
                         { k: 'tu', l: 'T in', choice: ['K', '°C'] }], cols: 3,
-                    run: runGases, example: { p1: '1', v1: '2', t1: '300', p2: '2', t2: '600' } }
+                    run: runGases, example: { p1: '1', v1: '2', t1: '300', p2: '2', t2: '600' } },
+                { id: 'dalton', t: 'Partial pressures', f: ['P = P<sub>1</sub> + P<sub>2</sub> + …', 'P<sub>i</sub> = x<sub>i</sub>P'], d: 'A mixture of gases, by Dalton\'s law: each gas and how much of it, ' +
+                    'N2 0.78, O2 0.21, Ar 0.01, in moles, grams, fractions or percent, or its own pressure. With the total P, or V and T, the pressure of each; ' +
+                    'of the pressures of each, the total, and with a total typed, the rest of it.',
+                    fields: [{ k: 'g', l: 'Gases', ph: 'N2 0.78, O2 0.21, Ar 0.01', fn: true }, { k: 'is', l: 'Each is', choice: ['Moles', 'Grams', 'Fraction or %', 'Its pressure'] },
+                        { k: 'p', l: 'P, total', name: 'P', ph: 'or' }, { k: 'v', l: 'V, L', ph: 'optional' }, { k: 't', l: 'T', ph: 'optional' },
+                        { k: 'pu', l: 'P in', choice: GAS_PU }, { k: 'tu', l: 'T in', choice: ['K', '°C'] }], cols: 2,
+                    run: runDalton, example: function () { return { g: listTyped(['N2 0.78', 'O2 0.21', 'Ar 0.01']), is: '2', p: '1' }; } },
+                { id: 'wet', t: 'Gas over water', f: ['P<sub>gas</sub> = P − P<sub>water</sub>', 'PV = nRT'], d: 'A gas collected over water, as of a reaction in a lab: the vapour of the water ' +
+                    'at its temperature taken from the pressure measured, for the dry gas\'s. With its volume, its moles and its volume dry at STP; with its formula, its mass as well.',
+                    fields: [{ k: 'p', l: 'P', ph: '755' }, { k: 't', l: 'T', ph: '298.15' }, { k: 'v', l: 'V, L', ph: 'optional' }, { k: 'f', l: 'Gas', ph: 'H2, optional', fn: true },
+                        { k: 'pu', l: 'P in', choice: GAS_PU }, { k: 'tu', l: 'T in', choice: ['K', '°C'] }], cols: 2,
+                    run: runWet, example: { p: '755', pu: '2', t: '25', tu: '1', v: '0.25', f: 'H2' } },
+                { id: 'gasvol', t: 'Gas volumes', f: ['V = nRT ÷ P', '22.4 L/mol at STP'], d: 'The amounts of a reaction, as Amounts and limiting reactant has them, the gases in litres ' +
+                    'at T and P, or at STP while those are empty. An amount in g, mol, or L of a gas: C3H8 10 L. The gases are those marked (g), else the common ones; water is one from 100 °C.',
+                    fields: [{ k: 'eq', l: 'Equation', ph: 'C3H8 + O2 = CO2 + H2O', fn: true }, { k: 'a', l: 'Amounts', ph: 'C3H8 10 L', fn: true }, { k: 'p', l: 'P', ph: 'STP' },
+                        { k: 't', l: 'T', ph: 'STP' }, { k: 'pu', l: 'P in', choice: GAS_PU }, { k: 'tu', l: 'T in', choice: ['K', '°C'] }], cols: 2,
+                    run: runGasVolumes, example: { eq: 'C3H8 + O2 = CO2 + H2O', a: 'C3H8 10 L' } },
+                { id: 'effusion', t: 'Effusion', f: ['r<sub>1</sub> ÷ r<sub>2</sub> = √(M<sub>2</sub> ÷ M<sub>1</sub>)', 't ∝ √M'], d: 'Two gases through a pinhole, by Graham\'s law: ' +
+                    'the lighter is the faster. Each by its formula or its molar mass; leave one of the two gases and the ratio, of their rates or times, empty. Of a molar mass worked out, the gases it could be.',
+                    fields: [{ k: 'a', l: 'Gas 1', ph: 'H2 or g/mol', fn: true }, { k: 'b', l: 'Gas 2', ph: 'O2 or g/mol', fn: true }, { k: 'r', l: 'Ratio', name: 'The ratio', ph: 'or' },
+                        { k: 'of', l: 'Ratio of', choice: ['Rates, r<sub>1</sub> ÷ r<sub>2</sub>', 'Times, t<sub>1</sub> ÷ t<sub>2</sub>'] }],
+                    run: runEffusion, example: { a: 'H2', b: 'O2' } },
+                { id: 'air', t: 'Air with height', f: ['P = P<sub>0</sub>(1 − Lh ÷ T<sub>0</sub>)<sup>gM/RL</sup>'], d: 'The air at a height, by the standard atmosphere to 85 km: its pressure, ' +
+                    'temperature and density, its oxygen, and where water boils there; or the height of a pressure. Leave one of the height and P empty. Sea level is 15 °C and 1 atm unless typed.',
+                    fields: [{ k: 'h', l: 'Height', ph: 'or' }, { k: 'p', l: 'P', ph: 'or' }, { k: 't0', l: 'Sea level, °C', name: 'Sea level T', ph: '15' }, { k: 'p0', l: 'Sea level P', ph: 'standard' },
+                        { k: 'hu', l: 'Height in', choice: ['m', 'km', 'ft'] }, { k: 'pu', l: 'P in', choice: GAS_PU }], cols: 2,
+                    run: runAir, example: { h: '8849' } },
+                { id: 'sound', t: 'Speed of sound', f: ['v = √(γRT ÷ M)', 'Mach = u ÷ v'], d: 'How fast sound goes in a gas at a temperature: air, or a gas by its formula, He, CO2, ' +
+                    'its γ known, worked out from its atoms or typed. With a speed, its Mach number.',
+                    fields: [{ k: 'g', l: 'Gas', ph: 'air, He, CO2', fn: true }, { k: 't', l: 'T', ph: '293.15' }, { k: 'gamma', l: 'γ', name: 'γ', ph: 'auto' },
+                        { k: 'u', l: 'Speed, m/s', name: 'Speed', ph: 'optional' }, { k: 'tu', l: 'T in', choice: ['K', '°C'] }], cols: 2,
+                    run: runSound, example: { g: 'air', t: '20', tu: '1' } }
             ]
         };
 
@@ -14778,6 +15293,21 @@
             note: r.many ? 'It balances in more than one way: this is one, the sum of the others.' : 'The numbers of each formula, then the mass of each side, which are the same.' };
     }
 
+    // a reaction's results for the rows: the limiting reactant and the % yield
+    function yieldRows(r, rows) {
+        if (r.limiting) rows.push({ l: 'Limiting reactant', text: CalcChem.html(r.limiting), wide: true });
+        if (r.percent !== undefined) rows.push({ l: '% yield of ' + CalcChem.html(r.yieldOf), v: +r.percent.toFixed(2), wide: true });
+    }
+
+    // a row for each formula, its amount in the unit unitOf(x) gives ({ unit, per }: per mole) and in moles, and what is left of it
+    function amountRows(r, rows, unitOf) {
+        r.rows.forEach(function (x) {
+            var u = unitOf(x), name = CalcChem.html(x.t);
+            rows.push({ l: name + ', ' + u.unit, v: CalcMaths.round(x.mol * u.per) }, { l: name + ', mol', v: CalcMaths.round(x.mol) });
+            if (x.left > 1e-12 * x.given) rows.push({ l: name + ' left, ' + u.unit, v: CalcMaths.round(x.left * u.per), wide: true });
+        });
+    }
+
     function runStoich(n, raw) {
         var b, read, r, none = [{ l: 'Balanced', v: NaN, wide: true }], rows;
         if (!raw.eq) return { rows: none };
@@ -14790,12 +15320,11 @@
         r = CalcChem.amounts(raw.eq, read.list);
         if (r.error === 'not in') return { rows: rows, bad: ['a'], warn: true, note: r.t + ' is not in the equation.' };
         if (r.error) return { rows: rows, note: 'Type the amount of a formula, or of each reactant.' };
-        if (r.limiting) rows.push({ l: 'Limiting reactant', text: CalcChem.html(r.limiting), wide: true });
-        if (r.percent !== undefined) rows.push({ l: '% yield of ' + CalcChem.html(r.yieldOf), v: +r.percent.toFixed(2), wide: true });
-        r.rows.forEach(function (x) {
-            rows.push({ l: CalcChem.html(x.t) + ', g', v: CalcMaths.round(x.g) }, { l: CalcChem.html(x.t) + ', mol', v: CalcMaths.round(x.mol) });
-            if (x.left > 1e-12 * x.given) rows.push({ l: CalcChem.html(x.t) + ' left, g', v: CalcMaths.round(x.left * x.M), wide: true });
-        });
+        yieldRows(r, rows);
+        if (r.rows.some(function (x) { return x.given > 0; })) rows = drawnTile(labelBars('Each in g, what it takes or makes beside what was typed, the limiting red', r.rows.map(function (x) {
+            return [CalcChem.plain(x.t), x.g, x.t === r.limiting, x.given > 0 ? x.given * x.M : 0];
+        })), 'Used and made').concat(rows);
+        amountRows(r, rows, function (x) { return { unit: 'g', per: x.M }; });
         return { rows: rows, cols: 2, note: r.limiting ? 'What it takes and makes, until ' + CalcChem.plain(r.limiting) + ' runs out.' : r.percent !== undefined ? 'What the reaction gives, against what was got.' : '' };
     }
 
@@ -14887,6 +15416,22 @@
 
     // The freezing point lowered and the boiling point raised, ΔT = i K m: the molality from one of the molality, the
     // grams of a formula in the kg of solvent, ΔTf and ΔTb; and from a ΔT, with the grams and kg, the solute's molar mass
+    // the freezing point and the boiling point, each on a scale of its own about it: the solvent's alone and with the
+    // solute in it, an arrow from one to the other
+    function pointsMovedDrawing(fp, tf, bp, tb) {
+        var W = 300, H = 74, body = '';
+        function scale(x0, x1, at, by, name, down) {
+            var span = Math.max(2.5 * by, 1), lo = down ? at - span * 0.85 : at - span * 0.15, hi = lo + span, px = function (t) { return x0 + (x1 - x0) * (t - lo) / (hi - lo); },
+                to = down ? at - by : at + by;
+            return '<path class="calc-sv-ground" d="M' + x0 + ' 40H' + x1 + '"/>' + svgText((x0 + x1) / 2, 12, name, 'middle', 'calc-sv-small calc-sv-bold') +
+                '<path class="calc-sv-seg calc-sv-thin" d="M' + fix(px(at)) + ' 33V47"/><path class="calc-sv-curve" d="M' + fix(px(to)) + ' 31V49"/>' +
+                (Math.abs(px(to) - px(at)) > 8 ? svgArrow(px(at), 26, px(to), 26, 'calc-sv-curve') : '') +
+                svgText(px(at), 62, local(String(+at.toFixed(2))), 'middle') + svgText(px(to), 72, local(String(+to.toFixed(2))).replace('-', '−'), 'middle', 'calc-sv-small calc-sv-red');
+        }
+        body = scale(12, 142, fp, tf, 'Freezes, °C', true) + scale(158, 288, bp, tb, 'Boils, °C', false);
+        return svgOf('', W, H + 4, 'Each point of the solvent alone, and with it in, red', body);
+    }
+
     function runColligative(n, raw) {
         var other = raw.s === '3', sv = other ? [n.kf, n.kb, NaN, NaN] : SOLVENTS[+raw.s || 0], none = [{ l: 'mol/kg', v: NaN }],
             M = raw.f ? massOf(raw, 'f') : {}, made = raw.f && !M.why ? CalcChem.particles(raw.f) : { i: 1 }, i = raw.i ? n.i : made.i,
@@ -14901,6 +15446,7 @@
         tb = i * sv[1] * m;
         rows = [{ l: 'mol/kg', v: m }, { l: 'i', v: i }, { l: 'ΔT<sub>f</sub>, °C', v: tf }, { l: 'ΔT<sub>b</sub>, °C', v: tb }];
         if (!other) rows.push({ l: 'Freezes at, °C', v: CalcMaths.round(sv[2] - tf) }, { l: 'Boils at, °C', v: CalcMaths.round(sv[3] + tb) });
+        if (!other && isFinite(m) && m > 0) rows = drawnTile(pointsMovedDrawing(sv[2], tf, sv[3], tb), 'The points moved').concat(rows);
         if (!fromMass && raw.kg && M.M) rows.push({ l: 'Solute, g', v: m * n.kg * M.M });
         if (!fromMass && raw.kg && raw.g && !raw.f) rows.push({ l: 'Solute, g/mol', v: n.g / (m * n.kg) }); // its molar mass, from how far the point moved
         return { rows: rows, cols: 2, warn: !isFinite(m),
@@ -15081,14 +15627,222 @@
     }
 
     function runGases(n, raw) {
-        var keys = ['p1', 'v1', 't1', 'p2', 'v2', 't2'], e = oneEmpty(raw, keys, ['P₁', 'V₁', 'T₁', 'P₂', 'V₂', 'T₂']), c = raw.tu === '1' ? 273.15 : 0, t1 = n.t1 + c, t2 = n.t2 + c, v;
+        var keys = ['p1', 'v1', 't1', 'p2', 'v2', 't2'], e = oneEmpty(raw, keys, ['P₁', 'V₁', 'T₁', 'P₂', 'V₂', 'T₂']), c = raw.tu === '1' ? 273.15 : 0, t1 = n.t1 + c, t2 = n.t2 + c, v, all, top;
         if (!e.k) return { rows: [{ l: 'V₂', v: NaN }], warn: e.warn, note: e.note };
         v = {
             p1: n.p2 * n.v2 * t1 / (t2 * n.v1), v1: n.p2 * n.v2 * t1 / (t2 * n.p1), t1: n.p1 * n.v1 * t2 / (n.p2 * n.v2) - c,
             p2: n.p1 * n.v1 * t2 / (t1 * n.v2), v2: n.p1 * n.v1 * t2 / (t1 * n.p2), t2: n.p2 * n.v2 * t1 / (n.p1 * n.v1) - c
         }[e.k];
-        return { rows: [{ l: { p1: 'P₁', v1: 'V₁', t1: 'T₁', p2: 'P₂', v2: 'V₂', t2: 'T₂' }[e.k], v: v }], warn: !isFinite(v),
+        all = { p1: n.p1, v1: n.v1, p2: n.p2, v2: n.v2 };
+        all[e.k] = v;
+        top = Math.max(all.v1, all.v2);
+        return { rows: (['p1', 'v1', 'p2', 'v2'].every(function (k) { return all[k] > 0; }) && isFinite(v) ? drawnTile(graphDrawing('P against V, each on its isotherm, the first red', 0, 1.6 * top, {
+            fs: [function (x) { return all.p1 * all.v1 / x; }].concat(Math.abs(all.p2 * all.v2 / (all.p1 * all.v1) - 1) > 1e-9 ? [function (x) { return all.p2 * all.v2 / x; }] : []),
+            y: [0, 1.6 * Math.max(all.p1, all.p2)], lines: [[all.v1, all.p1, all.v2, all.p2]], dots: [[all.v1, all.p1]], pts: [[all.v2, all.p2]],
+            marks: Math.abs(all.v1 - all.v2) > 0.12 * top ? [[all.v1, '1'], [all.v2, '2']] : [], names: ['V', 'P'] }), 'P and V') : [])
+            .concat([{ l: { p1: 'P₁', v1: 'V₁', t1: 'T₁', p2: 'P₂', v2: 'V₂', t2: 'T₂' }[e.k], v: v }]), warn: !isFinite(v),
             note: !isFinite(v) ? 'None: a box it is divided by is 0.' : 'The same units of P and of V on both sides' + (c ? '; T in °C, worked out in kelvin.' : '; T in kelvin.') };
+    }
+
+    // a gas as a box has it: its formula as chemists write it, else the text, for a tile or, plain, for a drawing
+    function gasName(t, plain) {
+        return /^air$/i.test(t) ? 'Air' : CalcChem.parse(t).error ? escaped(t) : plain ? CalcChem.plain(t) : CalcChem.html(t);
+    }
+
+    // a number to write in a note or on a drawing, to 4 digits, with the decimal mark in use
+    function gasNum(v) {
+        return local(String(+(+v).toPrecision(4)));
+    }
+
+    // Dalton's law: each gas's moles, grams, fraction or pressure; the total pressure typed, or of n, V and T
+    function runDalton(n, raw) {
+        var kind = +raw.is || 0, u = +raw.pu || 0, unit = GAS_PU[u], R = GAS_R[u], T = n.t + (raw.tu === '1' ? 273.15 : 0), none = [{ l: 'P, ' + unit, v: NaN }],
+            read, list, sum = 0, P, mol = NaN, rest, rows, M, i;
+        if (!raw.g) return { rows: none };
+        read = CalcChem.readGases(raw.g, engine.comma);
+        if (read.error !== undefined) {
+            return { rows: none, bad: read.error ? ['g'] : [], warn: !!read.error, note: (read.error ? read.error + ' is not a gas and a number: ' : 'Each gas and a number: ') + local(listTyped(['N2 0.78', 'O2 0.21'])) + '.' };
+        }
+        list = read.list.map(function (g) { return { t: g.t, v: g.v }; });
+        for (i = 0; kind === 1 && i < list.length; i++) { // grams, as moles
+            M = CalcChem.gasOf(list[i].t); // air too
+            if (M.error) return { rows: none, bad: ['g'], warn: true, note: formulaWhy(M, list[i].t) || list[i].t + ' is not a formula.' };
+            list[i].v /= M.M;
+        }
+        list.forEach(function (g) { sum += g.v; });
+        if (!(sum > 0)) return { rows: none, bad: ['g'], warn: true, note: 'An amount above 0 of a gas at least.' };
+        if (raw.v && raw.t && !(n.v > 0 && T > 0)) return { rows: none, warn: true, note: 'V above 0, and T above absolute zero.' };
+        if (kind === 3) { // the pressure of each: the total their sum, or what is typed, the rest of it another gas's
+            P = sum;
+            if (raw.p) {
+                rest = n.p - sum;
+                if (rest < -1e-9 * sum) return { rows: none, warn: true, note: 'P is less than the pressures of the gases add up to, ' + gasNum(sum) + ' ' + unit + '.' };
+                if (rest > 1e-9 * sum) list.push({ v: rest, rest: true });
+                P = n.p;
+            }
+            if (raw.v && raw.t) mol = P * n.v / (R * T);
+        } else {
+            P = raw.p ? n.p : kind < 2 && raw.v && raw.t ? sum * R * T / n.v : NaN;
+            if (kind < 2) mol = sum;
+            else if (raw.p && raw.v && raw.t) mol = n.p * n.v / (R * T);
+        }
+        list.forEach(function (g) { g.x = g.v / (kind === 3 ? P : sum); });
+        rows = [{ l: 'P, ' + unit, v: CalcMaths.round(P) }, { l: 'n, mol', v: CalcMaths.round(mol) }];
+        list.forEach(function (g) {
+            var name = g.rest ? 'The rest' : gasName(g.t);
+            rows.push({ l: name + ', ' + unit, v: CalcMaths.round(g.x * P) }, { l: 'x of ' + name, v: CalcMaths.round(g.x) });
+        });
+        return {
+            rows: drawnTile(shareDrawing('Each gas\'s share of the pressure', list.map(function (g) {
+                return [g.rest ? 'Rest' : gasName(g.t, true), g.x, gasNum(100 * g.x) + '%'];
+            })), 'Each gas\'s share').concat(rows), cols: 2,
+            note: isFinite(P) ? 'Each gas pushes as it would alone: its pressure is its mole fraction x of the total.' : 'Type P, or V and T, for the pressure of each.'
+        };
+    }
+
+    // a gas collected over water: the vapour of the water at T, by Antoine's equation, taken from P
+    function runWet(n, raw) {
+        var u = +raw.pu || 0, unit = GAS_PU[u], T = n.t + (raw.tu === '1' ? 273.15 : 0), none = [{ l: 'Dry gas, ' + unit, v: NaN }, { l: 'Water, ' + unit, v: NaN }],
+            pw, pg, M = {}, mol, rows;
+        if (!raw.p || !raw.t) return { rows: none, note: raw.p || raw.t ? 'Type P and T.' : '' };
+        pw = CalcChem.waterVapour(T - 273.15) / 760 * GAS_P[u];
+        if (!isFinite(pw)) return { rows: none, warn: true, note: 'T from 0 °C to 100 °C, where water is liquid.' };
+        pg = n.p - pw;
+        if (!(pg > 0)) return { rows: none, warn: true, note: 'P is above the vapour of the water at this T, ' + gasNum(pw) + ' ' + unit + '.' };
+        if (raw.f) {
+            M = massOf(raw, 'f');
+            if (M.why) return { rows: none, bad: M.bad ? ['f'] : [], warn: true, note: M.why };
+        }
+        rows = [{ l: 'Dry gas, ' + unit, v: CalcMaths.round(pg) }, { l: 'Water, ' + unit, v: CalcMaths.round(pw) }, { l: 'Dry gas, %', v: CalcMaths.round(100 * pg / n.p) }];
+        if (raw.v) {
+            mol = pg / GAS_P[u] * n.v / (GAS_R[0] * T);
+            rows.push({ l: 'n, mol', v: CalcMaths.round(mol) }, { l: 'Dry at STP, L', v: CalcMaths.round(mol * GAS_R[0] * 273.15) });
+            if (M.M) rows.push({ l: 'Mass, g', v: CalcMaths.round(mol * M.M) });
+        }
+        return {
+            rows: drawnTile(graphDrawing('The vapour of water as it warms, at T the dot', 0, Math.min(100, Math.max(40, (T - 273.15) * 1.6)), {
+                fs: [function (x) { return CalcChem.waterVapour(x) / 760 * GAS_P[u]; }], dots: [[T - 273.15, pw]], names: ['°C', 'P<tspan class="calc-sv-sub" dy="2">water</tspan>'] }),
+                'Water\'s vapour, ' + unit).concat(rows), cols: 2,
+            note: 'The vapour of water at ' + gasNum(T - 273.15) + ' °C, by Antoine\'s equation' + (raw.v ? '.' : '; with V, the moles of the gas' + (raw.f ? ' and its mass.' : '.'))
+        };
+    }
+
+    // a reaction's amounts, its gases in litres at T and P, else at STP
+    function runGasVolumes(n, raw) {
+        var u = +raw.pu || 0, P = raw.p ? n.p / GAS_P[u] : 1, T = raw.t ? n.t + (raw.tu === '1' ? 273.15 : 0) : 273.15, Vm = GAS_R[0] * T / P,
+            none = [{ l: 'Balanced', v: NaN, wide: true }], b, read, r, rows, bars = [], bad = null;
+        if (!raw.eq) return { rows: none };
+        b = CalcChem.balance(raw.eq);
+        if (b.error) return { rows: none, bad: ['eq'], warn: true, note: equationWhy(b) };
+        rows = [{ l: 'Balanced', text: b.html, copy: b.text, wide: true }];
+        if (!(P > 0 && T > 0)) return { rows: rows, warn: true, note: 'P above 0, and T above absolute zero.' };
+        if (!raw.a) return { rows: rows, note: 'Type the amount of a formula, in g, mol or L: ' + CalcChem.plain(b.left[0].t) + ' 10 g.' };
+        read = CalcChem.readAmounts(raw.a, engine.comma, true);
+        if (read.error) return { rows: rows, bad: ['a'], warn: true, note: read.error + ' is not a formula and an amount: C3H8 10 L, or O2 0.5 mol.' };
+        read.list.forEach(function (x) { // litres of a gas, as moles
+            if (x.unit !== 'l' && x.unit !== 'ml') return;
+            if (!CalcChem.isGas(x.t, T - 273.15)) bad = bad || x.t;
+            x.v = (x.unit === 'ml' ? x.v / 1000 : x.v) / Vm;
+            x.unit = 'mol';
+        });
+        if (bad) return { rows: rows, bad: ['a'], warn: true, note: CalcChem.plain(bad) + ' is not a gas here: its amount in g or mol, or (g) after it.' };
+        r = CalcChem.amounts(raw.eq, read.list);
+        if (r.error === 'not in') return { rows: rows, bad: ['a'], warn: true, note: r.t + ' is not in the equation.' };
+        if (r.error) return { rows: rows, note: 'Type the amount of a formula, or of each reactant.' };
+        yieldRows(r, rows);
+        rows.push({ l: 'A mole of gas, L', v: CalcMaths.round(Vm), wide: true });
+        amountRows(r, rows, function (x) {
+            var gas = CalcChem.isGas(x.t, T - 273.15);
+            if (gas) bars.push([CalcChem.plain(x.t), x.mol * Vm, x.t === r.limiting]);
+            return gas ? { unit: 'L', per: Vm } : { unit: 'g', per: x.M };
+        });
+        return {
+            rows: drawnTile(labelBars('The litres of each gas' + (r.limiting ? ', the limiting one red' : ''), bars), 'Litres of each gas').concat(rows), cols: 2,
+            note: (raw.p || raw.t ? 'At ' + gasNum(T - 273.15) + ' °C and ' + gasNum(P) + ' atm' : 'At STP, 0 °C and 1 atm') + ': the gases in litres, the rest in grams.'
+        };
+    }
+
+    // a box of a gas, its formula or its molar mass: { M, html, plain } or { why, bad }
+    function gasBox(raw, k, name) {
+        var s = raw[k], r;
+        if (/^\d*[.,]?\d+(?:e[+-]?\d+)?$/i.test(s)) {
+            r = +s.replace(',', '.');
+            return r > 0 ? { M: r, html: name, plain: name } : { why: name + ': a molar mass above 0.', bad: true };
+        }
+        r = CalcChem.molarMass(s);
+        return r.error ? { why: formulaWhy(r, name) || name + ' is not a formula.', bad: true } : { M: r.mass, html: CalcChem.html(s), plain: CalcChem.plain(s) };
+    }
+
+    // Graham's law: two gases and the ratio of their rates, or of their times, from any two
+    function runEffusion(n, raw) {
+        var e = oneEmpty(raw, ['a', 'b', 'r'], ['gas 1', 'gas 2', 'the ratio']), a = {}, b = {}, ratio, M1, M2, v1, v2, slow, rows, near, none = [{ l: 'r<sub>1</sub> ÷ r<sub>2</sub>', v: NaN }];
+        if (!e.k) return { rows: none, warn: e.warn, note: e.note };
+        if (raw.a) a = gasBox(raw, 'a', 'Gas 1');
+        if (raw.b) b = gasBox(raw, 'b', 'Gas 2');
+        if (a.why || b.why) return { rows: none, bad: [a.why ? 'a' : '', b.why ? 'b' : ''].filter(Boolean), warn: true, note: a.why || b.why };
+        if (e.k !== 'r' && !(n.r > 0)) return { rows: none, warn: true, note: 'A ratio above 0.' };
+        ratio = e.k === 'r' ? Math.sqrt(b.M / a.M) : raw.of === '1' ? 1 / n.r : n.r; // of the rates, r₁ ÷ r₂
+        M1 = e.k === 'a' ? b.M / (ratio * ratio) : a.M;
+        M2 = e.k === 'b' ? a.M * ratio * ratio : b.M;
+        rows = [{ l: 'r<sub>1</sub> ÷ r<sub>2</sub>', v: CalcMaths.round(ratio) }, { l: 't<sub>1</sub> ÷ t<sub>2</sub>', v: CalcMaths.round(1 / ratio) },
+            { l: 'M<sub>1</sub>, g/mol', v: CalcMaths.round(M1) }, { l: 'M<sub>2</sub>, g/mol', v: CalcMaths.round(M2) }];
+        if (e.k !== 'r') {
+            near = CalcChem.gasesNear(e.k === 'a' ? M1 : M2, 0.03).slice(0, 3);
+            rows.push({ l: 'Gas ' + (e.k === 'a' ? 1 : 2) + ' could be', text: near.length ? near.map(function (g) { return gasName(g.t) + ' ' + gasNum(g.M); }).join(', ') : 'None of the common gases', wide: true });
+        }
+        v1 = 1 / Math.sqrt(M1);
+        v2 = 1 / Math.sqrt(M2);
+        slow = Math.min(v1, v2);
+        return {
+            rows: drawnTile(labelBars('How fast each gets through, the slower 1, the faster red', [[a.plain || 'Gas 1', v1 / slow, v1 > v2], [b.plain || 'Gas 2', v2 / slow, v2 > v1]],
+                function (x) { return shortNum(x) + '×'; }), 'How fast each goes').concat(rows), cols: 2,
+            note: 'The lighter gas is the faster: its rate goes as 1 ÷ √M, and its time as √M.'
+        };
+    }
+
+    // the standard atmosphere: the air at a height, or the height of a pressure
+    function runAir(n, raw) {
+        var u = +raw.pu || 0, unit = GAS_PU[u], hu = +raw.hu || 0, per = [1, 1000, 0.3048][hu], hName = ['m', 'km', 'ft'][hu], toPa = 101325 / GAS_P[u],
+            t0 = (raw.t0 ? n.t0 : 15) + 273.15, p0 = raw.p0 ? n.p0 * toPa : 101325, e = oneEmpty(raw, ['h', 'p'], ['the height', 'P']),
+            none = [{ l: 'P, ' + unit, v: NaN }, { l: 'Height, ' + hName, v: NaN }], h, a, rows, x0, x1, pAt;
+        if (!e.k) return { rows: none, warn: e.warn, note: e.note };
+        if (!(t0 > 0 && p0 > 0)) return { rows: none, warn: true, note: 'Sea level above absolute zero, and its P above 0.' };
+        h = e.k === 'h' ? CalcPhysics.altitude(n.p * toPa, t0, p0) : n.h * per;
+        a = isFinite(h) ? CalcPhysics.atmosphere(h, t0, p0) : null;
+        if (!a) return { rows: none, warn: true, note: e.k === 'h' ? 'No height from −5 km to 84.85 km has that P.' : 'A height from −5 km to 84.85 km.' };
+        if (e.k === 'h') a.p = n.p * toPa; // as typed, not as the height found to the mm gives it
+        rows = [{ l: 'P, ' + unit, v: CalcMaths.round(a.p / toPa) }, { l: 'Height, ' + hName, v: CalcMaths.round(h / per) }];
+        if (e.k === 'h') rows.reverse();
+        rows.push({ l: 'T, °C', v: CalcMaths.round(a.t - 273.15) }, { l: 'Density, kg/m³', v: CalcMaths.round(a.rho) }, { l: '% of sea level', v: CalcMaths.round(100 * a.p / p0) },
+            { l: 'O<sub>2</sub>, ' + unit, v: CalcMaths.round(0.2095 * a.p / toPa) }, { l: 'Water boils, °C', v: CalcMaths.round(CalcChem.waterBoils(a.p / 101325 * 760)), wide: true });
+        pAt = function (x) { var q = CalcPhysics.atmosphere(x * per, t0, p0); return q ? q.p / toPa : NaN; };
+        x0 = Math.max(-5000, Math.min(0, h * 1.3)) / per;
+        x1 = Math.min(84852, Math.max(h * 1.5, 11000)) / per;
+        return {
+            rows: drawnTile(graphDrawing('Its pressure with height', x0, x1, { fs: [pAt], dots: [[h / per, a.p / toPa]], y: [0, pAt(x0) * 1.2], names: [hName, 'P'] }),
+                'P against height').concat(rows), cols: 2,
+            note: 'By the standard atmosphere, ISA, ' + (raw.t0 || raw.p0 ? 'from sea level as typed' : 'from 15 °C and 1 atm at sea level') + '; the weather moves it a few percent.'
+        };
+    }
+
+    // the speed of sound in a gas at T, and the Mach number of a speed
+    function runSound(n, raw) {
+        var c = raw.tu === '1' ? 273.15 : 0, T = n.t + c, none = [{ l: 'v, m/s', v: NaN }], g, gamma, v, rows;
+        if (!raw.t) return { rows: none, note: raw.g || raw.gamma || raw.u ? 'Type T.' : '' };
+        g = CalcChem.gasOf(raw.g || 'air');
+        if (g.error) return { rows: none, bad: ['g'], warn: true, note: g.error === 'element' ? formulaWhy(g) : 'Air, or a gas by its formula: He, CO2.' };
+        gamma = raw.gamma ? n.gamma : g.gamma;
+        if (!(T > 0)) return { rows: none, warn: true, note: 'T is above absolute zero, 0 K or –273.15 °C.' };
+        if (!(gamma > 1)) return { rows: none, warn: true, note: 'γ above 1: 5/3 of a gas of single atoms, 7/5 of two.' };
+        v = CalcPhysics.sound(gamma, g.M, T);
+        rows = [{ l: 'v, m/s', v: v }].concat(raw.u ? [{ l: 'Mach', v: CalcMaths.round(n.u / v) }] : [], [{ l: 'v, km/h', v: CalcMaths.round(v * 3.6) },
+            { l: 'v, ft/s', v: CalcMaths.round(v / 0.3048) }, { l: '1 km takes, s', v: CalcMaths.round(1000 / v) }, { l: 'γ', v: CalcMaths.round(gamma) }, { l: 'M, g/mol', v: CalcMaths.round(g.M) }]);
+        return {
+            rows: drawnTile(graphDrawing('Its speed with temperature', T * 0.4 - c, T * 1.6 - c, { fs: [function (x) { return CalcPhysics.sound(gamma, g.M, x + c); }], dots: [[n.t, v]],
+                names: ['T', 'v'] }), 'v against T').concat(rows), cols: 2,
+            note: g.guessed && !raw.gamma ? 'γ of ' + gasName(raw.g, true) + ' is not known here: ' + gasNum(gamma) + ', from its atoms. Type γ for a better one.' :
+                raw.u && n.u >= v ? 'Mach 1 or more: as fast as sound or faster.' : 'Of an ideal gas: faster as it is hotter, slower as it is heavier.'
+        };
     }
 
     // The panel: the periodic table on its first tab, the tools on the others. The table is coloured

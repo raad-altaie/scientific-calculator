@@ -2262,6 +2262,237 @@
         return BigInt.asIntN(bits, v ^ (BigInt(1) << BigInt(b)));
     }
 
+    // The Gray code of a whole number of bits, the next one only a bit apart, as an encoder's disc is marked; and the
+    // number of a Gray code. BigInts, kept to the bits
+    function gray(v, bits) {
+        var u = BigInt.asUintN(bits, v);
+        return u ^ (u >> BigInt(1));
+    }
+
+    function fromGray(g, bits) {
+        var u = BigInt.asUintN(bits, g), s = u;
+        while ((u >>= BigInt(1)) > BigInt(0)) s ^= u;
+        return s;
+    }
+
+    // ---------- logic ---------- //
+
+    var LOGIC_MOST = 8; // variables, 256 rows
+
+    // A function of logic as it is typed: A AND NOT B, AB + C', (A + B)(A' + C), A XOR B, !a | b & c; or of its minterms,
+    // Σm(1, 3, 5) + d(7), or maxterms, ΠM(0, 2), d the rows it may be either. F = before it names it, F(A, B, C) = its variables
+    // too, in their order; else they are in the order of the alphabet. A variable is a letter and its digits, A, b, x1, and two
+    // side by side are ANDed. NOT first, then AND and NAND, then XOR and XNOR, then OR and NOR.
+    // { name, vars, out: of each row 1, 0 or null for either, the first variable its highest bit } or
+    // { error: 'expression' | 'many' | 'vars' | 'range', at }
+    function logic(text) {
+        var s = String(text).replace(/[’′‘]/g, '\'').replace(/\s+$/, ''), off = 0, name = 'F', given = null, m, max = false, toks = [], i = 0, vars = [], tree, out = [], k, r, terms, rest;
+        if ((m = /^\s*([A-Za-z][0-9]*)\s*(?:\(([^)]*)\))?\s*=(?!=)/.exec(s))) {
+            name = m[1];
+            if (m[2] !== undefined) {
+                given = m[2].split(/[\s,;]+/).filter(Boolean);
+                if (!given.length || given.some(function (v, j) { return !/^[A-Za-z][0-9]*$/.test(v) || given.indexOf(v) !== j; })) return { error: 'vars' };
+            }
+            off = m[0].length; // where the error is, of all that was typed
+            s = s.slice(off);
+        }
+        m = /^\s*(?:Σ|∑|sum)?\s*m\s*\(([^)]*)\)\s*(?:\+\s*d\s*\(([^)]*)\))?$/.exec(s);
+        if (!m && (m = /^\s*(?:Π|∏|prod)?\s*M\s*\(([^)]*)\)\s*(?:[·*]?\s*[dD]\s*\(([^)]*)\))?$/.exec(s))) max = true;
+        if (m) { // of its rows' numbers
+            terms = [m[1], m[2] || ''].map(function (list) { return list.split(/[\s,;]+/).filter(Boolean); });
+            if (terms.some(function (list) { return list.some(function (t) { return !/^\d+$/.test(t); }); })) { // m(A + B) is the variable m and a bracket
+                m = null;
+                max = false;
+            }
+        }
+        if (m) {
+            terms = terms.map(function (list) { return list.map(Number); });
+            r = Math.max.apply(null, [0].concat(terms[0], terms[1]));
+            k = given ? given.length : Math.max(2, r.toString(2).length);
+            if (k > LOGIC_MOST) return { error: 'many' };
+            if (r >= 1 << k) return { error: 'range' };
+            vars = given || 'ABCDEFGH'.slice(0, k).split('');
+            for (r = 0; r < 1 << k; r++) out.push(terms[1].indexOf(r) > -1 ? null : (terms[0].indexOf(r) > -1) !== max ? 1 : 0);
+            return { name: name, vars: vars, out: out };
+        }
+        // its words and signs, each a token
+        while (i < s.length) {
+            rest = s.slice(i);
+            if ((m = /^\s+/.exec(rest))) {
+                // skipped
+            } else if ((m = /^(nand|nor|xnor|xor|and|or|not)(?![A-Za-z0-9])/i.exec(rest))) {
+                toks.push({ op: m[1].toLowerCase(), at: i });
+            } else if ((m = /^[A-Za-z][0-9]*/.exec(rest))) {
+                toks.push({ v: m[0], at: i });
+                if (vars.indexOf(m[0]) < 0) vars.push(m[0]);
+            } else if ((m = /^[01]/.exec(rest))) {
+                toks.push({ c: +m[0], at: i });
+            } else if ((m = /^(&&|\|\||[&·⋅*∧|+∨^⊕!~¬'()⊼⊽⊙])/.exec(rest))) {
+                toks.push({ op: { '&&': 'and', '&': 'and', '·': 'and', '⋅': 'and', '*': 'and', '∧': 'and', '||': 'or', '|': 'or', '+': 'or', '∨': 'or', '^': 'xor', '⊕': 'xor',
+                    '!': 'not', '~': 'not', '¬': 'not', '\'': 'post', '(': '(', ')': ')', '⊼': 'nand', '⊽': 'nor', '⊙': 'xnor' }[m[0]], at: i });
+            } else {
+                return { error: 'expression', at: off + i };
+            }
+            i += m[0].length;
+        }
+        if (!toks.length) return { error: 'expression', at: off };
+        if (given) {
+            if (vars.some(function (v) { return given.indexOf(v) < 0; })) return { error: 'vars' };
+            vars = given;
+        } else {
+            vars.sort(function (a, b) { return a.localeCompare(b, 'en', { numeric: true }); });
+        }
+        if (vars.length > LOGIC_MOST) return { error: 'many' };
+        i = 0;
+        function peek(op) { return !!toks[i] && toks[i].op === op; }
+        function fail() { throw { error: 'expression', at: off + (toks[i] ? toks[i].at : s.length) }; }
+        function either() { // OR, NOR
+            var a = exclusive(), not, b;
+            while (peek('or') || peek('nor')) {
+                not = toks[i++].op === 'nor' ? 1 : 0;
+                b = exclusive();
+                a = (function (x, y, n) { return function (e) { return (x(e) | y(e)) ^ n; }; })(a, b, not);
+            }
+            return a;
+        }
+        function exclusive() { // XOR, XNOR
+            var a = both(), not, b;
+            while (peek('xor') || peek('xnor')) {
+                not = toks[i++].op === 'xnor' ? 1 : 0;
+                b = both();
+                a = (function (x, y, n) { return function (e) { return x(e) ^ y(e) ^ n; }; })(a, b, not);
+            }
+            return a;
+        }
+        function starts() { return !!toks[i] && (!!toks[i].v || toks[i].c !== undefined || toks[i].op === '(' || toks[i].op === 'not'); }
+        function both() { // AND, NAND, and two side by side
+            var a = unary(), not, b;
+            while (peek('and') || peek('nand') || starts()) {
+                not = peek('nand') ? 1 : 0;
+                if (peek('and') || peek('nand')) i++;
+                b = unary();
+                a = (function (x, y, n) { return function (e) { return (x(e) & y(e)) ^ n; }; })(a, b, not);
+            }
+            return a;
+        }
+        function unary() {
+            var t = toks[i], a;
+            if (!t) fail();
+            if (t.op === 'not') {
+                i++;
+                a = unary();
+                return function (e) { return 1 - a(e); };
+            }
+            if (t.v) {
+                a = (function (j) { return function (e) { return e[j]; }; })(vars.indexOf(t.v));
+            } else if (t.c !== undefined) {
+                a = (function (c) { return function () { return c; }; })(t.c);
+            } else if (t.op === '(') {
+                i++;
+                a = either();
+                if (!peek(')')) fail();
+            } else {
+                fail();
+            }
+            i++;
+            while (peek('post')) {
+                i++;
+                a = (function (x) { return function (e) { return 1 - x(e); }; })(a);
+            }
+            return a;
+        }
+        try {
+            tree = either();
+            if (i < toks.length) fail();
+        } catch (e) {
+            return e.error ? e : { error: 'expression', at: 0 };
+        }
+        k = vars.length;
+        for (r = 0; r < 1 << k; r++) {
+            out.push(tree(vars.map(function (v, j) { return (r >> (k - 1 - j)) & 1; })));
+        }
+        return { name: name, vars: vars, out: out };
+    }
+
+    function popCount(x) {
+        var c = 0;
+        for (; x; x &= x - 1) c++;
+        return c;
+    }
+
+    // The fewest products of the k variables that are 1 on each of ones, and on none but them and any of either, each
+    // product of as few as can be, by Quine and McCluskey: the prime implicants, then the fewest of them that cover the ones,
+    // tried each way from the one covered by fewest. Each [bits, mask], the mask's bits the variables left out
+    function primeCover(k, ones, either) {
+        var level = [], seen = {}, primes = [], best = null, tries = 0, most, next, used, i, j, d, key;
+        if (!ones.length) return [];
+        ones.concat(either).forEach(function (t) {
+            if (!seen[t]) level.push([t, 0]);
+            seen[t] = true;
+        });
+        while (level.length) {
+            next = [];
+            used = level.map(function () { return false; });
+            seen = {};
+            for (i = 0; i < level.length; i++) {
+                for (j = i + 1; j < level.length; j++) {
+                    d = level[i][0] ^ level[j][0];
+                    if (level[i][1] !== level[j][1] || !d || d & (d - 1)) continue;
+                    used[i] = used[j] = true;
+                    key = (level[i][0] & ~d) + ':' + (level[i][1] | d);
+                    if (!seen[key]) next.push([level[i][0] & ~d, level[i][1] | d]);
+                    seen[key] = true;
+                }
+            }
+            level.forEach(function (t, n) { if (!used[n]) primes.push(t); });
+            level = next;
+        }
+        function covers(p, t) { return (t & ~p[1]) === p[0]; }
+        function literals(list) { return list.reduce(function (sum, p) { return sum + k - popCount(p[1]); }, 0); }
+        most = Math.max.apply(null, primes.map(function (p) { return ones.filter(function (t) { return covers(p, t); }).length; }));
+        function search(left, chosen) {
+            var t;
+            if (++tries > 100000 && best) return; // too many ways: the best found
+            if (!left.length) {
+                if (!best || chosen.length < best.length || (chosen.length === best.length && literals(chosen) < literals(best))) best = chosen;
+                return;
+            }
+            if (best && chosen.length + Math.ceil(left.length / most) > best.length) return;
+            t = left.map(function (x) { return primes.filter(function (p) { return covers(p, x); }); })
+                .sort(function (a, b) { return a.length - b.length; })[0];
+            t.sort(function (a, b) { return popCount(b[1]) - popCount(a[1]); }).forEach(function (p) {
+                search(left.filter(function (x) { return !covers(p, x); }), chosen.concat([p]));
+            });
+        }
+        search(ones, []);
+        return best.sort(function (a, b) { return popCount(b[1]) - popCount(a[1]) || b[0] - a[0]; });
+    }
+
+    // A function of logic made as small as it can be: its products ORed, its sum of products, and its sums ANDed, its product
+    // of sums; with the products that make each, to draw. f as logic gives it. { sop, pos, sopTerms, posTerms, ones, zeros, either }
+    function minimize(f) {
+        var k = f.vars.length, ones = [], zeros = [], either = [], sopTerms, posTerms;
+        f.out.forEach(function (o, r) { (o === null ? either : o ? ones : zeros).push(r); });
+        function lits(p, inverted) { // of a product, or inverted of a sum, as De Morgan has it
+            var out = [];
+            f.vars.forEach(function (v, j) {
+                var b = 1 << (k - 1 - j);
+                if (!(p[1] & b)) out.push(v + ((p[0] & b ? 1 : 0) ^ (inverted ? 1 : 0) ? '' : '\''));
+            });
+            return out;
+        }
+        sopTerms = primeCover(k, ones, either);
+        posTerms = primeCover(k, zeros, either);
+        return {
+            ones: ones, zeros: zeros, either: either, sopTerms: sopTerms, posTerms: posTerms,
+            sop: !sopTerms.length ? '0' : sopTerms.map(function (p) { var l = lits(p); return l.length ? l.join('') : '1'; }).join(' + '),
+            pos: !posTerms.length ? '1' : posTerms.map(function (p) {
+                var l = lits(p, true);
+                return !l.length ? '0' : l.length === 1 || posTerms.length === 1 ? l.join(' + ') : '(' + l.join(' + ') + ')';
+            }).join('')
+        };
+    }
+
     // the bytes of a value of bits, the highest first, as it is kept big-endian; reversed, as little-endian
     function bytesOf(v, bits) {
         return BigInt.asUintN(bits, v).toString(16).padStart(bits / 4, '0').match(/../g).map(function (b) { return parseInt(b, 16); });
@@ -4944,6 +5175,10 @@
         inBase: inBase,
         bitCount: bitCount,
         flipBit: flipBit,
+        gray: gray,
+        fromGray: fromGray,
+        logic: logic,
+        minimize: minimize,
         bytesOf: bytesOf,
         byteSwap: byteSwap,
         hexOfBytes: hexOfBytes,

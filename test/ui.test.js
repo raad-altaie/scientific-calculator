@@ -1246,7 +1246,7 @@ async function numbersPanel(page, at) {
     check(/^R is not a value/.test(await page.calc(note)), t + 'and 4,7 is no value, not 4.7', await page.calc(note));
 
     await page.click('.calc-numbers .calc-solve-tab[data-tab="computer"]');
-    check(await page.calc('document.querySelectorAll(".calc-numbers .calc-sv-item").length') === 9, t + 'nine cards of bases');
+    check(await page.calc('document.querySelectorAll(".calc-numbers .calc-sv-item").length') === 11, t + 'eleven cards of bases');
     await card('Bases');
     await set(0, '0xFF AND 0b1010');
     check(await page.calc(tiles) === 'Decimal=10 | Unsigned=10 | Hexadecimal=A | Octal=12 | Binary=0000 0000 0000 0000 0000 0000 0000 1010 | ' +
@@ -3751,6 +3751,94 @@ async function chemistry(page, at) {
     await page.key('Escape', 27);
 }
 
+// The cards of SMD codes, filters and decibels of the electronics, and of truth tables and Gray code of the numbers: each
+// Example worked out, its drawing first, then its other ways
+async function electronicsCards(page, at) {
+    var t = at + ': electronics and logic: ', got, P,
+        tiles = function () {
+            return page.calc('[].map.call(document.querySelectorAll(".' + P + ' .calc-sv-item.calc-on .calc-sv-tile:not(.calc-sv-drawn)"), function (el) { ' +
+                'return el.querySelector(".calc-sv-label").textContent + ": " + (el.querySelector(".calc-sv-value") || el.lastChild).textContent; }).join("; ")');
+        },
+        note = function () { return page.calc('document.querySelector(".' + P + ' .calc-sv-item.calc-on .calc-sv-note").textContent'); },
+        drawnFirst = function () { return page.calc('document.querySelector(".' + P + ' .calc-sv-item.calc-on .calc-sv-grid").firstElementChild.classList.contains("calc-sv-drawn")'); },
+        card = async function (name) {
+            await page.calc('[].filter.call(document.querySelectorAll(".' + P + ' .calc-sv-name"), function (n) { return n.textContent === ' + JSON.stringify(name) + '; })[0].parentNode.parentNode.click()');
+            await sleep(60);
+        },
+        example = async function (name) {
+            await page.click('.' + P + ' .calc-sv-item.calc-on .calc-sv-example');
+            check(await drawnFirst(), t + name + ': its drawing first');
+            return tiles();
+        },
+        opt = function (k, c) { return page.click('.' + P + ' .calc-sv-item.calc-on .calc-sv-choice[data-k="' + k + '"] .calc-sv-opt[data-c="' + c + '"]'); },
+        type = function (k, text) {
+            return page.calc('(function (i) { i.value = ' + JSON.stringify(text) + '; i.dispatchEvent(new Event("input", { bubbles: true })); })' +
+                '(document.querySelector(".' + P + ' .calc-sv-item.calc-on input[data-k=\\"' + k + '\\"]"))');
+        };
+
+    await page.fresh(at, {});
+    await page.click('.calc-phys-btn');
+    await page.click('.calc-phys .calc-solve-tab[data-tab="circuits"]');
+    P = 'calc-phys';
+    await card('SMD resistor code');
+    got = await example('SMD');
+    check(got === 'Resistance: 10 kΩ ± 1%; Ω: 10000; Its code: EIA-96; From, Ω: 9900; To, Ω: 10100', t + '01C of EIA-96 is 10 kΩ', got);
+    await type('code', '47R');
+    check(/^Resistance: 47 Ω ± 5%/.test(await tiles()) && /3\.01 Ω/.test(await note()), t + '47R is 47 Ω, of EIA-96 3.01 Ω', await note());
+    await type('code', '4K7');
+    check(/^A code of 3 digits/.test(await note()), t + 'what is no code', await note());
+    await opt('find', 1);
+    got = await example('SMD codes');
+    check(got === '3 digits: 472; 4 digits: 4701; EIA-96: 66B; Of 3, Ω: 4700; Of 4, Ω: 4700; Of EIA-96, Ω: 4750' &&
+        await page.calc('document.querySelectorAll(".calc-phys .calc-sv-item.calc-on .calc-sv-drawn text").length') === 6, t + 'the codes of 4.7 kΩ, three chips drawn', got);
+
+    await card('Filter');
+    got = await example('filter');
+    check(/^Cut-off f, Hz: 159\.15494\d*; τ, s: 0\.001; Gain at f: 0\.15717\d*; At f, dB: -16\.072\d*; Phase at f: -1\.41296\d*$/.test(got), t + 'an RC low-pass at 1 kHz', got);
+    await opt('kind', 2);
+    await page.click('.calc-phys .calc-sv-item.calc-on .calc-sv-reset');
+    got = await example('RLC filter');
+    check(/^Cut-off f, Hz: 7681\.28\d*; f₀, Hz: 5032\.92\d*; Q: 3\.16227\d*; Peak at, Hz: 4905\.48\d*; Peak, dB: 10\.1099\d*; /.test(got), t + 'an RLC low-pass, its peak', got);
+    await opt('pass2', 2);
+    check(/^f₀, Hz: 5032\.92\d*; Q: 3\.16227\d*; Bandwidth, Hz: 1591\.549\d*; From, Hz: 4299\.66\d*; To, Hz: 5891\.21\d*/.test(await tiles()), t + 'band-pass: its band', await tiles());
+    await type('C', '0');
+    check(/^R, L and C, and f, above 0\.$/.test(await note()), t + 'a C of 0', await note());
+
+    await card('Decibels');
+    got = await example('decibels');
+    check(/^P, W: 0\.001; dBm: 0; dBW: -30; V RMS: 0\.22360\d*; V peak: 0\.31622\d*; V peak to peak: 0\.63245\d*; dBV: -13\.0102\d*; dBmV: 46\.9897\d*; dBµV: 106\.9897\d*; I, A: 0\.004472\d*$/.test(got),
+        t + '0 dBm across 50 Ω', got);
+    await opt('unit', 6);
+    await type('x', '1');
+    check(/dBV: 0; dBmV: 60; dBµV: 120/.test(await tiles()), t + '1 V is 0 dBV and 120 dBµV', await tiles());
+    await opt('kind', 1);
+    got = await example('gain');
+    check(/^dB: 3; Power ×: 1\.99526\d*; Voltage ×: 1\.41253\d*$/.test(got), t + '3 dB as ratios', got);
+    await page.click('.calc-phys-btn');
+
+    await page.click('.calc-numbers-btn');
+    await page.click('.calc-numbers .calc-solve-tab[data-tab="computer"]');
+    P = 'calc-numbers';
+    await card('Truth table');
+    got = await example('truth table');
+    check(got.indexOf('Sum of products: F = AB + A\'C; Product of sums: F = (A\' + B)(A + C); Minterms: Σm(1, 3, 6, 7); Maxterms: ΠM(0, 2, 4, 5); Truth table') === 0 &&
+        await page.calc('document.querySelectorAll(".calc-numbers .calc-sv-item.calc-on .calc-sv-drawn rect[stroke]").length') === 2, t + 'AB + A\'C + BC: BC left out, two rings on its map', got);
+    await type('e', 'F = Σm(0, 2, 5, 7, 8, 10, 13, 15)');
+    check(/^Sum of products: F = BD \+ B'D'; /.test(await tiles()) && await page.calc('document.querySelectorAll(".calc-numbers .calc-sv-item.calc-on .calc-sv-drawn rect[stroke]").length') === 5,
+        t + 'the four corners, ringed in four pieces round the edges', await tiles());
+    await type('e', 'Σm(1, 3) + d(2)');
+    check(/^Sum of products: F = B; .*Truth tableCopy table: ABF00001110X111$/.test(await tiles()), t + 'X where it may be either', await tiles());
+    await type('e', 'A +');
+    check(/^It ends too soon/.test(await note()), t + 'an expression not finished', await note());
+
+    await card('Gray code');
+    got = await example('Gray code');
+    check(got === 'Gray code: 0000 0111; Number in binary: 0000 0101; Number: 5; Gray code as a number: 7; Gray in hexadecimal: 7; Bit to change next: 1', t + '5 in Gray code', got);
+    await opt('way', 1);
+    await type('e', '0b0111');
+    check(/^Gray code: 0000 0111; Number in binary: 0000 0101; Number: 5;/.test(await tiles()), t + 'and back', await tiles());
+}
+
 // The chemistry's cards of names, oxidation numbers, redox and the freezing and boiling point: each typed into, its tiles read
 // The biology: its cards on six tabs, a Punnett square worked out and drawn, the codon wheel clicked, and drift run again
 async function biology(page, at) {
@@ -3854,6 +3942,50 @@ async function chemistryTools(page, at) {
     check(/^mol\/kg: 0\.3422\d*; i: 2; ΔTf, °C: 1\.273\d*; ΔTb, °C: 0\.3504\d*; Freezes at, °C: -1\.27\d*; Boils at, °C: 100\.35\d*$/.test(got), t + '10 g of NaCl in 0.5 kg of water', got);
     await page.click('.calc-chem .calc-sv-item.calc-on .calc-sv-opt[data-c="3"]');
     check(await page.calc('!!document.querySelector(".calc-chem .calc-sv-item.calc-on input[data-k=\\"kf\\"]")') && /Kf and Kb/.test(await note()), t + 'another solvent: its Kf and Kb asked');
+
+    // the gases: each new card's Example worked out, its drawing first; then a few of their other ways
+    var gasCard = async function (i) {
+        await page.click('.calc-chem .calc-sv-item:nth-child(' + i + ') .calc-sv-row');
+        await page.click('.calc-chem .calc-sv-item.calc-on .calc-sv-example');
+        check(await page.calc('document.querySelector(".calc-chem .calc-sv-item.calc-on .calc-sv-grid").firstElementChild.classList.contains("calc-sv-drawn")'), t + 'gases card ' + i + ': its drawing first');
+        return tiles();
+    };
+    await page.click('.calc-chem .calc-solve-tab[data-tab="gases"]');
+    check(await page.calc('document.querySelectorAll(".calc-chem .calc-sv-item").length') === 8, t + 'eight cards of the gases');
+    got = await gasCard(3);
+    check(/^P, atm: 1; n, mol: –; N2, atm: 0\.78; x of N2: 0\.78; O2, atm: 0\.21; x of O2: 0\.21; Ar, atm: 0\.01; x of Ar: 0\.01$/.test(got), t + 'the partial pressures of air', got);
+    await page.click('.calc-chem .calc-sv-item.calc-on .calc-sv-opt[data-c="3"]');
+    await type('g', 'O2 100, N2 500');
+    await type('p', '760');
+    got = await tiles();
+    check(/The rest, atm: 160; x of The rest: 0\.2105/.test(got), t + 'of the pressures of two gases and the total, the rest', got);
+    got = await gasCard(4);
+    check(/^Dry gas, mmHg: 731\.3\d*; Water, mmHg: 23\.68\d*; Dry gas, %: 96\.8\d*; n, mol: 0\.00983\d*; Dry at STP, L: 0\.2203\d*; Mass, g: 0\.01982\d*$/.test(got), t + 'hydrogen over water at 25 °C', got);
+    got = await gasCard(5);
+    check(/^Balanced: C3H8 \+ 5O2 → 3CO2 \+ 4H2O; A mole of gas, L: 22\.41\d*; C3H8, L: 10; C3H8, mol: 0\.446\d*; O2, L: 50; O2, mol: 2\.23\d*; CO2, L: 30; CO2, mol: 1\.338\d*; H2O, g: 32\.1\d*; H2O, mol: 1\.78\d*$/.test(got),
+        t + 'propane burnt at STP: the gases in litres, water in grams', got);
+    await type('t', '400');
+    got = await tiles();
+    check(/A mole of gas, L: 32\.82\d*;.*H2O, L: 40; H2O, mol: 1\.218\d*$/.test(got), t + 'at 400 K, water is a gas too', got);
+    await type('a', 'H2O 5 L');
+    await type('t', '');
+    check(/H₂O is not a gas here/.test(await note()), t + 'litres of water at STP asked in g or mol', await note());
+    got = await gasCard(6);
+    check(/^r1 ÷ r2: 3\.98\d*; t1 ÷ t2: 0\.251\d*; M1, g\/mol: 2\.016; M2, g\/mol: 31\.998$/.test(got), t + 'hydrogen four times as fast as oxygen', got);
+    await type('b', '');
+    await type('r', '4');
+    got = await page.calc('document.querySelector(".calc-chem .calc-sv-item.calc-on .calc-sv-grid").textContent');
+    check(/could be.*O2 32/.test(got), t + 'four times as slow as hydrogen: oxygen, it could be', got);
+    got = await gasCard(7);
+    check(/^P, atm: 0\.310\d*; Height, m: 8849; T, °C: -42\.5\d*; Density, kg\/m³: 0\.474\d*; % of sea level: 31\.0\d*; O2, atm: 0\.065\d*; Water boils, °C: 70\.2\d*$/.test(got), t + 'the air on Everest', got);
+    await type('h', '');
+    await type('p', '0.5');
+    got = await tiles();
+    check(/^Height, m: 5\d{3}\.\d*; P, atm: 0\.5;/.test(got), t + 'and the height of half an atmosphere, first', got);
+    got = await gasCard(8);
+    check(/^v, m\/s: 343\.2\d*; v, km\/h: 1235\.6\d*; v, ft\/s: 1126\.\d*; 1 km takes, s: 2\.91\d*; γ: 1\.4; M, g\/mol: 28\.965$/.test(got), t + 'sound in air at 20 °C', got);
+    await type('g', 'HBr');
+    check(/γ of HBr is not known here/.test(await note()), t + 'a gas whose γ is not kept: guessed, and said so', await note());
     await page.key('Escape', 27);
 }
 
@@ -4080,6 +4212,7 @@ async function adminPolicy(page) {
         await statsMore(page, '/popup.html');
         await chemistry(page, '/popup.html');
         await chemistryTools(page, '/popup.html');
+        await electronicsCards(page, '/popup.html');
         await biology(page, '/popup.html');
         await solver(page, '/popup.html');
         await numbersPanel(page, '/popup.html');

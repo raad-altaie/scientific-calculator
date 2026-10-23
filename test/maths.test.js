@@ -1,7 +1,7 @@
 // Run with: node test/maths.test.js
 // The maths of the Solve panel: equations, polynomials, typed as well, and their exact forms;
 // linear systems and two curves; turning points; integrals, slopes,
-// sums and products; the normal, binomial and Poisson distributions; dates
+// sums and products; the normal, binomial and Poisson distributions; dates; Gray code and truth tables
 'use strict';
 
 var M = require('../js/maths.js'),
@@ -992,6 +992,58 @@ check(M.readTime('14:30') === 52200 && M.readTime('2:30:15 pm') === 52215 && M.r
     check(iso(ny, 2026, 3, 8, 1.5) === '2026-03-08T06:30:00.000Z' && iso(ny, 2026, 3, 8, 2.5) === '2026-03-08T07:30:00.000Z' && iso(ny, 2026, 3, 8, 3.5) === '2026-03-08T07:30:00.000Z',
         'zoneMoment: the hour summer time skips, as the clock before it would go on');
     check(iso(ny, 2026, 11, 1, 1.5) === '2026-11-01T05:30:00.000Z' && iso(ny, 2026, 11, 1, 2.5) === '2026-11-01T07:30:00.000Z', 'zoneMoment: of the hour shown twice, the first');
+})();
+
+// Gray code: each next a bit apart, and back
+(function () {
+    var ok = true, n, g, last = null;
+    for (n = 0; n < 256; n++) {
+        g = M.gray(BigInt(n), 8);
+        if (M.fromGray(g, 8) !== BigInt(n) || (last !== null && M.bitCount(g ^ last, 8).ones !== 1)) ok = false;
+        last = g;
+    }
+    check(ok && String(M.gray(BigInt(5), 8)) === '7' && String(M.gray(BigInt(255), 8)) === '128' && String(M.fromGray(BigInt(128), 8)) === '255' &&
+        String(M.gray(BigInt(-1), 16)) === '32768', 'gray and fromGray');
+})();
+
+// logic: what is typed, each row worked out; then made smallest, and each answer gives the same rows again
+(function () {
+    function rows(s) { var f = M.logic(s); return f.error ? f.error : f.vars.join(',') + ' ' + f.out.map(function (o) { return o === null ? 'x' : o; }).join(''); }
+    [['A AND NOT B', 'A,B 0010'], ['AB + C\'', 'A,B,C 10101011'], ['(A + B)(A\' + C)', 'A,B,C 00110101'], ['A XOR B', 'A,B 0110'], ['!a | b & c', 'a,b,c 11110001'],
+        ['A NAND B', 'A,B 1110'], ['A nor B', 'A,B 1000'], ['A XNOR B', 'A,B 1001'], ['A ⊕ B ⊕ C', 'A,B,C 01101001'], ['x1 x2 + x10', 'x1,x2,x10 01010111'],
+        ['A + B·C', 'A,B,C 00011111'], ['A’B', 'A,B 0100'], ['(A\')\'', 'A 01'], ['NOT (A OR B)', 'A,B 1000'], ['1', ' 1'], ['A & 0', 'A 00'],
+        ['Y(C, B, A) = A', 'C,B,A 01010101'], ['F = Σm(1, 2)', 'A,B 0110'], ['m(0, 3)', 'A,B 1001'], ['F(A, B, C) = Σm(1, 3) + d(7)', 'A,B,C 0101000x'],
+        ['ΠM(0, 3)', 'A,B 0110'], ['M(5)', 'A,B,C 11111011'], ['A +', 'expression'], ['A B C D E F G H I', 'many'], ['F(A, B) = C', 'vars'], ['F(A, A) = A', 'vars'],
+        ['F(A, B) = m(4)', 'range'], ['(A', 'expression'], ['A # B', 'expression'], ['', 'expression']].forEach(function (c) {
+        check(rows(c[0]) === c[1], 'logic: ' + c[0], rows(c[0]));
+    });
+    check(M.logic('F2 = A').name === 'F2' && M.logic('A').name === 'F' && M.logic('A + )').at === 4 && M.logic('F = A # B').at === 6, 'logic: its name, and where it is wrong, of all that was typed');
+    check(rows('M(A + B)') === 'A,B,M 00010101' && rows('m(1,2)') === 'A,B 0110', 'logic: m or M before a bracket is a variable unless it holds row numbers');
+    function small(s) { var r = M.minimize(M.logic(s)); return r.sop + ' | ' + r.pos; }
+    [['AB + AB\'', 'A | A'], ['A XOR B', 'AB\' + A\'B | (A\' + B\')(A + B)'], ['Σm(0, 2, 5, 7, 8, 10, 13, 15)', 'BD + B\'D\' | (B\' + D)(B + D\')'],
+        ['A\'B\'C + A\'BC + AB\'C + ABC', 'C | C'], ['A A\'', '0 | 0'], ['A + A\'', '1 | 1'], ['A NAND B', 'A\' + B\' | A\' + B\''],
+        ['Σm(1, 3, 7, 11, 15) + d(0, 2, 5)', 'CD + A\'D | D(A\' + C)'], ['x1 x2 + x3', 'x3 + x1x2 | (x1 + x3)(x2 + x3)']].forEach(function (c) {
+        check(small(c[0]) === c[1], 'minimize: ' + c[0], small(c[0]));
+    });
+    // of random functions, each answer gives back its rows, in no more products than it has ones
+    var ok = true, seed = 7, k, r, out, f, got, a, b, n;
+    function rand() { seed = (seed * 16807) % 2147483647; return seed / 2147483647; }
+    for (n = 0; n < 40; n++) {
+        k = 2 + n % 5;
+        out = [];
+        for (r = 0; r < 1 << k; r++) out.push(rand() < 0.15 ? null : rand() < 0.5 ? 1 : 0);
+        f = { vars: 'ABCDEF'.slice(0, k).split(''), out: out };
+        got = M.minimize(f);
+        a = M.logic('F(' + f.vars.join(',') + ') = ' + got.sop);
+        b = M.logic('F(' + f.vars.join(',') + ') = ' + got.pos);
+        if (a.error || b.error || out.some(function (o, j) { return o !== null && (a.out[j] !== o || b.out[j] !== o); }) || got.sopTerms.length > got.ones.length) {
+            ok = false;
+            console.log('      ' + out.join() + ' → ' + got.sop + ' | ' + got.pos);
+        }
+    }
+    check(ok, 'minimize: of 40 functions, each answer the same as its rows');
+    // of more than one way: Σm(0, 1, 2, 5, 6, 7) is three products, not four
+    check(M.minimize(M.logic('Σm(0, 1, 2, 5, 6, 7)')).sopTerms.length === 3, 'minimize: a cyclic one in three products', M.minimize(M.logic('Σm(0, 1, 2, 5, 6, 7)')).sop);
 })();
 
 console.log(failures ? failures + ' of ' + checks + ' checks failed' : 'all ' + checks + ' checks passed');

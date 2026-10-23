@@ -1,5 +1,6 @@
 // The physics of the Physics panel worked out: motion at a steady acceleration from any three of s, u, v, a and t,
-// a projectile's flight, masses over a pulley, a rocket's Δv, the colour code of a resistor both ways, networks of
+// a projectile's flight, masses over a pulley, a rocket's Δv, the colour code of a resistor both ways, its SMD codes, filters,
+// levels and gains in decibels, networks of
 // resistors, capacitors or coils in series and in parallel, 100 + 220 || 330, the values parts are made in, E12 and E24,
 // a transistor's bias, the impedance of R, L and C, a diode, a rectifier's ripple, an LM317's resistors, a Wheatstone
 // bridge, the gauge of a wire, orbits, an ideal gas's processes, the friction of a pipe, Stokes's law, Newton's cooling,
@@ -182,6 +183,125 @@
         bands.push(e === -1 ? 10 : e === -2 ? 11 : e);
         bands.push(tol);
         return { bands: bands, ohms: round(digits * Math.pow(10, e)) };
+    }
+
+    // ---------- SMD codes ---------- //
+
+    // the values of E96, of each decade, as the codes of EIA-96 count them: 01 is 100, 96 is 976
+    var E96 = [100, 102, 105, 107, 110, 113, 115, 118, 121, 124, 127, 130, 133, 137, 140, 143, 147, 150, 154, 158, 162, 165, 169, 174,
+        178, 182, 187, 191, 196, 200, 205, 210, 215, 221, 226, 232, 237, 243, 249, 255, 261, 267, 274, 280, 287, 294, 301, 309, 316, 324,
+        332, 340, 348, 357, 365, 374, 383, 392, 402, 412, 422, 432, 442, 453, 464, 475, 487, 499, 511, 523, 536, 549, 562, 576, 590, 604,
+        619, 634, 649, 665, 681, 698, 715, 732, 750, 768, 787, 806, 825, 845, 866, 887, 909, 931, 953, 976],
+        // EIA-96's letter of each power of 10 it multiplies by, from 0.001; and the other letters some makers mark
+        EIA_LETTERS = 'ZYXABCDEF', EIA_ALSO = { R: -2, S: -1, H: 1 };
+
+    // An SMD resistor's code: of 3 digits, 473 is 47 × 10³, and of 4, 4702 is 470 × 10²; R for the point, 4R7 or R47;
+    // of EIA-96, 01C, the 01st of E96 × 100, 10 kΩ; 000 a jumper. { ohms, kind, tol: the % it is usually made to, also: of a
+    // code both ways, as 47R, 47 Ω or 3.01 Ω of EIA-96 } or null
+    function fromSmd(code) {
+        var c = String(code).trim().toUpperCase().replace(/\s+/g, ''), m, k, eia = null;
+        if (/^0{1,4}$/.test(c)) return { ohms: 0, kind: 'Jumper', tol: null };
+        if ((m = /^(\d{2})([A-Z])$/.exec(c)) && +m[1] >= 1 && +m[1] <= 96) {
+            k = EIA_LETTERS.indexOf(m[2]) > -1 ? EIA_LETTERS.indexOf(m[2]) - 3 : EIA_ALSO[m[2]];
+            if (k !== undefined) eia = { ohms: round(E96[+m[1] - 1] * Math.pow(10, k)), kind: 'EIA-96', tol: 1 };
+        }
+        if ((m = /^(\d*)R(\d*)$/.exec(c)) && (m[1] + m[2]).length >= 1 && c.length >= 2 && c.length <= 4) {
+            return { ohms: +((m[1] || '0') + '.' + (m[2] || '0')), kind: 'R for the point', tol: c.length === 4 ? 1 : 5, also: eia };
+        }
+        if (eia) return eia;
+        if ((m = /^(\d{2,3})(\d)$/.exec(c))) return { ohms: round(+m[1] * Math.pow(10, +m[2])), kind: m[1].length + 1 + ' digits', tol: m[1].length === 2 ? 5 : 1 };
+        return null;
+    }
+
+    // a value rounded to n digits, of the R for the point below 10^n−1: 4R7, R47, 47R0; else its digits and the power of 10, 472.
+    // null where it would take more than n + 1 marks
+    function smdOf(ohms, n) {
+        var e = Math.floor(Math.log10(ohms)) - n + 1, digits = Math.round(ohms / Math.pow(10, e)), s;
+        if (digits >= Math.pow(10, n)) {
+            digits /= 10;
+            e++;
+        }
+        if (e >= 0) return e > 9 ? null : { code: String(digits) + e, ohms: round(digits * Math.pow(10, e)) };
+        s = String(digits);
+        if (-e > n) return null; // below 0.1 Ω, of 3 marks
+        s = -e === n ? 'R' + s : s.slice(0, n + e) + 'R' + s.slice(n + e);
+        return s.length > n + 1 ? null : { code: s, ohms: round(digits * Math.pow(10, e)) };
+    }
+
+    // The codes of a resistance: of 3 digits, of 4, and of EIA-96, its nearest of E96; each { code, ohms: as it says it } or null
+    function toSmd(ohms) {
+        var k, m, best = 0, i;
+        if (!(ohms > 0) || !isFinite(ohms)) return null;
+        k = Math.floor(Math.log10(ohms)) - 2;
+        m = ohms / Math.pow(10, k);
+        for (i = 1; i < E96.length; i++) if (Math.abs(Math.log(E96[i] / m)) < Math.abs(Math.log(E96[best] / m))) best = i;
+        if (Math.abs(Math.log(1000 / m)) < Math.abs(Math.log(E96[best] / m))) { // 990 is 100 of the next decade
+            best = 0;
+            k++;
+        }
+        return {
+            three: smdOf(ohms, 2), four: smdOf(ohms, 3),
+            eia: k >= -3 && k <= 5 ? { code: String(best + 1).padStart(2, '0') + EIA_LETTERS.charAt(k + 3), ohms: round(E96[best] * Math.pow(10, k)) } : null
+        };
+    }
+
+    // ---------- filters ---------- //
+
+    // A filter: kind 0 of R and C, 1 of R and L, of the first order, pass 0 low-pass or 1 high-pass; or kind 2 of R, L and C in
+    // series, of the second, its output across C, L, R, or L and C: pass 0 low-pass, 1 high-pass, 2 band-pass, 3 band-stop.
+    // { f0: its cut-off, or its centre, q, fc: where it is 3 dB down, lo and hi of a band, bw, peak: [f, gain] where it rises
+    // above 1, at(f): { gain, db, phase } } or null
+    function filter(kind, pass, r, l, c) {
+        var f0, q = NaN, x, lo = NaN, hi = NaN, fc, peak = null, rise;
+        if (kind === 2 ? !(r > 0 && l > 0 && c > 0) || pass > 3 : !(r > 0 && (kind ? l : c) > 0) || pass > 1) return null;
+        f0 = kind === 2 ? 1 / (2 * Math.PI * Math.sqrt(l * c)) : kind ? r / (2 * Math.PI * l) : 1 / (2 * Math.PI * r * c);
+        function at(f) { // H = N ÷ D, of s = jf/f0
+            var s = f / f0, d = kind === 2 ? [1 - s * s, s / q] : [1, s],
+                n = kind === 2 ? [[1, 0], [-s * s, 0], [0, s / q], [1 - s * s, 0]][pass] : pass ? [0, s] : [1, 0],
+                dd = d[0] * d[0] + d[1] * d[1], re = (n[0] * d[0] + n[1] * d[1]) / dd, im = (n[1] * d[0] - n[0] * d[1]) / dd, g = Math.hypot(re, im);
+            return { gain: g, db: 20 * Math.log10(g), phase: Math.atan2(im, re) };
+        }
+        if (kind < 2) return { f0: round(f0), q: NaN, fc: round(f0), lo: NaN, hi: NaN, bw: NaN, peak: null, at: at, order: 1 };
+        q = Math.sqrt(l / c) / r;
+        if (pass < 2) {
+            x = 1 - 1 / (2 * q * q);
+            x = Math.sqrt(x + Math.sqrt(x * x + 1));
+            fc = pass ? f0 / x : f0 * x;
+            if (q > Math.SQRT1_2) {
+                rise = Math.sqrt(1 - 1 / (2 * q * q));
+                peak = [round(pass ? f0 / rise : f0 * rise), round(q / Math.sqrt(1 - 1 / (4 * q * q)))];
+            }
+        } else {
+            fc = f0;
+            lo = f0 * (Math.sqrt(1 + 1 / (4 * q * q)) - 1 / (2 * q));
+            hi = f0 * (Math.sqrt(1 + 1 / (4 * q * q)) + 1 / (2 * q));
+        }
+        return { f0: round(f0), q: round(q), fc: round(fc), lo: round(lo), hi: round(hi), bw: round(hi - lo), peak: peak, at: at, order: 2 };
+    }
+
+    // ---------- decibels ---------- //
+
+    // the units of a level, as level takes them
+    var LEVELS = ['dBm', 'dBW', 'W', 'dBV', 'dBmV', 'dBµV', 'V'];
+
+    // A level in one unit as it is in each, across an impedance z, of 50 Ω in radio and 600 in audio: unit 0 dBm, 1 dBW, 2 W,
+    // 3 dBV, 4 dBmV, 5 dBµV, 6 V RMS. { w, dbm, dbw, v: RMS, vpeak, vpp, dbv, dbmv, dbuv, i } or null of no power
+    function level(x, unit, z) {
+        var w, v;
+        if (!(z > 0) || !isFinite(x) || ((unit === 2 || unit === 6) && !(x > 0))) return null;
+        w = unit === 0 ? Math.pow(10, x / 10) / 1000 : unit === 1 ? Math.pow(10, x / 10) : unit === 2 ? x :
+            Math.pow(unit === 6 ? x : Math.pow(10, x / 20) * [1, 1e-3, 1e-6][unit - 3], 2) / z;
+        if (!(w > 0) || !isFinite(w)) return null;
+        v = Math.sqrt(w * z);
+        return { w: round(w), dbm: round(10 * Math.log10(w * 1000)), dbw: round(10 * Math.log10(w)), v: round(v), vpeak: round(Math.SQRT2 * v), vpp: round(2 * Math.SQRT2 * v),
+            dbv: round(20 * Math.log10(v)), dbmv: round(20 * Math.log10(v * 1e3)), dbuv: round(20 * Math.log10(v * 1e6)), i: round(v / z) };
+    }
+
+    // A gain or loss given 0 in dB, 1 as a ratio of power, or 2 of voltage, each way: { db, power, voltage } or null
+    function ratio(x, given) {
+        var db = given === 0 ? x : x > 0 ? (given === 1 ? 10 : 20) * Math.log10(x) : NaN;
+        if (!isFinite(db)) return null;
+        return { db: round(db), power: round(Math.pow(10, db / 10)), voltage: round(Math.pow(10, db / 20)) };
     }
 
     // ---------- networks ---------- //
@@ -450,6 +570,51 @@
         return { v: round(v), re: round(rf * Math.abs(v) * 2 * r / mu), tau: round(2 * rs * r * r / (9 * mu)) };
     }
 
+    // The standard atmosphere, ISA, to 84.852 km: each layer's base height, m, and how its temperature changes, K/m
+    var ISA = [[0, -0.0065], [11000, 0], [20000, 0.001], [32000, 0.0028], [47000, 0], [51000, -0.0028], [71000, -0.002], [84852, 0]],
+        AIR_M = 0.0289644, // kg/mol
+        ISA_LOW = -5000;
+
+    // The air at a height h, m, from −5 km to 84.852 km, of sea level at t0, K, and p0, Pa: each layer's temperature as the
+    // standard's, t0 − 288.15 K warmer, and the pressure by the weight of the air above, layer by layer.
+    // { t, K; p, Pa; rho, kg/m³ } or null
+    function atmosphere(h, t0, p0) {
+        var k = G0 * AIR_M / R_GAS, t = t0, p = p0, from = 0, i, to, L, t2;
+        if (!(t0 > 0 && p0 > 0 && h >= ISA_LOW && h <= ISA[ISA.length - 1][0])) return null;
+        for (i = 0; i < ISA.length - 1 && (i === 0 || from < h); i++) {
+            to = Math.min(h, ISA[i + 1][0]);
+            L = ISA[i][1];
+            t2 = t + L * (to - from);
+            if (!(t2 > 0)) return null;
+            p *= L ? Math.pow(t2 / t, -k / L) : Math.exp(-k * (to - from) / t);
+            t = t2;
+            from = to;
+        }
+        return { t: round(t), p: round(p), rho: round(p * AIR_M / (R_GAS * t)) };
+    }
+
+    // the height, m to the mm, where the air is at p, Pa, of sea level at t0 and p0, as atmosphere has it; NaN outside it
+    function altitude(p, t0, p0) {
+        var lo = ISA_LOW, hi = ISA[ISA.length - 1][0], a, mid, i;
+        if (!(p > 0 && t0 > 0 && p0 > 0)) return NaN;
+        a = atmosphere(lo, t0, p0);
+        if (!a || p > a.p) return NaN;
+        a = atmosphere(hi, t0, p0);
+        if (a && p < a.p) return NaN;
+        for (i = 0; i < 80; i++) {
+            mid = (lo + hi) / 2;
+            a = atmosphere(mid, t0, p0);
+            if (a && a.p > p) lo = mid;
+            else hi = mid;
+        }
+        return Math.round((lo + hi) / 2 * 1000) / 1000 + 0;
+    }
+
+    // the speed of sound, m/s, in an ideal gas of ratio γ and molar mass m, g/mol, at t, K; NaN of none
+    function sound(gamma, m, t) {
+        return gamma > 1 && m > 0 && t > 0 ? round(Math.sqrt(gamma * R_GAS * t / (m / 1000))) : NaN;
+    }
+
     // ---------- heat ---------- //
 
     // Newton's law of cooling: from t0 in air at ta, k a minute, its temperature after t minutes
@@ -584,11 +749,12 @@
 
     root.CalcPhysics = {
         g: G0, readValue: readValue, si: si, suvat: suvat, projectile: projectile, COLOURS: COLOURS, BAND_COLOURS: BAND_COLOURS,
-        bandKinds: bandKinds, fromBands: fromBands, toBands: toBands, network: network, SERIES: SERIES, standard: standard, bias: bias,
+        bandKinds: bandKinds, fromBands: fromBands, toBands: toBands, E96: E96, fromSmd: fromSmd, toSmd: toSmd, filter: filter, LEVELS: LEVELS, level: level, ratio: ratio, network: network, SERIES: SERIES, standard: standard, bias: bias,
         impedance: impedance, diode: diode, rectifier: rectifier, orbit: orbit, orbitSize: orbitSize, gasProcess: gasProcess, friction: friction,
         atwood: atwood, rocket: rocket, lm317: lm317, lm317R2: lm317R2, cooling: cooling, coolingTime: coolingTime, coolingRate: coolingRate,
         besselJ1: besselJ1, airy: airy, slit: slit, lineSeries: lineSeries, tunnel: tunnel, compton: compton, binding: binding, INERTIA: INERTIA, standing: standing,
-        bridge: bridge, bridgeRx: bridgeRx, awg: awg, awgOf: awgOf, stokes: stokes, vapour: vapour, dewPoint: dewPoint, humidity: humidity, lensmaker: lensmaker, redshift: redshift
+        bridge: bridge, bridgeRx: bridgeRx, awg: awg, awgOf: awgOf, stokes: stokes, vapour: vapour, dewPoint: dewPoint, humidity: humidity, lensmaker: lensmaker, redshift: redshift,
+        atmosphere: atmosphere, altitude: altitude, sound: sound
     };
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = root.CalcPhysics;

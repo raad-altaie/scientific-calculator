@@ -901,13 +901,13 @@
     }
 
     // what is typed of the amounts: a formula, a number and its unit, g, kg, mg or mol, apart by
-    // commas, semicolons or new lines. With a decimal comma, by semicolons or new lines only
-    function readAmounts(text, comma) {
+    // commas, semicolons or new lines. With a decimal comma, by semicolons or new lines only. litres: L and mL as well, of a gas
+    function readAmounts(text, comma, litres) {
         var items = String(text).split(comma ? /[;\n]+/ : /[,;\n]+/), list = [], bad = null;
         items.forEach(function (it) {
             var s = it.trim(), m;
             if (!s || bad) return;
-            m = s.match(/^(.+?)\s*[=:]?\s+(-?\d*[.,]?\d+(?:e[+-]?\d+)?)\s*(g|kg|mg|mol)?$/i);
+            m = s.match(litres ? /^(.+?)\s*[=:]?\s+(-?\d*[.,]?\d+(?:e[+-]?\d+)?)\s*(g|kg|mg|mol|ml|l)?$/i : /^(.+?)\s*[=:]?\s+(-?\d*[.,]?\d+(?:e[+-]?\d+)?)\s*(g|kg|mg|mol)?$/i);
             if (!m) {
                 bad = s;
                 return;
@@ -1552,6 +1552,80 @@
         return salt.cation.base === 'H' && !strong ? { i: 1, salt: salt } : { i: salt.cation.n + salt.anion.n, salt: salt, strong: strong };
     }
 
+    // ---------- gases ---------- //
+
+    // Gases at room temperature and 1 atm, each its ratio of heat capacities γ, Cp/Cv, at about 20 °C; 0 where
+    // it is not kept, to be worked out from its atoms
+    var GAS_TABLE = [['H2', 1.41], ['He', 1.667], ['N2', 1.4], ['O2', 1.395], ['F2', 0], ['Ne', 1.667], ['Cl2', 1.34], ['Ar', 1.667],
+        ['Kr', 1.667], ['Xe', 1.667], ['Rn', 1.667], ['O3', 0], ['CO', 1.4], ['CO2', 1.289], ['NO', 1.386], ['NO2', 0], ['N2O', 1.31],
+        ['NH3', 1.31], ['CH4', 1.304], ['C2H6', 1.19], ['C2H4', 1.24], ['C2H2', 1.23], ['C3H8', 1.13], ['C4H10', 1.1], ['H2S', 1.32],
+        ['SO2', 1.29], ['HCl', 1.41], ['HF', 0], ['HBr', 0], ['HI', 0], ['PH3', 0], ['SiH4', 0]],
+        AIR = { M: 28.965, gamma: 1.4 },
+        // Antoine's equation of water, log₁₀ P = A − B ÷ (C + t), P in mmHg and t in °C: from 1 °C to 100 °C, and above it to 374 °C
+        ANTOINE = [8.07131, 1730.63, 233.426], ANTOINE_HOT = [8.14019, 1810.94, 244.485];
+
+    // gases and a number of each, apart by commas, semicolons or new lines, or with a decimal comma by semicolons or new
+    // lines only: N2 0.78, O2 0.21, Ar 1%. { list: [{ t, v }] } or { error: what is not read, '' of nothing }
+    function readGases(text, comma) {
+        var items = String(text).split(comma ? /[;\n]+/ : /[,;\n]+/), list = [], bad = null;
+        items.forEach(function (it) {
+            var s = it.trim(), m;
+            if (!s || bad !== null) return;
+            m = s.match(/^(.+?)\s*[=:]?\s+(\d*[.,]?\d+(?:e[+-]?\d+)?)\s*(%?)$/i);
+            if (!m) {
+                bad = s;
+                return;
+            }
+            list.push({ t: m[1].trim(), v: +m[2].replace(',', '.') / (m[3] ? 100 : 1) });
+        });
+        return bad !== null ? { error: bad } : list.length ? { list: list } : { error: '' };
+    }
+
+    // the pressure of water's vapour at t °C, mmHg, as tables of it give within some 0.5%; NaN where water is not liquid at 1 atm
+    function waterVapour(t) {
+        return t >= 0 && t <= 100 ? Math.pow(10, ANTOINE[0] - ANTOINE[1] / (ANTOINE[2] + t)) : NaN;
+    }
+
+    // the temperature water boils at under p mmHg, °C; NaN where the equations do not hold: below 0 °C, some 4.6 mmHg, and
+    // above the critical point, 374 °C
+    function waterBoils(p) {
+        var k = p > 760 ? ANTOINE_HOT : ANTOINE, d, t;
+        if (!(p > 0)) return NaN;
+        d = k[0] - Math.log10(p);
+        if (!(d > 0)) return NaN;
+        t = k[1] / d - k[2];
+        return t >= 0 && t <= 374 ? t : NaN;
+    }
+
+    // whether a formula is a gas at t °C and about 1 atm: as its state says, H2(g), else if it is one of the gases
+    // known, or water at 100 °C and above
+    function isGas(text, t) {
+        var s = String(text).replace(/\s+/g, ''), m = s.match(/\((aq|s|l|g)\)$/i);
+        if (m) return m[1].toLowerCase() === 'g';
+        if (sameFormula(s, 'H2O')) return t >= 100;
+        return GAS_TABLE.some(function (g) { return sameFormula(s, g[0]); });
+    }
+
+    // A gas by its formula, or air: its molar mass and γ; of one whose γ is not kept, 5/3 of an atom, 7/5 of two
+    // and 4/3 of more, guessed. { M, gamma, guessed, air } or { error }
+    function gasOf(text) {
+        var f, kept, atoms;
+        if (/^\s*air\s*$/i.test(text)) return { M: AIR.M, gamma: AIR.gamma, air: true };
+        f = molarMass(text);
+        if (f.error) return f;
+        kept = GAS_TABLE.filter(function (g) { return sameFormula(text, g[0]); })[0];
+        if (kept && kept[1]) return { M: f.mass, gamma: kept[1] };
+        atoms = Object.keys(f.atoms).reduce(function (s, k) { return s + f.atoms[k]; }, 0);
+        return { M: f.mass, gamma: atoms === 1 ? 5 / 3 : atoms === 2 ? 1.4 : 4 / 3, guessed: true };
+    }
+
+    // the gases known, and air, whose molar mass is within a part tol of M, the nearest first: [{ t, M }]
+    function gasesNear(M, tol) {
+        return GAS_TABLE.map(function (g) { return { t: g[0], M: molarMass(g[0]).mass }; }).concat([{ t: 'air', M: AIR.M }]).filter(function (g) {
+            return Math.abs(g.M - M) <= tol * M;
+        }).sort(function (a, b) { return Math.abs(a.M - M) - Math.abs(b.M - M); });
+    }
+
     // ---------- spectra ---------- //
 
     // The strongest lines of the light of an element's atoms as a gas, where they are seen, 380 to 750 nm, from
@@ -1791,7 +1865,8 @@
         elements: elements, bySymbol: bySymbol, categories: CATEGORIES, avogadro: AVOGADRO,
         parse: parse, molarMass: molarMass, html: html, plain: plain,
         balance: balance, amounts: amounts, readAmounts: readAmounts, empirical: empirical, solubility: solubility, solubilityTable: solubilityTable, ions: ions, findIon: findIon,
-        oxidation: oxidation, names: names, particles: particles, spectrum: spectrum
+        oxidation: oxidation, names: names, particles: particles, spectrum: spectrum,
+        readGases: readGases, waterVapour: waterVapour, waterBoils: waterBoils, isGas: isGas, gasOf: gasOf, gasesNear: gasesNear
     };
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = root.CalcChem;

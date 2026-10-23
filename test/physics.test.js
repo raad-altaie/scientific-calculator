@@ -4,7 +4,8 @@
 // bias, the series of hydrogen's lines, tunnelling, Compton's shift, binding energy, moments of inertia and standing waves;
 // impedance, diodes, rectifiers, orbits, an ideal gas's processes and the friction of a pipe; masses over a pulley,
 // rockets, the LM317, cooling, and light through a slit and a round hole; a Wheatstone bridge, the gauge of a wire,
-// Stokes' law, the dew point, the lensmaker's equation and the redshift of light
+// Stokes' law, the dew point, the lensmaker's equation and the redshift of light; the standard atmosphere and the speed of sound;
+// SMD codes, filters and decibels
 'use strict';
 
 var P = require('../js/physics.js'),
@@ -264,6 +265,71 @@ check(near(P.lensmaker(1.5, 0.2, -0.2, 1), 0.2) && near(P.lensmaker(1.5, Infinit
 
 // light of a source going away at 0.6 c is twice as long; coming at 0.6 c, half; none at c
 check(near(P.redshift(0.6), 2) && near(P.redshift(-0.6), 0.5) && P.redshift(0) === 1 && isNaN(P.redshift(1)) && isNaN(P.redshift(-1.2)), 'redshift', P.redshift(0.6));
+
+// the standard atmosphere, as its tables have it: 11 km 22 632 Pa and 216.65 K, 20 km 5 475 Pa, 32 km 868 Pa, 84.852 km 0.3734 Pa;
+// back from a pressure to its height; and air 10 K warmer thinner at a height
+(function () {
+    var a = function (h) { return P.atmosphere(h, 288.15, 101325); };
+    check(a(0).p === 101325 && near(a(0).rho, 1.225, 1e-3) && near(a(11000).p, 22632, 1e-4) && near(a(11000).t, 216.65) && near(a(20000).p, 5474.9, 1e-4) &&
+        near(a(32000).p, 868.02, 1e-3) && near(a(84852).p, 0.3734, 1e-3) && near(a(-430).p, 106598, 1e-4) && a(90000) === null && a(-6000) === null &&
+        P.atmosphere(1000, 0, 101325) === null, 'atmosphere: the standard\'s layers', JSON.stringify(a(11000)));
+    check(near(P.altitude(a(8849).p, 288.15, 101325), 8849, 1e-6) && near(P.altitude(a(40000).p, 288.15, 101325), 40000, 1e-6) && P.altitude(101325, 288.15, 101325) === 0 &&
+        isNaN(P.altitude(1e6, 288.15, 101325)) && isNaN(P.altitude(0.01, 288.15, 101325)) && isNaN(P.altitude(0, 288.15, 101325)), 'altitude: back from the pressure');
+    check(P.atmosphere(3000, 298.15, 101325).p > a(3000).p && near(P.atmosphere(3000, 298.15, 101325).t, a(3000).t + 10), 'atmosphere: in warmer air the pressure falls more slowly');
+})();
+
+// sound: 343 m/s in air at 20 °C, 1007 in helium at 20 °C; none of γ 1
+check(near(P.sound(1.4, 28.965, 293.15), 343.233, 1e-5) && near(P.sound(5 / 3, 4.0026, 293.15), 1007.4, 1e-3) && isNaN(P.sound(1, 28, 300)) && isNaN(P.sound(1.4, 28, 0)),
+    'sound', P.sound(5 / 3, 4.0026, 293.15));
+
+// SMD codes both ways: of 3 and 4 digits, R for the point, EIA-96 and its letters; E96 as 10^(i/96) rounded
+check(P.E96.length === 96 && P.E96.every(function (v, i) { return v === Math.round(100 * Math.pow(10, i / 96)); }), 'E96: 96 values, each 10^(i/96)');
+[['473', 47000, '3 digits'], ['4702', 47000, '4 digits'], ['4R7', 4.7, 'R for the point'], ['R47', 0.47, 'R for the point'], ['10R0', 10, 'R for the point'],
+    ['R010', 0.01, 'R for the point'], ['01C', 10000, 'EIA-96'], ['68X', 49.9, 'EIA-96'], ['01S', 10, 'EIA-96'], ['96F', 9.76e7, 'EIA-96'], ['000', 0, 'Jumper'],
+    [' 1r0 ', 1, 'R for the point'], ['100', 10, '3 digits']].forEach(function (c) {
+    var r = P.fromSmd(c[0]);
+    check(r && r.ohms === c[1] && r.kind === c[2], 'fromSmd: ' + c[0], JSON.stringify(r));
+});
+check(P.fromSmd('47R').ohms === 47 && P.fromSmd('47R').also.ohms === 3.01 && P.fromSmd('97A') === null && P.fromSmd('12') === null && P.fromSmd('4K7') === null && P.fromSmd('') === null,
+    'fromSmd: 47R either way, and what is no code');
+(function () {
+    function codes(x) { var r = P.toSmd(x); return r ? ['three', 'four', 'eia'].map(function (k) { return r[k] ? r[k].code + '=' + r[k].ohms : '–'; }).join(' ') : 'null'; }
+    [[4700, '472=4700 4701=4700 66B=4750'], [4.7, '4R7=4.7 4R70=4.7 66Y=4.75'], [0.47, 'R47=0.47 R470=0.47 66Z=0.475'], [10000, '103=10000 1002=10000 01C=10000'],
+        [9.99, '100=10 9R99=9.99 01X=10'], [147, '151=150 1470=147 17A=147'], [0.047, '– – –'], [1e11, '– 1009=100000000000 –'], [0, 'null']].forEach(function (c) {
+        check(codes(c[0]) === c[1], 'toSmd: ' + c[0], codes(c[0]));
+    });
+})();
+
+// filters: 3 dB down at the cut-off, a quarter turn at the centre; of the second order its peak and band
+(function () {
+    var f = P.filter(0, 0, 10e3, 0, 100e-9), h;
+    check(near(f.fc, 159.154943, 1e-8) && near(f.at(f.fc).db, -3.0103, 1e-4) && near(f.at(f.fc).phase, -Math.PI / 4) && near(f.at(100 * f.fc).db, -40, 1e-3), 'filter: RC low-pass');
+    f = P.filter(1, 1, 100, 10e-3, 0);
+    check(near(f.fc, 1591.549431, 1e-8) && near(f.at(f.fc).phase, Math.PI / 4) && near(f.at(f.fc / 100).db, -40, 1e-3), 'filter: RL high-pass');
+    f = P.filter(2, 0, 10, 1e-3, 1e-6);
+    check(near(f.f0, 5032.921210, 1e-8) && near(f.q, Math.sqrt(10), 1e-9) && near(f.at(f.fc).db, -3.0103, 1e-4) && f.peak && near(f.at(f.peak[0]).gain, f.peak[1]) && near(f.at(f.f0).phase, -Math.PI / 2),
+        'filter: RLC low-pass, its peak', JSON.stringify(f));
+    h = P.filter(2, 1, 100, 1e-3, 1e-6);
+    check(h.peak === null && near(h.at(h.fc).db, -3.0103, 1e-4) && h.fc > h.f0, 'filter: RLC high-pass of Q below 0.707, no peak');
+    f = P.filter(2, 2, 10, 1e-3, 1e-6);
+    check(near(f.at(f.f0).db, 0, 1e-9) && near(f.at(f.lo).db, -3.0103, 1e-4) && near(f.at(f.hi).db, -3.0103, 1e-4) && near(f.bw, f.f0 / f.q), 'filter: RLC band-pass');
+    f = P.filter(2, 3, 10, 1e-3, 1e-6);
+    check(f.at(f.f0).gain < 1e-9 && near(f.at(f.lo).db, -3.0103, 1e-4), 'filter: RLC band-stop');
+    check(P.filter(0, 2, 1, 0, 1) === null && P.filter(2, 0, 0, 1, 1) === null && P.filter(1, 0, 1, 0, 1) === null, 'filter: none of a value of 0, or a pass it has not');
+})();
+
+// decibels: 0 dBm is a milliwatt, 0.2236 V across 50 Ω; 1 V is 0 dBV and 120 dBµV
+(function () {
+    var r = P.level(0, 0, 50);
+    check(r.w === 0.001 && r.dbw === -30 && near(r.v, 0.2236068, 1e-6) && near(r.dbuv, 106.9897, 1e-6), 'level: 0 dBm across 50 Ω', JSON.stringify(r));
+    r = P.level(1, 6, 50);
+    check(r.dbv === 0 && r.dbmv === 60 && r.dbuv === 120 && r.w === 0.02 && near(r.vpp, 2 * Math.SQRT2), 'level: 1 V RMS');
+    r = P.level(0, 3, 600);
+    check(near(r.dbm, 2.2185, 1e-4), 'level: 0 dBV across 600 Ω is +2.2 dBm', r.dbm);
+    check(P.level(30, 0, 50).w === 1 && P.level(0, 2, 50) === null && P.level(-1, 6, 50) === null && P.level(0, 0, 0) === null && near(P.level(60, 5, 75).v, 1e-3), 'level: of W, and none of no power');
+    check(near(P.ratio(3, 0).power, 1.99526, 1e-5) && near(P.ratio(2, 2).db, 6.0206, 1e-5) && near(P.ratio(100, 1).db, 20) && P.ratio(0, 1) === null && P.ratio(-20, 0).voltage === 0.1,
+        'ratio: dB, power and voltage');
+})();
 
 console.log(failures ? failures + ' of ' + checks + ' checks failed' : 'all ' + checks + ' checks passed');
 process.exitCode = failures ? 1 : 0;

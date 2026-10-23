@@ -342,7 +342,8 @@
         'numbers': {
             t: 'Matrices, complex numbers and bases',
             d: 'Matrices up to 10 × 10, their determinant, inverse, eigenvalues and A x = b, pasted from a spreadsheet or typed as [1 2; 3 4]; ' +
-                'vectors; complex numbers, (2 + 3i)(1 – i); whole numbers in any base, with their bits; and prime factors, GCD and LCM, primes and fractions. ' +
+                'vectors; complex numbers, (2 + 3i)(1 – i); whole numbers in any base, with their bits, and Gray code; truth tables made smallest, AB + A\'C, with their Karnaugh map; ' +
+                'and prime factors, GCD and LCM, primes and fractions. ' +
                 'Click a result to put it in.',
             k: ''
         },
@@ -393,9 +394,9 @@
         },
         'phys tab circuits': {
             t: 'Electronics',
-            d: 'The resistor colour code both ways, parts in series and parallel, Ohm\'s law, a wire\'s resistance and its AWG, the divider and Thévenin, the Wheatstone bridge, LED resistors, ' +
-                'capacitors, RC and RL, parallel plates, transformers and AC, three-phase power, impedance and resonance of R, L and C, the cost of electricity, battery life; ' +
-                'diodes and rectifiers with their ripple; transistors switching and biased, MOSFETs, Zeners, the LM317, op-amps and the 555. ' +
+            d: 'The resistor colour code both ways, SMD codes and EIA-96, parts in series and parallel, Ohm\'s law, a wire\'s resistance and its AWG, the divider and Thévenin, the Wheatstone bridge, LED resistors, ' +
+                'capacitors, RC and RL, filters of the first and second order, parallel plates, transformers and AC, three-phase power, impedance and resonance of R, L and C, the cost of electricity, battery life; ' +
+                'diodes and rectifiers with their ripple; transistors switching and biased, MOSFETs, Zeners, the LM317, op-amps and the 555; dBm, dBV and dBµV, and gains in dB. ' +
                 'A part\'s value as it is written: 4.7k, 4k7, 100n; a resistor to buy, of E12.',
             k: ''
         },
@@ -551,7 +552,8 @@
         },
         'chem tab gases': {
             t: 'Gases',
-            d: 'The ideal gas law, PV = nRT, with the mass and density of a gas; and the combined gas law.',
+            d: 'The ideal gas law, PV = nRT, with the mass and density of a gas; the combined gas law; partial pressures; a gas collected over water; ' +
+                'the volumes of the gases of a reaction; effusion; the air with height; and the speed of sound.',
             k: ''
         },
         'chem search clear': {
