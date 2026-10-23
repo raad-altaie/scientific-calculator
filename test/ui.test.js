@@ -3806,8 +3806,8 @@ async function electronicsCards(page, at) {
 
     await card('Decibels');
     got = await example('decibels');
-    check(/^P, W: 0\.001; dBm: 0; dBW: -30; V RMS: 0\.22360\d*; V peak: 0\.31622\d*; V peak to peak: 0\.63245\d*; dBV: -13\.0102\d*; dBmV: 46\.9897\d*; dBµV: 106\.9897\d*; I, A: 0\.004472\d*$/.test(got),
-        t + '0 dBm across 50 Ω', got);
+    check(/^P, W: 0\.001258\d*; dBm: 1; dBW: -29; V RMS: 0\.25089\d*; V peak: 0\.35481\d*; V peak to peak: 0\.70962\d*; dBV: -12\.0102\d*; dBmV: 47\.9897\d*; dBµV: 107\.9897\d*; I, A: 0\.005017\d*$/.test(got),
+        t + '1 dBm across 50 Ω', got);
     await opt('unit', 6);
     await type('x', '1');
     check(/dBV: 0; dBmV: 60; dBµV: 120/.test(await tiles()), t + '1 V is 0 dBV and 120 dBµV', await tiles());

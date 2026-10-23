@@ -9075,7 +9075,7 @@
                     }, cols: 2, run: runDecibels,
                     example: function (raw) {
                         return raw.kind === '1' ? { kind: '1', given: raw.given || '0', g: ['3', '2', '10'][+raw.given || 0] } :
-                            { kind: '0', unit: raw.unit || '0', x: ['0', '-30', '1m', '0', '0', '60', '1'][+raw.unit || 0], z: '50' };
+                            { kind: '0', unit: raw.unit || '0', x: ['1', '-30', '1m', '1', '1', '60', '1'][+raw.unit || 0], z: '50' };
                     } }
             ],
             motion: [
