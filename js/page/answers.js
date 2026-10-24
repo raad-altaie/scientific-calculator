@@ -2,10 +2,11 @@
 // quantity to convert, a reaction, that the calculator can work out gets a small calculator icon after it, in its
 // line. Over the icon its result shows, and a click opens the calculator with it. Pages only get this script once its
 // option is turned on, on the options page; it is off at first. What is read is reader.js's, and each feature's, a
-// file of its own (solve.js, graph.js, numbers.js, formulas.js, converter.js, statistics.js, chemistry.js), which
-// background.js puts into the page before this script while it is turned on. The text of the page is read here, in
-// the browser: only what is clicked goes to the calculator, and nothing leaves the computer. The calculator's engine
-// comes into the page only when there is maths on it, and its solver when its tip shows (background.js)
+// file of its own (solve.js, graph.js, numbers.js, formulas.js, converter.js, statistics.js, chemistry.js, physics.js,
+// biology.js), which background.js puts into the page before this script while it is turned on. The text of the page
+// is read here, in the browser: only what is clicked goes to the calculator, and nothing leaves the computer. The
+// calculator's engine comes into the page only when there is maths on it, and its solver when its tip shows; chem.js,
+// physics.js and biology.js only when there is chemistry, physics or biology (background.js)
 (function (root) {
     'use strict';
 
@@ -13,7 +14,7 @@
 
     // In Node, for the tests: every feature, and what is read of a text, as this script read it before them
     if (typeof module !== 'undefined' && module.exports) {
-        ['./statistics.js', './converter.js', './numbers.js', './solve.js', './graph.js', './chemistry.js'].forEach((file) => require(file));
+        ['./statistics.js', './converter.js', './numbers.js', './solve.js', './graph.js', './chemistry.js', './physics.js', './biology.js'].forEach((file) => require(file));
         const Formulas = require('./formulas.js');
         module.exports = { find: Reader.find, fromTex: Reader.fromTex, formal: Reader.formal, tidy: Reader.tidy, canon: Formulas.canon,
             lineOfHtml: Formulas.lineOfHtml, namedIndex: Formulas.namedIndex, findNamed: Formulas.findNamed, formulaOf: Formulas.formulaOf,
@@ -27,7 +28,7 @@
     const id = 'scientific-calculator-page-maths';
     const TAG = 'scientific-calculator-maths'; // an icon, in the text after its sum
     const STOP = 'scientific-calculator-maths-stop'; // told to an older copy of this script: it takes its icons out
-    const MAX = 300; // icons on a page at most
+    const MAX = 400; // icons on a page at most
     const UNITS = ['Rad', 'Deg', 'Grad']; // as the calculator names them
     // what is not read: code, boxes to type in, and what is not text
     const SKIP = 'script, style, noscript, template, textarea, input, select, option, button, code, pre, kbd, samp, svg, math, canvas, iframe, object, video, audio, ' +
@@ -177,9 +178,29 @@
             bottom: calc(100% - 1px);
         }
 
+        /* its head: what it is, and at the right the feature it is of, as the options name them */
+        .head {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
         .eq {
+            flex: 1;
+            min-width: 0;
             color: #acb4c1;
             overflow-wrap: anywhere;
+        }
+
+        .kind {
+            flex: none;
+            margin-top: 1px;
+            padding: 0 5px;
+            border-radius: 4px;
+            background: #34505e;
+            color: #d3d9e2;
+            font-size: 10px;
+            line-height: 15px;
         }
 
         .value {
@@ -298,9 +319,10 @@
 
     // A line of the page as one text, its sum split by no tag: 3<sup>2</sup> + 4<sup>2</sup> is read
     // 3² + 4². segs: where each part of the text is in the page, those of a text node; subs: where the
-    // digits of a <sub> are, H<sub>2</sub>O read H₂O, of a formula and of no sum
+    // digits of a <sub> are, H<sub>2</sub>O read H₂O, of a formula and of no sum; ups: where the letter
+    // of a <sup> after an X is, and which, X<sup>A</sup> of a cross of the X, of no sum; not a footnote's, tt<sup>a</sup>
     function newRun(block) {
-        return { block: block, text: '', segs: [], subs: [], sup: null, wrap: false };
+        return { block: block, text: '', segs: [], subs: [], ups: [], sup: null, wrap: false };
     }
 
     function addText(run, node) {
@@ -336,6 +358,11 @@
             run.sup = sup;
             run.wrap = !/^[-−–]?\d+$/.test(all);
             if (run.wrap && !/^[\dx+\-−–().\s]+$/.test(all)) {
+                const at = data.indexOf(all);
+                if (/^[A-Za-z]$/.test(all) && at > -1 && /X$/.test(run.text)) { // a letter alone after an X, of an allele: kept for the biology
+                    run.ups.push([run.text.length, all]);
+                    run.segs.push({ at: run.text.length, node: node, off: at, len: 1 });
+                }
                 run.text += '\u0001';
                 run.wrap = false;
                 return;
@@ -380,7 +407,14 @@
         if (chars) run.subs.forEach((at) => { chars[at] = '\u0001'; });
         const text = chars ? chars.join('') : run.text;
         const sums = /[\dπx]/.test(text) && QUICK.test(text) ? Reader.find(text) : [];
-        Reader.found(text, ORDER, run.text, sums).forEach((c) => {
+        // the letters of its <sup> in it, XᴬXᵃ of a cross; each one character, where the line has a mark for it
+        let lettered;
+        if (run.ups.length) {
+            const all = run.text.split('');
+            run.ups.forEach(([at, letter]) => { all[at] = letter; });
+            lettered = all.join('');
+        }
+        Reader.found(text, ORDER, run.text, sums, lettered).forEach((c) => {
             const range = rangeOf(run, c.from, c.to);
             if (range) found.push({ range: range, block: run.block, c: c });
         });
@@ -463,15 +497,17 @@
     // ---------------- the calculator ---------------- //
 
     // The engine, and with 'maths' the solver, put into this page by background.js the first time they
-    // are needed; with 'chem', chem.js, of the chemistry, alone. Each asked once
+    // are needed; with 'chem', 'phys' or 'bio', chem.js, physics.js or biology.js alone, by their names in the
+    // page. Each asked once
+    const LIBS = { chem: 'CalcChem', phys: 'CalcPhysics', bio: 'CalcBiology' };
     const loading = {};
     function load(what) {
-        const has = () => !!(what === 'chem' ? window.CalcChem : what === 'maths' ? window.CalcMaths : window.CalcEngine);
+        const has = () => !!window[LIBS[what] || (what === 'maths' ? 'CalcMaths' : 'CalcEngine')];
         if (has()) return Promise.resolve(true);
         if (!loading[what]) {
             loading[what] = new Promise((done) => {
                 try {
-                    chrome.runtime.sendMessage({ command: 'page-maths-engine', maths: what === 'maths', chem: what === 'chem' }, () => {
+                    chrome.runtime.sendMessage({ command: 'page-maths-engine', maths: what === 'maths', lib: LIBS[what] ? what : '' }, () => {
                         void chrome.runtime.lastError;
                         done(has());
                     });
@@ -487,10 +523,11 @@
     }
 
     // the calculator's own, as they are in this page, for the features to work out with
-    const lib = () => ({ engine: window.CalcEngine, maths: window.CalcMaths, units: window.CalcUnits, chem: window.CalcChem });
+    const lib = () => ({ engine: window.CalcEngine, maths: window.CalcMaths, units: window.CalcUnits, chem: window.CalcChem, phys: window.CalcPhysics, bio: window.CalcBiology });
 
     // What a found thing needs put in the page first, as its feature says: the engine, 'engine', of a sum as well;
-    // chem.js for the chemistry, 'chem'; or nothing, null, for a formula or a constant only told of. And what its tip
+    // chem.js for the chemistry, 'chem', physics.js and biology.js for theirs, 'phys' and 'bio'; or nothing, null,
+    // for a formula or a constant only told of. And what its tip
     // needs, 'maths' unless its feature says
     const needs = (c) => {
         const f = Reader.featureOf(c);
@@ -514,6 +551,9 @@
     }
 
     const { shown, pretty } = Reader;
+    // each feature by its name on the options page, for the head of its tips
+    const FEATURE_NAMES = { formulas: 'Formulas', converter: 'Converter', graph: 'Graph', numbers: 'Numbers', solve: 'Solve', chemistry: 'Chemistry',
+        physics: 'Physics', biology: 'Biology', statistics: 'Statistics' };
 
     // What the tip says: { title, lines, svg, rows, note, more }. A sum is worked out already; the rest by its
     // feature the first time the tip shows, once what it needs is in the page, as the solver
@@ -645,13 +685,20 @@
         (mark.answer || (mark.answer = answer(mark))).then((said) => {
             if (tipFor !== mark || !said) return;
             const c = mark.c;
+            const head = document.createElement('div');
             const eq = document.createElement('div');
+            const kind = document.createElement('div');
             const more = document.createElement('div');
 
             tip.textContent = '';
+            head.className = 'head';
             eq.className = 'eq';
             eq.textContent = said.title || pretty(c.shown || (c.kind === 'sum' ? c.left : c.text), c.frac);
-            tip.appendChild(eq);
+            kind.className = 'kind';
+            kind.textContent = c.kind === 'sum' ? 'Sum' : FEATURE_NAMES[(Reader.featureOf(c) || {}).name] || '';
+            head.appendChild(eq);
+            if (kind.textContent) head.appendChild(kind);
+            tip.appendChild(head);
             (said.lines || []).forEach((line) => {
                 const value = tip.appendChild(document.createElement('div'));
                 value.className = 'value';
@@ -760,7 +807,8 @@
         pick.hidden = true;
     }
 
-    // What the selection is, worked out as the icons' are; the engine, or chem.js, is put in first if it is needed
+    // What the selection is, worked out as the icons' are; the engine, or chem.js, physics.js or biology.js, is put in
+    // first if it is needed
     function whatIs(text) {
         const c = Reader.selected(text, ORDER);
         if (!c) return Promise.resolve(null);

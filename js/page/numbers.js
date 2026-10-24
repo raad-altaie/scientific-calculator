@@ -1,6 +1,7 @@
 // The numbers of the instant answers, as their panel works them out: an IP network, 192.168.0.1/24; a matrix marked
-// as maths, and its determinant; a choice, 52 choose 5; a complex number, (3 + 4i)(1 − 2i). Selected as well: a whole
-// number, a decimal, and the codes of a computer, 0xFF, a UUID and Base64. Put into the pages while it is turned on
+// as maths, and its determinant; a choice, 52 choose 5; a complex number, (3 + 4i)(1 − 2i); a function of logic,
+// F = AB + A'C or Σm(1, 3, 5), made as small as it can be. Selected as well: a whole number, a decimal, the codes of a
+// computer, 0xFF, a UUID and Base64, and logic of + alone, AB + BC. Put into the pages while it is turned on
 // (background.js)
 (function (root) {
     'use strict';
@@ -116,12 +117,59 @@
         return out;
     }
 
+    // ---------------- logic ---------------- //
+
+    // A function of logic as a page writes it: of its minterms or maxterms, Σm(1, 3, 5) + d(7) or ΠM(0, 2), F(A, B, C) =
+    // before it as well; or of variables, capitals, with ' for NOT, F = AB + A'C, with AND OR NOT XOR NAND NOR XNOR in
+    // capitals, A AND NOT B, or ⊕ ∧ ∨ ¬. Not of + alone, AB + BC, as often algebra: that selected. Each as the Truth
+    // table card takes it, Σm and ΠM written so
+    const ROWS = '\\(\\s*\\d{1,3}(?:\\s*,\\s*\\d{1,3})*\\s*\\)';
+    const NAMED = '([A-Z]\\d?)\\s*(\\(\\s*[A-Za-z]\\d?(?:\\s*,\\s*[A-Za-z]\\d?)*\\s*\\))?\\s*=\\s*';
+    const TERMS = new RegExp('(?<![\\p{L}\\p{N}_])(?:' + NAMED + ')?(?:([Σ∑]\\s*m?)\\s*(' + ROWS + ')(?:\\s*\\+\\s*d\\s*(' + ROWS + '))?|' +
+        '([Π∏]\\s*M?)\\s*(' + ROWS + ')(?:\\s*[·⋅*]?\\s*[dD]\\s*(' + ROWS + '))?)(?![\\p{L}\\p{N}_])', 'gu');
+    const LOGIC_ATOM = '(?:NOT\\s+|[¬!~]\\s*)*(?:[A-Z]\\d?|\\([A-Z\\d\\s+·⋅*⊕∧∨&|\'’′¬!~]{1,80}\\))[\'’′]*'; // in brackets, logic alone
+    const LOGIC_OP = '(?:\\s*[+·⋅*⊕∧∨&|]\\s*|\\s+(?:AND|OR|XOR|NAND|NOR|XNOR)\\s+)';
+    const LOGIC_TERM = LOGIC_ATOM + '(?:' + LOGIC_ATOM + ')*';
+    const LOGIC = new RegExp('(?<![\\p{L}\\p{N}_\'’])(?:' + NAMED + ')?(' + LOGIC_TERM + '(?:' + LOGIC_OP + LOGIC_TERM + ')*)(?![\\p{L}\\p{N}_\'’(])', 'gu');
+    const WORDS = /\b(?:AND|OR|NOT|XOR|NAND|NOR|XNOR)\b/g;
+    // what only logic has: a NOT after a variable or bracket, A' or (A + B)', a word in capitals, or a sign of logic
+    const OF_LOGIC = /[A-Z\d)]['’′](?![a-z])|\b(?:AND|OR|NOT|XOR|NAND|NOR|XNOR)\b|[⊕∧∨¬]/;
+
+    const logicOf = (from, to, text, e) => ({ from: from, to: to, kind: 'logic', panel: 'numbers', card: 'logic', text: text, fields: { e: e.replace(/[’′]/g, '\'').replace(/\s+/g, ' ') } });
+
+    // alone: selected, of + and products as well, AB + BC
+    function findLogic(s, alone) {
+        const out = [];
+        let m;
+        TERMS.lastIndex = 0;
+        while ((m = TERMS.exec(s))) {
+            const name = m[1] ? m[1] + (m[2] ? m[2].replace(/\s+/g, '').replace(/,/g, ', ') : '') + ' = ' : '';
+            out.push(logicOf(m.index, m.index + m[0].length, m[0], name + (m[3] ? 'Σm' + m[4] + (m[5] ? ' + d' + m[5] : '') : 'ΠM' + m[7] + (m[8] ? ' · D' + m[8] : ''))));
+        }
+        LOGIC.lastIndex = 0;
+        while ((m = LOGIC.exec(s))) {
+            // two variables or more, of an operator or named, F = AB'; no word in capitals, HTML
+            const body = m[3], bare = body.replace(WORDS, ' '), vars = new Set(bare.match(/[A-Z]\d?/g) || []);
+            if (vars.size < 2 || vars.size > 8 || /[A-Z]{4}/.test(bare) || !(m[1] || new RegExp(LOGIC_OP).test(body))) continue;
+            // of words, each a variable alone: USA AND UK, TCP AND UDP, I AND YOU are words
+            if (bare !== body && /[A-Z]{2}/.test(bare)) continue;
+            if (!OF_LOGIC.test(body) && !m[2] && !(alone && /[A-Z]\d?['’′]*[A-Z(]/.test(body) && /[+·⋅]/.test(body))) continue;
+            // of AND and OR alone, unnamed, three variables or more: R AND D, Q AND A are words
+            if (!m[1] && !OF_LOGIC.test(body.replace(WORDS, (w) => (/^(?:AND|OR)$/.test(w) ? ' ' : w))) && vars.size < 3 && !alone) continue;
+            out.push(logicOf(m.index, m.index + m[0].length, m[0], m[0]));
+        }
+        return Reader.firstLongest(out);
+    }
+
     // ---------------- in the text ---------------- //
 
-    // the choices and complex numbers of a text; each reader only where the text has what it needs
-    function find(s) {
-        if (!/\d/.test(s)) return [];
-        return [].concat(/choose|nCr|nPr|binom|\(/.test(s) ? findChoices(s) : [], /\di/.test(s) ? findComplex(s) : []);
+    // the choices, complex numbers and logic of a text; each reader only where the text has what it needs. raw: the
+    // line with the digits of its <sub>, of the same length
+    function find(s, order, raw) {
+        const t = raw === undefined ? s : raw;
+        const logic = /[Σ∑Π∏]|['’′⊕∧∨¬]|[A-Z] (?:AND|OR|XOR|NAND|NOR|XNOR) /.test(t) ? findLogic(t, false) : [];
+        if (!/\d/.test(s)) return logic;
+        return Reader.without([].concat(/choose|nCr|nPr|binom|\(/.test(s) ? findChoices(s) : [], /\di/.test(s) ? findComplex(s) : []), logic);
     }
 
     // A line marked as maths: a matrix alone, A = [1 2; 3 4] as well, its determinant, |A| or det A, and equations
@@ -146,8 +194,8 @@
 
     const UUID = /^(?:urn:uuid:)?\{?([0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12})\}?$/i;
 
-    // Text selected that is one of these alone: a code of a computer, 0xFF, a UUID, Base64; a whole number, a
-    // decimal. Null for none
+    // Text selected that is one of these alone: a code of a computer, 0xFF, a UUID, Base64; a function of logic; a
+    // whole number, a decimal. Null for none
     function picked(text) {
         const t = String(text).trim().replace(/\s+/g, ' ');
         if (!t || t.length > 300) return null;
@@ -160,6 +208,8 @@
         }
         if ((m = UUID.exec(t))) return whole({ kind: 'uuid', panel: 'numbers', card: 'uuid', fields: { u: m[1] } });
         if (isBase64(t)) return whole({ kind: 'base64', panel: 'numbers', card: 'base64', fields: { b: t, enc: '2' } });
+        const logic = findLogic(t, true).filter((c) => !c.from && c.to === t.length)[0];
+        if (logic) return logic;
         if ((m = /^[$€£¥]?\s?((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?|\.\d+)$/.exec(t.replace(/^[-−–]/, '')))) {
             const sign = /^[-−–]/.test(t) ? '-' : '', n = sign + m[1].replace(/,/g, '');
             if (/^-?\d{1,20}$/.test(n)) return whole({ kind: 'whole', panel: 'numbers', card: 'factors', fields: { n: n } });
@@ -207,8 +257,10 @@
 
     // ---------------- the tips ---------------- //
 
-    // a matrix of numbers, kept as values; the rest is read whole by its reader
+    // a matrix of numbers, kept as values; a function of logic the Truth table reads, once maths.js is in the page, as
+    // for a tip; the rest is read whole by its reader
     function check(c, unit, lib) {
+        if (c.kind === 'logic') return !lib.maths || !lib.maths.logic(c.fields.e).error;
         if (c.kind !== 'matrix') return true;
         c.values = c.rows.map((r) => r.map((cell) => workOut(cell, unit, lib.engine)));
         return c.values.every((r) => r.every((v) => v !== null));
@@ -314,6 +366,17 @@
                 return { title: f.e, lines: ['= ' + (digits > 40 ? top.slice(0, 30) + '… (' + digits + ' digits)' : BigInt(top).toLocaleString('en-US'))],
                     more: 'Click to open it in Exactly, every digit.' };
             }
+            case 'logic': {
+                // made as small as it can be, as the Truth table card makes it: its sum of products, its product of sums
+                // and the rows that are 1
+                const g = M.logic(f.e);
+                if (g.error) return null;
+                const r = M.minimize(g), list = (s, rows) => s + '(' + rows.join(', ') + ')', k = g.vars.length;
+                const rows = [['Variables', g.vars.join(', ')], ['Product of sums', r.pos],
+                    ['Minterms', r.ones.length > 12 ? r.ones.length + ' of ' + (1 << k) + ' rows' : list('Σm', r.ones) + (r.either.length ? ' + ' + list('d', r.either) : '')]];
+                return { title: c.text.replace(/\s+/g, ' ').trim(), lines: [g.name + ' = ' + r.sop], rows: rows,
+                    note: 'As small as it can be, as a sum of products.', more: 'Click to open it in Truth table' + (k >= 2 && k <= 4 ? ', with its Karnaugh map.' : '.') };
+            }
             case 'complex': {
                 const z = M.complex(f.z, false, unit);
                 if (!z || !isFinite(z.re) || !isFinite(z.im)) return null;
@@ -327,7 +390,7 @@
     }
 
     const CalcPageNumbers = {
-        name: 'numbers', kinds: ['subnet', 'matrix', 'exact', 'complex', 'bits', 'uuid', 'base64', 'whole', 'decimal'],
+        name: 'numbers', kinds: ['subnet', 'matrix', 'exact', 'complex', 'logic', 'bits', 'uuid', 'base64', 'whole', 'decimal'],
         find: find, tier: 1, at: readAddress, formal: formal, picked: picked, check: check, tip: tip, isBase64: isBase64
     };
     Reader.add(CalcPageNumbers);

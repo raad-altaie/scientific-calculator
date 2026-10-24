@@ -38,12 +38,12 @@
         },
         "physics": {
             "title": "Physics",
-            "description": "false turns off the physics tools, of electronics, motion, forces, waves, matter and modern physics, for everyone, and its option cannot turn it on.",
+            "description": "false turns off the physics tools, of electronics, motion, forces, waves, matter and modern physics, for everyone, with the physics of the instant answers, and its option cannot turn it on.",
             "type": "boolean"
         },
         "biology": {
             "title": "Biology",
-            "description": "false turns off the biology tools, of genetics, DNA, proteins, the lab, cells and ecology, for everyone, and its option cannot turn it on.",
+            "description": "false turns off the biology tools, of genetics, DNA, proteins, the lab, cells and ecology, for everyone, with the biology of the instant answers, and its option cannot turn it on.",
             "type": "boolean"
         },
         "detachedMode": {

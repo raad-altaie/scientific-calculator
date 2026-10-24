@@ -9,6 +9,7 @@
 <style>
     /* the calculator's colours and font round a white page of examples, as an ordinary web page has its text */
     @font-face { font-family: Play; src: url('../fonts/Play-Regular.ttf'); }
+    @font-face { font-family: PlayName; src: url('../fonts/Play-Regular.ttf'); } /* the name, as the options page draws it: its regular face made bold */
     @font-face { font-family: Play; font-weight: 700; src: url('../fonts/Play-Bold.ttf'); }
     :root { --ink: #1f333c; --soft: #5d6b78; --line: #dfe5ea; --teal: #39576f; --deep: #2b4753; --night: #1a2f38; }
     * { box-sizing: border-box; }
@@ -16,10 +17,11 @@
     body { color: var(--ink); font: 16px/1.7 Play, 'Russo One', sans-serif; -webkit-tap-highlight-color: transparent; }
     ::selection { color: #fff; background: #6b7580; }
     .top { text-align: center; padding: 2.2em 16px 0; color: #fff; }
-    .logo { font: 700 2.7em Play, 'Russo One', sans-serif; -webkit-user-select: none; user-select: none; }
-    .intro { max-width: 40em; margin: 0.6em auto 2em; color: #dde3ea; font-size: 15px; line-height: 1.5; }
+    .logo { font: 700 36.45px PlayName, 'Russo One', sans-serif; -webkit-user-select: none; user-select: none; }
+    .intro { max-width: 40em; margin: 0.6em auto 2em; color: #dde3ea; font-size: 14px; line-height: 1.5; }
     article { max-width: 900px; margin: 0 auto; background: #fff; border: 1px solid var(--night); border-radius: 12px;
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2); padding: 0 40px 36px; }
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2); padding: 0 40px 36px;
+        overflow-wrap: break-word; } /* a long sequence or word kept inside, broken where it must be */
     h1 { margin: 1.6em 0 0.2em; color: var(--deep); font-size: 26px; line-height: 1.2; }
     h2 { margin: 1.5em 0 0.3em; color: var(--teal); font-size: 18px; }
     .lede { color: var(--soft); margin: 0 0 14px; }
@@ -28,7 +30,7 @@
     .note b, .note code { color: var(--ink); }
     code { font-size: 0.92em; background: #eef3f6; padding: 0.05em 0.35em; border-radius: 4px; }
     .web .only-test, .test .only-web { display: none; }
-    pre { background: #eef3f6; border-radius: 6px; padding: 10px 14px; font-size: 14px; }
+    pre { background: #eef3f6; border-radius: 6px; padding: 10px 14px; font-size: 14px; white-space: pre-wrap; }
     .scroll { height: 84px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; }
     button.add { font: 14px Play, sans-serif; padding: 6px 14px; border-radius: 6px; border: 1px solid var(--teal); background: var(--teal); color: #fff; cursor: pointer; transition: background 0.15s; }
     button.add:hover { background: var(--deep); }
@@ -50,29 +52,26 @@
     /* how they all are, at the top of the page as it scrolls: the box of the admin page's rows */
     #status { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 12px; margin: 0 -40px 8px; padding: 12px 40px;
         background: var(--deep); color: #fff; border-bottom: 1px solid var(--night); border-radius: 11px 11px 0 0; }
+    #status.stuck { border-radius: 0; } /* at the top as the page scrolls: square, the white of the page not seen round its corners */
     #status .mark { flex: none; display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 8px; background: var(--teal); font-weight: 700; }
     #status.ok .mark { background: #3c7a52; }
     #status.bad .mark { background: #a33f3f; }
     #status.ok .mark::before { content: '✓'; }
     #status.bad .mark::before { content: '✗'; }
     #status .note { all: unset; display: block; color: #acb4c1; font-size: 12.5px; line-height: 1.4; }
+    #status .note a { color: #fff; text-decoration: none; }
+    #status .note a:hover { text-decoration: underline; }
     #status b { display: block; line-height: 1.3; }
     /* what a click opens in the calculator, at the bottom */
     #sent { position: fixed; left: 50%; bottom: max(12px, env(safe-area-inset-bottom)); z-index: 6; width: min(900px, calc(100% - 24px));
         transform: translateX(-50%); padding: 0.7em 1.1em; color: #dde3ea; background: var(--night); border: 1px solid var(--deep); border-radius: 10px;
         box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35); font-size: 12.5px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 30vh; overflow: auto; }
-    /* back to the calculator: the round button of the website's options, at the top left */
-    .back { position: fixed; top: max(22px, env(safe-area-inset-top)); left: max(22px, env(safe-area-inset-left)); z-index: 7; display: flex;
-        align-items: center; justify-content: center; width: 34px; height: 34px; background: #c3cad1; border-radius: 50%;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35); transition: background 0.2s, transform 0.15s ease; }
-    .back svg { width: 20px; height: 20px; fill: none; stroke: var(--deep); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-    .back:hover { background: #d3d9de; transform: scale(1.12); }
-    .back:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-    .footer { text-align: center; color: #acb4c1; font-size: 12.5px; padding: 3em 16px 6em; }
+    .footer { text-align: center; color: #acb4c1; font-size: 12.5px; padding: 4em 16px 2em; }
+    .footer p { margin: 0; }
+    .test .footer { padding-bottom: 7em; } /* clear of the bar of what a click opens, there only in the test folder */
     .footer a { color: #fff; text-decoration: none; }
     @media (max-width: 700px) {
-        .top { padding-top: 4.2em; }
-        .logo { font-size: 2em; }
+        .logo { font-size: 27px; }
         article { padding: 0 16px 28px; border-radius: 0; border-left: 0; border-right: 0; }
         #status { margin: 0 -16px 8px; padding: 10px 16px; border-radius: 0; }
     }
@@ -923,12 +922,9 @@ mjx-c.mjx-c1D447.TEX-I::before {
 </style>
 </head>
 <body class="demo">
-<a class="back" href="../web/" aria-label="Back to the calculator" title="Back to the calculator">
-    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12H4M10 6l-6 6 6 6"></path></svg>
-</a>
 <div class="top">
     <div class="logo">Scientific Calculator</div>
-    <p class="intro">Inline Instant answers on every website: every kind of maths and chemistry it finds, each example with the icons it should
+    <p class="intro">Inline Instant answers on every website: every kind of maths, chemistry, physics and biology it finds, each example with the icons it should
         get. Hover an icon for its answer; a click opens it in the calculator.</p>
 </div>
 <article>
@@ -1178,6 +1174,18 @@ M834 80h400000v40h-400000z"></path></svg></span></span></span><span class="vlist
         <li data-expect="0">Not a mask: 10.0.0.1 255.0.255.0</li>
     </ol>
 
+    <h2>Logic <span class="tag yes">should work</span></h2>
+    <ol class="ex yes">
+        <li>To simplify: F = AB + A'C + BC</li>
+        <li>Of its minterms: F(A, B, C) = Σm(1, 3, 5, 7)</li>
+        <li>With rows that may be either: F(A, B, C, D) = Σm(0, 2, 5, 7, 8, 10, 13, 15) + d(1)</li>
+        <li>Of its maxterms: ΠM(0, 2, 4)</li>
+        <li>In words: A AND NOT B OR C</li>
+        <li data-expect="2">With signs: Y = A ⊕ B, and P ∧ ¬Q</li>
+        <li>As a textbook prints it: F = AB′ + C′D</li>
+        <li data-expect="0">Not logic: R AND D, O'Brien, ROCK AND ROLL, the letters 'A' and 'B'</li>
+    </ol>
+
     <h2>Formulas and constants <span class="tag yes">should work</span></h2>
     <ol class="ex yes">
         <li data-expect="2">Einstein's E = mc² and Newton's F = ma</li>
@@ -1193,7 +1201,8 @@ M834 80h400000v40h-400000z"></path></svg></span></span></span><span class="vlist
 
     <h1>Chemistry</h1>
     <p class="sub">A reaction is balanced; a formula gets its molar mass, name and oxidation numbers; a composition its empirical
-        formula; a compound named its formula; an element its place in the table. A click opens it in the Chemistry panel.</p>
+        formula; a mixture of gases the pressure of each; a compound named its formula; an element its place in the table. A click
+        opens it in the Chemistry panel.</p>
     <h2>Reactions <span class="tag yes">should work</span></h2>
     <ol class="ex yes">
         <li>Water: 2H2 + O2 → 2H2O</li>
@@ -1230,6 +1239,17 @@ M834 80h400000v40h-400000z"></path></svg></span></span></span><span class="vlist
         <li>By name: carbon 40%, hydrogen 6.7%, oxygen 53.3%</li>
         <li>An oxide of iron: Fe 69.9%, O 30.1%</li>
         <li>With colons: C: 85.6%, H: 14.4%</li>
+        <li>Of elements that are gases: water is hydrogen 11.2%, oxygen 88.8%</li>
+    </ol>
+
+    <h2>Mixtures of gases <span class="tag yes">should work</span></h2>
+    <ol class="ex yes">
+        <li>Air is 78% nitrogen, 21% oxygen and 1% argon.</li>
+        <li>Dry air: N2 78.08%, O2 20.95%, Ar 0.93%, CO2 0.04%</li>
+        <li>As Wikipedia writes it: N<sub>2</sub> 78%, O<sub>2</sub> 21%, Ar 1%</li>
+        <li>Natural gas: methane 95%, ethane 3%, propane 2%</li>
+        <li>A mix for diving, heliox: 79% helium and 21% oxygen</li>
+        <li>By mass, air is 75.5% N₂, 23.1% O₂ and 1.3% Ar</li>
     </ol>
 
     <h2>Names of compounds <span class="tag yes">should work</span></h2>
@@ -1264,6 +1284,85 @@ M834 80h400000v40h-400000z"></path></svg></span></span></span><span class="vlist
         <li data-expect="0">Words: He is here, In 2024, As we know, No way, the US and UK, a CO2e figure, H2O.com</li>
         <li data-expect="0">Not compounds: citric acid, the climate, copper sulfate (which copper?), 40% of people and 60% of cats</li>
         <li data-expect="0">Not elements: Ohm (Ω), Pi (π), the element of surprise</li>
+        <li data-expect="0">Gases not near 100%: 50% nitrogen and 20% argon</li>
+    </ol>
+
+    <h1>Physics</h1>
+    <p class="sub">Parts in series and parallel get their value; a resistor's colours or SMD code its resistance; a level in dBm
+        or dBV its watts and volts. A click opens it in the Physics panel.</p>
+    <h2>Series and parallel <span class="tag yes">should work</span></h2>
+    <ol class="ex yes">
+        <li>Two in parallel: 4.7 kΩ ∥ 10 kΩ</li>
+        <li>In series and parallel: 100 + 220 || 330</li>
+        <li>With brackets: (1k + 2k2) || 4k7</li>
+        <li>Capacitors add in parallel: 10 µF || 22 µF</li>
+        <li>Coils: 10 mH ∥ 10 mH</li>
+    </ol>
+
+    <h2>Resistor colour codes <span class="tag yes">should work</span></h2>
+    <ol class="ex yes">
+        <li>A resistor of brown, black, red and gold bands</li>
+        <li>Yellow-violet-red-gold</li>
+        <li>Read from its other end, a resistor: gold, red, violet, yellow</li>
+        <li>Five bands, 1%: a resistor of brown black black red brown</li>
+    </ol>
+
+    <h2>SMD resistor codes <span class="tag yes">should work</span></h2>
+    <ol class="ex yes">
+        <li>An SMD resistor marked 473 is 47 kΩ.</li>
+        <li data-expect="2">R for the point: a 4R7 resistor, and a 0R22 shunt resistor</li>
+        <li data-expect="3">SMD resistor codes 103, 472 and 01C</li>
+        <li>Of 4 digits: the resistor's code is 4702.</li>
+    </ol>
+
+    <h2>Levels in decibels <span class="tag yes">should work</span></h2>
+    <ol class="ex yes">
+        <li>The output is −30 dBm.</li>
+        <li>A transmitter of 30 dBW</li>
+        <li>Consumer audio, −10 dBV</li>
+        <li data-expect="2">A weak signal of 20 dBµV, or 0 dBmV</li>
+    </ol>
+
+    <h2>Physics traps <span class="tag trap">should not work</span></h2>
+    <p class="sub">They look like physics but are not. A red one here is a false icon.</p>
+    <ol class="ex">
+        <li data-expect="0">Logic: a || b, x || 0</li>
+        <li data-expect="0">Two kinds of part: 10 µF || 10 kΩ</li>
+        <li data-expect="0">Colours of other things: the flag is red, white and blue; red, orange, yellow, green, blue, violet</li>
+        <li data-expect="0">Decibels alone: a 3 dB gain, 85 dB(A)</li>
+        <li data-expect="0">Names and cases of parts: resistors R1, R2 and R47, a 1206 resistor of 100 Ω</li>
+        <li data-expect="0">Codes of other parts: a capacitor marked 104</li>
+    </ol>
+
+    <h1>Biology</h1>
+    <p class="sub">A sequence of DNA or RNA gets its length, GC and mass, a primer its melting point; a cross its ratios, and a
+        cross of the X its sons and daughters. A click opens it in the Biology panel.</p>
+    <h2>Sequences <span class="tag yes">should work</span></h2>
+    <ol class="ex yes">
+        <li>A primer: 5′-AGCGGATAACAATTTCACACAGGA-3′</li>
+        <li>M13 forward, GTAAAACGACGGCCAGT</li>
+        <li>As GenBank writes it: atggctagca aaggagaaga acttttcact ggagttgtcc</li>
+        <li>GFP's start: ATGGCTAGCAAAGGAGAAGAACTTTTCACTGGAGTTGTCCCAATTCTTGTTGAATTAGATGGTGATGTTAATGGGCACAAATTTTCTG</li>
+        <li>An mRNA: AUGGCCAUUGUAAUGGGCCGCUGAAAGGGUGCCCGAUAG</li>
+    </ol>
+
+    <h2>Crosses <span class="tag yes">should work</span></h2>
+    <ol class="ex yes">
+        <li>A dihybrid cross: AaBb × AaBb</li>
+        <li>A test cross: Tt x tt</li>
+        <li>True-breeding parents, AA × aa</li>
+        <li>Colour blindness, as Wikipedia writes it: X<sup>B</sup>X<sup>b</sup> × X<sup>b</sup>Y</li>
+        <li>In plain text: XAXa × XaY</li>
+        <li>Raised as text: XᴴXʰ × XʰY</li>
+    </ol>
+
+    <h2>Biology traps <span class="tag trap">should not work</span></h2>
+    <p class="sub">They look like biology but are not. A red one here is a false icon.</p>
+    <ol class="ex">
+        <li data-expect="0">Genes that do not pair: AA x BB, Ab × Ab, XX x YY, AA x AA</li>
+        <li data-expect="0">A size: a 2 x 4</li>
+        <li data-expect="0">Short or of one base: GATTACA, ACCTGGTTGGCCAA, GGGGGGGGGGGGGGGGGGGG</li>
+        <li data-expect="0">Words: WHAT A CATCHY HEADLINE, a cat</li>
     </ol>
 
     <h1>Maths drawn as maths</h1>
@@ -1433,6 +1532,10 @@ M347 1759 V0 H263 V1759 v0 v1759 h84z"></path></svg></span></span></span><span c
         <li data-expect="1">A sum in a sentence: Twelve dozen is 12 × 12, a gross.</li>
         <li data-expect="0">A letter of its own: 3t + 2 = 11</li>
         <li data-expect="0">Chemistry alone: Fe, iron, KOH, O2, water</li>
+        <li data-expect="0">Colours alone: red red brown</li>
+        <li data-expect="0">An SMD code alone: 4R7, or R47</li>
+        <li data-expect="0">Logic of + alone: AB + BC</li>
+        <li data-expect="0">A protein: MQIFVKTLTGKTITLEVEPSDTIENVKAKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGG</li>
     </ol>
     <p class="sub">A column of a table, its statistics:</p>
     <table class="cells"><tbody><tr><th>Price</th></tr><tr><td>$1,200.50</td></tr><tr><td>$300</td></tr><tr><td>$45.10</td></tr><tr><td>$19.99</td></tr></tbody></table>
@@ -1517,6 +1620,8 @@ M347 1759 V0 H263 V1759 v0 v1759 h84z"></path></svg></span></span></span><span c
             s.onerror = () => done(false);
             document.head.appendChild(s);
         });
+        // the libraries of the chemistry, physics and biology, by their names in the page, as background.js puts them in
+        const LIBS = { chem: ['CalcChem', 'js/chem.js'], phys: ['CalcPhysics', 'js/physics.js'], bio: ['CalcBiology', 'js/biology.js'] };
         window.chrome = {
             runtime: {
                 id: 'test',
@@ -1524,8 +1629,9 @@ M347 1759 V0 H263 V1759 v0 v1759 h84z"></path></svg></span></span></span><span c
                 getURL: (path) => root + path,
                 onMessage: { addListener() { } },
                 sendMessage(message, done) {
-                    if (message.command === 'page-maths-engine' && message.chem) { // chem.js, of the chemistry, alone
-                        (window.CalcChem ? Promise.resolve() : add('js/chem.js')).then(() => done && done(true));
+                    if (message.command === 'page-maths-engine' && LIBS[message.lib]) { // chem.js, physics.js or biology.js, alone
+                        const [name, src] = LIBS[message.lib];
+                        (window[name] ? Promise.resolve() : add(src)).then(() => done && done(true));
                     } else if (message.command === 'page-maths-engine') {
                         (window.CalcEngine ? Promise.resolve() : add('js/engine.js'))
                             .then(() => (message.maths && !window.CalcMaths ? add('js/maths.js') : null))
@@ -1542,19 +1648,22 @@ M347 1759 V0 H263 V1759 v0 v1759 h84z"></path></svg></span></span></span><span c
         };
         // in the order the extension puts them in
         ['js/page/reader.js', 'js/page/statistics.js', 'js/units.js', 'js/page/converter.js', 'js/page/numbers.js', 'js/page/solve.js', 'js/page/graph.js',
-            'js/formulas.js', 'js/page/formulas.js', 'js/page/chemistry.js', 'js/page/answers.js'].reduce((p, src) => p.then(() => add(src)), Promise.resolve());
+            'js/formulas.js', 'js/page/formulas.js', 'js/page/chemistry.js', 'js/page/physics.js', 'js/page/biology.js', 'js/page/answers.js'].reduce((p, src) => p.then(() => add(src)), Promise.resolve());
     }
 
     // Each example with data-expect has as many icons as it should: 1+ one or more. Green, else red; the row at the
     // top counts them. With none at all and the extension to do the work, it says how to turn it on
     (function () {
         const status = document.getElementById('status');
+        const stick = () => status.classList.toggle('stuck', status.getBoundingClientRect().top <= 0);
+        addEventListener('scroll', stick, { passive: true });
+        stick();
         document.querySelectorAll('ol.yes > li:not([data-expect])').forEach((li) => li.setAttribute('data-expect', '1+'));
         const say = (ok, title, note) => {
             status.classList.toggle('ok', ok);
             status.classList.toggle('bad', !ok);
             status.querySelector('b').textContent = title;
-            status.querySelector('.note').textContent = note;
+            status.querySelector('.note').innerHTML = note; // the notes below, of the page's own, a link in one
         };
         let rounds = 0;
         function check() {
@@ -1574,7 +1683,7 @@ M347 1759 V0 H263 V1759 v0 v1759 h84z"></path></svg></span></span></span><span c
             document.documentElement.dataset.checked = bad.length ? 'bad' : 'ok'; // for a test to read
             document.documentElement.dataset.wrong = bad.map((el) => el.textContent.replace(/\s+/g, ' ').trim().slice(0, 60)).join(' | ');
             if (!icons && !OWN && ++rounds > 2) {
-                say(false, 'No icons on this page yet', 'Install Scientific Calculator, and turn on Inline Instant answers on every website in its options; then reload this page.');
+                say(false, 'No icons on this page yet', 'Install <a href="https://chromewebstore.google.com/detail/fnplhdldnhaodknidfddmkfdhlhjihpd" target="_blank" rel="noopener">Scientific Calculator</a>, and turn on Inline Instant answers on every website in its options; then reload this page.');
             } else if (bad.length) {
                 say(false, bad.length + ' of ' + all.length + ' not as they should be', 'The red ones: hover one for how many icons it has and wants.');
             } else {
@@ -1587,7 +1696,8 @@ M347 1759 V0 H263 V1759 v0 v1759 h84z"></path></svg></span></span></span><span c
         }, 1500);
     })();
 
-    const extra = ['A dozen boxes of 24: 12 × 24 = ?', 'Compound growth: 1000 × 1.05^10.', 'Solve 3x − 4 = 11 for x.', 'From 5 km in miles to 52 choose 5.', 'Balance Fe + Cl2 → FeCl3.'];
+    const extra = ['A dozen boxes of 24: 12 × 24 = ?', 'Compound growth: 1000 × 1.05^10.', 'Solve 3x − 4 = 11 for x.', 'From 5 km in miles to 52 choose 5.', 'Balance Fe + Cl2 → FeCl3.', 'Two in parallel: 1k || 1k.', 'Cross AaBb × aabb.',
+        'Air is 78% nitrogen, 21% oxygen and 1% argon.', 'Simplify F = AB + A\'C + BC.'];
     let n = 0;
     document.getElementById('add').addEventListener('click', () => {
         const p = document.createElement('p');

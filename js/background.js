@@ -393,6 +393,8 @@ const pageFeatures = {
     graph: ["js/page/graph.js"],
     formulas: ["js/formulas.js", "js/page/formulas.js"],
     chemistry: ["js/page/chemistry.js"],
+    physics: ["js/page/physics.js"],
+    biology: ["js/page/biology.js"],
 };
 
 // What the pages get of the instant answers: page/reader.js, which reads the sums, then each feature that is
@@ -439,7 +441,7 @@ function followPageOptions() {
     pageRun = pageRun.then(async () => {
         const menu = (visible) => {
             ["calc-sep", "calc-selection", "calc-site"].forEach((item) => chrome.contextMenus.update(item, { visible: visible }, () => chrome.runtime.lastError));
-            if (visible) followFrontTab();
+            followFrontTab(); // the icon's item too, shown only on a website
         };
         if (!await chrome.permissions.contains(pageAccess)) return menu(false);
         const kept = await chrome.storage.local.get(["pageButtonOn", "pageMathsOn", "pageMathsFeatures"]).catch(() => ({}));
@@ -469,12 +471,18 @@ function followPageOptions() {
     }).catch(() => { });
 }
 
-chrome.permissions.onAdded.addListener(followPageOptions);
+chrome.permissions.onAdded.addListener(() => {
+    forgetSites();
+    followPageOptions();
+});
+chrome.permissions.onRemoved.addListener(forgetSites);
 
 // Instant answers on this site, a check in the menu of a right click on a page: unchecked, the icons
 // go from that website, kept in pageMathsOff, which page/answers.js reads; the options page lists those
 // websites to turn them on again. The browser does not tell when its menu opens, so the check follows
-// the tab in front. Each website by its name without www., as in page/answers.js
+// the tab in front. Each website by its name without www., as in page/answers.js. The menu of the toolbar
+// icon has it too, under the modes with a line between: Disable instant answers on this site, the website of
+// the tab in front, or Enable once it is off; only while they are on and that tab is a website
 function siteOf(url) {
     try {
         const page = new URL(url);
@@ -484,13 +492,45 @@ function siteOf(url) {
     }
 }
 
-function followSite(tab) {
+// The websites turned off and whether the instant answers are on, kept while the worker runs, as each tab and
+// window come to the front; asked again once they change (forgetSites), and when the worker starts again
+let sitesOff = null, mathsShown = null;
+
+function forgetSites() {
+    sitesOff = mathsShown = null;
+}
+
+function siteIsOff(site) {
+    sitesOff = sitesOff || chrome.storage.local.get("pageMathsOff").catch(() => ({}))
+        .then(({ pageMathsOff }) => Array.isArray(pageMathsOff) ? pageMathsOff : []);
+    return sitesOff.then((off) => off.includes(site));
+}
+
+// the instant answers on, as followPageOptions has them
+function pageMathsShown() {
+    mathsShown = mathsShown || (async () => {
+        if (!await chrome.permissions.contains(pageAccess).catch(() => false)) return false;
+        const kept = await chrome.storage.local.get("pageMathsOn").catch(() => ({}));
+        return pageOptions.pageMaths.on(kept) && !await policyOff("pageMaths");
+    })();
+    return mathsShown;
+}
+
+// the last tab followed: one followed before it that is answered after it is left as it is
+let siteFollowed = 0;
+
+async function followSite(tab) {
+    const followed = ++siteFollowed;
     const site = siteOf(tab?.url);
+    const shown = !!site && await pageMathsShown();
+    const off = shown && await siteIsOff(site);
+
+    if (followed !== siteFollowed) return;
+
+    ["icon-sep", "icon-site"].forEach((item) => chrome.contextMenus.update(item, { visible: shown }, () => chrome.runtime.lastError));
     if (!site) return;
-    chrome.storage.local.get("pageMathsOff").catch(() => ({})).then(({ pageMathsOff }) => {
-        const on = !(Array.isArray(pageMathsOff) && pageMathsOff.includes(site));
-        chrome.contextMenus.update("calc-site", { checked: on }, () => chrome.runtime.lastError);
-    });
+    chrome.contextMenus.update("calc-site", { checked: !off }, () => chrome.runtime.lastError);
+    chrome.contextMenus.update("icon-site", { title: (off ? "Enable" : "Disable") + " instant answers on this site" }, () => chrome.runtime.lastError);
 }
 
 function followFrontTab() {
@@ -533,6 +573,7 @@ async function followPolicy() {
 }
 
 chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "managed" || changes.pageMathsOn || changes.pageMathsOff) forgetSites();
     if (area === "managed") {
         followPolicy();
         followOpenMode();
@@ -671,6 +712,30 @@ chrome.runtime.onInstalled.addListener((details) => {
             title: "Advanced Mode",
             contexts: ["action", "page"]
         }, followPolicy);
+        // the instant answers of the website in front, in the menu of the toolbar icon, under the modes
+        chrome.contextMenus.create({
+            id: "icon-sep",
+            type: "separator",
+            contexts: ["action"],
+            visible: false
+        });
+        chrome.contextMenus.create({
+            id: "icon-site",
+            title: "Disable instant answers on this site",
+            contexts: ["action"],
+            visible: false
+        }, followFrontTab);
+        // the options last in the menu of a right click on a page, a line above them; the toolbar icon's has its own
+        chrome.contextMenus.create({
+            id: "page-sep",
+            type: "separator",
+            contexts: ["page"]
+        });
+        chrome.contextMenus.create({
+            id: "open-options",
+            title: "Options",
+            contexts: ["page"]
+        });
     });
 
     followPageOptions();
@@ -694,6 +759,11 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     } else if (info.menuItemId === "calc-site") {
         const site = siteOf(info.pageUrl || tab?.url);
         if (site) keepSite(site, info.checked);
+    } else if (info.menuItemId === "open-options") {
+        chrome.runtime.openOptionsPage();
+    } else if (info.menuItemId === "icon-site") {
+        const site = siteOf(tab?.url);
+        if (site) siteIsOff(site).then((off) => keepSite(site, off)); // turned the other way
     }
 });
 
@@ -716,13 +786,18 @@ function popOut(key, sender, answer, open) {
     });
 }
 
+// The libraries of the instant answers' chemistry, physics and biology, each with the policy of its panel
+const pageLibs = { chem: ["js/chem.js", "chemistry"], phys: ["js/physics.js", "physics"], bio: ["js/biology.js", "biology"] };
+
 // The engine of the calculator, and with maths its solver, put into a page that has maths on it, for
-// page/answers.js to work it out: only then, as they are large. With "chem", chem.js, for the chemistry
-// of a page, unless an administrator turned the chemistry off. It answers once they are in
-function addEngineToPage(tab, frameId, maths, done) {
-    (maths === "chem" ? policyOff("chemistry") : Promise.resolve(false)).then((off) => off ? Promise.reject() : chrome.scripting.executeScript({
+// page/answers.js to work it out: only then, as they are large. With lib, chem.js, physics.js or biology.js
+// alone, for the chemistry, physics or biology of a page, unless an administrator turned its panel off. It
+// answers once they are in
+function addEngineToPage(tab, frameId, maths, lib, done) {
+    const of = pageLibs[lib];
+    (of ? policyOff(of[1]) : Promise.resolve(false)).then((off) => off ? Promise.reject() : chrome.scripting.executeScript({
         target: { tabId: tab.id, frameIds: [frameId] },
-        files: maths === "chem" ? ["js/chem.js"] : maths ? ["js/engine.js", "js/maths.js"] : ["js/engine.js"],
+        files: of ? [of[0]] : maths ? ["js/engine.js", "js/maths.js"] : ["js/engine.js"],
     }))
         .then(() => done(true))
         .catch(() => done(false));
@@ -736,13 +811,18 @@ function openPageMaths(message) {
     // the boxes of a card: f, a and b of the solver's, a function to draw, a matrix's size and numbers, a11 to
     // a1010; or the name of a formula or a constant; frac: a sum written in fractions, shown in them. Of a card
     // of a panel, its panel and card and their boxes, and of the statistics a list of numbers, which is long. Of the
-    // chemistry, page/chemistry.js: a formula or a name f, a reaction eq, a composition c and an element's symbol s
-    const boxes = /^(f|a|b|name|size|a\d{2,4}|frac|panel|card|x|n|x0|y0|e|e1|e2|z|u|t|enc|bits|ts|convert|d|y|m|days|loan|rate|years|py|apr|[abcd][1-3]|g|v|to|list|eq|c|s)$/;
+    // chemistry, page/chemistry.js: a formula or a name f, a reaction eq, a composition c, an element's symbol s, and
+    // gases g, each by what it is, is, at a pressure p. Of the physics, page/physics.js: the parts n of a network and their
+    // kind, part; a resistor's bands, b40 to b65, of n of them, to find its value, find, or an SMD resistor's code; a level
+    // x in its unit, across z, of its kind. Of the numbers, a function of logic e. Of the biology, page/biology.js:
+    // a sequence s, or a primer a, long as well; the parents of a cross, p1 and p2, of their dominance, dom; and of the
+    // X, the mother m and the father f. A list, a sequence and a network's parts may be long
+    const boxes = /^(f|a|b|name|size|a\d{2,4}|frac|panel|card|x|n|x0|y0|e|e1|e2|z|u|t|enc|bits|ts|convert|d|y|m|days|loan|rate|years|py|apr|[abcd][1-3]|g|v|to|list|eq|c|s|part|find|b[4-6][0-5]|kind|unit|p1|p2|dom|is|p|code)$/;
     const fields = {};
 
     if (typeof message.text !== "string" || !kinds.includes(message.kind)) return;
     Object.keys(message.fields || {}).slice(0, 110).forEach((key) => {
-        if (boxes.test(key) && typeof message.fields[key] === "string") fields[key] = message.fields[key].slice(0, key === "list" ? 100000 : 200);
+        if (boxes.test(key) && typeof message.fields[key] === "string") fields[key] = message.fields[key].slice(0, key === "list" || key === "s" || key === "n" ? 100000 : 200);
     });
     chrome.storage.local.set({ pageMaths: { text: message.text.slice(0, 500), kind: message.kind, fields: fields, at: Date.now() } })
         .then(() => unlessOff("detachedMode", openCalculatorInDetachedMode));
@@ -750,7 +830,7 @@ function openPageMaths(message) {
 
 chrome.runtime.onMessage.addListener((message, sender, answer) => {
     if (message?.command === "page-maths-engine" && sender.tab) {
-        addEngineToPage(sender.tab, sender.frameId, message.chem ? "chem" : !!message.maths, answer);
+        addEngineToPage(sender.tab, sender.frameId, !!message.maths, Object.hasOwn(pageLibs, message.lib) ? message.lib : "", answer);
         return true; // it answers later
     } else if (message?.command === "open-page-maths") {
         openPageMaths(message);

@@ -1,6 +1,7 @@
 // What of a page's text is chemistry, as the Chemistry panel works it out (chem.js): a reaction, 2H2 + O2 → 2H2O,
 // balanced; a formula, H2SO4 or CuSO4·5H2O, its molar mass and name; a composition, 40% C, 6.7% H and 53.3% O, its
-// empirical formula; a compound by its name, sodium chloride or sulfuric acid, its formula; and an element named with
+// empirical formula; a mixture of gases, 78% nitrogen, 21% oxygen and 1% argon, the pressure of each; a compound by its
+// name, sodium chloride or sulfuric acid, its formula; and an element named with
 // its symbol, iron (Fe). Selected as well, any of them alone, and an element by its name or its symbol. Each is
 // { from, to, kind, text, panel: 'chem', card, fields }, as the other features have them: where it is in the text, the card of the
 // panel that opens with it and what goes in its boxes. The text is read here without chem.js, which is large; check
@@ -152,6 +153,66 @@
         return out;
     }
 
+    // ---------------- gases ---------------- //
+
+    // A mixture of gases, as air is: 78% nitrogen, 21% oxygen and 1% argon; N2 78%, O2 21%, Ar 1%; together near 100%.
+    // Each a gas by its name or formula, an element that is a gas as its molecule, nitrogen as N2. Of the elements alone,
+    // as hydrogen 11.2% and oxygen 88.8% of water, a composition, but with a noble gas, a molecule written, N2, a compound
+    // named or air said
+    const GAS_NAMES = new Map([['hydrogen', 'H2'], ['helium', 'He'], ['nitrogen', 'N2'], ['oxygen', 'O2'], ['fluorine', 'F2'], ['neon', 'Ne'],
+        ['chlorine', 'Cl2'], ['argon', 'Ar'], ['krypton', 'Kr'], ['xenon', 'Xe'], ['radon', 'Rn'], ['ozone', 'O3'], ['carbon monoxide', 'CO'],
+        ['carbon dioxide', 'CO2'], ['nitric oxide', 'NO'], ['nitrogen dioxide', 'NO2'], ['nitrous oxide', 'N2O'], ['ammonia', 'NH3'], ['methane', 'CH4'],
+        ['ethane', 'C2H6'], ['ethene', 'C2H4'], ['ethylene', 'C2H4'], ['acetylene', 'C2H2'], ['propane', 'C3H8'], ['butane', 'C4H10'],
+        ['hydrogen sulfide', 'H2S'], ['hydrogen sulphide', 'H2S'], ['sulfur dioxide', 'SO2'], ['sulphur dioxide', 'SO2'], ['water vapour', 'H2O'], ['water vapor', 'H2O']]);
+    // the gases of chem.js's table, and water's vapour; the elements that are gases, as their molecules
+    const GAS_FORMULAS = new Set(['H2', 'He', 'N2', 'O2', 'F2', 'Ne', 'Cl2', 'Ar', 'Kr', 'Xe', 'Rn', 'O3', 'CO', 'CO2', 'NO', 'NO2', 'N2O', 'NH3', 'CH4',
+        'C2H6', 'C2H4', 'C2H2', 'C3H8', 'C4H10', 'H2S', 'SO2', 'HCl', 'HF', 'HBr', 'HI', 'PH3', 'SiH4', 'H2O']);
+    const GAS_ATOMS = { H: 'H2', N: 'N2', O: 'O2', F: 'F2', Cl: 'Cl2', He: 'He', Ne: 'Ne', Ar: 'Ar', Kr: 'Kr', Xe: 'Xe', Rn: 'Rn' };
+    const NOBLE = new Set(['He', 'Ne', 'Ar', 'Kr', 'Xe', 'Rn']);
+    // formulas that are words as well, 55% NO, 45% CO of a vote: gases only with air or a mixture said
+    const WORD_LIKE = new Set(['NO', 'CO', 'HI']);
+    const GAS_WORD = '(?:' + [...GAS_NAMES.keys()].sort((a, b) => b.length - a.length).map((n) => '[' + n[0] + n[0].toUpperCase() + ']' + n.slice(1).replace(/ /g, '\\s+')).join('|') +
+        '|(?:[A-Z][a-z]?[\\d₀-₉]*){1,4})';
+    const PERCENT = '(\\d{1,3}(?:\\.\\d+)?)\\s?%';
+    const GAS_ITEM = new RegExp('(?<![\\p{L}\\p{N}.,])(?:' + PERCENT + '\\s*(?:of\\s+)?(' + GAS_WORD + ')|(' + GAS_WORD + ')\\s*[:=]?\\s*' + PERCENT + ')(?![\\p{L}\\p{N}])', 'gu');
+    const AIR = /\b(?:air|atmospher\w*|mixture|mixed)\b/i;
+    const BY_MASS = /\bby\s+(?:mass|weight)\b|\bw(?:t\.?|\/w)\s*%?/i;
+
+    // a gas as it is written: its formula; sure, of no composition, a noble gas, a molecule written or a compound named
+    function gasWord(word) {
+        const name = word.toLowerCase().replace(/\s+/g, ' ');
+        if (GAS_NAMES.has(name)) {
+            const f = GAS_NAMES.get(name);
+            return { f: f, sure: NOBLE.has(f) || !BY_NAME.has(name) };
+        }
+        const f = plainFormula(word);
+        if (GAS_ATOMS[f]) return { f: GAS_ATOMS[f], sure: NOBLE.has(f) };
+        return GAS_FORMULAS.has(f) ? { f: f, sure: !WORD_LIKE.has(word) } : null;
+    }
+
+    function findGases(s) {
+        const out = [], items = [];
+        let m;
+        GAS_ITEM.lastIndex = 0;
+        while ((m = GAS_ITEM.exec(s))) {
+            const gas = gasWord(m[2] || m[3]);
+            items.push({ from: m.index, to: m.index + m[0].length, gas: gas, v: +(m[1] || m[4]) });
+        }
+        for (let i = 0; i < items.length;) {
+            let j = i;
+            while (j + 1 < items.length && BETWEEN.test(s.slice(items[j].to, items[j + 1].from))) j++;
+            const group = items.slice(i, j + 1), total = group.reduce((t, it) => t + it.v, 0), from = group[0].from, to = group[group.length - 1].to;
+            i = j + 1;
+            if (group.length < 2 || group.some((it) => !it.gas) || new Set(group.map((it) => it.gas.f)).size < group.length || total < 95 || total > 105) continue;
+            const near = s.slice(Math.max(0, from - 40), to + 30);
+            if (!group.some((it) => it.gas.sure) && !AIR.test(near)) continue;
+            const mass = BY_MASS.test(near);
+            out.push({ from: from, to: to, kind: 'gases', panel: 'chem', card: 'dalton', text: s.slice(from, to),
+                fields: { g: group.map((it) => it.gas.f + ' ' + it.v + (mass ? '' : '%')).join(', '), is: mass ? '1' : '2', p: '1' } });
+        }
+        return out;
+    }
+
     // ---------------- names ---------------- //
 
     // The name of a compound: its cation, an element or ammonium, a metal's charge in Roman numerals, then its anion,
@@ -211,7 +272,7 @@
     // reader only where the text has what it needs
     function find(s) {
         const all = [].concat(/[→⟶⇌⇄↔=>]/.test(s) ? findReactions(s) : [], /[A-Z][a-z]?(?:[\d₀-₉(\[]|[A-Z])/.test(s) ? findCompounds(s, false) : [],
-            s.includes('%') ? findCompositions(s) : [], /(?:ide|ate|ite|acid)\b/i.test(s) ? findNames(s) : [], /\(|element/i.test(s) ? findElements(s) : []);
+            s.includes('%') ? findGases(s).concat(findCompositions(s)) : [], /(?:ide|ate|ite|acid)\b/i.test(s) ? findNames(s) : [], /\(|element/i.test(s) ? findElements(s) : []);
         all.sort((a, b) => a.from - b.from || b.to - a.to);
         const kept = [];
         all.forEach((c) => {
@@ -228,7 +289,7 @@
         if (SYMBOL.has(t) || BY_NAME.has(low)) return element(SYMBOL.has(t) ? t : BY_NAME.get(low), 0, t.length, t);
         if (COMMON.has(low)) return { from: 0, to: t.length, kind: 'chemname', panel: 'chem', card: 'names', text: t, fields: { f: t } };
         const whole = (list) => list.filter((c) => !c.from && c.to === t.length)[0] || null;
-        return whole(/[→⟶⇌⇄↔=>]/.test(t) ? findReactions(t) : []) || whole(findCompounds(t, true)) || whole(findCompositions(t)) ||
+        return whole(/[→⟶⇌⇄↔=>]/.test(t) ? findReactions(t) : []) || whole(findCompounds(t, true)) || whole(findGases(t)) || whole(findCompositions(t)) ||
             whole(findNames(t)) || whole(findElements(t));
     }
 
@@ -258,8 +319,13 @@
                     return (m.atoms.C && m.atoms.H && /\d/.test(raw)) || (/[(\[]/.test(raw) && /\d/.test(raw)) || /·/.test(raw);
                 }
                 case 'composition': {
+                    // not of a mixture: its formula of no compound, N₂₀₀₂O₄₇₂Ar₉
                     const e = Chem.empirical(f.c, false);
-                    return !e.error && e.parts.length >= 2;
+                    return !e.error && e.parts.length >= 2 && e.parts.every((p) => p.n <= 30);
+                }
+                case 'gases': {
+                    const r = Chem.readGases(f.g, false);
+                    return !r.error && r.list.every((g) => !Chem.gasOf(g.t).error && g.v > 0);
                 }
                 case 'chemname': {
                     const n = Chem.names(f.f);
@@ -324,6 +390,23 @@
                     rows: [['Molar mass', grams(e.M) + ' g/mol'], ['Moles, to the least', e.parts.map((p, i) => p.s + ' ' + shown(e.ratio[i], 3)).join(' : ')]],
                     note: 'The simplest formula; with its molar mass, the card gives the molecular formula.', more: 'Click to open it in Empirical formula.' };
             }
+            case 'gases': {
+                // each gas's moles, of grams by its molar mass; its share of them all, and of a total of 1 atm
+                const r = Chem.readGases(f.g, false), mass = f.is === '1';
+                if (r.error) return null;
+                const list = r.list.map((g) => {
+                    const M = Chem.gasOf(g.t).M;
+                    return { t: g.t, M: M, n: mass ? g.v / M : g.v };
+                });
+                const all = list.reduce((t, g) => t + g.n, 0), M = list.reduce((t, g) => t + g.n * g.M, 0) / all;
+                const rows = list.slice(0, 6).map((g) => [Chem.plain(g.t), shown(g.n / all, 3) + ' atm']);
+                rows.push(['Density at STP', shown(M / 22.414, 4) + ' g/L']);
+                const total = r.list.reduce((t, g) => t + g.v, 0);
+                return { title: list.map((g, i) => Chem.plain(g.t) + ' ' + shown(r.list[i].v * (mass ? 1 : 100), 4) + '%').join(', '), lines: [grams(M) + ' g/mol, on average'],
+                    rows: rows, note: (mass ? 'By mass, each gas\'s moles from its molar mass. ' : '') + 'Each gas\'s pressure, of 1 atm in all, is its share of the moles' +
+                        (Math.abs(total - (mass ? 100 : 1)) > 1e-9 ? ', of the ' + shown(total * (mass ? 1 : 100), 4) + '% given.' : '.'),
+                    more: 'Click to open it in Partial pressures.' };
+            }
             case 'chemname': {
                 const n = Chem.names(f.f);
                 if (n.error) return null;
@@ -355,7 +438,7 @@
     // before its icons go in
     const Reader = root.CalcPageReader || (typeof require === 'function' ? require('./reader.js') : null);
     Reader.add({
-        name: 'chemistry', kinds: ['compound', 'reaction', 'composition', 'chemname', 'element'], needs: 'chem', uses: 'chem',
+        name: 'chemistry', kinds: ['compound', 'reaction', 'composition', 'gases', 'chemname', 'element'], needs: 'chem', uses: 'chem',
         find: (s, order, raw) => find(raw), tier: 0, pickedLast: picked,
         check: (c, unit, lib) => check(c, lib.chem), tip: (c, unit, lib) => tipOf(c, lib.chem)
     });

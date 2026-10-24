@@ -16,6 +16,17 @@
         /* as big as the website's guide: its scale, and its text */
         .page .wrapper {
             font-size: 13.5px;
+            margin-top: 35.2px; /* the name as far down as on the examples page */
+        }
+
+        .page .wrapper > .logo:first-child {
+            margin-top: 0;
+        }
+
+        /* the name goes back to the calculator */
+        .logo a {
+            color: inherit;
+            text-decoration: none;
         }
 
         .intro,
@@ -24,7 +35,7 @@
         }
 
         .intro {
-            margin: 2em auto 3em;
+            margin: 8.4px auto 3em; /* as close under the name as on the examples page */
             max-width: 40em;
             color: #dde3ea;
             line-height: 1.5;
@@ -53,49 +64,6 @@
             flex: none;
             padding: 0.35em 0.7em;
             overflow-wrap: normal;
-        }
-
-        /* back to the calculator: the round button of the website's options, at the top left */
-        .back {
-            position: fixed; /* it stays in view as the page scrolls */
-            top: max(22px, env(safe-area-inset-top));
-            left: max(22px, env(safe-area-inset-left));
-            z-index: 2;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 34px;
-            height: 34px;
-            background: #c3cad1;
-            border-radius: 50%;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
-            -webkit-tap-highlight-color: transparent;
-            transition: background 0.2s, transform 0.15s ease;
-        }
-
-        .back svg {
-            width: 20px;
-            height: 20px;
-            fill: none;
-            stroke: #2b4753;
-            stroke-width: 1.8;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-        }
-
-        .back:hover {
-            background: #d3d9de;
-            transform: scale(1.12);
-        }
-
-        .back:active {
-            background: #b2bac2;
-            transform: scale(1.02);
-        }
-
-        .back:focus-visible {
-            outline: 2px solid #fff;
-            outline-offset: 2px;
         }
 
         /* the steps are numbered in their icons */
@@ -179,13 +147,9 @@
 </head>
 
 <body class="page">
-    <a class="back" href="./" aria-label="Back to the calculator" title="Back to the calculator">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 12H4M10 6l-6 6 6 6" /></svg>
-    </a>
-
     <div class="wrapper">
 
-        <div class="logo">Scientific Calculator</div>
+        <div class="logo"><a href="./" title="Back to the calculator">Scientific Calculator</a></div>
         <p class="intro">For schools and organizations: an administrator can turn features of the Chrome extension off for
             everyone they manage, for a class during a test for example. A feature turned off leaves the calculator at
             once, its option is locked with "Turned off by your administrator", and students cannot turn it back on.</p>
@@ -317,7 +281,7 @@
                     <h3>Physics</h3>
                     <p>Electronics, with the resistor colour code, circuits, diodes and transistors; motion, projectiles and
                         orbits; forces, collisions, energy and gravitation; waves, lenses, refraction and photons; heat, gases
-                        and fluids; modern physics.</p>
+                        and fluids; modern physics; and the physics of the instant answers on the websites.</p>
                 </div>
                 <code class="setting">physics</code>
             </div>
@@ -334,7 +298,8 @@
                 <div class="option-text">
                     <h3>Biology</h3>
                     <p>Genetics, with Punnett squares and gene maps; DNA, translation, primers and digests; proteins and
-                        enzymes; the lab's dilutions, counts and qPCR; cells and membranes; ecology.</p>
+                        enzymes; the lab's dilutions, counts and qPCR; cells and membranes; ecology; and the biology of the
+                        instant answers on the websites.</p>
                 </div>
                 <code class="setting">biology</code>
             </div>

@@ -1,6 +1,7 @@
 // The maths of a page's text, as the calculator reads it: each sum, and what each feature of the instant answers
 // adds to it. A feature is a file of its own, put into the pages only while it is turned on, on the options page
-// (background.js): solve.js, graph.js, numbers.js, formulas.js, converter.js, statistics.js and chemistry.js. Each
+// (background.js): solve.js, graph.js, numbers.js, formulas.js, converter.js, statistics.js, chemistry.js, physics.js
+// and biology.js. Each
 // adds itself here, with what it reads and what its tips say; page/answers.js puts the icons in the page. This file
 // comes into the page first, and again with the features as they are chosen once more, each time empty of them.
 // Read here, in the browser; it works in Node as well, for the tests
@@ -12,17 +13,18 @@
     // Each feature, in the order it came, as background.js puts them in:
     //   name, as the options keep it; kinds, what it finds, as c.kind: a kind no feature has is not kept, though the
     //     maths of the text reads it, as an equation without the solver
-    //   find(s, order, raw): what it finds in a line of text; of its tier, 0 before all else, as the chemistry, 1 before
-    //     the sums, as quantities and dates, the first and longest of them kept, or 3 after them, where no sum is, as the
-    //     formulas. raw: the line with the digits of its <sub>, of a chemical formula. order: of dates, as readDate takes it
+    //   find(s, order, raw, lettered): what it finds in a line of text; of its tier, 0 before all else, as the chemistry,
+    //     1 before the sums, as quantities and dates, the first and longest of them kept, or 3 after them, where no sum
+    //     is, as the formulas. raw: the line with the digits of its <sub>, of a chemical formula; lettered, where it has
+    //     any, with the letters of its <sup> too, of a cross of the X. order: of dates, as readDate takes it
     //   at(s, i, formal): one thing of a line from i, tried before a sum there, as a derivative or a curve
     //   formal(line), formalLast(line): a line of maths marked as maths, read whole, before it is read as a sum, or after
     //   picked(text, order), pickedLast(text): text selected that is one of its own alone, before the maths, or after
-    //   needs: what is put in the page before its icons go in, to check them: 'engine', the default, 'chem', or null for
-    //     nothing; uses: what its tips need, 'maths' unless it says, as needs
+    //   needs: what is put in the page before its icons go in, to check them: 'engine', the default, 'chem', 'phys',
+    //     'bio', or null for nothing; uses: what its tips need, 'maths' unless it says, as needs
     //   check(c, unit, lib): it is one the calculator works out, on unless it says; tip(c, unit, lib): what its tip says,
     //     { title, lines, svg, rows, note, more }, as answers.js shows them. unit: of angles; lib: the calculator's
-    //     { engine, maths, units, chem }
+    //     { engine, maths, units, chem, phys, bio }
     const features = [];
     const kinds = new Map([['sum', null]]); // each kind, by its feature; a sum is of none, it is always read
 
@@ -637,10 +639,11 @@
 
     // What of a line the features find with what its maths is, sums, as find reads it: each by its tier, the
     // chemistry first, 2H2 + O2 → 2H2O no sum, then 5 km in miles or a loan, a sum in them not as well, then
-    // the sums, and the formulas where no sum is. raw: the line with the digits of its <sub>, as H₂O
-    function found(s, order, raw, sums) {
+    // the sums, and the formulas where no sum is. raw: the line with the digits of its <sub>, as H₂O; lettered:
+    // with the letters of its <sup> as well, X<sup>A</sup> as XA, of a cross of the X, where it has any
+    function found(s, order, raw, sums, lettered) {
         const tiers = [[], [], sums, []];
-        having('find').forEach((f) => tiers[f.tier].push(...f.find(s, order, raw === undefined ? s : raw).filter(on)));
+        having('find').forEach((f) => tiers[f.tier].push(...f.find(s, order, raw === undefined ? s : raw, lettered).filter(on)));
         return tiers.reduce((kept, list) => without(firstLongest(list), kept), []);
     }
 

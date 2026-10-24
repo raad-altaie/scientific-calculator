@@ -6599,7 +6599,7 @@
             { id: 'codes', t: 'Text and codes', f: 'é = U+00E9 = C3 A9', d: 'The codes of a text: its code points, its bytes in UTF-8 and its units of UTF-16. Or a text from its codes: U+00E9, 0xC3 0xA9 for the bytes of UTF-8, or 233.',
                 fields: [{ k: 't', l: 'Text', ph: 'Hé', fn: true }, { k: 'c', l: 'Codes', ph: 'U+0048 U+00E9', fn: true }], spaces: ['t'], run: runCodes, example: { t: 'Hé' } },
             { id: 'subnet', t: 'IP subnet', f: ['192.168.1.0/24', '2001:db8::/32'], d: 'The network of an IPv4 address with its prefix, 192.168.1.10/24, or its mask, 192.168.1.10 255.255.255.0: its network and broadcast addresses, its mask, the first and last host and how many hosts it has. Or of an IPv6 address, 2001:db8::1/48: its network, the address in full and written short, its first and last address, how many addresses and /64 networks, its kind and its name for reverse DNS.',
-                fields: [{ k: 'ip', ph: '192.168.1.10/24 or 2001:db8::1/48', fn: true }], run: runSubnet, example: { ip: '2001:db8::1/48' } },
+                fields: [{ k: 'ip', ph: '192.168.1.10/24 or 2001:db8::1/48', fn: true }], run: runSubnet, example: { ip: '192.168.1.10/24' } },
             { id: 'uuid', t: 'UUID', f: ['Version 4', 'Version 7'], d: 'Five new UUIDs, of RFC 9562: of version 4, all random, or of version 7, the time now and then random, so they sort as they were made. Again for five more; Copy copies one. ' +
                 'Or one typed, with hyphens or none, in braces or after urn:uuid: if you like: its version and variant, the time it was made, of versions 1, 6 and 7, and it in hexadecimal, Base64 and as a whole number.',
                 fields: [{ k: 'ver', l: 'New', choice: ['Version 4', 'Version 7'] }, { k: 'u', l: 'Read', ph: 'f81d4fae-7dec-11d0-a765-00a0c91e6bf6', fn: true }], again: true, run: runUuid, example: { u: 'f81d4fae-7dec-11d0-a765-00a0c91e6bf6' } },
@@ -16795,15 +16795,17 @@
     // What else of a web page a card works out (the features of the instant answers in the extension, page/solve.js
     // and the others), in its panel: a card of the solver, of the numbers or of the dates with its boxes filled; a
     // quantity in the converter, its group, unit and value; a list of numbers in the statistics; of the chemistry
-    // (page/chemistry.js), a card of the Chemistry panel, or the table at an element. Its numbers are written with points: with the comma as the
-    // decimal mark, a box of a number has a comma, and ; between. A formula and a reaction are as they are
+    // (page/chemistry.js), a card of the Chemistry panel, or the table at an element; of the physics and the biology
+    // (page/physics.js and page/biology.js), a card of their panels. Its numbers are written with points: with the comma as the
+    // decimal mark, a box of a number has a comma, and ; between, as a composition's and the gases of a mixture have. A
+    // formula, a reaction, a sequence and a cross are as they are
     function pageCard(panel, card, fields) {
         var kept = {}, words = { u: 1, t: 1, b: 1, enc: 1, bits: 1, convert: 1, ts: 1, d: 1, g: 1, to: 1 }, // names and codes, as they are
             el = panel === 'chem' && card === 'element' ? CalcChem.bySymbol[fields.s] : null;
         Object.keys(fields).forEach(function (k) {
             var v = String(fields[k]);
             if (k === 'panel' || k === 'card') return;
-            kept[k] = engine.comma && !words[k] && panel !== 'dates' && (panel !== 'chem' || k === 'c') ? v.replace(/,/g, ';').replace(/\./g, ',') : v;
+            kept[k] = engine.comma && (panel === 'chem' ? k === 'c' || k === 'g' : !words[k] && panel !== 'dates' && panel !== 'bio') ? v.replace(/,/g, ';').replace(/\./g, ',') : v;
         });
         if (panel === 'solve' || panel === 'numbers') {
             if (!(panel === 'solve' ? solveButton : numbersButton).hidden) (panel === 'solve' ? solver : numbers).put(card, kept);
@@ -16838,6 +16840,8 @@
                 renderChemTable();
             }
             saveChem();
+        } else if (panel === 'phys' || panel === 'bio') {
+            if (!(panel === 'phys' ? physButton : bioButton).hidden) (panel === 'phys' ? phys : bio).put(card, kept);
         }
     }
 
@@ -17969,7 +17973,7 @@
         home = false, // the calculator on its Calculator tab beside the rail: homeAlone, or the website in Advanced mode
         homeAlone = false, // in the extension, a tool's own window on its Calculator tab
         GO = [['fx', fxButton, 'Formulas'], ['conv', convButton, 'Converter'], ['graph', graphButton, 'Graph'],
-            ['numbers', numbersButton, 'Numbers'], ['solve', solveButton, 'Solver'], ['chem', chemButton, 'Chemistry'],
+            ['numbers', numbersButton, 'Numbers'], ['solve', solveButton, 'Solve'], ['chem', chemButton, 'Chemistry'],
             ['phys', physButton, 'Physics'], ['bio', bioButton, 'Biology'], ['stats', statsButton, 'Statistics']];
 
     GO.forEach(function (g) {

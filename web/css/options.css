@@ -226,14 +226,55 @@ html, body {
     color: #f0b8be;
 }
 
-/* what the instant answers are for: a row of choices, each on or off on its own, in the middle */
+/* What the instant answers are for: choices each on or off on its own, as the modes of the periodic table are drawn
+   popped out, filling the width. On one line where they fit, each as wide as its name needs and the room shared out;
+   narrower, two even lines of five, each as wide as the others; on a phone, beside the switch, five lines of two */
 .answer-kinds {
-    text-align: center;
+    container-type: inline-size;
 }
 
 .answer-kinds .choice {
-    justify-content: center;
-    margin-top: 0.4em;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px;
+    margin-top: 0.5em;
+    padding: 4px;
+    border-radius: 7px;
+}
+
+.answer-kinds .choice span {
+    overflow: hidden;
+    padding: 0 2px;
+    font-size: 0.84em;
+    line-height: 2.2em;
+    text-align: center;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* the smallest phones: a little smaller, so even Statistics fits */
+@container (min-width: 150px) {
+    .answer-kinds .choice span {
+        padding: 0 6px;
+        font-size: 0.92em;
+    }
+}
+
+@container (min-width: 350px) {
+    .answer-kinds .choice {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+}
+
+@container (min-width: 600px) {
+    .answer-kinds .choice {
+        display: flex;
+        flex-wrap: nowrap;
+    }
+
+    .answer-kinds .choice label {
+        flex: 1 0 auto;
+    }
 }
 
 /* a feature an administrator turned off: it cannot be chosen */
@@ -242,7 +283,14 @@ html, body {
     cursor: not-allowed;
 }
 
-/* the websites the instant answers are turned off on, each with its button that turns them on again */
+/* the websites the instant answers are turned off on, each with its button that turns them on again; a faint
+   line above them, apart from the choices */
+.site-list {
+    margin-top: 0.9em;
+    padding-top: 0.4em;
+    border-top: 1px solid rgba(26, 47, 56, 0.6);
+}
+
 .site-list ul {
     display: flex;
     flex-wrap: wrap;
@@ -654,7 +702,7 @@ html, body {
     }
 
     .page .footer {
-        padding: 3em 48px 2em;
+        padding: 4em 48px 2em;
     }
 }
 
@@ -697,8 +745,15 @@ html, body {
         padding-bottom: 0.6em;
     }
 
+    /* on a line of its own under the text, the size of a button, its middle under the middle of the choices: half the
+       icon and its gap to the right of the middle of the option. Its margins and width make the whole line, so it
+       goes onto one of its own */
     .launch {
-        width: 100%;
+        box-sizing: border-box;
+        width: 9em;
+        margin: 0 calc(50% - 4.5em - (40px + 0.9em) / 2) 0 calc(50% - 4.5em + (40px + 0.9em) / 2);
+        padding: 0.55em 1em;
+        font-size: 1em;
     }
 
     .des {
@@ -813,7 +868,7 @@ html, body {
     box-sizing: border-box;
     width: 100%;
     margin: 0 auto;
-    padding: 3em 16px 2em;
+    padding: 4em 16px 2em;
     font-size: 12.5px;
 }
 
@@ -868,6 +923,10 @@ html, body {
 
 .embedded .option + .option {
     border-top-color: rgba(211, 217, 226, 0.14);
+}
+
+.embedded .site-list {
+    border-top-color: rgba(211, 217, 226, 0.08);
 }
 
 .embedded .option-icon:not(.screen-icon, .page-button, .page-maths, .format-icon) {

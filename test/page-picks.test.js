@@ -1,6 +1,6 @@
 // Run with: node test/page-picks.test.js
 // What else of a page's text the icons go after, and what is selected: quantities to convert and dates (page/converter.js),
-// money and equations together (page/solve.js), choices and complex numbers (page/numbers.js); numbers, lists
+// money and equations together (page/solve.js), choices, complex numbers and logic (page/numbers.js); numbers, lists
 // (page/statistics.js) and the codes of a computer. And the derivatives, series and differential equations of
 // page/solve.js; and what their tips say
 'use strict';
@@ -229,6 +229,42 @@ function tip(c) {
     });
     var y = Maths.ode('x + y', false, 1, 0, 1, 1).y;
     check(Math.abs(y - (2 * Math.E - 2)) < 1e-6, 'ode: y\' = x + y from y(0) = 1 is 2e – 2 at 1', y);
+})();
+
+// logic: its minterms, ' for NOT, words in capitals and signs, made sure of by maths.js as the Truth table reads it; not
+// algebra, names, possessives, R AND D, a probability's complement
+(function () {
+    var Numbers = require('../js/page/numbers.js'), lib = { maths: Maths };
+    // as the icons go in, before maths.js is in the page, of nothing but the reader; else made sure of by maths.js
+    var logic = function (text, alone) {
+        return Numbers.find(text, 'mdy', text).filter(function (c) { return c.kind === 'logic' && Numbers.check(c, 1, alone ? {} : lib); }).map(function (c) { return c.text + ' | ' + c.fields.e; });
+    };
+    [
+        ["F = AB + A'C + BC", "F = AB + A'C + BC | F = AB + A'C + BC"],
+        ['The function F(A, B, C) = Σm(1, 3, 5, 7).', 'F(A, B, C) = Σm(1, 3, 5, 7) | F(A, B, C) = Σm(1, 3, 5, 7)'],
+        ['F(A,B,C,D) = Σ(0, 2, 5, 7, 8, 10, 13, 15) + d(1)', 'F(A,B,C,D) = Σ(0, 2, 5, 7, 8, 10, 13, 15) + d(1) | F(A, B, C, D) = Σm(0, 2, 5, 7, 8, 10, 13, 15) + d(1)'],
+        ['Its maxterms: ΠM(0, 2, 4)', 'ΠM(0, 2, 4) | ΠM(0, 2, 4)'],
+        ['Simplify A AND NOT B OR C now', 'A AND NOT B OR C | A AND NOT B OR C'],
+        ["Y = (A + B)(A' + C)", "Y = (A + B)(A' + C) | Y = (A + B)(A' + C)"],
+        ['Y = A ⊕ B', 'Y = A ⊕ B | Y = A ⊕ B'],
+        ['Also F = AB′ + C′D.', "F = AB′ + C′D | F = AB' + C'D"]
+    ].forEach(function (c) {
+        var got = logic(c[0]);
+        check(got.length === 1 && got[0] === c[1], 'logic: ' + c[0], got.join(' || '));
+    });
+    ['AB + BC', "O'Brien and D'Angelo", "MAC'S", "P(A') = 1 − P(A)", "P(A ∩ B') + P(A ∩ B)", 'R AND D, Q AND A, ROCK AND ROLL', 'USA AND UK, TCP AND UDP, I AND YOU', "the letters 'A' and 'B'",
+        'C++ and C#', 'Σ k² for k = 1 to 10', 'A + B = C', "x' + y"].forEach(function (text) {
+        var got = logic(text).concat(logic(text, true));
+        check(!got.length, 'logic, none: ' + text, got.join(' || '));
+    });
+    [['AB + BC', 'AB + BC'], ["AB + A'C", "AB + A'C"], ['A AND B', 'A AND B'], ['A + B', null], ['x + y', null]].forEach(function (c) {
+        var got = Numbers.picked(c[0]);
+        check((got && got.kind === 'logic' ? got.fields.e : null) === c[1], 'logic, picked: ' + c[0], got && got.kind + ' ' + JSON.stringify(got.fields));
+    });
+    var t = Numbers.tip(Numbers.find("F = AB + A'C + BC", 'mdy', "F = AB + A'C + BC")[0], 1, lib);
+    var row = function (name) { return (t.rows.filter(function (r) { return r[0] === name; })[0] || [])[1]; };
+    check(t.lines[0] === "F = AB + A'C" && row('Product of sums') === "(A' + B)(A + C)" && row('Minterms') === 'Σm(1, 3, 6, 7)' && /Karnaugh/.test(t.more),
+        'logic, tip: the consensus term gone', JSON.stringify(t));
 })();
 
 console.log(failures ? failures + ' of ' + checks + ' checks failed' : 'all ' + checks + ' checks passed');

@@ -3459,9 +3459,9 @@
     display: none;
 }
 
-/* under the search, no room above its cards but the search's own */
+/* under the search, a little room above its cards beside the search's own */
 #calculator .calc-conv-search + .calc-conv-units {
-    padding-top: 0;
+    padding-top: 4px;
 }
 
 /* the card the arrows are on in the search, which Enter opens */

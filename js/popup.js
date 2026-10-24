@@ -9,7 +9,7 @@ const PANELS = {
     stats: ['Statistics', 'statistics'],
     fx: ['Formulas', 'formulas'],
     conv: ['Converter', 'converter'],
-    solve: ['Solver', 'solve'],
+    solve: ['Solve', 'solve'],
     numbers: ['Numbers', 'numbers'],
     phys: ['Physics', 'physics'],
     bio: ['Biology', 'biology'],

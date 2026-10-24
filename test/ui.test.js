@@ -4081,7 +4081,7 @@ async function search(page) {
         t + 'on the rail, under the calculator');
     await page.click('.calc-go-find');
     check(await page.ev('!document.querySelector(".calc-find").hidden && document.activeElement === document.querySelector(".calc-find-input")'), t + 'it opens, to type in');
-    check(await page.ev(names) === 'Formulas, Converter, Graph, Numbers, Solver, Chemistry, Physics, Biology, Statistics', t + 'the tools, while nothing is typed', await page.ev(names));
+    check(await page.ev(names) === 'Formulas, Converter, Graph, Numbers, Solve, Chemistry, Physics, Biology, Statistics', t + 'the tools, while nothing is typed', await page.ev(names));
     await page.type('ohm');
     check(/^Ohm's law and power, Ohm's law/.test(await page.ev(names)), t + 'the card first, then the formula', await page.ev(names));
     await page.type('\r');

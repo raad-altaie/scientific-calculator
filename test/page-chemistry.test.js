@@ -1,6 +1,6 @@
 // Run with: node test/page-chemistry.test.js
-// The chemistry of a page's text the icons go after (page/chemistry.js): reactions, formulas, compositions, the
-// names of compounds and elements; what chem.js makes sure of, what is selected, and what their tips say. And the
+// The chemistry of a page's text the icons go after (page/chemistry.js): reactions, formulas, compositions, mixtures
+// of gases, the names of compounds and elements; what chem.js makes sure of, what is selected, and what their tips say. And the
 // codes, words and letters that look like chemistry and are not
 'use strict';
 
@@ -48,6 +48,14 @@ function found(text) {
     ['Glucose is 40% C, 6.7% H and 53.3% O by mass.', '40% C, 6.7% H and 53.3% O | composition | {"c":"C 40, H 6.7, O 53.3"}'],
     ['carbon 40%, hydrogen 6.7%, oxygen 53.3%', 'carbon 40%, hydrogen 6.7%, oxygen 53.3% | composition | {"c":"C 40, H 6.7, O 53.3"}'],
     ['With colons: C: 85.6%, H: 14.4%', 'C: 85.6%, H: 14.4% | composition | {"c":"C 85.6, H 14.4"}'],
+    ['Water is hydrogen 11.2%, oxygen 88.8%', 'hydrogen 11.2%, oxygen 88.8% | composition | {"c":"H 11.2, O 88.8"}'],
+    ['Air is 78% nitrogen, 21% oxygen and 1% argon.', '78% nitrogen, 21% oxygen and 1% argon | gases | {"g":"N2 78%, O2 21%, Ar 1%","is":"2","p":"1"}'],
+    ['Dry air: N2 78%, O2 21%, Ar 1%', 'N2 78%, O2 21%, Ar 1% | gases | {"g":"N2 78%, O2 21%, Ar 1%","is":"2","p":"1"}'],
+    ['The atmosphere is 78% nitrogen and 21% oxygen.', '78% nitrogen and 21% oxygen | gases | {"g":"N2 78%, O2 21%","is":"2","p":"1"}'],
+    ['Natural gas: methane 95%, ethane 3%, propane 2%', 'methane 95%, ethane 3%, propane 2% | gases | {"g":"CH4 95%, C2H6 3%, C3H8 2%","is":"2","p":"1"}'],
+    ['Heliox, 79% helium and 21% oxygen', '79% helium and 21% oxygen | gases | {"g":"He 79%, O2 21%","is":"2","p":"1"}'],
+    ['By mass, air is 75.5% N₂, 23.1% O₂ and 1.3% Ar', '75.5% N₂, 23.1% O₂ and 1.3% Ar | gases | {"g":"N2 75.5, O2 23.1, Ar 1.3","is":"1","p":"1"}'],
+    ['Breathed out: N2 78%, O2 16%, CO2 4%, Ar 1%, H2O 1%', 'N2 78%, O2 16%, CO2 4%, Ar 1%, H2O 1% | gases | {"g":"N2 78%, O2 16%, CO2 4%, Ar 1%, H2O 1%","is":"2","p":"1"}'],
     ['A pinch of sodium chloride', 'sodium chloride | chemname | {"f":"sodium chloride"}'],
     ['Rust is iron(III) oxide.', 'iron(III) oxide | chemname | {"f":"iron(III) oxide"}'],
     ['Blue copper(II) sulfate pentahydrate', 'copper(II) sulfate pentahydrate | chemname | {"f":"copper(II) sulfate pentahydrate"}'],
@@ -82,12 +90,22 @@ function found(text) {
     'K = C + 273, PV = nRT, E = mc², V = IR, pH = 7, x = 5, Ka = 1.8',
     'He is here, In 2024, As we know, No way, the US and UK, a CO2e figure, H2O.com, version 1.2.3',
     'citric acid, the climate, we create, a website, copper sulfate, 40% of people and 60% of cats',
+    'Gases not near 100%: 50% nitrogen and 20% argon; nitrogen 78%, nitrogen 22%',
+    'An empirical formula of no compound: Fe 50%, Au 49.99%, H 0.01%',
     'Ohm (Ω), Pi (π), Sir Lancelot (Sl), the element of surprise, element I',
     'Not balanced at all: Fe → O2'
 ].forEach(function (text) {
     var got = found(text);
     check(!got.length, 'none: ' + text, got.join(' || '));
 });
+
+// formulas that are words as well are no mixture of gases without air or a mixture said
+(function () {
+    var got = found('Votes: 55% NO, 45% CO').filter(function (c) { return / \| gases \| /.test(c); });
+    check(!got.length, 'no gases: 55% NO, 45% CO of a vote', got.join(' || '));
+    got = found('A mixture of 50% NO and 50% CO').filter(function (c) { return / \| gases \| /.test(c); });
+    check(got.length === 1, 'gases: 50% NO and 50% CO, a mixture', got.join(' || '));
+})();
 
 // a formula of a page: its numbers small, its charge after ^, as chem.js reads it
 [['H₂O', 'H2O'], ['SO₄^(2−)', 'SO4^2-'], ['NH₄⁺', 'NH4^+'], ['SO₄²⁻', 'SO4^2-'], ['CuSO4 · 5H2O', 'CuSO4·5H2O'], ['Fe^(3+)', 'Fe^3+']].forEach(function (c) {
@@ -99,7 +117,8 @@ function found(text) {
     ['Fe', 'element', '{"s":"Fe"}'], ['iron', 'element', '{"s":"Fe"}'], ['Sulphur', 'element', '{"s":"S"}'], ['water', 'chemname', '{"f":"water"}'],
     ['H2O', 'compound', '{"f":"H2O"}'], ['KOH', 'compound', '{"f":"KOH"}'], ['O2', 'compound', '{"f":"O2"}'], ['CO', 'compound', '{"f":"CO"}'],
     ['sodium chloride', 'chemname', '{"f":"sodium chloride"}'], ['2H2 + O2 → 2H2O', 'reaction', '{"eq":"2H2 + O2 → 2H2O"}'],
-    ['C 40%, H 6.7%, O 53.3%', 'composition', '{"c":"C 40, H 6.7, O 53.3"}'], ['hello world', null], ['PS5', null], ['E = mc²', null]
+    ['C 40%, H 6.7%, O 53.3%', 'composition', '{"c":"C 40, H 6.7, O 53.3"}'], ['N2 78%, O2 21%, Ar 1%', 'gases', '{"g":"N2 78%, O2 21%, Ar 1%","is":"2","p":"1"}'],
+    ['hello world', null], ['PS5', null], ['E = mc²', null]
 ].forEach(function (c) {
     var got = ChemPage.picked(c[0]);
     check((got ? got.kind : null) === c[1] && (!got || (JSON.stringify(got.fields) === c[2] && ChemPage.check(got, Chem))),
@@ -134,6 +153,13 @@ check(!ChemPage.check(ChemPage.picked('CNN'), Chem), 'picked: CNN is no carbon d
     check(!row(t, 'Oxidation numbers') && row(t, 'By mass') === 'C 49.5%, H 5.19%, N 28.9%, O 16.5%', 'tip: caffeine, no average oxidation numbers', JSON.stringify(t));
     t = tip('40% C, 6.7% H and 53.3% O');
     check(t.lines[0] === 'CH₂O' && row(t, 'Moles, to the least') === 'C 1 : H 2 : O 1', 'tip: composition of glucose', JSON.stringify(t));
+    t = tip('78% nitrogen, 21% oxygen and 1% argon');
+    check(t.title === 'N₂ 78%, O₂ 21%, Ar 1%' && t.lines[0] === '28.97 g/mol, on average' && row(t, 'N₂') === '0.78 atm' && row(t, 'Ar') === '0.01 atm' &&
+        row(t, 'Density at STP') === '1.292 g/L', 'tip: air, the pressure of each gas', JSON.stringify(t));
+    t = tip('The atmosphere is 78% nitrogen and 21% oxygen.');
+    check(row(t, 'N₂') === '0.788 atm' && /of the 99% given/.test(t.note), 'tip: gases of 99%, each of that', JSON.stringify(t));
+    t = tip('By mass, air is 75.5% N₂, 23.1% O₂ and 1.3% Ar');
+    check(row(t, 'N₂') === '0.781 atm' && /^By mass/.test(t.note), 'tip: gases by mass, as moles', JSON.stringify(t));
     t = tip('sodium chloride');
     check(t.title === 'Sodium chloride' && t.lines[0] === 'NaCl' && row(t, 'Molar mass') === '58.44 g/mol', 'tip: sodium chloride', JSON.stringify(t));
     t = tip('iron (Fe)');
