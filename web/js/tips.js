@@ -677,7 +677,7 @@
         'chem fact mohs': { t: 'Mohs hardness', d: 'How hard it is, by what it scratches and is scratched by, from talc\'s 1 to diamond\'s 10.' },
         'chem fact cas': { t: 'CAS number', d: 'Its number in the Chemical Abstracts Service\'s registry, which names each substance once: to look it up anywhere.' },
         'chem fact magnetic': { t: 'Magnetism', d: 'How it acts in a magnetic field: ferromagnetic, as iron, a magnet itself; paramagnetic, drawn in weakly; diamagnetic, pushed out weakly; antiferromagnetic, its atoms\' magnetism cancelling.' },
-        'chem fact crystal': { t: 'Crystal structure', d: 'How its atoms are packed in the solid, the repeating pattern of its crystal: of the form usual at room temperature.' },
+        'chem fact crystal': { t: 'Crystal structure', d: 'How its atoms are packed in the solid, at room temperature. Drawn under it, its unit cell, the smallest box that repeats, or of a hexagonal one a prism of 3; its atoms counted by their share: one at a corner is shared by 8 boxes, or 6 prisms, on a face by 2. Grey balls: only its lattice, many atoms at each point.' },
         'chem fact abundance': { t: 'Abundance in the crust', d: 'How much of the Earth\'s crust it is, in mg/kg, parts per million by mass: oxygen nearly half, then silicon. Traces only: a few atoms at a time, made in uranium and thorium ores; synthetic: made only in the laboratory.' },
         'chem fact appearance': { t: 'Appearance', d: 'What it looks like, pure, at room temperature.' },
         'chem fact spectrum': { t: 'Spectrum', d: 'The light of its atoms as a gas, from violet at 380 nm to red at 750: absorption, white light shone through it, ' +

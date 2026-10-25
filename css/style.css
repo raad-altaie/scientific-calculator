@@ -6239,6 +6239,99 @@
     margin: 3px auto 1px;
 }
 
+/* its unit cell under its crystal structure, two side by side for an element of two forms, each named; under each,
+   its atoms counted */
+#calculator .calc-pt-cells {
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 14px;
+    margin: 4px 0 2px;
+    white-space: normal;
+}
+
+#calculator .calc-pt-form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 0;
+    font-size: 11px;
+    line-height: 15px;
+    color: #4a6355;
+}
+
+#calculator .calc-pt-form b {
+    margin-top: 2px;
+    color: #33443b;
+    font-size: 12px;
+}
+
+#calculator .calc-pt-count {
+    font-variant-numeric: tabular-nums;
+}
+
+#calculator .calc-pt-cell {
+    display: block;
+    width: calc(var(--w) * 1px);
+    height: calc(var(--h) * 1px);
+}
+
+#calculator.calc-chem-big .calc-pt-cell {
+    width: calc(var(--w) * 1.25px);
+    height: calc(var(--h) * 1.25px);
+}
+
+#calculator.calc-chem-big .calc-pt-form {
+    font-size: 12px;
+    line-height: 16px;
+}
+
+#calculator .calc-pt-edge {
+    fill: none;
+    stroke: #22476a;
+    stroke-width: 0.9;
+    stroke-linejoin: round;
+    opacity: 0.8;
+}
+
+/* an edge behind the cell, and in graphite a line from an atom to the one over it */
+#calculator .calc-pt-behind {
+    stroke-dasharray: 2.5 2;
+    opacity: 0.5;
+}
+
+/* a line from an atom to one nearest it: dotted, fainter on a face behind */
+#calculator .calc-pt-link {
+    fill: none;
+    stroke: #3f7fae;
+    stroke-width: 1.1;
+    stroke-linecap: round;
+    stroke-dasharray: 0.01 2.3;
+    opacity: 0.75;
+}
+
+#calculator .calc-pt-link.calc-pt-behind {
+    opacity: 0.4;
+}
+
+/* one to an atom farther and held weakly, as from arsenic's layer to the next */
+#calculator .calc-pt-link.calc-pt-far {
+    stroke-dasharray: 0.01 4;
+    opacity: 0.45;
+}
+
+#calculator .calc-pt-bond {
+    fill: none;
+    stroke: #6b4a3a;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+}
+
+#calculator .calc-pt-ball {
+    stroke: #6b4a3a;
+    stroke-width: 0.5;
+}
+
 /* the cards of the tools under the tabs, as the solver's */
 #calculator .calc-chem .calc-sv-list[hidden] {
     display: none;

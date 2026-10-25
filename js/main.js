@@ -16133,6 +16133,265 @@
         return svg + '<g class="calc-pt-core"><circle class="calc-pt-nucleus" cx="' + mid + '" cy="' + mid + '" r="14"/><text x="' + mid + '" y="' + (mid - 1.5) + '">' + e.z + 'p</text><text x="' + mid + '" y="' + (mid + 7) + '">' + n + 'n</text></g></svg>';
     }
 
+    // The cells of the elements whose words alone would not draw them as they are: of each its real shape, its edges
+    // over the first, a; its angle; of the hexagonal ones, c over a. Of a crystal of molecules, a ball for each molecule;
+    // of one with many atoms to each point of its lattice, only the lattice, grey, and what is at each point. From
+    // each element's own article on Wikipedia, and Donohue's The Structures of the Elements
+    var CRYSTAL_OF = {
+        H: { hcp: 1.633, mol: 'H₂' }, N: { hcp: 1.633, mol: 'N₂' }, O: { a15: true, mol: 'O₂' }, F: { a15: true, mol: 'F₂' },
+        Zn: { hcp: 1.856 }, Cd: { hcp: 1.886 },
+        Se: { hex: 1.135, each: '3 atoms at each, along spiral chains' }, Te: { hex: 1.330, each: '3 atoms at each, along spiral chains' },
+        In: { bct: 1.521 }, Pa: { bct: 0.825 }, 'Sn White (β)': { sn: 0.546 },
+        Hg: { rhombo: 70.53 }, As: { rhombo: 54.1, inside: 0.546 }, Sb: { rhombo: 57.1, inside: 0.533 }, Bi: { rhombo: 57.23, inside: 0.532 },
+        B: { rhombo: 65.2, each: '105 atoms at each' }, Sm: { rhombo: 23.3, each: '3 atoms at each' },
+        Cl: { box: [1, 0.718, 1.324], base: true, each: '2 Cl₂ molecules at each' }, Br: { box: [1, 0.672, 1.307], base: true, each: '2 Br₂ molecules at each' },
+        I: { box: [1, 0.656, 1.366], base: true, each: '2 I₂ molecules at each' }, Ga: { box: [1, 1.695, 1.001], base: true, each: '4 atoms at each' },
+        U: { box: [1, 2.056, 1.736], base: true, each: '2 atoms at each' }, Np: { box: [1, 0.709, 0.733], each: '8 atoms at each' },
+        S: { box: [1, 1.230, 2.341], face: true, each: '4 S₈ rings at each' }, Pu: { box: [1, 0.780, 1.773], beta: 101.79, each: '16 atoms at each' },
+        Mn: { bcc: true, each: '29 atoms at each' }, P: { bcc: true, each: 'P₄ molecules at each' }
+    };
+
+    var CRYSTAL_CORNERS = [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0], [0, 0, 1], [1, 0, 1], [0, 1, 1], [1, 1, 1]],
+        CRYSTAL_FACES = [[0.5, 0.5, 0], [0.5, 0.5, 1], [0.5, 0, 0.5], [0.5, 1, 0.5], [0, 0.5, 0.5], [1, 0.5, 0.5]],
+        CRYSTAL_PARTS = { 8: '⅛', 6: '⅙', 4: '¼', 3: '⅓', 2: '½' };
+
+    // A cell of three edges, v, as vectors: its six faces, and its atoms, each [x, y, z, its colour, its share of it,
+    // at a corner], from their fractions of the edges and their colours: an atom on a face half in it, on an edge a
+    // quarter, at a corner an eighth. With bond, those inside bonded to those as near as it
+    function crystalBox(v, atoms, r, bond) {
+        function at(f) { return [0, 1, 2].map(function (i) { return f[0] * v[0][i] + f[1] * v[1][i] + f[2] * v[2][i]; }); }
+        var faces = [], bonds = [];
+        [0, 1, 2].forEach(function (k) {
+            [0, 1].forEach(function (side) {
+                faces.push([[0, 0], [1, 0], [1, 1], [0, 1]].map(function (q) {
+                    var f = [];
+                    f[k] = side; f[(k + 1) % 3] = q[0]; f[(k + 2) % 3] = q[1];
+                    return at(f);
+                }));
+            });
+        });
+        if (bond) atoms.forEach(function (f) { // those inside the box, none of their fractions 0 or 1
+            if (!f.slice(0, 3).every(function (x) { return x > 0 && x < 1; })) return;
+            atoms.forEach(function (g) {
+                if (g !== f && Math.hypot(f[0] - g[0], f[1] - g[1], f[2] - g[2]) < bond) bonds.push([at(f), at(g)]);
+            });
+        });
+        return { faces: faces, bonds: bonds, r: r, atoms: atoms.map(function (f) {
+            var ends = f.slice(0, 3).filter(function (x) { return x === 0 || x === 1; }).length;
+            return at(f).concat(f[3], Math.pow(0.5, ends), ends === 3);
+        }) };
+    }
+
+    // A hexagonal prism of three cells, as books draw it, c high: its layers each at a height, A at the corners and in the
+    // middle of the hexagon, B and C each three in the hollows between, one way or the other. An atom at a corner of the
+    // prism a sixth in it, on an upright edge a third, in the middle of its top or bottom a half
+    function crystalPrism(c, layers, r) {
+        var atoms = [], faces, ends;
+        function ring(z, from, rad, n) {
+            var out = [], k, a;
+            for (k = 0; k < n; k++) {
+                a = (from + k * 360 / n) * Math.PI / 180;
+                out.push([rad * Math.cos(a), rad * Math.sin(a), z]);
+            }
+            return out;
+        }
+        layers.forEach(function (l) {
+            var z = l[1] * c, end = l[1] === 0 || l[1] === 1;
+            if (l[0] === 'A') {
+                ring(z, 0, 1, 6).forEach(function (p) { atoms.push(p.concat(0, end ? 1 / 6 : 1 / 3, end)); });
+                atoms.push([0, 0, z, 0, end ? 0.5 : 1, false]);
+            } else {
+                ring(z, l[0] === 'B' ? 30 : 90, 1 / Math.sqrt(3), 3).forEach(function (p) { atoms.push(p.concat(1, 1, false)); });
+            }
+        });
+        ends = [ring(0, 0, 1, 6), ring(c, 0, 1, 6)];
+        faces = ends.concat(ends[0].map(function (p, i) { var q = ends[0][(i + 1) % 6]; return [p, q, [q[0], q[1], c], [p[0], p[1], c]]; }));
+        return { atoms: atoms, faces: faces, r: r, tilt: 34, cells: 3 };
+    }
+
+    // graphite: two of its sheets of hexagons, the second moved by one bond, so half its atoms are over the first's
+    function crystalGraphite() {
+        var atoms = [], bonds = [], ups = [];
+        [[0, 0, 0], [1, 0, 1.6]].forEach(function (s) {
+            var h = [], k, a;
+            for (k = 0; k < 6; k++) {
+                a = k * Math.PI / 3;
+                h.push([s[0] + Math.cos(a), s[1] + Math.sin(a), s[2]]);
+            }
+            h.forEach(function (p, i) { atoms.push(p.concat(0, 0)); bonds.push([p, h[(i + 1) % 6]]); });
+        });
+        atoms.slice(6).forEach(function (p) {
+            atoms.slice(0, 6).forEach(function (q) { if (Math.abs(p[0] - q[0]) + Math.abs(p[1] - q[1]) < 1e-6) ups.push([q, p]); });
+        });
+        return { atoms: atoms, bonds: bonds, guides: ups, r: 0.17, note: 'Sheets of hexagons; dashed, atom over atom', label: 'two of its sheets' };
+    }
+
+    // A line from each atom not at a corner of the cell to those nearest it, as books draw them: of the orange ones, so
+    // the one in the middle of a cube to its 8 corners, one in the middle of a face to that face's 4, one between two
+    // layers to the 3 above and the 3 below; with same, of its own colour, as the molecules of oxygen in pairs; with
+    // any, of all, as white tin's 4 bonds; with layers, the blue ones of a hexagonal prism to both, so its layers
+    // between are triangles, as books draw them; with a15, of oxygen's cube, the blue ones to their partners in their
+    // chains and to the orange ones nearest, the 2 corners of their face and the one in the middle. Each line once
+    function crystalLinks(c, rule) {
+        var seen = {};
+        c.links = [];
+        c.atoms.forEach(function (a) {
+            if (a[5]) return;
+            (rule === 'layers' ? (a[3] === 1 ? ['', 'same'] : ['']) : rule === 'a15' ? (a[3] === 1 ? ['', 'same'] : []) : [rule]).forEach(function (r) {
+                var near = c.atoms.filter(function (b) { return b !== a && (r === 'any' || b[3] === (r === 'same' ? a[3] : 0)); }), d;
+                function apart(b) { return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]); }
+                if (!near.length) return;
+                d = Math.min.apply(null, near.map(apart));
+                near.forEach(function (b) {
+                    var k = [a, b].map(function (p) { return p.slice(0, 3).map(function (x) { return x.toFixed(3); }).join(','); }).sort().join(' ');
+                    if (apart(b) < d * 1.03 && !seen[k]) {
+                        seen[k] = true;
+                        c.links.push([a.slice(0, 3), b.slice(0, 3)]);
+                    }
+                });
+            });
+        });
+    }
+
+    // What a form drawn is: of its element's own, or of the lattice its words name; what is counted in it, atoms,
+    // molecules or the points of its lattice, grey, with what is at each
+    function crystalOf(e, words, name) {
+        var w = words.toLowerCase(), o = CRYSTAL_OF[e.s + ' ' + name] || CRYSTAL_OF[e.s] || {}, cube = [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+            corners = CRYSTAL_CORNERS.map(function (p) { return p.concat(0); }), centre = [[0.5, 0.5, 0.5, 1]],
+            faces = CRYSTAL_FACES.map(function (p) { return p.concat(1); }), c, a, psi, v, b;
+        if (/graphite/i.test(name)) return crystalGraphite();
+        if (/double hexagonal/.test(w)) c = crystalPrism(3.22, [['A', 0], ['B', 0.25], ['A', 0.5], ['C', 0.75], ['A', 1]], 0.17);
+        else if (o.hcp || /hexagonal close/.test(w)) c = crystalPrism(o.hcp || 1.633, [['A', 0], ['B', 0.5], ['A', 1]], 0.17);
+        else if (o.hex || /hexagonal/.test(w)) c = crystalPrism(o.hex || 1, [['A', 0], ['A', 1]], 0.17);
+        else if (o.a15) c = crystalBox(cube, [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0], [0, 0, 1], [1, 0, 1], [0, 1, 1], [1, 1, 1], [0.5, 0.5, 0.5]].map(function (p) { return p.concat(0); })
+            .concat([[0.25, 0, 0.5], [0.75, 0, 0.5], [0.25, 1, 0.5], [0.75, 1, 0.5], [0.5, 0.25, 0], [0.5, 0.75, 0], [0.5, 0.25, 1], [0.5, 0.75, 1],
+                [0, 0.5, 0.25], [0, 0.5, 0.75], [1, 0.5, 0.25], [1, 0.5, 0.75]].map(function (p) { return p.concat(1); })), 0.08);
+        else if (o.sn) c = crystalBox([[1, 0, 0], [0, 1, 0], [0, 0, o.sn]], corners.concat(centre, [[0, 0.5, 0.25, 1], [1, 0.5, 0.25, 1], [0.5, 0, 0.75, 1], [0.5, 1, 0.75, 1]]),
+            0.11);
+        else if (/diamond/.test(w)) c = crystalBox(cube, corners.concat(faces, [[0.25, 0.25, 0.25, 1], [0.75, 0.75, 0.25, 1], [0.75, 0.25, 0.75, 1], [0.25, 0.75, 0.75, 1]]),
+            0.1, 0.45);
+        else if (o.bct || /tetragonal/.test(w)) c = crystalBox([[1, 0, 0], [0, 1, 0], [0, 0, o.bct || 1.5]], corners.concat(centre), 0.14);
+        else if (o.rhombo || /rhombohedral/.test(w)) {
+            // its three edges one length, each at the angle to the others, about the axis they turn round, upright
+            a = (o.rhombo || 60) * Math.PI / 180;
+            psi = Math.acos(Math.sqrt((2 * Math.cos(a) + 1) / 3));
+            v = [0, 1, 2].map(function (k) { var t = k * 2 * Math.PI / 3; return [Math.sin(psi) * Math.cos(t), Math.sin(psi) * Math.sin(t), Math.cos(psi)]; });
+            c = crystalBox(v, corners.concat(o.inside ? [[o.inside, o.inside, o.inside, 1]] : []), 0.15);
+        } else if (o.box || /orthorhombic|monoclinic/.test(w)) {
+            b = o.box || [1.25, 0.8, 1];
+            a = (o.beta || (/monoclinic/.test(w) ? 110 : 90)) * Math.PI / 180;
+            c = crystalBox([[b[0], 0, 0], [0, b[1], 0], [b[2] * Math.cos(a), 0, b[2] * Math.sin(a)]],
+                corners.concat(o.face ? faces : o.base || /base-centred/.test(w) ? [[0.5, 0.5, 0, 1], [0.5, 0.5, 1, 1]] : []), 0.13);
+        } else if (o.bcc || /body-centred cubic/.test(w)) c = crystalBox(cube, corners.concat(centre), 0.15);
+        else if (/face-centred cubic/.test(w)) c = crystalBox(cube, corners.concat(faces), 0.13);
+        else if (/cubic/.test(w)) c = crystalBox(cube, corners, 0.16);
+        if (!c) return null;
+        if (!c.bonds || !c.bonds.length) crystalLinks(c, o.a15 ? 'a15' : o.sn ? 'any' : c.tilt ? 'layers' : ''); // diamond's bonds are lines enough
+        // of arsenic, antimony and bismuth, the inside atom's 3 bonds are to the corners above it, in its own buckled
+        // layer; the 3 nearest after them, below, are of the next layer, farther, held weakly: their lines fainter, marked far
+        if (o.inside) crystalFar(c, c.atoms.filter(function (p) { return p[3] === 1; })[0]);
+        if (o.each) c.atoms.forEach(function (p) { p[3] = 2; }); // only its lattice: each point grey
+        // what is counted, and in how many cells of the prism; of a lattice only, what is at each point
+        c.noun = function (n) {
+            return (o.each ? (n === 1 ? 'point' : 'points') : o.mol ? o.mol + (n === 1 ? ' molecule' : ' molecules') : n === 1 ? 'atom' : 'atoms') +
+                (c.cells ? ' in ' + c.cells + ' cells' : '') + (o.each ? ', ' + o.each : '');
+        };
+        return c;
+    }
+
+    // A line, marked far, from atom a to each of the orange ones nearest it of those it has none to yet
+    function crystalFar(c, a) {
+        var linked = c.links.map(function (l) { return l[0].join() === a.slice(0, 3).join() ? l[1].join() : l[1].join() === a.slice(0, 3).join() ? l[0].join() : ''; }),
+            rest = c.atoms.filter(function (b) { return b[3] === 0 && linked.indexOf(b.slice(0, 3).join()) < 0; }), d;
+        function apart(b) { return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]); }
+        if (!rest.length) return;
+        d = Math.min.apply(null, rest.map(apart));
+        rest.forEach(function (b) { if (apart(b) < d * 1.03) c.links.push([a.slice(0, 3), b.slice(0, 3), true]); });
+    }
+
+    // its atoms counted as books count them, each by its share of the cell: 8 × ⅛ + 1 = 2 atoms
+    function crystalCount(c) {
+        var by = {}, n = 0;
+        c.atoms.forEach(function (p) {
+            by[p[4]] = (by[p[4]] || 0) + 1;
+            n += p[4];
+        });
+        n = Math.round(n);
+        return Object.keys(by).sort(function (x, y) { return x - y; }).map(function (s) {
+            return +s === 1 ? String(by[s]) : by[s] + ' × ' + CRYSTAL_PARTS[Math.round(1 / s)];
+        }).join(' + ') + ' = ' + n + ' ' + c.noun(n);
+    }
+
+    // One drawn, turned a little and seen from a little above: the edges of the cell, those behind it dashed, the lines
+    // from its atoms to those nearest, dotted, those on a face behind fainter, its bonds,
+    // and its atoms, the nearer over the farther and brighter, each a ball lit from the top left: at the corners orange, in the middle or between blue, the points of a lattice grey
+    function crystalSvg(c, label) {
+        var turn = 28 * Math.PI / 180, tilt = (c.tilt || 20) * Math.PI / 180, pad = 3, ids = [++plotIds, ++plotIds, ++plotIds],
+            away = [Math.sin(turn) * Math.cos(tilt), Math.cos(turn) * Math.cos(tilt), -Math.sin(tilt)], pts, x0, x1, y0, y1, s, W, H, body, mid, edges = {}, behind = [], d0, d1;
+        function view(p) {
+            var u = p[0] * Math.cos(turn) - p[1] * Math.sin(turn), v = p[0] * Math.sin(turn) + p[1] * Math.cos(turn);
+            return { x: u, y: -(p[2] * Math.cos(tilt) + v * Math.sin(tilt)), d: v * Math.cos(tilt) - p[2] * Math.sin(tilt) };
+        }
+        function line(seg, cls) {
+            var a = view(seg[0]), b = view(seg[1]);
+            return '<path class="' + cls + '" d="M' + fix(pad + s * (a.x - x0)) + ' ' + fix(pad + s * (a.y - y0)) + 'L' + fix(pad + s * (b.x - x0)) + ' ' + fix(pad + s * (b.y - y0)) + '"/>';
+        }
+        pts = c.atoms.map(view);
+        x0 = Math.min.apply(null, pts.map(function (p) { return p.x; })) - c.r; x1 = Math.max.apply(null, pts.map(function (p) { return p.x; })) + c.r;
+        y0 = Math.min.apply(null, pts.map(function (p) { return p.y; })) - c.r; y1 = Math.max.apply(null, pts.map(function (p) { return p.y; })) + c.r;
+        s = Math.min(124 / (x1 - x0), 124 / (y1 - y0), 50); // the cubes as big as each other, a tall one no taller than the room
+        W = Math.round(s * (x1 - x0) + 2 * pad);
+        H = Math.round(s * (y1 - y0) + 2 * pad);
+        // each edge of the faces once, behind if each face it is of faces away
+        if (c.faces) {
+            mid = [0, 1, 2].map(function (i) { return c.faces.reduce(function (t, f) { return t + f.reduce(function (u, p) { return u + p[i]; }, 0) / f.length; }, 0) / c.faces.length; });
+            c.faces.forEach(function (f) {
+                var a = f[1].map(function (x, i) { return x - f[0][i]; }), b = f[2].map(function (x, i) { return x - f[0][i]; }),
+                    n = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]],
+                    out = f.reduce(function (t, p) { return t + p.reduce(function (u, x, i) { return u + (x - mid[i]) * n[i]; }, 0); }, 0) > 0 ? 1 : -1,
+                    back = out * (n[0] * away[0] + n[1] * away[1] + n[2] * away[2]) > 0;
+                if (back) behind.push({ n: n, p: f[0] });
+                f.forEach(function (p, i) {
+                    var q = f[(i + 1) % f.length], k = [p, q].map(function (r) { return r.map(function (x) { return x.toFixed(3); }).join(','); }).sort().join(' ');
+                    edges[k] = edges[k] || { seg: [p, q], back: true };
+                    edges[k].back = edges[k].back && back;
+                });
+            });
+        }
+        body = '<defs>' + ['#fde3d7 #e0805d', '#e0f2fe #4f9bd0', '#f1f3f5 #8d99a3'].map(function (g, i) {
+            g = g.split(' ');
+            return '<radialGradient id="calc-plot-' + ids[i] + '" cx="0.35" cy="0.32" r="0.75"><stop offset="0" stop-color="' + g[0] + '"/><stop offset="1" stop-color="' + g[1] + '"/></radialGradient>';
+        }).join('') + '</defs>';
+        body += Object.keys(edges).map(function (k) { return line(edges[k].seg, 'calc-pt-edge' + (edges[k].back ? ' calc-pt-behind' : '')); }).join('') +
+            (c.guides || []).map(function (seg) { return line(seg, 'calc-pt-edge calc-pt-behind'); }).join('') +
+            (c.links || []).map(function (seg) {
+                var back = behind.some(function (f) { // on the plane of a face behind
+                    return seg.slice(0, 2).every(function (q) { return Math.abs(q.reduce(function (t, x, i) { return t + (x - f.p[i]) * f.n[i]; }, 0)) < 1e-9; });
+                });
+                return line(seg, 'calc-pt-link' + (seg[2] ? ' calc-pt-far' : '') + (back ? ' calc-pt-behind' : ''));
+            }).join('') +
+            (c.bonds || []).map(function (seg) { return line(seg, 'calc-pt-bond'); }).join('');
+        d0 = Math.min.apply(null, pts.map(function (p) { return p.d; }));
+        d1 = Math.max.apply(null, pts.map(function (p) { return p.d; }));
+        body += pts.map(function (p, i) { return { p: p, k: c.atoms[i][3] }; }).sort(function (a, b) { return b.p.d - a.p.d; }).map(function (a) {
+            var far = d1 > d0 ? (a.p.d - d0) / (d1 - d0) : 0;
+            return '<circle class="calc-pt-ball" cx="' + fix(pad + s * (a.p.x - x0)) + '" cy="' + fix(pad + s * (a.p.y - y0)) + '" r="' + fix(s * c.r) + '" fill="url(#calc-plot-' + ids[a.k] + ')" opacity="' + (1 - 0.35 * far).toFixed(2) + '"/>';
+        }).join('');
+        return '<svg class="calc-pt-cell" style="--w: ' + W + '; --h: ' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + label + '">' + body + '</svg>';
+    }
+
+    // Under its crystal structure, its unit cell drawn and its atoms counted; of one with two forms, each, named
+    function chemCrystal(e) {
+        var parts = (e.crystal || '').split(/;\s*/), cells = parts.map(function (part) {
+            // its name with a capital, but α-Fe as it is: a Greek letter's capital is another letter
+            var m = part.match(/^([^:]+):\s*(.+)$/), name = m ? (/^[a-z]/.test(m[1]) ? m[1].charAt(0).toUpperCase() + m[1].slice(1) : m[1]) : '', words = m ? m[2] : part,
+                c = crystalOf(e, words, name);
+            return c && '<span class="calc-pt-form">' + crystalSvg(c, e.name + (name ? ', ' + name : '') + ': ' + words.toLowerCase() + (c.label ? ', ' + c.label : c.cells ? ', a hexagonal prism of ' + c.cells + ' unit cells' : ' unit cell')) +
+                (parts.length > 1 ? '<b>' + name + '</b>' : '') + '<span class="calc-pt-count">' + (c.note || crystalCount(c)) + '</span></span>';
+        }).filter(Boolean);
+        return cells.length ? '<span class="calc-pt-cells">' + cells.join('') + '</span>' : '';
+    }
+
     // the mass as tables write it: of one with no stable isotope, in brackets
     function chemMass(e) {
         return e.unstable ? '[' + e.mass + ']' : local(String(chemIn('m', e.mass)));
@@ -16156,12 +16415,14 @@
     // number to put in as well; one in words, whole on its tile already, only what it is
     function chemFactPeek(el) {
         var info = CalcTips['chem fact ' + el.dataset.fact], label = el.querySelector('.calc-sv-label'), value = el.querySelector('.calc-sv-value'),
-            unit = label.querySelector('i'), name = label.firstChild.data.trim(), shown = value.textContent.trim(), u;
+            // the crystal structure's drawing left out: its words alone
+            drawn = value.querySelector('.calc-pt-cells'), unit = label.querySelector('i'), name = label.firstChild.data.trim(),
+            shown = [].filter.call(value.childNodes, function (n) { return n !== drawn; }).map(function (n) { return n.textContent; }).join('').trim(), u;
         if (!info) return null;
         if (el.dataset.lines) return { t: name, d: '<div class="calc-tip-value">' + el.dataset.lines + '</div>' + info.d }; // the spectrum: its lines
         if (el.classList.contains('calc-pt-text') || /^–?$/.test(shown)) return { t: name, d: info.d };
         u = unit && !/^(K L M …|Pauling|mass number)$/.test(unit.textContent) ? ' ' + unit.textContent.replace(', 3 places', '') : '';
-        return { t: name, d: info.d, html: value.innerHTML + u, text: el.hasAttribute('data-v') ? local(statsValue(+el.dataset.v).text) : shown, put: el.hasAttribute('data-v') };
+        return { t: name, d: info.d, html: (drawn ? shown : value.innerHTML) + u, text: el.hasAttribute('data-v') ? local(statsValue(+el.dataset.v).text) : shown, put: el.hasAttribute('data-v') };
     }
 
     function chemGroupOf(e) {
@@ -16243,7 +16504,7 @@
     // The element in the space above the transition metals: the one pointed at, or the one chosen. With
     // all, the tiles of what is known of it under the table too, each number to put in
     function chemShow(z, all) {
-        var e = CalcChem.elements[z - 1], gap = chemGrid.querySelector('.calc-pt-gap'), cat = CalcChem.categories.filter(function (c) { return c[0] === e.cat; })[0][1], tiles;
+        var e = CalcChem.elements[z - 1], gap = chemGrid.querySelector('.calc-pt-gap'), cat = CalcChem.categories.filter(function (c) { return c[0] === e.cat; })[0][1], tiles, cell, crystal;
         // each part with data-pt, the tip of what it is (chemPartTip), its value in full under it
         gap.innerHTML = '<div class="calc-pt-big calc-pt-el ' + chemClass(e) + '" data-show="' + e.z + '" style="' + chemHeat(e) + '" role="button" aria-label="All of ' + e.name + '"><span class="calc-pt-z" data-pt="z">' + e.z + '</span>' +
             // popped out, the tile has room for more, as on a printed table: the electronegativity and the oxidation
@@ -16269,7 +16530,11 @@
         chemAt = z;
         [].forEach.call(chemGrid.querySelectorAll('.calc-pt-el.calc-on'), function (t) { t.classList.remove('calc-on'); });
         if (chemGrid.querySelector('.calc-pt-el[data-z="' + z + '"]')) chemGrid.querySelector('.calc-pt-el[data-z="' + z + '"]').classList.add('calc-on');
+        // its crystal, drawn, the 8th of its tile, after its spectrum, the drawings first; with none drawn, among the words
+        cell = chemCrystal(e);
+        crystal = ['Crystal structure', e.crystal, '', true, '', false, false, cell];
         tiles = [
+            cell ? crystal : null,
             ['Atomic number', e.z], e.unstable ? ['Atomic mass', e.mass, 'mass number'] : ['Atomic mass', chemIn('m', e.mass), chemUnitName('m'), false, 'm'], ['Electronegativity', e.en, 'Pauling'],
             ['Ionization energy', chemIn('e', e.ie), chemUnitName('e'), false, 'e'], ['Melting point', chemIn('t', e.mp), chemUnitName('t'), false, 't'],
             ['Boiling point', chemIn('t', e.bp), chemUnitName('t'), false, 't'],
@@ -16283,12 +16548,12 @@
             ['Common ions', e.ions || '–', '', true], ['Oxidation states', e.ox || '–', '', true],
             ['Heat of fusion', e.fusion, 'kJ/mol'], ['Heat of vaporization', e.vaporization, 'kJ/mol'], ['Thermal conductivity', e.conductivity, 'W/(m·K)'],
             ['Electrical resistivity', e.resistivity, 'Ω·m at 20 °C', false, '', false, true], ['Abundance in the crust', e.abundance, typeof e.abundance === 'number' ? 'mg/kg' : '', false, '', false, true], ['CAS number', e.cas],
-            ['Magnetism', e.magnetic, '', true], ['Crystal structure', e.crystal, '', true], ['Appearance', e.appearance, '', true],
+            ['Magnetism', e.magnetic, '', true], cell ? null : crystal, ['Appearance', e.appearance, '', true],
             // in words, each on its own line: when and by whom it was found, its isotopes, its name, its uses
             ['Discovered', (e.year === 0 ? 'In ancient times' : e.year) + (e.foundBy ? ', by ' + e.foundBy : '') + (e.isolatedBy ? '; isolated by ' + e.isolatedBy : ''), '', true, '', true],
             ['Isotopes', e.isotopes || '–', '', true, '', true],
             [/^The name/.test(e.story || '') ? 'Name' : 'History', e.story || '–', '', true, '', true], ['Uses', e.uses || '–', '', true, '', true]
-        ];
+        ].filter(Boolean);
         chemInfo.classList.toggle('calc-pt-new', String(z) !== chemInfo.dataset.z); // its details come in with a move, once for each element
         chemInfo.dataset.z = z;
         chemInfo.innerHTML = '<span class="calc-pt-hide" role="button" aria-label="Close the card"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span><div class="calc-pt-head"><div class="calc-pt-big calc-pt-el ' + chemClass(e) + '" style="' + chemHeat(e) + '"><span class="calc-pt-z" data-pt="z">' + e.z + '</span><b data-pt="symbol">' + e.s +
@@ -16297,7 +16562,8 @@
             var num = typeof t[1] === 'number' && !(t[0] === 'Found'), known = t[1] !== null && t[1] !== undefined, guess = known && e.predicted[CHEM_FACTS[t[0]]];
             return '<div class="calc-sv-tile' + (num && known ? '' : ' calc-none') + (t[3] ? ' calc-sv-wide' : '') + (t[5] ? ' calc-pt-text' : '') + (known && !num && !t[3] && String(t[1]).length > 9 ? ' calc-pt-wrap' : '') +
                 '" style="--i: ' + i + '" data-fact="' + CHEM_FACTS[t[0]] + '"' + (num && known ? ' data-v="' + t[1] + '"' : '') + '><span class="calc-sv-label">' + t[0] +
-                (t[2] ? ' <i' + (t[4] ? ' class="calc-pt-unit" data-unit="' + t[4] + '" role="button"' : '') + '>' + t[2] + '</i>' : '') + (guess ? ' <i class="calc-pt-guess">predicted</i>' : '') + '</span><span class="calc-sv-value">' + (!known ? '–' : num ? (t[6] ? chemSci(t[1]) : statsValue(t[1]).html) : t[1]) + '</span></div>';
+                (t[2] ? ' <i' + (t[4] ? ' class="calc-pt-unit" data-unit="' + t[4] + '" role="button"' : '') + '>' + t[2] + '</i>' : '') + (guess ? ' <i class="calc-pt-guess">predicted</i>' : '') + '</span><span class="calc-sv-value">' + (!known ? '–' : num ? (t[6] ? chemSci(t[1]) : statsValue(t[1]).html) : t[1]) +
+                (t[7] || '') + '</span></div>';
         }).join('') + '</div></div>';
         chemRows();
     }
