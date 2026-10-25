@@ -196,15 +196,17 @@ if (params.has('graph')) {
         const rail = bar.getBoundingClientRect(); // zoomed as the window is big (main.js, popScale)
         const across = rail.width > rail.height; // a bar across the top, on a narrow window (style.css)
         const left = across ? 0 : rail.width;
-        const top = across ? rail.height + acts.getBoundingClientRect().height : 0; // and pop in and close under it
+        const top = across ? rail.height : 0;
+        // pop in and close under the bar: the calculator in the middle of the room under the bar, kept clear of them
+        const clear = across ? acts.getBoundingClientRect().height : 0;
         const room = { width: window.innerWidth - left - 8, height: window.innerHeight - top - 8 };
         const size = { width: calculator.offsetWidth + 8, height: calculator.offsetHeight + 6 };
-        let scale = Math.min(room.width / size.width, room.height / size.height, MAX_SCALE);
+        let scale = Math.min(room.width / size.width, (room.height - clear) / size.height, MAX_SCALE);
 
         if (!(scale > 0)) return;
         if (Math.abs(scale - 1) < 0.01) scale = 1;
         const x = Math.round(left + 4 + (room.width - size.width * scale) / 2 + 4 * scale);
-        const y = Math.round(top + 4 + (room.height - size.height * scale) / 2 + 3 * scale);
+        const y = Math.round(top + 4 + Math.max(clear, (room.height - size.height * scale) / 2) + 3 * scale);
 
         calculator.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
     };

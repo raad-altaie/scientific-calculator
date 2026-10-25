@@ -234,11 +234,12 @@ html:has(.options-open),
     }
 }
 
-/* a phone: the rail is a bar across the top (style.css), pop in under it, the calculator under them both */
+/* a phone: the rail is a bar across the top (style.css), the calculator in the middle of the room under it; no room
+   for pop in, which the page hides */
 @media (max-width: 743px) {
     .home .calc-pane {
         padding-left: env(safe-area-inset-left);
-        padding-top: calc((72px + env(safe-area-inset-top)) * var(--calc-pop, 1));
+        padding-top: calc((40px + env(safe-area-inset-top)) * var(--calc-pop, 1));
     }
 }
 
