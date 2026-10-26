@@ -16530,17 +16530,16 @@
         chemAt = z;
         [].forEach.call(chemGrid.querySelectorAll('.calc-pt-el.calc-on'), function (t) { t.classList.remove('calc-on'); });
         if (chemGrid.querySelector('.calc-pt-el[data-z="' + z + '"]')) chemGrid.querySelector('.calc-pt-el[data-z="' + z + '"]').classList.add('calc-on');
-        // its crystal, drawn, the 8th of its tile, after its spectrum, the drawings first; with none drawn, among the words
+        // its crystal, drawn, beneath the shells, after the atom and its spectrum; with none drawn, among the words
         cell = chemCrystal(e);
         crystal = ['Crystal structure', e.crystal, '', true, '', false, false, cell];
         tiles = [
-            cell ? crystal : null,
             ['Atomic number', e.z], e.unstable ? ['Atomic mass', e.mass, 'mass number'] : ['Atomic mass', chemIn('m', e.mass), chemUnitName('m'), false, 'm'], ['Electronegativity', e.en, 'Pauling'],
             ['Ionization energy', chemIn('e', e.ie), chemUnitName('e'), false, 'e'], ['Melting point', chemIn('t', e.mp), chemUnitName('t'), false, 't'],
             ['Boiling point', chemIn('t', e.bp), chemUnitName('t'), false, 't'],
             ['Density', chemIn('d', e.density), chemUnitName('d') + (e.state === 'gas' ? ' at 0 °C' : ''), false, 'd'], ['Group', e.group], ['Period', e.period],
             ['Protons', e.z], ['Electrons', e.z], ['Neutrons', Math.round(e.mass) - e.z],
-            ['Electron configuration', e.config, '', true], ['Shells', e.shells.join(', '), 'K L M …', true], ['Block', e.block],
+            ['Electron configuration', e.config, '', true], ['Shells', e.shells.join(', '), 'K L M …', true], cell ? crystal : null, ['Block', e.block],
             ['Outer-shell electrons', e.shells[e.shells.length - 1]], ['Unpaired electrons', chemUnpaired(e.config)],
             // the small tiles in threes, so each row is full before a wide one
             ['Atomic radius', e.radius, 'pm'], ['Covalent radius', e.covalent, 'pm'], ['Electron affinity', chemIn('e', e.affinity), chemUnitName('e'), false, 'e'],
