@@ -23,6 +23,10 @@
     }
     if (!Reader || typeof document === 'undefined' || !(document.documentElement instanceof HTMLElement) || !document.body) return;
 
+    // this copy of the script is from before the extension was updated or reloaded: its
+    // chrome.runtime.id is gone, and getting the icons' logo below would be blocked as unsafe, and noisy
+    if (!chrome.runtime?.id) return;
+
     // ---------------- the icons on the page ---------------- //
 
     const id = 'scientific-calculator-page-maths';
@@ -305,6 +309,21 @@
     layerRoot.appendChild(tip);
 
     const alive = () => layer.isConnected && !!chrome.runtime?.id;
+
+    // The extension's files the page shows, the logo of the icons and the font of the tips, as data: URLs from
+    // background.js: a page may refuse to load them from the extension itself, as YouTube does ("Unsafe attempt to
+    // load URL chrome-extension://…"), and their fetch too. '' if they cannot be had
+    const pageFile = (file) => new Promise((done) => {
+        try {
+            chrome.runtime.sendMessage({ command: 'page-file', file: file }, (url) => done(!chrome.runtime.lastError && url || ''));
+        } catch (e) {
+            done(''); // the extension was updated or turned off
+        }
+    });
+
+    // the logo, asked once for all the icons
+    const logoUrl = pageFile('imgs/icon128.png');
+    const setLogo = (img) => logoUrl.then((url) => { if (url) img.src = url; });
 
     // the width of the window without its scroll bar; of the body in an old page, in quirks mode
     const roomAcross = () => (document.compatMode === 'BackCompat' ? document.body : document.documentElement).clientWidth;
@@ -600,7 +619,7 @@
         button.type = 'button';
         button.tabIndex = -1; // not one more stop for Tab on every sum of the page
         button.setAttribute('aria-label', 'Open in Scientific Calculator');
-        logo.src = chrome.runtime.getURL('imgs/icon128.png');
+        setLogo(logo);
         logo.alt = '';
         logo.draggable = false;
         button.appendChild(logo);
@@ -668,10 +687,10 @@
     function loadFont() {
         if (fontAsked) return;
         fontAsked = true;
-        fetch(chrome.runtime.getURL('fonts/Play-Regular.ttf'))
-            .then((response) => response.arrayBuffer())
-            .then((data) => {
-                const font = new FontFace('Scientific Calculator Play', data);
+        pageFile('fonts/Play-Regular.ttf')
+            .then((url) => {
+                if (!url) return;
+                const font = new FontFace('Scientific Calculator Play', 'url(' + url + ')');
                 document.fonts.add(font);
                 return font.load();
             })
@@ -787,7 +806,7 @@
     pick.hidden = true;
     pick.tabIndex = -1;
     pick.setAttribute('aria-label', 'Open the selection in Scientific Calculator');
-    pickLogo.src = chrome.runtime.getURL('imgs/icon128.png');
+    setLogo(pickLogo);
     pickLogo.alt = '';
     pickLogo.draggable = false;
     pick.appendChild(pickLogo);

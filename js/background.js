@@ -828,8 +828,34 @@ function openPageMaths(message) {
         .then(() => unlessOff("detachedMode", openCalculatorInDetachedMode));
 }
 
+// The extension's files a page shows, the logo of its button and icons and the font of their tips, as data: URLs. A
+// page may refuse to load them from the extension itself, as YouTube does ("Unsafe attempt to load URL
+// chrome-extension://…"), its fetch too; read here, they are the page's own. Each read once
+const pageFileTypes = { "imgs/icon128.png": "image/png", "fonts/Play-Regular.ttf": "font/ttf" };
+const pageFiles = {};
+function pageFile(file) {
+    if (!pageFiles[file]) {
+        pageFiles[file] = fetch(chrome.runtime.getURL(file))
+            .then((response) => response.arrayBuffer())
+            .then((data) => {
+                const bytes = new Uint8Array(data);
+                let text = "";
+                for (let at = 0; at < bytes.length; at += 0x8000) text += String.fromCharCode.apply(null, bytes.subarray(at, at + 0x8000));
+                return "data:" + pageFileTypes[file] + ";base64," + btoa(text);
+            })
+            .catch(() => {
+                delete pageFiles[file]; // asked again next time
+                return "";
+            });
+    }
+    return pageFiles[file];
+}
+
 chrome.runtime.onMessage.addListener((message, sender, answer) => {
-    if (message?.command === "page-maths-engine" && sender.tab) {
+    if (message?.command === "page-file" && Object.hasOwn(pageFileTypes, message.file)) {
+        pageFile(message.file).then(answer);
+        return true; // it answers later
+    } else if (message?.command === "page-maths-engine" && sender.tab) {
         addEngineToPage(sender.tab, sender.frameId, !!message.maths, Object.hasOwn(pageLibs, message.lib) ? message.lib : "", answer);
         return true; // it answers later
     } else if (message?.command === "open-page-maths") {

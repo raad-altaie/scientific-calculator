@@ -20,6 +20,10 @@
     // an XML file opened in a tab has no place for the button
     if (!(document.documentElement instanceof HTMLElement)) return;
 
+    // this copy of the script is from before the extension was updated or reloaded: its
+    // chrome.runtime.id is gone, and getting the logo below would be blocked as unsafe, and noisy
+    if (!chrome.runtime?.id) return;
+
     // a button left by an older copy of this script (the extension was updated)
     // no longer works, so this one takes its place
     document.getElementById(id)?.remove();
@@ -254,8 +258,15 @@
     line.setAttribute('class', 'line');
     shape.append(fill, line);
 
-    // the logo of the extension, the same file as the toolbar icon
-    logo.src = chrome.runtime.getURL('imgs/icon128.png');
+    // The logo of the extension, the same file as the toolbar icon, as a data: URL from background.js: a page may
+    // refuse to load the extension's file itself, as YouTube does ("Unsafe attempt to load URL chrome-extension://…")
+    try {
+        chrome.runtime.sendMessage({ command: 'page-file', file: 'imgs/icon128.png' }, (url) => {
+            if (!chrome.runtime.lastError && url) logo.src = url;
+        });
+    } catch (error) {
+        // the extension was updated or turned off after this page was opened
+    }
     logo.alt = '';
     logo.draggable = false;
 
