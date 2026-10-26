@@ -39,7 +39,12 @@
         pastList = past.querySelector('.calc-past-list'),
         pastButton = root.querySelector('.calc-hist'),
         pastExport = past.querySelector('.calc-past-export'), // the history copied or saved: a menu of how
+        pastClear = past.querySelector('.calc-past-clear'), // of the tab shown: the history, or the letters
+        pastTabs = past.querySelector('.calc-past-tabs'), // History, and the letters A to J
+        pastTab = 'history', // the tab shown: the history, or the variables; the last one used
+        varList = past.querySelector('.calc-past-vars'), // a card for each letter, on the Variables tab
         pastShown = {}, // the history as the list shows it, so it is only built again after a change
+        mac = /Mac|iPhone|iPad/.test(navigator.platform), // its keys: ⌘ and ⌥ Option for Ctrl and Alt
         stats = root.querySelector('.calc-stats'), // statistics of a list of numbers, over the keys
         statsButton = root.querySelector('.calc-stat-btn'),
         statsInput = stats.querySelector('textarea'),
@@ -82,7 +87,7 @@
         fxButton = root.querySelector('.calc-fx-btn'),
         fxSearch = fx.querySelector('.calc-fx-search'),
         fxList = fx.querySelector('.calc-fx-list'),
-        fxTab = 'formulas', // the list shown: vars, formulas or constants; Formulas at first, then the last one used
+        fxTab = 'formulas', // the list shown: formulas or constants; Formulas at first, then the last one used
         fxItems = {}, // the entries of each list, with the text a search looks in
         conv = root.querySelector('.calc-conv'), // the converter of units, over the keys
         convButton = root.querySelector('.calc-conv-btn'),
@@ -826,7 +831,7 @@
             '.calc-stat-btn, .calc-fx-btn, .calc-fx-row, .calc-gx-row, .calc-conv-btn, .calc-solve-btn, .calc-numbers-btn, .calc-chem-btn, .calc-phys-btn, .calc-bio-btn, .calc-chem-size, .calc-panel-size, .calc-pt-mode, .calc-pt-clear, .calc-pt-unit, .calc-pt-temp-v, .calc-sv-row, ' +
             '.calc-graph-btn, .calc-graph-size, .calc-graph-add, .calc-graph-del, .calc-graph-diff, .calc-graph-points, .calc-graph-zoom > span, .calc-graph-pop-end, .calc-graph-pop-row, .calc-graph-play, ' +
             '.calc-graph-fn > .calc-graph-swatch, ' +
-            '.calc-sto, .calc-var-btn, .calc-var-clear, .calc-fx-phys, input, textarea, ' +
+            '.calc-sto, .calc-var-btn, .calc-fx-phys, input, textarea, ' +
             '.calc-stats-chart, .calc-hist, .calc-find-btn, .calc-past-export, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit, .calc-help, .calc-open-big, ' +
             '.calc-solve .calc-solve-tab, .calc-chem .calc-solve-tab, .calc-stats .calc-solve-tab, .calc-phys .calc-solve-tab, .calc-bio .calc-solve-tab, .calc-stats-fitpick, .calc-chem [data-pt], .calc-sv-opt, .calc-sv-copy, .calc-sv-example, .calc-sv-reset') || letterIn(target);
         if (key === tipKey) return;
@@ -1013,7 +1018,7 @@
     function peekAt(target) {
         var el = target.closest('.calc-sv-tile, .calc-stats-tile, .calc-fx-row');
         if (target.closest('.calc-pt-unit')) el = null; // its unit has the tip of a key
-        if (el && el.classList.contains('calc-fx-row') && fxTab !== 'constants') el = null; // a formula has the tip of a key
+        if (el && el.classList.contains('calc-fx-row') && (fxTab !== 'constants' || !fx.contains(el))) el = null; // a formula and a letter have the tip of a key
         if (peek.contains(target) || (el && el === peekTile)) {
             clearTimeout(peekHide);
             if (!peek.hidden) { // not on to another one
@@ -1136,12 +1141,13 @@
             return CalcTips['graph ' + el.dataset.zoom];
         }
         if (el === pastButton) return CalcTips[past.classList.contains('calc-open') ? 'history close' : 'history'];
+        if (varList.contains(el)) return letterTip(el);
         if (el === findCalc) {
             if (findPanel.classList.contains('calc-open')) return CalcTips['search close'];
-            return { t: CalcTips['search'].t, d: CalcTips['search'].d, k: /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : CalcTips['search'].k };
+            return { t: CalcTips['search'].t, d: CalcTips['search'].d, k: mac ? '⌘K' : CalcTips['search'].k };
         }
         if (el === pastExport) return CalcTips['history export'];
-        if (el.classList.contains('calc-past-clear')) return CalcTips['history clear'];
+        if (el.classList.contains('calc-past-clear')) return CalcTips[pastTab === 'vars' ? 'letters clear' : 'history clear'];
         if (el.classList.contains('calc-past-close')) return CalcTips['history close'];
         if (el.classList.contains('calc-past-del')) return CalcTips['history delete'];
         if (el.classList.contains('calc-past-unit')) return CalcTips['history unit ' + (UNITS.indexOf(name) > -1 ? name : 'mixed')];
@@ -1314,7 +1320,7 @@
                 storeItem(function (letter) { setLetter(letter, k); })
             ];
         }
-        if (panel === fx && (row = el.closest('.calc-var'))) {
+        if (panel === past && (row = el.closest('.calc-var'))) {
             k = row.dataset.k;
             return [
                 ['Insert', function () { putLetter(k); }],
@@ -1342,7 +1348,7 @@
         }
         if (panel === past) {
             row = el.closest('.calc-past-row');
-            if (!row) return [['Clear history', function () { past.querySelector('.calc-past-clear').click(); }]];
+            if (!row) return [[pastTab === 'vars' ? 'Clear variables' : 'Clear history', function () { pastClear.click(); }, !pastClear.classList.contains('calc-off')]];
             // on the equation, the equation; anywhere else on the line, its result
             part = el.closest('.calc-past-eq') || row.querySelector('.calc-past-res');
             k = engine.past[+row.dataset.i];
@@ -1426,8 +1432,7 @@
         if (fracMode) toggleFraction();
         if (dmsMode) toggleDms();
         engine.memory = 0;
-        engine.letters(true); // A to J back to 0, as the memory
-        engine.reset(); // the equation too; the history stays
+        engine.reset(); // the equation too; the history and its letters stay
         hold.textContent = '';
         arm(false);
         keyBoard['AC'].children[0].firstChild.data = 'AC';
@@ -1453,7 +1458,6 @@
         convTabs();
         saveConv();
         clearGraph();
-        lettersChanged();
         graphSearch.value = '';
         showGraphTab('graph');
         toolPanels.forEach(function (p) { p.clear(); });
@@ -1488,7 +1492,7 @@
     // A value is kept in each of A to J, as on a TI or a Casio: STO→, the > key, then a letter
     // works the line out and keeps its result there, 5 + 3 → A. Shift+A to J put the letter in
     // the equation, where it stays a letter, A × 2, and is worked out with what it holds. The
-    // Variables tab of the formulas lists them, and a value of a panel is stored by its menu
+    // Variables tab of the history lists them, and a value of a panel is stored by its menu
     function arm(on) {
         sto.textContent = on ? 'STO→' : '';
         if (on) hold.textContent = '';
@@ -1530,7 +1534,7 @@
 
     // what the letters hold changed: their list shows it, and a graph with a letter is drawn again
     function lettersChanged() {
-        if (fx.classList.contains('calc-open') && fxTab === 'vars') showLetters();
+        if (past.classList.contains('calc-open') && pastTab === 'vars') renderPastTab();
         if (graphInputs.some(function (box, i) { return i < graphCount && /[A-J]/.test(box.value); })) readGraph();
         if (conv.classList.contains('calc-open') && convTab === 'units') unitCards.run(); // a value of A, converted again
     }
@@ -1556,7 +1560,7 @@
     // the tip of a box that uses letters, of a formula, of Solve or of the graph: what each holds now,
     // A = 200000; none for a box without one, nor where A to F are digits, as in the Numbers panel
     function lettersTip(box) {
-        var used = (fx.contains(box) && !box.closest('.calc-var')) || solvePanel.contains(box) || physPanel.contains(box) || graph.contains(box) || convUnits.contains(box) ||
+        var used = fx.contains(box) || solvePanel.contains(box) || physPanel.contains(box) || graph.contains(box) || convUnits.contains(box) ||
             ((numbersPanel.contains(box) || bioPanel.contains(box)) && box.dataset.num) ? // Biology's others, as a sequence, are of bases, not variables
             CalcEngine.lettersOf(box.value) : [];
         if (!used.length) return null;
@@ -1643,7 +1647,9 @@
         showPast(false);
     }, false);
 
-    past.querySelector('.calc-past-clear').addEventListener('click', function () {
+    // Clear: of the history, or on its Variables tab every letter back to 0
+    pastClear.addEventListener('click', function () {
+        if (pastTab === 'vars') return clearLetters();
         engine.past = [];
         showPast(false);
         refresh();
@@ -1733,16 +1739,79 @@
             .forEach(function (p) { if (p[0] !== but) p[1](false); });
     }
 
+    // with no history yet, it opens on the letters
     function showPast(open) {
         if (open) {
             closePanels(past);
             placePanel(past);
-            renderPast();
+            if (!engine.past.length) pastTab = 'vars';
+            renderPastTab();
+        } else if (past.contains(document.activeElement)) {
+            document.activeElement.blur(); // the keys are the calculator's again
         }
         past.classList.toggle('calc-open', open);
         pastButton.classList.toggle('calc-on', open);
         if (open) pastList.scrollTop = 0;
     }
+
+    // the tab shown: the history, with its export; or the letters. Clear is of the tab shown
+    function renderPastTab() {
+        var vars = pastTab === 'vars';
+        [].forEach.call(pastTabs.children, function (tab) {
+            tab.classList.toggle('calc-on', tab.dataset.tab === pastTab);
+        });
+        pastExport.hidden = vars;
+        clearShown();
+        pastList.hidden = vars;
+        varList.hidden = !vars;
+        if (vars) showLetters(); else renderPast();
+    }
+
+    // Clear, off with nothing to clear: no history, or no letter holding a value
+    function clearShown() {
+        var off = pastTab === 'vars' ? !lettersHeld() : !engine.past.length;
+        pastClear.classList.toggle('calc-off', off);
+        pastClear.setAttribute('aria-disabled', String(off));
+    }
+
+    pastTabs.addEventListener('click', function (e) {
+        var tab = e.target.closest('.calc-past-tab');
+        if (!tab) return;
+        pastTab = tab.dataset.tab;
+        store('pastTab', pastTab);
+        renderPastTab();
+    }, false);
+
+    // a letter is put in, or takes the result by its STO
+    varList.addEventListener('click', function (e) {
+        var letter = e.target.closest('.calc-var'), act = e.target.closest('.calc-var-btn');
+        if (!letter) return;
+        if (act && act.dataset.act === 'store') storeIn(letter.dataset.k);
+        else if (!e.target.closest('input')) {
+            putLetter(letter.dataset.k);
+            showPast(false);
+        }
+    }, false);
+
+    // a letter's value: digits; kept once it is left, or Enter
+    varList.addEventListener('input', function (e) {
+        onlyNumber(e.target, false, true);
+    }, false);
+
+    // a letter's value typed in its box, kept as it is left; a box made empty is 0, and what is no
+    // number shows what the letter holds again
+    varList.addEventListener('change', function (e) {
+        var letter = e.target.closest('.calc-var'), text = letter && boxValue(e.target).trim();
+        if (!letter) return;
+        if (!engine.setLetter(letter.dataset.k, text === '' ? 0 : +text)) e.target.value = letterText(letter.dataset.k);
+        else setLetter(letter.dataset.k, engine.vars[letter.dataset.k]);
+    }, false);
+
+    varList.addEventListener('keydown', function (e) {
+        if (e.which !== 13 || !e.target.closest('.calc-var')) return;
+        e.preventDefault();
+        e.target.blur();
+    }, false);
 
     // a panel over the keys: just below the display, 1px wider on each side
     function placePanel(panel) {
@@ -4704,25 +4773,9 @@
 
     fxSearch.addEventListener('input', renderFx, false);
 
-    // a formula opens its letters, or closes them; a constant is put in; a letter is put in, or
-    // takes the result by its STO
+    // a formula opens its letters, or closes them; a constant is put in
     fxList.addEventListener('click', function (e) {
-        var row = e.target.closest('.calc-fx-row'), item = row && row.parentNode, letter = e.target.closest('.calc-var'),
-            act = e.target.closest('.calc-var-btn');
-        if (e.target.closest('.calc-var-clear')) {
-            engine.letters(true);
-            notify('Cleared');
-            saveState();
-            return lettersChanged();
-        }
-        if (letter) {
-            if (act && act.dataset.act === 'store') storeIn(letter.dataset.k);
-            else if (!e.target.closest('input')) {
-                putLetter(letter.dataset.k);
-                showFx(false);
-            }
-            return;
-        }
+        var row = e.target.closest('.calc-fx-row'), item = row && row.parentNode;
         if (!item) {
             if (e.target.closest('.calc-sv-reset')) resetFormula(e.target.closest('.calc-fx-form'));
             if (e.target.closest('.calc-fx-insert')) insertFormula(e.target.closest('.calc-fx-item'));
@@ -4775,8 +4828,7 @@
     }
 
     fxList.addEventListener('input', function (e) {
-        onlyNumber(e.target, false, !!e.target.closest('.calc-var')); // a formula's letter may be one of A to J: a = A; a variable's value, digits
-        if (e.target.closest('.calc-var')) return; // a letter's value: kept once it is left, or Enter
+        onlyNumber(e.target, false); // a formula's letter may be one of A to J: a = A
         var note = e.target.closest('.calc-fx-form').querySelector('.calc-fx-note');
         e.target.classList.remove('calc-bad');
         note.classList.remove('calc-fx-warn'); // a value changed: the usual note again
@@ -4802,22 +4854,12 @@
         focusBox(form.querySelector('.calc-fx-fields input'));
     }
 
-    // a letter's value typed in its box, kept as it is left; a box made empty is 0, and what is no
-    // number shows what the letter holds again
-    fxList.addEventListener('change', function (e) {
-        var letter = e.target.closest('.calc-var'), text = letter && boxValue(e.target).trim();
-        if (!letter) return;
-        if (!engine.setLetter(letter.dataset.k, text === '' ? 0 : +text)) e.target.value = letterText(letter.dataset.k);
-        else setLetter(letter.dataset.k, engine.vars[letter.dataset.k]);
-    }, false);
-
     // Enter in the search takes the first one found; in a letter it goes on
-    // to the next empty one, and puts the formula in once all are filled; in the box of A to J it keeps the value
+    // to the next empty one, and puts the formula in once all are filled
     fx.addEventListener('keydown', function (e) {
         var item = e.target.closest('.calc-fx-item'), inputs, empty;
         if (e.which !== 13) return;
         e.preventDefault();
-        if (e.target.closest('.calc-var')) return e.target.blur();
         if (e.target === fxSearch) {
             item = fxList.querySelector('.calc-fx-item');
             if (item && fxTab === 'constants') putConstant(fxItems.constants[+item.dataset.i].item);
@@ -4861,9 +4903,7 @@
         [].forEach.call(fx.querySelectorAll('.calc-fx-tab'), function (tab) {
             tab.classList.toggle('calc-on', tab.dataset.tab === fxTab);
         });
-        fxSearch.hidden = fxTab === 'vars'; // ten letters, nothing to search
         fxList.classList.remove('calc-side');
-        if (fxTab === 'vars') return showLetters();
         fxSearch.placeholder = fxTab === 'formulas' ? 'Search formulas' : 'Search constants';
         fxItems[fxTab].forEach(function (entry, i) {
             var it = entry.item;
@@ -4893,14 +4933,15 @@
         hideTip();
     }
 
-    // The Variables tab: a card for each letter, its value in a box to type over, then STO, which keeps
+    // The Variables tab of the history: a card for each letter, its value in a box to type over, then STO, which keeps
     // the result of the line in it, and insert; a click on the card puts the letter in as well.
-    // Built once while the tab is shown; after that only the values change, not a box being typed in
+    // Built once; after that only the values change, not a box being typed in
     function showLetters() {
-        var typing = fxList.contains(document.activeElement) ? document.activeElement : null;
-        if (!fxList.querySelector('.calc-var')) {
-            fxList.innerHTML = '<div class="calc-var-head"><span><kbd>Shift</kbd>+<kbd>A</kbd> puts A in, <kbd>Alt</kbd>+<kbd>A</kbd> stores in it</span>' +
-                '<span class="calc-var-clear">Clear all</span></div>' +
+        var typing = varList.contains(document.activeElement) ? document.activeElement : null;
+        if (!varList.querySelector('.calc-var')) {
+            varList.innerHTML = '<div class="calc-var-head"><span>' +
+                '<kbd>' + (mac ? '⌥ Option' : '⎇ Alt') + '</kbd> + Letter stores var<span class="calc-var-sep"></span>' +
+                '<kbd>⇧ Shift</kbd> + Letter inserts var</span></div>' +
                 CalcEngine.LETTERS.split('').map(function (k) {
                     return '<div class="calc-fx-item calc-var" data-k="' + k + '"><div class="calc-fx-row calc-var-row">' +
                         '<span class="calc-var-k">' + k + '</span>' +
@@ -4908,17 +4949,27 @@
                         '<span class="calc-var-btn" data-act="store">STO</span>' +
                         '<span class="calc-var-btn" data-act="insert">' + insertIcon(true) + '</span></div></div>';
                 }).join('');
-            fxList.scrollTop = 0;
+            varList.scrollTop = 0;
             hideTip();
         }
-        [].forEach.call(fxList.querySelectorAll('.calc-var'), function (card) {
+        [].forEach.call(varList.querySelectorAll('.calc-var'), function (card) {
             var input = card.querySelector('input'), v = engine.vars[card.dataset.k];
             if (input !== typing) input.value = letterText(card.dataset.k);
             card.classList.toggle('calc-var-set', v !== 0);
         });
-        fxList.querySelector('.calc-var-clear').classList.toggle('calc-off', CalcEngine.LETTERS.split('').every(function (k) {
-            return !engine.vars[k];
-        }));
+    }
+
+    // a letter holds a value other than 0
+    function lettersHeld() {
+        return CalcEngine.LETTERS.split('').some(function (k) { return !!engine.vars[k]; });
+    }
+
+    // Clear on the Variables tab: every letter back to 0
+    function clearLetters() {
+        engine.letters(true);
+        notify('Cleared');
+        saveState();
+        lettersChanged();
     }
 
     // the tip of a letter's card and its buttons: what it holds, and the keys for it
@@ -5101,10 +5152,8 @@
     function fxTip(el) {
         var item = el.parentNode, it;
         if (el.classList.contains('calc-past-close')) return CalcTips['formulas close'];
-        if (el.classList.contains('calc-var-clear')) return CalcTips['letters clear'];
         if (el.classList.contains('calc-fx-phys')) return CalcTips[el.classList.contains('calc-fx-bio') ? 'formula biology' : 'formula physics'];
         if (el.classList.contains('calc-sv-reset')) return CalcTips['card reset'];
-        if (el.closest('.calc-var')) return letterTip(el);
         if (!el.classList.contains('calc-fx-row')) return null;
         it = fxItems[fxTab][+item.dataset.i].item;
         if (fxTab === 'constants') return null;
@@ -17681,6 +17730,7 @@
                 'stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg>';
             pastList.appendChild(row);
         }
+        if (!n) pastList.innerHTML = '<div class="calc-fx-none">No calculations yet</div>'; // the letters are on the other tab
     }
 
     // A result in the history: as a fraction if it was done in fraction mode,
@@ -18632,7 +18682,7 @@
                 store('fxTab', fxTab);
                 fxSearch.value = '';
                 renderFx();
-                if (fxTab !== 'vars') focusBox(fxSearch);
+                focusBox(fxSearch);
             } else {
                 showFxItem(hit.kind === 'formula' ? 'formulas' : 'constants', hit.id);
             }
@@ -18750,8 +18800,11 @@
             if (key === 'dates') dates.load(stored('dates')); else if (key === 'convUnits') unitCards.load(stored('convUnits')); else loadConv(stored('conv'));
             if (conv.classList.contains('calc-open')) convTabs();
         } else if (key === 'fxTab') {
-            if (/^(vars|formulas|constants)$/.test(stored('fxTab'))) fxTab = stored('fxTab');
+            if (/^(formulas|constants)$/.test(stored('fxTab'))) fxTab = stored('fxTab');
             if (fx.classList.contains('calc-open')) renderFx();
+        } else if (key === 'pastTab') {
+            if (/^(history|vars)$/.test(stored('pastTab'))) pastTab = stored('pastTab');
+            if (past.classList.contains('calc-open')) renderPastTab();
         } else {
             s = stored(key);
             if (key === 'stat' && typeof s === 'string') statsTexts.list = s;
@@ -18820,7 +18873,7 @@
         var s = {};
 
         // all read first: the keys pressed below must not save over what is still to be read
-        ['secondActive', 'deg', 'stat', 'statPairs', 'statTab', 'statBy', 'statFit', 'statTests', 'statsOn', 'fxOn', 'fxTab', 'convOn', 'conv', 'convUnits', 'dates', 'graphOn', 'graph', 'solveOn', 'solve', 'numbersOn', 'numbers', 'physOn', 'phys', 'bioOn', 'bio', 'chemOn', 'chem', 'chemView', 'fraction', 'dms', 'format', 'memory', 'calc'].forEach(function (key) {
+        ['secondActive', 'deg', 'stat', 'statPairs', 'statTab', 'statBy', 'statFit', 'statTests', 'statsOn', 'fxOn', 'fxTab', 'pastTab', 'convOn', 'conv', 'convUnits', 'dates', 'graphOn', 'graph', 'solveOn', 'solve', 'numbersOn', 'numbers', 'physOn', 'phys', 'bioOn', 'bio', 'chemOn', 'chem', 'chemView', 'fraction', 'dms', 'format', 'memory', 'calc'].forEach(function (key) {
             s[key] = stored(key);
         });
         if (s.secondActive) {
@@ -18845,7 +18898,8 @@
         bio.load(s.bio);
         chemCards.load(s.chem);
         loadChem(s.chemView);
-        if (/^(vars|formulas|constants)$/.test(s.fxTab)) fxTab = s.fxTab;
+        if (/^(formulas|constants)$/.test(s.fxTab)) fxTab = s.fxTab;
+        if (s.pastTab === 'vars' || (s.fxTab === 'vars' && !s.pastTab)) pastTab = 'vars'; // the Variables tab was the formulas' before
         unitCards.load(s.convUnits);
         loadConv(s.conv);
         dates.load(s.dates);
@@ -18891,7 +18945,7 @@
             if (chemAlone || chemPanel.classList.contains('calc-open')) renderChem();
             return;
         }
-        if (/^(solve|numbers|phys|bio|dates|conv|convUnits|fxTab|stat|statPairs|statTab|statBy|statFit|statTests)$/.test(e.key)) { // a panel's own window and the calculator show the same
+        if (/^(solve|numbers|phys|bio|dates|conv|convUnits|fxTab|pastTab|stat|statPairs|statTab|statBy|statFit|statTests)$/.test(e.key)) { // a panel's own window and the calculator show the same
             ownSaves[e.key] = e.newValue;
             return panelSaved(e.key);
         }
@@ -19190,9 +19244,9 @@
         fracMark.textContent = fracMode ? 'FRAC' : dmsMode ? 'DMS' : '';
         keyBoard['a/b'].classList.toggle('calc-lit', fracMode); // a red dot on the key of the mode that is on
         keyBoard['°′″'].classList.toggle('calc-lit', dmsMode);
-        pastButton.hidden = !engine.past.length; // shown once there is a history
         pastExport.classList.toggle('calc-off', !engine.past.length); // and its export, which has nothing to export before
         pastExport.setAttribute('aria-disabled', String(!engine.past.length));
+        clearShown();
         slide(logline, logline.scrollWidth); // its end in view
         if (stats.classList.contains('calc-open')) renderStats(); // the number format or fraction mode may have changed
         if (past.classList.contains('calc-open') && (pastShown.list !== engine.past || pastShown.mode !== shownMode() ||

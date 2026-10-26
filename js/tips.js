@@ -110,9 +110,9 @@
 
         // the formulas and constants
         'formulas': {
-            t: 'Formulas, constants and vars',
+            t: 'Formulas and constants',
             d: 'Well-known formulas: fill in their letters to put the equation into the display, where you can still change it before =. ' +
-                'Constants of math and science, to put in as a number. Search to find one. And the letters A to J, each holding a value to use in the equation.',
+                'Constants of math and science, to put in as a number. Search to find one.',
             k: ''
         },
         'STO': {
@@ -122,7 +122,7 @@
             k: 'Esc'
         },
         'letters clear': {
-            t: 'Clear all',
+            t: 'Clear the variables',
             d: 'Every letter, A to J, back to 0.',
             k: ''
         },
@@ -1112,9 +1112,9 @@
 
         // the history
         'history': {
-            t: 'History',
+            t: 'History and variables',
             d: 'The calculations you finished with\u00a0=, newest first. Point at a line for its buttons: insert ' +
-                'and copy; the x at the corner of a calculation deletes it.',
+                'and copy; the x at the corner of a calculation deletes it. Its Variables tab has the letters A to J, each holding a value to use in the equation.',
             k: ''
         },
         'history close': {

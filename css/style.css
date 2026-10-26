@@ -1867,14 +1867,15 @@
 /* the two tabs in the head of the panel; the graph has its two the same */
 #calculator .calc-fx-tabs,
 #calculator .calc-graph-tabs,
-#calculator .calc-solve-tabs {
+#calculator .calc-solve-tabs,
+#calculator .calc-past-tabs {
     display: flex;
     gap: 2px;
     margin-left: -6px;
 }
 
 /* the tabs of every panel, the same: over the first span of the head, which has the room left */
-#calculator .calc-past .calc-past-head :is(.calc-solve-tab, .calc-fx-tab, .calc-graph-tab) {
+#calculator .calc-past .calc-past-head :is(.calc-solve-tab, .calc-fx-tab, .calc-graph-tab, .calc-past-tab) {
     flex: none;
     padding: 0 5px;
     border-radius: 4px;
@@ -1885,11 +1886,11 @@
 }
 
 /* popped in, the text of the tabs a little smaller than the head's, and more room between them; popped out, as big as it */
-#calculator:not(.calc-big):not(.calc-panel-big) .calc-past .calc-past-head :is(.calc-solve-tab, .calc-fx-tab, .calc-graph-tab) {
+#calculator:not(.calc-big):not(.calc-panel-big) .calc-past .calc-past-head :is(.calc-solve-tab, .calc-fx-tab, .calc-graph-tab, .calc-past-tab) {
     font-size: 12.5px;
 }
 
-#calculator:not(.calc-big):not(.calc-panel-big) .calc-past .calc-past-head :is(.calc-solve-tabs, .calc-fx-tabs, .calc-graph-tabs) {
+#calculator:not(.calc-big):not(.calc-panel-big) .calc-past .calc-past-head :is(.calc-solve-tabs, .calc-fx-tabs, .calc-graph-tabs, .calc-past-tabs) {
     gap: 5px;
 }
 
@@ -1922,12 +1923,12 @@
     padding: 0 3px;
 }
 
-#calculator .calc-past .calc-past-head :is(.calc-solve-tab, .calc-fx-tab, .calc-graph-tab):hover {
+#calculator .calc-past .calc-past-head :is(.calc-solve-tab, .calc-fx-tab, .calc-graph-tab, .calc-past-tab):hover {
     opacity: 1;
     background: #52687d;
 }
 
-#calculator .calc-past .calc-past-head :is(.calc-solve-tab, .calc-fx-tab, .calc-graph-tab).calc-on {
+#calculator .calc-past .calc-past-head :is(.calc-solve-tab, .calc-fx-tab, .calc-graph-tab, .calc-past-tab).calc-on {
     opacity: 1;
     background: #5d748a;
     color: #fff;
@@ -1973,9 +1974,9 @@
     padding-top: 8px;
 }
 
-/* the variables, with no search above them, the same */
-#calculator .calc-fx-search[hidden] + .calc-fx-list {
-    padding-top: 8px;
+/* the variables of the history, with no search above them: their keys a little closer to the tabs */
+#calculator .calc-past-vars {
+    padding-top: 7px;
 }
 
 #calculator .calc-fx-list::-webkit-scrollbar,
@@ -3789,13 +3790,14 @@
     line-height: 0;
 }
 
-/* ---------- the letters A to J, the Variables tab of the formulas ---------- */
+/* ---------- the letters A to J, the Variables tab of the history ---------- */
 
+/* the search of the converter, on its Dates tab */
 #calculator .calc-fx-search[hidden] {
     display: none;
 }
 
-/* the keys for them, over the cards, and Clear all */
+/* the keys for them, over the cards; their Clear is in the head */
 #calculator .calc-var-head {
     display: flex;
     align-items: center;
@@ -3815,26 +3817,25 @@
     font: 10px/14px 'Play', 'Russo One', sans-serif;
 }
 
-#calculator .calc-var-clear {
-    flex: none;
-    padding: 2px 7px;
-    border-radius: 4px;
-    cursor: pointer;
+/* a faint line between the two keys */
+#calculator .calc-var-sep {
+    display: inline-block;
+    height: 11px;
+    margin: 0 7px;
+    border-left: 1px solid rgba(172, 180, 193, 0.35);
+    vertical-align: middle;
 }
 
-#calculator .calc-var-clear:hover {
-    background: #52687d;
-    color: #fff;
-}
-
-#calculator .calc-var-clear.calc-off {
-    opacity: 0.45;
+/* Clear of the history, with nothing to clear: no history, or no letter holding a value; faint, and nothing lights up */
+#calculator .calc-past-clear.calc-off {
+    opacity: 0.3;
+    background: none;
     pointer-events: none;
 }
 
 /* a card a letter: the letter, its value to type over, STO and insert; close together, so
    the ten fit in the panel without a scrollbar, with less room under the last of them */
-#calculator .calc-fx:has(.calc-var) {
+#calculator .calc-past:has(.calc-past-vars:not([hidden])) {
     padding-bottom: 6px;
 }
 
@@ -3848,7 +3849,7 @@
 
 #calculator .calc-var-row {
     gap: 4px;
-    padding: 3.5px 4px 3.5px 10px;
+    padding: 3.25px 4px 3.25px 10px;
 }
 
 #calculator .calc-var-k {
@@ -3953,6 +3954,11 @@
 #calculator .calc-past-head span:first-child {
     flex: 1;
     font-weight: 700;
+}
+
+/* the history's export and clear, on its Variables tab */
+#calculator .calc-past-head > [hidden] {
+    display: none;
 }
 
 #calculator .calc-past-clear,

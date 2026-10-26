@@ -257,17 +257,17 @@ async function calculator(page, at) {
 
     // the formulas, the converter, the statistics and the graph are on at first, in the order of their options
     await page.fresh(at, {});
-    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-bio-btn calc-stat-btn', t + 'all of them at first', await buttons(page));
+    check(await buttons(page) === 'calc-hist calc-fx-btn calc-conv-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-bio-btn calc-stat-btn', t + 'all of them at first', await buttons(page));
     await page.fresh(at, { fxOn: false, convOn: false, statsOn: false, graphOn: false, solveOn: false, numbersOn: false, chemOn: false, physOn: false, bioOn: false });
-    check(await buttons(page) === '', t + 'no buttons with all of them off', await buttons(page));
+    check(await buttons(page) === 'calc-hist', t + 'the clock alone with all of them off', await buttons(page));
 
     // what an administrator turned off, as the extension keeps it: on in the options does not bring it
     await page.fresh(at, { statsOn: true, policy: { statistics: false, formulas: false } });
-    check(await buttons(page) === 'calc-conv-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-bio-btn', t + 'the statistics and f(x) turned off by an administrator', await buttons(page));
+    check(await buttons(page) === 'calc-hist calc-conv-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-bio-btn', t + 'the statistics and f(x) turned off by an administrator', await buttons(page));
     await page.fresh(at, { solveOn: true, policy: { solve: false, numbers: false } });
-    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-chem-btn calc-phys-btn calc-bio-btn calc-stat-btn', t + 'and the solver and the numbers', await buttons(page));
+    check(await buttons(page) === 'calc-hist calc-fx-btn calc-conv-btn calc-graph-btn calc-chem-btn calc-phys-btn calc-bio-btn calc-stat-btn', t + 'and the solver and the numbers', await buttons(page));
     await page.fresh(at, { convOn: false });
-    check(await buttons(page) === 'calc-fx-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-bio-btn calc-stat-btn', t + 'three buttons with the converter off', await buttons(page));
+    check(await buttons(page) === 'calc-hist calc-fx-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-bio-btn calc-stat-btn', t + 'three buttons with the converter off', await buttons(page));
 
     // the ? beside the name has a tip of the calculator's own, below it, in place of a title
     await page.hover('.calc-help');
@@ -288,7 +288,7 @@ async function calculator(page, at) {
     // the keys still work, and the history adds its clock
     await page.type('2+3\r');
     check(await shown(page) === '5', t + '2 + 3 = 5', await shown(page));
-    check(await buttons(page) === 'calc-hist calc-fx-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-bio-btn calc-stat-btn', t + 'the clock comes with a history', await buttons(page));
+    check(await buttons(page) === 'calc-hist calc-fx-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-bio-btn calc-stat-btn', t + 'the clock, with a history as without', await buttons(page));
 
     // the panel: the search has the keys, the result in the display starts the first box
     await page.click('.calc-fx-btn');
@@ -2564,12 +2564,13 @@ async function secondKeys(page, at) {
 }
 
 // the letters A to J: > is STO→, Shift+A puts A in, the keys they had are elsewhere; the Variables tab of
-// the formulas, Store in Var of the menu, the history, a graph with a capital, kept after a reload
+// the history, Store in Var of the menu, the history, a graph with a capital, kept after a reload
 async function letters(page, at) {
     var t = at + ': ', log = 'document.querySelector(".calc-log").textContent.replace(/\\s+/g, " ").trim()',
         sto = 'document.querySelector(".calc-sto").textContent',
         held = function (k) { return page.ev('JSON.parse(localStorage.getItem("calc")).vars.' + k); },
         box = function (k) { return page.calc('document.querySelector(".calc-var[data-k=' + k + '] input").value'); },
+        histOpen = function () { return page.calc('document.querySelector(".calc-past-vars").parentNode.classList.contains("calc-open")'); },
         setGraph = function (text) {
             return page.calc('(function (b) { b.value = ' + JSON.stringify(text) + '; b.dispatchEvent(new Event("input", { bubbles: true })); })' +
                 '(document.querySelector(".calc-graph-input"))');
@@ -2613,10 +2614,11 @@ async function letters(page, at) {
     // the Variables tab: each letter to type over, STO and insert
     await page.fresh(at, {});
     await page.type('5+3>A');
-    await page.click('.calc-fx-btn');
-    await page.click('.calc-fx-tab[data-tab="vars"]');
+    await page.click('.calc-hist');
+    await page.click('.calc-past-tab[data-tab="vars"]');
     check(await page.calc('document.querySelectorAll(".calc-var").length') === 10 && await box('A') === '8' && await box('B') === '0' &&
-        await page.calc('document.querySelector(".calc-fx-search").hidden'), t + 'the Variables tab lists A to J, A holding 8, and no search', await box('A'));
+        await page.calc('(function (h) { return h.querySelector(".calc-past-list").hidden && h.querySelector(".calc-past-export").hidden && !h.querySelector(".calc-past-clear").classList.contains("calc-off"); })(document.querySelector(".calc-past-vars").parentNode)'),
+        t + 'the Variables tab of the history lists A to J, A holding 8, with no export, and Clear of the letters on', await box('A'));
     await page.click('.calc-var[data-k="B"] input');
     await page.calc('document.querySelector(".calc-var[data-k=B] input").select()');
     await page.type('3\r');
@@ -2624,7 +2626,7 @@ async function letters(page, at) {
     await page.click('.calc-var[data-k="C"] .calc-var-btn[data-act="store"]');
     check(await held('C') === 8 && await box('C') === '8', t + 'STO on C keeps the result in it', await held('C'));
     await page.click('.calc-var[data-k="B"] .calc-var-btn[data-act="insert"]');
-    check(!await open(page, '.calc-fx'), t + 'insert puts B in, the panel closing');
+    check(!await histOpen(), t + 'insert puts B in, the panel closing');
     await page.type('*2=');
     check(await shown(page) === '6', t + 'B × 2 = 6', await shown(page));
 
@@ -2636,6 +2638,7 @@ async function letters(page, at) {
     await pick(page, 'D0');
     check(await held('D') === 6, t + 'and D takes the result', await held('D'));
     await page.click('.calc-hist');
+    await page.click('.calc-past-tab[data-tab="history"]');
     check(await page.calc('document.querySelector(".calc-past-row .calc-past-letters").textContent') === 'B = 3',
         t + 'the history says what B held', await page.calc('document.querySelector(".calc-past-row").textContent'));
     await page.rightClick('.calc-past-row:nth-child(2) .calc-past-res');
@@ -2682,8 +2685,8 @@ async function letters(page, at) {
     check(!await open(page, '.calc-fx') && /C/.test(await shown(page)), t + 'Insert puts the formula in with C', await shown(page));
     await page.type('=');
     check(await shown(page) === '5', t + 'a = C, b = 4 gives 5', await shown(page));
-    await page.click('.calc-fx-btn');
-    await page.click('.calc-fx-tab[data-tab="vars"]');
+    await page.click('.calc-hist');
+    await page.click('.calc-past-tab[data-tab="vars"]');
     await page.key('Escape', 27);
 
     // the converter takes a letter as its value: a typed is A, -5 m in feet
@@ -2706,15 +2709,15 @@ async function letters(page, at) {
     await page.calc('(function (i) { i.value = ""; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-graph-by"))');
     await page.key('Escape', 27);
 
-    // a reload keeps them; Reset all puts them back to 0
+    // a reload keeps them, and so does Reset all
     await page.go(page.base + at);
-    await page.click('.calc-fx-btn');
-    check(await page.calc('document.querySelector(".calc-fx-tab.calc-on").dataset.tab') === 'vars' && await box('A') === '-5' && await box('B') === '3',
+    await page.click('.calc-hist');
+    check(await page.calc('document.querySelector(".calc-past-tab.calc-on").dataset.tab') === 'vars' && await box('A') === '-5' && await box('B') === '3',
         t + 'after a reload the Variables tab and the letters are as they were', await box('A'));
     await page.key('Escape', 27);
     await page.rightClick('#box');
     await pick(page, 'Reset all');
-    check(await held('A') === 0 && await held('B') === 0, t + 'Reset all puts every letter back to 0', await held('A'));
+    check(await held('A') === -5 && await held('B') === 3, t + 'Reset all keeps the letters', await held('A'));
 
     // a letter in the equation has a tip of what it holds, in the display and while the line is edited
     await page.fresh(at, {});
@@ -2746,8 +2749,8 @@ async function letters(page, at) {
     // STO→ armed, a click on a letter of the Variables tab stores in it, not puts it in the equation
     await page.fresh(at, {});
     await page.type('5+3>');
-    await page.click('.calc-fx-btn');
-    await page.click('.calc-fx-tab[data-tab="vars"]');
+    await page.click('.calc-hist');
+    await page.click('.calc-past-tab[data-tab="vars"]');
     await page.click('.calc-var[data-k="E"] .calc-var-k');
     check(await held('E') === 8 && await page.calc(sto) === '', t + 'STO→ then a click on E stores 8 in E', await held('E') + ' | ' + await page.calc(sto));
     check(await box('E') === '8', t + 'and its box shows it', await box('E'));
@@ -2755,13 +2758,13 @@ async function letters(page, at) {
     // a paste with → A stores in A, and the Variables tab shows it when it is opened again: a right click on the
     // display puts the panel away first, as a click on the equation does
     await page.fresh(at, {});
-    await page.click('.calc-fx-btn');
-    await page.click('.calc-fx-tab[data-tab="vars"]');
+    await page.click('.calc-hist');
+    await page.click('.calc-past-tab[data-tab="vars"]');
     await page.rightClick('#box');
     await paste(page, '5 + 3 → F');
-    await page.click('.calc-fx-btn');
+    await page.click('.calc-hist');
     check(await held('F') === 8 && await box('F') === '8', t + 'pasting 5 + 3 → F stores 8 in F, its box showing it',
-        await held('F') + ' | ' + await box('F') + ' | open: ' + await open(page, '.calc-fx'));
+        await held('F') + ' | ' + await box('F') + ' | open: ' + await histOpen());
 }
 
 // a layout with no Latin letters, Arabic's: the keys are the keys of their place, 7 for ٧ of the digit row, x! for ء of
@@ -2971,7 +2974,7 @@ async function converter(page, at) {
 
     // its button comes after f(x), as its option does
     await page.fresh(at, {});
-    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-bio-btn calc-stat-btn', t + 'the converter between f(x) and the graph',
+    check(await buttons(page) === 'calc-hist calc-fx-btn calc-conv-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-bio-btn calc-stat-btn', t + 'the converter between f(x) and the graph',
         await buttons(page));
 
     // the result shown is the value to start from
@@ -3458,7 +3461,12 @@ async function menus(page, at) {
     await page.rightClick('.calc-past:not(.calc-stats):not(.calc-fx):not(.calc-conv):not(.calc-graph):not(.calc-solve):not(.calc-numbers):not(.calc-chem):not(.calc-phys):not(.calc-bio) .calc-past-head span');
     check(await menu(page) === 'Clear history', t + 'above the lines, Clear history', await menu(page));
     await pick(page, 'Clear history');
-    check(await page.calc('document.querySelector(".calc-hist").hidden'), t + 'which empties it');
+    await page.click('.calc-hist');
+    await page.click('.calc-past-tab[data-tab="history"]');
+    check(await page.calc('document.querySelector(".calc-past-list").textContent') === 'No calculations yet' &&
+        await page.calc('document.querySelector(".calc-past-list").parentNode.querySelector(".calc-past-clear").classList.contains("calc-off")'),
+        t + 'which empties it, its Clear off', await page.calc('document.querySelector(".calc-past-list").textContent'));
+    await page.key('Escape', 27);
 
     // what is selected has the shade of the calculator, in a box as in the display
     check(await page.calc('[document.getElementById("box"), document.querySelector(".calc-conv-units .calc-sv-item.calc-on input"), ' +
@@ -3994,7 +4002,7 @@ async function options(page) {
 
     await page.fresh('/frame.html', {});
     t = 'in a frame: ';
-    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-bio-btn calc-stat-btn', t + 'all four buttons');
+    check(await buttons(page) === 'calc-hist calc-fx-btn calc-conv-btn calc-graph-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-bio-btn calc-stat-btn', t + 'all four buttons');
     await page.click('.calc-fx-btn');
     await page.ev('localStorage.setItem("fxOn", "false")');
     check(await page.until('!(document.getElementById("calc-iframe").contentDocument.querySelector(".calc-fx-btn").offsetWidth)'),
@@ -4145,7 +4153,7 @@ async function adminPolicy(page) {
     // the popup: the graph goes, kept for the next time it opens
     await page.fresh('/popup.html', {});
     check(await page.until('document.querySelector(".calc-graph-btn").hidden'), t + 'the graph turned off goes from the popup');
-    check(await buttons(page) === 'calc-fx-btn calc-conv-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-bio-btn calc-stat-btn', t + 'the rest stays', await buttons(page));
+    check(await buttons(page) === 'calc-hist calc-fx-btn calc-conv-btn calc-numbers-btn calc-solve-btn calc-chem-btn calc-phys-btn calc-bio-btn calc-stat-btn', t + 'the rest stays', await buttons(page));
     check(await page.ev('localStorage.getItem("policy")') === '{"graph":false,"detachedMode":false,"pageButton":false,"pageMaths":false}',
         t + 'kept, with the button and the maths on the pages, which open Detached Mode', await page.ev('localStorage.getItem("policy")'));
     await change({});
