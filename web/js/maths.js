@@ -4698,6 +4698,188 @@
             byYear: byYear.map(function (y) { return y.map(round); }), more: byYear.length < Math.ceil(n / m - 1e-9) };
     }
 
+    // A home of a price bought with down, a percentage of it, put down, the rest a loan paid back each
+    // month at the rate, a percentage a year, for years; with tax and insurance, each an amount a
+    // year, PMI, a percentage of the loan a year, while less than 20% is put down, until the loan is
+    // down to 78% of the price, and hoa, fees a month: { loan, down: the amount, payment: of the loan
+    // alone, each: all of it the first month, tax, insurance, pmi and hoa a month, pmiMonths: how
+    // many months PMI is paid, interest, total: all paid over the years, n, byYear and more as
+    // amortize gives them } or { error: 'price' for one not above 0, 'down' for one below 0 or of
+    // 100% or more, 'costs' for a cost below 0, or amortize's }
+    function mortgage(price, down, rate, years, tax, insurance, pmi, hoa, max) {
+        var loan, r, i, balance, k, months = 0, each;
+        if (!(price > 0) || !isFinite(price)) return { error: 'price' };
+        if (!(down >= 0) || !(down < 100)) return { error: 'down' };
+        if (![tax, insurance, pmi, hoa].every(function (c) { return c >= 0 && isFinite(c); })) return { error: 'costs' };
+        loan = price * (1 - down / 100);
+        r = amortize(loan, rate, years, 12, max);
+        if (r.error) return r;
+        // PMI each month the loan is above 78% of the price as the month starts
+        i = rate / 100 / 12;
+        balance = loan;
+        if (pmi && loan > 0.8 * price * (1 + 1e-12)) {
+            for (k = 1; k <= r.n && balance > 0.78 * price * (1 + 1e-12); k++) {
+                months++;
+                balance -= r.payment - balance * i;
+            }
+        }
+        pmi = loan * pmi / 100 / 12;
+        each = r.payment + tax / 12 + insurance / 12 + (months ? pmi : 0) + hoa;
+        return { loan: round(loan), down: round(price - loan), payment: r.payment, each: round(each), tax: round(tax / 12), insurance: round(insurance / 12), pmi: months ? round(pmi) : 0,
+            hoa: round(hoa), pmiMonths: months, interest: r.interest, total: round(loan + r.interest + r.n * (tax / 12 + insurance / 12 + hoa) + months * pmi), n: r.n, byYear: r.byYear, more: r.more };
+    }
+
+    // A balance owed at apr, a percentage a year, of interest each month, paid off by a payment at
+    // the end of each month, or in a whole number of months, the other NaN, to work out: { months,
+    // payment, last: the last payment, what is left, interest, paid, byYear: [year, interest,
+    // principal, balance at its end] for each of the first max years, more } or { error: 'balance'
+    // for one not above 0, 'rate' for one below 0, 'one' for both or neither, 'payment' for one not
+    // above 0, 'months' for not a whole number above 0, 'small' for a payment no more than the first
+    // month's interest, which never pays it off, 'long' for more than 12000 months }
+    function cardPayoff(balance, apr, payment, months, max) {
+        var i = apr / 100 / 12, b = balance, interest = 0, byYear = [], year = null, k = 0, owed, part, last;
+        if (!(balance > 0) || !isFinite(balance)) return { error: 'balance' };
+        if (!(apr >= 0) || !isFinite(apr)) return { error: 'rate' };
+        if (isNaN(payment) === isNaN(months)) return { error: 'one' };
+        if (!isNaN(months)) {
+            if (!isWhole(months) || months < 1) return { error: 'months' };
+            if (months > 12000) return { error: 'long' };
+            payment = balance / annuity(i, months);
+        } else if (!(payment > 0) || !isFinite(payment)) {
+            return { error: 'payment' };
+        } else if (payment <= balance * i * (1 + 1e-12)) {
+            return { error: 'small' };
+        }
+        while (b > 1e-9 * balance) {
+            if (++k > 12000) return { error: 'long' };
+            owed = b * i;
+            last = k === months ? b + owed : Math.min(payment, b + owed); // the last takes what is left, so it comes to 0
+            part = last - owed;
+            b = k === months ? 0 : b - part;
+            interest += owed;
+            if (!year || year[0] !== Math.ceil(k / 12)) {
+                year = [Math.ceil(k / 12), 0, 0, 0];
+                if (byYear.length < max) byYear.push(year);
+            }
+            year[1] += owed;
+            year[2] += part;
+            year[3] = b <= 1e-9 * balance ? 0 : b;
+        }
+        return { months: k, payment: round(payment), last: round(last), interest: round(interest), paid: round(balance + interest),
+            byYear: byYear.map(function (y) { return y.map(round); }), more: byYear.length < Math.ceil(k / 12) };
+    }
+
+    // Money saved for retirement: saved now, at age, and add put in at the end of each month until
+    // the age retire, growing at ret, a percentage a year, as prices grow at infl, a percentage a
+    // year; then drawn at the start of each month until the age until, draw a month in money of
+    // today, growing with prices, or NaN for none: { atRetire, real: it in money of today, putIn,
+    // growth, can: the most to draw a month, in money of today, for it to last to until, lasts: the
+    // age it runs out at, Infinity where it never does, NaN with no draw, left: what is left at
+    // until, in money of today, path: [age, savings in money of today] of each year, with draw or
+    // else can } or { error: 'age' for ages not in order or above 150, 'money' for an amount below
+    // 0, 'rate' for a rate not above –100% }
+    function retirement(age, retire, until, saved, add, ret, infl, draw) {
+        var m1, m2, rm, im, j, b, k, x, w, real, can, lasts = NaN, left = NaN, path;
+        if (![age, retire, until].every(isFinite) || !(age >= 0) || !(retire >= age) || !(until > retire) || until > 150) return { error: 'age' };
+        if (!(saved >= 0) || !(add >= 0) || !isFinite(saved) || !isFinite(add) || (!isNaN(draw) && (!(draw >= 0) || !isFinite(draw)))) return { error: 'money' };
+        if (!(ret > -100) || !(infl > -100) || !isFinite(ret) || !isFinite(infl)) return { error: 'rate' };
+        rm = Math.pow(1 + ret / 100, 1 / 12) - 1;
+        im = Math.pow(1 + infl / 100, 1 / 12) - 1;
+        j = (1 + rm) / (1 + im) - 1; // the return a month over prices
+        m1 = Math.round((retire - age) * 12);
+        m2 = Math.round((until - retire) * 12);
+        if (m2 < 1) return { error: 'age' };
+        b = saved;
+        path = [[age, saved]];
+        for (k = 1; k <= m1; k++) {
+            b = b * (1 + rm) + add;
+            if (k % 12 === 0 || k === m1) path.push([age + k / 12, b / Math.pow(1 + im, k)]);
+        }
+        real = b / Math.pow(1 + im, m1);
+        can = real / (annuity(j, m2) * (1 + j)); // m2 draws at the start of each month, of what there is, in money of today
+        // drawn each month in money of today, what is left growing at j: to until for the path, on to 150 for the age it runs out at
+        w = isNaN(draw) ? can : draw;
+        x = real;
+        for (k = 0; retire + k / 12 < 150 - 1e-9; k++) {
+            if (x < w * (1 - 1e-9)) {
+                lasts = retire + (k + x / w) / 12;
+                if (k < m2) path.push([lasts, 0]);
+                break;
+            }
+            x = (x - w) * (1 + j);
+            if (Math.abs(x) <= 1e-9 * real) x = 0;
+            if (k + 1 <= m2 && ((k + 1) % 12 === 0 || k + 1 === m2)) path.push([retire + (k + 1) / 12, x]);
+            if (k + 1 === m2) left = x;
+        }
+        if (isNaN(draw)) {
+            lasts = left = NaN;
+        } else {
+            if (isNaN(lasts)) lasts = real * j >= w * (1 + j) - 1e-9 * real ? Infinity : 150; // never down, or still there at 150
+            if (isNaN(left)) left = 0;
+        }
+        return { atRetire: round(b), real: round(real), putIn: round(saved + add * m1), growth: round(b - saved - add * m1), can: round(can), lasts: isFinite(lasts) ? round(lasts) : lasts,
+            left: round(left), path: path.map(function (p) { return [round(p[0]), round(p[1])]; }) };
+    }
+
+    // Pay of so much an hour, day, week, month or year, per 0 to 4, of hours and days worked a week
+    // and weeks a year, and overtime, ot hours a week at otx times the hourly: { hourly, daily,
+    // weekly, fortnight: of two weeks, half: twice a month, monthly, yearly }, each but the hourly
+    // with the overtime, or { error: 'pay' for pay below 0, 'hours' for hours a week not above 0 or
+    // more than 168 with the overtime, 'days' for days not above 0 or above 7, 'weeks' for weeks not
+    // above 0 or above 53, 'ot' for overtime below 0 }
+    function salary(pay, per, hours, days, weeks, ot, otx) {
+        var hourly, weekly;
+        if (!(pay >= 0) || !isFinite(pay)) return { error: 'pay' };
+        if (!(ot >= 0) || !(otx >= 0) || !isFinite(ot) || !isFinite(otx)) return { error: 'ot' };
+        if (!(hours > 0) || !(hours + ot <= 168)) return { error: 'hours' };
+        if (!(days > 0) || !(days <= 7)) return { error: 'days' };
+        if (!(weeks > 0) || !(weeks <= 53)) return { error: 'weeks' };
+        hourly = [pay, pay * days / hours, pay / hours, pay * 12 / weeks / hours, pay / weeks / hours][per];
+        weekly = hourly * (hours + ot * otx);
+        return { hourly: round(hourly), daily: round(weekly / days), weekly: round(weekly), fortnight: round(2 * weekly), half: round(weekly * weeks / 24),
+            monthly: round(weekly * weeks / 12), yearly: round(weekly * weeks) };
+    }
+
+    // A bill and a tip, pct a percentage of it, split among people, a whole number; with way 1
+    // rounded up so each pays a whole amount, with 2 so the total is: { tip, total, each, tipEach,
+    // percent: the tip as a percentage of the bill, cents: what each pays, to the cent below, more:
+    // how many pay a cent more for it to come to the total } or { error: 'bill' for one below 0,
+    // 'tip' for one below 0, 'people' for not a whole number from 1 to 10000 }
+    function tip(bill, pct, people, way) {
+        var total, cents, base;
+        if (!(bill >= 0) || !isFinite(bill)) return { error: 'bill' };
+        if (!(pct >= 0) || !isFinite(pct)) return { error: 'tip' };
+        if (!isWhole(people) || people < 1 || people > 10000) return { error: 'people' };
+        total = bill * (1 + pct / 100);
+        if (way === 1) total = Math.ceil(round(total / people)) * people;
+        else if (way === 2) total = Math.ceil(round(total));
+        total = round(total);
+        cents = Math.round(total * 100);
+        base = Math.floor(cents / people);
+        return { tip: round(total - bill), total: total, each: round(total / people), tipEach: round((total - bill) / people), percent: bill ? round((total - bill) / bill * 100) : NaN,
+            cents: base / 100, more: cents - base * people };
+    }
+
+    var US_GALLON = 3.785411784, UK_GALLON = 4.54609, MILE = 1.609344; // litres, and km, each exactly
+
+    // The fuel a trip of distance takes, in km for unit 0 and 1, in miles for 2 and 3, of a car of
+    // economy in L/100 km (0), km a litre (1), miles a US gallon (2) or a UK gallon (3), at price a
+    // litre, a US gallon for 2, split among people: { fuel: litres, US gallons for 2, cost, per: a
+    // km or a mile, each, l100: the economy in L/100 km, mpg: in miles a US gallon } or { error:
+    // 'distance' for one below 0, 'economy' for one not above 0, 'price' for one below 0, 'people'
+    // for not a whole number from 1 to 10000 }
+    function fuel(distance, economy, price, unit, people) {
+        var f, l100, cost;
+        if (!(distance >= 0) || !isFinite(distance)) return { error: 'distance' };
+        if (!(economy > 0) || !isFinite(economy)) return { error: 'economy' };
+        if (!(price >= 0) || !isFinite(price)) return { error: 'price' };
+        if (!isWhole(people) || people < 1 || people > 10000) return { error: 'people' };
+        f = [distance * economy / 100, distance / economy, distance / economy, distance / economy * UK_GALLON][unit];
+        l100 = [economy, 100 / economy, 100 * US_GALLON / (economy * MILE), 100 * UK_GALLON / (economy * MILE)][unit];
+        cost = f * price;
+        return { fuel: round(f), cost: round(cost), per: distance ? round(cost / distance) : NaN, each: round(cost / people), l100: round(l100), mpg: round(100 * US_GALLON / (l100 * MILE)) };
+    }
+
     // What an asset of a cost loses each year of its life, a whole number of years, down to what it
     // is worth at the end, salvage: by the straight line, the same each year, or with declining by
     // the double declining balance, twice the straight line's rate of what is left each year, never
@@ -5251,6 +5433,12 @@
         inflation: inflation,
         breakEven: breakEven,
         savings: savings,
+        mortgage: mortgage,
+        cardPayoff: cardPayoff,
+        retirement: retirement,
+        salary: salary,
+        tip: tip,
+        fuel: fuel,
         depreciation: depreciation,
         bond: bond,
         dayFrom: dayFrom,

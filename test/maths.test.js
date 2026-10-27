@@ -701,6 +701,57 @@ check(M.eigen([[1, 2, 3], [4, 5, 6], [7, 8, 9]]).poly.join(' ') === '1 -15 -18 0
         'APR and APY: not below –100%, of periods above 0');
 })();
 
+// money: a mortgage, a credit card paid off, retirement, pay, a tip and fuel
+(function () {
+    var r = M.mortgage(400000, 10, 6.5, 30, 4800, 1200, 0.5, 100, 600), p;
+    check(r.loan === 360000 && r.down === 40000 && r.payment === 2275.44488457 && r.each === 3025.44488457 && r.pmi === 150 && r.pmiMonths === 109 && r.byYear.length === 30,
+        'mortgage: 90% of 400000 at 6.5%, with tax, insurance, HOA and PMI for 109 months', JSON.stringify([r.each, r.pmiMonths]));
+    check(r.total === M.round(360000 + r.interest + 360 * 600 + 109 * 150), 'mortgage: all paid, with the costs and the PMI', r.total);
+    check(M.mortgage(400000, 25, 6.5, 30, 0, 0, 0.5, 0, 600).pmiMonths === 0 && M.mortgage(400000, 20, 6.5, 30, 0, 0, 0.5, 0, 600).pmiMonths === 0 &&
+        M.mortgage(400000, 19, 6.5, 30, 0, 0, 0.5, 0, 600).pmiMonths > 0, 'mortgage: no PMI of 20% or more put down');
+    check(M.mortgage(0, 10, 6, 30, 0, 0, 0, 0, 600).error === 'price' && M.mortgage(100, 100, 6, 30, 0, 0, 0, 0, 600).error === 'down' && M.mortgage(100, -1, 6, 30, 0, 0, 0, 0, 600).error === 'down' &&
+        M.mortgage(100, 10, 6, 30, -1, 0, 0, 0, 600).error === 'costs' && M.mortgage(100, 10, 6, 30.01, 0, 0, 0, 0, 600).error === 'whole',
+        'mortgage: a price above 0, down below 100%, costs not below 0, whole months');
+    r = M.cardPayoff(5000, 22, 200, NaN, 600);
+    check(r.months === 34 && r.last === 149.879452036 && r.interest === 1749.87945204 && r.paid === 6749.87945204 && r.byYear.length === 3 && r.byYear[2][3] === 0,
+        'cardPayoff: 5000 at 22% paid 200 a month, in 34 months', JSON.stringify([r.months, r.last, r.interest]));
+    r = M.cardPayoff(5000, 22, NaN, 24, 600);
+    check(r.months === 24 && r.payment === 259.390773239 && near(r.last, r.payment, 1e-9) && r.byYear[1][3] === 0, 'cardPayoff: the payment of 24 months, the last the same', JSON.stringify([r.payment, r.last]));
+    check(M.cardPayoff(1200, 0, NaN, 12, 600).payment === 100 && M.cardPayoff(1200, 0, 100, NaN, 600).months === 12, 'cardPayoff: at 0%, in equal parts');
+    check(M.cardPayoff(5000, 24, 100, NaN, 600).error === 'small' && M.cardPayoff(5000, 24, 50, NaN, 600).error === 'small' && M.cardPayoff(5000, 24, 100, 12, 600).error === 'one' &&
+        M.cardPayoff(5000, 24, NaN, 2.5, 600).error === 'months' && M.cardPayoff(0, 24, 100, NaN, 600).error === 'balance' && M.cardPayoff(100, -1, 10, NaN, 600).error === 'rate' &&
+        M.cardPayoff(5000, 1.2, 5.00001, NaN, 600).error === 'long', 'cardPayoff: a payment above the interest, one of the two, whole months, a balance above 0, an APR not below 0, up to 12000 months');
+    r = M.retirement(30, 65, 90, 10000, 500, 6, 2, NaN);
+    check(r.atRetire === 763662.854113 && r.real === 381852.514353 && r.putIn === 220000 && r.can === 1978.30049577 && isNaN(r.lasts) && isNaN(r.left) &&
+        r.path[0][0] === 30 && r.path[35][0] === 65 && JSON.stringify(r.path[r.path.length - 1]) === '[90,0]', 'retirement: at 65, in money of today, the most to draw to 90, its path to 0 there', JSON.stringify(r).slice(0, 200));
+    p = M.retirement(30, 65, 90, 10000, 500, 6, 2, r.can);
+    check(near(p.lasts, 90, 1e-6) && p.left === 0, 'retirement: drawing the most, it lasts to 90', JSON.stringify([p.lasts, p.left]));
+    check(M.retirement(30, 65, 90, 10000, 500, 6, 2, 2000).lasts === 89.548167699 && M.retirement(30, 65, 90, 10000, 500, 6, 2, 1000).lasts === Infinity &&
+        M.retirement(30, 65, 90, 10000, 500, 6, 2, 1000).left === 493989.827693 && M.retirement(30, 65, 90, 10000, 500, 6, 2, 0).lasts === Infinity,
+        'retirement: a draw more than it has, and one it never uses up');
+    check(M.retirement(30, 65, 90, 1000000, 0, 2, 2, 900).lasts === 150, 'retirement: money still there at 150 is 150, not for ever');
+    check(M.retirement(65, 65, 90, 100000, 0, 0, 0, NaN).can === M.round(100000 / 300) && M.retirement(65, 65, 90, 0, 0, 5, 2, 100).lasts === 65, 'retirement: retiring now, at 0%; nothing saved runs out at once');
+    check(M.retirement(30, 20, 90, 0, 0, 5, 2, NaN).error === 'age' && M.retirement(30, 65, 65, 0, 0, 5, 2, NaN).error === 'age' && M.retirement(30, 65, 160, 0, 0, 5, 2, NaN).error === 'age' &&
+        M.retirement(30, 65, 90, -1, 0, 5, 2, NaN).error === 'money' && M.retirement(30, 65, 90, 0, 0, 5, 2, -5).error === 'money' && M.retirement(30, 65, 90, 0, 0, -100, 2, NaN).error === 'rate',
+        'retirement: ages in order to 150, money not below 0, rates above –100%');
+    check(JSON.stringify(M.salary(52000, 4, 40, 5, 52, 0, 1.5)) === '{"hourly":25,"daily":200,"weekly":1000,"fortnight":2000,"half":2166.66666667,"monthly":4333.33333333,"yearly":52000}' &&
+        M.salary(25, 0, 40, 5, 52, 0, 1.5).yearly === 52000 && M.salary(200, 1, 40, 5, 52, 0, 1.5).hourly === 25 && M.salary(1000, 2, 40, 5, 52, 0, 1.5).hourly === 25 &&
+        M.salary(52000 / 12, 3, 40, 5, 52, 0, 1.5).hourly === 25, 'salary: a year, an hour, a day, a week and a month, each in the others');
+    check(M.salary(25, 0, 40, 5, 52, 5, 1.5).weekly === 1187.5 && M.salary(25, 0, 40, 5, 52, 5, 1.5).hourly === 25, 'salary: overtime in all but the hourly');
+    check(M.salary(-1, 0, 40, 5, 52, 0, 1.5).error === 'pay' && M.salary(1, 0, 0, 5, 52, 0, 1.5).error === 'hours' && M.salary(1, 0, 160, 5, 52, 10, 1.5).error === 'hours' &&
+        M.salary(1, 0, 40, 8, 52, 0, 1.5).error === 'days' && M.salary(1, 0, 40, 5, 54, 0, 1.5).error === 'weeks' && M.salary(1, 0, 40, 5, 52, -1, 1.5).error === 'ot',
+        'salary: pay not below 0, up to 168 hours, 7 days and 53 weeks, overtime not below 0');
+    check(JSON.stringify(M.tip(86.4, 18, 3, 0)) === '{"tip":15.552,"total":101.952,"each":33.984,"tipEach":5.184,"percent":18,"cents":33.98,"more":1}' &&
+        M.tip(86.4, 18, 3, 1).total === 102 && M.tip(86.4, 18, 3, 1).each === 34 && M.tip(86.4, 18, 3, 2).total === 102 && M.tip(100, 15, 1, 2).total === 115 && isNaN(M.tip(0, 15, 2, 0).percent),
+        'tip: split, a cent over for one; each or the total rounded up, a whole amount staying');
+    check(M.tip(-1, 15, 1, 0).error === 'bill' && M.tip(10, -1, 1, 0).error === 'tip' && M.tip(10, 15, 0, 0).error === 'people' && M.tip(10, 15, 2.5, 0).error === 'people', 'tip: not below 0, whole people');
+    check(JSON.stringify(M.fuel(500, 7, 1.8, 0, 2)) === '{"fuel":35,"cost":63,"per":0.126,"each":31.5,"l100":7,"mpg":33.6020833333}' && M.fuel(500, 20, 1, 1, 1).l100 === 5 &&
+        M.fuel(300, 30, 3.5, 2, 1).fuel === 10 && M.fuel(300, 30, 3.5, 2, 1).mpg === 30 && near(M.fuel(300, 45, 1, 3, 1).fuel, 300 / 45 * 4.54609, 1e-9) && M.fuel(300, 45, 1, 3, 1).l100 === 6.27735414071,
+        'fuel: of L/100 km, km a litre, US and UK miles a gallon, each the other way');
+    check(M.fuel(-1, 7, 1, 0, 1).error === 'distance' && M.fuel(1, 0, 1, 0, 1).error === 'economy' && M.fuel(1, 7, -1, 0, 1).error === 'price' && M.fuel(1, 7, 1, 0, 0).error === 'people' &&
+        isNaN(M.fuel(0, 7, 1, 0, 1).per), 'fuel: a distance and price not below 0, an economy above 0, whole people');
+})();
+
 // money: savings, a bond, depreciation, break-even, inflation and percentage change
 (function () {
     var r = M.savings(1000, 5, 10, 12, 100, false, 600), b;

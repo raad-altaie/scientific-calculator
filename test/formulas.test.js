@@ -167,6 +167,21 @@ Formulas.formulas.forEach(function (group) {
     check(linked === 31, 'In Biology: every formula named in it found', linked);
 })();
 
+// and of the solver's Finance tab, the same
+(function () {
+    var linked = 0;
+    Formulas.formulas.forEach(function (group) {
+        group.list.forEach(function (f) {
+            var letters = f.v.map(function (v) { return v[0]; });
+            if (!f.fin) return;
+            linked++;
+            check(typeof f.fin[0] === 'string' && Object.keys(f.fin[1]).length && Object.keys(f.fin[1]).every(function (k) { return letters.indexOf(k) > -1; }),
+                f.t + ': In Finance of its own letters', JSON.stringify(f.fin));
+        });
+    });
+    check(linked === 5, 'In Finance: every formula named in it found', linked);
+})();
+
 Formulas.constants.forEach(function (group) {
     group.list.forEach(function (k) {
         check(isFinite(k.v) && typeof k.v === 'number', k.t + ': a number');

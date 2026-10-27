@@ -1649,8 +1649,8 @@ async function finance(page, at) {
     await page.click('.calc-solve-btn');
     await page.click('.calc-solve .calc-solve-tab[data-tab="finance"]');
     check(await page.calc('[].map.call(document.querySelectorAll(".calc-solve .calc-sv-name"), function (n) { return n.textContent; }).join()') ===
-        'Loan calculator,Savings growth,Interest rates,Break-even,Inflation,Depreciation,Time value of money,NPV and IRR,Bond price and yield,Percentage change',
-        t + 'ten cards, the loan calculator and savings first');
+        'Loan calculator,Mortgage,Credit card payoff,Savings growth,Retirement,Salary and hourly pay,Interest rates,Break-even,Inflation,Depreciation,Time value of money,' +
+        'NPV and IRR,Bond price and yield,Percentage change,Tip and split,Fuel cost', t + 'sixteen cards, the loan calculator, the mortgage and the credit card first');
 
     // time value of money: the one left empty is found; received above 0, paid below
     await card('Time value of money');
@@ -1665,7 +1665,7 @@ async function finance(page, at) {
     await page.click(on + ' .calc-sv-opt[data-c="0"]');
     await set(3, '-1500');
     await set(0, '');
-    check((await page.calc(tiles)).indexOf('N=220.271307264 | ') === 0 && /N is not a whole number/.test(await page.calc(note)), t + 'tvm: N found, not a whole number', await page.calc(note));
+    check((await page.calc(tiles)).indexOf('N=220.27 | ') === 0 && /N is not a whole number/.test(await page.calc(note)), t + 'tvm: N found, not a whole number', await page.calc(note));
     await set(3, '1500');
     check(/^No N makes the money balance/.test(await page.calc(note)) && await page.calc('document.querySelector("' + on + ' .calc-sv-note").classList.contains("calc-sv-warn")') &&
         await page.calc(tiles) === 'N=–', t + 'tvm: money received both ways cannot balance: said, not a wrong number', await page.calc(note));
@@ -1693,9 +1693,9 @@ async function finance(page, at) {
     await page.click(on + ' textarea');
     await page.type('-1000\r300\r400\r500');
     check(await page.calc('document.querySelector("' + on + ' textarea").value') === '-1000\n300\n400\n500' &&
-        await page.calc(tiles) === 'NPV=-21.04 | IRR %=8.89633946933 | Payback=2.6', t + 'npv: of flows typed one to a line, at 10%', await page.calc(tiles));
+        await page.calc(tiles) === 'NPV=-21.04 | IRR %=8.9 | Payback=2.6', t + 'npv: of flows typed one to a line, at 10%', await page.calc(tiles));
     await set(1, '-100, 230, -132');
-    check(await page.calc(tiles) === 'NPV=0.00 | IRR %=10 | Payback=0.434782608696' && /more than one IRR: this one is the nearest 10%, and 20% is another/.test(await page.calc(note)),
+    check(await page.calc(tiles) === 'NPV=0.00 | IRR %=10 | Payback=0.43' && /more than one IRR: this one is the nearest 10%, and 20% is another/.test(await page.calc(note)),
         t + 'npv: flows that change sign twice: maybe more than one IRR', await page.calc(note));
     await set(1, '100 200');
     check(/^No IRR: the flows never change sign/.test(await page.calc(note)) && (await page.calc(tiles)).indexOf('IRR %=– | ') > 0, t + 'npv: none of flows that never change sign', await page.calc(note));
@@ -1733,19 +1733,19 @@ async function finance(page, at) {
     // APR and APY, each of the other
     await card('Interest rates');
     await set(0, '12');
-    check(await page.calc(tiles) === 'APR %=12 | APY %=12.6825030132 | A period %=1', t + 'rates: APR to APY', await page.calc(tiles));
+    check(await page.calc(tiles) === 'APR %=12 | APY %=12.68 | A period %=1', t + 'rates: APR to APY', await page.calc(tiles));
     await set(0, '');
     await set(1, '12.6825030132');
     check((await page.calc(tiles)).indexOf('APR %=12 | ') === 0, t + 'rates: and back', await page.calc(tiles));
     await set(0, '10');
     await set(1, '');
     await set(2, 'inf');
-    check((await page.calc(tiles)).indexOf('APR %=10 | APY %=10.5170918076 | ') === 0 && /all the time/.test(await page.calc(note)), t + 'rates: of interest all the time', await page.calc(tiles));
+    check((await page.calc(tiles)).indexOf('APR %=10 | APY %=10.52 | ') === 0 && /all the time/.test(await page.calc(note)), t + 'rates: of interest all the time', await page.calc(tiles));
 
     // savings: what money grows to, with a table of each year
     await card('Savings growth');
     for (const [n, v] of [[0, '1000'], [1, '5'], [2, '10'], [4, '100']]) await set(n, v);
-    check(await page.calc(tiles) === 'Balance=17175.24 | Put in=13000.00 | Interest=4175.24 | APY %=5.11618978817' && await page.calc(rows) === 10,
+    check(await page.calc(tiles) === 'Balance=17175.24 | Put in=13000.00 | Interest=4175.24 | APY %=5.12' && await page.calc(rows) === 10,
         t + 'savings: 100 added each month, and a row of each year', await page.calc(tiles));
     await page.click(on + ' .calc-sv-opt[data-c="1"]');
     check((await page.calc(tiles)).indexOf('Balance=17239.94 | ') === 0 && /added at the start/.test(await page.calc(note)), t + 'savings: added at the start of each month', await page.calc(tiles));
@@ -1759,7 +1759,7 @@ async function finance(page, at) {
     await set(4, '925.61');
     check(/^Leave one of Price and Yield empty/.test(await page.calc(note)), t + 'bond: both typed, said', await page.calc(note));
     await set(5, '');
-    check((await page.calc(tiles)).indexOf('Yield %=6.0000370085 | Price=925.61 | ') === 0, t + 'bond: the yield of a price, worked out first', await page.calc(tiles));
+    check((await page.calc(tiles)).indexOf('Yield %=6 | Price=925.61 | ') === 0, t + 'bond: the yield of a price, worked out first', await page.calc(tiles));
     await set(2, '9.75');
     check(/Accrued=12.50 \| Dirty price=/.test(await page.calc(tiles)) && /nearer than a whole period/.test(await page.calc(note)), t + 'bond: part of a period, its accrued interest', await page.calc(tiles));
 
@@ -1777,16 +1777,116 @@ async function finance(page, at) {
     // break-even, inflation and percentage change
     await card('Break-even');
     for (const [n, v] of [[0, '10000'], [1, '30'], [2, '17']]) await set(n, v);
-    check(await page.calc(tiles) === 'Units=769.230769231 | Sales=23076.92 | Margin each=13.00 | Margin %=43.3333333333' && /^770 whole units/.test(await page.calc(note)),
+    check(await page.calc(tiles) === 'Units=769.23 | Sales=23076.92 | Margin each=13.00 | Margin %=43.33' && /^770 whole units/.test(await page.calc(note)),
         t + 'break-even: the units, and the whole ones', await page.calc(tiles));
     await set(2, '40');
     check(/^The price is above the cost/.test(await page.calc(note)), t + 'break-even: a price below the cost', await page.calc(note));
     await card('Inflation');
     for (const [n, v] of [[0, '100'], [1, '3'], [2, '10']]) await set(n, v);
-    check(await page.calc(tiles) === 'Costs then=134.39 | Worth now=74.41 | Prices ×=1.34391637934 | Value lost %=25.5906085103', t + 'inflation: on and back', await page.calc(tiles));
+    check(await page.calc(tiles) === 'Costs then=134.39 | Worth now=74.41 | Prices ×=1.344 | Value lost %=25.59', t + 'inflation: on and back', await page.calc(tiles));
     await card('Percentage change');
     for (const [n, v] of [[0, '80'], [1, '100']]) await set(n, v);
     check(await page.calc(tiles) === 'Change=20 | Change %=25 | Margin %=20 | To ÷ From=1.25', t + 'percentage change: markup and margin', await page.calc(tiles));
+
+    // a mortgage: each month with its tax, insurance and PMI, until the loan is down to 78% of the price
+    await card('Mortgage');
+    for (const [n, v] of [[0, '400000'], [1, '10'], [2, '6.5'], [4, '4800'], [5, '1200'], [6, '0.5']]) await set(n, v);
+    check((await page.calc(tiles)).indexOf('Each month=2925.44 | Loan payment=2275.44 | Tax=400.00 | Insurance=100.00 | PMI=150.00 | Loan=360000.00 | Down payment=40000.00 | ') === 0 &&
+        await page.calc(rows) === 30 && /PMI for the first 109 payments, until the loan is down to 78% of the price/.test(await page.calc(note)),
+        t + 'mortgage: each month, PMI until 78% of the price, and a row of each year', await page.calc(tiles));
+    // a box, and its name, has a tip of what goes in it
+    await page.hover(on + ' input[data-k="pmi"]');
+    check(await page.until('!document.querySelector(".calc-tip").hidden', 2500) &&
+        /^PMI a year, a percentage of the loan.*Private mortgage insurance/.test(await page.calc('document.querySelector(".calc-tip").textContent')),
+        t + 'mortgage: resting on the PMI box shows what goes in it', await page.calc('document.querySelector(".calc-tip").textContent'));
+    await page.calc('document.querySelector("' + on + ' input[data-k=hoa]").parentNode.querySelector(".calc-sv-sym").id = "hoa-name"');
+    await page.hover('#hoa-name');
+    check(await page.until('/Homeowners association fees/.test(document.querySelector(".calc-tip").textContent) && !document.querySelector(".calc-tip").hidden', 2500),
+        t + 'mortgage: and on the name HOA', await page.calc('document.querySelector(".calc-tip").textContent'));
+    await set(1, '25');
+    check((await page.calc(tiles)).indexOf('Each month=2396.20 | Loan payment=1896.20 | Tax=400.00 | Insurance=100.00 | Loan=') === 0 && /No PMI: 20% or more is put down/.test(await page.calc(note)),
+        t + 'mortgage: no PMI of 20% or more put down', await page.calc(tiles));
+    await set(1, '100');
+    check(/^Down is 0% or more, and below 100%/.test(await page.calc(note)) && await page.calc(rows) === 0, t + 'mortgage: all of it put down, no loan', await page.calc(note));
+
+    // a credit card: the months a payment takes, or the payment of so many months
+    await card('Credit card payoff');
+    for (const [n, v] of [[0, '5000'], [1, '22'], [2, '200']]) await set(n, v);
+    check(await page.calc(tiles) === 'Months=34 | Total interest=1749.88 | Total paid=6749.88 | Last payment=149.88' && await page.calc(rows) === 3 &&
+        /^Paid off in 2 years and 10 months/.test(await page.calc(note)), t + 'payoff: the months of a payment, and a row of each year', await page.calc(tiles));
+    await set(3, '24');
+    check(/^Leave one of Payment and Months empty/.test(await page.calc(note)), t + 'payoff: both typed, said', await page.calc(note));
+    await set(2, '');
+    check((await page.calc(tiles)).indexOf('Payment=259.39 | Total interest=1225.38 | ') === 0 && await page.calc(rows) === 2, t + 'payoff: the payment of 24 months', await page.calc(tiles));
+    await set(3, '');
+    await set(2, '90');
+    check(/^The payment never pays it off: it is no more than the first month's interest, 91\.67/.test(await page.calc(note)), t + 'payoff: a payment below the interest', await page.calc(note));
+
+    // retirement: what there is then, the most to draw, and how long a draw lasts; drawn
+    await card('Retirement');
+    for (const [n, v] of [[0, '30'], [2, '10000'], [3, '500'], [4, '6']]) await set(n, v);
+    check(await page.calc(tiles) === 'At retirement=763662.85 | In money of today=381852.51 | Put in=220000.00 | Growth=543662.85 | Can draw a month=1978.30' &&
+        await page.calc('!!document.querySelector("' + on + ' .calc-sv-drawn svg")'), t + 'retirement: at 65, in money of today, the most to draw to 90, and the savings drawn', await page.calc(tiles));
+    await set(7, '2000');
+    check(/Lasts to age=89\.5 \| Left at 90=0\.00$/.test(await page.calc(tiles)) && /uses it up before 90/.test(await page.calc(note)), t + 'retirement: a draw more than it has', await page.calc(tiles));
+    await set(7, '1000');
+    check(/Lasts to age=∞ \| Left at 90=493989\.83$/.test(await page.calc(tiles)) && /never uses it up/.test(await page.calc(note)), t + 'retirement: a draw it never uses up', await page.calc(tiles));
+    await set(1, '20');
+    check(/^The ages in order/.test(await page.calc(note)), t + 'retirement: retiring before now', await page.calc(note));
+
+    // pay by the year in each of the others, with overtime
+    await card('Salary and hourly pay');
+    await set(0, '52000');
+    await page.click(on + ' .calc-sv-opt[data-c="4"]');
+    check(await page.calc(tiles) === 'Hourly=25.00 | Daily=200.00 | Weekly=1000.00 | Every 2 weeks=2000.00 | Twice a month=2166.67 | Monthly=4333.33 | Yearly=52000.00',
+        t + 'salary: a year in each of the others', await page.calc(tiles));
+    await set(4, '5');
+    check((await page.calc(tiles)).indexOf('Hourly=25.00 | Daily=237.50 | ') === 0 && /Yearly=61750\.00$/.test(await page.calc(tiles)) &&
+        /5 hours of overtime a week, at 1\.5 × the hourly/.test(await page.calc(note)), t + 'salary: with overtime, but the hourly', await page.calc(tiles));
+
+    // a tip split three ways, the odd cent said; rounded up
+    await card('Tip and split');
+    for (const [n, v] of [[0, '86.40'], [1, '18'], [2, '3']]) await set(n, v);
+    check(await page.calc(tiles) === 'Tip=15.55 | Total=101.95 | Each=33.98 | Tip each=5.18' && await page.calc(note) === '33.98 each comes a cent short: one pays 33.99.',
+        t + 'tip: split three ways, the cent over said', await page.calc(tiles));
+    await page.click(on + ' .calc-sv-opt[data-c="1"]');
+    check(await page.calc(tiles) === 'Tip=15.60 | Total=102.00 | Each=34.00 | Tip each=5.20 | Tip %=18.06', t + 'tip: each rounded up to a whole amount', await page.calc(tiles));
+
+    // fuel: a trip in L/100 km, then in miles a US gallon, its boxes named so and of their own; back, the km kept
+    await card('Fuel cost');
+    for (const [n, v] of [[0, '500'], [1, '7'], [2, '1.80'], [3, '2']]) await set(n, v);
+    check(await page.calc(tiles) === 'Fuel, L=35 | Cost=63.00 | A km=0.126 | There and back=126.00 | Each=31.50 | MPG US=33.6', t + 'fuel: a trip in L/100 km, split two ways', await page.calc(tiles));
+    await page.click(on + ' .calc-sv-opt[data-c="2"]');
+    check(await page.calc('[].map.call(document.querySelectorAll("' + on + ' .calc-sv-boxes .calc-sv-sym"), function (s) { return s.textContent; }).join()') === 'Unit,Distance,Economy,Price,People' &&
+        await page.calc('document.querySelector("' + on + ' input").value') === '500', t + 'fuel: in miles a US gallon, the same boxes, what is typed kept');
+    for (const [n, v] of [[0, '300'], [1, '30'], [2, '3.50']]) await set(n, v);
+    check(await page.calc(tiles) === 'Fuel, gal=10 | Cost=35.00 | A mile=0.117 | There and back=70.00 | Each=17.50 | L/100 km=7.8', t + 'fuel: a trip in miles a US gallon', await page.calc(tiles));
+    await page.click(on + ' .calc-sv-opt[data-c="0"]');
+    check((await page.calc(tiles)).indexOf('Fuel, L=90 | Cost=315.00 | ') === 0, t + 'fuel: back in L/100 km, the boxes kept', await page.calc(tiles));
+
+    // a formula of money has In Finance, beside Insert: its card of the Finance tab opens with what was typed in it
+    async function inFinance(name, values) {
+        await page.click('.calc-fx-btn');
+        await page.click('.calc-fx-tab[data-tab="formulas"]');
+        await page.calc('[].filter.call(document.querySelectorAll(".calc-fx-item"), function (it) { return it.querySelector(".calc-fx-name").textContent === ' + JSON.stringify(name) +
+            '; })[0].querySelector(".calc-fx-row").click()');
+        await sleep(60);
+        await page.calc('[].forEach.call(document.querySelectorAll(".calc-fx-item.calc-on input"), function (b, i) { b.value = ' + JSON.stringify(values) + '[i] || ""; ' +
+            'b.dispatchEvent(new Event("input", { bubbles: true })); })');
+        await page.click('.calc-fx-item.calc-on .calc-fx-fin');
+    }
+    await inFinance('Loan payment', ['200000', '6', '30']);
+    check(await open(page, '.calc-solve') && !await open(page, '.calc-fx') && await page.calc('document.querySelector("' + on + ' .calc-sv-name").textContent') === 'Loan calculator' &&
+        (await page.calc(tiles)).indexOf('Payment=1199.10 | ') === 0, t + 'In Finance: Loan payment opens the loan calculator with what was typed', await page.calc(tiles));
+    await inFinance('Split a bill', ['86.40', '18', '3']);
+    check(await page.calc('document.querySelector("' + on + ' .calc-sv-name").textContent') === 'Tip and split' && (await page.calc(tiles)).indexOf('Tip=15.55 | Total=101.95 | Each=33.98') === 0,
+        t + 'In Finance: Split a bill opens Tip and split', await page.calc(tiles));
+    await page.click('.calc-fx-btn');
+    await page.click('.calc-fx-tab[data-tab="formulas"]');
+    await page.calc('[].filter.call(document.querySelectorAll(".calc-fx-item"), function (it) { return it.querySelector(".calc-fx-name").textContent === "Simple interest"; })[0].querySelector(".calc-fx-row").click()');
+    await sleep(60);
+    check(!await page.calc('document.querySelector(".calc-fx-item.calc-on .calc-fx-fin")'), t + 'In Finance: none on a formula with no card of its own');
+    await page.key('Escape', 27);
 
     // the decimal comma, as in the other results; fraction mode, in its results as well
     await page.fresh(at, { format: { notation: 'norm', places: 'auto', group: 'dot' } });
@@ -1794,7 +1894,7 @@ async function finance(page, at) {
     await page.click('.calc-solve .calc-solve-tab[data-tab="finance"]');
     await card('NPV and IRR');
     await set(1, '-1000; 300,5; 400; 500');
-    check(await page.calc(tiles) === 'NPV=-20,58 | IRR %=8,92002068437 | Payback=2,599', t + 'npv: with the decimal comma, and ; between', await page.calc(tiles));
+    check(await page.calc(tiles) === 'NPV=-20,58 | IRR %=8,92 | Payback=2,6', t + 'npv: with the decimal comma, and ; between', await page.calc(tiles));
     await card('Time value of money');
     for (const [n, v] of [[0, '12'], [1, '6'], [2, '1000'], [4, '0']]) await set(n, v);
     check((await page.calc(tiles)).indexOf('PMT=-86,07 | ') === 0, t + 'tvm: with the decimal comma', await page.calc(tiles));

@@ -485,6 +485,11 @@
             d: 'Opens the card of the Physics panel that works this out, with what you typed in it: there, any of its letters from the others.',
             k: ''
         },
+        'formula finance': {
+            t: 'In Finance',
+            d: 'Opens the card of the Finance tab of Solve that works this out, with what you typed in it, and what more it gives.',
+            k: ''
+        },
         'formula biology': {
             t: 'In Biology',
             d: 'Opens the card of the Biology panel that works this out, with what you typed in it, and draws it.',

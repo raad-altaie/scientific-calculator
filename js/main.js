@@ -833,7 +833,7 @@
             '.calc-graph-fn > .calc-graph-swatch, ' +
             '.calc-sto, .calc-var-btn, .calc-fx-phys, input, textarea, ' +
             '.calc-stats-chart, .calc-hist, .calc-find-btn, .calc-past-export, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit, .calc-help, .calc-open-big, ' +
-            '.calc-solve .calc-solve-tab, .calc-chem .calc-solve-tab, .calc-stats .calc-solve-tab, .calc-phys .calc-solve-tab, .calc-bio .calc-solve-tab, .calc-stats-fitpick, .calc-chem [data-pt], .calc-sv-opt, .calc-sv-copy, .calc-sv-example, .calc-sv-reset') || letterIn(target);
+            '.calc-solve .calc-solve-tab, .calc-chem .calc-solve-tab, .calc-stats .calc-solve-tab, .calc-phys .calc-solve-tab, .calc-bio .calc-solve-tab, .calc-stats-fitpick, .calc-chem [data-pt], .calc-sv-opt, .calc-sv-copy, .calc-sv-example, .calc-sv-reset, .calc-sv-boxes .calc-sv-sym') || letterIn(target);
         if (key === tipKey) return;
         hideTip();
         tipKey = key;
@@ -4778,7 +4778,7 @@
         if (!item) {
             if (e.target.closest('.calc-sv-reset')) resetFormula(e.target.closest('.calc-fx-form'));
             if (e.target.closest('.calc-fx-insert')) insertFormula(e.target.closest('.calc-fx-item'));
-            if (e.target.closest('.calc-fx-phys')) formulaInPhysics(e.target.closest('.calc-fx-item'), e.target.closest('.calc-fx-bio') ? 'bio' : 'phys');
+            if (e.target.closest('.calc-fx-phys')) formulaInPhysics(e.target.closest('.calc-fx-item'), e.target.closest('.calc-fx-bio') ? 'bio' : e.target.closest('.calc-fx-fin') ? 'solve' : 'phys');
             return;
         }
         if (fxTab === 'constants') putConstant(fxItems.constants[+item.dataset.i].item);
@@ -5045,6 +5045,7 @@
         }).join('') + '</div><div class="calc-fx-actions"><span class="calc-fx-note">' +
             (f.deg ? 'Angles in ' + ['radians', 'degrees', 'gradians'][deg] + ', the unit in use' : '') +
             '</span><span class="calc-fx-btns">' + (f.p && !physButton.hidden ? '<span class="calc-fx-phys" role="button">In Physics</span>' : '') + (f.b && !bioButton.hidden ? '<span class="calc-fx-phys calc-fx-bio" role="button">In Biology</span>' : '') + // its card of the Physics panel, beside Insert
+            (f.fin && !solveButton.hidden ? '<span class="calc-fx-phys calc-fx-fin" role="button">In Finance</span>' : '') + // of money, its card of the solver's Finance tab
             '<span class="calc-fx-insert">Insert' + insertIcon() + '</span></span></div>';
         item.classList.add('calc-on');
         form.querySelector('.calc-fx-note').dataset.usual = form.querySelector('.calc-fx-note').innerHTML;
@@ -5108,10 +5109,10 @@
         saveState();
     }
 
-    // A formula's card of the Physics panel opened, or of the Biology panel's (go 'bio'), with what its boxes have: there any
-    // of its letters is worked out from the others. Two letters of a network go in as one, 100 || 220
+    // A formula's card of the Physics panel opened, or of the Biology panel's (go 'bio'), or of the solver's Finance tab (go
+    // 'solve'), with what its boxes have: there any of its letters is worked out from the others. Two letters of a network go in as one, 100 || 220
     function formulaInPhysics(item, go) {
-        var f = fxItems.formulas[+item.dataset.i].item, link = go === 'bio' ? f.b : f.p, inputs = [].slice.call(item.querySelectorAll('input')), kept = {}, joined = [];
+        var f = fxItems.formulas[+item.dataset.i].item, link = go === 'bio' ? f.b : go === 'solve' ? f.fin : f.p, inputs = [].slice.call(item.querySelectorAll('input')), kept = {}, joined = [];
         f.v.forEach(function (v, i) {
             var box = link[1][v[0]], value = boxValue(inputs[i]).trim();
             if (box === '+' || box === '||') {
@@ -5122,14 +5123,14 @@
             }
         });
         Object.assign(kept, link[2] || {});
-        physPut(link[0], kept, go === 'bio' ? 'bio' : 'phys');
+        physPut(link[0], kept, go);
     }
 
     // The Physics panel, or go's, on a card, with these in its boxes: over the keys from the calculator; popped out, it pops
     // out in place of what is, as the rail goes to it; in the extension's windows, the window goes there and takes the card
     // from the storage as it opens (takeFound), as the search does
     function physPut(id, kept, go) {
-        var hit = { go: go || 'phys', kind: 'put', id: id, kept: kept }, from = bigShown(), panel = hit.go === 'bio' ? bio : phys;
+        var hit = { go: go || 'phys', kind: 'put', id: id, kept: kept }, from = bigShown(), panel = { phys: phys, bio: bio, solve: solver }[hit.go];
         if (!from || from === hit.go) return panel.put(id, kept);
         if (graphAlone || chemAlone || panelAlone || homeAlone) {
             store('found', { hit: hit, at: Date.now() });
@@ -5151,7 +5152,7 @@
     function fxTip(el) {
         var item = el.parentNode, it;
         if (el.classList.contains('calc-past-close')) return CalcTips['formulas close'];
-        if (el.classList.contains('calc-fx-phys')) return CalcTips[el.classList.contains('calc-fx-bio') ? 'formula biology' : 'formula physics'];
+        if (el.classList.contains('calc-fx-phys')) return CalcTips[el.classList.contains('calc-fx-bio') ? 'formula biology' : el.classList.contains('calc-fx-fin') ? 'formula finance' : 'formula physics'];
         if (el.classList.contains('calc-sv-reset')) return CalcTips['card reset'];
         if (!el.classList.contains('calc-fx-row')) return null;
         it = fxItems[fxTab][+item.dataset.i].item;
@@ -5395,44 +5396,83 @@
         finance: [
             { id: 'schedule', t: 'Loan calculator', f: ['Interest', 'Principal', 'Balance'], d: 'A loan paid back in equal payments at the end of each period: the payment, all the interest, and a table ' +
                 'of each year, or of each payment, of the interest paid, the principal paid and what is left of the loan. Copy table copies it for a spreadsheet.',
-                fields: [{ k: 'loan', l: 'Loan', ph: '' }, { k: 'rate', l: 'Rate %', ph: '' }, { k: 'years', l: 'Years', ph: '' }, { k: 'py', l: 'A year', ph: '12', def: 12, aria: 'Payments a year' },
+                fields: [{ k: 'loan', l: 'Loan', ph: '', tip: 'The amount borrowed.' }, { k: 'rate', l: 'Rate %', ph: '', tip: 'The interest rate a year, as a percentage: 6 for 6%.' }, { k: 'years', l: 'Years', ph: '', tip: 'How long the loan runs.' }, { k: 'py', l: 'A year', ph: '12', def: 12, aria: 'Payments a year', tip: 'How many payments a year: 12 for monthly, 26 for every two weeks, 52 for weekly. 12 while empty.' },
                     { k: 'by', l: 'Table', choice: ['By year', 'By payment'] }], cols: 2, run: runSchedule, example: { loan: '200000', rate: '6', years: '30' } },
+            { id: 'mortgage', t: 'Mortgage', f: ['Loan payment', 'Tax', 'PMI'], d: 'A home bought with a part of its price put down, the rest a loan paid back each month: what is paid each month, ' +
+                'with the property tax and home insurance of a year, PMI and HOA fees a month if you like. PMI, a percentage of the loan a year, while less than 20% is put down, until the loan is down to 78% ' +
+                'of the price. All the interest, all paid, and a table of each year; Copy table copies it for a spreadsheet.',
+                fields: [{ k: 'price', l: 'Price', ph: '', tip: 'What the home costs, before anything is put down.' }, { k: 'down', l: 'Down %', ph: '20', def: 20, tip: 'The part of the price paid at the start, as a percentage: 20 for 20%. The rest is the loan. 20 while empty.' }, { k: 'rate', l: 'Rate %', ph: '', tip: 'The loan\'s interest rate a year, as a percentage: 6.5 for 6.5%.' }, { k: 'years', l: 'Years', ph: '30', def: 30, tip: 'How long the loan runs. 30 while empty.' },
+                    { k: 'tax', l: 'Tax', ph: '0', def: 0, aria: 'Property tax a year', tip: 'Property tax for a whole year, as an amount: 4800 is 400 a month. 0 while empty.' }, { k: 'ins', l: 'Insurance', ph: '0', def: 0, aria: 'Home insurance a year', tip: 'Home insurance for a whole year, as an amount: 1200 is 100 a month. 0 while empty.' },
+                    { k: 'pmi', l: 'PMI %', ph: '0', def: 0, aria: 'PMI a year, a percentage of the loan', tip: 'Private mortgage insurance, as a percentage of the loan a year: 0.5 for 0.5%. Paid only while less than 20% is put down, until the loan is down to 78% of the price. 0 while empty.' }, { k: 'hoa', l: 'HOA', ph: '0', def: 0, aria: 'HOA fees a month', tip: 'Homeowners association fees, as an amount a month. 0 while empty.' }], cols: 2,
+                run: runMortgage, example: { price: '400000', down: '10', rate: '6.5', tax: '4800', ins: '1200', pmi: '0.5' } },
+            { id: 'payoff', t: 'Credit card payoff', f: ['Months', 'Interest'], d: 'A balance owed at an APR, of interest each month, paid off: in how many months a payment each month pays it, or the payment ' +
+                'that pays it in so many months. Leave one of Payment and Months empty, the one to work out. All the interest, all paid, the last payment, and a table of each year.',
+                fields: [{ k: 'balance', l: 'Balance', ph: '', tip: 'What is owed on the card now.' }, { k: 'apr', l: 'APR %', ph: '', tip: 'The card\'s interest rate a year, as a percentage: 22 for 22%.' }, { k: 'pay', l: 'Payment', ph: '', aria: 'Payment a month', tip: 'What you pay each month. Leave it empty to work out the payment that pays it off in Months.' }, { k: 'months', l: 'Months', ph: '', tip: 'How many months to pay it off in. Leave it empty to work out how long Payment takes.' }], cols: 2,
+                run: runPayoff, example: { balance: '5000', apr: '22', pay: '200' } },
             { id: 'savings', t: 'Savings growth', f: 'P(1 + r/m)<sup>mt</sup>', d: 'Money saved at a rate a year, of interest m times a year, for years, with an amount added each period if you like, at its end or its start: ' +
                 'what it grows to, all that was put in, the interest, and a table of each year. m may be ∞, typed inf, for interest all the time, with nothing added. Copy table copies it for a spreadsheet.',
-                fields: [{ k: 'start', l: 'Start', ph: '' }, { k: 'rate', l: 'Rate %', ph: '' }, { k: 'years', l: 'Years', ph: '' }, { k: 'm', l: 'A year', ph: '12', def: 12, inf: true, aria: 'Periods a year' },
-                    { k: 'add', l: 'Add', ph: '0', def: 0, aria: 'Added each period' }, { k: 'due', l: 'Added', choice: ['At the end', 'At the start'] }], cols: 2, run: runSavings, example: { start: '1000', rate: '5', years: '10', add: '100' } },
+                fields: [{ k: 'start', l: 'Start', ph: '', tip: 'What is in the account at the start.' }, { k: 'rate', l: 'Rate %', ph: '', tip: 'The interest rate a year, as a percentage: 5 for 5%.' }, { k: 'years', l: 'Years', ph: '', tip: 'How long it is saved.' }, { k: 'm', l: 'A year', ph: '12', def: 12, inf: true, aria: 'Periods a year', tip: 'How many times a year interest is added: 12 for monthly, 365 for daily, inf for all the time. Add goes in as often. 12 while empty.' },
+                    { k: 'add', l: 'Add', ph: '0', def: 0, aria: 'Added each period', tip: 'An amount put in each period, as often as A year says. 0 while empty.' }, { k: 'due', l: 'Added', choice: ['At the end', 'At the start'] }], cols: 2, run: runSavings, example: { start: '1000', rate: '5', years: '10', add: '100' } },
+            { id: 'retire', t: 'Retirement', f: ['At retirement', 'A month to draw'], d: 'Money saved for retirement, with an amount added each month until then, growing at a return a year as prices grow ' +
+                'with inflation: what there is at retirement, and in money of today; the most to draw each month, in money of today, for it to last to an age; and of a draw each month, the age it lasts to. ' +
+                'Drawn: the savings at each age.',
+                fields: [{ k: 'age', l: 'Age', ph: '', tip: 'Your age now.' }, { k: 'retire', l: 'Retire at', ph: '65', def: 65, tip: 'The age you stop working and start to draw on the savings. 65 while empty.' }, { k: 'saved', l: 'Saved', ph: '0', def: 0, tip: 'What is saved for retirement now. 0 while empty.' },
+                    { k: 'add', l: 'Add', ph: '0', def: 0, aria: 'Added each month', tip: 'What you put in each month until you retire. 0 while empty.' }, { k: 'ret', l: 'Return %', ph: '', aria: 'Return a year', tip: 'What the savings earn a year, as a percentage, before inflation: 6 for 6%.' }, { k: 'infl', l: 'Inflation %', ph: '2', def: 2, aria: 'Inflation a year', tip: 'How much prices rise a year, as a percentage. In money of today takes it out, so amounts compare with what money buys now. 2 while empty.' },
+                    { k: 'until', l: 'To age', ph: '90', def: 90, aria: 'To last to the age', tip: 'The age the money is to last to: Can draw a month is worked out for it. 90 while empty.' }, { k: 'draw', l: 'Draw', ph: '', aria: 'Drawn each month, in money of today', tip: 'What you mean to take out each month once retired, in money of today, so it grows with prices: gives the age it lasts to. Empty for none.' }], cols: 2,
+                run: runRetirement, example: { age: '30', saved: '10000', add: '500', ret: '6' } },
+            { id: 'salary', t: 'Salary and hourly pay', f: 'Hour ↔ Year', d: 'Pay by the hour, day, week, month or year, in each of the others, of the hours and days worked a week and the weeks a year; ' +
+                'with overtime a week at so many times the hourly if you like.',
+                fields: [{ k: 'per', l: 'Pay by', choice: ['Hour', 'Day', 'Week', 'Month', 'Year'] }, { k: 'pay', l: 'Pay', ph: '', tip: 'What you are paid, by the hour, day, week, month or year, as Pay by says.' }, { k: 'hours', l: 'Hours', ph: '40', def: 40, aria: 'Hours a week', tip: 'Hours worked a week, overtime not in them. 40 while empty.' },
+                    { k: 'days', l: 'Days', ph: '5', def: 5, aria: 'Days a week', tip: 'Days worked a week. 5 while empty.' }, { k: 'weeks', l: 'Weeks', ph: '52', def: 52, aria: 'Weeks a year', tip: 'Weeks paid a year: 52, or fewer for unpaid time off. 52 while empty.' },
+                    { k: 'ot', l: 'Overtime', ph: '0', def: 0, aria: 'Hours of overtime a week', tip: 'Hours of overtime a week, on top of Hours. 0 while empty.' }, { k: 'otx', l: 'Overtime ×', ph: '1.5', def: 1.5, aria: 'Overtime, times the hourly', tip: 'What an hour of overtime pays, as times the hourly: 1.5 for time and a half, 2 for double. 1.5 while empty.' }], cols: 2,
+                run: runSalary, example: { pay: '25' } },
             { id: 'rates', t: 'Interest rates', f: 'APR ↔ APY', d: 'A nominal rate a year, its APR, as the effective one, its APY, of interest m times a year, and back: type one, ' +
                 'and the other is worked out. m may be ∞, typed inf, for interest all the time.',
-                fields: [{ k: 'apr', l: 'APR %', ph: '' }, { k: 'apy', l: 'APY %', ph: '' }, { k: 'm', l: 'm', ph: '12', def: 12, inf: true, aria: 'Periods a year' }], cols: 3, run: runRates, example: { apr: '6' } },
+                fields: [{ k: 'apr', l: 'APR %', ph: '', tip: 'The nominal rate a year, as a percentage: what a loan or an account quotes. Leave it empty to work it out from APY.' }, { k: 'apy', l: 'APY %', ph: '', tip: 'The effective rate a year, as a percentage: what it really comes to with interest on interest. Leave it empty to work it out from APR.' }, { k: 'm', l: 'm', ph: '12', def: 12, inf: true, aria: 'Periods a year', tip: 'How many times a year interest is added: 12 for monthly, 365 for daily, inf for all the time. 12 while empty.' }], cols: 3, run: runRates, example: { apr: '6' } },
             { id: 'breakeven', t: 'Break-even', f: 'Fixed ÷ (Price – Cost)', d: 'How many must be sold to cover the fixed costs, and a profit if you like, at a price and a cost of each one: ' +
                 'the units, what they sell for, and what each one leaves.',
-                fields: [{ k: 'fixed', l: 'Fixed costs', ph: '' }, { k: 'price', l: 'Price', ph: '' }, { k: 'cost', l: 'Cost each', ph: '' }, { k: 'profit', l: 'Profit', ph: '0', def: 0 }], cols: 2,
+                fields: [{ k: 'fixed', l: 'Fixed costs', ph: '', tip: 'Costs that stay the same however many are sold: rent, wages, machines.' }, { k: 'price', l: 'Price', ph: '', tip: 'What each one sells for.' }, { k: 'cost', l: 'Cost each', ph: '', tip: 'What each one costs to make or buy.' }, { k: 'profit', l: 'Profit', ph: '0', def: 0, tip: 'A profit to make on top, if you like. 0 while empty.' }], cols: 2,
                 run: runBreakEven, example: { fixed: '10000', price: '25', cost: '15' } },
             { id: 'inflation', t: 'Inflation', f: 'A(1 + r)<sup>t</sup>', d: 'An amount at inflation of a rate a year for years: what it costs then, what it was worth in money of today, ' +
                 'how many times prices grow, and how much of what money buys is lost.',
-                fields: [{ k: 'amount', l: 'Amount', ph: '' }, { k: 'rate', l: 'Rate %', ph: '' }, { k: 'years', l: 'Years', ph: '' }], cols: 3, run: runInflation, example: { amount: '100', rate: '3', years: '10' } },
+                fields: [{ k: 'amount', l: 'Amount', ph: '', tip: 'An amount of money today.' }, { k: 'rate', l: 'Rate %', ph: '', tip: 'How much prices rise a year, as a percentage: 3 for 3%.' }, { k: 'years', l: 'Years', ph: '', tip: 'How many years on.' }], cols: 3, run: runInflation, example: { amount: '100', rate: '3', years: '10' } },
             { id: 'depreciation', t: 'Depreciation', f: ['Straight line', 'Declining balance'], d: 'What an asset loses each year of its life, down to what it is worth at the end, its salvage value: the same each year by the straight line, ' +
                 'or twice the straight line\'s rate of what is left by the double declining balance, then the straight line once that loses more. A table of each year; Copy table copies it for a spreadsheet.',
-                fields: [{ k: 'cost', l: 'Cost', ph: '' }, { k: 'salvage', l: 'Salvage', ph: '0', def: 0 }, { k: 'life', l: 'Years', ph: '' },
+                fields: [{ k: 'cost', l: 'Cost', ph: '', tip: 'What the asset cost when bought.' }, { k: 'salvage', l: 'Salvage', ph: '0', def: 0, tip: 'What it is worth at the end of its life, sold or scrapped. 0 while empty.' }, { k: 'life', l: 'Years', ph: '', tip: 'How many years it is used for.' },
                     { k: 'way', l: 'Way', choice: ['Straight line', 'Declining balance'] }], cols: 3, run: runDepreciation, example: { cost: '10000', salvage: '1000', life: '5' } },
             { id: 'tvm', t: 'Time value of money', f: ['N', 'I/Y', 'PV', 'PMT', 'FV'], d: 'Money over time, as a BA II Plus or an HP 12C works it out: leave one of N, I/Y, PV, PMT and FV empty, and it is worked out. ' +
                 'N payments of PMT, at I/Y, a percentage a year, of P/Y payments a year, bring PV at the start to FV at the end; each payment at the end of its period, or at its start. ' +
                 'Money received is above 0 and money paid below 0: a loan of 200000 is PV = 200000, its PMT below 0. With all the money paid, and the interest.',
-                fields: [{ k: 'n', l: 'N', ph: '' }, { k: 'iy', l: 'I/Y %', ph: '' }, { k: 'pv', l: 'PV', ph: '' }, { k: 'pmt', l: 'PMT', ph: '' },
-                    { k: 'fv', l: 'FV', ph: '' }, { k: 'py', l: 'P/Y', ph: '12', def: 12 },
+                fields: [{ k: 'n', l: 'N', ph: '', tip: 'How many payments in all: 360 for 30 years paid monthly.' }, { k: 'iy', l: 'I/Y %', ph: '', tip: 'The interest rate a year, as a percentage: 6 for 6%.' }, { k: 'pv', l: 'PV', ph: '', tip: 'The money at the start: a loan received above 0, money put in below 0.' }, { k: 'pmt', l: 'PMT', ph: '', tip: 'Each payment: paid out below 0, received above 0.' },
+                    { k: 'fv', l: 'FV', ph: '', tip: 'The money at the end: 0 for a loan paid off.' }, { k: 'py', l: 'P/Y', ph: '12', def: 12, tip: 'Payments a year: 12 for monthly. 12 while empty.' },
                     { k: 'due', l: 'Payments', choice: ['At the end', 'At the start'] }], cols: 2, run: runTvm, example: { n: '360', iy: '6', pv: '200000', fv: '0' } },
             { id: 'npv', t: 'NPV and IRR', f: 'Σ CF<sub>t</sub> / (1 + r)<sup>t</sup>', d: 'Of cash flows, one a period, the first at the start and usually below 0, as it is paid out: their net present value at the rate r, ' +
                 'a percentage a period; their internal rate of return, the rate of an NPV of 0; and how many periods they take to pay back what went out. ' +
                 'Type the flows one to a line, or apart as the statistics list is: -1000, 300, 400, 500.',
-                fields: [{ k: 'r', l: 'Rate %', ph: '10', def: 10 }, { k: 'cf', l: 'Cash flows', ph: '-1000&#10;300&#10;400&#10;500', area: true }], run: runNpv, example: { r: '10', cf: '-1000\n300\n400\n500' } },
+                fields: [{ k: 'r', l: 'Rate %', ph: '10', def: 10, tip: 'The rate a period that brings each cash flow back to the start, as a percentage: 10 for 10%. 10 while empty.' }, { k: 'cf', l: 'Cash flows', ph: '-1000&#10;300&#10;400&#10;500', area: true, tip: 'One cash flow a period, the first at the start: paid out below 0, received above 0.' }], run: runNpv, example: { r: '10', cf: '-1000\n300\n400\n500' } },
             { id: 'bond', t: 'Bond price and yield', f: 'Σ C / (1 + y)<sup>t</sup> + F / (1 + y)<sup>n</sup>', d: 'A bond of a face value paying its coupon, a percentage of it a year, in parts a number of times a year, for years: ' +
                 'leave one of Price and Yield empty, and it is worked out, the yield a year as a BA II Plus gives it. Years that are not whole coupons bring the next coupon nearer: ' +
                 'the price is then without the interest earned since the last one, the accrued interest, and the dirty price with it. With the current yield and the duration.',
-                fields: [{ k: 'face', l: 'Face', ph: '100', def: 100 }, { k: 'coupon', l: 'Coupon %', ph: '' }, { k: 'years', l: 'Years', ph: '' }, { k: 'freq', l: 'A year', ph: '2', def: 2, aria: 'Coupons a year' },
-                    { k: 'price', l: 'Price', ph: '' }, { k: 'yld', l: 'Yield %', ph: '' }], cols: 2, run: runBond, example: { coupon: '5', years: '10', yld: '6' } },
+                fields: [{ k: 'face', l: 'Face', ph: '100', def: 100, tip: 'What the bond pays back at its end, its par value. 100 while empty.' }, { k: 'coupon', l: 'Coupon %', ph: '', tip: 'The interest it pays a year, as a percentage of the face value: 5 for 5%.' }, { k: 'years', l: 'Years', ph: '', tip: 'Years until it ends.' }, { k: 'freq', l: 'A year', ph: '2', def: 2, aria: 'Coupons a year', tip: 'How many coupons a year: 2 for twice a year. 2 while empty.' },
+                    { k: 'price', l: 'Price', ph: '', tip: 'What it costs now, without the interest earned since the last coupon. Leave it empty to work it out from Yield.' }, { k: 'yld', l: 'Yield %', ph: '', tip: 'The return a year it gives at its price, as a percentage. Leave it empty to work it out from Price.' }], cols: 2, run: runBond, example: { coupon: '5', years: '10', yld: '6' } },
             { id: 'change', t: 'Percentage change', f: '(b – a) ÷ a', d: 'The change from one number to another, and as a percentage of the first; of a cost and its price, the first is the markup and the margin ' +
                 'the profit as a percentage of the price.',
-                fields: [{ k: 'a', l: 'From', ph: '' }, { k: 'b', l: 'To', ph: '' }], cols: 2, run: runChange, example: { a: '80', b: '100' } }
+                fields: [{ k: 'a', l: 'From', ph: '', tip: 'The number to start from: the old value, or a cost.' }, { k: 'b', l: 'To', ph: '', tip: 'The number it went to: the new value, or a price.' }], cols: 2, run: runChange, example: { a: '80', b: '100' } },
+            { id: 'tip', t: 'Tip and split', f: ['Tip', 'Each'], d: 'A bill and a tip, a percentage of it: the tip, the total, and what each pays, split among people; rounded up so each pays a whole ' +
+                'amount, or the total is, if you like.',
+                fields: [{ k: 'bill', l: 'Bill', ph: '', tip: 'The bill, before the tip.' }, { k: 'pct', l: 'Tip %', ph: '15', def: 15, tip: 'The tip, as a percentage of the bill: 15 for 15%. 15 while empty.' }, { k: 'people', l: 'People', ph: '1', def: 1, tip: 'How many split it. 1 while empty.' },
+                    { k: 'round', l: 'Round up', choice: ['No', 'Each', 'Total'] }], cols: 2, run: runTip, example: { bill: '86.40', pct: '18', people: '3' } },
+            { id: 'fuel', t: 'Fuel cost', f: 'Fuel × Price', d: 'The fuel a trip takes, of a car\'s economy in L/100 km, km a litre or miles a gallon, US or UK, and what it costs at a price of fuel: ' +
+                'a km or a mile as well, there and back, and what each pays, split among people; with the economy the other way.',
+                fields: function (raw) {
+                    var unit = +raw.unit || 0;
+                    return [{ k: 'unit', l: 'Unit', choice: FUEL_UNITS }, { k: 'd', l: 'Distance', ph: unit > 1 ? 'miles' : 'km', tip: 'How far the trip is: in km, or in miles for MPG.' }, { k: 'e', l: 'Economy', ph: FUEL_UNITS[unit], tip: 'How much fuel the car uses, in the unit picked above: litres for 100 km, km a litre, or miles a gallon.' },
+                        { k: 'p', l: 'Price', ph: unit === 2 ? 'a US gallon' : 'a litre', tip: 'What fuel costs: a litre, or a US gallon for MPG US.' }, { k: 'people', l: 'People', ph: '1', def: 1, tip: 'How many split the cost. 1 while empty.' }];
+                }, cols: 2, run: runFuel, example: function (raw) {
+                    var ex = [{ d: '500', e: '7', p: '1.80' }, { d: '500', e: '15', p: '1.80' }, { d: '300', e: '30', p: '3.50' }, { d: '300', e: '45', p: '1.45' }][+raw.unit || 0];
+                    ex.unit = raw.unit || '0';
+                    return ex;
+                } }
         ]
     };
 
@@ -6389,7 +6429,7 @@
         if (why) return { rows: none, warn: true, note: why };
         part = (empty[0] === 'n' ? r.n : n.n) % 1;
         return {
-            rows: [{ l: names[r.find], v: r.value, places: /^(pv|pmt|fv)$/.test(r.find) ? 2 : undefined }, { l: 'Total paid', v: r.paid, places: 2 },
+            rows: [{ l: names[r.find], v: r.value, places: /^(pv|pmt|fv)$/.test(r.find) ? 2 : undefined, dp: 2 }, { l: 'Total paid', v: r.paid, places: 2 },
                 { l: r.net < 0 ? 'Interest paid' : r.net > 0 ? 'Interest earned' : 'Interest', v: CalcMaths.round(Math.abs(r.net)), places: 2 }]
                 .concat(drawnTile(tvmDrawing(n, r.find, r.value, raw.due === '1'))),
             note: SIGNS + (part > 1e-9 && part < 1 - 1e-9 ? ' N is not a whole number of payments: a last, smaller one makes up the part.' : '')
@@ -6412,7 +6452,7 @@
             r.others.map(function (x) { return local(String(x)) + '%'; }).join(', ') + (r.others.length > 1 ? ' are others.' : ' is another.') : '; this one is the nearest 10%.'));
         if (isNaN(back) && flows[0] < 0) notes.push('They never pay back what went out.');
         return {
-            rows: [{ l: 'NPV', v: CalcMaths.npv(n.r, flows), places: 2 }, { l: 'IRR %', v: r.irr }, { l: 'Payback', v: back }].concat(flows.length <= 200 ? drawnTile(graphDrawing('Each cash flow, what went out red',
+            rows: [{ l: 'NPV', v: CalcMaths.npv(n.r, flows), places: 2 }, { l: 'IRR %', v: r.irr, dp: 2 }, { l: 'Payback', v: back, dp: 2 }].concat(flows.length <= 200 ? drawnTile(graphDrawing('Each cash flow, what went out red',
                 -0.7, flows.length - 0.3, { bars: flows.map(function (v, t) { return [t, v, v < 0]; }) })) : []),
             warn: !!notes.length && (!(n.r > -100) || !r.changes), note: notes.join(' ')
         };
@@ -6460,10 +6500,151 @@
         }[r.error];
         if (why) return { rows: none, warn: true, note: why };
         return {
-            rows: [{ l: 'Balance', v: r.balance, places: 2 }, { l: 'Put in', v: r.added, places: 2 }, { l: 'Interest', v: r.interest, places: 2 }, { l: 'APY %', v: r.apy },
+            rows: [{ l: 'Balance', v: r.balance, places: 2 }, { l: 'Put in', v: r.added, places: 2 }, { l: 'Interest', v: r.interest, places: 2 }, { l: 'APY %', v: r.apy, dp: 2 },
                 { l: 'Each year', m: r.byYear, head: ['Year', 'Put in', 'Interest', 'Balance'], places: 2 }].concat(drawnTile(savingsDrawing(n.start, r.byYear))),
             note: (n.m === Infinity ? 'Interest all the time.' : 'Interest ' + local(String(n.m)) + ' times a year' + (n.add ? ', ' + local(String(n.add)) + ' added at the ' + (raw.due === '1' ? 'start' : 'end') + ' of each period.' : '.')) +
                 (r.more ? ' The table has the first ' + SCHEDULE_ROWS + ' years.' : '')
+        };
+    }
+
+    // money to the cent, in a note, as its tile shows it
+    function cents(x) {
+        return placesValue(x, 2).text;
+    }
+
+    // a home's payment each month, with its tax, insurance, PMI and HOA fees, and a table of its years
+    function runMortgage(n, raw) {
+        var none = [{ l: 'Each month', v: NaN }, { l: 'Loan', v: NaN }, { l: 'Total interest', v: NaN }], r, why;
+        if (!raw.price || !raw.rate || [n.price, n.down, n.rate, n.years, n.tax, n.ins, n.pmi, n.hoa].some(isNaN)) return { rows: none };
+        r = CalcMaths.mortgage(n.price, n.down, n.rate, n.years, n.tax, n.ins, n.pmi, n.hoa, SCHEDULE_ROWS);
+        why = {
+            price: 'The price is above 0.',
+            down: 'Down is 0% or more, and below 100%, so there is a loan.',
+            costs: 'Tax, insurance, PMI and HOA are 0 or more.',
+            years: 'Years are above 0.',
+            rate: 'The rate a month, the rate a year ÷ 12, is above –100%.',
+            whole: 'Years × 12 is a whole number of payments.',
+            long: 'Up to 100000 payments.'
+        }[r.error];
+        if (why) return { rows: none, warn: true, note: why };
+        return {
+            rows: [{ l: 'Each month', v: r.each, places: 2 }, { l: 'Loan payment', v: r.payment, places: 2 }]
+                .concat([['Tax', r.tax], ['Insurance', r.insurance], ['PMI', r.pmi], ['HOA', r.hoa]].filter(function (c) { return c[1]; }).map(function (c) { return { l: c[0], v: c[1], places: 2 }; }),
+                    [{ l: 'Loan', v: r.loan, places: 2 }, { l: 'Down payment', v: r.down, places: 2 }, { l: 'Total interest', v: r.interest, places: 2 }, { l: 'Total paid', v: r.total, places: 2 },
+                        { l: 'Each year', m: r.byYear, head: ['Year', 'Interest', 'Principal', 'Balance'], places: 2 }]),
+            note: r.n + ' payments, each at the end of its month; Total paid is all of them, with the tax, insurance, PMI and HOA, the down payment not in it.' +
+                (r.pmiMonths ? ' PMI for the first ' + (r.pmiMonths === 1 ? 'payment' : r.pmiMonths + ' payments') + ', until the loan is down to 78% of the price.' :
+                    n.pmi ? ' No PMI: 20% or more is put down.' : '') + (r.more ? ' The table has the first ' + SCHEDULE_ROWS + ' years.' : '')
+        };
+    }
+
+    // a balance owed paid off: the months a payment takes, or the payment that takes so many months
+    function runPayoff(n, raw) {
+        var find = raw.pay && !raw.months ? 'months' : 'payment', none = [{ l: find === 'months' ? 'Months' : 'Payment', v: NaN }, { l: 'Total interest', v: NaN }, { l: 'Total paid', v: NaN }], r, why, y;
+        if (raw.pay && raw.months) return { rows: none, warn: true, note: 'Leave one of Payment and Months empty, the one to work out.' };
+        if (!raw.balance || !raw.apr || (!raw.pay && !raw.months) || isNaN(n.balance) || isNaN(n.apr) || (raw.pay && isNaN(n.pay)) || (raw.months && isNaN(n.months))) return { rows: none };
+        r = CalcMaths.cardPayoff(n.balance, n.apr, raw.pay ? n.pay : NaN, raw.months ? n.months : NaN, SCHEDULE_ROWS);
+        why = {
+            balance: 'The balance is above 0.',
+            rate: 'APR is 0% or more.',
+            payment: 'The payment is above 0.',
+            months: 'Months are a whole number above 0.',
+            small: 'The payment never pays it off: it is no more than the first month\'s interest, ' + cents(n.balance * n.apr / 1200) + '.',
+            long: 'Up to 12000 months.'
+        }[r.error];
+        if (why) return { rows: none, warn: true, note: why };
+        y = Math.floor(r.months / 12);
+        return {
+            rows: (find === 'months' ? [{ l: 'Months', v: r.months }] : [{ l: 'Payment', v: r.payment, places: 2 }]).concat([{ l: 'Total interest', v: r.interest, places: 2 },
+                { l: 'Total paid', v: r.paid, places: 2 }, { l: 'Last payment', v: r.last, places: 2 }, { l: 'Each year', m: r.byYear, head: ['Year', 'Interest', 'Principal', 'Balance'], places: 2 }]),
+            note: 'Paid off in ' + (y ? y + (y === 1 ? ' year' : ' years') + (r.months % 12 ? ' and ' : '') : '') + (r.months % 12 ? r.months % 12 + (r.months % 12 === 1 ? ' month' : ' months') : '') +
+                ', with nothing more spent on it; interest each month of APR ÷ 12.' + (r.more ? ' The table has the first ' + SCHEDULE_ROWS + ' years.' : '')
+        };
+    }
+
+    // money saved for retirement: what there is then, the most to draw each month, and how long a draw lasts
+    function runRetirement(n, raw) {
+        var none = [{ l: 'At retirement', v: NaN }, { l: 'In money of today', v: NaN }, { l: 'Can draw a month', v: NaN }], r, why, f, end, drawn = !!raw.draw;
+        if (!raw.age || !raw.ret || [n.age, n.retire, n.until, n.saved, n.add, n.ret, n.infl].some(isNaN) || (drawn && isNaN(n.draw))) return { rows: none };
+        r = CalcMaths.retirement(n.age, n.retire, n.until, n.saved, n.add, n.ret, n.infl, drawn ? n.draw : NaN);
+        why = {
+            age: 'The ages in order: Age, then Retire at, then To age above it, up to 150.',
+            money: 'Saved, Add and Draw are 0 or more.',
+            rate: 'Return and inflation are above –100%.'
+        }[r.error];
+        if (why) return { rows: none, warn: true, note: why };
+        f = through(r.path);
+        end = r.path[r.path.length - 1][0];
+        return {
+            rows: [{ l: 'At retirement', v: r.atRetire, places: 2 }, { l: 'In money of today', v: r.real, places: 2 }, { l: 'Put in', v: r.putIn, places: 2 }, { l: 'Growth', v: r.growth, places: 2 },
+                { l: 'Can draw a month', v: r.can, places: 2 }].concat(drawn ? [r.lasts === Infinity ? { l: 'Lasts to age', text: '∞' } : r.lasts === 150 ? { l: 'Lasts to age', text: '150+' } : { l: 'Lasts to age', v: r.lasts, dp: 1 },
+                    { l: 'Left at ' + local(String(n.until)), v: r.left, places: 2 }] : [],
+                r.real > 0 && end > n.age ? drawnTile(graphDrawing('The savings at each age, in money of today', n.age, end, { fs: [f], fill: [f, null, n.age, end],
+                    marks: n.retire > n.age ? [[n.retire, 'Retire']] : [] })) : []),
+            note: 'Add goes in at the end of each month until retiring; then a draw at the start of each month, growing with prices. Can draw a month is the most, in money of today, for it to last to ' +
+                local(String(n.until)) + '.' + (!drawn ? '' : r.lasts === Infinity ? ' A draw of ' + cents(n.draw) + ' never uses it up: what it earns over prices is more.' :
+                    r.lasts < n.until ? ' A draw of ' + cents(n.draw) + ' uses it up before ' + local(String(n.until)) + '.' : '')
+        };
+    }
+
+    // pay by the hour, day, week, month or year, in each of the others
+    function runSalary(n, raw) {
+        var none = [{ l: 'Hourly', v: NaN }, { l: 'Monthly', v: NaN }, { l: 'Yearly', v: NaN }], r, why;
+        if (!raw.pay || [n.pay, n.hours, n.days, n.weeks, n.ot, n.otx].some(isNaN)) return { rows: none };
+        r = CalcMaths.salary(n.pay, +raw.per, n.hours, n.days, n.weeks, n.ot, n.otx);
+        why = {
+            pay: 'The pay is 0 or more.',
+            ot: 'Overtime and its times are 0 or more.',
+            hours: 'Hours a week are above 0, and no more than 168 with the overtime.',
+            days: 'Days a week are above 0, and no more than 7.',
+            weeks: 'Weeks a year are above 0, and no more than 53.'
+        }[r.error];
+        if (why) return { rows: none, warn: true, note: why };
+        return {
+            rows: [['Hourly', r.hourly], ['Daily', r.daily], ['Weekly', r.weekly], ['Every 2 weeks', r.fortnight], ['Twice a month', r.half], ['Monthly', r.monthly], ['Yearly', r.yearly]]
+                .map(function (p) { return { l: p[0], v: p[1], places: 2 }; }),
+            note: local(String(n.hours)) + ' hours over ' + local(String(n.days)) + ' days a week, ' + local(String(n.weeks)) + ' weeks a year' +
+                (n.ot ? '; each but Hourly with ' + local(String(n.ot)) + ' hours of overtime a week, at ' + local(String(n.otx)) + ' × the hourly.' : '.')
+        };
+    }
+
+    // a bill with its tip, split among people, rounded up if you like
+    function runTip(n, raw) {
+        var none = [{ l: 'Tip', v: NaN }, { l: 'Total', v: NaN }, { l: 'Each', v: NaN }], r, why, way = +raw.round;
+        if (!raw.bill || [n.bill, n.pct, n.people].some(isNaN)) return { rows: none };
+        r = CalcMaths.tip(n.bill, n.pct, n.people, way);
+        why = { bill: 'The bill is 0 or more.', tip: 'The tip is 0% or more.', people: 'People are a whole number from 1 to 10000.' }[r.error];
+        if (why) return { rows: none, warn: true, note: why };
+        return {
+            rows: [{ l: 'Tip', v: r.tip, places: 2 }, { l: 'Total', v: r.total, places: 2 }].concat(n.people > 1 ? [{ l: 'Each', v: r.each, places: 2 }, { l: 'Tip each', v: r.tipEach, places: 2 }] : [],
+                way ? [{ l: 'Tip %', v: r.percent, dp: 2 }] : []),
+            note: r.more ? cents(r.cents) + ' each comes ' + (r.more === 1 ? 'a cent' : r.more + ' cents') + ' short: ' + (r.more === 1 ? 'one pays ' : r.more + ' pay ') + cents(r.cents + 0.01) + '.' :
+                way ? 'Rounded up so ' + (way === 1 ? 'each pays' : 'the total is') + ' a whole amount: Tip % is the tip then.' : ''
+        };
+    }
+
+    var FUEL_UNITS = ['L/100 km', 'km/L', 'MPG US', 'MPG UK'];
+
+    // x to dp places, or to sig digits, but never to 0 for what is not 0, nor its whole part cut
+    function shortValue(x, dp, sig) {
+        var v = +x, places = dp, r;
+        if (!isFinite(v) || !v) return v;
+        if (sig) places = Math.max(0, sig - 1 - Math.floor(Math.log10(Math.abs(v))));
+        r = +v.toFixed(Math.min(places, 20));
+        return r || +v.toPrecision(2);
+    }
+
+    // the fuel a trip takes and what it costs, split among people
+    function runFuel(n, raw) {
+        var unit = +raw.unit, mi = unit > 1, none = [{ l: 'Fuel', v: NaN }, { l: 'Cost', v: NaN }, { l: 'Each', v: NaN }], r, why;
+        if (!raw.d || !raw.e || !raw.p || [n.d, n.e, n.p, n.people].some(isNaN)) return { rows: none };
+        r = CalcMaths.fuel(n.d, n.e, n.p, unit, n.people);
+        why = { distance: 'The distance is 0 or more.', economy: 'The economy is above 0.', price: 'The price is 0 or more.', people: 'People are a whole number from 1 to 10000.' }[r.error];
+        if (why) return { rows: none, warn: true, note: why };
+        return {
+            rows: [{ l: unit === 2 ? 'Fuel, gal' : 'Fuel, L', v: r.fuel, dp: 2 }, { l: 'Cost', v: r.cost, places: 2 }, { l: mi ? 'A mile' : 'A km', v: r.per, places: 3 }, { l: 'There and back', v: CalcMaths.round(2 * r.cost), places: 2 }]
+                .concat(n.people > 1 ? [{ l: 'Each', v: r.each, places: 2 }] : [], unit ? [{ l: 'L/100 km', v: r.l100, dp: 1 }] : [{ l: 'MPG US', v: r.mpg, dp: 1 }]),
+            note: unit === 3 ? 'A UK gallon is ' + local('4.54609') + ' L; the price a litre, as it is sold.' : unit === 2 ? 'A US gallon is ' + local('3.785411784') + ' L.' : ''
         };
     }
 
@@ -6486,8 +6667,8 @@
         }[r.error];
         if (why) return { rows: none, warn: true, note: why };
         return {
-            rows: (raw.price ? [{ l: 'Yield %', v: r.yld }, { l: 'Price', v: r.price, places: 2 }] : [{ l: 'Price', v: r.price, places: 2 }, { l: 'Yield %', v: r.yld }])
-                .concat([{ l: 'Current yield %', v: r.current }, { l: 'Duration', v: r.duration }, { l: 'Modified duration', v: r.modified }],
+            rows: (raw.price ? [{ l: 'Yield %', v: r.yld, dp: 2 }, { l: 'Price', v: r.price, places: 2 }] : [{ l: 'Price', v: r.price, places: 2 }, { l: 'Yield %', v: r.yld, dp: 2 }])
+                .concat([{ l: 'Current yield %', v: r.current, dp: 2 }, { l: 'Duration', v: r.duration, dp: 2 }, { l: 'Modified duration', v: r.modified, dp: 2 }],
                     r.accrued ? [{ l: 'Accrued', v: r.accrued, places: 2 }, { l: 'Dirty price', v: r.dirty, places: 2 }] : [],
                     n.years * n.freq <= 2000 && r.yld > -50 ? drawnTile(graphDrawing('Its price at each yield', r.yld < 0 ? 2 * r.yld : 0, Math.max(2 * r.yld, r.yld + 4, 2 * n.coupon), {
                         fs: [function (y) { return CalcMaths.bond(n.face, n.coupon, n.years, n.freq, NaN, y).price; }], dots: [[r.yld, r.price]], marks: [[n.coupon, 'Coupon']] })) : []),
@@ -6508,7 +6689,7 @@
         }[r.error];
         if (why) return { rows: none, warn: true, note: why };
         return {
-            rows: [{ l: 'First year', v: r.first, places: 2 }, { l: 'A year %', v: r.rate }, { l: 'In all', v: CalcMaths.round(n.cost - n.salvage), places: 2 },
+            rows: [{ l: 'First year', v: r.first, places: 2 }, { l: 'A year %', v: r.rate, dp: 2 }, { l: 'In all', v: CalcMaths.round(n.cost - n.salvage), places: 2 },
                 { l: 'Each year', m: r.byYear, head: ['Year', 'Depreciation', 'So far', 'Book value'], places: 2 }],
             note: raw.way === '1' ? 'Each year ' + local(String(r.rate)) + '% of what is left, until the straight line over the years left loses more; never below the salvage value.' :
                 'The same each year: the cost less the salvage value, over the years.'
@@ -6522,7 +6703,7 @@
         r = CalcMaths.breakEven(n.fixed, n.price, n.cost, n.profit);
         if (r.error) return { rows: none, warn: true, note: 'The price is above the cost of each one, or no number of them is enough.' };
         return {
-            rows: [{ l: 'Units', v: r.units }, { l: 'Sales', v: r.sales, places: 2 }, { l: 'Margin each', v: r.margin, places: 2 }, { l: 'Margin %', v: r.percent }]
+            rows: [{ l: 'Units', v: r.units, dp: 2 }, { l: 'Sales', v: r.sales, places: 2 }, { l: 'Margin each', v: r.margin, places: 2 }, { l: 'Margin %', v: r.percent, dp: 2 }]
                 .concat(r.units > 0 ? drawnTile(graphDrawing('What they sell for, and what they cost', 0, 2 * r.units, { fs: [function (q) { return n.price * q; }, function (q) { return n.fixed + n.cost * q; }],
                     dots: [[r.units, r.sales]] })) : []),
             note: r.units > 0 && r.units % 1 ? local(String(Math.ceil(r.units - 1e-9))) + ' whole units cover them.' : ''
@@ -6536,7 +6717,7 @@
         r = CalcMaths.inflation(n.amount, n.rate, n.years);
         if (r.error) return { rows: none, warn: true, note: 'The rate is above –100%.' };
         return {
-            rows: [{ l: 'Costs then', v: r.then, places: 2 }, { l: 'Worth now', v: r.now, places: 2 }, { l: 'Prices ×', v: r.factor }, { l: 'Value lost %', v: r.lost }]
+            rows: [{ l: 'Costs then', v: r.then, places: 2 }, { l: 'Worth now', v: r.now, places: 2 }, { l: 'Prices ×', v: r.factor, sig: 4 }, { l: 'Value lost %', v: r.lost, dp: 2 }]
                 .concat(n.years > 0 ? drawnTile(graphDrawing('What it costs, and what it is worth, over the years', 0, n.years, { fs: [function (t) { return n.amount * Math.pow(1 + n.rate / 100, t); },
                     function (t) { return n.amount / Math.pow(1 + n.rate / 100, t); }] })) : []),
             note: 'What costs the amount now costs Costs then after the years; the amount then is worth Worth now in money of today.'
@@ -6549,7 +6730,7 @@
         if (!raw.a || !raw.b || isNaN(n.a) || isNaN(n.b)) return { rows: [{ l: 'Change', v: NaN }, { l: 'Change %', v: NaN }, { l: 'Margin %', v: NaN }] };
         r = CalcMaths.percentChange(n.a, n.b);
         return {
-            rows: [{ l: 'Change', v: r.change }, { l: 'Change %', v: r.percent }, { l: 'Margin %', v: r.margin }, { l: 'To ÷ From', v: r.ratio }],
+            rows: [{ l: 'Change', v: r.change }, { l: 'Change %', v: r.percent, dp: 2 }, { l: 'Margin %', v: r.margin, dp: 2 }, { l: 'To ÷ From', v: r.ratio, sig: 4 }],
             note: !n.a ? 'No percentage of a From of 0.' : 'Of a cost and its price, Change % is the markup, and Margin % the profit as a percentage of the price.'
         };
     }
@@ -6567,7 +6748,7 @@
             rows: drawnTile(apr > -100 && apr ? graphDrawing('APY against how often a year, by its log; all the time thin', 0, Math.log10(365), {
                 fs: [function (x) { return CalcMaths.effectiveRate(apr, Math.pow(10, x)); }, function () { return CalcMaths.effectiveRate(apr, Infinity); }],
                 y: CalcMaths.effectiveRate(apr, Infinity) > apr ? [apr - 0.15 * (CalcMaths.effectiveRate(apr, Infinity) - apr), CalcMaths.effectiveRate(apr, Infinity) + 0.6 * (CalcMaths.effectiveRate(apr, Infinity) - apr)] : undefined, marks: [[Math.log10(12), '12'], [Math.log10(365), '365']], dots: n.m === Infinity ? [] : [[Math.log10(Math.min(365, n.m)), apy]],
-                names: ['', 'APY %'] }) : '', 'APY and how often').concat([{ l: 'APR %', v: apr }, { l: 'APY %', v: apy }, { l: 'A period %', v: n.m === Infinity ? NaN : CalcMaths.round(apr / n.m) }]),
+                names: ['', 'APY %'] }) : '', 'APY and how often').concat([{ l: 'APR %', v: apr, dp: 2 }, { l: 'APY %', v: apy, dp: 2 }, { l: 'A period %', v: n.m === Infinity ? NaN : CalcMaths.round(apr / n.m), sig: 4 }]),
             note: n.m === Infinity ? 'Interest all the time: APY is e to the APR, less 1.' : 'Interest ' + local(String(n.m)) + ' times a year, of APR ÷ m each time.'
         };
     }
@@ -8295,7 +8476,7 @@
                 }).join('') + '</span>' : '<span class="calc-sv-value">–</span>';
             } else {
                 shown = '<span class="calc-sv-value">' + (r.text !== undefined ? r.text : !known ? '–' : r.html !== undefined ? r.html : // html: shown its own way, as a value of the converter
-                    (r.places !== undefined ? placesValue(r.v, r.places) : statsValue(r.v)).html) + '</span>';
+                    (r.places !== undefined ? placesValue(r.v, r.places) : statsValue(r.dp !== undefined ? shortValue(r.v, r.dp, 0) : r.sig ? shortValue(r.v, 0, r.sig) : r.v)).html) + '</span>'; // dp: to so many places, sig: digits, as a ratio; never 0 for what is not, nor a whole part cut
             }
             return '<div class="calc-sv-tile' + (r.m !== undefined || r.wide ? ' calc-sv-wide' : '') + (r.m ? ' calc-sv-matrix' : r.copy ? ' calc-sv-copies' : '') + (r.bits ? ' calc-sv-bits' : '') + (r.wrap ? ' calc-sv-wrap' : '') +
                 (drawnRow(r) ? ' calc-sv-drawn' : '') +
@@ -8582,11 +8763,17 @@
             // the tip of a card, open or not: what it gives, and what a click does; beside the list the one open stays
             // open, so only what it gives. Of a way of a choice, of Copy table, of Copy and of Example, what they do
             tip: function (el) {
-                var tool, open;
+                var tool, open, key, field;
                 if (el.classList.contains('calc-sv-opt')) return CalcTips['choice ' + el.parentNode.dataset.k + ' ' + el.dataset.c] || null;
                 if (el.classList.contains('calc-sv-example')) return CalcTips['card example'];
                 if (el.classList.contains('calc-sv-reset')) return CalcTips['card reset'];
                 if (el.classList.contains('calc-sv-copy')) return CalcTips[el.classList.contains('calc-sv-copy-t') ? 'text copy' : el.classList.contains('calc-sv-copy-m') ? 'matrix copy' : 'table copy'];
+                if (el.closest('.calc-sv-boxes') && el.closest('.calc-sv-item')) { // a box, or its name: what goes in it, where its field says
+                    key = el.dataset.k || (el.parentNode.querySelector('[data-k]') || { dataset: {} }).dataset.k;
+                    tool = tools[tab][+el.closest('.calc-sv-item').dataset.i];
+                    field = fieldsOf(tool, rawOf(tool)).filter(function (g) { return g.k === key && g.tip; })[0];
+                    return field ? { t: (field.aria || field.l).replace(/<[^>]*>/g, ''), d: field.tip, k: '' } : null;
+                }
                 if (!el.classList.contains('calc-sv-row')) return null;
                 tool = tools[tab][+el.parentNode.dataset.i];
                 open = el.parentNode.classList.contains('calc-on');

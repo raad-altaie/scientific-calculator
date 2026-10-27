@@ -1379,10 +1379,20 @@
         'Cells infected': ['moi', { m: 'moi' }]
     };
 
+    // the formulas of money that a card of the solver's Finance tab works out, as inPhysics has them; each gets it as fin
+    var inFinance = {
+        'Compound interest': ['savings', { P: 'start', r: 'rate', n: 'm', t: 'years' }],
+        'Continuous compounding': ['savings', { P: 'start', r: 'rate', t: 'years' }, { m: 'inf' }],
+        'Loan payment': ['schedule', { P: 'loan', r: 'rate', y: 'years' }],
+        'Regular savings': ['savings', { M: 'add', r: 'rate', y: 'years' }, { start: '0' }],
+        'Split a bill': ['tip', { b: 'bill', t: 'pct', n: 'people' }]
+    };
+
     formulas.forEach(function (group) {
         group.list.forEach(function (f) {
             if (inPhysics[f.t]) f.p = inPhysics[f.t];
             if (inBiology[f.t]) f.b = inBiology[f.t];
+            if (inFinance[f.t]) f.fin = inFinance[f.t];
         });
     });
 
