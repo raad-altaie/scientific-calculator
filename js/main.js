@@ -41,10 +41,10 @@
         pastExport = past.querySelector('.calc-past-export'), // the history copied or saved: a menu of how
         pastClear = past.querySelector('.calc-past-clear'), // of the tab shown: the history, or the letters
         pastTabs = past.querySelector('.calc-past-tabs'), // History, and the letters A to J
-        pastTab = 'history', // the tab shown: the history, or the variables; the last one used
+        pastTab = 'history', // the tab shown: the history, or the variables; the last one used, History on each new page
         varList = past.querySelector('.calc-past-vars'), // a card for each letter, on the Variables tab
         pastShown = {}, // the history as the list shows it, so it is only built again after a change
-        mac = /Mac|iPhone|iPad/.test(navigator.platform), // its keys: ⌘ and ⌥ Option for Ctrl and Alt
+        mac = /Mac|iPhone|iPad/.test(navigator.userAgent), // its keys: ⌘ and ⌥ Option for Ctrl and Alt; by the user agent, as Chrome made to be Windows on a Mac still gives MacIntel for its platform
         stats = root.querySelector('.calc-stats'), // statistics of a list of numbers, over the keys
         statsButton = root.querySelector('.calc-stat-btn'),
         statsInput = stats.querySelector('textarea'),
@@ -1739,12 +1739,11 @@
             .forEach(function (p) { if (p[0] !== but) p[1](false); });
     }
 
-    // with no history yet, it opens on the letters
+    // it opens on the tab used last; History on each new page, even with nothing in it yet
     function showPast(open) {
         if (open) {
             closePanels(past);
             placePanel(past);
-            if (!engine.past.length) pastTab = 'vars';
             renderPastTab();
         } else if (past.contains(document.activeElement)) {
             document.activeElement.blur(); // the keys are the calculator's again
@@ -4940,7 +4939,7 @@
         var typing = varList.contains(document.activeElement) ? document.activeElement : null;
         if (!varList.querySelector('.calc-var')) {
             varList.innerHTML = '<div class="calc-var-head"><span>' +
-                '<kbd>' + (mac ? '⌥ Option' : '⎇ Alt') + '</kbd> + Letter stores var<span class="calc-var-sep"></span>' +
+                '<kbd>' + (mac ? '⌥ Option' : 'Alt') + '</kbd> + Letter stores var<span class="calc-var-sep"></span>' +
                 '<kbd>⇧ Shift</kbd> + Letter inserts var</span></div>' +
                 CalcEngine.LETTERS.split('').map(function (k) {
                     return '<div class="calc-fx-item calc-var" data-k="' + k + '"><div class="calc-fx-row calc-var-row">' +
@@ -5397,7 +5396,7 @@
             { id: 'schedule', t: 'Loan calculator', f: ['Interest', 'Principal', 'Balance'], d: 'A loan paid back in equal payments at the end of each period: the payment, all the interest, and a table ' +
                 'of each year, or of each payment, of the interest paid, the principal paid and what is left of the loan. Copy table copies it for a spreadsheet.',
                 fields: [{ k: 'loan', l: 'Loan', ph: '' }, { k: 'rate', l: 'Rate %', ph: '' }, { k: 'years', l: 'Years', ph: '' }, { k: 'py', l: 'A year', ph: '12', def: 12, aria: 'Payments a year' },
-                    { k: 'by', l: 'Table', choice: ['By year', 'By payment'] }], cols: 2, run: runSchedule, drawnLast: true, example: { loan: '200000', rate: '6', years: '30' } },
+                    { k: 'by', l: 'Table', choice: ['By year', 'By payment'] }], cols: 2, run: runSchedule, example: { loan: '200000', rate: '6', years: '30' } },
             { id: 'savings', t: 'Savings growth', f: 'P(1 + r/m)<sup>mt</sup>', d: 'Money saved at a rate a year, of interest m times a year, for years, with an amount added each period if you like, at its end or its start: ' +
                 'what it grows to, all that was put in, the interest, and a table of each year. m may be ∞, typed inf, for interest all the time, with nothing added. Copy table copies it for a spreadsheet.',
                 fields: [{ k: 'start', l: 'Start', ph: '' }, { k: 'rate', l: 'Rate %', ph: '' }, { k: 'years', l: 'Years', ph: '' }, { k: 'm', l: 'A year', ph: '12', def: 12, inf: true, aria: 'Periods a year' },
@@ -6439,8 +6438,7 @@
         if (why) return { rows: none, warn: true, note: why };
         return {
             rows: [{ l: 'Payment', v: r.payment, places: 2 }, { l: 'Total interest', v: r.interest, places: 2 }, { l: 'Total paid', v: CalcMaths.round(n.loan + r.interest), places: 2 },
-                { l: by ? 'Each payment' : 'Each year', m: by ? r.byPayment : r.byYear, head: [by ? 'No.' : 'Year', 'Interest', 'Principal', 'Balance'], places: 2 }]
-                .concat(drawnTile(yearsDrawing('What is left of the loan, year by year', [[0, n.loan]].concat(r.byYear.map(function (y) { return [y[0], y[3]]; }))))),
+                { l: by ? 'Each payment' : 'Each year', m: by ? r.byPayment : r.byYear, head: [by ? 'No.' : 'Year', 'Interest', 'Principal', 'Balance'], places: 2 }],
             note: (r.n === 1 ? '1 payment' : r.n + ' payments') + ', each at the end of its period.' +
                 (r.more ? ' The table has the first ' + SCHEDULE_ROWS + (by ? ' payments: By year has them all.' : ' years.') : '')
         };
@@ -6511,8 +6509,7 @@
         if (why) return { rows: none, warn: true, note: why };
         return {
             rows: [{ l: 'First year', v: r.first, places: 2 }, { l: 'A year %', v: r.rate }, { l: 'In all', v: CalcMaths.round(n.cost - n.salvage), places: 2 },
-                { l: 'Each year', m: r.byYear, head: ['Year', 'Depreciation', 'So far', 'Book value'], places: 2 }]
-                .concat(drawnTile(yearsDrawing('Its book value, year by year', [[0, n.cost]].concat(r.byYear.map(function (y) { return [y[0], y[3]]; }))))),
+                { l: 'Each year', m: r.byYear, head: ['Year', 'Depreciation', 'So far', 'Book value'], places: 2 }],
             note: raw.way === '1' ? 'Each year ' + local(String(r.rate)) + '% of what is left, until the straight line over the years left loses more; never below the salvage value.' :
                 'The same each year: the cost less the salvage value, over the years.'
         };
@@ -6648,7 +6645,7 @@
             { id: 'codes', t: 'Text and codes', f: 'é = U+00E9 = C3 A9', d: 'The codes of a text: its code points, its bytes in UTF-8 and its units of UTF-16. Or a text from its codes: U+00E9, 0xC3 0xA9 for the bytes of UTF-8, or 233.',
                 fields: [{ k: 't', l: 'Text', ph: 'Hé', fn: true }, { k: 'c', l: 'Codes', ph: 'U+0048 U+00E9', fn: true }], spaces: ['t'], run: runCodes, example: { t: 'Hé' } },
             { id: 'subnet', t: 'IP subnet', f: ['192.168.1.0/24', '2001:db8::/32'], d: 'The network of an IPv4 address with its prefix, 192.168.1.10/24, or its mask, 192.168.1.10 255.255.255.0: its network and broadcast addresses, its mask, the first and last host and how many hosts it has. Or of an IPv6 address, 2001:db8::1/48: its network, the address in full and written short, its first and last address, how many addresses and /64 networks, its kind and its name for reverse DNS.',
-                fields: [{ k: 'ip', ph: '192.168.1.10/24 or 2001:db8::1/48', fn: true }], run: runSubnet, example: { ip: '192.168.1.10/24' } },
+                fields: [{ k: 'ip', ph: '192.168.1.10/24 or 2001:db8::1/48', fn: true }], run: runSubnet, drawnLast: true, example: { ip: '192.168.1.10/24' } },
             { id: 'uuid', t: 'UUID', f: ['Version 4', 'Version 7'], d: 'Five new UUIDs, of RFC 9562: of version 4, all random, or of version 7, the time now and then random, so they sort as they were made. Again for five more; Copy copies one. ' +
                 'Or one typed, with hyphens or none, in braces or after urn:uuid: if you like: its version and variant, the time it was made, of versions 1, 6 and 7, and it in hexadecimal, Base64 and as a whole number.',
                 fields: [{ k: 'ver', l: 'New', choice: ['Version 4', 'Version 7'] }, { k: 'u', l: 'Read', ph: 'f81d4fae-7dec-11d0-a765-00a0c91e6bf6', fn: true }], again: true, run: runUuid, example: { u: 'f81d4fae-7dec-11d0-a765-00a0c91e6bf6' } },
@@ -7423,7 +7420,7 @@
                 [['Network, ' + r.prefix, r.prefix, '#bcd0e6'], ['Host, ' + (32 - r.prefix), 32 - r.prefix, '#d3e5da']], 8), 'Its bits').concat([{ l: 'Network', text: ip(r.network) + '/' + r.prefix, wide: true }, { l: 'Broadcast', text: ip(r.broadcast), wide: true },
                 { l: 'Mask', text: ip(r.mask), wide: true }, { l: 'Wildcard', text: ip(r.wildcard), wide: true },
                 { l: 'First host', text: ip(r.first), wide: true }, { l: 'Last host', text: ip(r.last), wide: true },
-                { l: 'Hosts', v: r.hosts }, { l: 'Addresses', v: r.all }, { l: 'Kind', text: r.kind, wide: true },
+                { l: 'Hosts', v: r.hosts }, { l: 'Addresses', v: r.all }, { l: 'Kind', text: r.kind }, // the three on one line
                 { l: 'Address in binary', text: CalcMaths.inBase(BigInt(r.address), 32, 2).replace(/ /g, '').replace(/(\d{8})(?=\d)/g, '$1.'), wide: true, bits: true },
                 { l: 'Mask in binary', text: CalcMaths.inBase(BigInt(r.mask), 32, 2).replace(/ /g, '').replace(/(\d{8})(?=\d)/g, '$1.'), wide: true, bits: true }]),
             note: !r.given ? 'Of the address alone, /32: add its prefix, /24, for its network.' : r.prefix === 31 ? 'A /31 links two hosts, both of them given out, by RFC 3021.' :
@@ -8237,8 +8234,9 @@
             inputs.forEach(function (box) {
                 if (fields.some(function (f) { return f.k === box.dataset.k && (f.fn || f.text || f.date || f.area); })) box.classList.toggle('calc-bad', (out.bad || []).indexOf(box.dataset.k) > -1);
             });
-            // a drawing first, above the numbers it draws, of every card; last, below its table, of the loan calculator
-            out.rows = tool.drawnLast ? out.rows.filter(function (r) { return !drawnRow(r); }).concat(out.rows.filter(drawnRow)) :
+            // a drawing first, above the numbers it draws, of every card; last, below its numbers, of the IP subnet and of
+            // every card of finance
+            out.rows = tool.drawnLast || tab === 'finance' ? out.rows.filter(function (r) { return !drawnRow(r); }).concat(out.rows.filter(drawnRow)) :
                 out.rows.filter(drawnRow).concat(out.rows.filter(function (r) { return !drawnRow(r); }));
             rows = out.rows;
             item.querySelector('.calc-sv-results').hidden = !out.rows.length;
@@ -10492,8 +10490,7 @@
             case 'RP': I = Math.sqrt(P / R); V = Math.sqrt(P * R); break;
         }
         if (![V, I, R, P].every(isFinite)) return Object.assign(physNone(none), { cols: 2, warn: true, note: 'Divided by 0, or a power and a resistance not of the same sign: no answer.' });
-        return { rows: physRows([['V', V], ['I, A', I], ['R, Ω', R], ['P, W', P]]).concat(drawnTile(graphDrawing('V against I, the box under it to I, V × I, the power', Math.min(0, 2 * I), Math.max(0, 2 * I), {
-            fs: [function (x) { return x * R; }], fill: [function () { return V; }, null, 0, I], dots: [[I, V]], names: ['I, A', 'V'] }), 'Its line, the power shaded')), cols: 2,
+        return { rows: physRows([['V', V], ['I, A', I], ['R, Ω', R], ['P, W', P]]), cols: 2,
             note: CalcPhysics.si(V, 'V') + ', ' + CalcPhysics.si(I, 'A') + ', ' + CalcPhysics.si(R, 'Ω') + ', ' + CalcPhysics.si(P, 'W') + '.' };
     }
 
@@ -10710,8 +10707,7 @@
             case 'QE': V = 2 * E / Q; C = Q * Q / (2 * E); break;
         }
         if (![C, V, Q, E].every(isFinite) || !(C > 0) || E < 0) return Object.assign(physNone(none), { cols: 2, warn: true, note: 'C above 0 and E 0 or more, of the same sign as V and Q: no answer.' });
-        return { rows: physRows([['C, F', C], ['V', V], ['Q, C', Q], ['E, J', E]]).concat(drawnTile(graphDrawing('Q against V, the area under it to V, ½QV, the energy', Math.min(0, 2 * V), Math.max(0, 2 * V), {
-            fs: [function (x) { return C * x; }], fill: [function (x) { return C * x; }, null, 0, V], dots: [[V, Q]], names: ['V', 'Q, C'] }), 'Its charge, the energy shaded')), cols: 2,
+        return { rows: physRows([['C, F', C], ['V', V], ['Q, C', Q], ['E, J', E]]), cols: 2,
             note: CalcPhysics.si(C, 'F') + ', ' + CalcPhysics.si(V, 'V') + ', ' + CalcPhysics.si(Q, 'C') + ', ' + CalcPhysics.si(E, 'J') + '.' };
     }
 
@@ -11344,8 +11340,7 @@
         else if (!raw.c) c = m * dT ? Q / (m * dT) : NaN;
         else dT = m * c ? Q / (m * c) : NaN;
         if (!isFinite(Q + m + c + dT)) return Object.assign(physNone(none), { cols: 2, warn: true, note: 'Divided by 0: no answer.' });
-        return { rows: drawnTile(graphDrawing('ΔT against the heat, its slope 1/mc', Math.min(0, 2 * Q), Math.max(0, 2 * Q), { fs: [function (x) { return x / (m * c); }], dots: [[Q, dT]],
-            names: ['Q, J', 'ΔT, K'] }), 'Warming').concat(physRows([['Q, J', Q], ['m, kg', m], ['c, J/(kg·K)', c], ['ΔT, K', dT], ['Q, kcal', Q / 4184], ['Q, kWh', Q / 3.6e6]])), cols: 2,
+        return { rows: physRows([['Q, J', Q], ['m, kg', m], ['c, J/(kg·K)', c], ['ΔT, K', dT], ['Q, kcal', Q / 4184], ['Q, kWh', Q / 3.6e6]]), cols: 2,
             note: Q < 0 ? 'Below 0: the heat it gives cooling.' : 'A change of 1 K is a change of 1 °C.' };
     }
 
@@ -17370,9 +17365,6 @@
         side: function () { return bigSide(conv); }
     });
 
-    unitCards.load({ open: UNIT_TOOLS.units[0].id }); // Length open at first
-    dates.load({ open: 'span' }); // the first card open at first
-
     conv.querySelector('.calc-solve-tabs').addEventListener('click', function (e) {
         var t = e.target.closest('.calc-solve-tab');
         if (!t || t.dataset.tab === convTab) return;
@@ -18873,7 +18865,7 @@
         var s = {};
 
         // all read first: the keys pressed below must not save over what is still to be read
-        ['secondActive', 'deg', 'stat', 'statPairs', 'statTab', 'statBy', 'statFit', 'statTests', 'statsOn', 'fxOn', 'fxTab', 'pastTab', 'convOn', 'conv', 'convUnits', 'dates', 'graphOn', 'graph', 'solveOn', 'solve', 'numbersOn', 'numbers', 'physOn', 'phys', 'bioOn', 'bio', 'chemOn', 'chem', 'chemView', 'fraction', 'dms', 'format', 'memory', 'calc'].forEach(function (key) {
+        ['secondActive', 'deg', 'stat', 'statPairs', 'statTab', 'statBy', 'statFit', 'statTests', 'statsOn', 'fxOn', 'fxTab', 'convOn', 'conv', 'convUnits', 'dates', 'graphOn', 'graph', 'solveOn', 'solve', 'numbersOn', 'numbers', 'physOn', 'phys', 'bioOn', 'bio', 'chemOn', 'chem', 'chemView', 'fraction', 'dms', 'format', 'memory', 'calc'].forEach(function (key) {
             s[key] = stored(key);
         });
         if (s.secondActive) {
@@ -18899,10 +18891,9 @@
         chemCards.load(s.chem);
         loadChem(s.chemView);
         if (/^(formulas|constants)$/.test(s.fxTab)) fxTab = s.fxTab;
-        if (s.pastTab === 'vars' || (s.fxTab === 'vars' && !s.pastTab)) pastTab = 'vars'; // the Variables tab was the formulas' before
-        unitCards.load(s.convUnits);
+        unitCards.load(Object.assign({}, s.convUnits, { open: '' })); // what was typed in them kept, but every card closed
         loadConv(s.conv);
-        dates.load(s.dates);
+        dates.load(Object.assign({}, s.dates, { open: '' }));
         fracMode = engine.fraction = !!s.fraction;
         dmsMode = engine.dms = !fracMode && !!s.dms; // not both
         setFormat(s.format);

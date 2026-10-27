@@ -2489,6 +2489,7 @@ async function modeKey(page, at) {
     await pasted('2.500,5 + 1.250 =');
     check(await page.calc(raw) === '3.750,5', t + 'a pasted equation written so', await page.calc(raw));
     await page.click('.calc-conv-btn');
+    await chooseGroup(page, 'Length'); // every card closed at first
     await page.calc('(function (i) { i.value = "-1.2,3-4k5"; i.dispatchEvent(new Event("input", { bubbles: true })); })(document.querySelector(".calc-conv-units .calc-sv-item.calc-on input"))');
     check(await page.calc('document.querySelector(".calc-conv-units .calc-sv-item.calc-on input").value') === '-1,2345', t + 'a number box: one comma, a point typed is it',
         await page.calc('document.querySelector(".calc-conv-units .calc-sv-item.calc-on input").value'));
@@ -2691,6 +2692,7 @@ async function letters(page, at) {
 
     // the converter takes a letter as its value: a typed is A, -5 m in feet
     await page.click('.calc-conv-btn');
+    await chooseGroup(page, 'Length'); // every card closed at first
     await page.calc('(function (i) { i.value = ""; i.focus(); })(document.querySelector(".calc-conv-units .calc-sv-item.calc-on input"))');
     await page.type('a');
     check(await page.calc('document.querySelector(".calc-conv-units .calc-sv-item.calc-on input").value') === 'A' &&
@@ -2712,8 +2714,10 @@ async function letters(page, at) {
     // a reload keeps them, and so does Reset all
     await page.go(page.base + at);
     await page.click('.calc-hist');
-    check(await page.calc('document.querySelector(".calc-past-tab.calc-on").dataset.tab') === 'vars' && await box('A') === '-5' && await box('B') === '3',
-        t + 'after a reload the Variables tab and the letters are as they were', await box('A'));
+    check(await page.calc('document.querySelector(".calc-past-tab.calc-on").dataset.tab') === 'history', t + 'a new page opens on History', await page.calc('document.querySelector(".calc-past-tab.calc-on").dataset.tab'));
+    await page.click('.calc-past-tab[data-tab="vars"]');
+    check(await box('A') === '-5' && await box('B') === '3',
+        t + 'after a reload the letters are as they were', await box('A'));
     await page.key('Escape', 27);
     await page.rightClick('#box');
     await pick(page, 'Reset all');
@@ -2808,6 +2812,7 @@ async function otherLayouts(page, at) {
     // the boxes of the panels too: ٥ of the digit row types 5 in the converter, ش with Shift types A, and a pasted ٣٫٥ reads 3.5
     await page.fresh(at, {});
     await page.click('.calc-conv-btn');
+    await chooseGroup(page, 'Length'); // every card closed at first
     await page.calc('(function (i) { i.value = ""; i.focus(); })(document.querySelector(".calc-conv-units .calc-sv-item.calc-on input"))');
     await physical('Digit5', '٥', 53);
     await physical('KeyA', 'ش', 65, true);
@@ -2981,9 +2986,11 @@ async function converter(page, at) {
     await page.type('5\r');
     await page.click('.calc-conv-btn');
     check(await open(page, '.calc-conv'), t + 'the arrows open the converter');
-    check(await page.calc('document.activeElement === document.querySelector(".calc-conv-units .calc-sv-item.calc-on input")'), t + 'the value has the focus');
-    check(await page.calc('document.activeElement.value') === '5', t + 'and starts with the result, 5');
+    check(!await page.calc('document.querySelector(".calc-conv-units .calc-sv-item.calc-on")') && await page.calc('document.activeElement === document.querySelector(".calc-conv-search")'),
+        t + 'every card closed at first, the search has the focus');
     await chooseGroup(page, 'Length');
+    await page.calc('document.querySelector(".calc-conv-units .calc-sv-item.calc-on input").select()');
+    await page.type('5');
     await choose(page, '.calc-conv-units .calc-sv-item.calc-on .calc-sv-pick', 'kilometers');
     check(await converted(page, 'miles') === '3.10685596119', t + '5 km is 3.10685596119 mi', await converted(page, 'miles'));
     check(await converted(page, 'kilometers') === null, t + 'its own unit is not in the list');
@@ -3022,11 +3029,12 @@ async function converter(page, at) {
     check(!await open(page, '.calc-conv') && await shown(page) === '100' && await page.calc('document.querySelector(".calc-peek").hidden'),
         t + 'Insert of the tip puts 100 in', await shown(page));
 
-    // kept for the next time: the group, its unit, and the unit of the other groups
+    // kept for the next time: the unit of each group, every card closed
     await page.go(page.base + at);
     await page.click('.calc-conv-btn');
-    check(await openGroup(page) === 'Temperature' && /^Fahrenheit/.test(await chosen(page, '.calc-conv-units .calc-sv-item.calc-on .calc-sv-pick')),
-        t + 'the group and unit are kept');
+    check(!await page.calc('document.querySelector(".calc-conv-units .calc-sv-item.calc-on")'), t + 'after a reload every card is closed');
+    await chooseGroup(page, 'Temperature');
+    check(/^Fahrenheit/.test(await chosen(page, '.calc-conv-units .calc-sv-item.calc-on .calc-sv-pick')), t + 'the unit of Temperature is kept');
     await chooseGroup(page, 'Length');
     check(/^kilometers/.test(await chosen(page, '.calc-conv-units .calc-sv-item.calc-on .calc-sv-pick')), t + 'and the unit of Length too');
 
@@ -3109,8 +3117,10 @@ async function convDates(page, at) {
     check(await seen('.calc-conv-units') && !await seen('.calc-conv-datelist'), t + 'the units shown, the dates not');
     await page.click('.calc-conv .calc-solve-tab[data-tab="dates"]');
     check(!await seen('.calc-conv-units') && !await seen('.calc-conv-search') && await seen('.calc-conv-datelist'), t + 'Dates shows its cards in place of the units');
+    check(!await page.calc('document.querySelector("' + on + '")'), t + 'every date card closed at first');
+    await page.click('.calc-conv-datelist .calc-sv-item:first-child .calc-sv-row');
     check(await page.calc('document.querySelector("' + on + ' .calc-sv-name").textContent') === 'Time between dates' &&
-        await page.calc('document.querySelectorAll("' + on + ' .calc-sv-date input").length') === 2, t + 'Time between dates open at first, with two dates');
+        await page.calc('document.querySelectorAll("' + on + ' .calc-sv-date input").length') === 2, t + 'Time between dates opens, with two dates');
     check(await page.calc('(function (i) { return i.value === "" && i.placeholder === "Today"; })(document.querySelector("' + on + ' input"))') &&
         /^Years, months and days=0 days \| Years=0 \| Months=0 \| Weeks=0 \| Days=0 \| Weekdays=[01] \| Hours=0$/.test(await page.calc(tiles)), t + 'both are today at first', await page.calc(tiles));
     check(await page.calc('document.activeElement === document.querySelector("' + on + ' input")'), t + 'the first date has the focus');
@@ -3178,11 +3188,13 @@ async function convDates(page, at) {
     await page.click(on + ' .calc-sv-tile[data-r="5"]');
     check(!await open(page, '.calc-conv') && await shown(page) === '5', t + 'a click puts the 5 weekdays in', await shown(page));
 
-    // the tab and the dates kept for the next time
+    // the tab and the dates kept for the next time, every card closed
     await page.go(page.base + at);
     await page.click('.calc-conv-btn');
-    check(await page.calc('document.querySelector(".calc-conv .calc-solve-tab.calc-on").dataset.tab') === 'dates' &&
-        await page.calc('document.querySelector("' + on + ' input").value') === '2026-10-12', t + 'the tab and the dates are kept');
+    check(await page.calc('document.querySelector(".calc-conv .calc-solve-tab.calc-on").dataset.tab') === 'dates' && !await page.calc('document.querySelector("' + on + '")'),
+        t + 'the tab is kept, every card closed');
+    await page.click('.calc-conv-datelist .calc-sv-item:first-child .calc-sv-row');
+    check(await page.calc('document.querySelector("' + on + ' input").value') === '2026-10-12', t + 'and the dates are kept');
 
     // a date moved on: a month from 31 January 2024 is 29 February
     await page.click('.calc-conv-datelist .calc-sv-item:nth-child(2) .calc-sv-row');
@@ -3230,10 +3242,10 @@ async function convDates(page, at) {
     await set(1, '25:00');
     check(/^A time/.test(await page.calc(note)), t + 'no hour 25', await page.calc(note));
 
-    // the units again, the value with the focus; Esc closes it
+    // the units again, every card of them closed, the search with the focus; Esc closes it
     await page.click('.calc-conv .calc-solve-tab[data-tab="units"]');
-    check(await seen('.calc-conv-units') && !await seen('.calc-conv-datelist') && await page.calc('document.activeElement === document.querySelector(".calc-conv-units .calc-sv-item.calc-on input")'),
-        t + 'Units again, the value with the focus');
+    check(await seen('.calc-conv-units') && !await seen('.calc-conv-datelist') && await page.calc('document.activeElement === document.querySelector(".calc-conv-search")'),
+        t + 'Units again, the search with the focus');
     await page.key('Escape', 27);
     check(!await open(page, '.calc-conv'), t + 'Esc closes it');
 
@@ -3371,6 +3383,7 @@ async function menus(page, at) {
 
     // a box of a panel: the menu of the calculator, not the browser's
     await page.click('.calc-conv-btn');
+    await chooseGroup(page, 'Length'); // every card closed at first
     await page.calc('(function (i) { i.value = "12"; i.dispatchEvent(new Event("input", { bubbles: true })); i.select(); })(' + box + ')');
     await page.calc('window.shown = null, document.addEventListener("contextmenu", function (e) {' +
         ' setTimeout(function () { window.shown = !e.defaultPrevented; }); })');
