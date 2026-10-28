@@ -109,9 +109,27 @@ const showPageOptions = () => {
 
 // What the instant answers are for, besides the sums: each feature, a panel of the calculator, on unless kept
 // off in pageMathsFeatures, where background.js reads which to put into the pages. Listed while the instant
-// answers are on; one an administrator turned off with its panel cannot be chosen, and says why
+// answers are on; one an administrator turned off with its panel cannot be chosen, and says why. One whose
+// panel is turned off below is not listed, nor put into the pages: its choice is kept for when the panel is on
 const kindList = document.getElementById('page-maths-kinds');
 const kindBoxes = kindList.querySelectorAll('input:not(.always)'); // the sums are always on
+
+// each feature's panel, by the switch below that turns it on, kept in localStorage
+const panelOf = { formulas: 'fxOn', converter: 'convOn', graph: 'graphOn', statistics: 'statsOn', solve: 'solveOn', numbers: 'numbersOn', chemistry: 'chemOn', physics: 'physOn', biology: 'bioOn' };
+
+const panelOff = (name) => {
+    try {
+        return JSON.parse(localStorage.getItem(panelOf[name])) === false;
+    } catch (e) {
+        return false;
+    }
+};
+
+// the features of the panels turned off, as panelsOff, for background.js, which cannot read localStorage; not
+// where the page is opened outside the extension, as in the tests
+const keepPanels = () => {
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) chrome.storage.local.set({ panelsOff: Object.keys(panelOf).filter(panelOff) }).catch(() => { });
+};
 
 function showKinds() {
     kindList.hidden = !pageMaths.checked;
@@ -123,6 +141,7 @@ function showKinds() {
             const label = box.parentElement;
             const off = CalcPolicy.off(box.value);
 
+            label.hidden = panelOff(box.value);
             label.dataset.about = label.dataset.about || label.title;
             label.title = label.dataset.about + (off ? '. Turned off by your administrator.' : '');
             box.disabled = off;
@@ -137,6 +156,7 @@ kindBoxes.forEach((box) => box.addEventListener('change', () => {
     });
 }));
 CalcPolicy.onChange(showKinds);
+keepPanels(); // as they were turned off before this was kept
 
 // The websites the instant answers are turned off on, with the menu of a right click on a page
 // (background.js): listed under the option while it is on, each with a button that turns them on again
@@ -271,15 +291,20 @@ window.addEventListener('storage', (e) => {
         const stored = JSON.parse(localStorage.getItem(key));
         if (typeof stored === 'boolean') box.checked = stored;
     } catch (e) { }
+    // its instant answers go with it
     box.addEventListener('change', () => {
         try {
             localStorage.setItem(key, JSON.stringify(box.checked));
         } catch (e) { }
+        keepPanels();
+        showKinds();
     });
     // turned on or off on another options page, as the one over a tool's own window (popup.js); one an
     // administrator turned off stays off
     window.addEventListener('storage', (e) => {
-        if (e.key !== key || box.disabled) return;
+        if (e.key !== key) return;
+        showKinds();
+        if (box.disabled) return;
         try {
             const stored = JSON.parse(e.newValue);
             box.checked = typeof stored === 'boolean' ? stored : on;

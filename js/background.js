@@ -398,14 +398,15 @@ const pageFeatures = {
 };
 
 // What the pages get of the instant answers: page/reader.js, which reads the sums, then each feature that is
-// on, as options.js keeps them in pageMathsFeatures, each on unless false, and an administrator did not turn its
-// panel off, then page/answers.js, which puts the icons in the page
+// on, as options.js keeps them in pageMathsFeatures, each on unless false, and neither the user, panelsOff, nor
+// an administrator turned its panel off, then page/answers.js, which puts the icons in the page
 async function pageMathsFiles(kept) {
     const chosen = kept.pageMathsFeatures || {};
+    const panelsOff = Array.isArray(kept.panelsOff) ? kept.panelsOff : [];
     const files = ["js/page/reader.js"];
 
     for (const [name, list] of Object.entries(pageFeatures)) {
-        if (chosen[name] !== false && !await policyOff(name)) files.push(...list);
+        if (chosen[name] !== false && !panelsOff.includes(name) && !await policyOff(name)) files.push(...list);
     }
     return files.concat("js/page/answers.js");
 }
@@ -444,7 +445,7 @@ function followPageOptions() {
             followFrontTab(); // the icon's item too, shown only on a website
         };
         if (!await chrome.permissions.contains(pageAccess)) return menu(false);
-        const kept = await chrome.storage.local.get(["pageButtonOn", "pageMathsOn", "pageMathsFeatures"]).catch(() => ({}));
+        const kept = await chrome.storage.local.get(["pageButtonOn", "pageMathsOn", "pageMathsFeatures", "panelsOff"]).catch(() => ({}));
         const registered = await chrome.scripting.getRegisteredContentScripts().catch(() => []);
         let any = false;
 
@@ -579,7 +580,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
         followOpenMode();
     } else if (area === "local" && changes.openMode) {
         followOpenMode();
-    } else if (area === "local" && (changes.pageButtonOn || changes.pageMathsOn || changes.pageMathsFeatures)) {
+    } else if (area === "local" && (changes.pageButtonOn || changes.pageMathsOn || changes.pageMathsFeatures || changes.panelsOff)) {
         followPageOptions(); // chosen on the options page
     } else if (area === "local" && changes.pageMathsOff) {
         followFrontTab(); // a website turned on again on the options page
@@ -610,28 +611,51 @@ function openHomeWindow() {
     openBigWindow(homeUrl, panelMin);
 }
 
-// the window of the mode chosen: the big one with Advanced, else the detached one
-function openModeWindow(mode) {
-    if (mode === "advanced") openHomeWindow();
-    else unlessOff("detachedMode", openCalculatorInDetachedMode);
+// The calculator's windows of each open mode, to find them by their pages: the detached window, and the
+// Advanced mode's, its big window and each tool's own, which it goes between (goWindow)
+const isDetached = (url) => url.startsWith(detachedUrl);
+const isAdvanced = (url) => [homeUrl, graphUrl, chemUrl, chrome.runtime.getURL("popup.html?panel=")].some((page) => url.startsWith(page));
+
+// those of the other modes closed, then done
+function closeWindows(which) {
+    return chrome.tabs.query({ url: popupPages })
+        .then((tabs) => Promise.all(tabs.filter((t) => t.url && which(t.url)).map((t) => chrome.windows.remove(t.windowId).catch(() => { }))))
+        .catch(() => { });
 }
 
-// Launch on the options page opens the mode chosen. The popup is given back to the icon
-// first, in case the choice of Fixed has only just been made. It opens over the browser's window last used: the
-// options over a tool's own window (popup.js) are in a window with no icon, which comes to the front first
+// One mode open at a time: Detached Mode closes the Advanced mode's windows, Advanced Mode the detached window,
+// and Fixed Mode both
+function openDetachedMode() {
+    closeWindows(isAdvanced).then(openCalculatorInDetachedMode);
+}
+
+function openAdvancedMode() {
+    closeWindows(isDetached).then(openHomeWindow);
+}
+
+// the window of the mode chosen: the big one with Advanced, else the detached one
+function openModeWindow(mode) {
+    unlessOff("detachedMode", mode === "advanced" ? openAdvancedMode : openDetachedMode);
+}
+
+// Launch on the options page, and the shortcut, open the mode chosen
 function launchOpenMode() {
-    openModeOf().then((mode) => {
-        if (mode !== "fixed") {
-            openModeWindow(mode);
-            return;
-        }
-        chrome.action.setPopup({ popup: "popup.html" })
-            .then(() => chrome.windows.getLastFocused({ windowTypes: ["normal"] }))
-            .then((win) => (win.focused ? Promise.resolve() : focusWindow(win.id)).then(() => chrome.action.openPopup({ windowId: win.id })))
-            .catch(error => {
-                console.log("Failed to open popup:", error);
-            });
-    });
+    openModeOf().then((mode) => mode === "fixed" ? openFixedMode() : openModeWindow(mode));
+}
+
+// The popup under the icon, from a menu or Launch: the popup given to the icon to open it, then the icon as the open
+// mode has it again, the popup staying open. It opens over the browser's window last used: the options over a
+// tool's own window (popup.js), or the windows of the other modes, are in a window with no icon, which comes to
+// the front first
+function openFixedMode() {
+    closeWindows((url) => isDetached(url) || isAdvanced(url))
+        .then(() => chrome.action.setPopup({ popup: "popup.html" }))
+        .then(() => chrome.windows.getLastFocused({ windowTypes: ["normal"] }))
+        .then((win) => (win.focused ? Promise.resolve() : focusWindow(win.id)).then(() => chrome.action.openPopup({ windowId: win.id })))
+        .catch(error => {
+            console.log("Failed to open popup:", error);
+        })
+        .finally(followOpenMode);
 }
 
 chrome.action.onClicked.addListener(() => openModeOf().then(openModeWindow));
@@ -644,18 +668,7 @@ followOpenMode();
 
 // Listen for commands
 chrome.commands.onCommand.addListener(function (command) {
-    if (command === "open_popup") {
-        openModeOf().then((mode) => {
-            if (mode !== "fixed") {
-                openModeWindow(mode);
-                return;
-            }
-            chrome.action.openPopup()
-                .catch(error => {
-                    console.log("Failed to open popup:", error);
-                });
-        });
-    }
+    if (command === "open_popup") launchOpenMode(); // the mode chosen, as Launch opens it
 });
 
 
@@ -701,6 +714,12 @@ chrome.runtime.onInstalled.addListener((details) => {
             documentUrlPatterns: pageSites,
             visible: false
         }, followPageOptions);
+        // the popup under the icon, whatever the open mode is
+        chrome.contextMenus.create({
+            id: "open-fixed",
+            title: "Fixed Mode",
+            contexts: ["action", "page"]
+        });
         chrome.contextMenus.create({
             id: "open-popup",
             title: "Detached Mode",
@@ -745,10 +764,12 @@ chrome.runtime.onInstalled.addListener((details) => {
 
 // Listen for clicks on the context menu items
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-    if (info.menuItemId === "open-popup") {
-        unlessOff("detachedMode", openCalculatorInDetachedMode);
+    if (info.menuItemId === "open-fixed") {
+        openFixedMode();
+    } else if (info.menuItemId === "open-popup") {
+        openModeWindow("detached");
     } else if (info.menuItemId === "open-advanced") {
-        unlessOff("detachedMode", openHomeWindow);
+        openModeWindow("advanced");
     } else if (info.menuItemId === "calc-selection" && info.selectionText) {
         // the page reads what it is, as its icons do; a frame without page/answers.js has it put in as it is
         const asItIs = () => openPageMaths({ text: info.selectionText, kind: "sum" });

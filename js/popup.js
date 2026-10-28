@@ -303,6 +303,22 @@ if (pageStore) {
     } catch (e) { }
     shareUnit(kept === true ? 1 : kept === 'grad' ? 2 : 0); // as main.js reads it
     document.addEventListener('calc-unit', (event) => shareUnit(event.detail.deg));
+
+    // The features of the panels turned off in the options, as panelsOff, for background.js to leave out of
+    // the instant answers, as options.js keeps them: here too, for panels turned off before it kept them
+    const panelsOff = Object.entries({ formulas: 'fxOn', converter: 'convOn', graph: 'graphOn', statistics: 'statsOn', solve: 'solveOn', numbers: 'numbersOn', chemistry: 'chemOn', physics: 'physOn', biology: 'bioOn' })
+        .filter(([, key]) => {
+            try {
+                return JSON.parse(localStorage.getItem(key)) === false;
+            } catch (e) {
+                return false;
+            }
+        })
+        .map(([name]) => name);
+
+    pageStore.get('panelsOff')
+        .then((kept) => String(kept.panelsOff || []) === String(panelsOff) || pageStore.set({ panelsOff: panelsOff }))
+        .catch(() => { });
 }
 
 if (pageStore && params.has('detached')) {
