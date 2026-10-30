@@ -339,9 +339,10 @@
     // A line of the page as one text, its sum split by no tag: 3<sup>2</sup> + 4<sup>2</sup> is read
     // 3² + 4². segs: where each part of the text is in the page, those of a text node; subs: where the
     // digits of a <sub> are, H<sub>2</sub>O read H₂O, of a formula and of no sum; ups: where the letter
-    // of a <sup> after an X is, and which, X<sup>A</sup> of a cross of the X, of no sum; not a footnote's, tt<sup>a</sup>
+    // of a <sup> after an X is, and which, X<sup>A</sup> of a cross of the X, of no sum; not a footnote's, tt<sup>a</sup>;
+    // plain: a <sup> read as the text it is, of a price, <sup>$</sup>24<sup>.98</sup> read $24.98, no power
     function newRun(block) {
-        return { block: block, text: '', segs: [], subs: [], ups: [], sup: null, wrap: false };
+        return { block: block, text: '', segs: [], subs: [], ups: [], sup: null, wrap: false, plain: false };
     }
 
     function addText(run, node) {
@@ -353,6 +354,7 @@
         if (run.sup && run.sup !== sup) { // out of a power
             if (run.wrap) run.text += ')';
             run.sup = null;
+            run.plain = false;
         }
         if (!sup) {
             run.segs.push({ at: run.text.length, node: node, off: 0, len: data.length });
@@ -370,6 +372,20 @@
                 run.segs.push({ at: run.text.length, node: node, off: k, len: 1 });
                 run.text += Reader.sub(data[k]);
             }
+            return;
+        }
+        if (!run.sup) { // a price: its currency raised, or its cents, .98 or 98, after its whole dollars
+            const all = sup.textContent.trim();
+            if (/^[$€£¥₹¢]$/.test(all) || (/^[.,]?\d{2}$/.test(all) && /[$€£¥₹]\s*\d[\d,]*[.,]?\s*$/.test(run.text))) {
+                run.sup = sup;
+                run.plain = true;
+                run.wrap = false;
+                if (/^\d/.test(all) && /\d\s*$/.test(run.text)) run.text = run.text.trimEnd() + '.';
+            }
+        }
+        if (run.plain) {
+            run.segs.push({ at: run.text.length, node: node, off: 0, len: data.length });
+            run.text += data;
             return;
         }
         if (!run.sup) { // into a power: 2, –1 as ², ⁻¹; x + 1 in brackets; [1], a footnote, is not one
