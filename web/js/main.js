@@ -1230,12 +1230,14 @@
     // Not in a box, where the browser's own menu of the text is. On a display too long for the screen a hold is how
     // its text is picked (startPick), so there the menu opens as the finger is let go, if it did not move; so too on
     // the graph's plot and the periodic table's slider, where holding still may be the start of a pinch or a drag.
-    // Android's browser opens the menu at a hold itself: then the hold does not as well, nor its own after the hold's,
-    // sent as the finger is let go (Windows). A menu opened, letting go presses nothing under the finger. With no menu
-    // there, as on the keys, the tip of what is held comes instead, and stays when the finger is let go, pressing
-    // nothing, until the next touch anywhere but on the tip, which may scroll
+    // Android's browser opens the menu at a hold itself, sooner: that one is held back, the hold's own opening it as
+    // ever; after it, the browser's is not shown again, nor its own after the hold's, sent as the finger is let go
+    // (Windows); nor Chrome's of a tap on text selected, as the third of three taps. The iPhone's selection of the
+    // text held is not made, as it would be drawn over the menu. A menu opened, letting go presses nothing under the
+    // finger. With no menu there, as on the keys, the tip of what is held comes instead, and stays when the finger is
+    // let go, pressing nothing, until the next touch anywhere but on the tip, which may scroll
     (function () {
-        var HOLD = 500, timer = null, press = null, opened = false, heldAt = 0, letGo = null;
+        var HOLD = 1500, timer = null, press = null, opened = false, heldAt = 0, tappedAt = 0, letGo = null;
 
         function stop() {
             clearTimeout(timer);
@@ -1288,6 +1290,7 @@
         root.addEventListener('pointerup', function (e) {
             if (!press || !e.isPrimary) return;
             if (press.onRelease && !press.done && Date.now() - press.at >= HOLD && !String(window.getSelection())) open();
+            if (!press.done && Date.now() - press.at < HOLD) tappedAt = Date.now();
             stop();
             press = null;
             clearTimeout(letGo); // what the browser sends of the press comes at once, if at all: after that, nothing is held back
@@ -1299,22 +1302,28 @@
             press = null;
         }, false);
 
-        // the browser's own, of Android: before the hold's, it is the one; after it, it is not shown again
+        // the browser's own, of Android: before the hold's, held back for it; after it, not shown again
         window.addEventListener('contextmenu', function (e) {
             if (!e.isTrusted) return;
-            if (!press) { // let go already: the browser's of the hold, as the finger is let go
-                if (Date.now() - heldAt < 1000) {
+            if (!press) { // let go already: the browser's of the hold, as the finger is let go; or of a tap on text selected, Chrome's
+                if (Date.now() - heldAt < 1000 || Date.now() - tappedAt < 400) {
                     e.preventDefault();
                     e.stopImmediatePropagation();
                 }
                 return;
             }
-            if (press.done) {
+            if (press.done || Date.now() - press.at < HOLD) {
                 e.preventDefault();
                 e.stopImmediatePropagation();
+                return;
             }
             stop();
             press.done = true;
+        }, true);
+
+        // the iPhone's selection of the word held, drawn over the menu: not made while a hold may open it
+        document.addEventListener('selectstart', function (e) {
+            if (press && !press.onRelease) e.preventDefault();
         }, true);
 
         // the press the finger makes as it is let go, after the menu opened; until the next press, anywhere
@@ -1938,6 +1947,31 @@
     // hover, and its touches may come as a mouse, so it is known by its name
     var lastTouch = false;
     document.addEventListener('pointerdown', function (e) { lastTouch = e.pointerType === 'touch'; }, true);
+
+    // A finger's taps counted as a mouse's clicks: two quick taps in one spot a double click, three a triple,
+    // as a touch screen may count none of them in a click's detail, nor send a dblclick
+    var taps = { n: 0, t: 0, x: 0, y: 0 };
+    document.addEventListener('pointerdown', function (e) {
+        var again = e.pointerType === 'touch' && e.timeStamp - taps.t < 450 && Math.hypot(e.clientX - taps.x, e.clientY - taps.y) < 30;
+        taps = { n: e.pointerType !== 'touch' ? 0 : again ? taps.n + 1 : 1, t: e.timeStamp, x: e.clientX, y: e.clientY };
+    }, true);
+    function clicks(e) {
+        return e.detail && lastTouch ? Math.max(e.detail, taps.n) : e.detail;
+    }
+
+    // a double click on el, or a double tap
+    function onDouble(el, fn) {
+        var at = -1e9;
+        function once(e) {
+            if (e.timeStamp - at < 500) return; // the browser's dblclick after the second tap's click
+            at = e.timeStamp;
+            fn(e);
+        }
+        el.addEventListener('dblclick', once, false);
+        el.addEventListener('click', function (e) {
+            if (lastTouch && clicks(e) === 2) once(e);
+        }, false);
+    }
     function touchScreen() {
         return lastTouch || window.matchMedia('(hover: none), (pointer: coarse)').matches ||
             (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform)) || /\bTesla\//.test(navigator.userAgent);
@@ -2555,7 +2589,7 @@
         saveState();
     }, false);
 
-    graphSplit.addEventListener('dblclick', function () {
+    onDouble(graphSplit, function () {
         setSide(0);
         drawGraph();
         saveState();
@@ -4471,7 +4505,7 @@
     graphCanvas.addEventListener('pointercancel', graphUp, false);
 
     // a double click lets ∫ go, the area or point as it was before its first click
-    graphCanvas.addEventListener('dblclick', function () {
+    onDouble(graphCanvas, function () {
         if (!graphShading) return;
         areaOn(false);
         if (graphClickWas) {
@@ -18363,14 +18397,14 @@
         }, false);
 
         el.addEventListener('click', function (e) {
-            var edge = edgeAt(el, e.clientX), spot, rect, placed;
+            var edge = edgeAt(el, e.clientX), n = clicks(e), spot, rect, placed;
 
             if (edge) { // the dots slide the line, and open nothing
                 e.stopPropagation();
                 return goEdge(el, edge);
             }
             // a drag that selected in one box ends in a click on that box: the selection stays
-            if (el === display && e.detail < 2 && !window.getSelection().isCollapsed) return;
+            if (el === display && n < 2 && !window.getSelection().isCollapsed) return;
             if (el === display && engine.edit && !slid && (spot = e.target.closest('[data-e],[data-r]'))) { // the cursor where it is clicked
                 if (spot.hasAttribute('data-e')) {
                     rect = spot.getBoundingClientRect();
@@ -18384,20 +18418,20 @@
                 }
                 // the second click of two: the number under it selected, or all of a box when on its frame;
                 // the third of three: all of the box it is in, or of the line
-                if (e.detail >= 3 || (e.detail === 2 && !spot.hasAttribute('data-e'))) {
+                if (n >= 3 || (n === 2 && !spot.hasAttribute('data-e'))) {
                     selectRow(spot.hasAttribute('data-e') ? spot.getAttribute('data-e').split('|')[0] : spot.getAttribute('data-r'));
-                } else if (e.detail === 2) {
+                } else if (n === 2) {
                     pickValue(el, e.clientX, e.clientY);
                 }
                 return;
             }
             // the second click of two: the first one put the cursor in, and wrote the line again
-            if (e.detail === 2 && !slid && el === display) return pickValue(el, e.clientX, e.clientY);
+            if (n === 2 && !slid && el === display) return pickValue(el, e.clientX, e.clientY);
             if (slid || (el === display && !window.getSelection().isCollapsed)) return; // a slide or a selection, not a click
             if (el === logline) { // the equation above a result: a double click opens it, the cursor where it is clicked
                 if (engine.edit || !(engine.done || engine.error)) return; // empty: a click on the screen
                 e.stopPropagation(); // the screen's click would open it, the cursor at the end
-                if (e.detail !== 2) return; // one click leaves the result as it is
+                if (n !== 2) return; // one click leaves the result as it is
             }
             if (el === display && !engine.edit && (engine.done || engine.error)) return; // a result: nothing to put a cursor in
             spot = !engine.edit && e.target.closest('[data-e],[data-r]'); // drawn as the editor draws it: the cursor goes where it is clicked
@@ -18693,7 +18727,7 @@
             split.classList.remove('calc-on');
             store('cardSide', parseFloat(root.style.getPropertyValue('--calc-side-w')) || 0);
         }, false);
-        split.addEventListener('dblclick', function () {
+        onDouble(split, function () {
             sideWidth(0);
             store('cardSide', 0);
         }, false);

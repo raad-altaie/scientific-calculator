@@ -4372,6 +4372,7 @@
     text-align: right;
     border-radius: 5px;
     background: #b6d1c2;
+    touch-action: manipulation; /* two taps a double click, not a zoom */
     display: inline-block;
     overflow: hidden; /* nothing goes out over its rounded corners */
 }
