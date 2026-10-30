@@ -4944,10 +4944,19 @@
         onlyNumber(e.target, false); // a formula's letter may be one of A to J: a = A
         var note = e.target.closest('.calc-fx-form').querySelector('.calc-fx-note');
         e.target.classList.remove('calc-bad');
-        note.classList.remove('calc-fx-warn'); // a value changed: the usual note again
-        note.innerHTML = note.dataset.usual;
+        fxNote(note, null); // a value changed: the usual note again
         fxResetShown(e.target.closest('.calc-fx-form'));
     }, false);
+
+    // A formula's note: an error (html) at the top, over the boxes, as every card has it; null, its usual note, under
+    // them beside Insert
+    function fxNote(note, html) {
+        var form = note.closest('.calc-fx-form');
+        note.classList.toggle('calc-fx-warn', html !== null);
+        note.innerHTML = html === null ? note.dataset.usual : html;
+        if (html === null) form.querySelector('.calc-fx-actions').insertBefore(note, form.querySelector('.calc-fx-btns'));
+        else form.insertBefore(note, form.querySelector('.calc-fx-fields'));
+    }
 
     // Reset of a formula, once something is in its boxes
     function fxResetShown(form) {
@@ -4961,8 +4970,7 @@
             input.value = '';
             input.classList.remove('calc-bad');
         });
-        note.classList.remove('calc-fx-warn');
-        note.innerHTML = note.dataset.usual;
+        fxNote(note, null);
         fxResetShown(form);
         focusBox(form.querySelector('.calc-fx-fields input'));
     }
@@ -5184,9 +5192,8 @@
             return input.parentNode.querySelector('.calc-fx-sym').innerHTML;
         });
         if (!names.length) return;
-        note.classList.add('calc-fx-warn');
-        note.innerHTML = names.length > 2 ? names.length + (typed ? ' boxes are not numbers.' : ' boxes are empty.') :
-            names.join(' and ') + (names.length > 1 ? (typed ? ' are not numbers.' : ' are empty.') : (typed ? ' is not a number.' : ' is empty.'));
+        fxNote(note, names.length > 2 ? names.length + (typed ? ' boxes are not numbers.' : ' boxes are empty.') :
+            names.join(' and ') + (names.length > 1 ? (typed ? ' are not numbers.' : ' are empty.') : (typed ? ' is not a number.' : ' is empty.')));
     }
 
     // The formula with its letters filled in goes into the display as an
@@ -5204,8 +5211,7 @@
             input.classList.toggle('calc-bad', !input.value.trim());
         });
         if (s !== null && trial.paste(s, deg) && (trial.error || (trial.press('=', deg), trial.error))) {
-            note.classList.add('calc-fx-warn');
-            note.innerHTML = CalcFormulas.why(f, inputs.map(boxValue));
+            fxNote(note, CalcFormulas.why(f, inputs.map(boxValue)));
             return;
         }
         if (s !== null && (engine.edit || !(engine.done || engine.error || engine.plain()))) s = '(' + s + ')';

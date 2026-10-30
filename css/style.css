@@ -3041,6 +3041,12 @@
     margin: 0 0 8px; /* at the top, over the boxes, as far from them as their lines are apart */
 }
 
+/* a formula's the same (fxNote): out from beside Insert to the top */
+#calculator .calc-fx-form > .calc-fx-note.calc-fx-warn {
+    display: block;
+    margin: 0 0 8px;
+}
+
 /* Results on a line, between what is typed and what it gives */
 #calculator .calc-sv-results {
     display: flex;
