@@ -714,12 +714,11 @@ chrome.runtime.onInstalled.addListener((details) => {
             documentUrlPatterns: pageSites,
             visible: false
         }, followPageOptions);
-        // the popup under the icon, whatever the open mode is: in the menu of a right click on a page only, the
-        // toolbar icon's menu opening from the icon itself
+        // the popup under the icon, whatever the open mode is: in the menu of a right click on a page and of the toolbar icon
         chrome.contextMenus.create({
             id: "open-fixed",
             title: "Fixed Mode",
-            contexts: ["page"]
+            contexts: ["action", "page"]
         });
         chrome.contextMenus.create({
             id: "open-popup",
