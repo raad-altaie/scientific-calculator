@@ -548,8 +548,12 @@
             </div>
             <!-- examples to draw, by group, as the constants are, with a search of them -->
             <div class="calc-graph-examples" hidden>
-                <input class="calc-gx-search calc-graph-search" type="text" spellcheck="false" autocomplete="off" maxlength="60"
-                    placeholder="Search examples" aria-label="Search examples">
+                <!-- the search, its × at the right while something is typed, as the periodic table's -->
+                <span class="calc-search">
+                    <input class="calc-gx-search calc-graph-search" type="text" spellcheck="false" autocomplete="off" maxlength="60"
+                        placeholder="Search examples" aria-label="Search examples">
+                    <span class="calc-search-clear" role="button" aria-label="Clear the search"></span>
+                </span>
                 <div class="calc-gx-list calc-graph-ex-list"></div>
             </div>
         </div>
@@ -647,7 +651,7 @@
                         <input class="calc-pt-search" type="text" spellcheck="false" autocomplete="off" maxlength="20"
                             placeholder="Search: Fe, iron, 26" aria-label="Search the elements">
                         <!-- the search emptied: every element bright again -->
-                        <span class="calc-pt-clear" role="button" aria-label="Clear the search" hidden><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
+                        <span class="calc-search-clear" role="button" aria-label="Clear the search"></span>
                     </span>
                     <span class="calc-pt-modes" role="radiogroup" aria-label="Colours">
                         <span class="calc-pt-mode" data-by="cat" role="radio">Kind</span>
@@ -682,7 +686,10 @@
                 <span class="calc-panel-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-panel-grow" d="M10 2h4v4M6.5 9.5L14 2" /><path class="calc-panel-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
                 <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
             </div>
-            <input class="calc-fx-search" type="text" spellcheck="false" autocomplete="off" maxlength="60" placeholder="Search">
+            <span class="calc-search">
+                <input class="calc-fx-search" type="text" spellcheck="false" autocomplete="off" maxlength="60" placeholder="Search">
+                <span class="calc-search-clear" role="button" aria-label="Clear the search"></span>
+            </span>
             <div class="calc-fx-list"></div>
         </div>
 
@@ -698,8 +705,11 @@
                 <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
             </div>
             <!-- the search of the units, and a card for each group of them; the dates' cards on their tab, as the solver has -->
-            <input class="calc-fx-search calc-conv-search" type="text" spellcheck="false" autocomplete="off" maxlength="40"
-                placeholder="Search units" aria-label="Search units">
+            <span class="calc-search">
+                <input class="calc-fx-search calc-conv-search" type="text" spellcheck="false" autocomplete="off" maxlength="40"
+                    placeholder="Search units" aria-label="Search units">
+                <span class="calc-search-clear" role="button" aria-label="Clear the search"></span>
+            </span>
             <div class="calc-sv-list calc-conv-units"></div>
             <div class="calc-sv-list calc-conv-datelist" hidden></div>
         </div>
@@ -2133,6 +2143,7 @@
     <script src="js/formulas.js"></script>
     <script src="js/maths.js"></script>
     <script src="js/units.js"></script>
+    <script src="js/icons.js"></script>
     <script src="js/chem.js"></script>
     <script src="js/physics.js"></script>
     <script src="js/biology.js"></script>

@@ -247,14 +247,24 @@
             d: 'Ascii85, as PDF and PostScript have it: five letters, ! to u, for each four bytes, z for four 0s.',
             k: ''
         },
+        'choice do 0': {
+            t: 'Make',
+            d: 'Five new UUIDs, of the version chosen under it.',
+            k: ''
+        },
+        'choice do 1': {
+            t: 'Read',
+            d: 'A UUID typed or pasted: its version and variant, the time it was made, and it written other ways.',
+            k: ''
+        },
         'choice ver 0': {
             t: 'Version 4',
-            d: 'UUIDs all random but for 6 bits of their version and variant: 122 random bits, as most UUIDs are.',
+            d: 'Five UUIDs all random but for 6 bits of their version and variant: 122 random bits, as most UUIDs are. Click it again for five more.',
             k: ''
         },
         'choice ver 1': {
             t: 'Version 7',
-            d: 'UUIDs of the Unix time now, to the millisecond, then random bits: they sort in the order they were made, as keys of a database are best.',
+            d: 'Five UUIDs of the Unix time now, to the millisecond, then random bits: they sort in the order they were made, as keys of a database are best. Click it again for five more.',
             k: ''
         },
         'choice convert 0': {
@@ -325,6 +335,11 @@
         'card example': {
             t: 'Example',
             d: 'Types an example in the boxes, in place of what is there, to see what the card does: then change any number of it.',
+            k: ''
+        },
+        'formula copy': {
+            t: 'Copy',
+            d: 'Copies the formula as text, to paste anywhere: a power as ² where there is such a character, else as ^(…), a fraction as a ÷ b.',
             k: ''
         },
         'text copy': {
@@ -1132,6 +1147,10 @@
             d: 'Every tool: its tabs and cards, the formulas and constants, the examples of the graph, the elements and the units, ' +
                 'by their names and their tips. Enter or a click opens the one found.',
             k: 'Ctrl+K'
+        },
+        'search clear': {
+            t: 'Clear the search',
+            d: 'All of the list shown again.'
         },
         'search close': {
             t: 'Close the search',

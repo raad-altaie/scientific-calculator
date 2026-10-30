@@ -193,18 +193,23 @@
     }
 
     // Popped out, every tool grows with the window, by one measure for all of it: the rail, the head, the cards, the
-    // table, the graph's words and the numbers on its plot. As the window is 1400px wide and 880px high, to 1.3 times;
-    // never smaller. Set first as the window is resized, for what is measured or drawn again then to have it; kept
-    // in popZoom for the script, which reads it as often as a drag moves
+    // table, the graph's words and the numbers on its plot. As the room is 1400px wide and 880px high, to 1.3 times;
+    // never smaller. The room the window, or popped out, as far as the calculator goes: on the website half of it while
+    // the options are beside it. Set first as the window is resized, for what is measured or drawn again then to have
+    // it, and again as the calculator's size changes; kept in popZoom for the script, which reads it as often as a drag moves
     var popZoom = 1;
 
     function popScale() {
-        popZoom = Math.max(1, Math.min(1.3, window.innerWidth / 1400, window.innerHeight / 880));
+        var room = root.matches('.calc-big, .calc-panel-big') ? root.getBoundingClientRect().right : window.innerWidth,
+            z = Math.max(1, Math.min(1.3, room / 1400, window.innerHeight / 880));
+        if (z === popZoom && document.documentElement.style.getPropertyValue('--calc-pop')) return;
+        popZoom = z;
         document.documentElement.style.setProperty('--calc-pop', popZoom.toFixed(3));
     }
 
     popScale();
     window.addEventListener('resize', popScale, false);
+    if (window.ResizeObserver) new ResizeObserver(popScale).observe(root); // popped out or in, the options shown or hidden
 
     // A row that scrolls sideways, faded at the side, or the sides, it has more at: calc-more-l and calc-more-r, as it
     // is scrolled or its size changes. The wheel of a mouse scrolls it sideways as well, till the end it is turned
@@ -798,7 +803,8 @@
     // does, with an example and its keyboard shortcut. A key 2nd has turned
     // has the tip of its second function; with 2nd off, a tip names the
     // function 2nd gives the key. The marks in the display, the history and
-    // the ? beside the name have tips as well
+    // the ? beside the name have tips as well. On a touch screen a finger held still shows the tip at once,
+    // where there is no menu to open (the hold of the menu, below)
     tip.parentNode.addEventListener('mouseover', function (e) {
         if (!scrolledAt) onKey(e.target, true);
     }, false);
@@ -828,12 +834,12 @@
             return;
         }
         var key = target.closest('.calc-left > *, .calc-right > .del-ac, .calc-rad, .calc-mem, .calc-frac, .calc-fmt, .calc-hold, ' +
-            '.calc-stat-btn, .calc-fx-btn, .calc-fx-row, .calc-gx-row, .calc-conv-btn, .calc-solve-btn, .calc-numbers-btn, .calc-chem-btn, .calc-phys-btn, .calc-bio-btn, .calc-chem-size, .calc-panel-size, .calc-pt-mode, .calc-pt-clear, .calc-pt-unit, .calc-pt-temp-v, .calc-sv-row, ' +
+            '.calc-stat-btn, .calc-fx-btn, .calc-fx-row, .calc-gx-row, .calc-conv-btn, .calc-solve-btn, .calc-numbers-btn, .calc-chem-btn, .calc-phys-btn, .calc-bio-btn, .calc-chem-size, .calc-panel-size, .calc-pt-mode, .calc-search-clear, .calc-pt-unit, .calc-pt-temp-v, .calc-sv-row, ' +
             '.calc-graph-btn, .calc-graph-size, .calc-graph-add, .calc-graph-del, .calc-graph-diff, .calc-graph-points, .calc-graph-zoom > span, .calc-graph-pop-end, .calc-graph-pop-row, .calc-graph-play, ' +
             '.calc-graph-fn > .calc-graph-swatch, ' +
             '.calc-sto, .calc-var-btn, .calc-fx-phys, input, textarea, ' +
             '.calc-stats-chart, .calc-hist, .calc-find-btn, .calc-past-export, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit, .calc-help, .calc-open-big, ' +
-            '.calc-solve .calc-solve-tab, .calc-chem .calc-solve-tab, .calc-stats .calc-solve-tab, .calc-phys .calc-solve-tab, .calc-bio .calc-solve-tab, .calc-stats-fitpick, .calc-chem [data-pt], .calc-sv-opt, .calc-sv-copy, .calc-sv-example, .calc-sv-reset, .calc-sv-boxes .calc-sv-sym') || letterIn(target);
+            '.calc-solve .calc-solve-tab, .calc-chem .calc-solve-tab, .calc-stats .calc-solve-tab, .calc-phys .calc-solve-tab, .calc-bio .calc-solve-tab, .calc-stats-fitpick, .calc-chem [data-pt], .calc-sv-opt, .calc-sv-copy, .calc-f-copy, .calc-sv-example, .calc-sv-reset, .calc-sv-boxes .calc-sv-sym') || letterIn(target);
         if (key === tipKey) return;
         hideTip();
         tipKey = key;
@@ -1080,6 +1086,7 @@
     function tipFor(el, name) {
         var places = fmt.places === 'auto' ? 'as many digits as each one needs' :
             fmt.places + (fmt.places === 1 ? ' decimal place' : ' decimal places'), info, value;
+        if (el.classList.contains('calc-search-clear')) return CalcTips[el.closest('.calc-pt-find') ? 'chem search clear' : 'search clear']; // the table's empties with Esc as well
         if (el.hasAttribute('data-e')) { // a letter of the equation: what it holds now
             value = el.textContent.trim();
             return { t: 'Variable ' + value, d: value + ' = ' + letterValue(value), k: 'Shift+' + value };
@@ -1210,6 +1217,7 @@
         if (!root.contains(e.target)) return; // the rest of the page has the menu of the browser
         at = menu.at = inside({ left: e.clientX, top: e.clientY }); // where Store in Var opens the letters
         items = menuItems(e.target); // taken now, while what is selected is still selected
+        menu.had = !!items; // for a hold, which opened it: let go, it presses nothing
         e.preventDefault(); // in the calculator the menu of the browser is never shown
         if (!items) return;
         if (!items.some(function (item) { return item && item.clip; })) return openMenu(items, at, null);
@@ -1217,6 +1225,111 @@
             openMenu(has ? items : items.filter(function (item) { return !item || !item.clip; }), at, null);
         });
     }, false);
+
+    // A touch screen has no right click: a finger held still opens the menu of where it is, as the right click would.
+    // Not in a box, where the browser's own menu of the text is. On a display too long for the screen a hold is how
+    // its text is picked (startPick), so there the menu opens as the finger is let go, if it did not move; so too on
+    // the graph's plot and the periodic table's slider, where holding still may be the start of a pinch or a drag.
+    // Android's browser opens the menu at a hold itself: then the hold does not as well, nor its own after the hold's,
+    // sent as the finger is let go (Windows). A menu opened, letting go presses nothing under the finger. With no menu
+    // there, as on the keys, the tip of what is held comes instead, and stays when the finger is let go, pressing
+    // nothing, until the next touch anywhere but on the tip, which may scroll
+    (function () {
+        var HOLD = 500, timer = null, press = null, opened = false, heldAt = 0, letGo = null;
+
+        function stop() {
+            clearTimeout(timer);
+            timer = null;
+        }
+
+        function open() {
+            var t = press.target;
+            stop();
+            press.done = true;
+            heldAt = Date.now();
+            menu.had = false; // what it was held on drawn again meanwhile, no menu reached: not one before's
+            t.dispatchEvent(new MouseEvent('contextmenu', {
+                bubbles: true, cancelable: true, view: window, button: 2, clientX: press.x, clientY: press.y
+            }));
+            opened = menu.had || holdTip(t); // on the keys there is none: their tip; with no tip either, let go, the key is pressed as ever
+        }
+
+        // the tip of what is held, at once, not after the second of rest of a pointer; true if there is one
+        function holdTip(t) {
+            if (tip.contains(t)) return false;
+            hideTip();
+            tipKey = null;
+            onKey(t, false);
+            if (!tipTimer) return false;
+            clearTimeout(tipTimer);
+            showTip();
+            return !tip.hidden;
+        }
+
+        root.addEventListener('pointerdown', function (e) {
+            stop();
+            press = null;
+            if (e.pointerType === 'touch' && !tip.contains(e.target)) hideTip(); // a tip a hold showed, till the next touch
+            if (!e.isPrimary) return; // a second finger: a pinch, not a hold
+            if (e.pointerType !== 'touch' || e.target.closest('textarea, input, select, [contenteditable]')) return;
+            press = { target: e.target, x: e.clientX, y: e.clientY, at: Date.now(), done: false,
+                onRelease: display.contains(e.target) && display.scrollWidth > display.clientWidth || !!e.target.closest('.calc-graph-plot, .calc-pt-range-knob') };
+            if (!press.onRelease) timer = setTimeout(open, HOLD);
+        }, false);
+
+        // moved: a slide, a scroll or a drag, not a hold
+        root.addEventListener('pointermove', function (e) {
+            if (press && e.isPrimary && Math.hypot(e.clientX - press.x, e.clientY - press.y) > 10) {
+                stop();
+                press = null;
+            }
+        }, false);
+
+        root.addEventListener('pointerup', function (e) {
+            if (!press || !e.isPrimary) return;
+            if (press.onRelease && !press.done && Date.now() - press.at >= HOLD && !String(window.getSelection())) open();
+            stop();
+            press = null;
+            clearTimeout(letGo); // what the browser sends of the press comes at once, if at all: after that, nothing is held back
+            if (opened) letGo = setTimeout(function () { opened = false; }, 400);
+        }, false);
+
+        root.addEventListener('pointercancel', function () {
+            stop();
+            press = null;
+        }, false);
+
+        // the browser's own, of Android: before the hold's, it is the one; after it, it is not shown again
+        window.addEventListener('contextmenu', function (e) {
+            if (!e.isTrusted) return;
+            if (!press) { // let go already: the browser's of the hold, as the finger is let go
+                if (Date.now() - heldAt < 1000) {
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                }
+                return;
+            }
+            if (press.done) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+            }
+            stop();
+            press.done = true;
+        }, true);
+
+        // the press the finger makes as it is let go, after the menu opened; until the next press, anywhere
+        window.addEventListener('pointerdown', function () {
+            opened = false;
+        }, true);
+        ['mousedown', 'mouseup', 'click'].forEach(function (type) {
+            window.addEventListener(type, function (e) {
+                if (!opened || menu.contains(e.target) || type === 'click' && !e.detail) return; // a click of Enter or of a script is not of the finger
+                if (type === 'click') opened = false;
+                e.preventDefault();
+                e.stopImmediatePropagation();
+            }, true);
+        });
+    })();
 
     // whether the clipboard holds text, for Paste of the menu. The page reads it only where the
     // browser allows that already, and asks for nothing; where it cannot tell, it may hold some
@@ -1341,7 +1454,7 @@
                 ];
             }
             return [
-                ['Copy', function () { copy(plain(fractionsAsText(k.f))); }],
+                ['Copy', function () { copy(formulaText(k.f)); }],
                 row.classList.contains('calc-on') ? ['Insert', function () { insertFormula(row); }] :
                     ['Open', function () { openFormula(row); }]
             ];
@@ -1382,7 +1495,7 @@
             ];
         }
         box = panel === stats ? statsInput : panel === fx ? fxSearch : panel === graph ? graphInputs[0] : // of the converter, the first box of the card open
-            panel === conv ? conv.querySelector('.calc-sv-list:not([hidden]) .calc-sv-item.calc-on input') || (convSearch.hidden ? null : convSearch) : null;
+            panel === conv ? conv.querySelector('.calc-sv-list:not([hidden]) .calc-sv-item.calc-on input') || (convSearch.parentNode.hidden ? null : convSearch) : null;
         return box ? boxItems(box) : null;
     }
 
@@ -1651,7 +1764,7 @@
     pastClear.addEventListener('click', function () {
         if (pastTab === 'vars') return clearLetters();
         engine.past = [];
-        showPast(false);
+        renderPastTab(); // the history stays open, empty, its Clear off
         refresh();
         saveState();
     }, false);
@@ -1712,7 +1825,7 @@
 
         if (!del || !engine.past[i]) return;
         engine.past.splice(i, 1);
-        if (engine.past.length) renderPast(); else showPast(false);
+        renderPastTab(); // open even when the last is gone, as Clear leaves it
         refresh();
         saveState();
     }, false);
@@ -4775,6 +4888,7 @@
     // a formula opens its letters, or closes them; a constant is put in
     fxList.addEventListener('click', function (e) {
         var row = e.target.closest('.calc-fx-row'), item = row && row.parentNode;
+        if (e.target.closest('.calc-f-copy')) return copyFormula(e.target.closest('.calc-f-copy')); // it stays open
         if (!item) {
             if (e.target.closest('.calc-sv-reset')) resetFormula(e.target.closest('.calc-fx-form'));
             if (e.target.closest('.calc-fx-insert')) insertFormula(e.target.closest('.calc-fx-item'));
@@ -4895,6 +5009,12 @@
         }
     }
 
+    // the icon before the name of a formula or a constant: its own, else that of its card in Physics, Biology or Finance
+    function fxIcon(it) {
+        var link = it.p ? ['phys', it.p[0]] : it.b ? ['bio', it.b[0]] : it.fin ? ['solve', it.fin[0]] : null;
+        return CalcIcons.card(fxTab, it.t) || (link ? CalcIcons.card(link[0], link[1]) : '');
+    }
+
     // the list of the tab, the entries the search finds, under the name of their group
     function renderFx() {
         var words = fxSearch.value.trim().toLowerCase().split(/\s+/).filter(Boolean), group = null, html = '';
@@ -4911,11 +5031,11 @@
             group = entry.c;
             // a constant is written as a formula is: its symbol = its value, a root drawn
             html += '<div class="calc-fx-item" data-i="' + i + '"><div class="calc-fx-row">' +
-                '<span class="calc-fx-col"><span class="calc-fx-name">' + it.t + '</span>' +
+                '<span class="calc-fx-col"><span class="calc-fx-name">' + fxIcon(it) + it.t + '</span>' +
                 '<span class="calc-fx-f calc-fx-eq' + (fxTab === 'constants' ? ' calc-fx-val' : '') + '"><span>' +
                 (fxTab === 'constants' ? '<span class="calc-fx-sym">' +
                     it.s.replace(/√(\w+)/, '<span class="calc-root">$1</span>') + '</span> = ' + constantValue(it) : it.f) +
-                '</span>' +
+                '</span>' + (fxTab === 'formulas' ? copyButton() : '') + // a formula has Copy after it, while it is open
                 // a constant has insert at the right of its value, while the pointer is over it
                 (fxTab === 'constants' ? '<span class="calc-fx-put">' + insertIcon() + '</span>' : '') +
                 '</span></span>' +
@@ -5034,7 +5154,7 @@
         f = fxItems.formulas[+item.dataset.i].item;
         form = item.appendChild(document.createElement('div'));
         form.className = 'calc-fx-form';
-        form.innerHTML = '<div class="calc-sv-side-head"><span class="calc-sv-side-name">' + f.t + '</span>' + item.querySelector('.calc-fx-f').outerHTML + // beside the list, at its top
+        form.innerHTML = '<div class="calc-sv-side-head"><span class="calc-sv-side-name">' + fxIcon(f) + f.t + '</span>' + item.querySelector('.calc-fx-f').outerHTML + // beside the list, at its top
             '<p class="calc-sv-side-d">' + f.d + '</p></div>' +
             '<div class="calc-sv-top"><span class="calc-sv-reset" role="button" hidden>Reset' + RESET_ICON + '</span></div>' + // as the cards of the other panels have
             '<div class="calc-fx-fields">' + f.v.map(function (v) {
@@ -5154,6 +5274,7 @@
         if (el.classList.contains('calc-past-close')) return CalcTips['formulas close'];
         if (el.classList.contains('calc-fx-phys')) return CalcTips[el.classList.contains('calc-fx-bio') ? 'formula biology' : el.classList.contains('calc-fx-fin') ? 'formula finance' : 'formula physics'];
         if (el.classList.contains('calc-sv-reset')) return CalcTips['card reset'];
+        if (el.classList.contains('calc-f-copy')) return CalcTips['formula copy'];
         if (!el.classList.contains('calc-fx-row')) return null;
         it = fxItems[fxTab][+item.dataset.i].item;
         if (fxTab === 'constants') return null;
@@ -5172,8 +5293,34 @@
 
     // The subtitle of a card in light rounded badges: one of a few things each in its own, in
     // place of commas between them, pills(['A + B', 'A × B']); one alone in one, as each card draws it
-    function pills(items) {
-        return [].concat(items).map(function (x) { return '<span class="calc-sv-pill"><span>' + x + '</span></span>'; }).join('');
+    // Copy of a formula: a button after it, in its badge on a card, to copy it as text; shown while its card or formula is open
+    var PILL_COPY = '<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' +
+            '<rect x="5.5" y="5.5" width="8" height="8" rx="1.5" /><path d="M10.5 3.5V3A1.5 1.5 0 0 0 9 1.5H4A1.5 1.5 0 0 0 2.5 3v5A1.5 1.5 0 0 0 4 9.5h.5" /></svg>',
+        PILL_COPIED = '<svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+            '<path d="M3 8.5l3 3 7-7" /></svg>';
+
+    // a formula as text, to copy: its fractions as a ÷ b, its powers as ² or ^(…)
+    function formulaText(html) {
+        return plain(fractionsAsText(html));
+    }
+
+    function copyButton() {
+        return '<span class="calc-f-copy" role="button" aria-label="Copy">' + PILL_COPY + PILL_COPIED + '</span>'; // both in one place, the tick shown once copied
+    }
+
+    // the formula before the button copied as text, as Copy of the formulas' menu does: a tick for a moment, for it is done, in
+    // place of the icon, of its size, so nothing moves
+    function copyFormula(button) {
+        copy(formulaText(button.previousElementSibling.innerHTML));
+        button.classList.add('calc-done');
+        clearTimeout(button.done);
+        button.done = setTimeout(function () { button.classList.remove('calc-done'); }, 1000);
+    }
+
+    function pills(items, copies) {
+        return [].concat(items).map(function (x) {
+            return '<span class="calc-sv-pill"><span>' + x + '</span>' + (copies ? copyButton() : '') + '</span>';
+        }).join('');
     }
 
     // Equations solved for x, calculus and probability, a tab each: a card for each tool, as the
@@ -5196,50 +5343,50 @@
         SOLVE_TOOLS = {
         solve: [
             { id: 'equation', t: 'Equation', f: 'x<sup>3</sup> = 2x + 1', d: 'Every x where its two sides are equal, or where one side alone is 0; from and to where to look, if you like.',
-                fields: [{ k: 'eq', ph: 'x^3 = 2x + 1', fn: true }, { k: 'from', l: 'From', ph: 'optional' }, { k: 'to', l: 'To', ph: 'optional' }], cols: 2,
+                fields: [{ k: 'eq', l: 'Equation', ph: 'x^3 = 2x + 1', fn: true }, { k: 'from', l: 'From', ph: 'optional' }, { k: 'to', l: 'To', ph: 'optional' }], cols: 2,
                 run: runEquation, example: { eq: 'x^3 = 2x + 1' } },
             { id: 'inequality', t: 'Inequality', f: 'x<sup>2</sup> – 4 &gt; 0', d: 'Every x where it holds, as x &lt; –2 or x &gt; 2 and in intervals: with &lt;, &gt;, &lt;= or &gt;=, or two the same way, 1 &lt; x^2 &lt; 4. From and to where to look, if you like.',
-                fields: [{ k: 'eq', ph: 'x^2 - 4 > 0', fn: true }, { k: 'from', l: 'From', ph: 'optional' }, { k: 'to', l: 'To', ph: 'optional' }], cols: 2,
+                fields: [{ k: 'eq', l: 'Inequality', ph: 'x^2 - 4 > 0', fn: true }, { k: 'from', l: 'From', ph: 'optional' }, { k: 'to', l: 'To', ph: 'optional' }], cols: 2,
                 run: runInequality, example: { eq: 'x^2 - 4 > 0' } },
             { id: 'extrema', t: 'Turning points', f: 'max and min of f(x)', d: 'Where a function is highest or lowest near by, x^3 – 3x at –1 and 1: each x and its value. With From and To, its highest and lowest between them as well, the ends among them.',
-                fields: [{ k: 'f', ph: 'x^3 - 3x', fn: true }, { k: 'from', l: 'From', ph: 'optional' }, { k: 'to', l: 'To', ph: 'optional' }], cols: 2,
+                fields: [{ k: 'f', l: 'f(x)', ph: 'x^3 - 3x', fn: true }, { k: 'from', l: 'From', ph: 'optional' }, { k: 'to', l: 'To', ph: 'optional' }], cols: 2,
                 run: runExtrema, example: { f: 'x^3 - 3x' } },
-            { id: 'quadratic', t: 'Quadratic', f: 'ax<sup>2</sup> + bx + c = 0', d: 'Its two roots, real or a ± bi, the discriminant b² – 4ac and the vertex of its parabola.',
+            { id: 'quadratic', waits: true, t: 'Quadratic', f: 'ax<sup>2</sup> + bx + c = 0', d: 'Its two roots, real or a ± bi, the discriminant b² – 4ac and the vertex of its parabola.',
                 fields: coefficients('abc'), cols: 3, run: function (n) { return runPoly([n.a, n.b, n.c]); }, example: { a: '1', b: '-2', c: '-3' } },
-            { id: 'cubic', t: 'Cubic', f: 'ax<sup>3</sup> + bx<sup>2</sup> + cx + d = 0', d: 'Its three roots, real or a ± bi.',
+            { id: 'cubic', waits: true, t: 'Cubic', f: 'ax<sup>3</sup> + bx<sup>2</sup> + cx + d = 0', d: 'Its three roots, real or a ± bi.',
                 fields: coefficients('abcd'), cols: 4, run: function (n) { return runPoly([n.a, n.b, n.c, n.d]); }, example: { a: '1', b: '-6', c: '11', d: '-6' } },
-            { id: 'quartic', t: 'Quartic', f: 'ax<sup>4</sup> + bx<sup>3</sup> + cx<sup>2</sup> + dx + e = 0', d: 'Its four roots, real or a ± bi.',
+            { id: 'quartic', waits: true, t: 'Quartic', f: 'ax<sup>4</sup> + bx<sup>3</sup> + cx<sup>2</sup> + dx + e = 0', d: 'Its four roots, real or a ± bi.',
                 fields: coefficients('abcde'), cols: 5, run: function (n) { return runPoly([n.a, n.b, n.c, n.d, n.e]); }, example: { a: '1', b: '0', c: '-5', d: '0', e: '4' } },
             { id: 'polynomial', t: 'Polynomial', f: 'a<sub>n</sub>x<sup>n</sup> + … + a<sub>0</sub> = 0', d: 'Every root of a polynomial of any power up to 30, real or a ± bi, and it multiplied out: typed, x^5 – 3x + 1 or (x – 1)(x + 2)^2, or its coefficients from the highest power, 1, 0, -2, 1.',
-                fields: [{ k: 'p', ph: 'x^5 - 3x + 1', fn: true }], run: runPolynomial, example: { p: 'x^5 - 3x + 1' } },
+                fields: [{ k: 'p', l: 'p(x)', ph: 'x^5 - 3x + 1', fn: true }], run: runPolynomial, example: { p: 'x^5 - 3x + 1' } },
             { id: 'system2', t: 'Two equations', f: 'a<sub>1</sub>x + b<sub>1</sub>y = c<sub>1</sub>', d: 'x and y of two linear equations: a₁x + b₁y = c₁ and a₂x + b₂y = c₂.',
                 fields: system(2), cols: 3, run: function (n) { return runSystem(n, 2); }, example: { a1: '1', b1: '1', c1: '3', a2: '1', b2: '-1', c2: '1' } },
             { id: 'system3', t: 'Three equations', f: 'a<sub>1</sub>x + b<sub>1</sub>y + c<sub>1</sub>z = d<sub>1</sub>', d: 'x, y and z of three linear equations, each a row: a, b, c and what it equals, d.',
                 fields: system(3), cols: 4, run: function (n) { return runSystem(n, 3); }, example: { a1: '1', b1: '1', c1: '1', d1: '6', a2: '0', b2: '2', c2: '5', d2: '-4', a3: '2', b3: '5', c3: '-1', d3: '27' } },
             { id: 'curves', t: 'Two curves', f: ['x<sup>2</sup> + y<sup>2</sup> = 25', 'x + y = 7'], d: 'Every x and y where two equations of them hold together, not only lines: where the circle x^2 + y^2 = 25 and the line x + y = 7 cross, or y = x^2 and x + y = 1.',
-                fields: [{ k: 'e1', ph: 'x^2 + y^2 = 25', fn: true, aria: 'First equation' }, { k: 'e2', ph: 'x + y = 7', fn: true, aria: 'Second equation' }], run: runCurves, example: { e1: 'x^2 + y^2 = 25', e2: 'x + y = 7' } }
+                fields: [{ k: 'e1', l: 'Curve 1', ph: 'x^2 + y^2 = 25', fn: true, aria: 'First equation' }, { k: 'e2', l: 'Curve 2', ph: 'x + y = 7', fn: true, aria: 'Second equation' }], run: runCurves, example: { e1: 'x^2 + y^2 = 25', e2: 'x + y = 7' } }
         ],
         calculus: [
             { id: 'integral', t: 'Integral', f: '∫<sub>a</sub><sup>b</sup> f(x) dx', d: 'The integral of a function from a to b, the area under it, its exact form where it has one, √π or 1/3, and the average value of the function there; an end may be ∞, typed inf.',
-                fields: [{ k: 'f', ph: 'x^2', fn: true }, { k: 'a', l: 'From', ph: '0', def: 0, inf: true }, { k: 'b', l: 'To', ph: '1', def: 1, inf: true }], cols: 2,
+                fields: [{ k: 'f', l: 'f(x)', ph: 'x^2', fn: true }, { k: 'a', l: 'From', ph: '0', def: 0, inf: true }, { k: 'b', l: 'To', ph: '1', def: 1, inf: true }], cols: 2,
                 run: runIntegral, example: { f: 'x^2', a: '0', b: '3' } },
             { id: 'derivative', t: 'Derivative', f: ['f′(x)', 'f″(x)'], d: 'The value of a function at x, its slope there and the slope of that, and the line that touches it there.',
-                fields: [{ k: 'f', ph: 'x^3', fn: true }, { k: 'x', l: 'x', ph: '2' }], cols: 1, run: runDerivative, example: { f: 'x^3', x: '2' } },
+                fields: [{ k: 'f', l: 'f(x)', ph: 'x^3', fn: true }, { k: 'x', l: 'x', ph: '2' }], cols: 1, run: runDerivative, example: { f: 'x^3', x: '2' } },
             { id: 'sum', t: 'Sum', f: 'Σ f(n)', d: 'The sum of a function of n, k, i or j, or of x, for each whole number from a to b. b may be ∞, typed inf: 1/n^2 from 1 on is π²/6.',
-                fields: [{ k: 'f', ph: 'n^2', fn: true }, { k: 'a', l: 'From', ph: '1', def: 1 }, { k: 'b', l: 'To', ph: '10', def: 10, inf: true }], cols: 2,
+                fields: [{ k: 'f', l: 'f(n)', ph: 'n^2', fn: true }, { k: 'a', l: 'From', ph: '1', def: 1 }, { k: 'b', l: 'To', ph: '10', def: 10, inf: true }], cols: 2,
                 run: function (n, raw) { return runSeries(n, raw, false); }, example: { f: '1/n^2', a: '1', b: 'inf' } },
             { id: 'product', t: 'Product', f: 'Π f(n)', d: 'The product of a function of n, k, i or j, or of x, for each whole number from a to b. b may be ∞, typed inf: 1 – 1/n^2 from 2 on is 1/2.',
-                fields: [{ k: 'f', ph: 'n', fn: true }, { k: 'a', l: 'From', ph: '1', def: 1 }, { k: 'b', l: 'To', ph: '5', def: 5, inf: true }], cols: 2,
+                fields: [{ k: 'f', l: 'f(n)', ph: 'n', fn: true }, { k: 'a', l: 'From', ph: '1', def: 1 }, { k: 'b', l: 'To', ph: '5', def: 5, inf: true }], cols: 2,
                 run: function (n, raw) { return runSeries(n, raw, true); }, example: { f: '1 - 1/n^2', a: '2', b: 'inf' } },
             { id: 'limit', t: 'Limit', f: 'lim<sub>x→a</sub> f(x)', d: 'What a function comes to as x comes to a, from below, from above and both, or ∞ where it grows without end: sin(x)/x as x comes to 0. a may be ∞, typed inf.',
-                fields: [{ k: 'f', ph: 'sin(x)/x', fn: true }, { k: 'a', l: 'x →', ph: '0', def: 0, inf: true, name: 'The point x goes to' }], cols: 1, run: runLimit, example: { f: 'sin(x)/x', a: '0' } },
+                fields: [{ k: 'f', l: 'f(x)', ph: 'sin(x)/x', fn: true }, { k: 'a', l: 'x →', ph: '0', def: 0, inf: true, name: 'The point x goes to' }], cols: 1, run: runLimit, example: { f: 'sin(x)/x', a: '0' } },
             { id: 'taylor', t: 'Taylor series', f: 'f(a) + f′(a)(x – a) + …', d: 'A function as a polynomial about a, to the power you give, up to 12: sin x is x – x³/6 + x⁵/120 – …, and each coefficient, f⁽ᵏ⁾(a)/k!.',
-                fields: [{ k: 'f', ph: 'sin(x)', fn: true }, { k: 'a', l: 'a', ph: '0', def: 0 }, { k: 'n', l: 'Power', ph: '7', def: 7 }], cols: 2, run: runTaylor, example: { f: 'sin(x)', a: '0', n: '7' } },
+                fields: [{ k: 'f', l: 'f(x)', ph: 'sin(x)', fn: true }, { k: 'a', l: 'a', ph: '0', def: 0 }, { k: 'n', l: 'Power', ph: '7', def: 7 }], cols: 2, run: runTaylor, example: { f: 'sin(x)', a: '0', n: '7' } },
             { id: 'between', t: 'Area between', f: '∫<sub>a</sub><sup>b</sup> |f(x) – g(x)| dx', d: 'The area between two curves from a to b, the parts where g is above as well, the integral of f – g, and where they cross on the way.',
-                fields: [{ k: 'f', ph: 'x', fn: true, aria: 'f(x)' }, { k: 'g', ph: 'x^2', fn: true, aria: 'g(x)' }, { k: 'a', l: 'From', ph: '0', def: 0 }, { k: 'b', l: 'To', ph: '1', def: 1 }], cols: 2,
+                fields: [{ k: 'f', l: 'f(x)', ph: 'x', fn: true, aria: 'f(x)' }, { k: 'g', l: 'g(x)', ph: 'x^2', fn: true, aria: 'g(x)' }, { k: 'a', l: 'From', ph: '0', def: 0 }, { k: 'b', l: 'To', ph: '1', def: 1 }], cols: 2,
                 run: runBetween, example: { f: 'x', g: 'x^2', a: '0', b: '1' } },
             { id: 'arc', t: 'Arc length', f: '∫<sub>a</sub><sup>b</sup> √(1 + f′(x)²) dx', d: 'How long the curve of a function is from a to b, as a string laid along it.',
-                fields: [{ k: 'f', ph: 'x^2', fn: true }, { k: 'a', l: 'From', ph: '0', def: 0 }, { k: 'b', l: 'To', ph: '1', def: 1 }], cols: 2, run: runArc, example: { f: 'x^2', a: '0', b: '1' } },
+                fields: [{ k: 'f', l: 'f(x)', ph: 'x^2', fn: true }, { k: 'a', l: 'From', ph: '0', def: 0 }, { k: 'b', l: 'To', ph: '1', def: 1 }], cols: 2, run: runArc, example: { f: 'x^2', a: '0', b: '1' } },
             { id: 'ode', t: 'Differential equation', f: 'y′ = f(x, y)', d: 'y at x, where its slope y′ is a function of x and y and it starts at y₀ at x₀: y′ = x + y with y(0) = 1, by the steps of Runge and Kutta.',
                 fields: [{ k: 'f', l: 'y′ =', ph: 'x + y', fn: true }, { k: 'x0', l: 'x<sub>0</sub>', ph: '0', def: 0 }, { k: 'y0', l: 'y<sub>0</sub>', ph: '1', def: 1 }, { k: 'x', l: 'x', ph: '1', def: 1 }],
                 cols: 3, run: runOde, example: { f: 'x + y', x0: '0', y0: '1', x: '1' } }
@@ -5292,7 +5439,7 @@
                 fields: [{ k: 'p', l: 'Corners', ph: 'x and y of each, in order:\n0 0\n4 0\n4 3', area: true }], cols: 1, run: runPolygon, example: { p: '0 0\n4 0\n4 3\n0 3' } }
         ],
         chance: [
-            { id: 'normal', t: 'Normal probability', f: 'P(a ≤ X ≤ b)', d: 'The chance that a normal value of mean μ and standard deviation σ is between a and b; an empty end goes on without end.',
+            { id: 'normal', waits: true, t: 'Normal probability', f: 'P(a ≤ X ≤ b)', d: 'The chance that a normal value of mean μ and standard deviation σ is between a and b; an empty end goes on without end.',
                 fields: [{ k: 'a', l: 'From', ph: '−∞', def: -Infinity, inf: true }, { k: 'b', l: 'To', ph: '∞', def: Infinity, inf: true }, MEAN, SPREAD], cols: 2,
                 example: { a: '-1', b: '1' }, run: function (n) {
                     var p = CalcMaths.normalBetween(n.a, n.b, n.mu, n.sigma);
@@ -5315,11 +5462,11 @@
                         note: !isNaN(n.p) && !(n.p > 0 && n.p < 1) ? 'p is a chance between 0 and 1.' : sigmaNote(n), warn: !isNaN(n.p) && !(n.p > 0 && n.p < 1)
                     };
                 } },
-            { id: 'student', t: 'Student\'s t', f: 'P(T ≤ t), ν degrees', d: 'The chances of Student\'s t of ν degrees of freedom below and above t, and of a t as far from 0 either way, the two-sided p; and the t it is below with the chance p, and the ±t it is between with it.',
+            { id: 'student', waits: true, t: 'Student\'s t', f: 'P(T ≤ t), ν degrees', d: 'The chances of Student\'s t of ν degrees of freedom below and above t, and of a t as far from 0 either way, the two-sided p; and the t it is below with the chance p, and the ±t it is between with it.',
                 fields: [{ k: 't', l: 't', ph: '2' }, { k: 'nu', l: 'ν', ph: '10', def: 10 }, PROBABILITY], cols: 3, run: runStudent, example: { t: '2.228', nu: '10' } },
-            { id: 'chi', t: 'Chi-squared', f: 'P(χ² ≤ x), k degrees', d: 'The chances of χ² of k degrees of freedom below and above x, the x it is below with the chance p, its mean and σ.',
+            { id: 'chi', waits: true, t: 'Chi-squared', f: 'P(χ² ≤ x), k degrees', d: 'The chances of χ² of k degrees of freedom below and above x, the x it is below with the chance p, its mean and σ.',
                 fields: [{ k: 'x', l: 'x', ph: '3.84' }, { k: 'k', l: 'k', ph: '1', def: 1 }, PROBABILITY], cols: 3, run: runChi, example: { x: '3.84', k: '1' } },
-            { id: 'fisher', t: 'F', f: 'P(F ≤ x), d₁ and d₂', d: 'The chances of F of d₁ and d₂ degrees of freedom below and above x, and the x it is below with the chance p.',
+            { id: 'fisher', waits: true, t: 'F', f: 'P(F ≤ x), d₁ and d₂', d: 'The chances of F of d₁ and d₂ degrees of freedom below and above x, and the x it is below with the chance p.',
                 fields: [{ k: 'x', l: 'x', ph: '3.33' }, { k: 'd1', l: 'd<sub>1</sub>', ph: '5', def: 5 }, { k: 'd2', l: 'd<sub>2</sub>', ph: '10', def: 10 }, PROBABILITY], cols: 4, run: runF, example: { x: '3.33', d1: '5', d2: '10' } },
             { id: 'binomial', t: 'Binomial', f: 'P(X = k), n tries', d: 'The chance of k of n tries, each with the chance p: exactly k, k or fewer and k or more.',
                 fields: [{ k: 'n', l: 'n', ph: '10' }, { k: 'p', l: 'p', ph: '0.5' }, { k: 'k', l: 'k', ph: '5' }], cols: 3,
@@ -5361,7 +5508,7 @@
                         return x < 0 ? 0 : n.lambda * Math.exp(-n.lambda * x);
                     }, 0, Math.max(n.x * 1.3, 5 / n.lambda), n.x)) : []), note: bad ? 'λ is above 0.' : '', warn: bad };
                 } },
-            { id: 'uniform', t: 'Uniform', f: 'P(X ≤ x), from a to b', d: 'The chance that a value spread evenly from a to b is below x, or above, and its density there.',
+            { id: 'uniform', waits: true, t: 'Uniform', f: 'P(X ≤ x), from a to b', d: 'The chance that a value spread evenly from a to b is below x, or above, and its density there.',
                 fields: [{ k: 'a', l: 'From', ph: '0', def: 0 }, { k: 'b', l: 'To', ph: '1', def: 1 }, { k: 'x', l: 'x', ph: '0.25' }], cols: 3,
                 example: { a: '0', b: '1', x: '0.25' }, run: function (n) {
                     var c = CalcMaths.uniform(n.a, n.b, n.x), bad = isFinite(n.a) && isFinite(n.b) && !(n.a < n.b);
@@ -5386,8 +5533,7 @@
                         note: bad ? 'x and n are whole numbers, x no more than n; the level a chance between 0 and 1.' : '', warn: bad };
                 } },
             { id: 'random', t: 'Random whole numbers', f: 'from a to b', d: 'Five whole numbers at random, each from a to b, both in, as dice give them. Again for five more.',
-                fields: [{ k: 'a', l: 'From', ph: '1', def: 1 }, { k: 'b', l: 'To', ph: '6', def: 6 }], cols: 2, again: true,
-                example: { a: '1', b: '6' }, run: function (n) {
+                fields: [{ k: 'a', l: 'From', ph: '1', def: 1 }, { k: 'b', l: 'To', ph: '6', def: 6 }], cols: 2, again: true, fills: true, run: function (n) {
                     var rows = [], k;
                     for (k = 0; k < 5; k++) rows.push({ l: 'Number ' + (k + 1), v: CalcMaths.randomWhole(n.a, n.b, chance) });
                     return { rows: rows, note: isNaN(rows[0].v) && isFinite(n.a) && isFinite(n.b) ? 'Whole numbers, From the smaller.' : '', warn: isNaN(rows[0].v) };
@@ -5397,14 +5543,14 @@
             { id: 'schedule', t: 'Loan calculator', f: ['Interest', 'Principal', 'Balance'], d: 'A loan paid back in equal payments at the end of each period: the payment, all the interest, and a table ' +
                 'of each year, or of each payment, of the interest paid, the principal paid and what is left of the loan. Copy table copies it for a spreadsheet.',
                 fields: [{ k: 'loan', l: 'Loan', ph: '', tip: 'The amount borrowed.' }, { k: 'rate', l: 'Rate %', ph: '', tip: 'The interest rate a year, as a percentage: 6 for 6%.' }, { k: 'years', l: 'Years', ph: '', tip: 'How long the loan runs.' }, { k: 'py', l: 'A year', ph: '12', def: 12, aria: 'Payments a year', tip: 'How many payments a year: 12 for monthly, 26 for every two weeks, 52 for weekly. 12 while empty.' },
-                    { k: 'by', l: 'Table', choice: ['By year', 'By payment'] }], cols: 2, run: runSchedule, example: { loan: '200000', rate: '6', years: '30' } },
+                    { k: 'by', l: 'Table', choice: ['By year', 'By payment'] }], cols: 2, run: runSchedule, example: { loan: '50000', rate: '6', years: '6', py: '12' } },
             { id: 'mortgage', t: 'Mortgage', f: ['Loan payment', 'Tax', 'PMI'], d: 'A home bought with a part of its price put down, the rest a loan paid back each month: what is paid each month, ' +
                 'with the property tax and home insurance of a year, PMI and HOA fees a month if you like. PMI, a percentage of the loan a year, while less than 20% is put down, until the loan is down to 78% ' +
                 'of the price. All the interest, all paid, and a table of each year; Copy table copies it for a spreadsheet.',
                 fields: [{ k: 'price', l: 'Price', ph: '', tip: 'What the home costs, before anything is put down.' }, { k: 'down', l: 'Down %', ph: '20', def: 20, tip: 'The part of the price paid at the start, as a percentage: 20 for 20%. The rest is the loan. 20 while empty.' }, { k: 'rate', l: 'Rate %', ph: '', tip: 'The loan\'s interest rate a year, as a percentage: 6.5 for 6.5%.' }, { k: 'years', l: 'Years', ph: '30', def: 30, tip: 'How long the loan runs. 30 while empty.' },
                     { k: 'tax', l: 'Tax', ph: '0', def: 0, aria: 'Property tax a year', tip: 'Property tax for a whole year, as an amount: 4800 is 400 a month. 0 while empty.' }, { k: 'ins', l: 'Insurance', ph: '0', def: 0, aria: 'Home insurance a year', tip: 'Home insurance for a whole year, as an amount: 1200 is 100 a month. 0 while empty.' },
                     { k: 'pmi', l: 'PMI %', ph: '0', def: 0, aria: 'PMI a year, a percentage of the loan', tip: 'Private mortgage insurance, as a percentage of the loan a year: 0.5 for 0.5%. Paid only while less than 20% is put down, until the loan is down to 78% of the price. 0 while empty.' }, { k: 'hoa', l: 'HOA', ph: '0', def: 0, aria: 'HOA fees a month', tip: 'Homeowners association fees, as an amount a month. 0 while empty.' }], cols: 2,
-                run: runMortgage, example: { price: '400000', down: '10', rate: '6.5', tax: '4800', ins: '1200', pmi: '0.5' } },
+                run: runMortgage, example: { price: '400000', down: '10', rate: '6.5', years: '30', tax: '4800', ins: '1200', pmi: '0.5', hoa: '150' } },
             { id: 'payoff', t: 'Credit card payoff', f: ['Months', 'Interest'], d: 'A balance owed at an APR, of interest each month, paid off: in how many months a payment each month pays it, or the payment ' +
                 'that pays it in so many months. Leave one of Payment and Months empty, the one to work out. All the interest, all paid, the last payment, and a table of each year.',
                 fields: [{ k: 'balance', l: 'Balance', ph: '', tip: 'What is owed on the card now.' }, { k: 'apr', l: 'APR %', ph: '', tip: 'The card\'s interest rate a year, as a percentage: 22 for 22%.' }, { k: 'pay', l: 'Payment', ph: '', aria: 'Payment a month', tip: 'What you pay each month. Leave it empty to work out the payment that pays it off in Months.' }, { k: 'months', l: 'Months', ph: '', tip: 'How many months to pay it off in. Leave it empty to work out how long Payment takes.' }], cols: 2,
@@ -5412,7 +5558,7 @@
             { id: 'savings', t: 'Savings growth', f: 'P(1 + r/m)<sup>mt</sup>', d: 'Money saved at a rate a year, of interest m times a year, for years, with an amount added each period if you like, at its end or its start: ' +
                 'what it grows to, all that was put in, the interest, and a table of each year. m may be ∞, typed inf, for interest all the time, with nothing added. Copy table copies it for a spreadsheet.',
                 fields: [{ k: 'start', l: 'Start', ph: '', tip: 'What is in the account at the start.' }, { k: 'rate', l: 'Rate %', ph: '', tip: 'The interest rate a year, as a percentage: 5 for 5%.' }, { k: 'years', l: 'Years', ph: '', tip: 'How long it is saved.' }, { k: 'm', l: 'A year', ph: '12', def: 12, inf: true, aria: 'Periods a year', tip: 'How many times a year interest is added: 12 for monthly, 365 for daily, inf for all the time. Add goes in as often. 12 while empty.' },
-                    { k: 'add', l: 'Add', ph: '0', def: 0, aria: 'Added each period', tip: 'An amount put in each period, as often as A year says. 0 while empty.' }, { k: 'due', l: 'Added', choice: ['At the end', 'At the start'] }], cols: 2, run: runSavings, example: { start: '1000', rate: '5', years: '10', add: '100' } },
+                    { k: 'add', l: 'Add', ph: '0', def: 0, aria: 'Added each period', tip: 'An amount put in each period, as often as A year says. 0 while empty.' }, { k: 'due', l: 'Added', choice: ['At the end', 'At the start'] }], cols: 2, run: runSavings, example: { start: '1000', rate: '5', years: '10', m: '12', add: '100' } },
             { id: 'retire', t: 'Retirement', f: ['At retirement', 'A month to draw'], d: 'Money saved for retirement, with an amount added each month until then, growing at a return a year as prices grow ' +
                 'with inflation: what there is at retirement, and in money of today; the most to draw each month, in money of today, for it to last to an age; and of a draw each month, the age it lasts to. ' +
                 'Drawn: the savings at each age.',
@@ -5454,7 +5600,7 @@
                 'leave one of Price and Yield empty, and it is worked out, the yield a year as a BA II Plus gives it. Years that are not whole coupons bring the next coupon nearer: ' +
                 'the price is then without the interest earned since the last one, the accrued interest, and the dirty price with it. With the current yield and the duration.',
                 fields: [{ k: 'face', l: 'Face', ph: '100', def: 100, tip: 'What the bond pays back at its end, its par value. 100 while empty.' }, { k: 'coupon', l: 'Coupon %', ph: '', tip: 'The interest it pays a year, as a percentage of the face value: 5 for 5%.' }, { k: 'years', l: 'Years', ph: '', tip: 'Years until it ends.' }, { k: 'freq', l: 'A year', ph: '2', def: 2, aria: 'Coupons a year', tip: 'How many coupons a year: 2 for twice a year. 2 while empty.' },
-                    { k: 'price', l: 'Price', ph: '', tip: 'What it costs now, without the interest earned since the last coupon. Leave it empty to work it out from Yield.' }, { k: 'yld', l: 'Yield %', ph: '', tip: 'The return a year it gives at its price, as a percentage. Leave it empty to work it out from Price.' }], cols: 2, run: runBond, example: { coupon: '5', years: '10', yld: '6' } },
+                    { k: 'price', l: 'Price', ph: '', tip: 'What it costs now, without the interest earned since the last coupon. Leave it empty to work it out from Yield.' }, { k: 'yld', l: 'Yield %', ph: '', tip: 'The return a year it gives at its price, as a percentage. Leave it empty to work it out from Price.' }], cols: 2, run: runBond, example: { coupon: '5', years: '10', freq: '2', yld: '6' } },
             { id: 'change', t: 'Percentage change', f: '(b – a) ÷ a', d: 'The change from one number to another, and as a percentage of the first; of a cost and its price, the first is the markup and the margin ' +
                 'the profit as a percentage of the price.',
                 fields: [{ k: 'a', l: 'From', ph: '', tip: 'The number to start from: the old value, or a cost.' }, { k: 'b', l: 'To', ph: '', tip: 'The number it went to: the new value, or a price.' }], cols: 2, run: runChange, example: { a: '80', b: '100' } },
@@ -6760,24 +6906,24 @@
     // for each number, as many as its size says
     var NUMBER_TOOLS = {
         matrix: [
-            { id: 'matrix', t: 'A matrix', f: ['det A', 'A<sup>–1</sup>', 'A<sup>T</sup>', 'A<sup>n</sup>'], d: 'Its determinant, rank, inverse, transpose and its power n, a whole number, below 0 of its inverse. Type its size, 3×3 or 2 3, up to 10×10, and a number in each box, or paste a whole matrix into one, from a spreadsheet or as [1 2; 3 4]; an empty one is 0.',
+            { id: 'matrix', waits: true, t: 'A matrix', f: ['det A', 'A<sup>–1</sup>', 'A<sup>T</sup>', 'A<sup>n</sup>'], d: 'Its determinant, rank, inverse, transpose and its power n, a whole number, below 0 of its inverse. Type its size, 3×3 or 2 3, up to 10×10, and a number in each box, or paste a whole matrix into one, from a spreadsheet or as [1 2; 3 4]; an empty one is 0.',
                 fields: function (raw) {
                     return [{ k: 'size', l: 'Size', ph: '2×2', text: true, shape: true }, { k: 'power', l: 'n', ph: '2', def: 2 }].concat(cells('a', 'A', raw.size));
                 }, cols: 2, run: runMatrix,
                 example: { size: '3×3', power: '2', a11: '4', a12: '7', a13: '2', a21: '3', a22: '6', a23: '1', a31: '2', a32: '5', a33: '3' } },
-            { id: 'rref', t: 'Row reduce', f: ['rref A', 'null space'], d: 'Its rows reduced as far as they go, its reduced row echelon form, its rank and the columns of its first 1s, and its null space: a basis of the vectors it takes to 0. Type its size, 3×3 or 2 3, up to 10×10, and a number in each box, or paste a whole matrix into one, from a spreadsheet or as [1 2; 3 4]; an empty one is 0.',
+            { id: 'rref', waits: true, t: 'Row reduce', f: ['rref A', 'null space'], d: 'Its rows reduced as far as they go, its reduced row echelon form, its rank and the columns of its first 1s, and its null space: a basis of the vectors it takes to 0. Type its size, 3×3 or 2 3, up to 10×10, and a number in each box, or paste a whole matrix into one, from a spreadsheet or as [1 2; 3 4]; an empty one is 0.',
                 fields: function (raw) { return [{ k: 'size', l: 'Size', ph: '3×3', text: true, shape: true }].concat(cells('a', 'A', raw.size || '3')); }, run: runRref,
                 example: { size: '3×3', a11: '1', a12: '2', a13: '3', a21: '4', a22: '5', a23: '6', a31: '7', a32: '8', a33: '9' } },
-            { id: 'matrices', t: 'Two matrices', f: ['A + B', 'A × B'], d: 'The sum, difference and products of two matrices, where their sizes allow. Type each size, 3×3 or 2 3, up to 10×10, and a number in each box, or paste a whole matrix into one, from a spreadsheet or as [1 2; 3 4]; an empty one is 0.',
+            { id: 'matrices', waits: true, t: 'Two matrices', f: ['A + B', 'A × B'], d: 'The sum, difference and products of two matrices, where their sizes allow. Type each size, 3×3 or 2 3, up to 10×10, and a number in each box, or paste a whole matrix into one, from a spreadsheet or as [1 2; 3 4]; an empty one is 0.',
                 fields: function (raw) {
                     return [{ k: 'sizeA', l: 'Size of A', ph: '2×2', text: true, shape: true }, { k: 'sizeB', l: 'Size of B', ph: '2×2', text: true, shape: true }]
                         .concat(cells('a', 'A', raw.sizeA, 'sizeA'), cells('b', 'B', raw.sizeB, 'sizeB'));
                 }, cols: 2, run: runMatrices,
                 example: { sizeA: '2×3', sizeB: '3×2', a11: '1', a12: '2', a13: '3', a21: '4', a22: '5', a23: '6', b11: '7', b12: '8', b21: '9', b22: '10', b31: '11', b32: '12' } },
-            { id: 'eigen', t: 'Eigenvalues', f: 'A<b>v</b> = λ<b>v</b>', d: 'The eigenvalues of a square matrix, real or a ± bi, its characteristic polynomial and trace, and the eigenvectors of each real eigenvalue: the v that A only stretches, by λ. Type its size, 3×3 or 3, up to 10×10, and a number in each box, or paste a whole matrix into one, from a spreadsheet or as [1 2; 3 4]; an empty one is 0.',
+            { id: 'eigen', waits: true, t: 'Eigenvalues', f: 'A<b>v</b> = λ<b>v</b>', d: 'The eigenvalues of a square matrix, real or a ± bi, its characteristic polynomial and trace, and the eigenvectors of each real eigenvalue: the v that A only stretches, by λ. Type its size, 3×3 or 3, up to 10×10, and a number in each box, or paste a whole matrix into one, from a spreadsheet or as [1 2; 3 4]; an empty one is 0.',
                 fields: function (raw) { return [{ k: 'size', l: 'Size', ph: '2×2', text: true, shape: true }].concat(cells('a', 'A', raw.size)); }, run: runEigen,
                 example: { size: '3×3', a11: '2', a12: '-1', a13: '0', a21: '-1', a22: '2', a23: '-1', a31: '0', a32: '-1', a33: '2' } },
-            { id: 'axb', t: 'A x = b', f: 'A<b>x</b> = <b>b</b>', d: 'The unknowns of linear equations, up to ten of them: a row of A for each equation and what it equals in b. As many equations as rows, as many unknowns as columns. Where they have many answers, all of them, x = p + t v; where they have none, the nearest, by least squares. Type the size of A, 3×3 or 3 2, up to 10×10, and a number in each box, or paste a whole matrix into one, from a spreadsheet or as [1 2; 3 4]; an empty one is 0.',
+            { id: 'axb', waits: true, t: 'A x = b', f: 'A<b>x</b> = <b>b</b>', d: 'The unknowns of linear equations, up to ten of them: a row of A for each equation and what it equals in b. As many equations as rows, as many unknowns as columns. Where they have many answers, all of them, x = p + t v; where they have none, the nearest, by least squares. Type the size of A, 3×3 or 3 2, up to 10×10, and a number in each box, or paste a whole matrix into one, from a spreadsheet or as [1 2; 3 4]; an empty one is 0.',
                 fields: function (raw) {
                     var size = sizeOf(raw.size) || [2, 2], out = [{ k: 'size', l: 'Size of A', ph: '2×2', text: true, shape: true }, { head: 'A | b', cols: size[1] + 1 }], i, j;
                     for (i = 1; i <= size[0]; i++) {
@@ -6787,7 +6933,7 @@
                     return out;
                 }, run: runAxb,
                 example: { size: '3×3', a11: '1', a12: '1', a13: '1', a21: '0', a22: '2', a23: '5', a31: '2', a32: '5', a33: '-1', b11: '6', b21: '-4', b31: '27' } },
-            { id: 'lu', t: 'LU and QR', f: ['P A = L U', 'A = Q R'], d: 'A matrix as products: P A = L U, L below its diagonal with 1s on it and U above it, P the rows changed round; and A = Q R, the columns of Q of length 1 and at right angles, R above its diagonal. Type its size, 3×3 or 3 2, up to 10×10, and a number in each box, or paste a whole matrix into one, from a spreadsheet or as [1 2; 3 4]; an empty one is 0.',
+            { id: 'lu', waits: true, t: 'LU and QR', f: ['P A = L U', 'A = Q R'], d: 'A matrix as products: P A = L U, L below its diagonal with 1s on it and U above it, P the rows changed round; and A = Q R, the columns of Q of length 1 and at right angles, R above its diagonal. Type its size, 3×3 or 3 2, up to 10×10, and a number in each box, or paste a whole matrix into one, from a spreadsheet or as [1 2; 3 4]; an empty one is 0.',
                 fields: function (raw) { return [{ k: 'size', l: 'Size', ph: '2×2', text: true, shape: true }].concat(cells('a', 'A', raw.size)); }, run: runLu,
                 example: { size: '3×3', a11: '2', a12: '1', a13: '1', a21: '4', a22: '-6', a23: '0', a31: '-2', a32: '7', a33: '2' } },
             { id: 'vectors', t: 'Vectors', f: ['<b>u</b> · <b>v</b>', '<b>u</b> × <b>v</b>'], d: 'Of two vectors of 2, 3 or 4 numbers, typed 1, 2, 3: their dot product, cross product, lengths and the angle between them, the projection of u on v, and u of length 1.',
@@ -6795,11 +6941,11 @@
         ],
         complex: [
             { id: 'complex', t: 'Complex number', f: ['a + b<i>i</i>', 'r∠θ'], d: 'Work out a complex number: (2 + 3i)(1 – i), sqrt(-4), e^(iπ), or 2∠30 in polar form. Its real and imaginary parts, its length, angle and conjugate, and it as r e^(iθ).',
-                fields: [{ k: 'z', ph: '(2 + 3i)(1 - i)', fn: true }], run: runComplex, example: { z: '(2 + 3i)(1 - i)' } },
+                fields: [{ k: 'z', l: 'z', ph: '(2 + 3i)(1 - i)', fn: true }], run: runComplex, example: { z: '(2 + 3i)(1 - i)' } },
             { id: 'croots', t: 'Roots of a complex number', f: 'z<sup>1/n</sup>', d: 'The n n-th roots of a complex number: the cube roots of 1, the fourth roots of -16.',
-                fields: [{ k: 'z', ph: '-16', fn: true }, { k: 'n', l: 'n', ph: '4', def: 4 }], run: runRoots, example: { z: '-16', n: '4' } },
+                fields: [{ k: 'z', l: 'z', ph: '-16', fn: true }, { k: 'n', l: 'n', ph: '4', def: 4 }], run: runRoots, example: { z: '-16', n: '4' } },
             { id: 'cpoly', t: 'Polynomial roots', f: 'x<sup>2</sup> + (1 + <i>i</i>)x + 2<i>i</i>', d: 'Every root of a polynomial of complex coefficients, of any power up to 30: typed, x^2 + (1 + i)x + 2i, or its coefficients from the highest power, 1, 1 + i, 2i.',
-                fields: [{ k: 'p', ph: 'x^2 + (1 + i)x + 2i', fn: true }], run: runCpoly, example: { p: 'x^2 + (1 + i)x + 2i' } },
+                fields: [{ k: 'p', l: 'p(x)', ph: 'x^2 + (1 + i)x + 2i', fn: true }], run: runCpoly, example: { p: 'x^2 + (1 + i)x + 2i' } },
             { id: 'impedance', t: 'AC impedance', f: 'Z = R + <i>i</i>(ωL – 1/ωC)', d: 'The impedance of a resistor, a coil and a capacitor at a frequency, in series or side by side: Z as a + bi, its size and phase, the reactance of the coil and of the capacitor, and the frequency where they cancel. Leave out any of R, L and C; a value may have a prefix, 4.7k, 10m, 100µ or 1e-6.',
                 fields: [{ k: 'r', l: 'R, Ω', ph: '100', text: true }, { k: 'l', l: 'L, H', ph: '0.1', text: true }, { k: 'c', l: 'C, F', ph: '10µ', text: true },
                     { k: 'f', l: 'f, Hz', ph: '50', text: true }, { k: 'circuit', l: 'Circuit', choice: ['Series', 'Parallel'] }], cols: 2, run: runImpedance,
@@ -6807,29 +6953,38 @@
         ],
         computer: [
             { id: 'bits', t: 'Bases', f: '0xFF AND 0b1010', d: 'Whole numbers as a computer keeps them, in 8, 16, 32, 64 or 128 bits: decimal, 0x hexadecimal, 0b binary or 0o octal, with + – × ÷ mod AND OR XOR NOT NAND NOR XNOR, &lt;&lt; &gt;&gt; and ROL ROR, which turn the bits round. Each result in every base, and its bytes big-endian and little-endian, and swapped.',
-                fields: [{ k: 'e', ph: '0xFF AND 0b1010', fn: true }, { k: 'bits', l: 'Bits', choice: ['8', '16', '32', '64', '128'], at: 2 }], run: runBits, example: { e: '0xFF AND 0b1010' } },
-            { id: 'bitview', t: 'Bits', f: 'b<sub>7</sub> … b<sub>1</sub> b<sub>0</sub>', d: 'The bits of a whole number, each turned over with a click; how many are 1, the 0s before and after them, and the highest and lowest bit that is 1. Empty, it is 0, to click a number together.',
-                fields: [{ k: 'e', ph: '0', fn: true }, { k: 'bits', l: 'Bits', choice: ['8', '16', '32', '64', '128'], at: 2 }], run: runBitView, example: { e: '42' } },
+                fields: [{ k: 'e', l: 'Number', ph: '0xFF AND 0b1010', fn: true }, { k: 'bits', l: 'Bits', choice: ['8', '16', '32', '64', '128'], at: 2 }], run: runBits, example: { e: '0xFF AND 0b1010' } },
+            { id: 'bitview', waits: true, t: 'Bits', f: 'b<sub>7</sub> … b<sub>1</sub> b<sub>0</sub>', d: 'The bits of a whole number, each turned over with a click; how many are 1, the 0s before and after them, and the highest and lowest bit that is 1. Empty, it is 0, to click a number together.',
+                fields: [{ k: 'e', l: 'Number', ph: '0', fn: true }, { k: 'bits', l: 'Bits', choice: ['8', '16', '32', '64', '128'], at: 2 }], run: runBitView, example: { e: '32182' } }, // 0111 1101 1011 0110: eleven 1s, and 0s before and after them
             { id: 'logic', t: 'Truth table', f: ['AB + C\'', 'Σm(1, 3, 5)'], d: 'A function of logic of up to 8 variables: A AND NOT B, AB + C\', two side by side ANDed and \' for NOT, (A + B)(A\' + C), ' +
                 'A XOR B, !a | b & c, NAND, NOR and XNOR; or of its rows, Σm(1, 3, 5) + d(7), d those that may be either, or ΠM(0, 2). F(A, B, C) = before it gives the variables their order. ' +
                 'Its truth table, its minterms and maxterms, and it made as small as it can be, by Quine and McCluskey, as a sum of products and as a product of sums; ' +
                 'of 2 to 4 variables its Karnaugh map drawn, each product ringed.',
-                fields: [{ k: 'e', ph: 'AB + A\'C + BC', fn: true }], run: runLogic, example: { e: 'AB + A\'C + BC' } },
+                fields: [{ k: 'e', l: 'Expression', ph: 'AB + A\'C + BC', fn: true }], run: runLogic, example: { e: 'AB + A\'C + BC' } },
             { id: 'gray', t: 'Gray code', f: '5 = 0111 in Gray', d: 'A whole number in Gray code, each next one only a bit apart, as an encoder\'s disc is marked so it never reads a step wrong; ' +
                 'or the number of a Gray code, typed as 0b0111. Drawn, the codes about it, the bit that changes to each marked.',
-                fields: [{ k: 'way', l: 'Find', choice: ['Its Gray code', 'Its number'] }, { k: 'e', ph: '5', fn: true }, { k: 'bits', l: 'Bits', choice: ['8', '16', '32', '64'] }], run: runGray,
+                fields: function (raw) { // its box named for what goes in it, of the way chosen
+                    var back = raw.way === '1';
+                    return [{ k: 'way', l: 'Find', choice: ['Its Gray code', 'Its number'] }, { k: 'e', l: back ? 'Gray code' : 'Number', ph: back ? '0b0111' : '5', fn: true },
+                        { k: 'bits', l: 'Bits', choice: ['8', '16', '32', '64'] }];
+                }, run: runGray,
                 example: function (raw) { return { way: raw.way || '0', e: raw.way === '1' ? '0b0111' : '5' }; } },
             { id: 'float', t: 'IEEE 754', f: '0.1 = 0x3FB999999999999A', d: 'A number as a computer keeps it: a double of 64 bits and a float of 32, in hexadecimal; its sign, exponent and fraction; the number it is, to its last digit, and the gap to the next. Or the bits, 0x3FB999999999999A, for the number.',
-                fields: [{ k: 'x', ph: '0.1', fn: true }], run: runFloat, example: { x: '0.1' } },
+                fields: [{ k: 'x', l: 'Number', ph: '0.1', fn: true }], run: runFloat, example: { x: '0.1' } },
             { id: 'anybase', t: 'Any base', f: 'FF.8<sub>16</sub> = 11111111.1<sub>2</sub>', d: 'A number in any base from 2 to 36 written in another, the digits after its point as well: 0.1 in base 10 is 0.0(0011) in base 2, the part in brackets coming again and again. A part in brackets may be typed too.',
-                fields: [{ k: 'x', ph: '0.1', fn: true }, { k: 'from', l: 'From base', ph: '10', def: 10 }, { k: 'to', l: 'To base', ph: '2', def: 2 }], cols: 2, run: runAnyBase, example: { x: '0.1', from: '10', to: '2' } },
+                fields: [{ k: 'x', l: 'Number', ph: '0.1', fn: true }, { k: 'from', l: 'From base', ph: '10', def: 10 }, { k: 'to', l: 'To base', ph: '2', def: 2 }], cols: 2, run: runAnyBase, example: { x: '0.1', from: '10', to: '2' } },
             { id: 'codes', t: 'Text and codes', f: 'é = U+00E9 = C3 A9', d: 'The codes of a text: its code points, its bytes in UTF-8 and its units of UTF-16. Or a text from its codes: U+00E9, 0xC3 0xA9 for the bytes of UTF-8, or 233.',
                 fields: [{ k: 't', l: 'Text', ph: 'Hé', fn: true }, { k: 'c', l: 'Codes', ph: 'U+0048 U+00E9', fn: true }], spaces: ['t'], run: runCodes, example: { t: 'Hé' } },
             { id: 'subnet', t: 'IP subnet', f: ['192.168.1.0/24', '2001:db8::/32'], d: 'The network of an IPv4 address with its prefix, 192.168.1.10/24, or its mask, 192.168.1.10 255.255.255.0: its network and broadcast addresses, its mask, the first and last host and how many hosts it has. Or of an IPv6 address, 2001:db8::1/48: its network, the address in full and written short, its first and last address, how many addresses and /64 networks, its kind and its name for reverse DNS.',
-                fields: [{ k: 'ip', ph: '192.168.1.10/24 or 2001:db8::1/48', fn: true }], run: runSubnet, drawnLast: true, example: { ip: '192.168.1.10/24' } },
-            { id: 'uuid', t: 'UUID', f: ['Version 4', 'Version 7'], d: 'Five new UUIDs, of RFC 9562: of version 4, all random, or of version 7, the time now and then random, so they sort as they were made. Again for five more; Copy copies one. ' +
-                'Or one typed, with hyphens or none, in braces or after urn:uuid: if you like: its version and variant, the time it was made, of versions 1, 6 and 7, and it in hexadecimal, Base64 and as a whole number.',
-                fields: [{ k: 'ver', l: 'New', choice: ['Version 4', 'Version 7'] }, { k: 'u', l: 'Read', ph: 'f81d4fae-7dec-11d0-a765-00a0c91e6bf6', fn: true }], again: true, run: runUuid, example: { u: 'f81d4fae-7dec-11d0-a765-00a0c91e6bf6' } },
+                fields: [{ k: 'ip', l: 'Address', ph: '192.168.1.10/24 or 2001:db8::1/48', fn: true }], run: runSubnet, drawnLast: true, example: { ip: '192.168.1.10/24' } },
+            { id: 'uuid', t: 'UUID', f: ['Version 4', 'Version 7'], d: 'Make: five new UUIDs, of RFC 9562: of version 4, all random, or of version 7, the time now and then random, so they sort as ' +
+                'they were made; a click on a version, the one chosen too, for five more; Copy copies one. Read: one typed, with hyphens or none, in braces or after urn:uuid: if you like: ' +
+                'its version and variant, the time it was made, of versions 1, 6 and 7, and it in hexadecimal, Base64 and as a whole number.',
+                fields: function (raw) {
+                    return [{ k: 'do', l: 'UUIDs', choice: ['Make', 'Read'] }].concat(raw.do === '1' ? [{ k: 'u', l: 'UUID', ph: 'f81d4fae-7dec-11d0-a765-00a0c91e6bf6', fn: true }] :
+                        [{ k: 'ver', l: 'Version', choice: ['Version 4', 'Version 7'], renew: true }]);
+                }, run: function (n, raw) { return raw.do === '1' ? runUuidRead(n, raw) : runUuid(n, raw); },
+                example: function (raw) { return raw.do === '1' ? { do: '1', u: 'f81d4fae-7dec-11d0-a765-00a0c91e6bf6' } : null; } }, // Make has its UUIDs as it opens
             { id: 'base64', t: 'Base32, 58, 64 and 85', f: 'Hé = SMOp', d: 'A text\'s bytes of UTF-8 written in letters: Base32, of A–Z and 2–7, as the secrets of two-step sign-in are; Base58, as Bitcoin addresses are, no 0, O, I or l; Base64, and that of web addresses and file names, with - and _ and no =; or Base85, Ascii85 as in PDF. Or the text, and the bytes, of what is so written.',
                 fields: [{ k: 't', l: 'Text', ph: 'Hé', fn: true }, { k: 'b', l: 'Encoded', ph: 'SMOp', fn: true }, { k: 'enc', l: 'In', choice: ['Base32', 'Base58', 'Base64', 'Base85'], at: 2 }],
                 spaces: ['t'], run: runBase64, example: { t: 'Hé' } },
@@ -6838,21 +6993,21 @@
         ],
         whole: [
             { id: 'factors', t: 'Prime factors', f: '360 = 2<sup>3</sup> × 3<sup>2</sup> × 5', d: 'A whole number of up to 20 digits in its prime factors, whether it is prime, and its divisors: how many, their sum, each of them, and how many numbers up to it have none of its factors.',
-                fields: [{ k: 'n', ph: '360', fn: true }], run: runFactors, example: { n: '360' } },
+                fields: [{ k: 'n', l: 'n', ph: '360', fn: true }], run: runFactors, example: { n: '360' } },
             { id: 'gcd', t: 'GCD and LCM', f: 'gcd(12, 18, 30)', d: 'The greatest common divisor and least common multiple of two whole numbers or more, typed with commas or spaces between them.',
-                fields: [{ k: 'list', ph: '12, 18, 30', fn: true }], run: runGcd, example: function () { return { list: listTyped(['12', '18', '30']) }; } },
+                fields: [{ k: 'list', l: 'Numbers', ph: '12, 18, 30', fn: true }], run: runGcd, example: function () { return { list: listTyped(['12', '18', '30']) }; } },
             { id: 'modular', t: 'Modular arithmetic', f: ['a<sup>b</sup> mod m', 'a<sup>–1</sup>', 'a x ≡ b'], d: 'Of whole numbers a, b and m, of up to 200 digits: a mod m, a to the power b mod m, the inverse of a mod m, and every x of a x ≡ b (mod m).',
                 fields: [{ k: 'a', l: 'a', ph: '3', fn: true }, { k: 'b', l: 'b', ph: '4', fn: true }, { k: 'm', l: 'm', ph: '7', fn: true }], run: runModular, example: { a: '3', b: '4', m: '7' } },
             { id: 'crt', t: 'Chinese remainder', f: ['x ≡ 2 (mod 3)', 'x ≡ 3 (mod 5)'], d: 'The x of x ≡ r (mod m) for each of a list, typed 2 mod 3, 3 mod 5, 2 mod 7, the moduli with a factor in common as well: x and the modulus all of them make.',
-                fields: [{ k: 'list', ph: '2 mod 3, 3 mod 5, 2 mod 7', fn: true }], run: runChinese, example: function () { return { list: listTyped(['2 mod 3', '3 mod 5', '2 mod 7']) }; } },
+                fields: [{ k: 'list', l: 'Remainders', ph: '2 mod 3, 3 mod 5, 2 mod 7', fn: true }], run: runChinese, example: function () { return { list: listTyped(['2 mod 3', '3 mod 5', '2 mod 7']) }; } },
             { id: 'exact', t: 'Exactly', f: ['100!', '2<sup>200</sup>', '50 nCr 25'], d: 'A calculation of whole numbers and fractions worked out exactly, to every digit, up to 20000: + – × ÷, ^, n!, nCr and nPr, or C(n, k), P(n, k) and fib(n). A fraction stays one, 1/3 + 1/6 is 1/2.',
-                fields: [{ k: 'e', ph: '100!', fn: true }], run: runExact, example: { e: '100!' } },
+                fields: [{ k: 'e', l: 'Number', ph: '100!', fn: true }], run: runExact, example: { e: '100!' } },
             { id: 'primes', t: 'Primes', f: ['p<sub>n</sub>', 'π(n)', 'next and previous'], d: 'Whether a whole number of up to 24 digits is prime, the primes before and after it, and up to 10 million how many primes there are up to it, π(n), and the n-th prime.',
-                fields: [{ k: 'n', ph: '100', fn: true }], run: runPrimes, example: { n: '100' } },
+                fields: [{ k: 'n', l: 'n', ph: '100', fn: true }], run: runPrimes, example: { n: '100' } },
             { id: 'between', t: 'Primes between', f: 'the primes from a to b', d: 'The primes from a to b, both in: how many and each of them, b up to 10¹⁴ and the two up to 10 million apart.',
                 fields: [{ k: 'a', l: 'From', ph: '1', fn: true }, { k: 'b', l: 'To', ph: '100', fn: true }], run: runBetween2, example: { a: '1', b: '100' } },
             { id: 'fraction', t: 'Fraction and decimal', f: '0.1(6) = 1/6', d: 'A fraction, 22/7, a decimal, 0.125, or one whose last digits come again and again in brackets, 0.1(6): as a fraction, a mixed number, a decimal with the part that comes again in brackets, and a continued fraction. A calculation, pi, as near as its digits tell.',
-                fields: [{ k: 'x', ph: '0.1(6)', fn: true }], run: runFraction, example: { x: '0.1(6)' } },
+                fields: [{ k: 'x', l: 'Number', ph: '0.1(6)', fn: true }], run: runFraction, example: { x: '0.1(6)' } },
             { id: 'round', t: 'Round', f: ['⌊x⌋', '⌈x⌉', 'x to d places'], d: 'A number rounded to d decimal places, half away from 0, down, up and toward 0; its fraction part, and the number to d significant figures. Places below 0 round to tens, hundreds …',
                 fields: [{ k: 'x', l: 'x', ph: '3.14159' }, { k: 'd', l: 'Places', ph: '0', def: 0 }], cols: 2, run: runRound, example: { x: '3.14159', d: '2' } }
         ]
@@ -7549,21 +7704,24 @@
         6: '6, of the time, in order', 7: '7, of Unix time', 8: '8, of its own kind'
     };
 
+    // Five new UUIDs of the version chosen, made anew each time it runs: a click on a version, the one chosen too
     function runUuid(n, raw) {
-        var none = [{ l: 'UUID', text: '–', wide: true }], v, ver, made = [], out = [], bytes, k, at, hex, b64, b64url, whole;
-        if (!raw.u) {
-            ver = raw.ver === '1' ? 7 : 4;
-            at = Date.now();
-            for (k = 0; k < 5; k++) {
-                bytes = new Uint8Array(16);
-                if (window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(bytes);
-                else bytes = bytes.map(function () { return Math.floor(Math.random() * 256); });
-                made.push(CalcMaths.makeUuid(ver, Array.from(bytes), at));
-            }
-            if (ver === 7) made.sort();
-            return { rows: made.map(function (u, i) { return { l: 'UUID ' + (i + 1), text: u, copy: u, wide: true }; }),
-                note: ver === 7 ? 'The time now, to the millisecond, then 74 random bits.' : '122 random bits, and 6 of its version and variant.' };
+        var ver = raw.ver === '1' ? 7 : 4, made = [], at = Date.now(), bytes, k;
+        for (k = 0; k < 5; k++) {
+            bytes = new Uint8Array(16);
+            if (window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(bytes);
+            else bytes = bytes.map(function () { return Math.floor(Math.random() * 256); });
+            made.push(CalcMaths.makeUuid(ver, Array.from(bytes), at));
         }
+        if (ver === 7) made.sort();
+        return { rows: made.map(function (u, i) { return { l: 'UUID ' + (i + 1), text: u, copy: u, wide: true }; }),
+            note: ver === 7 ? 'The time now, to the millisecond, then 74 random bits.' : '122 random bits, and 6 of its version and variant.' };
+    }
+
+    // A UUID typed: its version and variant, the time it was made, and it in hexadecimal, Base64 and as a whole number
+    function runUuidRead(n, raw) {
+        var none = [{ l: 'UUID', text: '–', wide: true }], v, out = [], at, hex, b64, b64url, whole;
+        if (!raw.u) return { rows: none };
         v = CalcMaths.readUuid(raw.u);
         if (!v) return { rows: none, bad: ['u'], warn: true, note: 'A UUID is 32 hexadecimal digits, 8-4-4-4-12 with hyphens, or none: f81d4fae-7dec-11d0-a765-00a0c91e6bf6.' };
         hex = '0x' + v.text.replace(/-/g, '').toUpperCase();
@@ -7765,16 +7923,16 @@
     // months and days, with cards as the solver has. An empty date is today
     var DATE_TOOLS = {
         dates: [
-            { id: 'span', t: 'Time between dates', f: 'years, months, weeks and days', d: 'The time from one date to another: in years, months and days; then the whole years, months and weeks of it, its days, its weekdays, Monday to Friday, both dates in, and its hours, each below 0 where the second date is before the first. An empty date is today.',
+            { id: 'span', waits: true, t: 'Time between dates', f: 'years, months, weeks and days', d: 'The time from one date to another: in years, months and days; then the whole years, months and weeks of it, its days, its weekdays, Monday to Friday, both dates in, and its hours, each below 0 where the second date is before the first. An empty date is today.',
                 fields: [{ k: 'a', l: 'From', date: true }, { k: 'b', l: 'To', date: true }], run: runSpan, example: { a: '2000-01-01' } },
-            { id: 'add', t: 'Add or subtract time', f: 'date ± years, months, days', d: 'A date some years, months and days on, below 0 to go back: the date and its weekday, its day of the year and its week. The years and months go first; a month from 31 January is the last day of February. An empty date is today.',
+            { id: 'add', fills: true, t: 'Add or subtract time', f: 'date ± years, months, days', d: 'A date some years, months and days on, below 0 to go back: the date and its weekday, its day of the year and its week. The years and months go first; a month from 31 January is the last day of February. An empty date is today.',
                 fields: [{ k: 'd', l: 'Date', date: true }, { k: 'y', l: 'Years', ph: '0', def: 0, cls: 'calc-sv-dated' },
                     { k: 'm', l: 'Months', ph: '0', def: 0, cls: 'calc-sv-dated' }, { k: 'days', l: 'Days', ph: '0', def: 0, cls: 'calc-sv-dated' }],
-                cols: 3, run: runAdd, example: { d: '2024-01-31', m: '1' } },
+                cols: 3, run: runAdd },
             { id: 'zones', t: 'Time zones', f: '15:00 London = 23:00 Tokyo', d: 'A time in one place, and the same time in another: the time is now at first, to type over, and empty again is now. ' +
                 'Summer time is as each place has it today.',
                 fields: [{ k: 'time', l: 'Time', ph: 'Now', text: true, now: zoneNow }, { k: 'from', l: 'From', pick: zoneChoices, at: 'Here', wide: true },
-                    { k: 'to', l: 'To', pick: zoneChoices, at: 'London', wide: true }], run: runZones, example: { time: '15:00', from: 'London', to: 'Tokyo' } },
+                    { k: 'to', l: 'To', pick: zoneChoices, at: 'London', wide: true }], run: runZones },
             { id: 'unix', t: 'Unix time', f: '1700000000 ↔ 14 Nov 2023 22:13:20', d: 'One way or the other. Unix → Date: the date and time of a Unix timestamp, the seconds from 1 January 1970 in UTC, or of 13 digits its milliseconds, in UTC, here, and in ISO 8601. Date → Unix: the timestamp of a date and time, in UTC or the time here; an empty date is today, an empty time midnight.',
                 // the boxes of the way chosen only: a timestamp, or a date, a time and its zone
                 fields: function (raw) {
@@ -8000,6 +8158,9 @@
         CAL_FIRST = CalcMaths.dayFrom(1, 1, 1), CAL_LAST = CalcMaths.dayFrom(9999, 12, 31),
         CALENDAR_ICON = '<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">' +
             '<rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>',
+        // an arrow going round: of a choice that makes anew, as a UUID's version
+        AGAIN_ICON = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">' +
+            '<path d="M20 4v6h-6"/><path d="M19.5 15a8 8 0 1 1-1.9-8.3L20 10"/></svg>',
         RESET_ICON = '<svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">' +
             '<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>'; // an arrow curling back
 
@@ -8195,7 +8356,8 @@
     var svAgain = false;
 
     function toolCards(list, tools, key, plain, now) {
-        var tab = Object.keys(tools)[0], openId = '', values = {}, rows = [], pasted = '';
+        var tab = Object.keys(tools)[0], openId = '', values = {}, rows = [], pasted = '',
+            formulas = key !== 'convUnits' && key !== 'dates'; // its badges formulas, to copy: the converter's are examples
 
         // the boxes of a tool, as what is typed in it says: a matrix has as many as its size
         function fieldsOf(tool, raw) {
@@ -8248,14 +8410,19 @@
         // fitted again as the list's room changes, and once it is shown: hidden, it had none to measure
         if (window.ResizeObserver) new ResizeObserver(fitPills).observe(list);
 
+        // the icon before a card's name, of what it works with, where it has one
+        function toolIcon(tool) {
+            return CalcIcons.card(key, tool.id);
+        }
+
         // the cards of the tab, the one open with its boxes
         function render() {
             var open;
             list.innerHTML = tools[tab].map(function (tool, i) {
                 if (tool.id === openId) open = i;
                 return '<div class="calc-sv-item" data-i="' + i + '"><div class="calc-sv-row"><span class="calc-sv-col">' +
-                    '<span class="calc-sv-name">' + tool.t + '</span><span class="calc-sv-f calc-sv-eq calc-sv-val"><span>' +
-                    pills(tool.f) + '</span></span></span>' + collapseButton() + '</div></div>'; // each in a badge, one alone as well
+                    '<span class="calc-sv-name">' + toolIcon(tool) + tool.t + '</span><span class="calc-sv-f calc-sv-eq calc-sv-val"><span>' +
+                    pills(tool.f, formulas) + '</span></span></span>' + collapseButton() + '</div></div>'; // each in a badge, one alone as well
             }).join('');
             list.scrollTop = 0;
             list.classList.toggle('calc-side', !!(now.side && now.side())); // beside the list, the card open
@@ -8274,19 +8441,24 @@
                 open.removeChild(open.querySelector('.calc-sv-form'));
             }
             openId = '';
-            if (!item) return keep();
+            if (!item) {
+                fitPills(); // its badges without their Copy again
+                return keep();
+            }
             hideTip();
             tool = tools[tab][+item.dataset.i];
             openId = tool.id;
             form = item.appendChild(document.createElement('div'));
             form.className = 'calc-sv-form';
-            form.innerHTML = (now.side && now.side() ? '<div class="calc-sv-side-head"><span class="calc-sv-side-name">' + tool.t + '</span><span class="calc-sv-f calc-sv-val">' + pills(tool.f) +
+            form.innerHTML = (now.side && now.side() ? '<div class="calc-sv-side-head"><span class="calc-sv-side-name">' + toolIcon(tool) + tool.t + '</span><span class="calc-sv-f calc-sv-val">' + pills(tool.f, formulas) +
                 '</span><p class="calc-sv-side-d">' + tool.d + '</p></div>' : '') + // beside the list, its name, formula and what it does at its top
                 '<div class="calc-sv-top"><span class="calc-sv-reset" role="button" hidden>Reset' + RESET_ICON + '</span></div>' +
                 '<div class="calc-sv-boxes"></div><div class="calc-sv-note"></div>' + (tool.again ? '<span class="calc-sv-again">Again</span>' : '') +
                 (tool.example ? '<span class="calc-sv-again calc-sv-example" role="button">Example</span>' : '') +
-                '<div class="calc-sv-results">Results</div><div class="calc-sv-grid"></div>';
+                '<div class="calc-sv-results">Results</div><div class="calc-sv-grid"></div><div class="calc-sv-pickfrom" hidden></div>';
             item.classList.add('calc-on');
+            fitPills(); // its badges with their Copy, cut to fit if need be
+            if (tool.fills) fillEmpty(tool);
             boxes(tool, item);
             run();
             keep();
@@ -8313,10 +8485,11 @@
                         '<div class="calc-conv-menu" role="listbox" hidden></div></div></div>';
                     return;
                 }
-                if (f.choice) { // one of a few ways, each a button, as the tabs are: its way at first (at), or the first, while none is chosen
-                    html += '<div class="calc-sv-var calc-sv-wide"><span class="calc-sv-sym">' + f.l + '</span><span class="calc-sv-choice" role="radiogroup" aria-label="' +
+                if (f.choice) { // one of a few ways, a switch, as the options' tabs are, wrapped when long: its way at first (at), or the first,
+                    // while none is chosen; of a choice that makes anew (renew), an arrow going round on each, as a click on it, the one chosen too, makes more
+                    html += '<div class="calc-sv-var calc-sv-wide"><span class="calc-sv-sym">' + f.l + '</span><span class="calc-sv-choice calc-sv-toggle" role="radiogroup" aria-label="' +
                         f.l + '" data-k="' + f.k + '">' + f.choice.map(function (c, i) {
-                            return '<span class="calc-sv-opt' + (chosen(f, kept[f.k]) === i ? ' calc-on' : '') + '" role="radio" tabindex="0" data-c="' + i + '">' + c + '</span>';
+                            return '<span class="calc-sv-opt' + (chosen(f, kept[f.k]) === i ? ' calc-on' : '') + '" role="radio" tabindex="0" data-c="' + i + '">' + c + (f.renew ? AGAIN_ICON : '') + '</span>';
                         }).join('') + '</span></div>';
                     return;
                 }
@@ -8355,6 +8528,48 @@
                 el.box = el; // chosen, the list keeps the focus
                 pickOf(el, f, (values[tool.id] || {})[f.k]);
             });
+            nameRoom(tool, item);
+        }
+
+        // The names of a card's first column as wide as the widest of any of its ways: switched to other boxes, the switch keeps its width.
+        // A name in em, as the panel popped out is larger
+        function nameRoom(tool, item) {
+            var grid = item.querySelector('.calc-sv-boxes > .calc-sv-fields:not(.calc-sv-cells-in)'), cols = tool.cols || 1, names = {}, seen = {}, ways = [rawOf(tool)], probe, most = 0;
+            if (!grid || typeof tool.fields !== 'function') return;
+            while (ways.length) { // each way, of every choice with each of the others, as a choice may bring another; up to 500 of them
+                var raw = ways.shift(), col = 0, fields = fieldsOf(tool, raw), at = fields.filter(function (g) { return g.choice; }).map(function (g) { return g.k + '=' + (raw[g.k] || 0); }).join();
+                if (seen[at] || Object.keys(seen).length >= 500) continue;
+                seen[at] = true;
+                fields.every(function (g) { // laid out as the grid lays them: a wide one on a line of its own
+                    var whole = g.choice || g.area || g.fn || g.date || g.pick && g.wide || /calc-sv-wide/.test(g.cls || '');
+                    if (g.head) return false;
+                    if (whole) col = 0;
+                    if (g.l && !col) names[g.l] = true;
+                    col = whole ? 0 : (col + 1) % cols;
+                    return true;
+                });
+                fields.forEach(function (f) {
+                    (f.choice || []).forEach(function (c, i) {
+                        var r = Object.assign({}, raw);
+                        r[f.k] = String(i);
+                        ways.push(r);
+                    });
+                });
+            }
+            probe = document.createElement('span');
+            probe.className = 'calc-sv-sym';
+            probe.style.cssText = 'position: absolute; visibility: hidden; white-space: nowrap; width: max-content; min-width: 0';
+            grid.appendChild(probe);
+            Object.keys(names).forEach(function (l) {
+                probe.innerHTML = l;
+                most = Math.max(most, probe.offsetWidth + 1); // a pixel over, as offsetWidth is rounded
+            });
+            most /= parseFloat(getComputedStyle(probe).fontSize) || 1;
+            grid.removeChild(probe);
+            [].forEach.call(grid.querySelectorAll(':scope > .calc-sv-var > .calc-sv-toggle'), function (t) {
+                t.previousElementSibling.style.boxSizing = 'border-box';
+                t.previousElementSibling.style.minWidth = most ? most + 'em' : '';
+            });
         }
 
         // a list's places, the one kept chosen, else the one it has at first
@@ -8377,7 +8592,7 @@
         // What the open tool gives from its boxes now: each number read, or its default while
         // empty, a box that is not one marked and named in the note; then its tiles, and its note
         function run() {
-            var item = list.querySelector('.calc-sv-item.calc-on'), tool, raw, n = {}, out, inputs, fields, bad = [];
+            var item = list.querySelector('.calc-sv-item.calc-on'), tool, raw, n = {}, out, inputs, fields, bad = [], mine, note, boxes;
             if (!item) return;
             tool = tools[tab][+item.dataset.i];
             raw = rawOf(tool);
@@ -8399,9 +8614,10 @@
                 n[f.k] = v;
             });
             out = tool.run(n, raw);
-            item.querySelector('.calc-sv-reset').hidden = !fields.some(function (f) { return !f.head && !f.choice && !f.pick && raw[f.k]; }); // Reset once something is typed
-            if (item.querySelector('.calc-sv-example')) { // Example while the boxes are empty: it would type over what is in them
-                item.querySelector('.calc-sv-example').hidden = fields.some(function (f) { return !f.head && !f.choice && raw[f.k]; });
+            mine = function (f) { return !f.head && !f.choice && !f.pick && raw[f.k] && !(tool.fills && raw[f.k] === fillText(f)); }; // typed, not chosen nor filled in
+            item.querySelector('.calc-sv-reset').hidden = !fields.some(mine); // Reset once something is typed
+            if (item.querySelector('.calc-sv-example')) { // Example while the boxes are empty: it would type over what is in them; of a way with none, not
+                item.querySelector('.calc-sv-example').hidden = fields.some(mine) || (typeof tool.example === 'function' && !tool.example(raw));
             }
             if (out.warn && !(out.bad || []).length && !fields.some(function (f) { return !f.head && !f.choice && !f.shape && raw[f.k]; })) {
                 out.warn = false; // nothing typed yet, only the boxes' defaults, as a matrix of 0s: no error until something is
@@ -8415,10 +8631,17 @@
             inputs.forEach(function (box) {
                 if (fields.some(function (f) { return f.k === box.dataset.k && (f.fn || f.text || f.date || f.area); })) box.classList.toggle('calc-bad', (out.bad || []).indexOf(box.dataset.k) > -1);
             });
-            // a drawing first, above the numbers it draws, of every card; last, below its numbers, of the IP subnet and of
-            // every card of finance
+            // a drawing first, above the numbers it draws, of every card; last, below its numbers, of a card whose drawing is only
+            // its curve over time or a length, as of Radioactive decay, and of the IP subnet, Spring, Pendulum and spring (drawnLast),
+            // and of every card of finance
             out.rows = tool.drawnLast || tab === 'finance' ? out.rows.filter(function (r) { return !drawnRow(r); }).concat(out.rows.filter(drawnRow)) :
                 out.rows.filter(drawnRow).concat(out.rows.filter(function (r) { return !drawnRow(r); }));
+            // nothing typed or picked in its boxes yet: no results that have no value, only what it shows of itself, as a
+            // worksheet of the ways chosen
+            if (tool.waits && !fields.some(mine)) out.rows = out.rows.filter(function (r) { return r.flip; }); // what its empty boxes stand for is no result; bits to click are kept, as a box is
+            if (!fields.some(mine)) out.rows = out.rows.filter(function (r) {
+                return r.flip || (r.text !== undefined ? !/^–?$/.test(String(r.text).replace(/<[^>]*>/g, '').trim()) || /<svg/.test(r.text) : !!r.m || r.html !== undefined || isFinite(r.v));
+            });
             rows = out.rows;
             item.querySelector('.calc-sv-results').hidden = !out.rows.length;
             item.querySelector('.calc-sv-grid').style.gridTemplateColumns = out.cols ? 'repeat(' + out.cols + ', 1fr)' : ''; // two, for an x and a y side by side
@@ -8443,8 +8666,18 @@
                 }
                 if (size < 12) cells.forEach(function (cell) { cell.style.fontSize = size + 'px'; });
             });
-            item.querySelector('.calc-sv-note').textContent = pasted || out.note || '';
-            item.querySelector('.calc-sv-note').classList.toggle('calc-sv-warn', !!(pasted || out.warn));
+            // what to pick from, as the ions or the solubility table, in a section of its own under the results: its own
+            // heading, a click on one typing it in the box (data-fill); no row of the results, so no tip of one, nor put in
+            item.querySelector('.calc-sv-pickfrom').hidden = !out.pick;
+            item.querySelector('.calc-sv-pickfrom').innerHTML = !out.pick ? '' : '<div class="calc-sv-results">' + out.pick.t + '</div><div class="calc-sv-grid"' +
+                (out.pick.cols ? ' style="grid-template-columns: repeat(' + out.pick.cols + ', 1fr)"' : '') + '>' + out.pick.rows.map(function (r) {
+                    return '<div class="calc-sv-tile' + (r.small ? '' : ' calc-sv-wide') + (drawnRow(r) ? ' calc-sv-drawn' : '') + '"><span class="calc-sv-label">' + r.l + '</span><span class="calc-sv-value">' + r.text + '</span></div>';
+                }).join('') + '</div>';
+            note = item.querySelector('.calc-sv-note');
+            note.textContent = pasted || out.note || '';
+            note.classList.toggle('calc-sv-warn', !!(pasted || out.warn));
+            boxes = item.querySelector('.calc-sv-boxes');
+            boxes.parentNode.insertBefore(note, pasted || out.warn ? boxes : boxes.nextSibling); // an error at the top, over the boxes; a note under them
             pasted = ''; // what a matrix pasted that did not fit says, until a box is typed in
         }
 
@@ -8524,6 +8757,7 @@
         // number of a matrix, is put in
         list.addEventListener('click', function (e) {
             var row = e.target.closest('.calc-sv-row'), t = e.target.closest('.calc-sv-tile'), cell = e.target.closest('.calc-sv-cell'), bit = e.target.closest('.calc-sv-bit'), r, v;
+            if (e.target.closest('.calc-f-copy')) return copyFormula(e.target.closest('.calc-f-copy')); // the card stays open
             if (row && now.side && now.side() && row.parentNode.classList.contains('calc-on')) return; // beside the list it stays open
             if (row) return openTool(row.parentNode.classList.contains('calc-on') ? null : row.parentNode);
             if (e.target.closest('.calc-sv-example')) return example(e.target.closest('.calc-sv-item'));
@@ -8548,6 +8782,24 @@
             saveState();
         }, false);
 
+        // fills: what a card's empty boxes stand for typed in them as it opens, so what it gives is of what is in its
+        // boxes, never of a box that only looks empty: today in a date, a box's default, a number its placeholder is
+        function fillEmpty(tool) {
+            var kept = values[tool.id] = values[tool.id] || {};
+            fieldsOf(tool, rawOf(tool)).forEach(function (f) {
+                var text = fillText(f);
+                if (text !== null && !(typeof kept[f.k] === 'string' && kept[f.k] !== '')) kept[f.k] = text;
+            });
+        }
+
+        // what fills a box of a card of fills, or null; a box that has it still is not typed in, for Example and Reset
+        function fillText(f) {
+            var d = new Date(), pad = function (x) { return (x < 10 ? '0' : '') + x; };
+            if (f.head || f.choice || f.pick) return null;
+            return f.date ? d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) : f.def !== undefined ? local(String(f.def)) :
+                f.num && /^-?\d+(\.\d+)?$/.test(f.ph || '') ? local(f.ph) : null;
+        }
+
         // every box of a card emptied, at the top of it: its ways chosen and its lists stay as they are
         function reset(item) {
             var tool = tools[tab][+item.dataset.i], kept = values[tool.id] || {};
@@ -8557,6 +8809,7 @@
             Object.keys(kept).forEach(function (k) {
                 if (k.charAt(0) === '@') delete kept[k]; // what was typed in the other ways of the card
             });
+            if (tool.fills) fillEmpty(tool); // back to what it opened with
             boxes(tool, item);
             run();
             keep();
@@ -8579,6 +8832,7 @@
             var ex = typeof tool.example === 'function' ? tool.example(rawOf(tool)) : tool.example; // of a card of ways, the way chosen's
             values[tool.id] = {};
             Object.keys(ex).forEach(function (k) { values[tool.id][k] = local(ex[k]); });
+            if (tool.fills) fillEmpty(tool); // a box the example leaves empty as it opens
             boxes(tool, item);
             run();
             keep();
@@ -8767,6 +9021,7 @@
                 if (el.classList.contains('calc-sv-opt')) return CalcTips['choice ' + el.parentNode.dataset.k + ' ' + el.dataset.c] || null;
                 if (el.classList.contains('calc-sv-example')) return CalcTips['card example'];
                 if (el.classList.contains('calc-sv-reset')) return CalcTips['card reset'];
+                if (el.classList.contains('calc-f-copy')) return CalcTips['formula copy'];
                 if (el.classList.contains('calc-sv-copy')) return CalcTips[el.classList.contains('calc-sv-copy-t') ? 'text copy' : el.classList.contains('calc-sv-copy-m') ? 'matrix copy' : 'table copy'];
                 if (el.closest('.calc-sv-boxes') && el.closest('.calc-sv-item')) { // a box, or its name: what goes in it, where its field says
                     key = el.dataset.k || (el.parentNode.querySelector('[data-k]') || { dataset: {} }).dataset.k;
@@ -9192,10 +9447,10 @@
                     fields: [{ k: 'C', l: 'C', ph: 'farads', text: true }, { k: 'V', l: 'V', ph: 'volts', text: true }, { k: 'Q', l: 'Q', ph: 'coulombs', text: true }, { k: 'E', l: 'E', ph: 'joules', text: true }],
                     cols: 2, run: runCapacitor, example: { C: '100µ', V: '12' } },
                 { id: 'rc', t: 'RC circuit', f: ['τ = RC', 'f<sub>c</sub> = 1 ÷ 2πRC'], d: 'A resistor and a capacitor: the time constant, the frequency where a filter of them cuts off, and at a time t how charged the capacitor is.',
-                    fields: [{ k: 'R', l: 'R', ph: '10k', text: true }, { k: 'C', l: 'C', ph: '100n', text: true }, { k: 't', l: 't', ph: 's, optional', text: true }], cols: 3, run: runRc,
+                    fields: [{ k: 'R', l: 'R', ph: '10k', text: true }, { k: 'C', l: 'C', ph: '100n', text: true }, { k: 't', l: 't', ph: 's, optional', text: true }], cols: 3, drawnLast: true, run: runRc,
                     example: { R: '10k', C: '100n' } },
                 { id: 'rl', t: 'RL circuit', f: ['τ = L/R', 'f<sub>c</sub> = R ÷ 2πL'], d: 'A resistor and a coil: the time constant, the frequency where a filter of them cuts off, and at a time t how far the current has risen.',
-                    fields: [{ k: 'R', l: 'R', ph: '100', text: true }, { k: 'L', l: 'L', ph: '10m', text: true }, { k: 't', l: 't', ph: 's, optional', text: true }], cols: 3, run: runRl,
+                    fields: [{ k: 'R', l: 'R', ph: '100', text: true }, { k: 'L', l: 'L', ph: '10m', text: true }, { k: 't', l: 't', ph: 's, optional', text: true }], cols: 3, drawnLast: true, run: runRl,
                     example: { R: '100', L: '10m' } },
                 { id: 'filter', t: 'Filter', f: ['f<sub>c</sub> = 1 ÷ 2πRC', 'Q = √(L/C) ÷ R'], d: 'A filter of R and C, or of R and L, of the first order; or of R, L and C in series, of the second, ' +
                     'its output across C, L, R, or L and C: low-pass, high-pass, band-pass or band-stop. Where it is 3 dB down, its cut-off; its Q, its band and the peak it may have; ' +
@@ -9361,7 +9616,7 @@
                     fields: function (raw) {
                         return [{ k: 'kind', l: 'Of', choice: ['Pendulum', 'Spring'] }].concat(raw.kind === '1' ? [{ k: 'm', l: 'm', ph: 'kg' }, { k: 'k', l: 'k', ph: 'N/m' }] :
                             [{ k: 'L', l: 'L', ph: 'm' }, GRAVITY], [{ k: 'A', l: 'A', ph: 'm, optional' }]);
-                    }, cols: 2, run: runOscillator, example: function (raw) { return Object.assign({ kind: raw.kind || '0' }, [{ L: '1', A: '0.1' }, { m: '0.5', k: '20', A: '0.05' }][+raw.kind || 0]); } },
+                    }, cols: 2, run: runOscillator, drawnLast: true, example: function (raw) { return Object.assign({ kind: raw.kind || '0' }, [{ L: '1', A: '0.1' }, { m: '0.5', k: '20', A: '0.05' }][+raw.kind || 0]); } },
                 { id: 'rotation', t: 'Rotation', f: ['I = kmr<sup>2</sup>', 'E = ½Iω<sup>2</sup>', 'L = Iω'], d: 'A shape of mass m and radius r, of a rod its length, spinning: its moment of inertia, ' +
                     'its energy and angular momentum; and rolled from a height h down a slope, not slipping, its speed at the bottom, g 9.80665.',
                     fields: function (raw) {
@@ -9420,18 +9675,18 @@
                 { id: 'gravity', t: 'Gravitation', f: ['F = G m<sub>1</sub>m<sub>2</sub>/r<sup>2</sup>', 'r<sub>s</sub> = 2Gm ÷ c<sup>2</sup>'], d: 'The pull between two masses r apart, by Newton\'s law; and of the first, as a planet, the gravity at r, the speed and period of a circular orbit, ' +
                     'the escape speed, and the radius it would be a black hole within, Schwarzschild\'s. The Earth is 5.972e24 kg, its radius 6.371e6 m; the Sun 1.989e30 kg.',
                     fields: [{ k: 'm1', l: 'm<sub>1</sub>', ph: '5.972e24', name: 'm₁' }, { k: 'm2', l: 'm<sub>2</sub>', ph: '1', def: 1, name: 'm₂' }, { k: 'r', l: 'r', ph: '6.371e6' }],
-                    cols: 3, run: runGravity, example: { m1: '5.972e24', m2: '1', r: '6.371e6' } },
+                    cols: 3, drawnLast: true, run: runGravity, example: { m1: '5.972e24', m2: '1', r: '6.371e6' } },
                 { id: 'spring', t: 'Spring', f: ['F = kx', 'E = ½kx<sup>2</sup>'], d: 'A spring of stiffness k stretched or squeezed by x, by Hooke\'s law: its force and the energy it holds; with a mass, its period.',
-                    fields: [{ k: 'k', l: 'k', ph: 'N/m' }, { k: 'x', l: 'x', ph: 'm' }, { k: 'm', l: 'm', ph: 'kg, optional' }], cols: 3, run: runSpring, example: { k: '200', x: '0.05', m: '0.5' } },
+                    fields: [{ k: 'k', l: 'k', ph: 'N/m' }, { k: 'x', l: 'x', ph: 'm' }, { k: 'm', l: 'm', ph: 'kg, optional' }], cols: 3, run: runSpring, drawnLast: true, example: { k: '200', x: '0.05', m: '0.5' } },
                 { id: 'drag', t: 'Drag and terminal velocity', f: ['F = ½ρv<sup>2</sup>C<sub>d</sub>A', 'v<sub>t</sub> = √(2mg ÷ ρC<sub>d</sub>A)'], d: 'A mass falling through air: the speed it falls no faster than, ' +
                     'where drag is its weight, how long it takes to reach 95% of it and how far it falls till then; and the drag at a speed. C<sub>d</sub> of a ball is about 0.47, ' +
                     'a person falling 1, a car 0.3. Air is 1.225 kg/m³.',
                     fields: [{ k: 'm', l: 'm', ph: 'kg' }, { k: 'cd', l: 'C<sub>d</sub>', ph: '1', def: 1, name: 'Cd' }, { k: 'A', l: 'A', ph: 'm²' }, { k: 'rho', l: 'ρ', ph: '1.225', def: 1.225, name: 'ρ' },
-                        { k: 'v', l: 'v', ph: 'optional' }, GRAVITY], cols: 2, run: runDrag, example: { m: '80', cd: '1', A: '0.7' } },
+                        { k: 'v', l: 'v', ph: 'optional' }, GRAVITY], cols: 2, drawnLast: true, run: runDrag, example: { m: '80', cd: '1', A: '0.7' } },
                 { id: 'coulomb', t: 'Coulomb\'s law', f: 'F = kq<sub>1</sub>q<sub>2</sub> ÷ r<sup>2</sup>', d: 'The force between two charges r apart, whether they pull or push, the field and the potential of the first at the second, ' +
                     'and the energy of the two. Charges as 2µ or 1.6e-19; k = 8.988 × 10⁹ N·m²/C².',
                     fields: [{ k: 'q1', l: 'q<sub>1</sub>', ph: '2µ', text: true, aria: 'q1' }, { k: 'q2', l: 'q<sub>2</sub>', ph: '-3µ', text: true, aria: 'q2' }, { k: 'r', l: 'r', ph: 'm' }],
-                    cols: 3, run: runCoulomb, example: { q1: '2µ', q2: '-3µ', r: '0.05' } },
+                    cols: 3, drawnLast: true, run: runCoulomb, example: { q1: '2µ', q2: '-3µ', r: '0.05' } },
                 { id: 'magnetic', t: 'Magnetic force', f: ['F = qvB sin θ', 'F = BIL sin θ'], d: 'The force of a magnetic field B on a charge moving through it, with the circle it goes round, ' +
                     'its period and frequency, an electron\'s unless typed; or on a wire carrying a current. θ between them, a right angle unless typed.',
                     fields: function (raw) {
@@ -9451,7 +9706,7 @@
                             of === 1 ? [{ k: 'N', l: 'N', ph: '500' }, { k: 'L', l: 'L', ph: 'm', text: true }, { k: 'mu', l: 'μ<sub>r</sub>', ph: '1', def: 1, name: 'μr' }] :
                                 of === 2 ? [{ k: 'r', l: 'r', ph: 'm', text: true }, { k: 'N', l: 'N', ph: '1', def: 1 }] :
                                     [{ k: 'r', l: 'r', ph: 'm', text: true }, { k: 'I2', l: 'I<sub>2</sub>', ph: 'optional', text: true, aria: 'I2' }]);
-                    }, cols: 2, run: runField,
+                    }, cols: 2, drawnLast: true, run: runField,
                     example: function (raw) { return Object.assign({ kind: raw.kind || '0' }, [{ I: '10', r: '0.05', I2: '5' }, { I: '2', N: '500', L: '0.25' }, { I: '3', r: '0.1', N: '20' }][+raw.kind || 0]); } },
                 { id: 'induction', t: 'Induction', f: ['ε = –N ΔΦ ÷ Δt', 'ε = BLv'], d: 'The voltage a changing field makes, by Faraday\'s law: in a coil of N turns and area A, its field ' +
                     'changing by ΔB in Δt; in a rod of length L moving at v across a field; or the peak of a generator, its coil turning at so many revolutions a minute. With a resistance, the current.',
@@ -9566,7 +9821,7 @@
                         return [{ k: 'by', l: 'Of', choice: ['A reading', 'k'] }, { k: 'T0', l: 'T<sub>0</sub>', ph: '°C, at first', name: 'T₀' }, { k: 'Ta', l: 'T<sub>a</sub>', ph: '20', def: 20, name: 'Ta' }]
                             .concat(raw.by === '1' ? [{ k: 'k', l: 'k', ph: 'a minute' }] : [{ k: 't1', l: 't<sub>1</sub>', ph: 'min', name: 't₁' }, { k: 'T1', l: 'T<sub>1</sub>', ph: '°C, then', name: 'T₁' }],
                                 [{ k: 't', l: 't', ph: 'min, optional' }, { k: 'T', l: 'To', ph: '°C, optional', name: 'To' }]);
-                    }, cols: 2, run: runCooling,
+                    }, cols: 2, drawnLast: true, run: runCooling,
                     example: function (raw) { return Object.assign({ by: raw.by || '0', T0: '90', Ta: '20', t: '30', T: '60' }, raw.by === '1' ? { k: '0.03' } : { t1: '5', T1: '80' }); } },
                 { id: 'dew', t: 'Dew point and humidity', f: ['T<sub>d</sub> = cγ ÷ (b – γ)', 'γ = ln(RH ÷ 100) + bT ÷ (c + T)'], d: 'Air at a temperature T and a relative humidity RH: ' +
                     'its dew point, where water comes out of it as it cools, as dew, mist or on a cold glass; or of its dew point, its humidity. The water in a cubic metre of it, and the pressure ' +
@@ -9611,7 +9866,7 @@
                 { id: 'depth', t: 'Pressure at a depth', f: 'P = P<sub>0</sub> + ρgh', d: 'The pressure at a depth h in a liquid: of the liquid alone, gauge, and with the air above, absolute; with an area, the force on it. ' +
                     'Water unless typed, 1000 kg/m³; sea water is 1025.',
                     fields: [{ k: 'h', l: 'h', ph: 'm' }, { k: 'rho', l: 'ρ', ph: '1000', def: 1000, name: 'ρ' }, { k: 'P0', l: 'P<sub>0</sub>', ph: '101325', def: 101325, name: 'P₀' },
-                        { k: 'A', l: 'A', ph: 'm², optional' }, GRAVITY], cols: 2, run: runDepth, example: { h: '10' } },
+                        { k: 'A', l: 'A', ph: 'm², optional' }, GRAVITY], cols: 2, drawnLast: true, run: runDepth, example: { h: '10' } },
                 { id: 'buoyancy', t: 'Buoyancy', f: 'F = ρ<sub>fluid</sub>Vg', d: 'A thing of mass m and volume V in a liquid, by Archimedes\' principle: the push up on it all under, whether it floats, ' +
                     'how much of it is under, and how heavy it seems under. Water unless typed.',
                     fields: [{ k: 'm', l: 'm', ph: 'kg' }, { k: 'V', l: 'V', ph: 'm³' }, { k: 'rho', l: 'ρ<sub>fluid</sub>', ph: '1000', def: 1000, name: 'ρ fluid' }, GRAVITY],
@@ -9691,7 +9946,7 @@
                     fields: function (raw) {
                         return [{ k: 'by', l: 'Speed', choice: ['m/s', 'Of c'] }, raw.by === '1' ? { k: 'x', l: 'v/c', ph: '0.8', name: 'v/c' } : { k: 'x', l: 'v, m/s', ph: '2.4e8', name: 'v' },
                             { k: 'm', l: 'm', ph: 'kg, optional' }];
-                    }, cols: 2, run: runRelativity, example: function (raw) { return Object.assign({ by: raw.by || '0', m: '1' }, [{ x: '2.4e8' }, { x: '0.8' }][+raw.by || 0]); } },
+                    }, cols: 2, drawnLast: true, run: runRelativity, example: function (raw) { return Object.assign({ by: raw.by || '0', m: '1' }, [{ x: '2.4e8' }, { x: '0.8' }][+raw.by || 0]); } },
                 { id: 'hydrogen', t: 'Hydrogen and Bohr', f: ['1/λ = RZ<sup>2</sup>(1/n<sub>1</sub><sup>2</sup> – 1/n<sub>2</sub><sup>2</sup>)', 'r = a<sub>0</sub>n<sup>2</sup>/Z'], d: 'The light of hydrogen\'s electron falling from the level n₂ to n₁, by Rydberg: ' +
                     'its wavelength, frequency, energy, series and colour; and by Bohr\'s model the energy of each level, the size of its orbit and ' +
                     'the electron\'s speed. Of an ion of one electron, its Z: He⁺ is 2.',
@@ -9699,8 +9954,8 @@
                     cols: 3, run: runHydrogen, example: { n1: '2', n2: '3' } },
                 { id: 'decay', t: 'Radioactive decay', f: 'N = N<sub>0</sub> × ½<sup>t/T</sup>', d: 'What is left of an amount after a time t, of a half-life T, both in the unit chosen; the amount a mass, a count or an activity. ' +
                     'Of a count of atoms, its activity; and the time to fall to a percent.',
-                    fields: [{ k: 'unit', l: 'In', choice: ['s', 'min', 'h', 'days', 'years'] }, { k: 'T', l: 'T', ph: '5730', name: 'T' }, { k: 'N', l: 'N<sub>0</sub>', ph: '100', name: 'N₀' },
-                        { k: 't', l: 't', ph: '1000' }, { k: 'pc', l: 'To %', ph: 'optional', name: 'To %' }], cols: 2, run: runRadioactive, example: { unit: '4', T: '5730', N: '100', t: '10000', pc: '1' } }
+                    fields: [{ k: 'unit', l: 'In', choice: ['sec', 'min', 'hr', 'day', 'year'] }, { k: 'T', l: 'T', ph: '5730', name: 'T' }, { k: 'N', l: 'N<sub>0</sub>', ph: '100', name: 'N₀' },
+                        { k: 't', l: 't', ph: '1000' }, { k: 'pc', l: 'To %', ph: 'optional', name: 'To %' }], cols: 2, run: runRadioactive, drawnLast: true, example: { unit: '4', T: '5730', N: '100', t: '10000', pc: '1' } }
             ]
         };
 
@@ -10225,7 +10480,8 @@
         T = 2 * Math.PI * Math.sqrt(spring ? n.m / n.k : n.L / n.g);
         w = 2 * Math.PI / T;
         return { rows: physRows([['T, s', T], ['f, Hz', 1 / T], ['ω, rad/s', w]].concat(raw.A && n.A > 0 ? [['Fastest, m/s', w * n.A], ['Most a, m/s²', w * w * n.A]]
-            .concat(spring ? [['Energy, J', n.k * n.A * n.A / 2]] : []) : [])).concat({ l: 'Where it is, over two swings', wide: true, text: graphDrawing('Where it is as time goes', 0, 2 * T, {
+            .concat(spring ? [['Energy, J', n.k * n.A * n.A / 2]] : []) : [])).concat({ l: spring ? (raw.A && n.A > 0 ? 'At the end of a swing' : 'The mass on its spring') + '; where it is, over two swings' : 'Where it is, over two swings', wide: true,
+                text: (spring ? springDrawing(raw.A && n.A > 0 ? 1 : 0, 'A', 'm') : '') + graphDrawing('Where it is as time goes', 0, 2 * T, {
                 fs: [function (t) { return (n.A > 0 ? n.A : 1) * Math.cos(w * t); }], marks: [[T, 'T'], [2 * T, '2T']] }) }), cols: 3, note: spring ? (raw.A ? 'Fastest through the middle, its acceleration most at the ends.' : 'With an amplitude A, its fastest too.') :
             'For small swings, some 15° or less' + (raw.A ? ', A along its arc.' : '.') };
     }
@@ -10399,8 +10655,30 @@
         var none = ['F, N', 'E, J'];
         if (!raw.k && !raw.x) return physNone(none);
         if (!(n.k > 0 && isFinite(n.x))) return Object.assign(physNone(none), { warn: true, note: 'k above 0, and x.' });
-        return { rows: physRows([['F, N', n.k * n.x], ['E, J', n.k * n.x * n.x / 2]].concat(raw.m && n.m > 0 ? [['T, s', 2 * Math.PI * Math.sqrt(n.m / n.k)]] : [])).concat(n.x ? drawnTile(curveDrawing('Its force as it stretches',
-            Math.abs(n.x), 0, n.k * Math.abs(n.x), function (x) { return n.k * x; }, { under: true, at: Math.abs(n.x), names: ['x', 'F'] }), 'F against x, its area E') : []), cols: 3 };
+        var T = raw.m && n.m > 0 ? 2 * Math.PI * Math.sqrt(n.m / n.k) : NaN, w = 2 * Math.PI / T, f = function (x) { return n.k * x; };
+        // the spring, its force against x, and let go, where it is over two swings: in one tile
+        return { rows: drawnTile(springDrawing(Math.sign(n.x), 'x', raw.m && n.m > 0 ? 'm' : '') + (n.x ? graphDrawing('Its force against x, the area under it its energy', -1.4 * Math.abs(n.x), 1.4 * Math.abs(n.x), {
+                fs: [f], fill: [f, null, 0, n.x], dots: [[n.x, f(n.x)]], marks: [[n.x, 'x']], names: ['x, m', 'F, N'] }) : '') +
+            (isFinite(T) && n.x ? graphDrawing('Where it is as time goes, let go at x', 0, 2 * T, { fs: [function (t) { return n.x * Math.cos(w * t); }], marks: [[T, 'T'], [2 * T, '2T']] }) : ''),
+            !n.x ? 'At rest' : (n.x < 0 ? 'Squeezed' : 'Stretched') + ' by x; F against x, its area E' + (isFinite(T) ? '; let go, over two swings' : ''))
+            .concat(physRows([['F, N', n.k * n.x], ['E, J', n.k * n.x * n.x / 2]].concat(isFinite(T) ? [['T, s', T]] : []))), cols: 3 };
+    }
+
+    // a mass on a spring from a wall, along the floor: moved from where it rests, dashed, by x, stretched (way 1) or squeezed (-1),
+    // or at rest (0); the spring's pull or push on it red, back to where it rests. m its name in it, if any
+    function springDrawing(way, x, m) {
+        var W = 300, H = 98, wall = 18, y = 72, rest = 160, bx = rest + 50 * way, cy = y - 15, a = wall + 10, b = bx - 10, coil = 'M' + wall + ' ' + cy + 'H' + a, ground = 'M' + wall + ' 12V' + y + 'H' + (W - 8), i, body;
+        for (i = 0; i < 20; i++) coil += 'L' + fix(a + (b - a) * (i + 0.5) / 20) + ' ' + (cy + (i % 2 ? 7 : -7));
+        for (i = 16; i <= y - 6; i += 8) ground += 'M' + wall + ' ' + i + 'l-6 6';
+        body = '<path class="calc-sv-ground" d="' + ground + '"/><path class="calc-sv-seg calc-sv-thin" d="' + coil + 'L' + b + ' ' + cy + 'H' + bx + '"/>' +
+            '<rect x="' + bx + '" y="' + (y - 30) + '" width="30" height="30" fill="#d3bc8f" stroke="#8a7550" stroke-width="1.2"/>' + (m ? svgText(bx + 15, cy + 4, m, 'middle') : '');
+        if (way) {
+            body += '<path class="calc-sv-guide" d="M' + rest + ' 22V' + (y + 20) + 'M' + bx + ' ' + (y + 4) + 'V' + (y + 20) + '"/>' + svgText(rest, 16, 'At rest', 'middle') +
+                svgArrow(rest, y + 14, bx, y + 14, 'calc-sv-seg calc-sv-thin') + svgText(bx + 6 * way, y + 18, x, way > 0 ? 'start' : 'end') +
+                svgArrow(way > 0 ? bx + 28 : bx + 2, 32, way > 0 ? bx - 8 : bx + 38, 32, 'calc-sv-curve') +
+                svgText(way > 0 ? bx + 34 : bx - 4, 36, 'F', way > 0 ? 'start' : 'end', 'calc-sv-small calc-sv-red');
+        }
+        return svgOf('', W, H, 'The mass on its spring', body);
     }
 
     function runDrag(n, raw) {
@@ -12082,7 +12360,7 @@
     }
 
     function runRadioactive(n, raw) {
-        var unit = +raw.unit || 0, sec = [1, 60, 3600, 86400, 31557600][unit], name = ['s', 'min', 'h', 'days', 'years'][unit], lambda = Math.LN2 / n.T, rows, x1, none = ['Left', 'Left, %'];
+        var unit = +raw.unit || 0, sec = [1, 60, 3600, 86400, 31557600][unit], name = ['sec', 'min', 'hr', 'day', 'year'][unit], lambda = Math.LN2 / n.T, rows, x1, none = ['Left', 'Left, %'];
         if (!raw.T) return physNone(none);
         if (!(n.T > 0 && (!raw.N || n.N > 0) && (!raw.t || n.t >= 0) && (!raw.pc || (n.pc > 0 && n.pc < 100)))) {
             return Object.assign(physNone(none), { warn: true, note: 'T and N₀ above 0, t of 0 or more, and a percent between 0 and 100.' });
@@ -12090,7 +12368,7 @@
         rows = [];
         if (raw.t) rows.push(['Left, %', 100 * Math.pow(0.5, n.t / n.T)], ['Decayed, %', 100 * -Math.expm1(-lambda * n.t)]);
         if (raw.t && raw.N) rows.unshift(['Left', n.N * Math.pow(0.5, n.t / n.T)]);
-        rows.push(['λ, per ' + ['s', 'min', 'h', 'day', 'year'][unit], lambda], ['Mean life, ' + name, 1 / lambda]);
+        rows.push(['λ, per ' + name, lambda], ['Mean life, ' + name, 1 / lambda]);
         if (raw.pc) rows.push(['To ' + local(String(n.pc)) + '%, ' + name, n.T * Math.log2(100 / n.pc)]);
         if (raw.N) rows.push(['Of N₀ atoms, Bq', lambda / sec * n.N], ['Of N₀ atoms, Ci', lambda / sec * n.N / 3.7e10]);
         x1 = Math.max(4.4 * n.T, raw.t ? n.t * 1.1 : 0);
@@ -12135,8 +12413,6 @@
         // the alignments' examples: GFP's start with three bases changed and two codons gone, and yeast's ubiquitin, three amino acids from ours
         GFP_VARIANT = GFP.slice(0, 29) + 'C' + GFP.slice(30, 74) + 'A' + GFP.slice(75, 96) + GFP.slice(102, 119) + 'A' + GFP.slice(120, 150),
         UBIQUITIN_YEAST = 'MQIFVKTLTGKTITLEVESSDTIDNVKSKIQDKEGIPPDQQRLIFAGKQLEDGRTLSDYNIQKESTLHLVLRLRGG',
-        // the offspring of each kind of epistasis, as an example's counts
-        EPI_COUNTS = ['315 108 101 32', '89 28 43', '118 31 11', '86 74', '149 11', '128 32', '88 62 10'],
         ABO = ['AA', 'AO', 'BB', 'BO', 'AB', 'OO'], RH = ['DD', 'Dd', 'dd'],
         // plates and flasks: name, wells, each one's area, cm², and its medium, mL
         PLATES = [['6-well', 6, 9.5, 2], ['12-well', 12, 3.8, 1], ['24-well', 24, 1.9, 0.5], ['48-well', 48, 0.95, 0.3], ['96-well', 96, 0.32, 0.1], ['T25 flask', 1, 25, 5],
@@ -12193,8 +12469,7 @@
                 { id: 'epistasis', t: 'Epistasis', f: ['9 : 3 : 4', '12 : 3 : 1', '9 : 7'], d: 'Two genes, one hiding or changing what the other shows, in a cross of AaBb × AaBb: the ratio of its kind, ' +
                     'its Punnett square coloured by phenotype, and an example. With the counts of the offspring, a χ² test of the ratio, and of every kind the one that fits best.',
                     fields: [{ k: 'kind', l: 'Kind', choice: CalcBiology.epistasis.map(function (e) { return e[0] + ', ' + e[1].join(':'); }) },
-                        { k: 'o', l: 'Counts', ph: 'optional, 89 28 43', text: true, cls: 'calc-sv-wide', aria: 'Counts' }], cols: 1, spaces: ['o'], run: runEpistasis,
-                    example: function (raw) { return { kind: raw.kind || '1', o: EPI_COUNTS[raw.kind ? +raw.kind : 1] }; } },
+                        { k: 'o', l: 'Counts', ph: 'optional, 89 28 43', text: true, cls: 'calc-sv-wide', aria: 'Counts' }], cols: 1, spaces: ['o'], run: runEpistasis },
                 { id: 'counsel', t: 'Genetic risk', f: ['2/3 a carrier', 'Bayes'], d: 'The chance someone carries a gene, and that their child has it, as genetic counselling works it out, ' +
                     'the family drawn. Recessive: a brother or sister of one with it, 2/3 a carrier, a parent of one, or someone of no family with it, by how common it is, as 1/2500, and their partner ' +
                     'by the same. Of the X: a woman, her chance at first, ½ of a carrier\'s daughter, and her sons free of it, by Bayes. Dominant: a child of one with it, free of it yet, by its penetrance.',
@@ -12208,8 +12483,7 @@
                 { id: 'blood', t: 'Blood groups', f: ['I<sup>A</sup>, I<sup>B</sup>, i', 'Rh: D, d'], d: 'The ABO and Rh blood groups of two parents\' children, of each parent\'s genotypes: the children\'s groups ' +
                     'and the chance of each, drawn, with the square of ABO; and the red cells each group can take.',
                     fields: [{ k: 'a', l: 'Parent 1, ABO', choice: ['AA, A', 'AO, A', 'BB, B', 'BO, B', 'AB, AB', 'OO, O'] }, { k: 'b', l: 'Parent 2, ABO', choice: ['AA, A', 'AO, A', 'BB, B', 'BO, B', 'AB, AB', 'OO, O'] },
-                        { k: 'ra', l: 'Parent 1, Rh', choice: ['DD, +', 'Dd, +', 'dd, −'] }, { k: 'rb', l: 'Parent 2, Rh', choice: ['DD, +', 'Dd, +', 'dd, −'] }], cols: 2, run: runBlood,
-                    example: { a: '1', b: '3', ra: '1', rb: '2' } }
+                        { k: 'ra', l: 'Parent 1, Rh', choice: ['DD, +', 'Dd, +', 'dd, −'] }, { k: 'rb', l: 'Parent 2, Rh', choice: ['DD, +', 'Dd, +', 'dd, −'] }], cols: 2, run: runBlood }
             ],
             dna: [
                 { id: 'sequence', t: 'DNA and RNA', f: ['5′ → 3′', 'GC %'], d: 'A sequence of DNA or RNA, pasted as it comes, FASTA too: its length, the count of each base, drawn, its GC content along it, ' +
@@ -12221,7 +12495,7 @@
                         { k: 'min', l: 'ORFs of, aa', ph: '25', def: 25, name: 'ORFs of' }], cols: 2, run: runTranslate, example: function (raw) { return { s: GFP, f: raw.f || '0' }; } },
                 { id: 'code', t: 'Genetic code', f: ['AUG → Met', '64 codons'], d: 'The codon wheel of the standard code, read from the middle out. Click a codon or an amino acid on it, or type ' +
                     'a codon, as AUG or ATG, or an amino acid, as Leu, L or leucine: what it codes, or every codon of it.',
-                    fields: [{ k: 'x', l: 'Codon or amino acid', ph: 'AUG, Leu', text: true, cls: 'calc-sv-wide' }], cols: 1, run: runCode, example: { x: 'AUG' } },
+                    fields: [{ k: 'x', l: 'Codon or amino acid', ph: 'AUG, Leu', text: true, cls: 'calc-sv-wide' }], cols: 1, run: runCode },
                 { id: 'primer', t: 'Primer T<sub>m</sub>', f: ['T<sub>m</sub>', '2(A + T) + 4(G + C)'], d: 'The melting temperature of a primer, or of two, forward and reverse, by nearest neighbours as Primer3 ' +
                     'works it out, of SantaLucia\'s values, with the salt and the primer\'s concentration; by Wallace\'s rule and by the count of its bases too; its GC and ΔG, ' +
                     'and what may make it work badly: too few G or C at its 3′ end, a long run of one base, its 3′ end pairing with itself. Their melting drawn. ' +
@@ -12254,7 +12528,7 @@
                 { id: 'pcr', t: 'PCR amplification', f: 'N = N<sub>0</sub>(1 + E)<sup>n</sup>', d: 'The copies after n cycles of PCR from N₀ at first, at an efficiency E, 100% doubling each cycle; ' +
                     'with the product\'s length, its mass. The copies drawn, cycle by cycle, on a scale of logarithms.',
                     fields: [{ k: 'N', l: 'N<sub>0</sub>', ph: '1000', name: 'N₀' }, { k: 'E', l: 'E, %', ph: '100', def: 100, name: 'E' }, { k: 'n', l: 'Cycles', ph: '30', def: 30, name: 'Cycles' },
-                        { k: 'L', l: 'Length, bp', ph: 'optional', name: 'Length' }], cols: 2, run: runPcr, example: { N: '1000', E: '95', n: '30', L: '500' } },
+                        { k: 'L', l: 'Length, bp', ph: 'optional', name: 'Length' }], cols: 2, drawnLast: true, run: runPcr, example: { N: '1000', E: '95', n: '30', L: '500' } },
                 { id: 'align', t: 'Alignment', f: ['Needleman–Wunsch', 'Smith–Waterman'], d: 'Two sequences of DNA or protein aligned: the whole of each, a gap at either end free, as EMBOSS\'s needle, ' +
                     'or the best part of each, as its water; a gap opened costs 10 and each more 0.5, of BLOSUM62 for a protein, and of DNA 5 the same, −4 not. Their identity, similarity, gaps ' +
                     'and score, the alignment to copy, and a dot plot drawn, a diagonal for each run alike, the alignment\'s path red.',
@@ -12285,8 +12559,7 @@
                     fields: function (raw) {
                         return [{ k: 'g', l: 'Genome', choice: CalcBiology.genomes.map(function (q) { return q[0]; }).concat('Other') }].concat(raw.g === String(CalcBiology.genomes.length) ?
                             [{ k: 'L', l: 'Length, bp', ph: '5e6', name: 'Length' }] : [], [{ k: 'ng', l: 'DNA, ng', ph: 'optional', name: 'DNA' }, { k: 'n', l: 'Copies wanted', ph: 'optional', name: 'Copies' }]);
-                    }, cols: 2, run: runGenome,
-                    example: function (raw) { return Object.assign({ g: raw.g || '0', ng: '10', n: '10000' }, raw.g === String(CalcBiology.genomes.length) ? { L: '5e6' } : {}); } }
+                    }, cols: 2, run: runGenome }
             ],
             protein: [
                 { id: 'protein', t: 'Protein', f: ['MW', 'pI', 'ε<sub>280</sub>'], d: 'A protein of one letter to each amino acid, pasted as it comes, FASTA too: its length, mass, isoelectric point by ' +
@@ -12295,7 +12568,7 @@
                     fields: [{ k: 's', l: 'Sequence', ph: 'MQIFVKTLTGKTITLEV…', area: true }], cols: 1, run: runProtein, example: { s: UBIQUITIN } },
                 { id: 'amino', t: 'Amino acids', f: ['NH<sub>2</sub>–CHR–COOH', 'pI'], d: 'The twenty amino acids, drawn by kind: click one, or type its name, three letters or one, for its mass, kind, pKa, ' +
                     'pI, hydropathy, codons and whether people must eat it; its titration curve drawn, the pH as OH⁻ is added.',
-                    fields: [{ k: 'x', l: 'Amino acid', ph: 'His, H or histidine', text: true, cls: 'calc-sv-wide' }], cols: 1, run: runAmino, example: { x: 'His' } },
+                    fields: [{ k: 'x', l: 'Amino acid', ph: 'His, H or histidine', text: true, cls: 'calc-sv-wide' }], cols: 1, run: runAmino },
                 { id: 'proteinconc', t: 'Protein concentration', f: ['A = εcl', 'standard curve'], d: 'A protein\'s concentration from its absorbance at 280 nm, of its extinction and mass, or as 1 mg/mL each 1 ' +
                     'without them; or by a standard curve, as of Bradford or BCA: the standards, a concentration and its absorbance on each line, and the absorbances of the unknowns: ' +
                     'the line fitted and drawn, and each unknown\'s concentration, times its dilution.',
@@ -12372,7 +12645,7 @@
                             [{ k: 'od', l: 'OD<sub>600</sub>', ph: '0.5', name: 'OD600' }, { k: 'dil', l: 'Diluted', ph: '1', def: 1, name: 'Diluted' }, { k: 'per', l: 'Cells/mL each 1', ph: '8e8', def: 8e8, name: 'Cells/mL each 1' }] :
                             by === 1 ? [{ k: 'N0', l: 'N<sub>0</sub>', ph: '1000', name: 'N₀' }, { k: 'td', l: 't<sub>d</sub>', ph: '20', name: 'td' }, { k: 't', l: 't', ph: '120' }] :
                                 [{ k: 'N0', l: 'N<sub>0</sub>', ph: '1000', name: 'N₀' }, { k: 'N', l: 'N', ph: '64000' }, { k: 't', l: 't', ph: '120' }]);
-                    }, cols: 3, run: runGrowth,
+                    }, cols: 3, drawnLast: true, run: runGrowth,
                     example: function (raw) { return Object.assign({ by: raw.by || '0' }, [{ N0: '1000', N: '64000', t: '120' }, { N0: '1000', td: '20', t: '120' }, { od: '0.6', dil: '1' }][+raw.by || 0]); } },
                 { id: 'cfu', t: 'Colonies, CFU/mL', f: 'CFU/mL = colonies ÷ (dilution × mL plated)', d: 'The bacteria a mL of a culture, from the colonies on a plate, its dilution, as 1e-6 or 10⁶, and the ' +
                     'volume spread; 30 to 300 colonies count best. The plate drawn.',
@@ -12443,7 +12716,7 @@
                         return [{ k: 'iso', l: 'Isotope', choice: CalcBiology.isotopes.map(function (q) { return q[0]; }).concat('Other') }].concat(raw.iso === String(CalcBiology.isotopes.length) ?
                             [{ k: 'half', l: 'Half-life', ph: '14.3', name: 'Half-life' }] : [], [{ k: 'unit', l: 'Time in', choice: ['Days', 'Hours'] }, { k: 'A', l: 'Activity at first', ph: '250', name: 'Activity' },
                             { k: 't', l: 'Time since', ph: '10', name: 'Time' }, { k: 'want', l: 'Wanted', ph: 'optional', name: 'Wanted' }, { k: 'v', l: 'In, µL', ph: 'optional', name: 'In' }]);
-                    }, cols: 2, run: runIsotope,
+                    }, cols: 2, drawnLast: true, run: runIsotope,
                     example: function (raw) { return Object.assign({ iso: raw.iso || '2', unit: raw.unit || '0', A: '250', t: '10', want: '50', v: '25' }, raw.iso === String(CalcBiology.isotopes.length) ? { half: '14.3' } : {}); } },
                 { id: 'buffer', t: 'Buffers', f: 'pH = pK<sub>a</sub> + log([A<sup>−</sup>] ÷ [HA])', d: 'A buffer by Henderson and Hasselbalch, of Tris, HEPES, phosphate and more: its pKa at 25 °C, ' +
                     'moved for the temperature, the pH wanted, its concentration and volume: the ratio of its base to its acid, what to weigh and the NaOH or HCl to bring it to the pH, or of two salts ' +
@@ -12570,7 +12843,7 @@
                         return [{ k: 'route', l: 'Given', choice: ['IV bolus', 'By mouth'] }, { k: 'dose', l: 'Dose, mg', ph: '500', name: 'Dose' }, { k: 'V', l: 'V<sub>d</sub>, L', ph: '40', name: 'Vd' },
                             { k: 'half', l: 't<sub>½</sub>, h', ph: '6', name: 't½' }, { k: 'tau', l: 'Every, h', ph: '8', name: 'Every' }, { k: 'n', l: 'Doses', ph: '6', def: 6, name: 'Doses' }]
                             .concat(raw.route === '1' ? [{ k: 'F', l: 'F, absorbed', ph: '1', def: 1, name: 'F' }, { k: 'ka', l: 'k<sub>a</sub>, /h', ph: '1', def: 1, name: 'ka' }] : []);
-                    }, cols: 2, run: runDrug,
+                    }, cols: 2, drawnLast: true, run: runDrug,
                     example: function (raw) { return Object.assign({ route: raw.route || '0', dose: '500', V: '40', half: '6', tau: '8' }, raw.route === '1' ? { F: '0.8', ka: '1.2' } : {}); } }
             ],
             ecology: [
@@ -12579,7 +12852,7 @@
                     fields: function (raw) {
                         return [{ k: 'by', l: 'Growth', choice: ['Exponential', 'Logistic'] }, { k: 'N0', l: 'N<sub>0</sub>', ph: '50', name: 'N₀' }, { k: 'r', l: 'r', ph: '0.3' }, { k: 't', l: 't', ph: '20' }]
                             .concat(raw.by === '1' ? [{ k: 'K', l: 'K', ph: '1000' }] : []);
-                    }, cols: 2, run: runPopGrowth, example: function (raw) { return Object.assign({ by: raw.by || '0', N0: '50', r: '0.3', t: '20' }, raw.by === '1' ? { K: '1000' } : {}); } },
+                    }, cols: 2, drawnLast: true, run: runPopGrowth, example: function (raw) { return Object.assign({ by: raw.by || '0', N0: '50', r: '0.3', t: '20' }, raw.by === '1' ? { K: '1000' } : {}); } },
                 { id: 'predator', t: 'Predator and prey', f: ['dN/dt = aN – bNP', 'dP/dt = dNP – cP'], d: 'Lotka and Volterra: prey N, which grow at a and are eaten at b, and predators P, which die at c and ' +
                     'grow at d of what they eat: their cycles drawn over a time, and drawn against each other, round their balance, N = c/d and P = a/b.',
                     fields: [{ k: 'N', l: 'Prey', ph: '40', name: 'Prey' }, { k: 'P', l: 'Predators', ph: '9', name: 'Predators' }, { k: 'a', l: 'a', ph: '0.1' }, { k: 'b', l: 'b', ph: '0.02' },
@@ -13680,11 +13953,12 @@
             rows = [textRow('Stop codons', lit.join(' ') + ': amber, ochre and opal')];
         } else if (t) {
             a = CalcBiology.amino(t);
-            if (!a) return { rows: drawnTile(codonWheel('x', []), 'The code'), warn: true, bad: ['x'], note: 'A codon, as AUG, or an amino acid, as Leu, L or leucine.' };
+            if (!a) return { rows: [], pick: { t: 'Code', rows: [{ l: 'The code', text: codonWheel('x', []) }] }, warn: true, bad: ['x'], note: 'A codon, as AUG, or an amino acid, as Leu, L or leucine.' };
             lit = CalcBiology.codonsOf(a.one);
             rows = [textRow('Amino acid', a.name + ', ' + a.three + ', ' + a.one + ', ' + CalcBiology.kinds[a.kind].toLowerCase()), textRow(lit.length + (lit.length > 1 ? ' codons' : ' codon'), lit.join(' '))];
         }
-        return { rows: drawnTile(codonWheel('x', lit), 'The code').concat(rows), cols: 1, note: t ? '' : 'Click a codon or an amino acid on the wheel, or type one.' };
+        if (!t) return { rows: [], pick: { t: 'Code', rows: [{ l: 'The code', text: codonWheel('x', []) }] }, note: 'Click a codon or an amino acid on the wheel, or type one.' }; // the wheel to pick from
+        return { rows: drawnTile(codonWheel('x', lit), 'The code').concat(rows), cols: 1 };
     }
 
     function runPrimer(n, raw) {
@@ -13837,8 +14111,9 @@
 
     function runAmino(n, raw) {
         var a = raw.x ? CalcBiology.amino(raw.x) : null, groups, pks;
-        if (raw.x && !a) return { rows: drawnTile(aminoGrid('x', null), 'The amino acids'), warn: true, bad: ['x'], note: 'Not an amino acid: its name, as histidine, three letters, His, or one, H.' };
-        if (!a) return { rows: drawnTile(aminoGrid('x', null), 'The amino acids').concat(physNone(['Mass, g/mol', 'pI', 'Hydropathy']).rows), cols: 2, note: 'Click one, or type its name.' }; // the grid to pick from, the results empty
+        var grid = { t: 'Amino acids', rows: [{ l: 'The amino acids', text: aminoGrid('x', null) }] }; // to pick from, till one is found
+        if (raw.x && !a) return { rows: [], pick: grid, warn: true, bad: ['x'], note: 'Not an amino acid: its name, as histidine, three letters, His, or one, H.' };
+        if (!a) return { rows: [], pick: grid, note: 'Click one, or type its name.' };
         pks = a.pk.filter(function (k) { return k !== null; }).sort(function (x, y) { return x - y; });
         groups = pks.length;
         return {
@@ -14632,7 +14907,7 @@
         var none = ['Found'], r = CalcBiology.readSeq(raw.s), s = CalcBiology.dna(r.seq), m = String(raw.m || '').replace(/\s+/g, '').toUpperCase().replace(/U/g, 'T'), hits, chance,
             MEANING = { R: 'purine', Y: 'pyrimidine', S: 'strong', W: 'weak', K: 'keto', M: 'amino', B: 'not A', D: 'not C', H: 'not G', V: 'not T', N: 'any' };
         if (!m) {
-            return { rows: Object.keys(CalcBiology.iupac).filter(function (c) { return MEANING[c]; }).map(function (c) { return { l: c + ', ' + MEANING[c], text: CalcBiology.iupac[c].split('').join(' ') }; }), cols: 3,
+            return { rows: [], pick: { t: 'Codes', cols: 3, rows: Object.keys(CalcBiology.iupac).filter(function (c) { return MEANING[c]; }).map(function (c) { return { l: c + ', ' + MEANING[c], text: CalcBiology.iupac[c].split('').join(' '), small: true }; }) },
                 note: s ? 'Type a motif, of A, C, G, T and these codes.' : 'IUPAC\'s codes, each of more than one base.' };
         }
         if (/[^ACGTRYSWKMBDHVN]/.test(m)) return bioWarn(none, 'A motif of A, C, G, T and IUPAC\'s codes, as R or N.', ['m']);
@@ -15313,7 +15588,7 @@
             reactions: [
                 { id: 'balance', t: 'Balance an equation', f: 'Fe + O<sub>2</sub> → Fe<sub>2</sub>O<sub>3</sub>', d: 'The smallest whole numbers in front of each formula, so each element and the charge are the same on both sides; and what kind of reaction it is. ' +
                     'Write = or → between the sides, + between the formulas; ions with their charge, Fe^3+, and e- for an electron.',
-                    fields: [{ k: 'eq', ph: 'Fe + O2 = Fe2O3', fn: true }], run: runBalance, example: { eq: 'C3H8 + O2 = CO2 + H2O' } },
+                    fields: [{ k: 'eq', l: 'Equation', ph: 'Fe + O2 = Fe2O3', fn: true }], run: runBalance, example: { eq: 'C3H8 + O2 = CO2 + H2O' } },
                 { id: 'stoich', t: 'Amounts and limiting reactant', f: ['g ⇄ mol', 'limiting', '% yield'], d: 'From the amount of one formula, all the others of the reaction. Of two reactants or more, the one that runs out first and what is left of the others; ' +
                     'of a product as well, its percent yield. Amounts in g, or with kg, mg or mol after them: Fe 10, O2 5 g.',
                     fields: [{ k: 'eq', l: 'Equation', ph: 'Fe + O2 = Fe2O3', fn: true }, { k: 'a', l: 'Amounts', ph: 'Fe 10 g, O2 5 g', fn: true }], run: runStoich,
@@ -15327,7 +15602,7 @@
                     run: runHeat, example: { m: '100', c: '4.184', t: '25' } },
                 { id: 'decay', t: 'Half-life', f: 'N = N<sub>0</sub>(½)<sup>t ÷ t½</sup>', d: 'What is left of a radioactive substance, or of a first-order reaction, after a time: leave one of N₀, N, t and t½ empty. The same unit of time for t and t½.',
                     fields: [{ k: 'n0', l: 'N<sub>0</sub>', name: 'N₀', ph: 'or' }, { k: 'n', l: 'N', ph: 'or' }, { k: 't', l: 't', ph: 'or' }, { k: 'h', l: 't½', ph: 'or' }], cols: 2,
-                    run: runDecay, example: { n0: '100', t: '10', h: '5.27' } }
+                    drawnLast: true, run: runDecay, example: { n0: '100', t: '10', h: '5.27' } }
             ],
             solutions: [
                 { id: 'molarity', t: 'Molarity', f: 'c = n ÷ V', d: 'The concentration of a solution, in mol/L: leave one of mass, volume and molarity empty. Without a formula, type moles in place of the mass.',
@@ -15353,12 +15628,12 @@
                     run: runBuffer, example: { pka: '4.76', a: '0.15', ha: '0.1' } },
                 { id: 'soluble', t: 'Solubility', f: ['PbI<sub>2</sub>', 'BaSO<sub>4</sub>'], d: 'Whether a salt dissolves in water, by the usual table at 25 °C, and the rule: ' +
                     'the nitrates, acetates, halides, sulfates, carbonates, phosphates, hydroxides and sulfides of 20 common cations, Li⁺ to Pb²⁺.',
-                    fields: [{ k: 'f', l: 'Salt', ph: 'PbI2', fn: true }], run: runSoluble, example: { f: 'BaSO4' } }
+                    fields: [{ k: 'f', l: 'Salt', ph: 'PbI2', fn: true }], run: runSoluble }
             ],
             ions: [
                 { id: 'ion', t: 'Ions', f: ['NH<sub>4</sub><sup>+</sup>', 'SO<sub>4</sub><sup>2−</sup>', 'Fe<sup>3+</sup>'], d: 'A common ion by its formula or its name, sulfate, ferric, bicarbonate: its charge and molar mass, ' +
                     'its colour in water and the colour it gives a flame. Empty, all of them.',
-                    fields: [{ k: 'f', l: 'Ion', ph: 'SO4^2- or sulfate', fn: true }], run: runIon, example: { f: 'MnO4^-' } },
+                    fields: [{ k: 'f', l: 'Ion', ph: 'SO4^2- or sulfate', fn: true }], run: runIon },
                 { id: 'names', t: 'Names and formulas', f: ['Fe<sub>2</sub>O<sub>3</sub>', 'iron(III) oxide'], d: 'The name of a formula, or the formula of a name: salts, a metal of more than one charge ' +
                     'with it in Roman numerals; acids; two nonmetals with Greek prefixes, dinitrogen tetroxide; hydrates, ions, the elements and common names, water, ammonia.',
                     fields: [{ k: 'f', l: 'Formula or name', ph: 'CuSO4·5H2O or sodium carbonate', fn: true }], run: runNames, example: { f: 'Fe2(SO4)3' } },
@@ -15402,12 +15677,12 @@
                     'temperature and density, its oxygen, and where water boils there; or the height of a pressure. Leave one of the height and P empty. Sea level is 15 °C and 1 atm unless typed.',
                     fields: [{ k: 'h', l: 'Height', ph: 'or' }, { k: 'p', l: 'P', ph: 'or' }, { k: 't0', l: 'Sea level, °C', name: 'Sea level T', ph: '15' }, { k: 'p0', l: 'Sea level P', ph: 'standard' },
                         { k: 'hu', l: 'Height in', choice: ['m', 'km', 'ft'] }, { k: 'pu', l: 'P in', choice: GAS_PU }], cols: 2,
-                    run: runAir, example: { h: '8849' } },
+                    drawnLast: true, run: runAir, example: { h: '8849' } },
                 { id: 'sound', t: 'Speed of sound', f: ['v = √(γRT ÷ M)', 'Mach = u ÷ v'], d: 'How fast sound goes in a gas at a temperature: air, or a gas by its formula, He, CO2, ' +
                     'its γ known, worked out from its atoms or typed. With a speed, its Mach number.',
                     fields: [{ k: 'g', l: 'Gas', ph: 'air, He, CO2', fn: true }, { k: 't', l: 'T', ph: '293.15' }, { k: 'gamma', l: 'γ', name: 'γ', ph: 'auto' },
                         { k: 'u', l: 'Speed, m/s', name: 'Speed', ph: 'optional' }, { k: 'tu', l: 'T in', choice: ['K', '°C'] }], cols: 2,
-                    run: runSound, example: { g: 'air', t: '20', tu: '1' } }
+                    drawnLast: true, run: runSound, example: { g: 'air', t: '20', tu: '1' } }
             ]
         };
 
@@ -15685,14 +15960,20 @@
                 (other ? '' : sv[4] + ': ') + 'Kf ' + local(String(sv[0])) + ', Kb ' + local(String(sv[1])) + ' °C·kg/mol.' };
     }
 
-    // The table of solubility, each cell its letter in its colour, the salt typed outlined; its key under it
+    // The table of solubility, each cell its letter in its colour, the salt typed outlined; its key under it. A cell
+    // clicked types its salt's formula in the box (data-fill), each worked out once, by its name
+    var solFormulas = null;
     function solubleTable(ci, ai) {
         var t = CalcChem.solubilityTable();
+        solFormulas = solFormulas || t.cations.map(function (c) {
+            return t.anions.map(function (a) { var r = CalcChem.names(c.name + ' ' + a.name); return r && !r.error ? r.formula : ''; });
+        });
         return '<span class="calc-sol" style="--cols: ' + (t.anions.length + 1) + '"><span></span>' + t.anions.map(function (a) {
             return '<span class="calc-sol-head" title="' + a.name + '">' + a.ion.replace('CH₃COO', 'CH₃<br>COO') + '</span>'; // on two lines, to fit the popup
         }).join('') + t.cations.map(function (c, i) {
             return '<span class="calc-sol-head calc-sol-side" title="' + c.name + '">' + c.ion + '</span>' + t.letters[i].split('').map(function (x, j) {
-                return '<span class="calc-sol-' + (x === 's' ? 'little' : x) + (i === ci && j === ai ? ' calc-on' : '') + '" title="' + c.name + ' ' + t.anions[j].name + ': ' + t.words[x] + '">' + x + '</span>';
+                return '<span class="calc-sol-' + (x === 's' ? 'little' : x) + (i === ci && j === ai ? ' calc-on' : '') + '"' + (solFormulas[i][j] ? ' data-fill="f" data-v="' + solFormulas[i][j] + '"' : '') +
+                    ' title="' + c.name + ' ' + t.anions[j].name + ': ' + t.words[x] + '">' + x + '</span>';
             }).join('');
         }).join('') + '</span><span class="calc-sol-key">' + ['S', 's', 'I', 'R'].map(function (x) {
             return '<span><i class="calc-sol-' + (x === 's' ? 'little' : x) + '">' + x + '</i>' + t.words[x] + '</span>';
@@ -15700,17 +15981,16 @@
     }
 
     function runSoluble(n, raw) {
-        var none = [{ l: 'Solubility in water at 25 °C', text: solubleTable(-1, -1), wide: true }], r, M;
-        if (!raw.f) return { rows: none, note: 'Type a salt, or find it in the table: its cation down the side, its anion across the top.' };
+        var table = function () { return { t: 'Table', rows: [{ l: 'Solubility in water at 25 °C', text: solubleTable(-1, -1) }] }; }, r, M; // shown till a salt is found
+        if (!raw.f) return { rows: [], pick: table(), note: 'Pick a salt in the table, its cation down the side, its anion across the top, or type it.' };
         r = CalcChem.solubility(raw.f);
-        if (r.error === 'unknown') return { rows: none, warn: true, note: 'Not in the table: a salt of Li⁺, Na⁺, K⁺, NH₄⁺, Mg²⁺, Ca²⁺, Sr²⁺, Ba²⁺, Al³⁺, Cr³⁺, Mn²⁺, Fe²⁺, Fe³⁺, Co²⁺, Ni²⁺, Cu²⁺, Zn²⁺, Ag⁺, Hg²⁺ or Pb²⁺ ' +
+        if (r.error === 'unknown') return { rows: [], pick: table(), warn: true, note: 'Not in the table: a salt of Li⁺, Na⁺, K⁺, NH₄⁺, Mg²⁺, Ca²⁺, Sr²⁺, Ba²⁺, Al³⁺, Cr³⁺, Mn²⁺, Fe²⁺, Fe³⁺, Co²⁺, Ni²⁺, Cu²⁺, Zn²⁺, Ag⁺, Hg²⁺ or Pb²⁺ ' +
             'with nitrate, acetate, Cl⁻, Br⁻, I⁻, sulfate, carbonate, phosphate, hydroxide or sulfide.' };
-        if (r.error) return { rows: none, bad: ['f'], warn: r.error !== 'empty', note: formulaWhy(r) };
+        if (r.error) return { rows: [], pick: table(), bad: ['f'], warn: r.error !== 'empty', note: formulaWhy(r) };
         M = CalcChem.molarMass(r.formula);
         return {
             rows: [{ l: 'In water', text: r.word }, { l: 'Name', text: r.name }, { l: 'Formula', text: CalcChem.html(r.formula), copy: CalcChem.plain(r.formula) },
-                { l: 'Ions', text: (r.nc > 1 ? r.nc + ' ' : '') + r.cation + ' + ' + (r.na > 1 ? r.na + ' ' : '') + r.anion }, { l: 'g/mol', v: CalcMaths.round(M.mass) },
-                { l: 'Solubility in water at 25 °C', text: solubleTable(r.ci, r.ai), wide: true }],
+                { l: 'Ions', text: (r.nc > 1 ? r.nc + ' ' : '') + r.cation + ' + ' + (r.na > 1 ? r.na + ' ' : '') + r.anion }, { l: 'g/mol', v: CalcMaths.round(M.mass) }],
             note: r.rule + (r.hydrate ? ' The water of the hydrate is left out.' : '')
         };
     }
@@ -15774,22 +16054,22 @@
         return (Math.abs(c) > 1 ? Math.abs(c) : '') + (c > 0 ? '+' : '−');
     }
 
-    // the ions, cations then anions, each its formula and name
+    // the ions, cations then anions, each its formula and name; one clicked types its name in the box (data-fill)
     function ionList() {
         var group = function (cat) {
             return '<span class="calc-ion-list">' + CalcChem.ions.filter(function (i) { return cat ? i.charge > 0 : i.charge < 0; }).map(function (i) {
-                return '<span title="' + i.kind + '"><b>' + CalcChem.html(i.formula) + '</b>' + i.name + '</span>';
+                return '<span title="' + i.kind + '" data-fill="f" data-v="' + i.name + '"><b>' + CalcChem.html(i.formula) + '</b>' + i.name + '</span>';
             }).join('') + '</span>';
         };
-        return [{ l: 'Cations', text: group(true), wide: true }, { l: 'Anions', text: group(false), wide: true }];
+        return { t: 'Ions', rows: [{ l: 'Cations', text: group(true) }, { l: 'Anions', text: group(false) }] };
     }
 
     function runIon(n, raw) {
         var r, M;
-        if (!raw.f) return { rows: ionList(), note: 'Type an ion by its formula or its name.' };
+        if (!raw.f) return { rows: [], pick: ionList(), note: 'Pick an ion, or type it by its formula or its name.' };
         r = CalcChem.findIon(raw.f);
-        if (r.error === 'unknown') return { rows: ionList(), warn: true, note: raw.f + ' is not one of the common ions below.' };
-        if (r.error) return { rows: ionList(), bad: ['f'], warn: true, note: formulaWhy(r) };
+        if (r.error === 'unknown') return { rows: [], pick: ionList(), warn: true, note: raw.f + ' is not one of the common ions below.' };
+        if (r.error) return { rows: [], pick: ionList(), bad: ['f'], warn: true, note: formulaWhy(r) };
         M = CalcChem.molarMass(r.formula);
         return {
             rows: [{ l: 'Name', text: r.name + (r.also.length ? ' <i>(' + r.also.join(', ') + ')</i>' : '') }, { l: 'Formula', text: CalcChem.html(r.formula), copy: CalcChem.plain(r.formula) },
@@ -16085,7 +16365,6 @@
         chemTable = chemPanel.querySelector('.calc-pt'),
         chemGrid = chemPanel.querySelector('.calc-pt-grid'),
         chemSearch = chemPanel.querySelector('.calc-pt-search'),
-        chemClear = chemPanel.querySelector('.calc-pt-clear'), // its ×, while something is typed
         chemModes = chemPanel.querySelector('.calc-pt-modes'),
         chemLegend = chemPanel.querySelector('.calc-pt-legend'),
         chemInfo = chemPanel.querySelector('.calc-pt-info'),
@@ -16708,7 +16987,6 @@
 
     function chemDim() {
         var q = chemSearch.value.trim();
-        chemClear.hidden = !chemSearch.value;
         [].forEach.call(chemGrid.querySelectorAll('.calc-pt-el[data-z]'), function (t) {
             t.classList.toggle('calc-pt-dim', chemDimmed(CalcChem.elements[t.dataset.z - 1], q));
         });
@@ -17211,11 +17489,17 @@
         }
     }, false);
 
-    // its × empties it, the box keeping the focus
-    chemClear.addEventListener('click', function () {
-        chemSearch.value = '';
-        chemDim();
-        focusBox(chemSearch);
+    // the × of every search, of the formulas, the units, the graph's examples and the periodic table: the same, all of
+    // the list shown again, or every element bright, as the box is emptied as if by hand. CSS shows it while something
+    // is typed; its icon from here, the same in each
+    var CLEAR_ICON = '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg>';
+    [].forEach.call(root.querySelectorAll('.calc-search-clear'), function (x) { x.innerHTML = CLEAR_ICON; });
+    root.addEventListener('click', function (e) {
+        var x = e.target.closest('.calc-search-clear'), box = x && x.parentNode.querySelector('input');
+        if (!box) return;
+        box.value = '';
+        box.dispatchEvent(new Event('input', { bubbles: true }));
+        focusBox(box);
     }, false);
 
     // Enter chooses the first element found; Esc empties it first, then closes as ever
@@ -17284,7 +17568,6 @@
         if (el.classList.contains('calc-pt-hide')) return CalcTips['chem card close'];
         if (el.closest('.calc-pt-temp')) return CalcTips[chemBy === 'state' ? 'chem temp' : 'chem cut'];
         if (el.hasAttribute('data-pt')) return chemPartTip(el);
-        if (el === chemClear) return CalcTips['chem search clear'];
         return chemCards.tip(el);
     }
 
@@ -17492,6 +17775,7 @@
                 f: g.list.slice(0, 3).map(function (u) { return u.s; }),
                 d: 'A value in one of its ' + names.length + ' units in all the others: ' + names.slice(0, 4).join(', ') +
                     (names.length > 4 ? ' and more' : '') + '. An empty value is 1.',
+                fills: true,
                 fields: [
                     { k: 'v', l: 'Value', ph: '1', text: true, num: true },
                     { k: 'u', l: 'From', at: g.list[0].t, pick: function () {
@@ -17567,7 +17851,7 @@
             t.classList.toggle('calc-on', t.dataset.tab === convTab);
         });
         conv.classList.toggle('calc-conv-dates', convTab === 'dates');
-        convUnits.hidden = convSearch.hidden = convTab === 'dates';
+        convUnits.hidden = convSearch.parentNode.hidden = convTab === 'dates'; // the search in its box, with its ×
         convDates.hidden = convTab !== 'dates';
         closeCalendar();
         if (convTab === 'dates') return dates.render();
@@ -18319,9 +18603,10 @@
         return BIG_PANELS.filter(function (p) { return p.panel === panel || p.key === panel; })[0];
     }
 
-    // popped out on a wide page: its list of cards at the left, the card open beside it
+    // popped out wide: its list of cards at the left, the card open beside it. By the calculator's own width, as the
+    // CSS (@container calculator): on the website, half of the page while the options are beside it
     function bigSide(panel) {
-        return panel.classList.contains('calc-big-on') && window.matchMedia('(min-width: 760px)').matches;
+        return panel.classList.contains('calc-big-on') && root.clientWidth >= 760;
     }
 
     // A panel popped out, or in. The page may do it its own way: the extension opens it in a window of its own. True if it changed
@@ -18531,7 +18816,8 @@
         else if (key !== 'calc') panelBig(bigOf(key).panel, true);
     }
 
-    // the options, or the guide: the page the ? opens, on that tab; over what is popped out, on the website
+    // the options, or the guide: the page the ? opens, on that tab; on the website beside what is popped out, or over
+    // it on a small screen, as beside the calculator
     function goOptions(tab) {
         hideTip();
         saveState();
@@ -18570,9 +18856,11 @@
     }, false);
 
     // The website in Advanced mode, as the extension's Advanced mode opens it, { page: true, on }: the same, in the
-    // page itself, without a window of its own; a tool goes out of it, popped out on the page, as from the bar
+    // page itself, without a window of its own; a tool goes out of it, popped out on the page, as from the bar.
+    // Standard chosen there, what is popped out goes in and closes, and the calculator shows
     root.addEventListener('calc-home', function (e) {
         var d = e.detail || {};
+        if (home && d.on === false && d.page) goTo('calc');
         home = d.on !== false;
         homeAlone = home && !d.page;
         root.classList.toggle('calc-home', home);

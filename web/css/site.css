@@ -180,7 +180,7 @@ html:has(.options-open),
     .options-pane {
         position: fixed;
         inset: 0;
-        z-index: 10;
+        z-index: 12; /* over a tool popped out and the rail of Advanced mode as well */
         visibility: hidden;
         transform: translateY(100%);
         transition: transform 0.25s ease, visibility 0s linear 0.25s;
@@ -212,18 +212,15 @@ html:has(.options-open),
     .options-hidden .options-pane {
         display: none;
     }
+
+    /* a tool popped out in Standard mode takes the half of the calculator: the options stay beside it */
+    html:not(.options-hidden, .home) #calculator:is(.calc-big, .calc-panel-big) {
+        right: 50%;
+    }
 }
 
 /* Advanced mode (app.js), as the extension's Advanced mode opens the calculator: the rail of the tools down the left
-   (style.css), the calculator in the middle of the room beside it, the options not beside it but over it */
-.home .app {
-    grid-template-columns: minmax(0, 1fr);
-}
-
-.home:not(.options-over) .options-pane {
-    display: none;
-}
-
+   (style.css), the calculator in the middle of the room beside it; the options over it (below) */
 .home .calc-pane {
     padding-left: calc((37px + env(safe-area-inset-left)) * var(--calc-pop, 1) + 4px);
 }
@@ -248,12 +245,86 @@ html:has(.options-open),
     display: none !important;
 }
 
-/* the ? of the rail of a tool popped out: the options over it, at every width, over the rail as well */
-.options-over .options-pane {
+/* Advanced mode: Options and Guide of the rail, and the ?, open the options over the calculator, or the tool popped
+   out, beside the rail, at every width, as the extension opens them over its window (popup.html, .options-over).
+   In the colours of the tools popped out, the options and the guide each in a box (options.css, .embedded, which
+   app.js puts on the page in this mode); the rail closes them, so no × */
+.home .app {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.home .options-pane {
     position: fixed;
-    inset: 0;
-    z-index: 12;
+    inset: 0 0 0 calc((37px + env(safe-area-inset-left)) * var(--calc-pop, 1));
+    z-index: 12; /* over a tool popped out */
+    display: none;
+    visibility: visible;
+    transform: none;
+    transition: none;
+    background: #4a5f73; /* the blue of the tools popped out */
+}
+
+.home .options-open .options-pane {
     display: block;
+}
+
+@media (min-width: 760px) {
+    .home .options-pane {
+        left: calc((58px + env(safe-area-inset-left)) * var(--calc-pop, 1));
+    }
+}
+
+/* a phone: under the bar across the top */
+@media (max-width: 743px) {
+    .home .options-pane {
+        top: calc((40px + env(safe-area-inset-top)) * var(--calc-pop, 1));
+        left: 0;
+    }
+}
+
+.home .options-pane .options-bar {
+    display: none;
+}
+
+.home .options-pane .wrapper {
+    max-width: 800px;
+    padding: 2em 36px 0;
+}
+
+.home .options-pane .footer {
+    padding-left: 36px;
+    padding-right: 36px;
+}
+
+/* the page behind them the calculator's grey still, not the blue of .embedded */
+html.embedded,
+.embedded body {
+    background: #a8a8a8;
+}
+
+html.home:has(.options-open),
+.home .options-open {
+    background: #4a5f73;
+}
+
+/* while they are open, Options or Guide is the one marked on the rail, not the tool under them (app.js) */
+.options-shown .calc-go .calc-go-item.calc-on {
+    opacity: 0.6;
+    background: none;
+    color: inherit;
+    cursor: pointer;
+}
+
+.options-shown .calc-go .calc-go-item.calc-on:is(:hover, :focus-visible) {
+    opacity: 0.9;
+    background: rgba(211, 217, 226, 0.1);
+}
+
+.calc-go .calc-go-item.calc-opt-on {
+    opacity: 1;
+    background: #4e6378;
+    color: #fff;
+    cursor: default;
 }
 
 /* the options keep off the pane's edges at every width; the max-width grows by the padding,
@@ -272,7 +343,8 @@ html:has(.options-open),
 /* a phone: the narrow screen needs the room for the text */
 @media (max-width: 600px) {
     .options-pane .wrapper,
-    .options-pane .footer {
+    .options-pane .footer,
+    .home .options-pane :is(.wrapper, .footer) {
         padding-left: 16px;
         padding-right: 16px;
     }

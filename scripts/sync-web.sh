@@ -6,7 +6,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 cp css/style.css css/options.css web/css/
-cp js/engine.js js/tips.js js/formulas.js js/maths.js js/units.js js/chem.js js/physics.js js/biology.js js/main.js web/js/
+cp js/engine.js js/tips.js js/formulas.js js/maths.js js/units.js js/icons.js js/chem.js js/physics.js js/biology.js js/main.js web/js/
 cp imgs/icon.png imgs/icon128.png web/imgs/
 cp fonts/Play-Regular.ttf fonts/Play-Bold.ttf web/fonts/
 

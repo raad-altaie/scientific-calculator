@@ -86,13 +86,6 @@
                     d: 'An amount that grows by the same percent each period.',
                     v: [['N0', 'N<sub>0</sub>', 'starting amount'], ['r', 'r', 'growth per period, in %'], ['t', 't', 'periods']],
                     x: '{N0}*(1+{r}/100)^{t}', ex: [[100, 10, 2], 121]
-                },
-                {
-                    t: 'Half-life decay', f: 'N = N<sub>0</sub> × ½<sup>t/T</sup>',
-                    d: 'What is left of an amount that halves every T, after a time t.',
-                    v: [['N0', 'N<sub>0</sub>', 'starting amount'], ['t', 't', 'time passed'], ['T', 'T', 'half-life, in the unit of t']],
-                    x: '{N0}*0.5^({t}/{T})', ex: [[100, 10, 5], 25],
-                    zero: ['T']
                 }
             ]
         },
@@ -718,13 +711,6 @@
                     pos: ['a', 'h']
                 },
                 {
-                    t: 'Ideal gas law', f: 'P = {{nRT|V}}',
-                    d: 'The pressure of a gas, in kPa, from PV = nRT with V in litres.',
-                    v: [['n', 'n', 'amount (mol)'], ['T', 'T', 'temperature (K)'], ['V', 'V', 'volume (L)']],
-                    x: '{n}*8.314462618*{T}/{V}', ex: [[1, 300, 1], 2494.3387854],
-                    zero: ['V']
-                },
-                {
                     t: 'Combined gas law', f: 'V<sub>2</sub> = {{P<sub>1</sub>V<sub>1</sub>T<sub>2</sub>|T<sub>1</sub>P<sub>2</sub>}}',
                     d: 'The volume of a gas after its pressure and temperature change; T in kelvin.',
                     v: [['p1', 'P<sub>1</sub>', 'pressure before'], ['v1', 'V<sub>1</sub>', 'volume before'], ['t1', 'T<sub>1</sub>', 'temperature before (K)'],
@@ -762,12 +748,6 @@
                     d: 'The vapour pressure of a solvent in a solution, from its mole fraction and its vapour pressure alone.',
                     v: [['x', 'x', 'mole fraction'], ['p', 'P°', 'pure vapour pressure']],
                     x: '{x}*{p}', ex: [[0.9, 23.8], 21.42]
-                },
-                {
-                    t: 'Heat', f: 'q = mcΔT',
-                    d: 'The heat that warms a mass by ΔT, in J. c of water is 4.184 J/(g·°C).',
-                    v: [['m', 'm', 'mass (g)'], ['c', 'c', 'specific heat (J/(g·°C))'], ['t', 'ΔT', 'change (°C)']],
-                    x: '{m}*{c}*{t}', ex: [[100, 4.184, 25], 10460]
                 },
                 {
                     t: 'Gibbs free energy', f: 'ΔG = ΔH − TΔS',
@@ -1285,7 +1265,6 @@
     // of the formula's letters, { letter: box }, and what else its boxes have]; a box of '+' or '||' takes the letters
     // joined so, of a network in series or in parallel. Each formula gets it as p
     var inPhysics = {
-        'Half-life decay': ['decay', { N0: 'N', t: 't', T: 'T' }],
         'Final velocity': ['suvat', { u: 'u', a: 'a', t: 't' }],
         'Distance under acceleration': ['suvat', { u: 'u', a: 'a', t: 't' }],
         'Velocity after a distance': ['suvat', { u: 'u', a: 'a', s: 's' }],
@@ -1340,7 +1319,6 @@
         'Resonant frequency': ['ac', { L: 'L', C: 'C' }, { kind: '2' }],
         'Coulomb\'s law': ['coulomb', { q1: 'q1', q2: 'q2', r: 'r' }],
         'Energy in a capacitor': ['capacitor', { C: 'C', V: 'V' }],
-        'Heat': ['heatcap', { m: 'm', c: 'c', t: 'dT' }],
         'Half-life': ['decay', { N: 'N', t: 't', h: 'T' }]
     };
 

@@ -975,7 +975,7 @@
 }
 
 /* its × at the right, quiet until pointed at; none while it is the only box */
-/* its ×, as the × of the periodic table's search (calc-pt-clear) */
+/* its ×, as the × of a search (calc-search-clear) */
 #calculator .calc-graph-fn > .calc-graph-del {
     margin-right: -6px;
 }
@@ -1508,11 +1508,11 @@
     display: inline;
 }
 
-/* Big on a wide page, or in the graph's own window, the graph has two columns: at the left
+/* Big and wide, or in the graph's own window, the graph has two columns: at the left
    its head, the boxes, their points, the sliders and the examples; at the right the line
    about the point and the plot, or the table. The plot stays beside the examples. Narrower, its head and tabs at
-   the top: from 760px, as the panels' cards beside their list (main.js, bigSide) and the rail's names */
-@media (min-width: 760px) {
+   the top: from 760px of it, as the panels' cards beside their list (main.js, bigSide) */
+@container calculator (min-width: 760px) {
     #calculator.calc-big .calc-graph.calc-open {
         display: grid;
         /* the width dragged, or as at first: as narrow as keeps the head's words at their full size,
@@ -1720,15 +1720,25 @@
 
 /* beside the plot, the examples as the converter's cards beside their card: their words at their own size, not
    zoomed as the boxes; the search as wide as the cards, the cards' corners as round and as far apart */
-@media (min-width: 760px) {
+@container calculator (min-width: 760px) {
     #calculator.calc-big .calc-graph-examples {
         zoom: var(--calc-pop, 1);
     }
 
-    #calculator.calc-big .calc-gx-search {
+    #calculator.calc-big .calc-graph-examples > .calc-search {
         margin: 12px 14px 8px 16px;
-        padding: 7px 11px;
+        --calc-x: 24px;
+        --calc-x-icon: 13px;
+        --calc-x-round: 5px;
+    }
+
+    #calculator.calc-big .calc-gx-search {
+        padding: 7px 34px 7px 11px;
         border-radius: 6px;
+    }
+
+    #calculator.calc-big .calc-graph-examples .calc-search-clear {
+        right: 5px;
     }
 
     #calculator.calc-big .calc-gx-list {
@@ -1935,11 +1945,25 @@
     font-weight: 700;
 }
 
-/* the search: a box to type in, the green of the display a little darker */
+/* the search: a box to type in, the green of the display a little darker; its × at the right, in the box round it */
+#calculator .calc-search {
+    position: relative;
+    display: flex;
+    flex: none;
+    margin: 8px 8px 6px; /* its ring of the focus takes 2px of it, and is bright: more room than under Converter */
+}
+
+/* the units' on the tab of the dates: hidden, its display:flex not in the way */
+#calculator .calc-search[hidden] {
+    display: none;
+}
+
 #calculator .calc-fx-search,
 #calculator .calc-gx-search {
-    margin: 8px 8px 6px; /* its ring of the focus takes 2px of it, and is bright: more room than under Converter */
-    padding: 5px 9px;
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    padding: 5px 28px 5px 9px;
     border: 0;
     border-radius: 5px;
     outline: none;
@@ -2158,9 +2182,14 @@
     padding-top: 9px;
 }
 
+/* popped out, more: further from the name above it */
+#calculator.calc-panel-big .calc-fx-eq:not(.calc-fx-val) {
+    padding-top: 14px;
+}
+
 /* the badges of a tool a little more room over and under them */
 #calculator .calc-sv-val {
-    padding-top: 19px;
+    padding-top: 22px;
     padding-bottom: 7px;
 }
 
@@ -2207,6 +2236,22 @@
     line-height: 0;
 }
 
+/* the icon before a card's name, of what it works with: a ruler for a length, a resistor for Ohm's law */
+#calculator .calc-icon { /* its drawing 12px as before, with 0.75px of room round it for the strokes at its edges */
+    width: 13.5px;
+    height: 13.5px;
+    margin: 0 3.25px 0 -0.75px;
+    vertical-align: -2.75px;
+    opacity: 0.85;
+}
+
+#calculator .calc-side .calc-sv-side-name .calc-icon { /* its drawing 15px as before, 1px of room round it */
+    width: 17px;
+    height: 17px;
+    margin: 0 4px 0 -1px;
+    vertical-align: -3px;
+}
+
 /* the subtitle of a card in a light rounded badge; a few things side by side, an IPv4 and an
    IPv6 network, each in a badge of its own, in place of commas between them */
 #calculator .calc-sv-pill {
@@ -2223,7 +2268,7 @@
 }
 
 /* the font sits low in its line: its letters half a pixel up, as much room over them as under them */
-#calculator .calc-sv-pill > span {
+#calculator .calc-sv-pill > span:first-child {
     display: inline-block;
     transform: translateY(-0.5px);
 }
@@ -2245,11 +2290,70 @@
     text-overflow: ellipsis;
 }
 
-#calculator .calc-sv-eq > span > .calc-sv-pill > span {
+#calculator .calc-sv-eq > span > .calc-sv-pill > span:first-child {
     display: inline;
     position: relative;
     top: -0.5px;
     transform: none;
+}
+
+/* Copy of a formula, after it, inside its badge on a card, only while its card or formula is open: in the middle of its height,
+   by a formula of two rows too; the formula cut with … if need be, Copy kept */
+#calculator .calc-f-copy {
+    display: none;
+    flex: none;
+    margin: 0 -3px 0 6px;
+    opacity: 0.55;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+#calculator :is(.calc-sv-item, .calc-fx-item).calc-on .calc-f-copy {
+    display: grid;
+}
+
+#calculator .calc-fx-item.calc-on .calc-f-copy {
+    margin: 0 0 0 8px;
+}
+
+#calculator .calc-f-copy:hover {
+    opacity: 1;
+}
+
+/* the icon and the tick in one place, one shown: the button the same size either way */
+#calculator .calc-f-copy svg {
+    display: block;
+    grid-area: 1 / 1;
+    width: 11px;
+    height: 11px;
+}
+
+#calculator .calc-f-copy svg + svg,
+#calculator .calc-f-copy.calc-done svg:first-child {
+    visibility: hidden;
+}
+
+#calculator .calc-f-copy.calc-done svg + svg {
+    visibility: visible;
+}
+
+#calculator .calc-sv-item.calc-on .calc-sv-pill:has(> .calc-f-copy) {
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
+}
+
+#calculator .calc-sv-item.calc-on .calc-sv-pill:has(> .calc-f-copy) > span:first-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#calculator .calc-fx-item.calc-on .calc-fx-f:has(> .calc-f-copy) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* the symbol of a constant, and the letter of a formula by its box */
@@ -2934,7 +3038,7 @@
 }
 
 #calculator .calc-sv-form .calc-sv-note.calc-sv-warn {
-    margin: 6px 0; /* as much room above as below */
+    margin: 0 0 8px; /* at the top, over the boxes, as far from them as their lines are apart */
 }
 
 /* Results on a line, between what is typed and what it gives */
@@ -3169,6 +3273,12 @@
     background: #98b3a5;
 }
 
+/* the arrow going round of a choice that makes anew, after its name */
+#calculator .calc-sv-opt svg {
+    margin-left: 5px;
+    vertical-align: -1px;
+}
+
 #calculator .calc-sv-opt:focus-visible {
     border-color: #3a5872;
 }
@@ -3177,6 +3287,39 @@
     border-color: #3a5872;
     background: #3a5872;
     color: #fff;
+}
+
+/* the ways of a card as a switch, as the options' tabs of Options and Guide are: in a tray of its own, darker than the card, the
+   one chosen filled; in the cards' colours */
+#calculator .calc-sv-toggle {
+    flex-wrap: wrap; /* too narrow for its names, as a phone is, on two lines in its tray, none cut */
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid #8eab9b;
+    border-radius: 6px;
+    background: #98b3a5;
+}
+
+/* apart from the boxes of the way chosen, under it: it and its name, each a cell of the grid of the boxes, with as much room
+   under them, so its name stays in line with it */
+#calculator .calc-sv-toggle,
+#calculator .calc-sv-var:has(> .calc-sv-toggle) > .calc-sv-sym {
+    margin-bottom: 3px; /* with the gap of the lines, 11px */
+}
+
+#calculator .calc-sv-toggle .calc-sv-opt {
+    flex: 1 1 auto; /* each as wide as its name, the room left shared out, at every width */
+    border-color: transparent;
+    background: none;
+}
+
+#calculator .calc-sv-toggle .calc-sv-opt:hover {
+    background: rgba(169, 196, 181, 0.6);
+}
+
+#calculator .calc-sv-toggle .calc-sv-opt.calc-on {
+    border-color: #3a5872;
+    background: #3a5872;
 }
 
 /* a box of a list on lines of its own, the cash flows: as a box of one line is, taller */
@@ -3461,8 +3604,8 @@
 }
 
 /* under the search, a little room above its cards beside the search's own */
-#calculator .calc-conv-search + .calc-conv-units {
-    padding-top: 4px;
+#calculator .calc-search + .calc-conv-units {
+    padding-top: 8px;
 }
 
 /* the card the arrows are on in the search, which Enter opens */
@@ -3500,7 +3643,7 @@
     display: grid;
     grid-template-columns: repeat(var(--cols, 1), auto minmax(0, 1fr));
     align-items: center;
-    gap: 5px;
+    gap: 8px 5px; /* a little room under each line of boxes */
     margin-bottom: 5px;
 }
 
@@ -3793,7 +3936,7 @@
 /* ---------- the letters A to J, the Variables tab of the history ---------- */
 
 /* the search of the converter, on its Dates tab */
-#calculator .calc-fx-search[hidden] {
+#calculator .calc-search[hidden] {
     display: none;
 }
 
@@ -5505,9 +5648,9 @@
     box-shadow: 0 0 0 2px #c9e0d3;
 }
 
-/* A × in a box, that empties it or takes it away: the periodic table's search, and each box of the graph.
-   Popped out, bigger: --calc-x, --calc-x-icon and --calc-x-round */
-#calculator .calc-pt-clear,
+/* A × in a box, that empties it or takes it away: every search, the periodic table's as well, and each box of the
+   graph. Popped out, bigger: --calc-x, --calc-x-icon and --calc-x-round */
+#calculator .calc-search-clear,
 #calculator .calc-graph-fn > .calc-graph-del {
     display: flex;
     flex: none;
@@ -5520,27 +5663,31 @@
     cursor: pointer;
 }
 
-#calculator .calc-pt-clear svg,
+#calculator .calc-search-clear svg,
 #calculator .calc-graph-fn > .calc-graph-del svg {
     width: var(--calc-x-icon, 12px);
     height: var(--calc-x-icon, 12px);
 }
 
-#calculator .calc-pt-clear:hover,
+#calculator .calc-search-clear:hover,
 #calculator .calc-graph-fn > .calc-graph-del:hover {
     background: rgba(51, 68, 59, 0.15);
     color: #1d2a24;
 }
 
-/* the table's in its search, at the right */
-#calculator .calc-pt-clear {
+/* a search's, at the right of its box, while something is typed in it; the periodic table's nearer the edge */
+#calculator .calc-search-clear {
     position: absolute;
     top: 50%;
-    right: 1px;
+    right: 3px;
     margin-top: calc(var(--calc-x, 20px) / -2);
 }
 
-#calculator .calc-pt-clear[hidden] {
+#calculator .calc-pt-find > .calc-search-clear {
+    right: 1px;
+}
+
+#calculator :is(.calc-search, .calc-pt-find) > input:placeholder-shown + .calc-search-clear {
     display: none;
 }
 
@@ -5964,6 +6111,20 @@
 #calculator .calc-sol .calc-on {
     box-shadow: 0 0 0 2px #1d2a35;
     font-weight: 700;
+}
+
+/* a cell, or an ion of the list of ions, clicked to type it in the box */
+#calculator .calc-sol > [data-fill],
+#calculator .calc-ion-list > [data-fill] {
+    cursor: pointer;
+}
+
+#calculator .calc-sol > [data-fill]:hover:not(.calc-on) {
+    box-shadow: 0 0 0 1px #1d2a35;
+}
+
+#calculator .calc-ion-list > [data-fill]:hover {
+    background: rgba(29, 42, 53, 0.14);
 }
 
 #calculator .calc-sol-key {
@@ -6395,6 +6556,9 @@
     --calc-go-left: calc((37px + env(safe-area-inset-left)) * var(--calc-pop, 1));
     background: transparent; /* the rail under it seen; what is popped out covers the rest */
     pointer-events: none; /* and clicked through it */
+    /* what is in it laid out by its own width, not the page's: on the website, half of it while the options are beside it
+       (@container calculator) */
+    container: calculator / inline-size;
 }
 
 #calculator:is(.calc-big, .calc-panel-big) > :is(.calc-graph, .calc-big-on, .calc-menu-box) {
@@ -6776,7 +6940,7 @@
     font: 12px/16px 'Play', 'Russo One', sans-serif;
 }
 
-/* an x in place of Esc while there is text: it empties the box, as the × of the periodic table's search does (calc-pt-clear) */
+/* an x in place of Esc while there is text: it empties the box, as the × of a search does (calc-search-clear) */
 .calc-find-clear {
     display: flex;
     flex: none;
@@ -7058,11 +7222,11 @@
 }
 
 #calculator .calc-find-panel .calc-find-list {
-    padding: 0 8px 8px;
+    padding: 0 8px 4px; /* the 4px more above Go to, taken here: the list as tall, with no scroll bar */
 }
 
 #calculator .calc-find-panel .calc-find-head {
-    margin: 0 2px 6px;
+    margin: 4px 2px 6px;
     font-size: 12px;
 }
 
@@ -7122,7 +7286,7 @@
     display: none;
 }
 
-@media (min-width: 900px) {
+@container calculator (min-width: 900px) {
     #calculator.calc-chem-big .calc-tab-long {
         display: inline;
     }
@@ -7217,7 +7381,7 @@
     --calc-x-round: 5px;
 }
 
-#calculator.calc-chem-big .calc-pt-clear {
+#calculator.calc-chem-big .calc-pt-find > .calc-search-clear {
     right: 5px;
 }
 
@@ -7318,9 +7482,9 @@
     gap: 3px;
 }
 
-/* a little shorter than popped in: square */
+/* a little shorter than popped in: square, its corners as round for its size as the table gets smaller */
 #calculator.calc-chem-big .calc-pt-el {
-    border-radius: 7px;
+    border-radius: clamp(3px, 0.7cqw, 7px);
     aspect-ratio: 1 / 1;
 }
 
@@ -7538,7 +7702,7 @@
 }
 
 /* the table narrower beside the card: the keys smaller, Kind's ten on two lines still */
-@media (max-width: 1179px) {
+@container calculator (max-width: 1179px) {
     #calculator.calc-chem-big .calc-pt-legend {
         font-size: 13px;
         gap: 4px 3px;
@@ -7598,7 +7762,7 @@
 }
 
 /* wide: the element chosen in a column of its own at the right, its atom bigger */
-@media (min-width: 900px) {
+@container calculator (min-width: 900px) {
     #calculator.calc-chem-big .calc-pt:not([hidden]) {
         grid-template-columns: minmax(0, var(--calc-pt-w, 1fr)) 330px;
         grid-template-rows: auto auto auto 1fr;
@@ -7707,11 +7871,11 @@
     }
 }
 
-/* Popped out on a phone: the table as compact as the popup's, all of it seen, each tile its symbol alone, the
+/* Popped out as narrow as a phone: the table as compact as the popup's, all of it seen, each tile its symbol alone, the
    element chosen in the gap with its tile, name, kind and configuration, its facts in the card under the table;
    the page laid out as it comes, not as a grid, the key under the colours always; the card's atom under its name,
    its numbers two by two */
-@media (max-width: 619px) {
+@container calculator (max-width: 619px) {
     #calculator.calc-chem-big .calc-pt:not([hidden]) {
         display: block;
         padding: 6px 12px 0;
@@ -7822,7 +7986,7 @@
 }
 
 /* the cards, popped out, no wider than reads well */
-#calculator.calc-panel-big .calc-big-on :is(.calc-sv-list, .calc-fx-list, .calc-fx-search) {
+#calculator.calc-panel-big .calc-big-on :is(.calc-sv-list, .calc-fx-list, .calc-search) {
     width: 100%;
     max-width: 720px;
     margin-right: auto;
@@ -7836,19 +8000,26 @@
     padding-left: 16px;
 }
 
-#calculator.calc-panel-big .calc-big-on .calc-fx-search {
+#calculator.calc-panel-big .calc-big-on .calc-search {
     width: calc(100% - 32px);
     max-width: 688px;
+    --calc-x: 24px;
+    --calc-x-icon: 13px;
+    --calc-x-round: 5px;
+}
+
+#calculator.calc-panel-big .calc-big-on .calc-search-clear {
+    right: 5px;
 }
 
 /* on a phone, as little room as popped in */
-@media (max-width: 619px) {
+@container calculator (max-width: 619px) {
     #calculator.calc-panel-big .calc-big-on :is(.calc-sv-list, .calc-fx-list) {
         padding-right: 8px;
         padding-left: 8px;
     }
 
-    #calculator.calc-panel-big .calc-big-on .calc-fx-search {
+    #calculator.calc-panel-big .calc-big-on .calc-search {
         width: calc(100% - 16px);
     }
 }
@@ -7865,10 +8036,10 @@
 }
 
 /* the list's width: as wide as the line beside it is dragged (--calc-side-w, main.js sideWidth), else 376px; as
-   the window narrows, never more than half of it nor what leaves the card 420px, and never less for it than 376px.
-   Where it is used, the % of the panel */
+   the window narrows, never more than half of it nor what leaves the card 420px, and never less for it than 376px;
+   narrower still, never wider than the card beside it (100% - it - 36px). Where it is used, the % of the panel */
 #calculator {
-    --calc-side: min(var(--calc-side-w, 376px), max(376px, min(50%, 100% - 456px)));
+    --calc-side: min(var(--calc-side-w, 376px), max(376px, min(50%, 100% - 456px)), 50% - 18px);
 }
 
 /* at the left of the page, as the big graph's boxes: the rows 346px, 8px, the scrollbar 6px */
@@ -8042,6 +8213,11 @@
     line-height: 18px;
 }
 
+/* a box of a list or a sequence: seven lines of it, not the popup's three, as the room is there; dragged taller still if wanted */
+#calculator.calc-panel-big .calc-big-on .calc-sv-area {
+    min-height: calc(7 * 18px + 12px);
+}
+
 #calculator.calc-panel-big .calc-big-on .calc-sv-var .calc-sv-pick .calc-conv-menu {
     max-height: 320px;
 }
@@ -8067,7 +8243,7 @@
 }
 
 #calculator.calc-panel-big .calc-big-on .calc-fx-search {
-    padding: 7px 11px;
+    padding: 7px 34px 7px 11px;
     border-radius: 6px;
     font-size: 14px;
     line-height: 18px;
@@ -8181,11 +8357,11 @@
     padding-bottom: 3px;
 }
 
-@media (min-width: 760px) {
+@container calculator (min-width: 760px) {
     /* the search of the formulas, and of the units, above their list, as wide as it, its top with the card's: the
        list under it, apart from it, the cards scrolling in the list alone and not behind the search */
-    #calculator.calc-panel-big .calc-fx.calc-big-on:has(.calc-fx-list.calc-side) .calc-fx-search,
-    #calculator.calc-panel-big .calc-conv.calc-big-on:has(.calc-conv-units.calc-side) .calc-conv-search {
+    #calculator.calc-panel-big .calc-fx.calc-big-on:has(.calc-fx-list.calc-side) .calc-search,
+    #calculator.calc-panel-big .calc-conv.calc-big-on:has(.calc-conv-units.calc-side) .calc-search {
         width: calc(var(--calc-side) - 30px);
         max-width: none;
         margin-top: 12px;
@@ -8262,7 +8438,7 @@
 }
 
 /* on a phone, the statistics' head has no room for the word Separator beside its tabs: the list says it */
-@media (max-width: 619px) {
+@container calculator (max-width: 619px) {
     #calculator.calc-panel-big .calc-stats.calc-big-on .calc-past-head .calc-stats-by-label {
         display: none;
     }

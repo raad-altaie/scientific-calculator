@@ -58,17 +58,38 @@ try {
     document.documentElement.classList.toggle('options-hidden', localStorage.getItem(hideKey) === 'true');
 } catch (e) { }
 
+// The options over the calculator, open or not: on a small screen, and in Advanced mode at every width, beside the
+// rail. Else beside it, shown or hidden with the ?
+const isHome = () => document.documentElement.classList.contains('home');
+const isOpen = () => document.body.classList.contains('options-open');
+const over = () => isHome() || !wide.matches;
+const optionsShown = () => (over() ? isOpen() : !document.documentElement.classList.contains('options-hidden'));
+
+// Advanced: open, Options or Guide is the one marked on the rail, as the tab shown (site.css)
+const goBar = document.querySelector('.calc-go');
+const optionsWrapper = optionsPane.querySelector('.wrapper');
+
+const markRail = () => {
+    const open = isHome() && isOpen();
+
+    document.documentElement.classList.toggle('options-shown', open);
+    goBar.querySelectorAll('.calc-go-opt').forEach((item) => item.classList.toggle('calc-opt-on', open && item.dataset.tab === optionsWrapper.dataset.show));
+};
+
 // on a small screen the options open over the calculator, which is out of use meanwhile:
-// what is typed is not for its keys
+// what is typed is not for its keys. In Advanced mode the rail stays in use, to close them or go to a tool
 const themeColor = document.querySelector('meta[name="theme-color"]');
 
-const showOptions = (open, over) => {
+const showOptions = (open) => {
+    const was = isOpen();
+
     document.body.classList.toggle('options-open', open);
-    // from the rail of a tool popped out: over it, on a wide screen as well
-    document.documentElement.classList.toggle('options-over', !!(open && over));
     // the bar of the installed app: the calculator's grey, the options' navy while they are open
     if (themeColor) themeColor.content = open ? '#39576f' : '#a8a8a8';
-    pane.inert = open;
+    pane.inert = open && !isHome();
+    calculator.inert = open && isHome();
+    markRail();
+    if (open === was) return;
     if (open) {
         optionsPane.scrollTop = 0;
         optionsPane.focus({ preventScroll: true });
@@ -77,29 +98,54 @@ const showOptions = (open, over) => {
     }
 };
 
-// the ? does the same on a wide screen: hide the panel, or show it again
-const toggleWide = () => {
-    const hidden = document.documentElement.classList.toggle('options-hidden');
-
+// beside it on a wide screen: shown, or hidden
+const showWide = (shown) => {
+    if (shown !== document.documentElement.classList.contains('options-hidden')) return;
+    document.documentElement.classList.toggle('options-hidden', !shown);
     try {
-        localStorage.setItem(hideKey, hidden);
+        localStorage.setItem(hideKey, !shown);
     } catch (e) { }
+    // a tool popped out is half the page now, or all of it: what the calculator measures as the window is resized
+    // (its cards beside their list or not, the periodic table's fit, the graph) is measured again
+    window.dispatchEvent(new Event('resize'));
 };
 
-closeButton.addEventListener('click', () => (wide.matches && !document.documentElement.classList.contains('options-over') ? toggleWide() : showOptions(false)));
+const setShown = (shown) => (over() ? showOptions(shown) : showWide(shown));
+
+closeButton.addEventListener('click', () => setShown(false));
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && document.body.classList.contains('options-open')) showOptions(false);
+    if (e.key === 'Escape' && isOpen()) showOptions(false);
 });
-// the panel is always there on a wide screen
-wide.addEventListener('change', () => showOptions(false));
+// the panel is always there on a wide screen; in Advanced mode they stay over the calculator, open or not
+wide.addEventListener('change', () => {
+    if (!isHome()) showOptions(false);
+});
 
 // ---- the mode: Standard, or Advanced, as the extension's Advanced mode opens the calculator ----
 
-// Advanced: the calculator on its Calculator tab, the rail of the tools down its left (main.js), and the options not
-// beside it but over it, from the ? or the rail. Chosen in the options (options.js), and left only there: the website
-// has no pop in at the top right (site.css)
+// Advanced: the calculator on its Calculator tab, the rail of the tools down its left (main.js). The options over
+// it, beside the rail, at every width, open or not as they were when the mode changed. Chosen in the options
+// (options.js), and left only there: the website has no pop in at the top right (site.css)
 const openBig = calculator.querySelector('.calc-open-big');
 const modeKey = 'openMode';
+
+// there, the options in the colours of the tools popped out, the guide in a box of its own, as the extension has
+// them over its window (options.js, options.css .embedded)
+const guideParts = optionsWrapper.querySelectorAll(':scope > [data-tab="guide"]');
+const guideBox = document.createElement('div');
+
+guideBox.className = 'guide-box';
+guideBox.dataset.tab = 'guide';
+
+const embed = (on) => {
+    document.documentElement.classList.toggle('embedded', on);
+    if (on && !guideBox.isConnected) {
+        guideParts[0].before(guideBox);
+        guideBox.append(...guideParts);
+    } else if (!on && guideBox.isConnected) {
+        guideBox.replaceWith(...guideParts);
+    }
+};
 
 const advanced = () => {
     try {
@@ -110,21 +156,15 @@ const advanced = () => {
 };
 
 const showHome = (on) => {
-    // the options open over the calculator on a small screen stay open, over it
-    if (on && document.body.classList.contains('options-open')) document.documentElement.classList.add('options-over');
-    // and back to Standard from them: on a wide screen they go beside the calculator, so it is seen at once in its new
-    // mode; on a small one they stay open over it, as there they always are
-    if (!on && document.documentElement.classList.contains('options-over')) {
-        if (wide.matches) {
-            showOptions(false);
-            document.documentElement.classList.remove('options-hidden'); // where Standard was chosen, still in view
-        } else {
-            document.documentElement.classList.remove('options-over');
-        }
-    }
+    const shown = optionsShown();
+
     document.documentElement.classList.toggle('home', on);
+    embed(on);
     calculator.dispatchEvent(new CustomEvent('calc-home', { detail: { page: true, on } }));
     openBig.hidden = on || !advanced();
+    // the options shown still, or hidden still, in the way of the mode now
+    if (!over()) showOptions(false);
+    setShown(shown);
     fit();
 };
 
@@ -138,25 +178,32 @@ window.addEventListener('storage', (e) => {
 
 // ---- what the calculator asks of its page ----
 
-// the ?: on a wide screen hide the panel, so the calculator
-// is in the middle, or show it again; on a small one open it over the calculator.
-// The ? of the rail of a tool popped out opens it over the tool, at every width
+// The ?, and Options or Guide on the rail: the options shown, on that tab, or hidden again if shown on it already.
+// In Advanced mode the ? is for the options tab, as in the extension
 document.addEventListener('calc-options', (event) => {
-    // in Advanced mode, the ? as well: the options are not beside the calculator there
-    if (event.detail?.over || document.documentElement.classList.contains('home')) {
-        document.querySelector(`.options-pane .tab[data-tab-for="${event.detail?.tab || 'options'}"]`)?.click();
-        showOptions(true, true);
-    } else if (wide.matches) {
-        toggleWide();
-    } else {
-        showOptions(!document.body.classList.contains('options-open'));
-    }
+    const shown = optionsShown();
+    const name = event.detail?.tab || (isHome() ? 'options' : '');
+    const tab = name && document.querySelector(`.options-pane .tab[data-tab-for="${name}"]`);
+    const open = !shown || Boolean(tab && tab.getAttribute('aria-selected') !== 'true');
+
+    if (tab && open) tab.click();
+    setShown(open);
 });
 
 // Search of the rail opens over the page: the options open over it close
 document.addEventListener('calc-find', () => {
-    if (document.body.classList.contains('options-open')) showOptions(false);
+    if (isOpen()) showOptions(false);
 });
+
+// Advanced: a tool of the rail closes them, and it is gone to (main.js), or shown again if it is the one under them
+const goneFromRail = (e) => {
+    if (isOpen() && e.target.closest('.calc-go-item[data-go]')) showOptions(false);
+};
+
+goBar.addEventListener('click', goneFromRail, true);
+goBar.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') goneFromRail(e);
+}, true);
 
 // whether the clipboard holds text, for the menu to show Paste: read only where the browser
 // allows it already; asked for nothing, it cannot tell, and the calculator shows Paste

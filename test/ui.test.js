@@ -1345,15 +1345,19 @@ async function numbersPanel(page, at) {
     got = (await page.calc(tiles)).split(' | ');
     check(got.length === 5 && got.every(function (u, i) { return new RegExp('^UUID ' + (i + 1) + '=[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$').test(u); }) &&
         await page.calc('document.querySelectorAll("' + on + ' .calc-sv-copy-t").length') === 5, t + 'five new UUIDs of version 4, each to copy', got.join(' | '));
-    await page.click(on + ' .calc-sv-again');
-    check((await page.calc(tiles)).split(' | ')[0] !== got[0], t + 'Again for five more', await page.calc(tiles));
-    await page.click(on + ' .calc-sv-opt[data-c="1"]');
+    check(!await page.calc('document.querySelector("' + on + ' .calc-sv-again:not(.calc-sv-example)")') && await page.calc('document.querySelectorAll("' + on + ' .calc-sv-opt svg").length') === 2, t + 'no Again: an arrow going round on each version');
+    await page.click(on + ' .calc-sv-choice[data-k="ver"] .calc-sv-opt[data-c="0"]');
+    check((await page.calc(tiles)).split(' | ')[0] !== got[0], t + 'the version chosen clicked again for five more', await page.calc(tiles));
+    await page.click(on + ' .calc-sv-choice[data-k="ver"] .calc-sv-opt[data-c="1"]');
     got = (await page.calc(tiles)).split(' | ').map(function (u) { return u.split('=')[1]; });
     check(got.length === 5 && got.every(function (u) { return /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab]/.test(u); }) && got.slice().sort().join() === got.join() &&
         Math.abs(parseInt(got[0].replace('-', '').slice(0, 12), 16) - Date.now()) < 60000, t + 'of version 7, of the time now, in order', got.join(' | '));
     await page.calc('document.addEventListener("copy", function (e) { window.copied = e.clipboardData.getData("text/plain"); })');
     await page.calc('document.querySelectorAll("' + on + ' .calc-sv-copy-t")[1].click()');
     check(await page.calc('window.copied') === got[1], t + 'Copy copies one', await page.calc('window.copied'));
+    await page.click(on + ' .calc-sv-choice[data-k="do"] .calc-sv-opt[data-c="1"]');
+    check(!await page.calc('document.querySelector("' + on + ' .calc-sv-choice[data-k=\\"ver\\"]")') && !await page.calc('document.querySelector("' + on + ' .calc-sv-example").hidden'),
+        t + 'Read: a box of its own, not the versions, and its Example');
     await set(0, '{C232AB00-9414-11EC-B3C8-9F6BDECED846}');
     got = await page.calc(tiles);
     check(got.indexOf('UUID=c232ab00-9414-11ec-b3c8-9f6bdeced846 | Version=1, of the time and a node | Variant=RFC 9562 | Made, in UTC=2022-02-22, 19:22:22.000 | Made, here=') === 0 &&
@@ -2101,10 +2105,10 @@ async function historyExport(page, at) {
     got = JSON.parse(await page.calc(saved))[0].text.replace(/^\ufeff/, '');
     check(/^expression;result\r\n1,5 \+ 1;2,5\r\n/.test(got) && /\r\n.2 . 1;-3\r\n$/.test(got), t + 'the CSV with the decimal comma: apart by ;, -2 – 1 not made text', JSON.stringify(got));
 
-    // empty again: the history closes, its button off
+    // empty again: the history stays open, empty, its button off
     await page.click('.calc-past-export ~ .calc-past-clear');
-    check(await page.calc('document.querySelector(".calc-past-export").classList.contains("calc-off")') && !await page.calc('document.querySelector(".calc-past-export").closest(".calc-past").classList.contains("calc-open")'),
-        t + 'cleared, its button is off again');
+    check(await page.calc('document.querySelector(".calc-past-export").classList.contains("calc-off")') && await page.calc('document.querySelector(".calc-past-export").closest(".calc-past").classList.contains("calc-open")'),
+        t + 'cleared, its button is off again, the history still open');
 }
 
 async function graphBig(page, at) {
@@ -3216,13 +3220,13 @@ async function convDates(page, at) {
         await page.calc('document.querySelector(".calc-conv .calc-solve-tab.calc-on").dataset.tab') === 'units', t + 'two tabs, Units on at first');
     check(await seen('.calc-conv-units') && !await seen('.calc-conv-datelist'), t + 'the units shown, the dates not');
     await page.click('.calc-conv .calc-solve-tab[data-tab="dates"]');
-    check(!await seen('.calc-conv-units') && !await seen('.calc-conv-search') && await seen('.calc-conv-datelist'), t + 'Dates shows its cards in place of the units');
+    check(!await seen('.calc-conv-units') && !await seen('.calc-conv .calc-search') && await seen('.calc-conv-datelist'), t + 'Dates shows its cards in place of the units');
     check(!await page.calc('document.querySelector("' + on + '")'), t + 'every date card closed at first');
     await page.click('.calc-conv-datelist .calc-sv-item:first-child .calc-sv-row');
     check(await page.calc('document.querySelector("' + on + ' .calc-sv-name").textContent') === 'Time between dates' &&
         await page.calc('document.querySelectorAll("' + on + ' .calc-sv-date input").length') === 2, t + 'Time between dates opens, with two dates');
     check(await page.calc('(function (i) { return i.value === "" && i.placeholder === "Today"; })(document.querySelector("' + on + ' input"))') &&
-        /^Years, months and days=0 days \| Years=0 \| Months=0 \| Weeks=0 \| Days=0 \| Weekdays=[01] \| Hours=0$/.test(await page.calc(tiles)), t + 'both are today at first', await page.calc(tiles));
+        await page.calc(tiles) === '', t + 'both are today at first, no results till a date is typed', await page.calc(tiles));
     check(await page.calc('document.activeElement === document.querySelector("' + on + ' input")'), t + 'the first date has the focus');
 
     await set(0, '2000-02-29');
@@ -3349,7 +3353,7 @@ async function convDates(page, at) {
     await page.key('Escape', 27);
     check(!await open(page, '.calc-conv'), t + 'Esc closes it');
 
-    // Reset all empties the dates, which are today again, no card open
+    // Reset all empties the dates, which are today again, no card open: no results till a date is typed
     await page.rightClick('.calc-display');
     await pick(page, 'Reset all');
     await page.click('.calc-conv-btn');
@@ -3357,7 +3361,8 @@ async function convDates(page, at) {
     await page.click('.calc-conv .calc-solve-tab[data-tab="dates"]');
     check(!await page.calc('document.querySelector(".calc-conv-datelist .calc-sv-item.calc-on")'), t + 'Reset all closes the card of the dates open');
     await page.click('.calc-conv-datelist .calc-sv-item:nth-child(1) .calc-sv-row');
-    check(/ \| Days=0 \| /.test(await page.calc(tiles)), t + 'Reset all puts the dates back to today', await page.calc(tiles));
+    check(await page.calc('[].every.call(document.querySelectorAll("' + on + ' input"), function (i) { return i.value === ""; })') && await page.calc(tiles) === '',
+        t + 'Reset all puts the dates back to today', await page.calc(tiles));
     await page.key('Escape', 27);
 }
 
@@ -3540,7 +3545,7 @@ async function menus(page, at) {
     check(await page.calc('window.copied') === 'x = (−b + √(b² − 4ac)) ÷ 2a', t + 'Copy takes the formula as text',
         await page.calc('window.copied'));
     // a power or a lowered part of letters is copied raised or lowered still, or as ^(…) and _b where no character is
-    for (k of [['Compound interest', 'A = P(1 + r ÷ n)ⁿᵗ'], ['Half-life decay', 'N = N₀ × ½^(t/T)'],
+    for (k of [['Compound interest', 'A = P(1 + r ÷ n)ⁿᵗ'], ['Half-life', 'N = N₀(½)^(t/t½)'],
         ['Logarithm to any base', 'log_b x = (ln x) ÷ (ln b)'], ['Thin lens', 'dᵢ = 1 ÷ (1 ÷ f − 1 ÷ dₒ)']]) {
         await page.calc('[].filter.call(document.querySelectorAll(".calc-fx-item"), function (it) { return it.querySelector(".calc-fx-name").textContent === ' +
             JSON.stringify(k[0]) + '; })[0].querySelector(".calc-fx-row").id = "copy-me"');
@@ -4064,11 +4069,13 @@ async function chemistryTools(page, at) {
     await page.click('.calc-chem .calc-sv-item.calc-on .calc-sv-opt[data-c="3"]');
     check(await page.calc('!!document.querySelector(".calc-chem .calc-sv-item.calc-on input[data-k=\\"kf\\"]")') && /Kf and Kb/.test(await note()), t + 'another solvent: its Kf and Kb asked');
 
-    // the gases: each new card's Example worked out, its drawing first; then a few of their other ways
+    // the gases: each new card's Example worked out, its drawing first, or last of a curve against height or T (7 and 8); then a few of their other ways
     var gasCard = async function (i) {
+        var end = i === 7 || i === 8 ? 'lastElementChild' : 'firstElementChild';
         await page.click('.calc-chem .calc-sv-item:nth-child(' + i + ') .calc-sv-row');
         await page.click('.calc-chem .calc-sv-item.calc-on .calc-sv-example');
-        check(await page.calc('document.querySelector(".calc-chem .calc-sv-item.calc-on .calc-sv-grid").firstElementChild.classList.contains("calc-sv-drawn")'), t + 'gases card ' + i + ': its drawing first');
+        check(await page.calc('document.querySelector(".calc-chem .calc-sv-item.calc-on .calc-sv-grid").' + end + '.classList.contains("calc-sv-drawn")'),
+            t + 'gases card ' + i + ': its drawing ' + (end === 'lastElementChild' ? 'last' : 'first'));
         return tiles();
     };
     await page.click('.calc-chem .calc-solve-tab[data-tab="gases"]');
