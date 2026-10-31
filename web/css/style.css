@@ -3215,11 +3215,11 @@
 }
 
 /* the colours of a resistor's band: a swatch of each, of one size in every row, however many colours it has,
-   all on one line in twelve columns (the most a band has) */
+   all on one line in twelve columns (the most a band has); close together, so each is wider */
 #calculator .calc-sv-choice:has(.calc-band) {
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
-    gap: 2px clamp(3px, 1.6%, 8px); /* apart a little more as the card is wider */
+    gap: 2px 1px;
 }
 
 /* the rows of a card of colours, the colours and Find and Bands too: more room above and below them than a box has.
@@ -3231,12 +3231,13 @@
 /* little room round the colour, never so much it has none: popped out, a little more */
 #calculator .calc-sv-opt:has(.calc-band) {
     min-width: 0;
-    padding: 2px;
+    padding: 1px;
     border-radius: 3px;
 }
 
 #calculator.calc-panel-big .calc-big-on .calc-sv-choice:has(.calc-band) {
     row-gap: 3px;
+    column-gap: clamp(3px, 1.6%, 8px); /* apart a little more as the card is wider */
 }
 
 #calculator.calc-panel-big .calc-big-on .calc-sv-opt:has(.calc-band) {
@@ -3254,6 +3255,11 @@
 
 #calculator.calc-panel-big .calc-big-on .calc-band {
     height: 18px;
+}
+
+/* chosen, its edge the blue of the ring round it, as one with it */
+#calculator .calc-sv-opt.calc-on .calc-band {
+    box-shadow: inset 0 0 0 1px #3a5872;
 }
 
 #calculator .calc-band-none {

@@ -30,12 +30,12 @@ const followPolicy = () => {
 
 CalcPolicy.onChange(followPolicy);
 
-// detached mode: the calculator grows and shrinks with its window, within limits
+// detached mode: the calculator grows and shrinks with its window, within limits; scaled to it from the first in the head (opening.js)
 if (params.has('detached')) {
-    const MIN_SCALE = 0.5;
-    const MAX_SCALE = 3;
+    const MIN_SCALE = DETACHED.min;
+    const MAX_SCALE = DETACHED.max;
     // room around the calculator at the normal size, the same on every side, as in background.js
-    const MARGIN = 2;
+    const MARGIN = DETACHED.margin;
     // the calculator with its margin: this is what the window is filled with
     const baseWidth = calculator.offsetWidth + 2 * MARGIN;
     const baseHeight = calculator.offsetHeight + 2 * MARGIN;
@@ -43,25 +43,7 @@ if (params.has('detached')) {
     let settled;
 
     const fitWindow = () => {
-        // the largest size that still shows the whole calculator and its margin
-        let scale = Math.min(window.innerWidth / baseWidth, window.innerHeight / baseHeight);
-
-        if (scale > 1 && scale < 1.01) scale = 1; // a window opened at the normal size stays sharp; never bigger than fits
-        scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, scale));
-        // The calculator is drawn a whole number of pixels wide and tall, with the same
-        // whole number of pixels on both sides of it: with a half pixel to share, one side
-        // would get more. The change to the scale is under a pixel
-        const fit = (room, size) => {
-            const drawn = Math.round(size * scale);
-
-            return (room - drawn) % 2 ? drawn + 1 : drawn;
-        };
-        const width = fit(window.innerWidth, calculator.offsetWidth);
-        const height = fit(window.innerHeight, calculator.offsetHeight);
-        const x = (window.innerWidth - width) / 2;
-        const y = (window.innerHeight - height) / 2;
-
-        calculator.style.transform = `translate(${x}px, ${y}px) scale(${width / calculator.offsetWidth}, ${height / calculator.offsetHeight})`;
+        calculator.style.transform = detachedFit(calculator.offsetWidth, calculator.offsetHeight);
     };
 
     // The window keeps the calculator's shape. The browser cannot lock that while the

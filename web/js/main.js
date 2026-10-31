@@ -8421,30 +8421,38 @@
 
         // the badges of a card wider than its room, as of a tool of three formulas in a narrow window: smaller, to 10px, till they
         // fit, then cut with … as before; the rest as they are. Of the card's room, not of the row, which is only as wide as its badges
-        function crowded(row) {
+        function crowded(row, pad) {
             var first = row.firstElementChild, last = row.lastElementChild, room = row.parentNode.getBoundingClientRect().width;
             if (!room || !last) return false;
-            return last.getBoundingClientRect().right - first.getBoundingClientRect().left + 10 * scale() > room + 0.5;
+            return last.getBoundingClientRect().right - first.getBoundingClientRect().left + pad > room + 0.5;
         }
 
-        // a badge that fits in its share of the room is kept whole: only the long ones are cut
-        function share(row) {
-            var room = row.parentNode.getBoundingClientRect().width / row.children.length - 10 * scale(); // less the 5px each side of a badge
-            [].forEach.call(row.children, function (pill) {
-                pill.style.flexShrink = pill.getBoundingClientRect().width <= room ? 0 : '';
-            });
+        // a badge that fits in its share of the room is kept whole: only the long ones are cut. Measured, and what to set given back
+        function share(row, pad) {
+            var room = row.parentNode.getBoundingClientRect().width / row.children.length - pad, // less the 5px each side of a badge
+                whole = [].map.call(row.children, function (pill) { return pill.getBoundingClientRect().width <= room; });
+            return function () {
+                [].forEach.call(row.children, function (pill, i) {
+                    pill.style.flexShrink = whole[i] ? 0 : '';
+                });
+            };
         }
 
+        // Each step set for every row, then every row measured: the page laid out once a step, not once a row and a step
         function fitPills() {
-            [].forEach.call(list.querySelectorAll('.calc-sv-eq > span'), function (row) {
-                var size = 15;
-                if (row.closest('[hidden]')) return; // not shown: fitted as it is shown again
+            var rows = [].filter.call(list.querySelectorAll('.calc-sv-eq > span'), function (row) {
+                    return !row.closest('[hidden]'); // not shown: fitted as it is shown again
+                }), pad = 10 * scale(), size = 15, tight;
+            rows.forEach(function (row) {
                 row.style.fontSize = '';
                 row.classList.add('calc-sv-fit'); // each badge as wide as all of it, to measure; then cut with … if need be
-                while (size > 10 && crowded(row)) row.style.fontSize = --size + 'px';
-                share(row);
-                row.classList.remove('calc-sv-fit');
             });
+            for (tight = rows.filter(function (row) { return crowded(row, pad); }); size > 10 && tight.length; tight = tight.filter(function (row) { return crowded(row, pad); })) {
+                size--;
+                tight.forEach(function (row) { row.style.fontSize = size + 'px'; });
+            }
+            rows.map(function (row) { return share(row, pad); }).forEach(function (set) { set(); });
+            rows.forEach(function (row) { row.classList.remove('calc-sv-fit'); });
         }
 
         // fitted again as the list's room changes, and once it is shown: hidden, it had none to measure
@@ -8466,9 +8474,9 @@
             }).join('');
             list.scrollTop = 0;
             list.classList.toggle('calc-side', !!(now.side && now.side())); // beside the list, the card open
-            fitPills();
             if (open === undefined && (tools[tab].length === 1 || (now.side && now.side()))) open = 0; // beside the list, a card is always open
-            if (open !== undefined) openTool(list.children[open], true);
+            if (open !== undefined) openTool(list.children[open], true); // its badges fitted as it opens
+            else fitPills();
             hideTip();
         }
 
@@ -8574,12 +8582,16 @@
         // The names of a card's first column as wide as the widest of any of its ways: switched to other boxes, the switch keeps its width.
         // A name in em, as the panel popped out is larger
         function nameRoom(tool, item) {
-            var grid = item.querySelector('.calc-sv-boxes > .calc-sv-fields:not(.calc-sv-cells-in)'), cols = tool.cols || 1, names = {}, seen = {}, ways = [rawOf(tool)], probe, most = 0;
+            var grid = item.querySelector('.calc-sv-boxes > .calc-sv-fields:not(.calc-sv-cells-in)'), cols = tool.cols || 1, names = {}, seen = {}, ways = [rawOf(tool)], queued = {}, done = 0, w, probe, most = 0;
             if (!grid || typeof tool.fields !== 'function') return;
-            while (ways.length) { // each way, of every choice with each of the others, as a choice may bring another; up to 500 of them
-                var raw = ways.shift(), col = 0, fields = fieldsOf(tool, raw), at = fields.filter(function (g) { return g.choice; }).map(function (g) { return g.k + '=' + (raw[g.k] || 0); }).join();
-                if (seen[at] || Object.keys(seen).length >= 500) continue;
+            // each way, of every choice with each of the others, as a choice may bring another; up to 500 of them. Each way
+            // queued once: of the colour code's bands, thousands, each with its swatches, as the panel opens
+            queued[JSON.stringify(ways[0])] = true;
+            for (w = 0; w < ways.length && done < 500; w++) {
+                var raw = ways[w], col = 0, fields = fieldsOf(tool, raw), at = fields.filter(function (g) { return g.choice; }).map(function (g) { return g.k + '=' + (raw[g.k] || 0); }).join();
+                if (seen[at]) continue;
                 seen[at] = true;
+                done++;
                 fields.every(function (g) { // laid out as the grid lays them: a wide one on a line of its own
                     var whole = g.choice || g.area || g.fn || g.date || g.pick && g.wide || /calc-sv-wide/.test(g.cls || '');
                     if (g.head) return false;
@@ -8590,8 +8602,11 @@
                 });
                 fields.forEach(function (f) {
                     (f.choice || []).forEach(function (c, i) {
-                        var r = Object.assign({}, raw);
+                        var r = Object.assign({}, raw), key;
                         r[f.k] = String(i);
+                        key = JSON.stringify(r);
+                        if (queued[key]) return;
+                        queued[key] = true;
                         ways.push(r);
                     });
                 });
@@ -18649,22 +18664,24 @@
         return panel.classList.contains('calc-big-on') && root.clientWidth >= 760;
     }
 
-    // A panel popped out, or in. The page may do it its own way: the extension opens it in a window of its own. True if it changed
-    function panelBig(panel, on) {
-        var p = bigOf(panel);
+    // A panel popped out, or in. The page may do it its own way: the extension opens it in a window of its own. True if it changed.
+    // Popped in to close (shut), it is not drawn again: it is as it opens. Popped out closed, it opens popped out, drawn once
+    function panelBig(panel, on, shut) {
+        var p = bigOf(panel), opening = on && !panel.classList.contains('calc-open');
         if (!p || on === (bigPanel === panel) || (panelAlone && !on)) return false;
         hideTip();
         showMenu(false);
         if (on) {
             saveState();
             if (!ask('panel-big', { big: true, panel: p.key })) return p.show(false), false; // in its own window, and not here as well
-            if (!panel.classList.contains('calc-open')) p.show(true);
+            if (opening) closePanels(panel); // another popped out goes in first
         }
         bigPanel = on ? panel : null;
         root.classList.toggle('calc-panel-big', on);
         panel.classList.toggle('calc-big-on', on);
         if (!on) ask('panel-big', { big: false, panel: p.key });
-        p.render();
+        if (opening) p.show(true);
+        else if (!shut) p.render();
         return true;
     }
 
@@ -18677,7 +18694,7 @@
     // popped out, it pops in first. True if it stays
     function bigShut(panel) {
         if (panelAlone && bigPanel === panel) return ask('panel-put'), true;
-        panelBig(panel, false);
+        panelBig(panel, false, true);
         return false;
     }
 
@@ -18710,7 +18727,7 @@
         var split = panel.appendChild(document.createElement('div')), from = null;
         split.className = 'calc-side-split';
         split.addEventListener('pointerdown', function (e) {
-            var list = panel.querySelector('.calc-side, .calc-conv-pane');
+            var list = panel.querySelector('.calc-side:not([hidden]), .calc-conv-pane'); // of the tab shown: the converter's other list keeps its class, hidden
             if (e.button || !list) return;
             e.preventDefault();
             split.setPointerCapture(e.pointerId);
