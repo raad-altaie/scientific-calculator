@@ -3981,7 +3981,7 @@
     vertical-align: middle;
 }
 
-/* Clear of the history, with nothing to clear: no history, or no letter holding a value; faint, and nothing lights up */
+/* Clear of the history, with no history to clear: faint, and nothing lights up */
 #calculator .calc-past-clear.calc-off {
     opacity: 0.3;
     background: none;

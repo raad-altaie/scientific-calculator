@@ -1471,7 +1471,7 @@
         }
         if (panel === past) {
             row = el.closest('.calc-past-row');
-            if (!row) return [[pastTab === 'vars' ? 'Clear variables' : 'Clear history', function () { pastClear.click(); }, !pastClear.classList.contains('calc-off')]];
+            if (!row) return [[pastTab === 'vars' ? 'Clear variables' : 'Clear history', function () { pastClear.click(); }, !pastClear.hidden && !pastClear.classList.contains('calc-off')]];
             // on the equation, the equation; anywhere else on the line, its result
             part = el.closest('.calc-past-eq') || row.querySelector('.calc-past-res');
             k = engine.past[+row.dataset.i];
@@ -1889,9 +1889,10 @@
         if (vars) showLetters(); else renderPast();
     }
 
-    // Clear, off with nothing to clear: no history, or no letter holding a value
+    // Clear, off with no history to clear; on the Variables tab not shown while no letter holds a value
     function clearShown() {
-        var off = pastTab === 'vars' ? !lettersHeld() : !engine.past.length;
+        var vars = pastTab === 'vars', off = !vars && !engine.past.length;
+        pastClear.hidden = vars && !lettersHeld();
         pastClear.classList.toggle('calc-off', off);
         pastClear.setAttribute('aria-disabled', String(off));
     }
@@ -5129,7 +5130,6 @@
     // Clear on the Variables tab: every letter back to 0
     function clearLetters() {
         engine.letters(true);
-        notify('Cleared');
         saveState();
         lettersChanged();
     }
