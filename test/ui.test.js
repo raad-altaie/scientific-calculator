@@ -2623,7 +2623,7 @@ async function modeKey(page, at) {
 
 // 10^x, e and log_y on the 2nd layer of log, π and y^x, by click and by the keyboard
 async function secondKeys(page, at) {
-    var t = at + ': ', KEYS = '.calc-left > :nth-child(', LOG = KEYS + '22)', PI = KEYS + '21)', YX = KEYS + '10)';
+    var t = at + ': ', KEYS = '.calc-left > :nth-child(', LOG = KEYS + '18)', PI = KEYS + '21)', YX = KEYS + '10)';
 
     function label(key) {
         return page.calc('document.querySelector(' + JSON.stringify(key) + ').textContent.replace(/\\s+/g, "")');
@@ -2666,6 +2666,29 @@ async function secondKeys(page, at) {
         await page.type('7/2\r\r');
         check(await value(page) === want, t + '7/2 ' + await label(KEYS + key + ')') + ' = ' + want, await shown(page));
     }
+
+    // the roots after the powers, as they are: √, ∛ and on its 2nd layer ˣ√y, then 1/x; ∛ by h, Shift+R too
+    await page.fresh(at, {});
+    check(await label(KEYS + '11)') + ' ' + await label(KEYS + '12)') + ' ' + await label(KEYS + '13)') === '√ ∛ 1/x',
+        t + 'the roots after the powers, then 1/x', await label(KEYS + '11)') + ' ' + await label(KEYS + '12)') + ' ' + await label(KEYS + '13)'));
+    await page.click(KEYS + '12)');
+    await page.type('27\r\r');
+    check(await shown(page) === '3', t + '∛ 27 = 3', await shown(page));
+    await page.click(KEYS + '1)'); // after a result ˣ√y takes it as its root
+    await page.click(KEYS + '12)');
+    await page.type('27\r\r');
+    check(await shown(page) === '3', t + 'ˣ√y after the result 3, then 27: ³√27 = 3', await shown(page));
+    await page.click(KEYS + '1)');
+    await page.fresh(at, {});
+    await page.click(KEYS + '1)');
+    check(await label(KEYS + '12)') === 'x√y', t + '2nd turns ∛ into ˣ√y', await label(KEYS + '12)'));
+    await page.click(KEYS + '12)');
+    await page.type('4\r81\r\r');
+    check(await shown(page) === '3', t + 'a click on ˣ√y, then 4 and 81: ⁴√81 = 3', await shown(page));
+    await page.click(KEYS + '1)');
+    check(await label(KEYS + '12)') === '∛', t + '2nd again turns it back', await label(KEYS + '12)'));
+    await page.type('hR-8\r\r');
+    check(await value(page) === -2, t + 'h, Shift+R is ∛: ∛ –8 = –2', await shown(page));
 }
 
 // the letters A to J: > is STO→, Shift+A puts A in, the keys they had are elsewhere; the Variables tab of

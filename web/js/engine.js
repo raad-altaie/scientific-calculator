@@ -69,6 +69,7 @@
             '2x': { t: 'pow', base: '2', f: function (x) { return Math.pow(2, x); } },
             '10x': { t: 'pow', base: '10', f: function (x) { return timesTen(1, x); } },
             '√': { t: 'fn', f: function (x) { return Math.sqrt(x); } },
+            '∛': { t: 'fn', index: '3', f: function (x) { return nthRoot(x, 3); } }, // drawn as ³√, the root x√y of 3
             'log': { t: 'fn', f: function (x) { return Math.log10(x); } },
             'ln': { t: 'fn', f: function (x) { return Math.log(x); } },
             'log2': { t: 'fn', f: function (x) { return Math.log2(x); } },
@@ -417,6 +418,7 @@
 
     function unaryNode(key, arg) {
         var u = UNARY[key];
+        if (u.index) return { t: 'bin', op: 'x√y', l: arg, r: num(u.index, true) };
         return u.t === 'fn' ? { t: 'fn', name: key, arg: arg } :
             u.t === 'post' ? { t: 'post', op: key, arg: arg } :
                 u.t === 'inv' ? { t: 'inv', arg: arg } : { t: 'pow', base: u.base, arg: arg };
@@ -2379,7 +2381,7 @@
     // A row is a list of pieces. A plain piece holds the tokens parse reads (p): a digit, an
     // operator, a computed number. A template holds its boxes (b), each a row of its own:
     //   s 'fn'    k sin, ln, abs and the like: b [its number]
-    //   s 'root'  k '√': b [under it]; k 'x√y': b [the root, under it]
+    //   s 'root'  k '√' or '∛', its root of 3 fixed: b [under it]; k 'x√y': b [the root, under it]
     //   s 'pow'   b [the power] of what is before it
     //   s 'logb'  b [base, number]
     //   s 'tpl'   k nCr, nPr, mod, gcd, lcm or EE, pressed with no number before: b [left, right]
@@ -2490,6 +2492,7 @@
             }
             else if (piece.s === 'fn') toks = [{ t: 'fn', v: piece.k }].concat(enclosed(b[0]));
             else if (piece.s === 'root' && piece.k === '√') toks = [tok('√')].concat(enclosed(b[0]));
+            else if (piece.s === 'root' && piece.k === '∛') toks = [{ t: 'sup', v: '3' }, tok('√')].concat(grouped(b[0]));
             else if (piece.s === 'root') {
                 toks = (d = digitsOf(b[0])) !== null ? [{ t: 'sup', v: d }, tok('√')].concat(grouped(b[1])) :
                     grouped(b[1]).concat([tok('^'), tok('('), { t: 'num', v: '1' }, tok('÷', '/')], grouped(b[0]), [tok(')')]);
@@ -2968,7 +2971,7 @@
         }
         if (!p.s) body = p.p.map(look).join('');
         else if (p.s === 'fn') body = (NAME[p.k] || p.k) + paren(0);
-        else if (p.s === 'root') body = (p.k === 'x√y' ? '<sup>' + box(0) + '</sup>' : '') + '<span class="calc-root">' + box(p.b.length - 1) + '</span>';
+        else if (p.s === 'root') body = (p.k === 'x√y' ? '<sup>' + box(0) + '</sup>' : p.k === '∛' ? '<sup>3</sup>' : '') + '<span class="calc-root">' + box(p.b.length - 1) + '</span>';
         else if (p.s === 'pow') body = '<sup>' + box(0) + '</sup>';
         else if (p.s === 'logb') body = 'log<sub>' + box(0) + '</sub>' + paren(1);
         else if (p.s === 'tpl') body = kept(0) + (p.k === 'EE' ? 'ᴇ' : ' ' + p.k + ' ') + kept(1);
@@ -4308,7 +4311,7 @@
             made = e.path.pop();
             row = rowIn(e.list, e.path);
             e.at = made.i + 1;
-            if (row[made.i].s === 'fn' || row[made.i].k === '√' || (row[made.i].s === 'logb' && made.k === 1)) return true;
+            if (row[made.i].s === 'fn' || row[made.i].k === '√' || row[made.i].k === '∛' || (row[made.i].s === 'logb' && made.k === 1)) return true;
             if (this.insert(')')) return true;
             e.path.push(made); // nothing for it to close after the box either: the cursor stays in it
             e.at = at;
@@ -4317,13 +4320,9 @@
         if (key === ')' && (!unclosed(row, at) || startOf(row, at) || infixAt(row, at - 1))) return false; // nothing for it to close, or nothing in it
         if (key === '.' && pointIn(row, at)) return false; // a number has one point, as typed straight on
 
-        if (UNARY[key] && UNARY[key].t === 'fn' && key !== '√') {
+        if (UNARY[key] && UNARY[key].t === 'fn') { // √ and ∛ are roots, sin and the rest functions
             times();
-            add.push({ s: 'fn', k: key, b: [given || inside()] });
-            enter = [add.length - 1, 0];
-        } else if (key === '√') {
-            times();
-            add.push({ s: 'root', k: '√', b: [given || inside()] });
+            add.push({ s: key === '√' || key === '∛' ? 'root' : 'fn', k: key, b: [given || inside()] });
             enter = [add.length - 1, 0];
         } else if (key === 'x√y') {
             add.push({ s: 'root', k: 'x√y', b: [has ? row.slice(s, at) : [], []] });

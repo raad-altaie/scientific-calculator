@@ -19,7 +19,7 @@ A scientific calculator for your browser: light, fast and it works offline. It r
 - Everything is remembered when you close it, including the equation, memory and settings.
 
 **Functions**
-- Powers and roots: `x²`, `x³`, `yˣ`, `√`, `ˣ√y`, `1/x`, `abs`, `x!`.
+- Powers and roots: `x²`, `x³`, `yˣ`, `√`, `∛`, `ˣ√y`, `1/x`, `abs`, `x!`. The `2nd` key turns each key into its inverse, or a function of its kind where the inverse has a key of its own: `sin⁻¹`, `10ˣ` on `log`, `logᵧ` on `yˣ`, `log₂` on `ln`, `2ˣ` on `eˣ`, `ˣ√y` on `∛`.
 - Trigonometry: `sin`, `cos`, `tan`, their inverses, and the hyperbolic `sinh`, `cosh`, `tanh` and inverses.
 - Logarithms and exponentials: `log`, `ln`, `log₂`, log to any base, `eˣ`, `2ˣ`, `10ˣ`; constants `π` and `e`.
 - Combinatorics and number theory: `nCr`, `nPr`, `gcd`, `lcm`, `mod`, `%`, `Rand`, `EE` for scientific entry.

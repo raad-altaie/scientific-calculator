@@ -9,9 +9,9 @@
     root.CalcTips = {
         '2nd': {
             t: '2nd',
-            d: 'Switches sin, cos, tan, sinh, cosh, tanh, ln, e<sup>x</sup>, log, π and y<sup>x</sup> to their ' +
-                'second functions: sin<sup>-1</sup> …, log<sub>2</sub>, 2<sup>x</sup>, 10<sup>x</sup>, e and ' +
-                'log<sub>y</sub>. Click again to switch back.',
+            d: 'Switches sin, cos, tan, sinh, cosh, tanh, ln, e<sup>x</sup>, log, π, y<sup>x</sup> and ∛ to their ' +
+                'second functions: sin<sup>-1</sup> …, log<sub>2</sub>, 2<sup>x</sup>, 10<sup>x</sup>, e, ' +
+                'log<sub>y</sub> and <sup>x</sup>√y. Click again to switch back.',
             k: 'Space'
         },
         'Deg': {
@@ -1279,6 +1279,13 @@
             t: 'Square root',
             d: 'Before the number: √ 16 = 4. Enter, → or Tab closes it, as √(16); = works it out.',
             k: 'Shift+R'
+        },
+        '∛': {
+            t: 'Cube root',
+            d: 'Before the number: ∛ 27 = 3, as 3 <sup>x</sup>√y 27; it undoes x<sup>3</sup>. Negative numbers work: ∛ –8 = –2. ' +
+                'Enter, → or Tab closes it; = works it out.',
+            k: 'h, Shift+R',
+            second: '<sup>x</sup>√y'
         },
         'x√y': {
             t: 'Root',

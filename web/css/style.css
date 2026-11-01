@@ -4548,6 +4548,11 @@
     overflow: hidden;
 }
 
+/* fraction mode off: no fraction is drawn in the line, so it sits lower, nearer the result */
+#calculator .calc-log.calc-log-low {
+    top: 26px;
+}
+
 #calculator .calc-log sup,
 #calculator .calc-log sub {
     font-size: 11px;
@@ -4724,6 +4729,7 @@
 #calculator {
     --calc-root-whole: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='82' height='130' viewBox='0 0 82 130'%3E%3Cpath d='M7 80 L20 70 L33.6 126 L50.6 20' fill='none' stroke='black' stroke-width='5.6' stroke-linejoin='round' stroke-linecap='round'/%3E%3Cpath d='M46.16 30 L49.36 10 Q50.96 0 54.5 0 L72 0 L72 5.6 L59 5.6 Q55.74 5.6 55.34 8.1 L51.84 30 Z' fill='black'/%3E%3C/svg%3E");
     --calc-root-sign: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 16' preserveAspectRatio='none'%3E%3Cpath d='M0.7 9.4 L2.7 8.3 L4.5 15 L7.645 4.6' fill='none' stroke='black' stroke-width='0.9' stroke-linejoin='round' stroke-linecap='round'/%3E%3Cpath d='M7.175 4.6 L8.05 1.7 Q8.566 0 9 0 L10.3 0 L10.3 0.68 L9.7 0.68 Q9.3 0.68 9.2 1 L8.115 4.6 Z' fill='black'/%3E%3C/svg%3E");
+    --calc-root-key: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 16' preserveAspectRatio='none'%3E%3Cpath d='M0.7 9.4 L2.7 8.3 L4.5 15 L7.645 4.6' fill='none' stroke='black' stroke-width='0.9' stroke-linejoin='round' stroke-linecap='round'/%3E%3Cpath d='M7.175 4.6 L8.05 1.7 Q8.566 0 9 0 L14 0 L14 0.68 L9.7 0.68 Q9.3 0.68 9.2 1 L8.115 4.6 Z' fill='black'/%3E%3C/svg%3E"); /* on a key: its bar runs on, so the sign does not look cut off */
 }
 
 #calculator .calc-sq {
@@ -4736,6 +4742,30 @@
     -webkit-text-fill-color: transparent;
     background: currentColor;
     -webkit-mask: var(--calc-root-sign) no-repeat 0 0 / 100% 100%;
+}
+
+/* the √ and ∛ keys: the sign alone, its bar on past the arm, over the number to come */
+#calculator .trigo-keys .calc-sq {
+    width: 0.86em;
+    -webkit-mask-image: var(--calc-root-key);
+    mask-image: var(--calc-root-key);
+}
+
+/* ˣ√y on its key drawn as in an equation, the bar over the y; the √ stays in its text, for the name of the key */
+#calculator .trigo-keys .calc-root {
+    line-height: 1;
+}
+
+#calculator .calc-key-sign {
+    font-size: 0;
+}
+
+/* the 3 of the ∛ key, raised over the arm of the sign as the x of x√y on its 2nd */
+#calculator .calc-cbrt::before {
+    content: '3';
+    font-size: smaller; /* as a sup */
+    vertical-align: super;
+    line-height: 0;
 }
 
 /* in an equation, the √ and a bar over what is under it, as tall as that is */

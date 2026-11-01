@@ -283,21 +283,19 @@
                         <div>y<sup>x</sup></div>
                     </div>
                     <div class="trigo-keys">
-                        <div>1/x</div>
-                    </div>
-                    <div class="trigo-keys">
                         <div><span class="calc-sq">√</span></div>
                     </div>
                     <div class="trigo-keys">
-                        <div class="calc-radxy">
-                            <sup>x</sup><em class="calc-sq">√</em><span>y</span>
-                        </div>
+                        <div><span class="calc-cbrt"><span class="calc-sq">∛</span></span></div><!-- its 3 drawn, so the key is named ∛; 2nd turns it into ˣ√y -->
+                    </div>
+                    <div class="trigo-keys">
+                        <div>1/x</div>
                     </div>
                     <div class="trigo-keys">
                         <div>EE</div>
                     </div>
 
-                    <!-- trigonometry; 2nd turns them into their inverses -->
+                    <!-- trigonometry, and logarithms and powers; 2nd turns them into their inverses, and into their kin -->
                     <div class="trigo-keys">
                         <div>sin</div>
                     </div>
@@ -308,20 +306,6 @@
                         <div>tan</div>
                     </div>
                     <div class="trigo-keys">
-                        <div>sinh</div>
-                    </div>
-                    <div class="trigo-keys">
-                        <div>cosh</div>
-                    </div>
-                    <div class="trigo-keys">
-                        <div>tanh</div>
-                    </div>
-                    <div class="trigo-keys">
-                        <div>&pi;</div>
-                    </div>
-
-                    <!-- logarithms and functions -->
-                    <div class="trigo-keys">
                         <div>log</div>
                     </div>
                     <div class="trigo-keys">
@@ -329,6 +313,20 @@
                     </div>
                     <div class="trigo-keys">
                         <div>e<sup>x</sup></div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div>&pi;</div>
+                    </div>
+
+                    <!-- the hyperbolic functions under sin, cos and tan, then functions -->
+                    <div class="trigo-keys">
+                        <div>sinh</div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div>cosh</div>
+                    </div>
+                    <div class="trigo-keys">
+                        <div>tanh</div>
                     </div>
                     <div class="trigo-keys">
                         <div>abs</div>
@@ -1075,7 +1073,7 @@
                     populations, diversity and trees; most drawn. See the "Biology" section below.</li>
                 <li><kbd class="k">mod</kbd>, <kbd class="k">gcd</kbd> and <kbd class="k">lcm</kbd> on the <kbd class="k">2nd</kbd> layer of <kbd class="k">%</kbd>, <kbd class="k"><sup>n</sup>C<sub>r</sub></kbd> and <kbd class="k"><sup>n</sup>P<sub>r</sub></kbd>.</li>
                 <li><kbd class="k">floor</kbd> and <kbd class="k">ceil</kbd> on the <kbd class="k">2nd</kbd> layer of <kbd class="k">abs</kbd> and <kbd class="k">x!</kbd>, side by side, and <kbd class="k">round</kbd> on that of <kbd class="k">Rand</kbd>: a number to the whole number below or above it, and to the nearest, half away from 0. They can be pasted too, with trunc, which goes toward 0: floor(7.5) = 7.</li>
-                <li><kbd class="k">10<sup>x</sup></kbd>, <kbd class="k">e</kbd> and <kbd class="k">log<sub>y</sub></kbd> (the logarithm to any base: 8 log<sub>y</sub> 2 = 3) on the <kbd class="k">2nd</kbd> layer of <kbd class="k">log</kbd>, <kbd class="k">&pi;</kbd> and <kbd class="k">y<sup>x</sup></kbd>.</li>
+                <li><kbd class="k">10<sup>x</sup></kbd>, <kbd class="k">e</kbd> and <kbd class="k">log<sub>y</sub></kbd> (the logarithm to any base: 8 log<sub>y</sub> 2 = 3) on the <kbd class="k">2nd</kbd> layer of <kbd class="k">log</kbd>, <kbd class="k">&pi;</kbd> and <kbd class="k">y<sup>x</sup></kbd>; the cube root <kbd class="k"><sup>3</sup>&radic;</kbd> beside <kbd class="k">&radic;</kbd>, <sup>3</sup>&radic;27 = 3, and the root of any degree <kbd class="k"><sup>x</sup>&radic;y</kbd> on its <kbd class="k">2nd</kbd> layer.</li>
                 <li>Degrees, minutes and seconds: the <kbd class="k">°′″</kbd> key shows results as 36°52′11.63″, and DMS in the display shows it is on. Paste an angle written so, 12°30′15″, 12°30'15" or 51°30′26″N: alone it shows as written, and DMS turns on. In an equation it is a number of degrees, and sin, cos and tan of it are worked out in degrees whatever the unit in use: sin(30°) is 0.5 in Rad as well. The converter has degrees, minutes and seconds among its angles too.</li>
                 <li>Fraction mode: the <kbd class="k">a/b</kbd> key draws each division as a fraction while you type, and shows results like
                     0.75 as 3/4.</li>
@@ -1727,7 +1725,7 @@
             <div class="info">
                 <div class="trigo-keys">
                     °′″
-                </div><span class="des">[h, f] Shows results in degrees, minutes and seconds: 0.6 sin<sup>-1</sup> is
+                </div><span class="des">[h, f] Shows results in degrees, minutes and seconds: sin<sup>-1</sup> 0.6 is
                     36°52′11.63″ in Deg, and 2.75 hours is 2°45′0″. Click again for decimals; the number itself stays
                     as it is. To enter an angle so, paste it: 12°30′15″ shows as written.</span>
             </div>
@@ -1750,8 +1748,9 @@
                     to their inverse functions (sin<sup>-1</sup>, cos<sup>-1</sup>, tan<sup>-1</sup>,
                     sinh<sup>-1</sup>,
                     cosh<sup>-1</sup>, and tanh<sup>-1</sup>). It also changes ln to log<sub>2</sub>,
-                    e<sup>x</sup> to 2<sup>x</sup>, log to 10<sup>x</sup>, &pi; to e, and y<sup>x</sup> to
-                    log<sub>y</sub>. Click <kbd class="k">2nd</kbd> again to return the buttons to their original
+                    e<sup>x</sup> to 2<sup>x</sup>, log to 10<sup>x</sup>, &pi; to e, y<sup>x</sup> to
+                    log<sub>y</sub>, <sup>3</sup>&radic; to <sup>x</sup>&radic;y, and %, <sup>n</sup>C<sub>r</sub>, <sup>n</sup>P<sub>r</sub>, abs, x! and Rand
+                    to mod, gcd, lcm, floor, ceil and round. Click <kbd class="k">2nd</kbd> again to return the buttons to their original
                     functions.</span>
             </div>
 
@@ -1832,7 +1831,14 @@
             <div class="info">
                 <div class="trigo-keys">
                     &radic;
-                </div><span class="des">[h, r] Calculates the square root of a value.</span>
+                </div><span class="des">[Shift+R or h, r] Calculates the square root of a value: &radic; 16 returns 4.</span>
+            </div>
+
+            <div class="info">
+                <div class="trigo-keys">
+                    <sup>3</sup>&radic;
+                </div><span class="des">[h, Shift+R] Calculates the cube root of a value, as <sup>x</sup>&radic;y with 3;
+                    it undoes x<sup>3</sup>. Cube roots of negative numbers work as well: <sup>3</sup>&radic;-8 returns -2.</span>
             </div>
 
             <div class="info">
@@ -1840,10 +1846,11 @@
                     <div class="calc-radxy">
                         <sup>x</sup><em>&radic;</em><span>y</span>
                     </div>
-                </div><span class="des">[r] Use between values to calculate the x root of y. For example to compute
+                </div><span class="des">[r] The root first, then the number, as it is written. For example to compute
                     <sup>4</sup>&radic;81,<br>
-                    enter 81 <sup>x</sup>&radic;y 4 = which returns 3. Odd roots of negative numbers work as well:
-                    <sup>3</sup>&radic;-8 returns -2.</span>
+                    enter 4 <sup>x</sup>&radic;y 81 = which returns 3. Odd roots of negative numbers work as well:
+                    <sup>3</sup>&radic;-8 returns -2. (Available when the <kbd class="k">2nd</kbd> button is clicked, on
+                    <sup>3</sup>&radic;).</span>
             </div>
 
             <div class="info">
@@ -2003,7 +2010,7 @@
             <div class="info">
                 <div class="trigo-keys">
                     Rand
-                </div><span class="des">[h, n or h, d] Returns a random number between 0 and 1.</span>
+                </div><span class="des">[h, n] Returns a random number between 0 and 1.</span>
             </div>
 
             <div class="info">

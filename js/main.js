@@ -153,12 +153,13 @@
         secondLayer = [
             [
                 'sin', 'cos', 'tan', 'ln', 'sinh', 'cosh', 'tanh', 'e<sup>x</sup>', '%', '<i>n</i>C<i>r</i>', '<i>n</i>P<i>r</i>',
-                'log', 'π', 'y<sup>x</sup>', 'abs', 'x!', 'Rand'
+                'log', 'π', 'y<sup>x</sup>', 'abs', 'x!', 'Rand', '<span class="calc-cbrt"><span class="calc-sq">∛</span></span>'
             ],
             [
                 'sin<sup>-1</sup>', 'cos<sup>-1</sup>', 'tan<sup>-1</sup>', 'log<sub>2</sub>',
                 'sinh<sup>-1</sup>', 'cosh<sup>-1</sup>', 'tanh<sup>-1</sup>', '2<sup>x</sup>', 'mod', 'gcd', 'lcm',
-                '10<sup>x</sup>', 'e', 'log<sub>y</sub>', 'floor', 'ceil', 'round'
+                '10<sup>x</sup>', 'e', 'log<sub>y</sub>', 'floor', 'ceil', 'round',
+                '<sup>x</sup><em class="calc-key-sign">√</em><span class="calc-root">y</span>'
             ]
         ];
 
@@ -174,10 +175,10 @@
     keyBoard[','] = keyBoard['.'];
     keyBoard['Rad'] = keyBoard['Grad'] = keyBoard['Deg'];
     secondKeySet = secondLayer[0].map(function (label) {
-        return keyBoard[label.replace(/<\/*\w+>/g, '')];
+        return keyBoard[label.replace(/<[^>]*>/g, '')];
     });
     for (var n = secondKeySet.length; n--;) {
-        keyBoard[secondLayer[1][n].replace(/<\/*\w+>/g, '')] = secondKeySet[n];
+        keyBoard[secondLayer[1][n].replace(/<[^>]*>/g, '')] = secondKeySet[n];
     }
 
 
@@ -423,8 +424,8 @@
             keyMatch = (',|.|-|–|/|÷|*|×|#|+/–|x|x!|W|EE|e|ex| |2nd|r|x√y|R|√|p|π|^|yx|\'|yx|"|yx|m|mr|v|mc|b|m+|n|m-|a|Ans|' +
                 's|sin|c|cos|t|tan|S|sin-1|V|cos-1|T|tan-1|d|Deg|°|Deg|l|ln|L|log|\\|1/x|X|2x|N|nCr|P|nPr|f|a/b|M|mod|Q|gcd|K|lcm|' +
                 'Y|floor|U|ceil|O|round|o|MODE').split('|'),
-            keyMatchHold = ('sin|sinh|cos|cosh|tan|tanh|m-|Rand|Deg|Rand|sin-1|sinh-1|cos-1|cosh-1|tan-1|tanh-1|' +
-                '1|1/x|2|x2|3|x3|x√y|√|ln|log2|ex|2x|log|10x|π|e|yx|logy|a/b|°′″').split('|');
+            keyMatchHold = ('sin|sinh|cos|cosh|tan|tanh|m-|Rand|sin-1|sinh-1|cos-1|cosh-1|tan-1|tanh-1|' +
+                '1|1/x|2|x2|3|x3|x√y|√|√|∛|ln|log2|ex|2x|log|10x|π|e|yx|logy|a/b|°′″').split('|');
 
         // > is STO→, and a letter, Shift+A to J, is put in, or after STO→ takes the result; Alt+A does both at once
         if (key === 62) return arm(!sto.textContent);
@@ -462,8 +463,8 @@
             arm(false); // one mark at a time in its place
         }
         if (!keyBoard[key]) return;
-        if ((key.match(/-1$|log2$|2x$|^(mod|gcd|lcm|10x|e|logy|floor|ceil|round)$/) && !secondActive) ||
-            (key.match(/h$|n$|cos$|ex$|^(%|nCr|nPr|log|π|yx|abs|x!|Rand)$/) && secondActive)) {
+        if ((key.match(/-1$|log2$|2x$|^(mod|gcd|lcm|10x|e|logy|floor|ceil|round|x√y)$/) && !secondActive) ||
+            (key.match(/h$|n$|cos$|ex$|^(%|nCr|nPr|log|π|yx|abs|x!|Rand|∛)$/) && secondActive)) {
             keyDown(false, keyBoard['2nd']);
             doKey('2nd', true);
         }
@@ -1189,7 +1190,7 @@
     // true for the name of a function on the 2nd layer: sin-1, log2, 2x …
     function secondKey(name) {
         return secondLayer[1].some(function (label) {
-            return label.replace(/<\/*\w+>/g, '') === name;
+            return label.replace(/<[^>]*>/g, '') === name;
         });
     }
 
@@ -19765,6 +19766,7 @@
         logline.innerHTML = !engine.edit && (engine.error || engine.done) ? eq : '';
         mem.textContent = engine.memory ? 'M' : '';
         fracMark.textContent = fracMode ? 'FRAC' : dmsMode ? 'DMS' : '';
+        logline.classList.toggle('calc-log-low', !fracMode); // no fractions in it: lower, nearer the result
         keyBoard['a/b'].classList.toggle('calc-lit', fracMode); // a red dot on the key of the mode that is on
         keyBoard['°′″'].classList.toggle('calc-lit', dmsMode);
         pastExport.classList.toggle('calc-off', !engine.past.length); // and its export, which has nothing to export before
