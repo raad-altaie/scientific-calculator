@@ -2177,14 +2177,14 @@
     padding: 17px 0 4px;
 }
 
-/* a formula 1px more room over it */
+/* a formula 3px more room over it */
 #calculator .calc-fx-eq:not(.calc-fx-val) {
-    padding-top: 9px;
+    padding-top: 11px;
 }
 
 /* popped out, more: further from the name above it */
 #calculator.calc-panel-big .calc-fx-eq:not(.calc-fx-val) {
-    padding-top: 14px;
+    padding-top: 16px;
 }
 
 /* the badges of a tool a little more room over and under them */
@@ -4834,7 +4834,7 @@
 
 #calculator #box > .calc-fr {
     position: relative;
-    top: -7px;
+    top: -4px;
 }
 
 /* the line clips what is past its edge: room above it, so the bar of a root

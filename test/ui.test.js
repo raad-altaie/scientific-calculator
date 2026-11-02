@@ -2527,6 +2527,13 @@ async function modeKey(page, at) {
     await page.calc('getSelection().selectAllChildren(document.getElementById("box"))');
     check(await page.calc(copied) === '√(12 + 30) × 66 + ⁵√6 + (888)^(tan(5)^3) × sin(tanh(55)) + 2^(-1) + 8^(1/(2 + 1))',
         t + 'powers copied as they paste back', await page.calc(copied));
+    // a fraction of a result dragged over, from its top to its bottom: copied with its bar, not as 712
+    await page.fresh(at, { fraction: true });
+    await page.type('1/3+1/4\r');
+    await page.calc('(function () { var walk = document.createTreeWalker(document.getElementById("box"), NodeFilter.SHOW_TEXT), texts = [], node, range = document.createRange(); ' +
+        'while ((node = walk.nextNode())) texts.push(node); range.setStart(texts[0], 0); range.setEnd(texts[texts.length - 1], texts[texts.length - 1].data.length); ' +
+        'getSelection().removeAllRanges(); getSelection().addRange(range); })()');
+    check(await page.calc(copied) === '7/12', t + 'a fraction dragged over copied as 7/12', await page.calc(copied));
     // the arrows, Home and End leave a result as it is; on an error the line is opened to fix
     await page.fresh(at, {});
     await page.type('2+3\r');

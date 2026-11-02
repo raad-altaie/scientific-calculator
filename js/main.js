@@ -619,7 +619,14 @@
         // what is drawn alone leaves out what is not written, as the sign of a root
         if ((span = selectedSpan()) && (inner = engine.textOf(span[0], span[1]))) return local(inner);
         box = document.createElement('div');
-        box.appendChild(range.cloneContents());
+        // from one part of a fraction to the other: the parts are cloned without the fraction they are of
+        if (where.nodeType === 1 && where.classList.contains('calc-fr')) {
+            span = where.cloneNode(false);
+            span.appendChild(range.cloneContents());
+            box.appendChild(span);
+        } else {
+            box.appendChild(range.cloneContents());
+        }
         [].slice.call(box.querySelectorAll('.calc-fr, .calc-root')).reverse().forEach(function (el) { // the innermost first
             var span;
             if (el.classList.contains('calc-fr')) {
