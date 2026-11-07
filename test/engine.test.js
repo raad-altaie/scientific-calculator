@@ -559,6 +559,14 @@ dels.forEach(function (c) {
     });
     check(e.paste('floor(7.5) + ceil(0.2) + round(-1.5) + trunc(-2.9)', 0, true) && (run(e, '='), e.value === '4'), 'pasted: floor, ceil, round and trunc', state(e));
     check(Engine.graph('floor(x)', false, {}).at(-1.5) === -2 && Engine.graph('ceiling(x)', false, {}).at(1.2) === 2, 'graphed: floor(x), ceiling(x)');
+    [['sec(60)', '2'], ['csc(30)', '2'], ['cosec(30)', '2'], ['cot(45)', '1'], ['cot(90)', '0'], ['sign(-3)', '-1'], ['sgn(0)', '0'],
+        ['log_2(8)', '3'], ['log_{5}(125)', '3'], ['log_3(81)', '4'], ['log_10(1000)', '3']].forEach(function (c) {
+        check(e.paste(c[0], 1, true) && (run(e, '='), e.value === c[1]), 'pasted in Deg: ' + c[0] + ' is ' + c[1], state(e));
+    });
+    run(e, 'AC');
+    check(e.paste('sec(90)', 1, true) && e.error, 'pasted in Deg: sec(90) has no value, as tan(90)', state(e));
+    check(Engine.graph('sec(x)', false, {}).angles && Math.abs(Engine.graph('cot(x)', false, {}).at(1, 0) - 1 / Math.tan(1)) < 1e-12 &&
+        Engine.graph('log_3(x)', false, {}).at(9) === 2 && Engine.graph('sgn(x)', false, {}).at(-0.5) === -1, 'graphed: sec, cot, log_3 and sgn');
 })();
 
 // ---------- Rand and paste ---------- //
@@ -2713,6 +2721,23 @@ dels.forEach(function (c) {
         lines = trace('sin(1000x)', -100, 100, -10, 10);
         check(lines.length === 1 && Math.min.apply(null, lines[0].filter(function (n, k) { return k % 2; })) < 45.5,
             'trace: sin(1000x) from far away a band as high as it goes');
+        lines = trace('1/x', -10, 10, -5, 5); // a place it is looked at falls on 0
+        check(lines.length === 2 && !lines.some(function (l) { return l.length === 4 && l[0] === l[2]; }), 'trace: 1/x two lines, none up the plot at 0', lines.length);
+        ['csc(x)', 'cot(x)', 'sec(x)'].forEach(function (s) {
+            lines = trace(s, -10, 10, -5, 5);
+            check(lines.length === (s === 'sec(x)' ? 7 : 8) && !lines.some(function (l) { return l.length === 4 && l[0] === l[2]; }),
+                'trace: ' + s + ' broken at each place it has no end, none up the plot there', lines.length);
+        });
+        check(Engine.graph('sec(x)').reach(-1, 1, 0)[2] && Engine.graph('cot(x)').reach(1, 2, 0)[2] && !Engine.graph('csc(x)').reach(-1, 1, 0)[2],
+            'reach: sec x whole across 0, cot x from 1 to 2, csc x not across 0');
+        all = [JSON.stringify(Engine.graph('1/tan(x)').reach(1.4, 1.8, 0)), JSON.stringify(Engine.graph('1/tan(x)').reach(89, 90, 1))];
+        check(all[0] === JSON.stringify([1 / Math.tan(1.8), 1 / Math.tan(1.4), false]) && all[1] === JSON.stringify([0, Engine.graph('1/tan(x)').at(89, 1), false]),
+            'reach: 1 over tan x at 90° near 0, as tan x has a hole round 0 there; in Deg up to 90°, where it has no value', all.join(' '));
+        [['1/tan(x)', -10, 10, 0, 8], ['1/tan(x)', -90, 270, 1, 6], ['tan(x)', -360, 360, 1, 5], ['cot(x)', -360, 360, 1, 4]].forEach(function (c) {
+            lines = Engine.trace(Engine.graph(c[0]), { x0: c[1], x1: c[2], y0: -5, y1: 5, w: 340, h: 200 }, c[3]);
+            check(lines.length === c[4] && !lines.some(function (l) { return l.length === 4 && l[0] === l[2] && Math.abs(l[1] - l[3]) > 2; }),
+                'trace: ' + c[0] + ' from ' + c[1] + ' to ' + c[2] + (c[3] ? ' in Deg' : '') + ' broken only where it has no end, none up the plot', lines.length);
+        });
     })();
 
     // an equation or inequality drawn in a view 240 pixels wide and 120 high

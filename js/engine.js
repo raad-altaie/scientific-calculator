@@ -14,7 +14,7 @@
         MAX_PAST_CHARS = 100000, // total size of the history
         MAX_EDIT = 300, // pieces of an equation being edited
         KEY_MAX = 25, // roots, highs and lows of a curve, or crossings of two, marked on a graph; more cannot be told apart
-        ANGLE = /^(sin|cos|tan)(-1)?$/, // functions whose result depends on Deg or Rad
+        ANGLE = /^(sin|cos|tan|sec|csc|cot)(-1)?$/, // functions whose result depends on Deg or Rad
         LETTERS = 'ABCDEFGHIJ', // the letters a value is stored in, as A to J of a TI or a Casio
         VAR = /^[A-J]$/,
         VARKEY = /^#[A-J]$/, // the key of a letter: #C puts in C, as the key C clears
@@ -35,7 +35,8 @@
             'asin': 'sin-1', 'acos': 'cos-1', 'atan': 'tan-1', 'asinh': 'sinh-1', 'acosh': 'cosh-1', 'atanh': 'tanh-1',
             'arcsin': 'sin-1', 'arccos': 'cos-1', 'arctan': 'tan-1', 'arsinh': 'sinh-1', 'arcosh': 'cosh-1', 'artanh': 'tanh-1',
             'ln': 'ln', 'log': 'log', 'sqrt': '√', 'exp': 'ex', 'abs': 'abs',
-            'round': 'round', 'floor': 'floor', 'ceil': 'ceil', 'ceiling': 'ceil', 'trunc': 'trunc'
+            'round': 'round', 'floor': 'floor', 'ceil': 'ceil', 'ceiling': 'ceil', 'trunc': 'trunc',
+            'sec': 'sec', 'csc': 'csc', 'cosec': 'csc', 'cot': 'cot', 'sign': 'sign', 'sgn': 'sign'
         },
         OPS = { // operator characters in pasted text
             '+': '+', '-': '-', '−': '-', '–': '-', '—': '-', '*': '×', '×': '×', '·': '×', '⋅': '×',
@@ -91,7 +92,12 @@
             'round': { t: 'fn', f: function (x) { return x < 0 ? 0 - Math.round(-tidy(x)) : Math.round(tidy(x)) + 0; } },
             'floor': { t: 'fn', f: function (x) { return Math.floor(tidy(x)) + 0; } },
             'ceil': { t: 'fn', f: function (x) { return Math.ceil(tidy(x)) + 0; } },
-            'trunc': { t: 'fn', f: function (x) { return Math.trunc(tidy(x)) + 0; } }
+            'trunc': { t: 'fn', f: function (x) { return Math.trunc(tidy(x)) + 0; } },
+            // 1 over cos, sin and tan, as typed or pasted: none where what they are of is 0, as sec 90°
+            'sec': { t: 'fn', f: function (x, deg) { var c = trig(x, deg, cosDeg, Math.cos); return c ? tidy(1 / c) : NaN; } },
+            'csc': { t: 'fn', f: function (x, deg) { var s = trig(x, deg, sinDeg, Math.sin); return s ? tidy(1 / s) : NaN; } },
+            'cot': { t: 'fn', f: function (x, deg) { var s = trig(x, deg, sinDeg, Math.sin); return s ? tidy(trig(x, deg, cosDeg, Math.cos) / s) : NaN; } },
+            'sign': { t: 'fn', f: function (x) { return Math.sign(tidy(x)) + 0; } } // -1, 0 or 1
         };
 
     // ---------- accuracy ---------- //
@@ -651,6 +657,8 @@
                 else out.push({ t: 'fn', v: 'logy', b: null }); // logᵧ(8), its base still awaited
             } else if ((m = /^log(₂|2(?=\s*\()|10(?=\s*\())/i.exec(s))) {
                 out.push({ t: 'fn', v: m[1] === '10' ? 'log' : 'log2' });
+            } else if ((m = /^log_\{?\s*(\d+\.?\d*|\.\d+)\s*\}?/i.exec(s))) { // log_5(x) or log_{5}(x), as typed with no subscripts
+                out.push(m[1] === '2' ? { t: 'fn', v: 'log2' } : m[1] === '10' ? { t: 'fn', v: 'log' } : { t: 'fn', v: 'logy', b: m[1] });
             } else if ((m = letterAt(s, variable, defs))) { // A to J, each its stored value: 2A, AB is A × B
                 out.push({ t: 'const', v: m[0] });
             } else if ((m = (variable ? NAMES : /^[a-zA-Z]+/).exec(s))) {
@@ -971,7 +979,10 @@
                 return b && checked([b[0], b[1], a[2] && b[2]]);
             case 'neg':
                 a = reachOf(n.arg, x0, x1, deg, vars, y0, y1);
-                return a && [-a[1], -a[0], a[2]];
+                if (!a) return a;
+                b = [-a[1], -a[0], a[2]];
+                if (a.hole) b.hole = [-a.hole[1], -a.hole[0]];
+                return b;
             case 'fn':
             case 'post':
                 a = reachOf(n.arg, x0, x1, deg, vars, y0, y1);
@@ -1012,15 +1023,24 @@
                     case 'floor':
                     case 'ceil':
                     case 'trunc':
+                    case 'sign':
                         b = rising(v, a);
                         return [b[0], b[1], b[2] && b[0] === b[1]];
                     case 'sin': return wave(v, a, d, PI / 2);
                     case 'cos': return wave(v, a, d, 0);
-                    case 'tan':
+                    case 'sec': return over(wave(UNARY.cos.f, a, d, 0));
+                    case 'csc': return over(wave(UNARY.sin.f, a, d, PI / 2));
+                    case 'cot': return times(wave(UNARY.cos.f, a, d, 0), over(wave(UNARY.sin.f, a, d, PI / 2)));
+                    case 'tan': // across one 90°, all but what is between tan at the end and at the start; from one that
+                        // ends at a 90°, where it has no value, as in Deg, on to no end that way
                         b = turn(a, d);
-                        if (!(b[1] - b[0] < PI) || Math.floor((b[0] - PI / 2) / PI) !== Math.floor((b[1] - PI / 2) / PI)) return [-Infinity, Infinity, false];
-                        b = rising(v, a, d);
-                        return b[0] <= b[1] ? b : [-Infinity, Infinity, false]; // a 90° the turn did not show
+                        if (!(b[1] - b[0] < PI)) return [-Infinity, Infinity, false];
+                        v = [v(a[0], d), v(a[1], d)];
+                        if (Math.floor((b[0] - PI / 2) / PI) !== Math.floor((b[1] - PI / 2) / PI)) {
+                            return isNaN(v[1]) ? (isNaN(v[0]) ? [-Infinity, Infinity, false] : [v[0], Infinity, false]) : apart(v[1], v[0]);
+                        }
+                        if (isNaN(v[0])) return isNaN(v[1]) ? [-Infinity, Infinity, false] : [-Infinity, v[1], false];
+                        return v[0] <= v[1] ? [v[0], v[1], a[2]] : apart(v[1], v[0]); // a 90° the turn did not show
                 }
                 return null;
             default:
@@ -1040,6 +1060,10 @@
                             return checked([Math.exp(v[0]), Math.exp(v[1]), v[2] && b[2]]);
                         }
                         return null;
+                    case 'logy': // of a base that stays, ln over ln of the base
+                        if (b[0] !== b[1] || !(b[0] > 0) || b[0] === 1) return null;
+                        v = reachOf({ t: 'fn', key: 'ln', arg: n.l }, x0, x1, deg, vars, y0, y1);
+                        return v && (isNaN(v[0]) ? v : times(v, point(1 / Math.log(b[0]))));
                 }
                 return null;
         }
@@ -1064,10 +1088,20 @@
             if (all.some(isNaN)) return [-Infinity, Infinity, false]; // 0 times no end
             return checked([Math.min.apply(null, all), Math.max.apply(null, all), s[2] && t[2]]);
         }
-        // 1 over it: no end and no value at 0
+        // with no end either way, as tan x across 90°, but never between h0 and h1, its hole: from
+        // tan x at the end of the stretch to tan x at its start, 1 over which over has no end
+        function apart(h0, h1) {
+            var r = [-Infinity, Infinity, false];
+            if (h0 < h1) r.hole = [h0, h1];
+            return r;
+        }
+        // 1 over it: no end and no value at 0. Of one with a hole round 0, as 1 over tan x has at
+        // 90°, 0 there; of one across 0, with a hole round 0, as 1/(1/x) is x
         function over(s) {
+            if (s.hole && s.hole[0] < 0 && s.hole[1] > 0) return [1 / s.hole[0], 1 / s.hole[1], false];
             if (s[0] > 0 || s[1] < 0) return checked([1 / s[1], 1 / s[0], s[2]]);
             if (s[0] === 0 && s[1] === 0) return none();
+            if (s[0] < 0 && s[1] > 0) return apart(1 / s[0], 1 / s[1]);
             return [s[0] === 0 ? 1 / s[1] : -Infinity, s[1] === 0 ? 1 / s[0] : Infinity, false];
         }
         // s to the power p, as Math.pow takes it: of a negative number only to a whole power
@@ -1157,7 +1191,11 @@
                     'round': flat,
                     'floor': flat,
                     'ceil': flat,
-                    'trunc': flat
+                    'trunc': flat,
+                    'sign': flat,
+                    'sec': function () { return times([k, k, true], times(of(n), reachOf({ t: 'fn', key: 'tan', arg: n.arg, deg: n.deg }, x0, x1, deg, vars))); },
+                    'csc': function () { return times([-k, -k, true], times(of(n), reachOf({ t: 'fn', key: 'cot', arg: n.arg, deg: n.deg }, x0, x1, deg, vars))); },
+                    'cot': function () { return times([-k, -k, true], plus([1, 1, true], sq(of(n)))); }
                 }[n.key];
                 b = b && b();
                 return b && times(b, da);
@@ -1331,9 +1369,12 @@
         }
 
         // a break between a and b, as near together as they need to be. Where the curve has no
-        // end there, the line on each side goes on to the edge of the view the way it is going
+        // end there, the line on each side goes on to the edge of the view the way it is going.
+        // Not where both have values less than a pixel apart: its reach was only too wide, as of
+        // 1 over tan x at 90°, where tan x has no end but 1 over it is 0
         function end(a, b, r) {
             var gap = b.x - a.x, p;
+            if (isFinite(a.py) && isFinite(b.py) && a.k === b.k && Math.abs(a.py - b.py) <= 1) return to(b);
             if (r && !isNaN(r[0]) && !isFinite(r[1] - r[0])) ends.push({ px: (a.px + b.px) / 2, x0: a.x, x1: b.x }); // where it has no end
             if (isFinite(a.py) && seen(a) && r && !isFinite(r[0] - r[1])) {
                 p = place(a.x - gap);
@@ -1359,9 +1400,11 @@
         }
         // Two places it has no end less than 3 pixels apart, as tan x has seen from a little
         // way off, drawn each up the plot, would leave a sliver between them that comes and goes
-        // as the view moves: what is between them is filled over all it reaches instead
+        // as the view moves: what is between them is filled over all it reaches instead. Not two
+        // sides of one, with no value between them, as 1/x has at 0 where a place it is looked at falls on it
         ends.forEach(function (q, k) {
-            var p = ends[k - 1], r = p && q.px - p.px < 3 && c.reach(p.x0, q.x1, deg), top, bottom, px;
+            var p = ends[k - 1], r = p && q.px - p.px < 3 && p.x1 <= q.x0 && isFinite(c.at((p.x1 + q.x0) / 2, deg)) && c.reach(p.x0, q.x1, deg),
+                top, bottom, px;
             if (!r || isNaN(r[0])) return;
             top = Math.max(-4, down(r[1]));
             bottom = Math.min(h + 4, down(r[0]));

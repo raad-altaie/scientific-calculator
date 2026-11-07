@@ -3104,18 +3104,33 @@
     }
 
     // the space between lines of the grid: 1, 2 or 5 times a power of ten, some 50 pixels
-    // or more. Degrees go by 15, 30, 45, 90 and 180, as angles are drawn
-    function gridStep(u, degrees) {
+    // or more. Degrees go by 15, 30, 45, 90 and 180, as angles are drawn; radians by π/4, π/2,
+    // π, 2π, 5π, 10π and 20π. angles: what gridAngles gives
+    function gridStep(u, angles) {
         var want = u * 50, p = Math.pow(10, Math.floor(Math.log10(want))), m = want / p;
-        if (degrees && want > 10 && want <= 180) return [15, 30, 45, 90, 180].filter(function (d) { return d >= want; })[0];
+        if (angles === 'deg' && want > 10 && want <= 180) return [15, 30, 45, 90, 180].filter(function (d) { return d >= want; })[0];
+        if (angles === 'rad' && want > Math.PI / 8 && want <= 20 * Math.PI) {
+            return Math.PI * [0.25, 0.5, 1, 2, 5, 10, 20].filter(function (d) { return d * Math.PI >= want; })[0];
+        }
         return p * (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10);
     }
 
+    // the unit the grid of x goes by: 'deg' or 'rad' for a curve of an angle in Deg or Rad, else false
+    function gridAngles() {
+        return graphAngles() && (deg === 1 ? 'deg' : deg === 0 ? 'rad' : false);
+    }
+
     // a number of the grid, as short as its step lets it be: 0.5, 20, 1e+8, with the decimal mark
-    // in use; with as many digits as tell it from the next, 9.240000005e+13 far out
+    // in use; with as many digits as tell it from the next, 9.240000005e+13 far out. Of a step of
+    // π, so many quarters of π, as short as they go: π/4, π/2, 3π/2, 2π, -5π
     function gridLabel(n, step) {
-        var a = Math.abs(n);
+        var a = Math.abs(n), q, g;
         if (a < step / 2) return '0';
+        if (Math.abs(step / Math.PI * 4 - Math.round(step / Math.PI * 4)) < 1e-9) {
+            q = Math.round(n / Math.PI * 4);
+            g = q % 4 === 0 ? 4 : q % 2 === 0 ? 2 : 1;
+            return (q < 0 ? '-' : '') + (Math.abs(q) === g ? '' : Math.abs(q) / g) + 'π' + (g === 4 ? '' : '/' + 4 / g);
+        }
         if (a >= 1e6 || a < 1e-4) return local(n.toExponential(Math.min(14, Math.max(2, Math.ceil(Math.log10(a / step))))).replace(/\.?0+e/, 'e'));
         return local(String(+n.toFixed(Math.max(0, 1 - Math.floor(Math.log10(step))))));
     }
@@ -3640,7 +3655,7 @@
     // root or a crossing, else of a line of the grid within reach, else the x there to a round
     // step some 5 pixels wide, 1, 2 or 5 times a power of ten: 2 and not 2.04
     function areaEnd(v, r, px) {
-        var best = null, x = graphX(v, px), grid = gridStep(v.ux, graphAngles() && deg === 1), fine = gridStep(v.ux / 10, false);
+        var best = null, x = graphX(v, px), grid = gridStep(v.ux, gridAngles()), fine = gridStep(v.ux / 10, false);
         function of(i) {
             return i !== undefined && (i === r.i || i === r.j);
         }
@@ -3865,7 +3880,7 @@
     // the words beside the plot (popScale)
     function drawGrid(ctx, v, w, h, over) {
         var f = root.classList.contains('calc-big') ? popZoom : 1,
-            sx = gridStep(v.ux, graphAngles() && deg === 1), sy = gridStep(v.uy, false),
+            sx = gridStep(v.ux, gridAngles()), sy = gridStep(v.uy, false),
             ax = Math.max(1, Math.min(w - 1, Math.round(plotX(v, 0)))) + 0.5, // where the axes are drawn, on whole pixels
             ay = Math.max(1, Math.min(h - 1, Math.round(plotY(v, 0)))) + 0.5,
             labelY = Math.min(h - 4 * f, ay + 13 * f), onLeft = ax > w - 40 * f, past = -Infinity, k, p, text;
