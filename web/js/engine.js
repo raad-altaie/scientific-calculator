@@ -11,6 +11,7 @@
         MAX_LEVELS = 30, // open brackets
         MAX_PASTE = 500, // characters of a pasted equation
         MAX_LIST = 50, // curves of a list: y = [1, 2, 3]x
+        MAX_TERMS = 10000, // terms of a sum or product: sum(1/k^2, k, 1, x)
         MAX_PAST = 50, // finished calculations kept in the history
         MAX_PAST_CHARS = 100000, // total size of the history
         MAX_EDIT = 300, // pieces of an equation being edited
@@ -51,7 +52,7 @@
             -0.26190838401581408670e-4, 0.36899182659531622704e-5
         ],
         // the names a graph's text is read with, the longest first, so sinhx is sinh x and exp is not e × …
-        NAMES = new RegExp('^(' + Object.keys(WORDS).concat(['pi', 'e', 'x', 'ncr', 'npr', 'mod', 'gcd', 'lcm', 'min', 'max']).sort(function (a, b) {
+        NAMES = new RegExp('^(' + Object.keys(WORDS).concat(['pi', 'e', 'x', 'ncr', 'npr', 'mod', 'gcd', 'lcm', 'min', 'max', 'sum', 'prod', 'integral', 'integrate']).sort(function (a, b) {
             return b.length - a.length;
         }).join('|') + ')', 'i'),
         ZERO = BigInt(0), ONE = BigInt(1), TEN = BigInt(10), // whole numbers of any size, for exact arithmetic
@@ -568,7 +569,7 @@
     // A lone comma is a decimal mark (1,5) unless it splits groups of three (1,234);
     // a space, a thin or a no-break one as well, only splits groups of three (1 234, not 5 3).
     // comma: the decimal mark in use is a comma, so 1.234 is 1234 and 1,234 is 1.234.
-    // The commas between the numbers of min and max are ;, as max(1,5) is of 1 and 5, unless comma
+    // The commas between the numbers of min, max, sum and the like are ;, as max(1,5) is of 1 and 5, unless comma
     function separators(s, comma) {
         if (!comma) s = listed(s);
         s = s.replace(/(^|[^\d.,])([1-9]\d{0,2}(?:[ \u00A0\u2009\u202F]\d{3})+)(?!\d)/g, function (all, before, n) {
@@ -582,13 +583,13 @@
         });
     }
 
-    // s with ; for each comma between the numbers of min(…) and max(…)
+    // s with ; for each comma between the numbers of min(…), max(…), sum(…), prod(…) and integral(…)
     function listed(s) {
-        var open = [], out = '', k, c;
-        if (!/(min|max)\s*\(/i.test(s)) return s;
+        var open = [], out = '', k, c, of = /(min|max|sum|prod|integral|integrate|[Σ∑∏∫])\s*$/i;
+        if (!/(min|max|sum|prod|integral|integrate|[Σ∑∏∫])\s*\(/i.test(s)) return s;
         for (k = 0; k < s.length; k++) {
             c = s.charAt(k);
-            if (c === '(') open.push(/(min|max)\s*$/i.test(s.slice(0, k)));
+            if (c === '(') open.push(of.test(s.slice(0, k)));
             if (c === ')') open.pop();
             out += c === ',' && open[open.length - 1] ? ';' : c;
         }
@@ -687,7 +688,8 @@
                 else if (word === 'x') out.push(variable ? { t: 'const', v: 'x' } : { t: 'op', v: '×', c: '×' });
                 else if (word === 'ncr' || word === 'npr') out.push({ t: 'op', v: word === 'ncr' ? 'nCr' : 'nPr' });
                 else if (word === 'mod' || word === 'gcd' || word === 'lcm') out.push({ t: 'op', v: word, c: word });
-                else if (variable && (word === 'min' || word === 'max')) out.push({ t: 'fn', v: word });
+                else if (variable && (word === 'min' || word === 'max' || word === 'sum' || word === 'prod')) out.push({ t: 'fn', v: word });
+                else if (variable && (word === 'integral' || word === 'integrate')) out.push({ t: 'fn', v: 'int' });
                 else return null;
             } else if (variable && defs && (m = /^([a-df-wzA-DF-WZ])\s*(['′’″]*)\s*(?=\()/.exec(s)) &&
                     defs.hasOwnProperty(m[1].toLowerCase())) {
@@ -701,6 +703,8 @@
             } else if (c === 'π') {
                 out.push({ t: 'const', v: 'π' });
                 m = [c];
+            } else if (variable && (m = /^[Σ∑∏∫](?=\s*\()/.exec(s))) { // Σ(k^2, k, 1, 10)
+                out.push({ t: 'fn', v: c === '∫' ? 'int' : c === '∏' ? 'prod' : 'sum' });
             } else if (variable && c === ';') { // between the numbers of min and max
                 out.push({ t: 'op', v: ';' });
                 m = [c];
@@ -714,7 +718,25 @@
             }
             s = s.slice(m[0].length);
         }
+        bind(out);
         return out;
+    }
+
+    // The letter of each sum, product and integral in toks marked bound where it is of it, k of sum(k^2, k, 1, 10):
+    // it is not a slider's. Its letter comes after the first ; in its brackets
+    function bind(toks) {
+        toks.forEach(function (t, k) {
+            var depth = 0, j, letter = null, end;
+            if (t.t !== 'fn' || !/^(sum|prod|int)$/.test(t.v) || !toks[k + 1] || toks[k + 1].v !== '(') return;
+            for (j = k + 1; j < toks.length; j++) {
+                if (toks[j].v === '(' && toks[j].t === 'op') depth++;
+                if (toks[j].v === ')' && toks[j].t === 'op' && !--depth) break;
+                if (depth === 1 && toks[j].v === ';' && !letter) letter = toks[j + 1] || null;
+            }
+            end = j;
+            if (!letter || !letter.p) return;
+            for (j = k + 1; j < end; j++) if (toks[j].p && toks[j].v === letter.v) toks[j].bound = true;
+        });
     }
 
     // true if a number in n was written in degrees: 30°, 12°30′
@@ -814,6 +836,22 @@
                 }
                 if (!end()) throw BAD;
                 return { t: 'group', arg: n, open: true };
+            }
+            if (t.t === 'fn' && /^(sum|prod|int)$/.test(t.v)) { // sum(k^2, k, 1, 10): what is summed, its letter, from and to
+                if (!is('(')) throw BAD;
+                i++;
+                n = { t: t.v, arg: need(sum()) };
+                f = is(';') && toks[i + 1];
+                if (!f || f.t !== 'const' || !(f.p || f.v === 'x') || !is(';', i + 2)) throw BAD;
+                n.v = f.v;
+                i += 3;
+                n.l = need(sum());
+                if (!is(';')) throw BAD;
+                i++;
+                n.r = need(sum());
+                if (is(')')) i++;
+                else if (!end()) throw BAD;
+                return n;
             }
             if (t.t === 'fn' && t.v === 'logy') { // log₂(8): the number, then its base
                 n = is('(') ? primary() : postfix();
@@ -937,7 +975,7 @@
     // false if anything of the expression is missing: "x +", "2 × ()"
     function complete(n) {
         if (!n) return false;
-        if (n.t === 'bin') return complete(n.l) && complete(n.r);
+        if (n.t === 'bin' || gathers(n)) return complete(n.l) && complete(n.r) && (!gathers(n) || complete(n.arg));
         return n.t === 'group' || n.arg !== undefined ? complete(n.arg) : true;
     }
 
@@ -968,6 +1006,9 @@
                 a = valueAt(n.arg, x, deg, exact, vars, y);
                 return isFinite(a) ? n.c.at(a, deg, exact) : NaN;
             case 'neg': return -valueAt(n.arg, x, deg, exact, vars, y);
+            case 'sum':
+            case 'prod':
+            case 'int': return gathered(n, x, deg, exact, vars, y);
             case 'fn':
             case 'post':
                 a = valueAt(n.arg, x, deg, exact, vars, y);
@@ -992,6 +1033,56 @@
         }
     }
 
+    // true for a sum, a product or an integral, as parse reads sum(k^2, k, 1, 10): arg is what is
+    // summed, v its letter, l and r its ends
+    function gathers(n) {
+        return n.t === 'sum' || n.t === 'prod' || n.t === 'int';
+    }
+
+    // The value of a sum, product or integral at x: of what it sums as its letter goes from the
+    // one end to the other; of the whole numbers between them, MAX_TERMS at most, else none;
+    // an integral as area finds it, less where its ends are the other way
+    function gathered(n, x, deg, exact, vars, y) {
+        var a = valueAt(n.l, x, deg, exact, vars, y), b = valueAt(n.r, x, deg, exact, vars, y), at = Object.create(vars || null), k, r;
+        function of(u) {
+            if (n.v === 'x') return valueAt(n.arg, u, deg, exact, vars, y);
+            at[n.v] = u;
+            return valueAt(n.arg, x, deg, exact, at, y);
+        }
+        if (!isFinite(a) || !isFinite(b)) return NaN;
+        if (n.t === 'int') {
+            exact = false;
+            return a <= b ? area({ at: of }, a, b, deg) : -area({ at: of }, b, a, deg);
+        }
+        a = Math.ceil(a - 1e-9);
+        b = Math.floor(b + 1e-9);
+        if (b - a >= MAX_TERMS) return NaN;
+        r = n.t === 'sum' ? 0 : 1;
+        for (k = a; k <= b && isFinite(r); k++) r = n.t === 'prod' ? r * of(k) : exact ? binary('+', r, of(k)) : r + of(k);
+        return r;
+    }
+
+    // What a sum or product reaches as x goes from x0 to x1, of what of(k, at) finds each of its
+    // terms reaches, at holding k as its letter's value: no end where a term comes or goes on
+    // the way, as sum(k, k, 1, x) at a whole x; none past MAX_TERMS; null where it cannot tell
+    function terms(n, x0, x1, deg, vars, y0, y1, of) {
+        var a = reachOf(n.l, x0, x1, deg, vars, y0, y1), b = reachOf(n.r, x0, x1, deg, vars, y0, y1), at = Object.create(vars || null),
+            r = n.t === 'sum' ? [0, 0, true] : [1, 1, true], from, to, k, t;
+        if (!a || !b) return null;
+        if (isNaN(a[0]) || isNaN(b[0])) return [NaN, NaN, false];
+        from = Math.ceil(a[0] - 1e-9);
+        to = Math.floor(b[1] + 1e-9);
+        if (from !== Math.ceil(a[1] - 1e-9) || to !== Math.floor(b[0] + 1e-9)) return [-Infinity, Infinity, false];
+        if (!(to - from < MAX_TERMS)) return [NaN, NaN, false];
+        for (k = from; k <= to; k++) {
+            at[n.v] = k;
+            t = of(k, at);
+            if (!t || isNaN(t[0])) return t && [NaN, NaN, false];
+            r = reachOf({ t: 'bin', op: n.t === 'sum' ? '+' : '×', l: { t: 'r', r: r }, r: { t: 'r', r: t } });
+        }
+        return r;
+    }
+
     // The values an expression read by parse takes as x goes from x0 to x1, as valueAt finds
     // them: [lowest, highest, whole], whole true where it has a value all the way and no jump.
     // Never narrower than they are, maybe wider, as of x – x; ±Infinity where they may have no
@@ -1001,6 +1092,12 @@
         var a, b, v, d;
         switch (n.t) {
             case 'r': return n.r && (isNaN(n.r[0]) ? none() : n.r); // a reach found already, as slopeReachOf gives it
+            case 'sum':
+            case 'prod':
+                return terms(n, x0, x1, deg, vars, y0, y1, function (k, at) {
+                    return n.v === 'x' ? reachOf(n.arg, k, k, deg, vars, y0, y1) : reachOf(n.arg, x0, x1, deg, at, y0, y1);
+                });
+            case 'int': return null;
             case 'num': return point(+n.v);
             case 'const':
                 if (n.p) return point(vars && typeof vars[n.v] === 'number' ? vars[n.v] : 1);
@@ -1185,6 +1282,12 @@
             case 'num': return [0, 0, true];
             case 'const': return n.v === 'y' ? null : [n.v === 'x' ? 1 : 0, n.v === 'x' ? 1 : 0, true];
             case 'group': return slopeReachOf(n.arg, x0, x1, deg, vars);
+            case 'sum': // the slopes of its terms summed; of x itself, they stay
+                return terms(n, x0, x1, deg, vars, undefined, undefined, function (k, at) {
+                    return n.v === 'x' ? [0, 0, true] : slopeReachOf(n.arg, x0, x1, deg, at);
+                });
+            case 'prod':
+            case 'int': return null;
             case 'neg':
                 a = slopeReachOf(n.arg, x0, x1, deg, vars);
                 return a && [-a[1], -a[0], a[2]];
@@ -1861,7 +1964,7 @@
     // the text is not one, or stops before its end
     function tree(text, comma) {
         var s = separators(String(text).trim(), comma), toks = s.length <= MAX_PASTE && tokens(s, null, true), t = toks && parse(toks);
-        return t && complete(t) ? t : null;
+        return t && complete(t) && !toks.some(function (k) { return k.t === 'fn' && /^(sum|prod|int)$/.test(k.v); }) ? t : null;
     }
 
     // the name of the function a box makes, g of g(x) = x^2 + 1, or null
@@ -1981,7 +2084,7 @@
         }
         if (!tree || !complete(tree)) return null;
         toks.forEach(function (t) {
-            if (t.p && letters.indexOf(t.v) < 0) letters.push(t.v);
+            if (t.p && !t.bound && letters.indexOf(t.v) < 0) letters.push(t.v);
             if (t.of) t.of.letters.forEach(function (k) { if (letters.indexOf(k) < 0) letters.push(k); });
         });
         return {
@@ -2042,7 +2145,7 @@
             var toks = side.trim() && tokens(side, null, 2, defs), tree = toks && parse(toks);
             if (!tree || !complete(tree)) return null;
             toks.forEach(function (t) {
-                if (t.p && letters.indexOf(t.v) < 0) letters.push(t.v);
+                if (t.p && !t.bound && letters.indexOf(t.v) < 0) letters.push(t.v);
                 if (t.of) t.of.letters.forEach(function (k) { if (letters.indexOf(k) < 0) letters.push(k); });
                 if (t.t === 'const' && (t.v === 'x' || t.v === 'y')) xy = true;
             });
@@ -2133,7 +2236,7 @@
             tree = parse(toks);
             if (!tree || !complete(tree)) return null;
             toks.forEach(function (t) {
-                if (t.p && letters.indexOf(t.v) < 0) letters.push(t.v);
+                if (t.p && !t.bound && letters.indexOf(t.v) < 0) letters.push(t.v);
                 if (t.of) t.of.letters.forEach(function (k) { if (letters.indexOf(k) < 0) letters.push(k); });
             });
             return tree;
@@ -2307,7 +2410,7 @@
             var t = part.trim() ? tokens(separators(part, comma), null, true, defs) : [];
             if (!t || t.some(function (q) { return q.t === 'const' && (q.v === 'x' || q.v === 'y'); })) return false;
             t.forEach(function (q) {
-                if (q.p && q.v !== 'n' && letters.indexOf(q.v) < 0) letters.push(q.v);
+                if (q.p && !q.bound && q.v !== 'n' && letters.indexOf(q.v) < 0) letters.push(q.v);
                 if (q.of) q.of.letters.forEach(function (k) { if (letters.indexOf(k) < 0) letters.push(k); });
                 toks.push(q.p && q.v === 'n' ? { t: 'const', v: 'x' } : q);
             });
@@ -2318,7 +2421,7 @@
         function readOf(part, plain) {
             var t = part.trim() && tokens(separators(part.trim(), comma), null, !plain, plain ? null : defs), tree = t && parse(t);
             if (!tree || !complete(tree) || t.some(function (q) { return q.t === 'const' && (q.v === 'x' || q.v === 'n'); })) return null;
-            t.forEach(function (q) { if (q.p && letters.indexOf(q.v) < 0) letters.push(q.v); });
+            t.forEach(function (q) { if (q.p && !q.bound && letters.indexOf(q.v) < 0) letters.push(q.v); });
             return tree;
         }
     }

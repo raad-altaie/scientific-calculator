@@ -2653,6 +2653,26 @@ dels.forEach(function (c) {
         JSON.stringify(Engine.graph('max(x, 2)').slopeReach(1, 3, 0)) === '[0,1,false]', 'graph: what max(x, 2) and its slope reach');
     check(!new Engine().paste('max(1,2)', 0, true), 'max is of the graph, not pasted into the calculator');
 
+    // a sum, a product and an integral, of a letter of their own: no slider for it
+    [['sum(k^2, k, 1, 10)', 0, 385], ['Σ(k, k, 1, x)', 4.7, 10], ['prod(k, k, 1, 5)', 0, 120], ['∏(k, k, 1, x)', 3, 6],
+        ['integral(cos t, t, 0, x)', Math.PI / 2, 1], ['∫(2t, t, 0, x)', 3, 9], ['∫(x^2, x, 0, 3)', 7, 9], ['integrate(1/t, t, 1, x)', Math.E, 1],
+        ['∫(t, t, x, 0)', 2, -2], ['sum(k x, k, 1, 3)', 2, 12], ['sum(sum(j, j, 1, k), k, 1, 3)', 0, 10], ['max(sum(k,k,1,3), 1)', 0, 6],
+        ['sum(k, k, 1, 3', 0, 6], ['sum(k, k, 3, 1)', 0, 0], ['sum(1/k^2, k, 1, x)', 1e4, 1.6448340718480652]].forEach(function (c) {
+        var y = at(c[0], c[1]);
+        check(y !== null && Math.abs(y - c[2]) <= 1e-9 * Math.max(1, Math.abs(c[2])), 'graph: ' + c[0] + ' at ' + c[1] + ' is ' + c[2], y);
+    });
+    check(isNaN(at('sum(k, k, 1, 1000000)', 0)) && at('sum(k, 1, 3)', 0) === null && at('sum(k; k; 1; 3)', 0, 0, true) === 6,
+        'graph: no sum of a million terms, none without its letter, ; with the comma in use');
+    check(Engine.graph('sum(a k^n, k, 1, x)', false, {}).letters.join() === 'a,n' && Engine.tree('sum(k, k, 1, 3)') === null &&
+        !new Engine().paste('sum(k,k,1,3)', 0, true), 'graph: the letter of a sum is no slider; a sum is of the graph alone');
+    check(JSON.stringify(Engine.graph('sum(k x, k, 1, 3)').reach(0, 1, 0)) === '[0,6,true]' &&
+        JSON.stringify(Engine.graph('sum(k, k, 1, x)').reach(2.2, 2.8, 0)) === '[3,3,true]' &&
+        JSON.stringify(Engine.graph('sum(k, k, 1, x)').reach(2.5, 3.5, 0)) === '[null,null,false]' &&
+        JSON.stringify(Engine.graph('sum(k x, k, 1, 3)').slopeReach(0, 1, 0)) === '[6,6,true]', 'graph: what a sum reaches, and its slope; no end where a term comes');
+    check(Engine.trace(Engine.graph('sum(k, k, 1, x)'), { x0: 0, x1: 5, y0: -1, y1: 12, w: 500, h: 400 }, 0).length === 5 &&
+        Engine.trace(Engine.graph('integral(cos t, t, 0, x)'), { x0: -10, x1: 10, y0: -5, y1: 5, w: 600, h: 400 }, 0).length === 1,
+        'graph: a sum to x in steps, an integral to x as one line');
+
     // a list: a curve for each of its numbers
     function family(text, x, comma) {
         var g = Engine.graph(text, comma, {});
