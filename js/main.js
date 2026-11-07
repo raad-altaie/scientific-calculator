@@ -3511,11 +3511,13 @@
     // The area of a curve from a to b, shaded in its color down to the x axis, or to the curve
     // below it (j), and its value, as the letters are now: the integral of the curve, or of the
     // one less the other; the popup is in the middle of what is in the view. Where a curve has
-    // no value it is not shaded, and the area is none
+    // no value it is not shaded, and the area is none. Where it jumps or turns up and down more
+    // than the pixels show, as tan x does at 90° or from far away, a column is shaded over all
+    // it reaches
     function graphShade(ctx, v, w, h, p) {
         if (p.rel) return shadeRegion(ctx, v, w, h, p);
         var fn = graphFns[p.i], low = p.j !== undefined ? graphFns[p.j] : null, x0 = Math.max(0, plotX(v, p.a)),
-            x1 = Math.min(w, plotX(v, p.b)), at = [x0], run = [], k, x;
+            x1 = Math.min(w, plotX(v, p.b)), at = [x0], run = [], last = null, k, x;
         function edge(y) {
             return Math.max(-h, Math.min(2 * h, plotY(v, y)));
         }
@@ -3532,6 +3534,17 @@
             }
             run = [];
         }
+        // what the curve and what is below it reach from place a to b, lowest to highest, where
+        // either does more than go plainly from one to the other; null where both do, or where
+        // their reach cannot be told
+        function wide(a, b) {
+            var r = fn.reach ? fn.reach(a.x, b.x, deg) : null, s = p.j === undefined ? [0, 0, true] : low.reach ? low.reach(a.x, b.x, deg) : null;
+            function plain(r, ya, yb) {
+                return r[2] && (r[1] - r[0]) / v.uy <= 2 * Math.abs(ya - yb) / v.uy + 2;
+            }
+            if (!r || !s || isNaN(r[0]) || isNaN(s[0]) || (plain(r, a.y, b.y) && plain(s, a.y0, b.y0))) return null;
+            return [Math.min(r[0], s[0]), Math.max(r[1], s[1])];
+        }
         p.s = fn && (p.j === undefined || low) ? CalcEngine.area(p.j === undefined ? fn : {
             at: function (x, deg) { return fn.at(x, deg) - low.at(x, deg); }
         }, p.a, p.b, deg) : NaN;
@@ -3543,9 +3556,14 @@
         at.push(x1);
         ctx.beginPath();
         at.forEach(function (px) {
-            var x = graphX(v, px), y = fn.at(x, deg), y0 = bottom(x);
-            if (isFinite(y) && isFinite(y0)) run.push({ px: px, top: edge(y), low: edge(y0) });
+            var x = graphX(v, px), q = { px: px, x: x, y: fn.at(x, deg), y0: bottom(x) }, r = last && (p.j === undefined || low) && wide(last, q);
+            if (r) {
+                fill();
+                ctx.rect(last.px, edge(r[1]), px - last.px, edge(r[0]) - edge(r[1]));
+            }
+            if (isFinite(q.y) && isFinite(q.y0)) run.push({ px: px, top: edge(q.y), low: edge(q.y0) });
             else fill();
+            last = q;
         });
         fill();
         ctx.globalAlpha = 0.3;
@@ -3910,17 +3928,21 @@
         }
     }
 
-    // An equation of x and y, drawn where its two sides are equal: their difference is found at
-    // the corners of square cells 3 pixels wide, and each cell where it changes sign is crossed
-    // by a line between the places on its edges where it is 0, as near as the corners tell.
-    // Not where it only jumps from one sign to the other, as x y = 1 does across x = 0: there
-    // the middle of the cell is farther from 0 than its corners. An inequality, y < x², is
+    // An equation of x and y, drawn where its two sides are equal, as the engine's contour finds
+    // it from what they reach; else, of a function whose reach it cannot tell, as here: their
+    // difference is found at the corners of square cells 3 pixels wide, and each cell where it changes sign is crossed
+    // by a line between the places on its edges where it is 0, as near as the corners tell, or
+    // a line across each quarter of it where the values half way along its edges change sign more
+    // often; filled where they change sign at six places or more around it, as sin x = cos y
+    // does seen from far away, its line turning more often than the pixels show. Not where it
+    // only jumps from one sign to the other, as x y = 1 does across x = 0: there the middle of
+    // the cell is farther from 0 than its corners. An inequality, y < x², is
     // shaded where it is true, a cell at a time, or the part of a cell on its side of the line;
     // its line is dashed where the line itself is not in it, for < and >. Of two, 1 < x < 3,
-    // where both are, each line drawn where the other holds. The values are kept while the
-    // view, the unit and the letters stay, as the pointer moving draws it again
+    // where both are, each line drawn where the other holds. The values and the lines are kept
+    // while the view, the unit and the letters stay, as the pointer moving draws it again
     function drawRelation(ctx, v, w, h, rel, color) {
-        var c = 3, nx = Math.ceil(w / c), ny = Math.ceil(h / c), parts = rel.parts || [rel], grids, i, j, run,
+        var c = 3, nx = Math.ceil(w / c), ny = Math.ceil(h / c), parts = rel.parts || [rel], grids, drawn, i, j, run,
             key = [v.x, v.y, v.ux, v.uy, w, h, deg].concat(rel.letters.map(function (k) { return graphVars[k]; })).join();
         function corners(g, i, j) {
             return [g[j][i], g[j][i + 1], g[j + 1][i + 1], g[j + 1][i]];
@@ -3933,8 +3955,10 @@
         }
         if (rel.kept && rel.kept.key === key) {
             grids = rel.kept.grids;
+            drawn = rel.kept.drawn;
         } else {
-            grids = parts.map(function (part) {
+            drawn = CalcEngine.contour(rel, { x0: graphX(v, 0), x1: graphX(v, w), y0: graphY(v, h), y1: graphY(v, 0), w: w, h: h }, deg);
+            grids = drawn ? null : parts.map(function (part) {
                 var grid = [];
                 for (j = 0; j <= ny; j++) {
                     grid.push([]);
@@ -3942,11 +3966,28 @@
                 }
                 return grid;
             });
-            rel.kept = { key: key, grids: grids };
+            drawn = drawn || { shade: null, parts: parts.map(function (part, k) {
+                var out = { lines: [], fills: [] };
+                for (j = 0; j < ny; j++) {
+                    for (i = 0; i < nx; i++) cell(i * c, j * c, corners(grids[k], i, j), part, out);
+                }
+                if (parts.length > 1) { // where the other holds
+                    out.lines = out.lines.filter(function (l) { return others(k, (l[0][0] + l[1][0]) / 2, (l[0][1] + l[1][1]) / 2); });
+                    out.fills = out.fills.filter(function (f) { return others(k, f[0] + c / 2, f[1] + c / 2); });
+                }
+                return out;
+            }) };
+            drawn.parts.forEach(function (out, k) { if (strict(parts[k])) out.lines = chains(out.lines); });
+            rel.kept = { key: key, grids: grids, drawn: drawn };
         }
         if (rel.op !== '=') {
             ctx.beginPath();
-            for (j = 0; j < ny; j++) {
+            (drawn.shade || []).forEach(function (poly) {
+                ctx.moveTo(poly[0], poly[1]);
+                for (i = 2; i < poly.length; i += 2) ctx.lineTo(poly[i], poly[i + 1]);
+                ctx.closePath();
+            });
+            for (j = 0; grids && j < ny; j++) {
                 run = -1; // the first of the cells in a row wholly in it, drawn as one
                 for (i = 0; i <= nx; i++) {
                     if (i < nx && parts.every(function (part, k) { return corners(grids[k], i, j).every(function (n) { return inside(part, n); }); })) {
@@ -3964,18 +4005,14 @@
             ctx.globalAlpha = 1;
         }
         parts.forEach(function (part, k) {
-            var lines = [];
-            for (j = 0; j < ny; j++) {
-                for (i = 0; i < nx; i++) cell(i * c, j * c, corners(grids[k], i, j), part, lines);
-            }
-            if (parts.length > 1) { // where the other holds
-                lines = lines.filter(function (l) {
-                    var x = graphX(v, (l[0][0] + l[1][0]) / 2), y = graphY(v, (l[0][1] + l[1][1]) / 2);
-                    return parts.every(function (other, m) { return m === k || inside(other, other.at(x, y, deg)); });
-                });
+            if (drawn.parts[k].fills.length) {
+                ctx.beginPath();
+                drawn.parts[k].fills.forEach(function (f) { ctx.rect(f[0], f[1], f[2], f[2]); });
+                ctx.fillStyle = color;
+                ctx.fill();
             }
             ctx.beginPath();
-            (strict(part) ? chains(lines) : lines).forEach(function (line) {
+            drawn.parts[k].lines.forEach(function (line) {
                 ctx.moveTo(line[0][0], line[0][1]);
                 line.slice(1).forEach(function (p) { ctx.lineTo(p[0], p[1]); });
             });
@@ -3989,10 +4026,16 @@
             ctx.lineCap = 'butt';
         });
 
-        // where edge e of a cell from px, py crosses 0, its corners k: found from its left or top
-        // end, so the cell beside it finds the same place
-        function edge(px, py, k, e) {
-            var corner = [[0, 0], [c, 0], [c, c], [0, c]], p = corner[e], q = corner[(e + 1) % 4], a = k[e], b = k[(e + 1) % 4], t;
+        // true if each part but k holds at px, py
+        function others(k, px, py) {
+            var x = graphX(v, px), y = graphY(v, py);
+            return parts.every(function (other, m) { return m === k || inside(other, other.at(x, y, deg)); });
+        }
+
+        // where edge e of a cell s wide from px, py crosses 0, its corners k: found from its left
+        // or top end, so the cell beside it finds the same place
+        function edge(px, py, k, e, s) {
+            var corner = [[0, 0], [s, 0], [s, s], [0, s]], p = corner[e], q = corner[(e + 1) % 4], a = k[e], b = k[(e + 1) % 4], t;
             if (e > 1) {
                 p = q;
                 q = corner[e];
@@ -4028,16 +4071,38 @@
             ctx.closePath();
         }
 
-        // the line of part across a cell from px, py: its corners top left, top right, bottom right and bottom left
-        function cell(px, py, k, part, lines) {
-            var at = [], e, mid;
-            if (!k.every(isFinite)) return;
+        // how many times values around a ring change sign
+        function turns(ring) {
+            return ring.filter(function (n, e) { return (n > 0) !== (ring[(e + 1) % ring.length] > 0); }).length;
+        }
+
+        // the line of part across a cell from px, py, into out: its corners k top left, top right,
+        // bottom right and bottom left
+        function cell(px, py, k, part, out) {
+            var half = c / 2, mid, ring, n;
+            function at(dx, dy) {
+                return part.at(graphX(v, px + dx), graphY(v, py + dy), deg);
+            }
+            if (!k.every(isFinite) || !turns(k)) return;
+            mid = at(half, half);
+            if (!(Math.abs(mid) <= 2 * Math.max.apply(null, k.map(Math.abs)))) return; // a jump, not a 0
+            ring = [k[0], at(half, 0), k[1], at(c, half), k[2], at(half, c), k[3], at(0, half)];
+            n = ring.every(isFinite) ? turns(ring) : turns(k);
+            if (n >= 6) return out.fills.push([px, py, c]);
+            if (n === turns(k)) return across(px, py, c, k, out.lines);
+            across(px, py, half, [k[0], ring[1], mid, ring[7]], out.lines);
+            across(px + half, py, half, [ring[1], k[1], ring[3], mid], out.lines);
+            across(px + half, py + half, half, [mid, ring[3], k[2], ring[5]], out.lines);
+            across(px, py + half, half, [ring[7], mid, ring[5], k[3]], out.lines);
+        }
+
+        // the line across a square s wide from px, py, its corners k, as they tell
+        function across(px, py, s, k, lines) {
+            var at = [], e;
             for (e = 0; e < 4; e++) {
-                if ((k[e] > 0) !== (k[(e + 1) % 4] > 0)) at.push(edge(px, py, k, e));
+                if ((k[e] > 0) !== (k[(e + 1) % 4] > 0)) at.push(edge(px, py, k, e, s));
             }
             if (at.length < 2) return;
-            mid = part.at(graphX(v, px + c / 2), graphY(v, py + c / 2), deg);
-            if (!(Math.abs(mid) <= 2 * Math.max.apply(null, k.map(Math.abs)))) return; // a jump, not a 0
             lines.push([at[0], at[1]]);
             if (at.length === 4) lines.push([at[2], at[3]]);
         }
@@ -4074,35 +4139,26 @@
     }
 
     // the slope of a curve as a curve of its own, dy/dx at each x: none where it has none,
-    // at a corner or a break
+    // at a corner or a break. One for each curve, so its lines are kept as the curve's are
     function slopeCurve(fn) {
-        return { at: function (x, deg) { return CalcEngine.slope(fn, x, deg); } };
+        if (!fn.slopeOf) fn.slopeOf = { at: function (x, deg) { return CalcEngine.slope(fn, x, deg); }, letters: fn.letters || [] };
+        return fn.slopeOf;
     }
 
-    // A curve, from two values of each pixel across, dashed for the slope of one. It breaks
-    // where there is no value, and where it leaves by one edge and comes back by the other,
-    // as tan x does at 90°, unless the value between the two is between them too: a steep line
+    // A curve, dashed for the slope of one, as the engine traces it: broken at its jumps, on to
+    // the edge where it has no end, and a solid stroke where it goes up and down faster than a
+    // pixel shows, as tan x far out does. Its lines are kept while the view, the unit and its letters stay
     function drawCurve(ctx, v, w, h, fn, color, dashed) {
-        var n = Math.ceil(w * 2), i, x, y, py, last = null, mid, k;
-        ctx.beginPath();
-        for (i = 0; i <= n; i++) {
-            x = graphX(v, i / 2);
-            y = fn.at(x, deg);
-            if (!isFinite(y)) {
-                last = null;
-                continue;
-            }
-            py = plotY(v, y);
-            if (last && ((last.py < 0 && py > h) || (last.py > h && py < 0))) {
-                mid = fn.at((last.x + x) / 2, deg);
-                if (!(mid >= Math.min(last.y, y) && mid <= Math.max(last.y, y))) last = null;
-            }
-            k = fn.piece ? fn.piece(x, deg) : 0;
-            if (last && k !== last.k) last = null; // a function in pieces is not joined where they meet
-            if (last) ctx.lineTo(i / 2, Math.max(-h, Math.min(2 * h, py)));
-            else ctx.moveTo(i / 2, Math.max(-h, Math.min(2 * h, py)));
-            last = { x: x, y: y, py: py, k: k };
+        var key = [v.x, v.y, v.ux, v.uy, w, h, deg].concat((fn.letters || []).map(function (k) { return graphVars[k]; })).join();
+        if (!fn.traced || fn.traced.key !== key) {
+            fn.traced = { key: key, lines: CalcEngine.trace(fn, { x0: graphX(v, 0), x1: graphX(v, w), y0: graphY(v, h), y1: graphY(v, 0), w: w, h: h }, deg) };
         }
+        ctx.beginPath();
+        fn.traced.lines.forEach(function (line) {
+            var k;
+            ctx.moveTo(line[0], line[1]);
+            for (k = 2; k < line.length; k += 2) ctx.lineTo(line[k], line[k + 1]);
+        });
         ctx.lineWidth = 2;
         ctx.lineJoin = 'round';
         ctx.strokeStyle = color;

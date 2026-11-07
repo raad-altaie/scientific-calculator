@@ -947,6 +947,475 @@
         }
     }
 
+    // The values an expression read by parse takes as x goes from x0 to x1, as valueAt finds
+    // them: [lowest, highest, whole], whole true where it has a value all the way and no jump.
+    // Never narrower than they are, maybe wider, as of x – x; ±Infinity where they may have no
+    // end, as tan x has at 90°. [NaN, NaN, false] where it has no value at all; null where it
+    // cannot tell, as of a function it does not know. The graph halves where they are wide
+    function reachOf(n, x0, x1, deg, vars, y0, y1) {
+        var a, b, v, d;
+        switch (n.t) {
+            case 'num': return point(+n.v);
+            case 'const':
+                if (n.p) return point(vars && typeof vars[n.v] === 'number' ? vars[n.v] : 1);
+                if (VAR.test(n.v)) return point(stored[n.v]);
+                return n.v === 'x' ? [x0, x1, true] : n.v === 'y' ? (y0 === undefined ? null : [y0, y1, true]) : point(n.v === 'π' ? PI : Math.E);
+            case 'group': return reachOf(n.arg, x0, x1, deg, vars, y0, y1);
+            case 'call':
+                a = reachOf(n.arg, x0, x1, deg, vars, y0, y1);
+                if (!a || isNaN(a[0])) return a;
+                if (!n.c.reach) return null;
+                if (!isFinite(a[0]) || !isFinite(a[1])) return [-Infinity, Infinity, false];
+                b = n.c.reach(a[0], a[1], deg);
+                return b && checked([b[0], b[1], a[2] && b[2]]);
+            case 'neg':
+                a = reachOf(n.arg, x0, x1, deg, vars, y0, y1);
+                return a && [-a[1], -a[0], a[2]];
+            case 'fn':
+            case 'post':
+                a = reachOf(n.arg, x0, x1, deg, vars, y0, y1);
+                if (!a || isNaN(a[0])) return a;
+                d = n.deg === undefined ? deg : n.deg;
+                v = UNARY[n.key] && UNARY[n.key].f;
+                switch (n.key) {
+                    case '%': return [a[0] / 100, a[1] / 100, a[2]];
+                    case '1/x': return over(a);
+                    case 'x2': return power(a, 2);
+                    case 'x3':
+                    case '∛':
+                    case 'ex':
+                    case '2x':
+                    case '10x':
+                    case 'tan-1':
+                    case 'sinh':
+                    case 'tanh':
+                    case 'sinh-1': return rising(v, a, d);
+                    case '√':
+                    case 'log':
+                    case 'ln':
+                    case 'log2':
+                        if (a[1] < 0 || (a[1] === 0 && n.key !== '√')) return none();
+                        if (n.key === '√' || a[0] > 0) return rising(v, [Math.max(0, a[0]), a[1], a[2] && a[0] >= 0], d);
+                        return checked([-Infinity, v(a[1]), false]);
+                    case 'sin-1':
+                    case 'cos-1':
+                    case 'cosh-1':
+                    case 'tanh-1':
+                        b = n.key === 'cosh-1' ? [1, Infinity] : [-1, 1];
+                        if (a[1] < b[0] || a[0] > b[1]) return none();
+                        a = [Math.max(b[0], a[0]), Math.min(b[1], a[1]), a[2] && a[0] >= b[0] && a[1] <= b[1]];
+                        return n.key === 'cos-1' ? checked([v(a[1], d), v(a[0], d), a[2]]) : rising(v, a, d);
+                    case 'cosh': return a[0] >= 0 ? rising(v, a) : a[1] <= 0 ? rising(v, [-a[1], -a[0], a[2]]) : checked([1, v(Math.max(-a[0], a[1])), a[2]]);
+                    case 'abs': return a[0] >= 0 ? a : a[1] <= 0 ? [-a[1], -a[0], a[2]] : [0, Math.max(-a[0], a[1]), a[2]];
+                    case 'round':
+                    case 'floor':
+                    case 'ceil':
+                    case 'trunc':
+                        b = rising(v, a);
+                        return [b[0], b[1], b[2] && b[0] === b[1]];
+                    case 'sin': return wave(v, a, d, PI / 2);
+                    case 'cos': return wave(v, a, d, 0);
+                    case 'tan':
+                        b = turn(a, d);
+                        if (!(b[1] - b[0] < PI) || Math.floor((b[0] - PI / 2) / PI) !== Math.floor((b[1] - PI / 2) / PI)) return [-Infinity, Infinity, false];
+                        b = rising(v, a, d);
+                        return b[0] <= b[1] ? b : [-Infinity, Infinity, false]; // a 90° the turn did not show
+                }
+                return null;
+            default:
+                a = reachOf(n.l, x0, x1, deg, vars, y0, y1);
+                b = n.r && reachOf(n.r, x0, x1, deg, vars, y0, y1);
+                if (!a || !b) return null;
+                if (isNaN(a[0]) || isNaN(b[0])) return none();
+                switch (n.op) {
+                    case '+': return checked([a[0] + b[0], a[1] + b[1], a[2] && b[2]]);
+                    case '–': return checked([a[0] - b[1], a[1] - b[0], a[2] && b[2]]);
+                    case '×': return times(a, b);
+                    case '÷': return times(a, over(b));
+                    case 'yx':
+                        if (b[0] === b[1]) return power(a, b[0]);
+                        if (a[0] > 0) { // e^(y ln x)
+                            v = times(b, [Math.log(a[0]), Math.log(a[1]), a[2]]);
+                            return checked([Math.exp(v[0]), Math.exp(v[1]), v[2] && b[2]]);
+                        }
+                        return null;
+                }
+                return null;
+        }
+
+        function point(k) {
+            return isFinite(k) ? [k, k, true] : none();
+        }
+        function none() {
+            return [NaN, NaN, false];
+        }
+        // with no end to it, it is not whole: its end may be one too large for the machine, as e^1000 is
+        function checked(r) {
+            if (isNaN(r[0]) || isNaN(r[1])) return [-Infinity, Infinity, false];
+            return isFinite(r[0]) && isFinite(r[1]) ? r : [r[0], r[1], false];
+        }
+        // of a function that only goes up
+        function rising(f, s, d) {
+            return checked([f(s[0], d), f(s[1], d), s[2]]);
+        }
+        function times(s, t) {
+            var all = [s[0] * t[0], s[0] * t[1], s[1] * t[0], s[1] * t[1]];
+            if (all.some(isNaN)) return [-Infinity, Infinity, false]; // 0 times no end
+            return checked([Math.min.apply(null, all), Math.max.apply(null, all), s[2] && t[2]]);
+        }
+        // 1 over it: no end and no value at 0
+        function over(s) {
+            if (s[0] > 0 || s[1] < 0) return checked([1 / s[1], 1 / s[0], s[2]]);
+            if (s[0] === 0 && s[1] === 0) return none();
+            return [s[0] === 0 ? 1 / s[1] : -Infinity, s[1] === 0 ? 1 / s[0] : Infinity, false];
+        }
+        // s to the power p, as Math.pow takes it: of a negative number only to a whole power
+        function power(s, p) {
+            var big;
+            if (p === 0) return [1, 1, s[2]];
+            if (p < 0) return over(power(s, -p));
+            if (Number.isInteger(p)) {
+                if (p % 2 || s[0] >= 0) return checked([Math.pow(s[0], p), Math.pow(s[1], p), s[2]]);
+                if (s[1] <= 0) return checked([Math.pow(s[1], p), Math.pow(s[0], p), s[2]]);
+                big = Math.max(-s[0], s[1]);
+                return checked([0, Math.pow(big, p), s[2]]);
+            }
+            if (s[1] < 0) return none();
+            return checked([Math.pow(Math.max(0, s[0]), p), Math.pow(s[1], p), s[2] && s[0] >= 0]);
+        }
+        // the angles in radians, whatever the unit
+        function turn(s, d) {
+            var k = d === 2 ? PI / 200 : d ? PI / 180 : 1;
+            return [s[0] * k, s[1] * k];
+        }
+        // sin or cos, at its top where it has one at top + 2πk, its bottom π after
+        function wave(f, s, d, top) {
+            var t = turn(s, d), ends = [f(s[0], d), f(s[1], d)];
+            function has(at) {
+                return at + 2 * PI * Math.ceil((t[0] - at) / (2 * PI)) <= t[1];
+            }
+            if (!(t[1] - t[0] < 2 * PI)) return [-1, 1, s[2]];
+            return [has(top + PI) ? -1 : Math.min(ends[0], ends[1]), has(top) ? 1 : Math.max(ends[0], ends[1]), s[2]];
+        }
+    }
+
+    // The lines that draw a curve of x in a view: x from x0 to x1 across w pixels, y from y0 at
+    // the bottom to y1 at the top up h, each as the places [px, py, px, py, …] it goes through,
+    // down from the top left. From two values a pixel, and halved between two where the curve
+    // may do more than go straight from one to the other, as its reach tells. It breaks at a jump
+    // and where it has no value, found to a thousandth of a pixel, and goes on to the edge of the
+    // view where it has no end, as tan x has at 90° however far away it is seen; filled between
+    // two such less than 3 pixels apart. Where it goes up
+    // and down more than a pixel shows, as sin(1000x) or tan x seen from far away do, a stroke
+    // up and down the pixel covers all it reaches, as many values are there
+    function trace(c, view, deg) {
+        var w = view.w, h = view.h, kx = (view.x1 - view.x0) / w, ky = h / (view.y1 - view.y0),
+            n = 2 * Math.ceil(w) + 4, more = 40 * n, lines = [], line = null, last = null, ends = [], k, a, b;
+
+        function place(x) {
+            var y = c.at(x, deg);
+            return { x: x, px: (x - view.x0) / kx, y: y, py: isFinite(y) ? Math.max(-1e9, Math.min(1e9, (view.y1 - y) * ky)) : NaN, k: c.piece ? c.piece(x, deg) : 0 };
+        }
+        function reach(a, b) {
+            return c.reach ? c.reach(a.x, b.x, deg) : null;
+        }
+        // the pixels of a value: 1e9 for one far off below, as with no end
+        function down(y) {
+            return Math.max(-1e9, Math.min(1e9, (view.y1 - y) * ky));
+        }
+        function seen(p) {
+            return p.py >= -4 && p.py <= h + 4;
+        }
+
+        // on to p from the last place, as much of it as is in the view and 4 pixels past it
+        function to(p) {
+            var q = last, t0 = 0, t1 = 1, top = -4, bottom = h + 4, d;
+            last = p;
+            if (!q) return;
+            if ((q.py < top && p.py < top) || (q.py > bottom && p.py > bottom)) {
+                line = null;
+                return;
+            }
+            d = p.py - q.py;
+            if (q.py < top) t0 = (top - q.py) / d;
+            else if (q.py > bottom) t0 = (bottom - q.py) / d;
+            if (p.py < top) t1 = (top - q.py) / d;
+            else if (p.py > bottom) t1 = (bottom - q.py) / d;
+            if (!line || t0 > 0) lines.push(line = [q.px + (p.px - q.px) * t0, q.py + d * t0]);
+            line.push(q.px + (p.px - q.px) * t1, q.py + d * t1);
+            if (t1 < 1) line = null;
+        }
+        // a break: the next line starts at p, or at the next place with a value
+        function from(p) {
+            line = null;
+            last = isFinite(p.py) ? p : null;
+        }
+        // a stroke up and down the pixels of a to b, at least a pixel high: over r, what they
+        // reach, or else over the values found between them
+        function stroke(a, b, r, found) {
+            var px = (a.px + b.px) / 2, ys = found.filter(function (p) { return isFinite(p.py); }).map(function (p) { return p.py; }),
+                top = r ? down(r[1]) : Math.min.apply(null, ys), bottom = r ? down(r[0]) : Math.max.apply(null, ys);
+            top = Math.max(-4, top - 0.5);
+            bottom = Math.min(h + 4, bottom + 0.5);
+            if (top < bottom) lines.push([px, top, px, bottom]);
+            from(b);
+        }
+
+        // what a to b is with no more values between: 'line' if it goes straight enough from one
+        // to the other, 'off' if all it reaches is out of the view, else '' (r: its reach)
+        function plain(a, b, r) {
+            var top, bottom;
+            if (!isFinite(a.py) || !isFinite(b.py) || a.k !== b.k || !r || isNaN(r[0])) return '';
+            top = down(r[1]);
+            bottom = down(r[0]);
+            if (bottom < -4 || top > h + 4) return 'off';
+            return bottom - top <= (r[2] ? 2 * Math.abs(a.py - b.py) + 2 : 1) ? 'line' : '';
+        }
+        // nothing to find between a and b: a plain line, out of the view, or no value at either
+        function still(a, b, r) {
+            return !!plain(a, b, r) || (!isFinite(a.py) && !isFinite(b.py));
+        }
+        // m half way from a to b on the line between them, near enough, as a smooth curve is
+        function even(a, m, b, r) {
+            return (r ? r[2] : a.k === m.k && m.k === b.k) && isFinite(a.py) && isFinite(m.py) && isFinite(b.py) &&
+                Math.abs(m.py - (a.py + b.py) / 2) <= Math.abs(a.py - b.py) / 4 + 0.5;
+        }
+
+        // the curve from a to b, the last place a, or none; r: their reach, m: the value half way if found
+        function join(a, b, depth, r, m) {
+            var kind, r1, r2, m1, m2, x;
+            if (!isFinite(a.py) && !isFinite(b.py)) return from(b);
+            kind = plain(a, b, r);
+            if (kind === 'line') return to(b);
+            if (kind === 'off') return from(b);
+            x = (a.x + b.x) / 2;
+            if (x === a.x || x === b.x) return end(a, b, r); // as near as the machine tells
+            m = m || place(x);
+            more--;
+            if (even(a, m, b, r)) return to(b);
+            if ((b.px - a.px < 1e-3 && (!r || (isFinite(r[0]) && isFinite(r[1])))) || depth > 60 ||
+                (r && !r[2] && !seen(a) && !seen(b))) return end(a, b, r);
+            r1 = reach(a, m);
+            r2 = reach(m, b);
+            if (more <= 0) return stroke(a, b, r, [a, m, b]);
+            if (!still(a, m, r1) && !still(m, b, r2)) { // more than a pixel shows, unless each half goes smoothly
+                m1 = place((a.x + m.x) / 2);
+                m2 = place((m.x + b.x) / 2);
+                more -= 2;
+                if (!even(a, m1, m, r1) && !even(m, m2, b, r2)) return stroke(a, b, r, [a, m1, m, m2, b]);
+            }
+            join(a, m, depth + 1, r1, m1);
+            join(m, b, depth + 1, r2, m2);
+        }
+
+        // a break between a and b, as near together as they need to be. Where the curve has no
+        // end there, the line on each side goes on to the edge of the view the way it is going
+        function end(a, b, r) {
+            var gap = b.x - a.x, p;
+            if (r && !isNaN(r[0]) && !isFinite(r[1] - r[0])) ends.push({ px: (a.px + b.px) / 2, x0: a.x, x1: b.x }); // where it has no end
+            if (isFinite(a.py) && seen(a) && r && !isFinite(r[0] - r[1])) {
+                p = place(a.x - gap);
+                if (p.py > a.py && r[1] === Infinity) to({ px: a.px, py: -1e9 });
+                else if (p.py < a.py && r[0] === -Infinity) to({ px: a.px, py: 1e9 });
+            }
+            if (isFinite(b.py) && seen(b) && r && !isFinite(r[0] - r[1])) {
+                p = place(b.x + gap);
+                if (p.py > b.py && r[1] === Infinity) from({ px: b.px, py: -1e9 });
+                else if (p.py < b.py && r[0] === -Infinity) from({ px: b.px, py: 1e9 });
+                else return from(b);
+                return to(b);
+            }
+            from(b);
+        }
+
+        a = place(view.x0 - kx);
+        from(a);
+        for (k = 1; k <= n; k++) {
+            b = place(view.x0 + (k / 2 - 1) * kx);
+            join(a, b, 0, reach(a, b));
+            a = b;
+        }
+        // Two places it has no end less than 3 pixels apart, as tan x has seen from a little
+        // way off, drawn each up the plot, would leave a sliver between them that comes and goes
+        // as the view moves: what is between them is filled over all it reaches instead
+        ends.forEach(function (q, k) {
+            var p = ends[k - 1], r = p && q.px - p.px < 3 && c.reach(p.x0, q.x1, deg), top, bottom, px;
+            if (!r || isNaN(r[0])) return;
+            top = Math.max(-4, down(r[1]));
+            bottom = Math.min(h + 4, down(r[0]));
+            for (px = p.px; top < bottom && px < q.px + 0.75; px += 1.5) lines.push([px, top, px, bottom]);
+        });
+        return lines;
+    }
+
+    // The lines and the shading that draw an equation or inequality of x and y, as relation gives
+    // it, in a view as trace has it: { shade: where an inequality holds, each place as [px, py,
+    // px, py, …] round its edge; parts: of each of its parts, { lines: [[[px, py], [px, py]], …]
+    // where it is 0, fills: [[px, py, size], …] squares where it is 0 more often than the pixels
+    // show, as sin x = cos y from far away } }. The view in squares 24 pixels wide, each halved
+    // where its reach tells it may be 0 in it, down to 3 pixels, whose corners tell where the
+    // line crosses it, between the places on its edges where it is 0. Not where it only jumps from one sign to the other, as x y = 1 does
+    // across x = 0: there the middle is farther from 0 than its corners. A square it cannot be 0
+    // in is wholly in an inequality or wholly out of it. Of two, 1 < x < 3, the shading where both
+    // hold, each line where the other does. After 100000 reaches the rest is in squares of 3
+    // pixels with no reach found, so it is never slow. Null where it cannot tell what it reaches, as of a function it does not know
+    function contour(rel, view, deg) {
+        var parts = rel.parts || [rel], kx = (view.x1 - view.x0) / view.w, ky = (view.y1 - view.y0) / view.h, size = 24,
+            values = parts.map(function () { return new Map(); }), more = 100000, px, py,
+            out = { shade: [], parts: parts.map(function () { return { lines: [], fills: [] }; }) };
+        if (parts.some(function (part) { return !part.reach || !part.reach(view.x0, view.x1, view.y0, view.y1, deg); })) return null;
+
+        // what part k reaches over the square from px, py, s wide
+        function reach(k, px, py, s) {
+            more--;
+            return parts[k].reach(view.x0 + px * kx, view.x0 + (px + s) * kx, view.y1 - (py + s) * ky, view.y1 - py * ky, deg);
+        }
+        function value(k, px, py) {
+            var key = py * 65536 + px, n = values[k].get(key);
+            if (n === undefined) values[k].set(key, n = parts[k].at(view.x0 + px * kx, view.y1 - py * ky, deg));
+            return n;
+        }
+        function strict(part) {
+            return part.op === '<' || part.op === '>';
+        }
+        function inside(part, n) {
+            return n * (part.op === '<' || part.op === '≤' ? -1 : 1) > 0 || (n === 0 && !strict(part));
+        }
+        // 1 where all a part reaches is above 0, -1 where all is below, 0 where it may be 0, NaN where it has no value
+        function sign(r) {
+            return !r ? 0 : isNaN(r[0]) ? NaN : r[0] > 0 ? 1 : r[1] < 0 ? -1 : 0;
+        }
+        function square(px, py, s) {
+            return [px, py, px + s, py, px + s, py + s, px, py + s];
+        }
+
+        // True where part k is 0 more often than the pixels show in the square from px, py, s
+        // wide, r its reach: where it goes through all it reaches in less than a pixel, and in
+        // less than a quarter of the square, as the change across a speck at its middle tells.
+        // Or, the square 6 pixels wide, where it may go off to no end in each of three quarters
+        // of it that no one line goes through, as y = tan x does from far away
+        function thick(k, px, py, s, r) {
+            var e = Math.min(s, 1) / 16, cx = px + s / 2, cy = py + s / 2, t = reach(k, cx - e / 2, cy - e / 2, e), f;
+            if (s === 6 && !r[2] && [[-1, -1], [1, -1], [0, 1]].every(function (d) {
+                f = reach(k, cx + (d[0] - 0.5) * s / 4, cy + (d[1] - 0.5) * s / 4, s / 4);
+                return f && !isNaN(f[0]) && !isFinite(f[1] - f[0]);
+            })) return true;
+            if (!t || !t[2] || !r[2]) return false; // whole, as a reach widened for where it may have no value is not
+            return (r[1] - r[0]) * e / (t[1] - t[0]) <= Math.min(1, s / 4);
+        }
+
+        // the square from px, py, s wide. done: of each part, its line drawn already, as filled;
+        // shaded: what is shaded in it is found already
+        function look(px, py, s, done, shaded) {
+            var r = parts.map(function (part, k) { return reach(k, px, py, s); }), sides = r.map(sign), want;
+            if (!shaded) {
+                if (sides.every(function (n, k) { return n && inside(parts[k], n); })) {
+                    out.shade.push(square(px, py, s));
+                    shaded = true;
+                } else {
+                    shaded = sides.some(function (n, k) { return isNaN(n) || (n && !inside(parts[k], n)); });
+                }
+            }
+            want = sides.map(function (n, k) {
+                return !done[k] && n === 0 && sides.every(function (o, m) { return m === k || o === 0 || inside(parts[m], o); });
+            });
+            if (s >= 6) {
+                want.forEach(function (on, k) {
+                    if (!on || !r[k] || !thick(k, px, py, s, r[k])) return;
+                    out.parts[k].fills.push([px, py, s]);
+                    done = done.slice();
+                    done[k] = true;
+                    want[k] = false;
+                    if (!shaded) out.shade.push(square(px, py, s));
+                    shaded = true;
+                });
+            }
+            if (shaded && !want.some(Boolean)) return;
+            if (s <= 3) return pixel(px, py, s, want, shaded);
+            if (s === 6 || more <= 0) return grid(px, py, s, want, shaded); // with no more reaches to find
+
+            look(px, py, s / 2, done, shaded);
+            look(px + s / 2, py, s / 2, done, shaded);
+            look(px, py + s / 2, s / 2, done, shaded);
+            look(px + s / 2, py + s / 2, s / 2, done, shaded);
+        }
+
+        // the square from px, py, s wide as squares 3 pixels wide, each as pixel has it
+        function grid(px, py, s, want, shaded) {
+            var i, j;
+            for (j = 0; j < s; j += 3) {
+                for (i = 0; i < s; i += 3) pixel(px + i, py + j, 3, want, shaded);
+            }
+        }
+
+        // a square from px, py, s wide: the lines wanted across it, and what is shaded in it unless shaded
+        function pixel(px, py, s, want, shaded) {
+            var corners = parts.map(function (part, k) {
+                return [value(k, px, py), value(k, px + s, py), value(k, px + s, py + s), value(k, px, py + s)];
+            });
+            want.forEach(function (on, k) {
+                var c = corners[k], at = [], e, mid;
+                if (!on || !c.every(isFinite)) return;
+                for (e = 0; e < 4; e++) {
+                    if ((c[e] > 0) !== (c[(e + 1) % 4] > 0)) at.push(edge(px, py, s, c, e));
+                }
+                if (at.length < 2) return;
+                mid = parts[k].at(view.x0 + (px + s / 2) * kx, view.y1 - (py + s / 2) * ky, deg);
+                if (!(Math.abs(mid) <= 2 * Math.max.apply(null, c.map(Math.abs)))) return; // a jump, not a 0
+                [[at[0], at[1]], [at[2], at[3]]].forEach(function (l) {
+                    if (l[1] && others(k, (l[0][0] + l[1][0]) / 2, (l[0][1] + l[1][1]) / 2)) out.parts[k].lines.push(l);
+                });
+            });
+            if (!shaded) piece(px, py, s, corners);
+        }
+
+        // true if each part but k holds at px, py
+        function others(k, px, py) {
+            return parts.every(function (part, m) { return m === k || inside(part, part.at(view.x0 + px * kx, view.y1 - py * ky, deg)); });
+        }
+
+        // where edge e of a square s wide from px, py crosses 0, its corners c: found from its left
+        // or top end, so the square beside it finds the same place
+        function edge(px, py, s, c, e) {
+            var corner = [[0, 0], [s, 0], [s, s], [0, s]], p = corner[e], q = corner[(e + 1) % 4], a = c[e], b = c[(e + 1) % 4], t;
+            if (e > 1) {
+                p = q;
+                q = corner[e];
+                a = b;
+                b = c[e];
+            }
+            t = a / (a - b);
+            return [px + p[0] + (q[0] - p[0]) * t, py + p[1] + (q[1] - p[1]) * t];
+        }
+
+        // the part of a square s wide from px, py that is in it, the values at its corners of each
+        // part in corners: the square cut by each line in turn, a corner kept where it is in, and a
+        // place put where an edge crosses out, its values there as they go along the edge
+        function piece(px, py, s, corners) {
+            var poly = [[0, 0], [s, 0], [s, s], [0, s]].map(function (q, e) {
+                return { x: px + q[0], y: py + q[1], v: corners.map(function (c) { return c[e]; }) };
+            });
+            parts.forEach(function (part, k) {
+                var cut = [];
+                poly.forEach(function (a, e) {
+                    var b = poly[(e + 1) % poly.length], inA = inside(part, a.v[k]), t;
+                    if (inA) cut.push(a);
+                    if (inA !== inside(part, b.v[k])) {
+                        t = isFinite(a.v[k]) && isFinite(b.v[k]) ? a.v[k] / (a.v[k] - b.v[k]) : 0.5;
+                        cut.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, v: a.v.map(function (n, m) { return n + (b.v[m] - n) * t; }) });
+                    }
+                });
+                poly = cut;
+            });
+            if (poly.length > 2) out.shade.push([].concat.apply([], poly.map(function (q) { return [q.x, q.y]; })));
+        }
+
+        for (py = 0; py < view.h; py += size) {
+            for (px = 0; px < view.w; px += size) look(px, py, size, [], rel.op === '=');
+        }
+        return out;
+    }
+
     // A function of x to draw, written as it would be pasted: x^2 – 3, 2sin(x), y = 1/x, a x² + b.
     // Null if the text is not one. at(x, deg, exact) is its value; angles: it has a
     // function of an angle; letters: its letters of their own, in the order they come,
@@ -967,6 +1436,7 @@
                 var y = c.at(x, deg, exact);
                 return cut.when.every(function (r) { return holds(r, x, y, deg); }) ? y : NaN;
             },
+            reach: c.reach, // as if they held everywhere: where they do not, it has no value
             angles: c.angles || cut.when.some(function (r) { return r.angles; }),
             letters: joined([c].concat(cut.when)),
             rough: c.rough,
@@ -1103,6 +1573,7 @@
         });
         return {
             at: function (x, deg, exact) { return valueAt(tree, x, deg, exact, vars); },
+            reach: function (x0, x1, deg) { return reachOf(tree, x0, x1, deg, vars); },
             angles: angular(tree),
             letters: letters,
             rough: rough(tree)
@@ -1122,9 +1593,23 @@
         r = relationOf(cut.s, comma, vars, defs);
         if (!r) return null;
         (r.parts || [r]).forEach(function (part) {
-            var at = part.at;
+            var at = part.at, reach = part.reach;
             part.at = function (x, y, deg) {
                 return cut.when.every(function (w) { return holds(w, x, y, deg); }) ? at(x, y, deg) : NaN;
+            };
+            // none where one of them holds nowhere; where one may not hold, maybe 0, as it may have no value there
+            part.reach = function (x0, x1, y0, y1, deg) {
+                var s = reach(x0, x1, y0, y1, deg), all = true;
+                if (!s || isNaN(s[0])) return s;
+                if (cut.when.some(function (w) {
+                    return (w.parts || [w]).some(function (p) {
+                        var q = p.reach(x0, x1, y0, y1, deg), n = !q ? 0 : isNaN(q[0]) ? NaN : q[0] > 0 ? 1 : q[1] < 0 ? -1 : 0;
+                        n *= /[<≤]/.test(p.op) ? -1 : 1;
+                        if (!(n > 0)) all = false;
+                        return isNaN(n) || n < 0;
+                    });
+                })) return [NaN, NaN, false];
+                return all ? s : [Math.min(s[0], 0), Math.max(s[1], 0), false];
             };
         });
         r.angles = r.angles || cut.when.some(function (w) { return w.angles; });
@@ -1153,9 +1638,19 @@
         function less(a, b) {
             return function (x, y, deg) { return valueAt(trees[a], x, deg, false, vars, y) - valueAt(trees[b], x, deg, false, vars, y); };
         }
+        // what the left side less the right reaches over x0 to x1 and y0 to y1, as reachOf has it
+        function lessReach(a, b) {
+            return function (x0, x1, y0, y1, deg) {
+                var l = reachOf(trees[a], x0, x1, deg, vars, y0, y1), r = l && reachOf(trees[b], x0, x1, deg, vars, y0, y1);
+                if (!l || !r) return null;
+                if (isNaN(l[0]) || isNaN(r[0])) return [NaN, NaN, false];
+                l = [l[0] - r[1], l[1] - r[0], l[2] && r[2]];
+                return isNaN(l[0]) || isNaN(l[1]) ? [-Infinity, Infinity, false] : isFinite(l[0]) && isFinite(l[1]) ? l : [l[0], l[1], false];
+            };
+        }
         if (ops.length === 2) {
             return {
-                parts: [{ at: less(0, 1), op: names[0] }, { at: less(1, 2), op: names[1] }],
+                parts: [{ at: less(0, 1), reach: lessReach(0, 1), op: names[0] }, { at: less(1, 2), reach: lessReach(1, 2), op: names[1] }],
                 op: 'and',
                 angles: trees.some(angular),
                 letters: letters
@@ -1163,6 +1658,7 @@
         }
         return {
             at: less(0, 1),
+            reach: lessReach(0, 1),
             op: names[0],
             angles: angular(trees[0]) || angular(trees[1]),
             letters: letters
@@ -4585,6 +5081,8 @@
     Engine.angleAlone = angleAlone;
     Engine.graph = graph;
     Engine.keyPoints = keyPoints;
+    Engine.trace = trace;
+    Engine.contour = contour;
     Engine.slope = slope;
     Engine.area = area;
     Engine.relation = relation;

@@ -2658,6 +2658,66 @@ dels.forEach(function (c) {
         check(Engine.graph('hello').letters.join() === 'h,l,o', 'graph: hello is h × e × l × l × o');
     })();
 
+    // what a curve reaches from x0 to x1: [lowest, highest, whole], never less than it is
+    (function () {
+        function reach(s, x0, x1, deg) {
+            return JSON.stringify(Engine.graph(s).reach(x0, x1, deg || 0));
+        }
+        check(reach('x^2 - 1', -1, 2) === '[-1,3,true]', 'reach: x² – 1 from -1 to 2', reach('x^2 - 1', -1, 2));
+        check(reach('sin(x)', 0, 2) === '[0,1,true]' && reach('cos(x)', 1, 4) === JSON.stringify([-1, Math.cos(1), true]),
+            'reach: sin and cos at their top and bottom', reach('sin(x)', 0, 2) + ' ' + reach('cos(x)', 1, 4));
+        check(reach('tan(x)', 1, 2) === '[null,null,false]' && reach('tan(x)', 80, 100, 1) === '[null,null,false]' &&
+            reach('tan(x)', 0, 1).slice(-6) === ',true]', 'reach: tan x has no end across 90°, in radians or degrees');
+        check(reach('1/x', -1, 1) === '[null,null,false]' && reach('1/x', 0, 1) === '[1,null,false]', 'reach: 1/x has none at 0');
+        check(reach('sqrt(x)', -1, 4) === '[0,2,false]' && reach('ln(x)', -2, -1) === '[null,null,false]',
+            'reach: √x has a value only from 0, ln x none below it');
+        check(reach('floor(x)', 0.2, 0.8) === '[0,0,true]' && reach('floor(x)', 0.5, 1.5) === '[0,1,false]', 'reach: floor jumps at 1');
+        check(Engine.graph('x mod 3').reach(0, 1, 0) === null, 'reach: none known for mod, which is traced from its values alone');
+    })();
+
+    // the lines a curve is drawn with, in a view 200 pixels wide and 100 high
+    (function () {
+        function trace(s, x0, x1, y0, y1) {
+            return Engine.trace(Engine.graph(s), { x0: x0, x1: x1, y0: y0, y1: y1, w: 200, h: 100 }, 0);
+        }
+        var lines = trace('tan(x)', -2.5, 2.5, -5, 5), all;
+        check(lines.length === 3 && lines[1][1] === 104 && lines[1][lines[1].length - 1] === -4 && lines[0][lines[0].length - 1] === -4 && lines[2][1] === 104,
+            'trace: tan x from -2.5 to 2.5 is three lines, broken at ±90° and each on to the edge there', JSON.stringify(lines.map(function (l) { return l.length; })));
+        lines = trace('tan(x)', -2000, 2000, -1000, 1000);
+        all = lines.filter(function (l) { return l.length === 4 && l[1] === -4 && l[3] === 104; });
+        check(all.length > 300, 'trace: tan x from far away fills the plot, each pixel all the way up', all.length);
+        lines = trace('tan(x)', -160, 160, -80, 80); // its 90°s 2 pixels apart
+        all = lines.filter(function (l) { return l.length === 4 && l[1] === -4 && l[3] === 104; });
+        check(all.length > 150, 'trace: tan x with its 90°s 2 pixels apart filled between them, with no slivers to come and go', all.length);
+        lines = trace('floor(x)', -1.5, 2.5, -3, 3);
+        check(lines.length === 5 && lines.every(function (l) { return l[1] === l[l.length - 1]; }), 'trace: floor x is steps, not joined up', lines.length);
+        lines = trace('sqrt(x)', -2, 2, -1, 1);
+        check(lines.length === 1 && Math.abs(lines[0][0] - 100) < 1e-3 && Math.abs(lines[0][1] - 50) < 1e-6, 'trace: √x starts at 0, 0', lines[0] && lines[0].slice(0, 2));
+        lines = trace('sin(1000x)', -100, 100, -10, 10);
+        check(lines.length === 1 && Math.min.apply(null, lines[0].filter(function (n, k) { return k % 2; })) < 45.5,
+            'trace: sin(1000x) from far away a band as high as it goes');
+    })();
+
+    // an equation or inequality drawn in a view 240 pixels wide and 120 high
+    (function () {
+        function contour(s, u) {
+            return Engine.contour(Engine.relation(s, false, {}), { x0: -120 * u, x1: 120 * u, y0: -60 * u, y1: 60 * u, w: 240, h: 120 }, 0);
+        }
+        var r = contour('x^2 + y^2 = 25', 0.1), far, area;
+        check(Engine.relation('x^2 + y = 3', false, {}).reach(0, 1, 0, 1, 0).join() === '-3,-1,true', 'reach: of x and y, x² + y – 3', Engine.relation('x^2 + y = 3', false, {}).reach(0, 1, 0, 1, 0));
+        far = r && r.parts[0].lines.every(function (l) {
+            return l.every(function (q) { return Math.abs(Math.hypot(q[0] - 120, q[1] - 60) - 50) < 0.5; });
+        });
+        check(r && r.parts[0].lines.length > 60 && far && !r.parts[0].fills.length, 'contour: the circle x² + y² = 25, its lines on it');
+        r = contour('sin(x) = cos(y)', 30);
+        check(r && !r.parts[0].lines.length && r.parts[0].fills.reduce(function (n, f) { return n + f[2] * f[2]; }, 0) >= 240 * 120,
+            'contour: sin x = cos y from far away fills the plot, as its lines are closer than a pixel');
+        r = contour('x^2 + y^2 < 9 {y > 0}', 0.1);
+        area = r && r.shade.every(function (poly) { return poly.every(function (n, k) { return k % 2 === 0 || n <= 63; }); }); // to within a square of 3 pixels
+        check(area && r.shade.length > 0, 'contour: x² + y² < 9 {y > 0} shaded only above the x axis, as near as its squares tell');
+        check(contour('x mod 2 = y', 0.1) === null, 'contour: none for mod, whose reach is not known, drawn the old way');
+    })();
+
     // the points marked on the curves: the kinds of each, its x and y, as text to compare
     function marks(fns, deg, view) {
         return Engine.keyPoints(fns.map(function (f) { return Engine.graph(f); }), view || { x0: -10, x1: 10, y0: -10, y1: 10 }, deg || 0)
