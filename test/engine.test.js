@@ -2673,6 +2673,10 @@ dels.forEach(function (c) {
             'reach: √x has a value only from 0, ln x none below it');
         check(reach('floor(x)', 0.2, 0.8) === '[0,0,true]' && reach('floor(x)', 0.5, 1.5) === '[0,1,false]', 'reach: floor jumps at 1');
         check(Engine.graph('x mod 3').reach(0, 1, 0) === null, 'reach: none known for mod, which is traced from its values alone');
+        check(JSON.stringify(Engine.graph('x^3').slopeReach(1, 2, 0)) === '[3,12,true]' && reach('x^2 {x > 0}', -2, -1) === '[null,null,false]' &&
+            JSON.stringify(Engine.graph('x^2 {x > 0}').reach(-1, 1, 0)) === '[0,1,false]', 'reach: the slope of x³ from 1 to 2, and x² kept to x > 0');
+        check(!isFinite(Engine.graph('tan(x)').slopeReach(1, 2, 0)[1]) && JSON.stringify(Engine.graph('d/dx(ln(x))').reach(1, 2, 0)) === '[0.5,1,true]',
+            'reach: the slope of tan x has no end across 90°; d/dx ln x from 1 to 2 is 1/x');
     })();
 
     // the lines a curve is drawn with, in a view 200 pixels wide and 100 high
@@ -2689,6 +2693,19 @@ dels.forEach(function (c) {
         lines = trace('tan(x)', -160, 160, -80, 80); // its 90°s 2 pixels apart
         all = lines.filter(function (l) { return l.length === 4 && l[1] === -4 && l[3] === 104; });
         check(all.length > 150, 'trace: tan x with its 90°s 2 pixels apart filled between them, with no slivers to come and go', all.length);
+        (function () { // r = 1/cos θ, the line x = 1, from far away: up and down the whole view, though at 90° it has no value
+            var c = Engine.plane('r = 1/cos(θ)', false, {}), us = [], qs = [], k, r, ys;
+            for (k = 0; k <= 2000; k++) {
+                us.push(2 * Math.PI * k / 2000);
+                qs.push(c.at(us[k], 0));
+            }
+            r = Engine.traceAlong(c, { x0: -600, x1: 600, y0: -300, y1: 300, w: 200, h: 100 }, 0, us, qs);
+            ys = [].concat.apply([], r.lines.map(function (l) { return l.filter(function (n, i) { return i % 2; }); }));
+            check(Math.min.apply(null, ys) <= -4 && Math.max.apply(null, ys) >= 104, 'traceAlong: r = 1/cos θ from far away, the line x = 1 the whole height of the view',
+                Math.min.apply(null, ys) + ' ' + Math.max.apply(null, ys));
+        })();
+        lines = trace('tan(x)', 1334, 1354, 674, 692); // far up, where it is only near its 90°s
+        check(lines.length === 6, 'trace: tan x far up the plot, a line by each of its six 90°s, though either side of each it is below the view', lines.length);
         lines = trace('floor(x)', -1.5, 2.5, -3, 3);
         check(lines.length === 5 && lines.every(function (l) { return l[1] === l[l.length - 1]; }), 'trace: floor x is steps, not joined up', lines.length);
         lines = trace('sqrt(x)', -2, 2, -1, 1);
@@ -2926,6 +2943,15 @@ dels.forEach(function (c) {
         check(r.back && r.back.why === 'none' && Math.abs(r.back.x) < 0.011 && !r.ahead, 'slope field: √x stops at 0, of no slope below it', JSON.stringify(r.back));
         r = solved('dy/dx = sqrt(x)', -1, 0, -2, 2, 0.01);
         check(!r.pts.length && r.back.why === 'none' && r.ahead.why === 'none', 'slope field: one that starts where it has no slope is none');
+        r = solved('dy/dx = x - y', 0, 1, -2.4e7, 2.4e7, 1e5, 4e5, 6e8);
+        err = Math.max.apply(null, r.pts.filter(function (q) { return q[0] > 1e5; }).map(function (q) { return Math.abs(q[1] - (q[0] - 1)); }));
+        check(!r.ahead && r.back && r.back.why === 'large' && r.pts.length < 5000 && err < 1e3 && r.pts[r.pts.length - 1][0] === 2.4e7,
+            'slope field: y′ = x – y from far out, onto x – 1 to the right, straight up to the left', JSON.stringify([r.back, r.ahead, r.pts.length, err]));
+        r = solved('dy/dx = -10y', 0, 1, -2.4e5, 2.4e5, 1e3, 4e3, 6e6);
+        check(!r.ahead && r.back && r.back.why === 'large' && r.pts.length < 5000 && r.pts.every(function (q) { return q[1] > -1e-9; }),
+            'slope field: y′ = –10y from far out, onto 0 to the right, not across it', JSON.stringify([r.back, r.ahead, r.pts.length]));
+        r = solved('dy/dx = y', 0, 1, -2.4e9, 2.4e9, 1e7, 4e7, 6e10);
+        check(!r.back && r.ahead && r.ahead.why === 'large' && r.ahead.x < 1e7, 'slope field: y′ = y from far out, straight up from its start', JSON.stringify([r.back, r.ahead]));
     })();
 
     // functions of other boxes by name, kept to where inequalities hold, in pieces; fits of more kinds; inflections

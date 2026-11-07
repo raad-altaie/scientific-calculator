@@ -1574,15 +1574,24 @@
 
     #calculator.calc-big .calc-graph-sliders {
         grid-area: 4 / 1;
+        gap: 8px;
     }
 
-    /* a slider fits the narrowest column: its box a little narrower, the slider as short as it must be */
+    /* a slider on two lines, as the column is narrow: ▶ and the letter's box across it, then under the box
+       where it goes from, the slider and where it goes to, the slider long enough to drag */
+    #calculator.calc-big .calc-graph-slider {
+        flex-wrap: wrap;
+        row-gap: 2px;
+        height: auto;
+    }
+
     #calculator.calc-big .calc-graph-val {
-        width: 80px;
+        flex: 1 0 calc(100% - 30px);
+        width: auto;
     }
 
-    #calculator.calc-big .calc-graph-range {
-        min-width: 16px;
+    #calculator.calc-big .calc-graph-end[data-end="0"] {
+        margin-left: 24px; /* under the box, past ▶ and the gap */
     }
 
     #calculator.calc-big .calc-graph-examples {
@@ -3981,7 +3990,7 @@
     vertical-align: middle;
 }
 
-/* Clear of the history, with no history to clear: faint, and nothing lights up */
+/* Clear of the history, with nothing to clear: no history, or no letter holding a value; faint, and nothing lights up */
 #calculator .calc-past-clear.calc-off {
     opacity: 0.3;
     background: none;

@@ -1479,7 +1479,7 @@
         }
         if (panel === past) {
             row = el.closest('.calc-past-row');
-            if (!row) return [[pastTab === 'vars' ? 'Clear variables' : 'Clear history', function () { pastClear.click(); }, !pastClear.hidden && !pastClear.classList.contains('calc-off')]];
+            if (!row) return [[pastTab === 'vars' ? 'Clear variables' : 'Clear history', function () { pastClear.click(); }, !pastClear.classList.contains('calc-off')]];
             // on the equation, the equation; anywhere else on the line, its result
             part = el.closest('.calc-past-eq') || row.querySelector('.calc-past-res');
             k = engine.past[+row.dataset.i];
@@ -1897,10 +1897,9 @@
         if (vars) showLetters(); else renderPast();
     }
 
-    // Clear, off with no history to clear; on the Variables tab not shown while no letter holds a value
+    // Clear, off with nothing to clear: no history, or no letter holding a value
     function clearShown() {
-        var vars = pastTab === 'vars', off = !vars && !engine.past.length;
-        pastClear.hidden = vars && !lettersHeld();
+        var off = pastTab === 'vars' ? !lettersHeld() : !engine.past.length;
         pastClear.classList.toggle('calc-off', off);
         pastClear.setAttribute('aria-disabled', String(off));
     }
@@ -2366,6 +2365,9 @@
         graphClickWas = null, // and before the click before it, the first of two
         GRAPH_SLIDE_EDGE = 28, // an area dragged this many pixels from the left or right slides the view that way
         GRAPH_SLIDE_SPEED = 300, // at the side or past it, this many pixels a second; slower farther in
+        GRAPH_ZOOM_REACH = 24, // the wheel this near a dot or a curve zooms about it, so it stays where it is
+        GRAPH_ZOOM_SNAP = 16, // else this near an axis, about the axis
+        GRAPH_CLICK_NICE = 10, // a click on a curve puts its point where x and y are roundest this many pixels away, (2, 4) and not (1.97, 3.8809)
         graphOff = [false, false, false, false, false, false, false], // the curves hidden by a click on their dot: kept, not drawn
         graphDiff = [false, false, false, false, false, false, false], // the curves whose slope is drawn too, by their y′; of points, the kind of their fit
         graphTwice = '', // a name two boxes give their functions, f of f(x) = …: the second is none
@@ -3109,11 +3111,12 @@
         return p * (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10);
     }
 
-    // a number of the grid, as short as its step lets it be: 0.5, 20, 1e+8, with the decimal mark in use
+    // a number of the grid, as short as its step lets it be: 0.5, 20, 1e+8, with the decimal mark
+    // in use; with as many digits as tell it from the next, 9.240000005e+13 far out
     function gridLabel(n, step) {
         var a = Math.abs(n);
         if (a < step / 2) return '0';
-        if (a >= 1e6 || a < 1e-4) return local(n.toExponential(2).replace(/\.?0+e/, 'e'));
+        if (a >= 1e6 || a < 1e-4) return local(n.toExponential(Math.min(14, Math.max(2, Math.ceil(Math.log10(a / step))))).replace(/\.?0+e/, 'e'));
         return local(String(+n.toFixed(Math.max(0, 1 - Math.floor(Math.log10(step))))));
     }
 
@@ -3123,18 +3126,30 @@
         return +(Math.round(x / q) * q).toPrecision(12);
     }
 
-    // x or y of a place pointed at or clicked, a pixel being u: a round number within 3 pixels,
-    // the roundest, of 1, 2 or 5 times a power of ten no closer than 10 pixels apart: 2 and not
-    // 2.04; else as graphRound has it
-    function graphNice(x, u) {
+    // x or y of a place pointed at or clicked, a pixel being u: a round number within 3 pixels, or
+    // near of them, the roundest, of 1, 2 or 5 times a power of ten no closer than 10 pixels apart:
+    // 2 and not 2.04; else as graphRound has it
+    function graphNice(x, u, near) {
         var s = gridStep(u, false), r, m;
         while (s >= 10 * u * (1 - 1e-9)) {
             r = Math.round(x / s) * s;
-            if (Math.abs(r - x) <= 3 * u) return +r.toPrecision(12);
+            if (Math.abs(r - x) <= (near || 3) * u) return +r.toPrecision(12);
             m = Math.round(s / Math.pow(10, Math.floor(Math.log10(s)) ));
             s = m === 5 ? s * 0.4 : s / 2;
         }
         return graphRound(x, u);
+    }
+
+    // how round n is, a pixel being u: the coarsest 1, 2 or 5 times a power of ten it is a whole
+    // number of, in pixels; 0 if that is under 10 of them, as graphNice, and no end to it for 0
+    function graphRoundness(n, u) {
+        var s, m;
+        if (!n) return Infinity;
+        for (s = Math.pow(10, Math.ceil(Math.log10(Math.abs(n)))); s >= 10 * u * (1 - 1e-9); s = m === 5 ? s * 0.4 : s / 2) {
+            if (Math.abs(n / s - Math.round(n / s)) < 1e-6) return s / u;
+            m = Math.round(s / Math.pow(10, Math.floor(Math.log10(s))));
+        }
+        return 0;
     }
 
     function drawGraph() {
@@ -3149,7 +3164,7 @@
         }
         ctx.setTransform(r, 0, 0, r, 0, 0);
         ctx.clearRect(0, 0, w, h);
-        drawGrid(ctx, v, w, h);
+        drawGrid(ctx, v, w, h, false);
         if (graphPinned && graphPinned.area) graphShade(ctx, v, w, h, graphPinned);
         graphFns.forEach(function (fn, i) {
             if (fn) drawCurve(ctx, v, w, h, fn, curveColor(i));
@@ -3158,6 +3173,7 @@
             if (graphPlanes[i]) ({ seq: drawSequence, field: drawField }[graphPlanes[i].kind] || drawPlane)(ctx, v, w, h, graphPlanes[i], curveColor(i));
         });
         graphTangent(ctx, v, w + h, graphPinned);
+        drawGrid(ctx, v, w, h, true);
         key = [graphVersion, v.x, v.y, v.ux, v.uy, w, h, deg, JSON.stringify(graphVars)].join();
         if (Object.keys(graphPlay).length) { // while sliders play the marks wait, found again as they stop: finding them each frame is too slow
             graphMarks = dataMarks();
@@ -3266,14 +3282,13 @@
 
     // A curve of a parameter, from places evenly along it as the parameter goes from its start
     // to its end, 2000, or one each quarter of a radian of it up to 50000, so no turn is lost
-    // between two: r = θ/2 to 7720π goes round 3860 times. Between two that are far apart on
-    // the plot where it may be seen, more, halved until they are 3 pixels apart: zoomed in, it
-    // is a curve and not lines too long to draw. It breaks where it has no value and where it
-    // jumps across most of the plot however near the places, as (t, tan t) does. The places
-    // along it are kept while the unit and its letters stay; those on the plot while the view does too
+    // between two: r = θ/2 to 7720π goes round 3860 times. Between them as the engine traces it,
+    // as a curve of x is: on until it is a curve and not lines too long to draw, broken where it
+    // jumps, on to the edge where it has no end, as r = 1/cos θ at 90° however far it is zoomed.
+    // The places along it are kept while the unit and its letters stay; those on the plot while the view does too
     function drawPlane(ctx, v, w, h, c, color) {
         var at = [deg].concat(c.letters.map(function (k) { return graphVars[k]; })).join(),
-            key = [v.x, v.y, v.ux, v.uy, w, h, at].join(), pts, on = false;
+            key = [v.x, v.y, v.ux, v.uy, w, h, at].join();
         if (!c.along || c.along.key !== at) {
             (function () {
                 var ends = c.range(deg), turn = [2 * Math.PI, 360, 400][deg] / (2 * Math.PI),
@@ -3286,39 +3301,14 @@
             })();
         }
         if (!c.kept || c.kept.key !== key) {
-            pts = [];
-            (function () {
-                var more = 20000, k, a, b;
-                function place(u, q) {
-                    q = q || c.at(u, deg);
-                    return { u: u, px: plotX(v, q[0]), py: plotY(v, q[1]) };
-                }
-                // the places between a and b, in order, after a and before b
-                function between(a, b, depth) {
-                    var d = Math.abs(b.px - a.px) + Math.abs(b.py - a.py), m;
-                    if (!(d > 3) || !isFinite(d) || depth > 48 || more <= 0) return;
-                    if (Math.max(a.px, b.px) < -d || Math.min(a.px, b.px) > w + d || Math.max(a.py, b.py) < -d || Math.min(a.py, b.py) > h + d) return; // not in the view
-                    m = place((a.u + b.u) / 2);
-                    more--;
-                    between(a, m, depth + 1);
-                    pts.push(m);
-                    between(m, b, depth + 1);
-                }
-                for (k = 0; k < c.along.us.length; k++) {
-                    b = place(c.along.us[k], c.along.qs[k]);
-                    if (k) between(a, b, 0);
-                    pts.push(b);
-                    a = b;
-                }
-            })();
-            c.kept = { key: key, pts: pts };
+            c.kept = CalcEngine.traceAlong(c, { x0: graphX(v, 0), x1: graphX(v, w), y0: graphY(v, h), y1: graphY(v, 0), w: w, h: h }, deg, c.along.us, c.along.qs);
+            c.kept.key = key;
         }
         ctx.beginPath();
-        c.kept.pts.forEach(function (p, k) {
-            var q = c.kept.pts[k - 1], ok = isFinite(p.px) && isFinite(p.py) && Math.abs(p.px) < 1e6 && Math.abs(p.py) < 1e6;
-            if (ok && on && Math.abs(p.px - q.px) + Math.abs(p.py - q.py) < (w + h) / 2) ctx.lineTo(p.px, p.py);
-            else if (ok) ctx.moveTo(p.px, p.py);
-            on = ok;
+        c.kept.lines.forEach(function (line) {
+            var k;
+            ctx.moveTo(line[0], line[1]);
+            for (k = 2; k < line.length; k += 2) ctx.lineTo(line[k], line[k + 1]);
         });
         ctx.lineWidth = 2;
         ctx.lineJoin = 'round';
@@ -3452,13 +3442,15 @@
     }
 
     // y at x of the solution k of the slope field c, to all the digits shown: from its start in 4096
-    // steps of Runge and Kutta, as far as it is drawn; NaN out of it
+    // steps of Runge and Kutta, as far as it is drawn; as it is drawn where they cannot follow it,
+    // or come out more than a pixel off it, as far out; NaN out of it
     function solutionAt(c, k, x) {
-        var s = c.kept && c.kept.sols[k], r;
-        if (!s || !isFinite(solutionY(c, k, x))) return NaN;
+        var s = c.kept && c.kept.sols[k], drawn = solutionY(c, k, x), r, at;
+        if (!s || !isFinite(drawn)) return NaN;
         if (x === s.x0) return s.y0;
         r = CalcEngine.solveField(c, s.x0, s.y0, Math.min(x, s.x0), Math.max(x, s.x0), deg, Math.abs(x - s.x0) / 4096);
-        return r.back || r.ahead ? NaN : r.pts[x < s.x0 ? 0 : r.pts.length - 1][1];
+        at = r.back || r.ahead ? NaN : r.pts[x < s.x0 ? 0 : r.pts.length - 1][1];
+        return Math.abs(at - drawn) <= viewNow().uy ? at : drawn;
     }
 
     // where a solution starts, as the point is written: (0, 1), or (0; 1) with the decimal comma
@@ -3867,31 +3859,35 @@
         ctx.stroke();
     }
 
-    // the lines of the grid, the axes, and the numbers along them; an axis out of
-    // the view leaves its numbers at the nearest edge. Big, the numbers as big as the words beside the plot (popScale)
-    function drawGrid(ctx, v, w, h) {
+    // the lines of the grid; over: the axes and the numbers along them instead, drawn over the
+    // curves, so they show however much of the plot a curve fills, as tan x does from far away.
+    // An axis out of the view leaves its numbers at the nearest edge. Big, the numbers as big as
+    // the words beside the plot (popScale)
+    function drawGrid(ctx, v, w, h, over) {
         var f = root.classList.contains('calc-big') ? popZoom : 1,
             sx = gridStep(v.ux, graphAngles() && deg === 1), sy = gridStep(v.uy, false),
             ax = Math.max(1, Math.min(w - 1, Math.round(plotX(v, 0)))) + 0.5, // where the axes are drawn, on whole pixels
             ay = Math.max(1, Math.min(h - 1, Math.round(plotY(v, 0)))) + 0.5,
-            labelY = Math.min(h - 4 * f, ay + 13 * f), onLeft = ax > w - 40 * f, k, p, text;
+            labelY = Math.min(h - 4 * f, ay + 13 * f), onLeft = ax > w - 40 * f, past = -Infinity, k, p, text;
 
         ctx.lineWidth = 1;
-        ctx.strokeStyle = GRAPH_INK.grid;
-        ctx.beginPath();
-        for (k = Math.ceil(graphX(v, 0) / sx); k * sx <= graphX(v, w); k++) {
-            p = Math.round(plotX(v, k * sx)) + 0.5;
-            ctx.moveTo(p, 0);
-            ctx.lineTo(p, h);
+        if (!over) {
+            ctx.strokeStyle = GRAPH_INK.grid;
+            ctx.beginPath();
+            for (k = Math.ceil(graphX(v, 0) / sx); k * sx <= graphX(v, w); k++) {
+                p = Math.round(plotX(v, k * sx)) + 0.5;
+                ctx.moveTo(p, 0);
+                ctx.lineTo(p, h);
+            }
+            for (k = Math.ceil(graphY(v, h) / sy); k * sy <= graphY(v, 0); k++) {
+                p = Math.round(plotY(v, k * sy)) + 0.5;
+                ctx.moveTo(0, p);
+                ctx.lineTo(w, p);
+            }
+            ctx.stroke();
+            return;
         }
-        for (k = Math.ceil(graphY(v, h) / sy); k * sy <= graphY(v, 0); k++) {
-            p = Math.round(plotY(v, k * sy)) + 0.5;
-            ctx.moveTo(0, p);
-            ctx.lineTo(w, p);
-        }
-        ctx.stroke();
 
-        ctx.strokeStyle = GRAPH_INK.axis;
         ctx.beginPath();
         if (plotY(v, 0) >= 0 && plotY(v, 0) <= h) {
             ctx.moveTo(0, ay);
@@ -3901,7 +3897,13 @@
             ctx.moveTo(ax, 0);
             ctx.lineTo(ax, h);
         }
+        ctx.globalCompositeOperation = 'source-atop'; // over the curves in the paper's color, so it shows through tan x filling the plot
+        ctx.strokeStyle = GRAPH_INK.paper;
         ctx.stroke();
+        ctx.globalCompositeOperation = 'destination-over'; // then on the paper in its ink, under them
+        ctx.strokeStyle = GRAPH_INK.axis;
+        ctx.stroke();
+        ctx.globalCompositeOperation = 'source-over';
 
         ctx.font = 10 * f + 'px Play, sans-serif';
         ctx.fillStyle = GRAPH_INK.text;
@@ -3914,6 +3916,8 @@
             p = plotX(v, k * sx);
             if (!k || p < 10 * f || p > w - 10 * f) continue;
             text = gridLabel(k * sx, sx);
+            if (p - ctx.measureText(text).width / 2 < past + 6 * f) continue; // too long to fit beside the last, as far out
+            past = p + ctx.measureText(text).width / 2;
             ctx.strokeText(text, p, labelY);
             ctx.fillText(text, p, labelY);
         }
@@ -4141,7 +4145,7 @@
     // the slope of a curve as a curve of its own, dy/dx at each x: none where it has none,
     // at a corner or a break. One for each curve, so its lines are kept as the curve's are
     function slopeCurve(fn) {
-        if (!fn.slopeOf) fn.slopeOf = { at: function (x, deg) { return CalcEngine.slope(fn, x, deg); }, letters: fn.letters || [] };
+        if (!fn.slopeOf) fn.slopeOf = { at: function (x, deg) { return CalcEngine.slope(fn, x, deg); }, reach: fn.slopeReach, letters: fn.letters || [] };
         return fn.slopeOf;
     }
 
@@ -4167,23 +4171,30 @@
         ctx.setLineDash([]);
     }
 
-    // The point at a place of the plot: a mark within reach of it, the nearest; else the
-    // curve within reach above or below it, the nearest, at its x; else the place itself,
-    // its x and y rounded to what a pixel tells apart (spot)
-    function graphPoint(at, reach) {
-        var v = viewNow(), x = graphNice(graphX(v, at.x), v.ux), best = null;
+    // The point at a place of the plot: a mark within reach of it, or markReach, the nearest; else
+    // the curve within reach above or below it, the nearest, at its x, a round one within near
+    // pixels (graphNice); else the place itself, its x and y rounded to what a pixel tells apart (spot)
+    function graphPoint(at, reach, markReach, near) {
+        var v = viewNow(), x = graphNice(graphX(v, at.x), v.ux, near), best = null;
+        function nice(n, u) {
+            return graphNice(n, u, near);
+        }
         graphMarks.forEach(function (p) {
             var d = Math.hypot(plotX(v, p.x) - at.x, plotY(v, p.y) - at.y);
-            if (d <= reach && (!best || d < best.d)) best = { d: d, p: p };
+            if (d <= (markReach || reach) && (!best || d < best.d)) best = { d: d, p: p };
         });
         if (best) return best.p;
         graphFns.forEach(function (fn, i) {
-            var y = fn ? fn.at(x, deg, true) : NaN, d = Math.abs(plotY(v, y) - at.y);
-            if (isFinite(y) && d <= reach * 1.2 && (!best || d < best.d)) best = { d: d, p: { i: i, x: x, y: y } };
+            var y = fn ? fn.at(graphX(v, at.x), deg, true) : NaN, d = Math.abs(plotY(v, y) - at.y);
+            if (isFinite(y) && d <= reach * 1.2 && (!best || d < best.d)) { // on it at the pointer's x, then the likeliest point near that
+                best = { d: d, p: likelyPoint(fn, v, at, near || 3) || { x: graphRound(graphX(v, at.x), v.ux) } };
+                if (best.p.y === undefined) best.p.y = fn.at(best.p.x, deg, true);
+                best.p.i = i;
+            }
         });
         graphRels.forEach(function (rel, i) { // an equation: the place on it nearest; of an inequality of two, on either line where the other holds
             (rel ? rel.parts || [rel] : []).forEach(function (part, k) {
-                var q = CalcEngine.onRelation(part, graphX(v, at.x), graphY(v, at.y), v.ux, v.uy, deg, graphNice),
+                var q = CalcEngine.onRelation(part, graphX(v, at.x), graphY(v, at.y), v.ux, v.uy, deg, nice),
                     d = q && (!rel.parts || CalcEngine.holds(rel, q.x, q.y, deg)) ? Math.hypot(plotX(v, q.x) - at.x, plotY(v, q.y) - at.y) : Infinity;
                 if (d <= reach * 1.2 && (!best || d < best.d)) best = { d: d, p: { i: i, x: q.x, y: q.y } };
                 if (best && best.d === d && k) best.p.k = k;
@@ -4232,7 +4243,55 @@
             d = off((lo + hi) / 2);
             if (d <= reach * 1.2 && (!best || d < best.d)) best = { d: d, p: { i: i, u: (lo + hi) / 2, x: q[0], y: q[1] } };
         });
-        return best ? best.p : { x: x, y: graphNice(graphY(v, at.y), v.uy), spot: true };
+        return best ? best.p : { x: x, y: graphNice(graphY(v, at.y), v.uy, near), spot: true };
+    }
+
+    // The point of a curve y = f(x) a click near it most likely means, within near pixels of where the
+    // click's x meets it: the one whose x and y are both roundest, (2, 4) on x², else the one whose x
+    // is, or where it is steep its y; the nearer of two as round. Null if there is none
+    function likelyPoint(fn, v, at, near) {
+        var x0 = graphX(v, at.x), y0 = fn.at(x0, deg, true), steep = Math.abs(fn.at(x0 + v.ux, deg, true) - fn.at(x0 - v.ux, deg, true)) / (2 * v.uy) > 1,
+            q = Math.pow(10, Math.floor(Math.log10(v.ux))), p = Math.pow(10, Math.ceil(Math.log10(v.uy))), best = null, k, m, a, b, ya, yb;
+        function consider(x, y) {
+            var d = Math.hypot(plotX(v, x) - at.x, plotY(v, y) - plotY(v, y0)), rx, ry, s;
+            if (!isFinite(y) || d > near) return;
+            rx = graphRoundness(x, v.ux);
+            ry = graphRoundness(y, v.uy);
+            s = [Math.min(rx, ry), steep ? ry : rx, -d];
+            if (!best || s[0] > best.s[0] || s[0] === best.s[0] && (s[1] > best.s[1] || s[1] === best.s[1] && s[2] > best.s[2])) best = { s: s, x: x, y: y };
+        }
+        if (!isFinite(y0)) return null;
+        for (k = Math.ceil((x0 - near * v.ux) / q); k * q <= x0 + near * v.ux; k++) { // round x, a tenth of a pixel or more apart
+            m = +(k * q).toPrecision(12);
+            consider(m, fn.at(m, deg, true));
+        }
+        for (k = -near; k < near; k++) { // round y, a pixel or more apart, where the curve crosses it
+            a = x0 + k * v.ux;
+            b = a + v.ux;
+            ya = fn.at(a, deg, true);
+            yb = fn.at(b, deg, true);
+            if (!isFinite(ya) || !isFinite(yb)) continue;
+            for (m = Math.ceil(Math.max(Math.min(ya, yb), y0 - near * v.uy) / p) * p; m <= Math.min(Math.max(ya, yb), y0 + near * v.uy); m += p) {
+                consider(crossing(fn, a, b, ya, +m.toPrecision(12)), +m.toPrecision(12));
+            }
+        }
+        return best && { x: best.x, y: best.y };
+    }
+
+    // where f(x) = y between a and b, f(a) being ya, by halving
+    function crossing(fn, a, b, ya, y) {
+        var k, c, yc;
+        for (k = 0; k < 60; k++) {
+            c = (a + b) / 2;
+            yc = fn.at(c, deg, true);
+            if ((yc - y) * (ya - y) > 0) {
+                a = c;
+                ya = yc;
+            } else {
+                b = c;
+            }
+        }
+        return (a + b) / 2;
     }
 
     // the sequence a point is a term of, or null
@@ -4465,15 +4524,19 @@
 
     // the view with the point at p0 of the plot moved to p1, and the scale times k
     function graphMove(start, p0, p1, k) {
-        var x = graphX(start, p0.x), y = graphY(start, p0.y), ux = start.ux * k, uy = start.uy * k;
-        if (!(ux > 1e-12 && uy > 1e-12 && ux < 1e12 && uy < 1e12)) return; // no closer or farther than numbers stay sharp
-        graphView = {
-            x: x - (p1.x - graphPlot.clientWidth / 2) * ux,
-            y: y + (p1.y - graphPlot.clientHeight / 2) * uy,
-            ux: ux,
-            uy: uy
-        };
+        var x = graphX(start, p0.x), y = graphY(start, p0.y), ux = start.ux * k, uy = start.uy * k,
+            v = { x: x - (p1.x - graphPlot.clientWidth / 2) * ux, y: y + (p1.y - graphPlot.clientHeight / 2) * uy, ux: ux, uy: uy };
+        if (!(ux < 1e12 && uy < 1e12) || (k < 1 && !sharp(v))) return; // no closer or farther than numbers stay sharp
+        graphView = v;
         drawGraph();
+    }
+
+    // true if a view is no closer than numbers stay sharp: a pixel more than 10^-12, and more than
+    // 10^-11 of how far it is from 0, as far out the machine's numbers are farther apart: at x = 10^14
+    // as far as 0.016, so tan x drawn closer than that has pixels of the same x
+    function sharp(v) {
+        var w = graphPlot.clientWidth / 2, h = graphPlot.clientHeight / 2;
+        return v.ux > Math.max(1e-12, (Math.abs(v.x) + w * v.ux) * 1e-11) && v.uy > Math.max(1e-12, (Math.abs(v.y) + h * v.uy) * 1e-11);
     }
 
     // An area dragged near the left or right of the plot, or past it, slides the view that way
@@ -4578,7 +4641,7 @@
             if (p && (p.area ? onArea(v, p, at) : Math.hypot(plotX(v, p.x) - at.x, plotY(v, p.y) - at.y) <= (mouse ? 8 : 16))) {
                 if (graphPopShut) graphPopShut = false; else graphPinned = null;
             } else {
-                graphPinned = graphPoint(at, mouse ? 10 : 18);
+                graphPinned = graphPoint(at, mouse ? 10 : 18, mouse ? 20 : 28, GRAPH_CLICK_NICE); // a mark a little farther, and a rounder x
                 if (graphPinned.spot && !graphShading) graphPinned = addStart(graphPinned) || graphPinned; // off the curves, with a slope field: its solution through there
                 graphPopShut = false;
                 if (mouse) graphAt = graphPinned;
@@ -4613,16 +4676,21 @@
         drawGraph();
     }, false);
 
-    // the wheel zooms about the pointer, and what is there drifts toward the middle as it
-    // does, so what is around it comes into view: a little each turn, and the same however
-    // the turns are cut up, as each leaves k^-0.5 of its way there to go, k^0.5 zooming out
+    // the wheel zooms about what it is pointed at, which stays where it is: a dot or a root, a top or
+    // where curves cross, near it; else a curve, at the pointer's x; else an axis, or 0 near both; else
+    // the place under the pointer. The same however the turns are cut up
     graphCanvas.addEventListener('wheel', function (e) {
-        var at = onPlot(e), dy = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1),
-            k = Math.pow(1.002, Math.max(-300, Math.min(300, dy))), f = Math.pow(k, k > 1 ? -0.5 : 0.5),
-            w = graphPlot.clientWidth / 2, h = graphPlot.clientHeight / 2;
+        var at = onPlot(e), v = viewNow(), dy = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1),
+            k = Math.pow(1.002, Math.max(-300, Math.min(300, dy))), p = graphPoint(at, GRAPH_ZOOM_REACH), x0 = plotX(v, 0), y0 = plotY(v, 0);
         e.preventDefault();
         popShut();
-        graphMove(viewNow(), at, { x: w + (at.x - w) * f, y: h + (at.y - h) * f }, k);
+        if (!p.spot) {
+            at = { x: plotX(v, p.x), y: plotY(v, p.y) };
+        } else {
+            if (Math.abs(at.x - x0) <= GRAPH_ZOOM_SNAP) at.x = x0;
+            if (Math.abs(at.y - y0) <= GRAPH_ZOOM_SNAP) at.y = y0;
+        }
+        graphMove(v, at, at, k);
         if (graphStart && !graphShading) graphBegin(); // a drag goes on from the view zoomed, not back to the one it began with
         clearTimeout(graphSaving);
         graphSaving = setTimeout(saveState, 300);
@@ -4686,8 +4754,8 @@
             var w = graphPlot.clientWidth, h = graphPlot.clientHeight, v = viewNow(), n, x, y;
             onlyNumber(box);
             n = graphEnds.map(boxNumber);
-            x = n[0] < n[1] && (n[1] - n[0]) / w > 1e-12 && (n[1] - n[0]) / w < 1e12;
-            y = n[2] < n[3] && (n[3] - n[2]) / h > 1e-12 && (n[3] - n[2]) / h < 1e12;
+            x = n[0] < n[1] && (n[1] - n[0]) / w > Math.max(1e-12, Math.max(Math.abs(n[0]), Math.abs(n[1])) * 1e-11) && (n[1] - n[0]) / w < 1e12;
+            y = n[2] < n[3] && (n[3] - n[2]) / h > Math.max(1e-12, Math.max(Math.abs(n[2]), Math.abs(n[3])) * 1e-11) && (n[3] - n[2]) / h < 1e12;
             graphEnds[0].parentNode.classList.toggle('calc-bad', !x);
             graphEnds[2].parentNode.classList.toggle('calc-bad', !y);
             if (!x && !y) return;
