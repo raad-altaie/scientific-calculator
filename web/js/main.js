@@ -3182,8 +3182,10 @@
         drawGrid(ctx, v, w, h, false);
         if (graphPinned && graphPinned.area) graphShade(ctx, v, w, h, graphPinned);
         graphFns.forEach(function (fn, i) {
-            if (fn) drawCurve(ctx, v, w, h, fn, curveColor(i));
-            if (fn && graphDiff[i] && !graphData[i]) drawCurve(ctx, v, w, h, slopeCurve(fn), curveColor(i), true);
+            (fn ? fn.family || [fn] : []).forEach(function (c) { // of a list, each of its curves
+                drawCurve(ctx, v, w, h, c, curveColor(i));
+                if (graphDiff[i] && !graphData[i]) drawCurve(ctx, v, w, h, slopeCurve(c), curveColor(i), true);
+            });
             if (graphRels[i]) drawRelation(ctx, v, w, h, graphRels[i], curveColor(i));
             if (graphPlanes[i]) ({ seq: drawSequence, field: drawField }[graphPlanes[i].kind] || drawPlane)(ctx, v, w, h, graphPlanes[i], curveColor(i));
         });
@@ -3194,8 +3196,10 @@
             graphMarks = dataMarks();
         } else {
             if (!graphMarksKept || graphMarksKept.key !== key) {
-                graphMarksKept = { key: key, marks: CalcEngine.keyPoints(graphFns, { x0: graphX(v, 0), x1: graphX(v, w), y0: graphY(v, h), y1: graphY(v, 0) },
-                    deg, graphRels, graphPlanes) };
+                graphMarksKept = { key: key, marks: graphLayers().reduce(function (all, fns, f) { // of a list, of each of its curves, f its place
+                    return all.concat(CalcEngine.keyPoints(fns, { x0: graphX(v, 0), x1: graphX(v, w), y0: graphY(v, h), y1: graphY(v, 0) },
+                        deg, f ? [] : graphRels, f ? [] : graphPlanes).map(function (m) { if (f) m.f = f; return m; }));
+                }, []) };
             }
             graphMarks = graphBusy(graphMarksKept.marks).concat(dataMarks());
         }
@@ -3208,7 +3212,7 @@
             if (!p || p.area || (at && p === graphAt)) return;
             if (!p.t && !p.spot && p.sol !== undefined && graphPlanes[p.i]) p.y = solutionAt(graphPlanes[p.i], p.sol, p.x); // on its solution as the letters are now
             else if (!p.t && !p.spot && p.u !== undefined && graphPlanes[p.i]) onPlane(p);
-            else if (!p.t && !p.spot && graphFns[p.i]) p.y = graphFns[p.i].at(p.x, deg, true); // on the curve as the unit is now
+            else if (!p.t && !p.spot && graphFns[p.i]) p.y = curveAt(p).at(p.x, deg, true); // on the curve as the unit is now
             else if (!p.t && !p.spot && graphRels[p.i]) onEquation(v, p);
             if (!isFinite(p.y) || Math.abs(plotY(v, p.y)) > 1e6) return;
             if (p.spot) {
@@ -3252,7 +3256,7 @@
     // place off the curves, where two cross, or where the curve has no slope
     function graphTangent(ctx, v, far, p) {
         var one = p && !p.spot && !p.area && !p.data && p.j === undefined, plane = one && p.u !== undefined && graphPlanes[p.i],
-            field = one && p.sol !== undefined && graphPlanes[p.i], fn = one && !plane && !field && graphFns[p.i], rel = one && !fn && !plane && !field && relPart(p), x, y, k;
+            field = one && p.sol !== undefined && graphPlanes[p.i], fn = one && !plane && !field && curveAt(p), rel = one && !fn && !plane && !field && relPart(p), x, y, k;
         if (!p) return;
         p.m = NaN;
         if ((!fn && !rel && !plane && !field) || (plane && plane.kind === 'seq')) return; // a sequence is of dots, with no slope
@@ -3730,17 +3734,19 @@
         } else
         if (key === 38 || key === 40) {
             graphFns.forEach(function (fn, k) {
-                var y = fn && k !== i ? fn.at(p.x, deg, true) : NaN;
-                if (isFinite(y) && (y - p.y) * dir > 0 && (!next || Math.abs(y - p.y) < Math.abs(next.y - p.y))) next = { i: k, x: p.x, y: y };
+                (fn ? fn.family || [fn] : []).forEach(function (c, f) { // the other curves of a list as well
+                    var y = k !== i || f !== (p.f || 0) ? c.at(p.x, deg, true) : NaN;
+                    if (isFinite(y) && (y - p.y) * dir > 0 && (!next || Math.abs(y - p.y) < Math.abs(next.y - p.y))) next = { i: k, f: f, x: p.x, y: y };
+                });
             });
             if (!next) return true;
         } else {
             x = graphRound(p.x + dir * GRAPH_TRACE * (shift ? 10 : 1) * v.ux, v.ux);
             graphMarks.forEach(function (m) {
-                if ((m.i === i || m.j === i) && (m.x - p.x) * dir > v.ux / 2 && (m.x - x) * dir <= 0 && // not the one it is on, found again
+                if ((m.i === i || m.j === i) && (m.f || 0) === (p.f || 0) && (m.x - p.x) * dir > v.ux / 2 && (m.x - x) * dir <= 0 && // not the one it is on, found again
                     (!next || Math.abs(m.x - p.x) < Math.abs(next.x - p.x))) next = m;
             });
-            if (!next) next = { i: i, x: x, y: graphFns[i].at(x, deg, true) };
+            if (!next) next = { i: i, f: p.f, x: x, y: curveAt(p).at(x, deg, true) };
         }
         if (graphStep && graphStep.p !== next) graphStep = null;
         graphTracing = next.i === i || next.j === i ? i : next.i;
@@ -4159,6 +4165,19 @@
 
     // the slope of a curve as a curve of its own, dy/dx at each x: none where it has none,
     // at a corner or a break. One for each curve, so its lines are kept as the curve's are
+    // the curve of its box a point is on: of a list, the one of its curves p.f names
+    function curveAt(p) {
+        var fn = graphFns[p.i];
+        return fn && fn.family && p.f ? fn.family[p.f] || fn : fn;
+    }
+
+    // the curves of the boxes by their place in a list: the first of each box, then the second of each list, …
+    function graphLayers() {
+        var n = Math.max.apply(null, graphFns.map(function (fn) { return fn && fn.family ? fn.family.length : 1; }).concat(1)), out = [], f;
+        for (f = 0; f < n; f++) out.push(graphFns.map(function (fn) { return !fn ? null : !f ? fn : fn.family ? fn.family[f] || null : null; }));
+        return out;
+    }
+
     function slopeCurve(fn) {
         if (!fn.slopeOf) fn.slopeOf = { at: function (x, deg) { return CalcEngine.slope(fn, x, deg); }, reach: fn.slopeReach, letters: fn.letters || [] };
         return fn.slopeOf;
@@ -4200,12 +4219,15 @@
         });
         if (best) return best.p;
         graphFns.forEach(function (fn, i) {
-            var y = fn ? fn.at(graphX(v, at.x), deg, true) : NaN, d = Math.abs(plotY(v, y) - at.y);
-            if (isFinite(y) && d <= reach * 1.2 && (!best || d < best.d)) { // on it at the pointer's x, then the likeliest point near that
-                best = { d: d, p: likelyPoint(fn, v, at, near || 3) || { x: graphRound(graphX(v, at.x), v.ux) } };
-                if (best.p.y === undefined) best.p.y = fn.at(best.p.x, deg, true);
-                best.p.i = i;
-            }
+            (fn ? fn.family || [fn] : []).forEach(function (c, f) { // of a list, the nearest of its curves
+                var y = c.at(graphX(v, at.x), deg, true), d = Math.abs(plotY(v, y) - at.y);
+                if (isFinite(y) && d <= reach * 1.2 && (!best || d < best.d)) { // on it at the pointer's x, then the likeliest point near that
+                    best = { d: d, p: likelyPoint(c, v, at, near || 3) || { x: graphRound(graphX(v, at.x), v.ux) } };
+                    if (best.p.y === undefined) best.p.y = c.at(best.p.x, deg, true);
+                    best.p.i = i;
+                    if (f) best.p.f = f;
+                }
+            });
         });
         graphRels.forEach(function (rel, i) { // an equation: the place on it nearest; of an inequality of two, on either line where the other holds
             (rel ? rel.parts || [rel] : []).forEach(function (part, k) {

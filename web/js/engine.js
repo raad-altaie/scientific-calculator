@@ -10,6 +10,7 @@
         MAX_NODES = 60, // a longer expression continues from its subtotal
         MAX_LEVELS = 30, // open brackets
         MAX_PASTE = 500, // characters of a pasted equation
+        MAX_LIST = 50, // curves of a list: y = [1, 2, 3]x
         MAX_PAST = 50, // finished calculations kept in the history
         MAX_PAST_CHARS = 100000, // total size of the history
         MAX_EDIT = 300, // pieces of an equation being edited
@@ -50,7 +51,7 @@
             -0.26190838401581408670e-4, 0.36899182659531622704e-5
         ],
         // the names a graph's text is read with, the longest first, so sinhx is sinh x and exp is not e × …
-        NAMES = new RegExp('^(' + Object.keys(WORDS).concat(['pi', 'e', 'x', 'ncr', 'npr', 'mod', 'gcd', 'lcm']).sort(function (a, b) {
+        NAMES = new RegExp('^(' + Object.keys(WORDS).concat(['pi', 'e', 'x', 'ncr', 'npr', 'mod', 'gcd', 'lcm', 'min', 'max']).sort(function (a, b) {
             return b.length - a.length;
         }).join('|') + ')', 'i'),
         ZERO = BigInt(0), ONE = BigInt(1), TEN = BigInt(10), // whole numbers of any size, for exact arithmetic
@@ -361,6 +362,8 @@
             case 'mod': return mod(a, b);
             case 'gcd': return gcd(a, b);
             case 'lcm': return lcm(a, b);
+            case 'min': return Math.min(a, b);
+            case 'max': return Math.max(a, b);
         }
     }
 
@@ -564,8 +567,10 @@
     // numbers written with separators: 1,234.5, 1.234,5 and 1 234,5 are all 1234.5.
     // A lone comma is a decimal mark (1,5) unless it splits groups of three (1,234);
     // a space, a thin or a no-break one as well, only splits groups of three (1 234, not 5 3).
-    // comma: the decimal mark in use is a comma, so 1.234 is 1234 and 1,234 is 1.234
+    // comma: the decimal mark in use is a comma, so 1.234 is 1234 and 1,234 is 1.234.
+    // The commas between the numbers of min and max are ;, as max(1,5) is of 1 and 5, unless comma
     function separators(s, comma) {
+        if (!comma) s = listed(s);
         s = s.replace(/(^|[^\d.,])([1-9]\d{0,2}(?:[ \u00A0\u2009\u202F]\d{3})+)(?!\d)/g, function (all, before, n) {
             return before + n.replace(/\D/g, '');
         });
@@ -575,6 +580,19 @@
             if (d < 0) return (comma ? /^[1-9]\d{0,2}(,\d{3}){2,}$/ : /^[1-9]\d{0,2}(,\d{3})+$/).test(n) ? n.replace(/,/g, '') : n.replace(',', '.');
             return c > d ? n.replace(/\./g, '').replace(/,/g, '.') : n.replace(/,/g, '');
         });
+    }
+
+    // s with ; for each comma between the numbers of min(…) and max(…)
+    function listed(s) {
+        var open = [], out = '', k, c;
+        if (!/(min|max)\s*\(/i.test(s)) return s;
+        for (k = 0; k < s.length; k++) {
+            c = s.charAt(k);
+            if (c === '(') open.push(/(min|max)\s*$/i.test(s.slice(0, k)));
+            if (c === ')') open.pop();
+            out += c === ',' && open[open.length - 1] ? ';' : c;
+        }
+        return out;
     }
 
     // money is read as its number: $1,200, 45.99 €, US$ 5 and 5 USD. A currency is its
@@ -669,6 +687,7 @@
                 else if (word === 'x') out.push(variable ? { t: 'const', v: 'x' } : { t: 'op', v: '×', c: '×' });
                 else if (word === 'ncr' || word === 'npr') out.push({ t: 'op', v: word === 'ncr' ? 'nCr' : 'nPr' });
                 else if (word === 'mod' || word === 'gcd' || word === 'lcm') out.push({ t: 'op', v: word, c: word });
+                else if (variable && (word === 'min' || word === 'max')) out.push({ t: 'fn', v: word });
                 else return null;
             } else if (variable && defs && (m = /^([a-df-wzA-DF-WZ])\s*(['′’″]*)\s*(?=\()/.exec(s)) &&
                     defs.hasOwnProperty(m[1].toLowerCase())) {
@@ -681,6 +700,9 @@
                 out.push({ t: 'const', v: m[0].toLowerCase(), p: true });
             } else if (c === 'π') {
                 out.push({ t: 'const', v: 'π' });
+                m = [c];
+            } else if (variable && c === ';') { // between the numbers of min and max
+                out.push({ t: 'op', v: ';' });
                 m = [c];
             } else if ((m = /^\*\*/.exec(s))) {
                 out.push({ t: 'op', v: '^' });
@@ -777,6 +799,21 @@
                 f = { t: 'call', c: t.of };
                 f.arg = need(shut(primary(), f));
                 return f;
+            }
+            if (t.t === 'fn' && (t.v === 'min' || t.v === 'max')) { // max(x, 2, -x): the largest of them, two at a time
+                if (!is('(')) throw BAD;
+                i++;
+                n = need(sum());
+                while (is(';')) {
+                    i++;
+                    n = { t: 'bin', op: t.v, l: n, r: need(sum()) };
+                }
+                if (is(')')) {
+                    i++;
+                    return { t: 'group', arg: n };
+                }
+                if (!end()) throw BAD;
+                return { t: 'group', arg: n, open: true };
             }
             if (t.t === 'fn' && t.v === 'logy') { // log₂(8): the number, then its base
                 n = is('(') ? primary() : postfix();
@@ -1064,6 +1101,8 @@
                         if (b[0] !== b[1] || !(b[0] > 0) || b[0] === 1) return null;
                         v = reachOf({ t: 'fn', key: 'ln', arg: n.l }, x0, x1, deg, vars, y0, y1);
                         return v && (isNaN(v[0]) ? v : times(v, point(1 / Math.log(b[0]))));
+                    case 'min': return [Math.min(a[0], b[0]), Math.min(a[1], b[1]), a[2] && b[2]];
+                    case 'max': return [Math.max(a[0], b[0]), Math.max(a[1], b[1]), a[2] && b[2]];
                 }
                 return null;
         }
@@ -1217,6 +1256,12 @@
                             k = [Math.log(a[0]), Math.log(a[1]), a[2]];
                             return times(of(n), plus(times(db, k), div(times(b, da), a)));
                         }
+                        return null;
+                    case 'min': // of the one that is the least, either where they may cross
+                    case 'max':
+                        if (n.op === 'min' ? a[1] < b[0] : a[0] > b[1]) return da;
+                        if (n.op === 'min' ? b[1] < a[0] : b[0] > a[1]) return db;
+                        return [Math.min(da[0], db[0]), Math.max(da[1], db[1]), false];
                 }
                 return null;
         }
@@ -1742,9 +1787,18 @@
     // where it would be d ÷ d × x. Named, g(x) = x^2 + 1, it is g, which defs gives other boxes.
     // Inequalities in braces after it keep it to where they hold, x^2 {0 < x < 3}, {y > 0} of its
     // value, and in braces with a colon it is in pieces, {x < 0: -x, x^2}: the first whose
-    // inequality holds, the last without one where none does; piece(x, deg) is which. rough: its values are found by steps
+    // inequality holds, the last without one where none does; piece(x, deg) is which. rough: its values are found by steps.
+    // With a list, y = [1, 2, 3]x, it is a curve for each of its numbers, family: all of them, the first its own
     function graph(text, comma, vars, defs) {
-        var s = String(text).trim().replace(HEAD, ''), cut = conditions(s, comma, vars, defs), c;
+        var s = String(text).trim().replace(HEAD, ''), each = members(s, comma), cut, c, all;
+        if (each) {
+            all = each.map(function (t) { return graph(t, comma, vars, defs); });
+            if (!all.length || !all.every(Boolean)) return null;
+            c = Object.assign({}, all[0], { family: all, letters: joined(all), angles: all.some(function (f) { return f.angles; }) });
+            c.rough = all.some(function (f) { return f.rough; });
+            return c;
+        }
+        cut = conditions(s, comma, vars, defs);
         if (!cut) return null;
         c = /^\{[^{}]*\}$/.test(cut.s) ? cases(cut.s.slice(1, -1), comma, vars, defs) :
             curveOf(separators(cut.s, comma), vars, defs);
@@ -1778,6 +1832,28 @@
             rough: c.rough,
             piece: c.piece
         };
+    }
+
+    // The texts the lists of s make, one for each of their numbers: y = [1, 2, 3]x is y = (1)x,
+    // y = (2)x and y = (3)x; of two lists, their numbers side by side, as many as the shorter has;
+    // [-2...2] is -2 to 2. Null if s has no list; none if one is not a list
+    function members(s, comma) {
+        var lists = [], find = /\[([^\[\]]*)\]/g, n = MAX_LIST, out = [], m, k, range, items;
+        if (s.indexOf('[') < 0) return null;
+        if (/[\[\]]/.test(s.replace(find, ''))) return [];
+        while ((m = find.exec(s))) {
+            range = /^\s*(-?\d+)\s*(?:\.\.\.?|…)\s*(-?\d+)\s*$/.exec(m[1]);
+            items = [];
+            if (range) for (k = +range[1]; k <= +range[2] && items.length < MAX_LIST; k++) items.push(String(k));
+            else items = apart(m[1], comma);
+            if (!items.length || items.some(function (t) { return !t.trim(); })) return [];
+            lists.push({ at: m.index, end: m.index + m[0].length, items: items });
+            n = Math.min(n, items.length);
+        }
+        for (k = 0; k < n; k++) {
+            out.push(lists.reduceRight(function (t, l) { return t.slice(0, l.at) + '(' + l.items[k] + ')' + t.slice(l.end); }, s));
+        }
+        return out;
     }
 
     // An expression read as the graph reads it, its letters each a number of its own: what

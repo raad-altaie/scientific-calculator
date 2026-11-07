@@ -2336,6 +2336,25 @@ async function graphMany(page, at) {
         await page.calc(colors));
 }
 
+// a list in a box: a curve for each of its numbers, in its color; a click and the keys on each
+async function graphList(page, at) {
+    var t = at + ': a list: ', pop = '(function (p) { return p.textContent.replace(/\\s+/g, " ").trim(); })(document.querySelector(".calc-graph-pop"))',
+        lines = '(function () { var c = document.querySelector(".calc-graph-plot canvas"), k = c.width / c.clientWidth, w = c.clientWidth,' +
+            ' x = Math.round((w / 2 + 2 * w / 20) * k), d = c.getContext("2d").getImageData(x, 0, 1, c.height).data, n = 0, on = false, i, ink;' +
+            ' for (i = 0; i < d.length; i += 4) { ink = Math.abs(d[i] - 0x22) < 30 && Math.abs(d[i + 1] - 0x47) < 30 && Math.abs(d[i + 2] - 0x6a) < 30 && d[i + 3] > 150;' +
+            ' if (ink && !on) n++; on = ink; } return n; })()';
+
+    await page.fresh(at, { graph: { f: ['[1,2,3]x'], view: null } });
+    await page.click('.calc-graph-btn');
+    check(await page.calc(lines) === 3, t + '[1,2,3]x is three lines, crossed at x = 2', await page.calc(lines));
+    await page.clickAt('.calc-graph-plot', 2, 4);
+    check(/x = 2 ?y = 4 ?Slope = 2$/.test(await page.calc(pop)), t + 'a click is on the one it is on', await page.calc(pop));
+    await page.key('ArrowUp', 38);
+    check(/x = 2 ?y = 6 ?Slope = 3$/.test(await page.calc(pop)), t + '↑ goes to the one above', await page.calc(pop));
+    await page.key('ArrowRight', 39);
+    check(/Slope = 3$/.test(await page.calc(pop)), t + '→ goes along it', await page.calc(pop));
+}
+
 // a curve hidden and shown by a click on its dot; the graph saved or copied as a picture
 async function graphHide(page, at) {
     var t = at + ': hide: ', note = 'document.querySelector(".calc-graph-note").textContent',
@@ -4384,6 +4403,7 @@ async function adminPolicy(page) {
         await graphTable(page, '/popup.html');
         await graphHide(page, '/popup.html');
         await graphMany(page, '/popup.html');
+        await graphList(page, '/popup.html');
         await graphSlide(page, '/popup.html');
         await graphBig(page, '/popup.html');
         await search(page);

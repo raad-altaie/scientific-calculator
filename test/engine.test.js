@@ -2642,6 +2642,29 @@ dels.forEach(function (c) {
     });
 
     check(at('2,5x', 2, 0, true) === 5, 'graph: a comma is the decimal mark when it is in use', at('2,5x', 2, 0, true));
+    [['max(x, 2)', 1, 2], ['max(x, 2)', 5, 5], ['min(x, 2, -x)', 3, -3], ['max(1,5)', 0, 5], ['max(1,234, 5)', 0, 234],
+        ['min(x^2, 1)^2', 3, 1], ['2max(sin x, 0)', Math.PI / 2, 2], ['max(min(x, 1), -1)', -4, -1], ['MAX(x', 3, 3], ['m i n', 0, 1]].forEach(function (c) {
+        check(at(c[0], c[1]) === c[2], 'graph: ' + c[0] + ' at ' + c[1] + ' is ' + c[2], at(c[0], c[1]));
+    });
+    check(at('max(1,5; 3)', 0, 0, true) === 3 && at('max(x,', 1) === null, 'graph: max with the comma in use takes ;, and none while one is still to come',
+        [at('max(1,5; 3)', 0, 0, true), at('max(x,', 1)]);
+    check(JSON.stringify(Engine.graph('max(x, 2)').reach(0, 5, 0)) === '[2,5,true]' &&
+        JSON.stringify(Engine.graph('max(x, 2)').slopeReach(3, 4, 0)) === '[1,1,true]' &&
+        JSON.stringify(Engine.graph('max(x, 2)').slopeReach(1, 3, 0)) === '[0,1,false]', 'graph: what max(x, 2) and its slope reach');
+    check(!new Engine().paste('max(1,2)', 0, true), 'max is of the graph, not pasted into the calculator');
+
+    // a list: a curve for each of its numbers
+    function family(text, x, comma) {
+        var g = Engine.graph(text, comma, {});
+        return g && g.family ? g.family.map(function (f) { return f.at(x, 0); }).join() : String(g);
+    }
+    [['y = [1, 2, 3]x', 2, '2,4,6'], ['[1...4]x^2', 1, '1,2,3,4'], ['[-2...2]', 0, '-2,-1,0,1,2'], ['[1,2,3]x + [10, 20]', 1, '11,22'],
+        ['max(x, [0, 1])', 0.5, '0.5,1'], ['sin([1, 2]x) {x > 0}', -1, 'NaN,NaN'], ['[]x', 1, 'null'], ['[1, ]x', 1, 'null'], ['x]', 1, 'null'],
+        ['[1...1000]', 0, Array.apply(null, Array(50)).map(function (u, k) { return k + 1; }).join()]].forEach(function (c) {
+        check(family(c[0], c[1]) === c[2], 'graph: the list ' + c[0] + ' at ' + c[1] + ' is ' + c[2], family(c[0], c[1]));
+    });
+    check(family('[1,5; 2]x', 2, true) === '3,4' && Engine.graph('[a, 2b]x', false, {}).letters.join() === 'a,b' &&
+        Engine.graph('[1, 2]x', false, {}).at(3, 0) === 3, 'graph: a list with the comma in use, its letters, and its first curve its own');
     check(at('sin(x)', 30, 1) === 0.5 && at('sin(x)', 100, 2) === 1, 'graph: sin x follows Deg and Grad');
     check(at('sin(30°) + x', 0, 0) === 0.5, 'graph: an angle in degrees stays in degrees');
     check(!isFinite(at('1/x', 0)) && !isFinite(at('sqrt(x)', -1)), 'graph: no value where there is none');
