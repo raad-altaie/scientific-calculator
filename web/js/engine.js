@@ -12,6 +12,7 @@
         MAX_PASTE = 500, // characters of a pasted equation
         MAX_LIST = 50, // curves of a list: y = [1, 2, 3]x
         MAX_TERMS = 10000, // terms of a sum or product: sum(1/k^2, k, 1, x)
+        TRACE_TIME = 200, // milliseconds a curve is traced in, finer where there is time
         MAX_PAST = 50, // finished calculations kept in the history
         MAX_PAST_CHARS = 100000, // total size of the history
         MAX_EDIT = 300, // pieces of an equation being edited
@@ -1063,24 +1064,34 @@
     }
 
     // What a sum or product reaches as x goes from x0 to x1, of what of(k, at) finds each of its
-    // terms reaches, at holding k as its letter's value: no end where a term comes or goes on
-    // the way, as sum(k, k, 1, x) at a whole x; none past MAX_TERMS; null where it cannot tell
+    // terms reaches, at holding k as its letter's value. A term that comes or goes on the way, as
+    // of sum(k, k, 1, x) at a whole x, is anywhere from none (0, or 1 of a product) to what it
+    // reaches, and the sum not whole: a step, as floor x has. None past MAX_TERMS; null where it cannot tell
     function terms(n, x0, x1, deg, vars, y0, y1, of) {
         var a = reachOf(n.l, x0, x1, deg, vars, y0, y1), b = reachOf(n.r, x0, x1, deg, vars, y0, y1), at = Object.create(vars || null),
-            r = n.t === 'sum' ? [0, 0, true] : [1, 1, true], from, to, k, t;
+            none = n.t === 'sum' ? 0 : 1, r = [none, none, true], from, first, to, last, k, t;
         if (!a || !b) return null;
         if (isNaN(a[0]) || isNaN(b[0])) return [NaN, NaN, false];
-        from = Math.ceil(a[0] - 1e-9);
+        from = Math.ceil(a[0] - 1e-9); // from the first that may be in to the last that may be
+        first = Math.ceil(a[1] - 1e-9); // from the first that is always in to the last that is
         to = Math.floor(b[1] + 1e-9);
-        if (from !== Math.ceil(a[1] - 1e-9) || to !== Math.floor(b[0] + 1e-9)) return [-Infinity, Infinity, false];
-        if (!(to - from < MAX_TERMS)) return [NaN, NaN, false];
+        last = Math.floor(b[0] + 1e-9);
+        if (!(last - first < MAX_TERMS)) return [NaN, NaN, false];
+        if (!(to - from < MAX_TERMS)) return [-Infinity, Infinity, false];
+        if (from !== first || to !== last) r[2] = false;
         for (k = from; k <= to; k++) {
             at[n.v] = k;
             t = of(k, at);
-            if (!t || isNaN(t[0])) return t && [NaN, NaN, false];
-            r = reachOf({ t: 'bin', op: n.t === 'sum' ? '+' : '×', l: { t: 'r', r: r }, r: { t: 'r', r: t } });
+            if (!t) return null;
+            if (k < first || k > last) {
+                if (isNaN(t[0])) continue; // where it is in it has no value; elsewhere it is not there
+                t = [Math.min(t[0], none), Math.max(t[1], none), false];
+            } else if (isNaN(t[0])) {
+                return [NaN, NaN, false];
+            }
+            r = none ? reachOf({ t: 'bin', op: '×', l: { t: 'r', r: r }, r: { t: 'r', r: t } }) : [r[0] + t[0], r[1] + t[1], r[2] && t[2]];
         }
-        return r;
+        return isNaN(r[0]) || isNaN(r[1]) ? [-Infinity, Infinity, false] : r;
     }
 
     // The values an expression read by parse takes as x goes from x0 to x1, as valueAt finds
@@ -1409,10 +1420,12 @@
     // up and down the pixel covers all it reaches, as many values are there
     function trace(c, view, deg) {
         var w = view.w, h = view.h, kx = (view.x1 - view.x0) / w, ky = h / (view.y1 - view.y0),
-            n = 2 * Math.ceil(w) + 4, more = 40 * n, lines = [], line = null, last = null, ends = [], k, a, b;
+            n = 2 * Math.ceil(w) + 4, more = 40 * n, lines = [], line = null, last = null, ends = [], k, a, b,
+            start = Date.now(), stop = start + TRACE_TIME, placed = 0, step = 1;
 
         function place(x) {
             var y = c.at(x, deg);
+            placed++;
             return { x: x, px: (x - view.x0) / kx, y: y, py: isFinite(y) ? Math.max(-1e9, Math.min(1e9, (view.y1 - y) * ky)) : NaN, k: c.piece ? c.piece(x, deg) : 0 };
         }
         function reach(a, b) {
@@ -1503,9 +1516,9 @@
             if (even(a, m, b, r)) return to(b);
             if ((b.px - a.px < 1e-3 && (!r || (isFinite(r[0]) && isFinite(r[1])))) || depth > 60 ||
                 (r && !r[2] && across(a, b))) return end(a, b, r);
+            if (more <= 0 || Date.now() > stop) return stroke(a, b, r, [a, m, b]); // as far as there is time for
             r1 = reach(a, m);
             r2 = reach(m, b);
-            if (more <= 0) return stroke(a, b, r, [a, m, b]);
             if (!still(a, m, r1) && !still(m, b, r2)) { // more than a pixel shows, unless each half goes smoothly
                 m1 = place((a.x + m.x) / 2);
                 m2 = place((m.x + b.x) / 2);
@@ -1541,9 +1554,16 @@
 
         a = place(view.x0 - kx);
         from(a);
-        for (k = 1; k <= n; k++) {
+        // out of time, the rest from value to value, as far apart as to take as long again
+        for (k = 1; k <= n; k = Math.min(n, k + step) + (k === n)) {
             b = place(view.x0 + (k / 2 - 1) * kx);
-            join(a, b, 0, reach(a, b));
+            if (Date.now() <= stop) {
+                join(a, b, 0, reach(a, b));
+            } else {
+                if (step === 1) step = Math.max(1, Math.ceil((n - k) * (Date.now() - start) / placed / TRACE_TIME));
+                if (isFinite(a.py) && isFinite(b.py) && a.k === b.k) to(b);
+                else from(b);
+            }
             a = b;
         }
         // Two places it has no end less than 3 pixels apart, as tan x has seen from a little
@@ -2969,7 +2989,8 @@
     // curves of a parameter that plane gives: where they meet the axes and cross a curve or an
     // equation, u being the parameter there
     function keyPoints(curves, view, deg, rels, planes) {
-        var n = 400, dx = (view.x1 - view.x0) / n, jump = (view.y1 - view.y0) / 2, xs = [], ys = [], found = [], k;
+        var n = 400, dx = (view.x1 - view.x0) / n, jump = (view.y1 - view.y0) / 2, xs = [], ys = [], found = [], k,
+            stop = Date.now() + TRACE_TIME; // past it no more are looked for, as of a sum of thousands of terms
 
         for (k = 0; k <= n; k++) xs.push(view.x0 + k * dx);
         curves.forEach(function (c, i) {
@@ -2989,6 +3010,7 @@
                 return c.at(x, deg);
             }
 
+            if (Date.now() > stop) return;
             add(zeros(f, xs, y, dx * 1e-6), function (x) { return { t: ['root'], x: x, y: 0, i: i }; });
 
             // three samples, the middle one higher or lower than both its neighbours, with no jump
@@ -3003,12 +3025,12 @@
             }
             [[highs, 1, 'max'], [lows, -1, 'min']].forEach(function (kind) {
                 var sign = kind[1];
-                if (kind[0].length > KEY_MAX) return;
+                if (kind[0].length > KEY_MAX || Date.now() > stop) return;
                 function g(x) {
                     var v = f(x);
                     return isFinite(v) ? sign * v : -Infinity;
                 }
-                add(kind[0].map(function (x) {
+                add(kind[0].filter(function () { return Date.now() <= stop; }).map(function (x) {
                     var top = peak(g, x - dx, x + dx), best = g(top);
                     return snap(top, dx * 1e-4, function (q) { return g(q) >= best - 1e-15 * Math.max(1, Math.abs(best)); });
                 }), function (x) {
@@ -3022,7 +3044,7 @@
             // then more finely. Not of a slope found by steps, whose bends its rounding makes
             if (!c.rough) {
                 bends(y).forEach(function (h) {
-                    var r = bisect(function (x) { return bend(x, dx); }, xs[h[0]], xs[h[1]], h[2]), lo, hi;
+                    var r = Date.now() <= stop ? bisect(function (x) { return bend(x, dx); }, xs[h[0]], xs[h[1]], h[2]) : null, lo, hi;
                     if (r === null || !(Math.abs(bend(r, dx)) <= h[3])) return;
                     lo = fine(r - dx);
                     hi = fine(r + dx);

@@ -1552,7 +1552,7 @@
     // is. p: the values of its sliders, [value, from, to]; fit: the best fit of its points;
     // v: the view, [x from, to, y from, to], all of it shown, and with stretch each of them
     // filling the plot, x and y apart; rad: drawn in Rad, its t or x being a number and not an angle;
-    // play: the sliders that play as it is drawn; hue: the colors of its boxes, in place of the first ones
+    // play: the sliders that play as it is drawn; hue: the colors of its first boxes, in place of the first ones, the others after them in order
     var graphs = [
         {
             c: 'Functions', list: [
@@ -1677,11 +1677,11 @@
                     d: 'Two arms growing by the golden ratio, (1 + √5)/2, each quarter turn. Turned by w it is the same spiral, only bigger: it seems to come at you.',
                     p: { w: [0, 0, 3.14] }, play: ['w'], v: [-8, 8, -8, 8], rad: true },
                 { t: 'Heart curve', f: ['(16sin(t)^3, 13cos(t) - 5cos(2t) - 2cos(3t) - cos(4t))'], d: 'A heart, x and y each a sum of waves of t.',
-                    hue: [1, 0, 2, 3, 4, 5, 6], v: [-20, 20, -20, 15] },
+                    hue: [1, 0], v: [-20, 20, -20, 15] },
                 { t: 'Atom', f: ['x^2 + y^2 <= 0.5', '(5cos(t), 1.8sin(t))', '(2.5cos(t) - 1.56sin(t), 4.33cos(t) + 0.9sin(t))', '(-2.5cos(t) - 1.56sin(t), 4.33cos(t) - 0.9sin(t))',
                     '(5cos(a) + 0.35cos(t), 1.8sin(a) + 0.35sin(t))', '(2.5cos(a + 2) - 1.56sin(a + 2) + 0.35cos(t), 4.33cos(a + 2) + 0.9sin(a + 2) + 0.35sin(t))',
                     '(-2.5cos(a + 4) - 1.56sin(a + 4) + 0.35cos(t), 4.33cos(a + 4) - 0.9sin(a + 4) + 0.35sin(t))'],
-                    d: 'A nucleus, three orbits, each an ellipse turned 60° on from the one before, and an electron going round each as a plays: all seven boxes.',
+                    d: 'A nucleus, three orbits, each an ellipse turned 60° on from the one before, and an electron going round each as a plays: seven boxes.',
                     p: { a: [0, 0, 6.28] }, play: ['a'], v: [-6, 6, -6, 6], rad: true },
                 { t: 'Phases of the Moon', f: ['x^2 + y^2 <= 9 {x > k sqrt(9 - y^2)}', 'x^2 + y^2 = 9'],
                     d: 'Lit where x is more than k√(9 – y²): new at k = 1, half at 0, full at –1.', p: { k: [0, -1, 1] }, play: ['k'], v: [-4, 4, -4, 4] },

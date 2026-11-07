@@ -2276,10 +2276,10 @@ async function graphSlide(page, at) {
     check(await page.calc('document.querySelector(".calc-graph-sliders").hidden') && await page.calc(saved) === '{}', t + 'Clear: no sliders');
 }
 
-// Up to seven curves: the + adds a box, its × removes one and the curves below move up with
+// Up to twenty-five curves: the + adds a box, its × removes one and the curves below move up with
 // their colors; more than three boxes scroll in the small panel, and the table across
 async function graphMany(page, at) {
-    var t = at + ': seven: ', shown = 'document.querySelectorAll(".calc-graph-fn:not([hidden])").length',
+    var t = at + ': twenty-five: ', shown = 'document.querySelectorAll(".calc-graph-fn:not([hidden])").length',
         colors = '[].map.call(document.querySelectorAll(".calc-graph-fn:not([hidden]) .calc-graph-swatch"),' +
             ' function (d) { return d.style.getPropertyValue("--c"); }).join(" ")',
         values = '[].map.call(document.querySelectorAll(".calc-graph-input"), function (b) { return b.value; }).slice(0, 6).join()',
@@ -2293,13 +2293,13 @@ async function graphMany(page, at) {
     await page.key('Enter', 13);
     check(await page.calc(shown) === 2, t + 'not after an empty one');
     await page.type('x+1');
-    for (n = 2; n < 7; n++) {
+    for (n = 2; n < 25; n++) {
         await page.click('.calc-graph-add');
         await page.type('x+' + n);
     }
-    check(await page.calc(shown) === 7 && await page.calc('document.querySelector(".calc-graph-add").hidden'), t + 'seven boxes, and then no +');
+    check(await page.calc(shown) === 25 && await page.calc('document.querySelector(".calc-graph-add").hidden'), t + 'twenty-five boxes, and then no +');
     first = await page.calc(colors);
-    check(new Set(first.split(' ')).size === 7, t + 'each curve in its own color', first);
+    check(new Set(first.split(' ')).size === 25, t + 'each curve in its own color', first);
     check(await page.calc('(function (l) { return l.classList.contains("calc-graph-many") && l.scrollHeight > l.clientHeight + 20 &&' +
         ' l.clientHeight < 100; })(document.querySelector(".calc-graph-fns"))') &&
         await page.calc('document.querySelector(".calc-graph-plot").clientHeight') > 150, t + 'the boxes scroll, the plot keeps its room',
@@ -2308,18 +2308,18 @@ async function graphMany(page, at) {
     // the third removed: the ones below move up with their colors, the + is back
     await page.click('.calc-graph-fn:nth-child(3) .calc-graph-del');
     rest = first.split(' ').filter(function (c, i) { return i !== 2; }).join(' ');
-    check(await page.calc(values) === 'x,x+1,x+3,x+4,x+5,x+6' && await page.calc(shown) === 6 &&
+    check(await page.calc(values) === 'x,x+1,x+3,x+4,x+5,x+6' && await page.calc(shown) === 24 &&
         !await page.calc('document.querySelector(".calc-graph-add").hidden'), t + 'the × removes its curve; the ones below move up',
         await page.calc(values));
     check(await page.calc(colors) === rest, t + 'each keeps its color', await page.calc(colors));
     await page.click('.calc-graph-add');
-    check((await page.calc(colors)).split(' ')[6] === first.split(' ')[2], t + 'the new box gets the color that is free');
-    await page.click('.calc-graph-fn:nth-child(7) .calc-graph-del');
+    check((await page.calc(colors)).split(' ')[24] === first.split(' ')[2], t + 'the new box gets the color that is free');
+    await page.click('.calc-graph-fn:nth-child(25) .calc-graph-del');
 
     // the table: a column for each, scrolled across in the small panel
     await page.click('.calc-graph-tab[data-tab="table"]');
     check(await page.calc('(function (l) { return l.scrollWidth > l.clientWidth + 50; })(document.querySelector(".calc-graph-list"))'),
-        t + 'six columns are wider than the panel: the table scrolls across');
+        t + 'twenty-four columns are wider than the panel: the table scrolls across');
     check(/^-?\d/.test(await page.calc('document.querySelector(".calc-graph-line:nth-child(2) > span:nth-child(7)").textContent')),
         t + 'with room for each value', await page.calc('document.querySelector(".calc-graph-line:nth-child(2) > span:nth-child(7)").textContent'));
     await page.click('.calc-graph-tab[data-tab="graph"]');
@@ -2327,7 +2327,7 @@ async function graphMany(page, at) {
     // kept: the boxes and their colors
     await page.go(page.base + at);
     await page.click('.calc-graph-btn');
-    check(await page.calc(shown) === 6 && await page.calc(colors) === rest, t + 'the boxes and their colors are kept', await page.calc(colors));
+    check(await page.calc(shown) === 24 && await page.calc(colors) === rest, t + 'the boxes and their colors are kept', await page.calc(colors));
 
     // a graph saved as the three boxes were: up to the last one filled
     await page.fresh(at, { graph: { f: ['x', 'x^2', ''], view: null } });

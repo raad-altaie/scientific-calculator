@@ -510,7 +510,7 @@
 }
 
 /* More than three boxes scroll, so the plot keeps its room: three show, and the ring of
-   the focus has its 2px inside. Big, they have up to near half of the page */
+   the focus has its 2px inside. Big, they have up to near half of the page; big and wide, the column down to the bottom */
 #calculator .calc-graph-fns.calc-graph-many {
     flex: none;
     max-height: 86px;
@@ -1520,7 +1520,9 @@
            what leaves the plot 320px, as GRAPH_SIDE_MAX and GRAPH_PLOT_MIN; its least and its first as
            big again as the window makes its words (--calc-pop) */
         grid-template-columns: clamp(270px * var(--calc-pop, 1), var(--calc-graph-side, clamp(320px * var(--calc-pop, 1), 26vw, 380px * var(--calc-pop, 1))), max(270px * var(--calc-pop, 1), (100% - 320px) * 0.7)) minmax(0, 1fr);
-        grid-template-rows: auto auto auto auto minmax(0, 1fr);
+        /* the boxes' row as tall as all of them, down to the bottom: they scroll only past that, the
+           points and the sliders kept below them */
+        grid-template-rows: auto minmax(0, max-content) auto auto minmax(0, 1fr);
     }
 
     /* The head's words stay at their full size: as the column narrows it is the space round them that
@@ -1565,6 +1567,10 @@
 
     #calculator.calc-big .calc-graph-fns {
         grid-area: 2 / 1;
+    }
+
+    #calculator.calc-big .calc-graph-fns.calc-graph-many {
+        max-height: none;
     }
 
     #calculator.calc-big .calc-graph-cells {
@@ -1807,7 +1813,7 @@
     display: none;
 }
 
-/* seven curves: no more boxes */
+/* twenty-five curves: no more boxes */
 #calculator .calc-graph-add[hidden] {
     display: none;
 }

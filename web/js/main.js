@@ -106,9 +106,9 @@
         physButton = root.querySelector('.calc-phys-btn'),
         bioPanel = root.querySelector('.calc-bio'), // genetics, DNA, proteins, the lab, cells and ecology, over the keys
         bioButton = root.querySelector('.calc-bio-btn'),
-        graphRows = (function (first) { // a box for each curve, seven: the + shows the next one, its × takes it away
+        graphRows = (function (first) { // a box for each curve, twenty-five: the + shows the next one, its × takes it away
             var rows = [first], row;
-            while (rows.length < 7) {
+            while (rows.length < 25) {
                 row = first.cloneNode(true);
                 row.querySelector('input').placeholder = 'another curve';
                 row.querySelector('input').setAttribute('aria-label', 'y = , curve ' + (rows.length + 1));
@@ -2327,7 +2327,7 @@
 
     // ---------------- graph ---------------- //
 
-    // Up to seven functions of x, typed as they would be pasted: x^2 – 3, 2sin(x), 1/x.
+    // Up to twenty-five functions of x, typed as they would be pasted: x^2 – 3, 2sin(x), 1/x.
     // Their curves are drawn over a grid, in the unit of angles in use, each in its color;
     // a drag moves the view, and the wheel, a pinch or the buttons zoom it. The roots,
     // highs and lows of each, where it meets the y axis and where two cross are marked
@@ -2336,10 +2336,14 @@
     // be put into the calculation, as Ans is
     var GRAPH_WIDTH = 20, // the x the plot starts with: -10 to 10, or a full turn either way in degrees
         GRAPH_INK = { grid: 'rgba(51, 68, 59, 0.16)', axis: '#33443b', text: '#33443b', paper: '#b6d1c2' },
-        // the colors of the curves, all dark enough for the green: navy, red, green, purple, orange, teal and plum
-        GRAPH_CURVES = ['#22476a', '#b0414d', '#3d8b4f', '#6d3fa6', '#c2621a', '#127a85', '#8c2f6b'],
+        // the colors of the curves, one for each box, each as far from the others as the green lets them be: navy, red,
+        // green, purple, orange, teal, plum, gold, fuchsia, olive brown, azure, rust, lime, scarlet, blue, sea green, moss,
+        // ochre, ultramarine, cerulean, pine, crimson, violet, steel and olive; none near black, as the axes are, and one pink
+        GRAPH_CURVES = ['#22476a', '#b0414d', '#3d8b4f', '#6d3fa6', '#c2621a', '#127a85', '#8c2f6b',
+            '#c99a00', '#f91ff9', '#63551d', '#1f85f9', '#7c3403', '#829504', '#f90617', '#0657f9', '#2e9e8f', '#3d631d',
+            '#9c7016', '#0606f9', '#1d9bc9', '#10705c', '#950417', '#a21ff9', '#16709c', '#7c7403'],
         graphCount = 1, // the boxes shown
-        graphHue = [0, 1, 2, 3, 4, 5, 6], // the color of each box, which stays with its curve as one above is removed
+        graphHue = allHues(), // the color of each box, which stays with its curve as one above is removed
         graphVars = {}, // the value of each letter of the functions but x, as its slider sets it: a and b in a x² + b
         graphRange = {}, // the ends of each slider, [from, to]
         graphLetters = [], // the letters that have a slider now
@@ -2368,8 +2372,8 @@
         GRAPH_ZOOM_REACH = 24, // the wheel this near a dot or a curve zooms about it, so it stays where it is
         GRAPH_ZOOM_SNAP = 16, // else this near an axis, about the axis
         GRAPH_CLICK_NICE = 10, // a click on a curve puts its point where x and y are roundest this many pixels away, (2, 4) and not (1.97, 3.8809)
-        graphOff = [false, false, false, false, false, false, false], // the curves hidden by a click on their dot: kept, not drawn
-        graphDiff = [false, false, false, false, false, false, false], // the curves whose slope is drawn too, by their y′; of points, the kind of their fit
+        graphOff = GRAPH_CURVES.map(function () { return false; }), // the curves hidden by a click on their dot: kept, not drawn
+        graphDiff = GRAPH_CURVES.map(function () { return false; }), // the curves whose slope is drawn too, by their y′; of points, the kind of their fit
         graphTwice = '', // a name two boxes give their functions, f of f(x) = …: the second is none
         graphCells = graph.querySelector('.calc-graph-cells'), // the points of a box as a table of x and y, to type in
         graphCellsRow = -1, // the box that table is of
@@ -2513,6 +2517,11 @@
         showGraph(!graph.classList.contains('calc-open'));
     }, false);
 
+    // the colors in their first order, one for each box
+    function allHues() {
+        return GRAPH_CURVES.map(function (c, i) { return i; });
+    }
+
     // the color of the curve of box i
     function curveColor(i) {
         return GRAPH_CURVES[graphHue[i]];
@@ -2651,7 +2660,7 @@
         graphInputs.forEach(function (box) { box.value = ''; });
         graphFrom.value = graphBy.value = '';
         graphCount = 1;
-        graphHue = [0, 1, 2, 3, 4, 5, 6];
+        graphHue = allHues();
         graphOff = graphOff.map(function () { return false; });
         graphDiff = graphDiff.map(function () { return false; });
         showCells(-1);
@@ -2711,7 +2720,7 @@
         }
         graphCount = 1;
         graphInputs.forEach(function (box, i) { if (box.value.trim()) graphCount = i + 1; });
-        graphHue = [0, 1, 2, 3, 4, 5, 6];
+        graphHue = allHues();
         if (Array.isArray(c) && c.length >= graphCount && c.length <= n && c.every(function (h, i) {
             return h === Math.floor(h) && h >= 0 && h < n && c.indexOf(h) === i;
         })) {
@@ -17976,7 +17985,7 @@
         stopSliders();
         graphInputs.forEach(function (box, i) { box.value = i < ex.f.length ? exampleText(ex.f[i]) : ''; });
         graphCount = ex.f.length;
-        graphHue = (ex.hue || [0, 1, 2, 3, 4, 5, 6]).slice();
+        graphHue = (ex.hue || []).concat(allHues().filter(function (h) { return !ex.hue || ex.hue.indexOf(h) < 0; }));
         graphOff = graphOff.map(function () { return false; });
         graphDiff = graphDiff.map(function (d, i) { return !i && ex.fit ? ex.fit : false; });
         graphFrom.value = graphBy.value = '';

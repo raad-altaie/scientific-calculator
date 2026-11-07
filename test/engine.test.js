@@ -2667,8 +2667,15 @@ dels.forEach(function (c) {
         !new Engine().paste('sum(k,k,1,3)', 0, true), 'graph: the letter of a sum is no slider; a sum is of the graph alone');
     check(JSON.stringify(Engine.graph('sum(k x, k, 1, 3)').reach(0, 1, 0)) === '[0,6,true]' &&
         JSON.stringify(Engine.graph('sum(k, k, 1, x)').reach(2.2, 2.8, 0)) === '[3,3,true]' &&
-        JSON.stringify(Engine.graph('sum(k, k, 1, x)').reach(2.5, 3.5, 0)) === '[null,null,false]' &&
-        JSON.stringify(Engine.graph('sum(k x, k, 1, 3)').slopeReach(0, 1, 0)) === '[6,6,true]', 'graph: what a sum reaches, and its slope; no end where a term comes');
+        JSON.stringify(Engine.graph('sum(k, k, 1, x)').reach(2.5, 3.5, 0)) === '[3,6,false]' &&
+        JSON.stringify(Engine.graph('sum(k x, k, 1, 3)').slopeReach(0, 1, 0)) === '[6,6,true]', 'graph: what a sum reaches, and its slope; a step where a term comes, from without it to with it');
+    (function () {
+        var t0 = Date.now(), lines = Engine.trace(Engine.graph('sum(1/k, k, 1, x)'), { x0: -1000, x1: 1000, y0: -600, y1: 600, w: 600, h: 400 }, 0),
+            t1 = Date.now(), marks = Engine.keyPoints([Engine.graph('sum(sin(k x)/k, k, 1, 5000)')], { x0: -10, x1: 10, y0: -5, y1: 5 }, 0, [], []),
+            t2 = Date.now(), heavy = Engine.trace(Engine.graph('sum(sin(k x)/k, k, 1, 5000)'), { x0: -10, x1: 10, y0: -5, y1: 5, w: 600, h: 400 }, 0);
+        check(lines.length >= 1 && t1 - t0 < 1000 && marks && t2 - t1 < 1500 && heavy.length >= 1 && Date.now() - t2 < 1500,
+            'graph: a sum far out, its steps a pixel apart, traced fast; one of thousands of terms in a time, not frozen', [t1 - t0, t2 - t1, Date.now() - t2]);
+    })();
     check(Engine.trace(Engine.graph('sum(k, k, 1, x)'), { x0: 0, x1: 5, y0: -1, y1: 12, w: 500, h: 400 }, 0).length === 5 &&
         Engine.trace(Engine.graph('integral(cos t, t, 0, x)'), { x0: -10, x1: 10, y0: -5, y1: 5, w: 600, h: 400 }, 0).length === 1,
         'graph: a sum to x in steps, an integral to x as one line');

@@ -719,7 +719,7 @@
         // the graph
         'graph': {
             t: 'Graph',
-            d: 'Draws up to seven functions of x, with a slider for any other letter, as a in a x^2 + b: x^2 – 3, 2sin(x); sequences, a(n) = a(n – 1) + 2 {a(1) = 1}; ' +
+            d: 'Draws up to 25 functions of x, with a slider for any other letter, as a in a x^2 + b: x^2 – 3, 2sin(x); sequences, a(n) = a(n – 1) + 2 {a(1) = 1}; ' +
                 'and slope fields, dy/dx = x – y {y(0) = 1}, a click adding a solution. Marks roots, highs, lows and crossings. ' +
                 'Drag to move, scroll or pinch to zoom; point at a curve for its values, click for its tangent. The Table tab lists them.',
             k: ''
@@ -769,7 +769,7 @@
         },
         'graph add': {
             t: 'Add a curve',
-            d: 'A box for another function, in its own color: up to seven curves.',
+            d: 'A box for another function, in its own color: up to 25 curves.',
             k: ''
         },
         'graph remove': {
