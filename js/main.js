@@ -61,6 +61,7 @@
         statsTexts = { list: '', pairs: '', tests: '' }, // what is typed in each; the tests keep theirs in their cards
         statsChart = stats.querySelector('.calc-stats-chart'),
         statsFitPick = stats.querySelector('.calc-stats-fitpick'), // the curve fitted to the pairs
+        statsFitLabel = stats.querySelector('.calc-stats-fitlabel'),
         statsEq = stats.querySelector('.calc-stats-eq'), // and its equation
         // its kinds, as CalcEngine.fit names them, and their names; the numbers of each, the tiles of the line's place
         STATS_FITS = [['lin', 'Linear'], ['quad', 'Quadratic'], ['cubic', 'Cubic'], ['exp', 'Exponential'], ['pow', 'Power'],
@@ -2136,7 +2137,9 @@
     // Of the pairs, the curve chosen fitted to them, its numbers and its equation
     function renderStats() {
         var pairs = statsTab === 'pairs', s, fit;
+        statsFitPlace();
         if (statsTab === 'tests') return statTests.render();
+        chartW = statsChartWidth();
         s = statsNow = CalcEngine[pairs ? 'pairs' : 'stats'](statsInput.value, engine.comma, BY[statsBy.at][0]);
         if (pairs && s.n) {
             s.rho = CalcMaths.spearman(s.xs, s.ys);
@@ -2202,7 +2205,28 @@
         }[f.kind]();
     }
 
-    var CHART_W = 340, CHART_H = 120;
+    var CHART_W = 340, CHART_H = 120,
+        chartW = CHART_W; // drawn as wide as this: popped out on a wide page, wider, not scaled up
+
+    // Popped out on a wide page the chart is drawn wider, as its room is, its text and dots 1.6 times their size and no
+    // more; to 20 at a time, not drawn again each pixel the window is dragged
+    function statsChartWidth() {
+        return bigSide(stats) ? Math.max(CHART_W, Math.round((statsChart.parentNode.clientWidth - 26) / 1.6 / 20) * 20) : CHART_W;
+    }
+
+    // Popped out on a wide page, the curve fitted is chosen in the head, before the separator, and its equation is on the
+    // line of how many pairs there are; else both under that line, as they were
+    function statsFitPlace() {
+        var up = bigSide(stats), at = up ? statsBy.previousElementSibling : statsEq;
+        if ((statsFitPick.parentNode === statsEq.parentNode) !== up) return;
+        at.parentNode.insertBefore(statsFitLabel, at);
+        at.parentNode.insertBefore(statsFitPick, at);
+    }
+
+    // the window resized, the statistics popped out: drawn again where the chart's width or the place of Fit changes
+    function statsResized() {
+        if ((statsFitPick.parentNode === statsEq.parentNode) === bigSide(stats) || statsTab !== 'tests' && statsChartWidth() !== chartW) renderStats();
+    }
 
     // a line of text in a chart: at x, y, anchored at its start, middle or end
     function chartText(x, y, text, anchor) {
@@ -2213,7 +2237,7 @@
     // and under it their box plot on the same scale: the box from Q1 to Q3, the median across
     // it, and the whiskers out to min and max
     function histogramChart(s) {
-        var lo = s.min, hi = s.max, k, w, counts = [], most, html = '', i, lMin, lMax, lMid, xm, x = function (v) { return 10 + (v - lo) / (hi - lo) * (CHART_W - 20); };
+        var lo = s.min, hi = s.max, k, w, counts = [], most, html = '', i, lMin, lMax, lMid, xm, x = function (v) { return 10 + (v - lo) / (hi - lo) * (chartW - 20); };
         if (lo === hi) {
             lo -= 0.5;
             hi += 0.5;
@@ -2230,7 +2254,7 @@
             if (c) html += '<rect class="calc-stats-bar" x="' + (x(lo + i * w) + 1).toFixed(1) + '" y="' + (70 - h).toFixed(1) + '" width="' +
                 Math.max(1, x(lo + w) - x(lo) - 2).toFixed(1) + '" height="' + h.toFixed(1) + '"/>';
         });
-        html += '<line class="calc-stats-axis" x1="10" y1="70.5" x2="' + (CHART_W - 10) + '" y2="70.5"/>';
+        html += '<line class="calc-stats-axis" x1="10" y1="70.5" x2="' + (chartW - 10) + '" y2="70.5"/>';
         if (isFinite(s.q1)) {
             html += '<line class="calc-stats-whisker" x1="' + x(s.min).toFixed(1) + '" y1="87" x2="' + x(s.q1).toFixed(1) + '" y2="87"/>' +
                 '<line class="calc-stats-whisker" x1="' + x(s.q3).toFixed(1) + '" y1="87" x2="' + x(s.max).toFixed(1) + '" y2="87"/>' +
@@ -2246,10 +2270,10 @@
         lMax = shortNumber(s.max);
         lMid = shortNumber(s.median);
         xm = x(s.median);
-        return '<svg viewBox="0 0 ' + CHART_W + ' ' + CHART_H + '" role="img" aria-label="Histogram and box plot">' + html +
+        return '<svg viewBox="0 0 ' + chartW + ' ' + CHART_H + '" role="img" aria-label="Histogram and box plot">' + html +
             chartText(10, 112, lMin, 'start') + (s.n > 1 && s.min !== s.max && xm - lMid.length * 3 > 14 + lMin.length * 6 &&
-                xm + lMid.length * 3 < CHART_W - 14 - lMax.length * 6 ? chartText(xm, 112, lMid) : '') +
-            chartText(CHART_W - 10, 112, lMax, 'end') + '</svg>';
+                xm + lMid.length * 3 < chartW - 14 - lMax.length * 6 ? chartText(xm, 112, lMid) : '') +
+            chartText(chartW - 10, 112, lMax, 'end') + '</svg>';
     }
 
     // The pairs as dots, x across and y up, and their line of best fit through them
@@ -2267,9 +2291,9 @@
         pad = (y1 - y0) * 0.08;
         y0 -= pad;
         y1 += pad;
-        px = function (v) { return 34 + (v - x0) / (x1 - x0) * (CHART_W - 46); };
+        px = function (v) { return 34 + (v - x0) / (x1 - x0) * (chartW - 46); };
         py = function (v) { return 98 - (v - y0) / (y1 - y0) * 90; };
-        html += '<line class="calc-stats-axis" x1="30" y1="102.5" x2="' + (CHART_W - 8) + '" y2="102.5"/><line class="calc-stats-axis" x1="30.5" y1="6" x2="30.5" y2="102.5"/>';
+        html += '<line class="calc-stats-axis" x1="30" y1="102.5" x2="' + (chartW - 8) + '" y2="102.5"/><line class="calc-stats-axis" x1="30.5" y1="6" x2="30.5" y2="102.5"/>';
         if (s.fit) { // a curve: a line through it at 120 places across, broken where it has no value
             html += '<path class="calc-stats-fit" fill="none" d="' + Array.from({ length: 121 }, function (u, i) {
                 var x = x0 + (x1 - x0) * i / 120, y = s.fit.at(x);
@@ -2282,9 +2306,9 @@
         s.xs.forEach(function (x, i) {
             html += '<circle class="calc-stats-dot" cx="' + px(x).toFixed(1) + '" cy="' + py(s.ys[i]).toFixed(1) + '" r="3"/>';
         });
-        return '<svg viewBox="0 0 ' + CHART_W + ' ' + CHART_H + '" role="img" aria-label="Scatter plot and line of best fit">' +
-            '<clipPath id="calc-stats-clip"><rect x="31" y="0" width="' + (CHART_W - 39) + '" height="102"/></clipPath><g clip-path="url(#calc-stats-clip)">' + html + '</g>' +
-            chartText(34, 115, shortNumber(Math.min.apply(null, s.xs)), 'start') + chartText(CHART_W - 12, 115, shortNumber(Math.max.apply(null, s.xs)), 'end') +
+        return '<svg viewBox="0 0 ' + chartW + ' ' + CHART_H + '" role="img" aria-label="Scatter plot and line of best fit">' +
+            '<clipPath id="calc-stats-clip"><rect x="31" y="0" width="' + (chartW - 39) + '" height="102"/></clipPath><g clip-path="url(#calc-stats-clip)">' + html + '</g>' +
+            chartText(34, 115, shortNumber(Math.min.apply(null, s.xs)), 'start') + chartText(chartW - 12, 115, shortNumber(Math.max.apply(null, s.xs)), 'end') +
             chartText(27, 12, shortNumber(Math.max.apply(null, s.ys)), 'end') + chartText(27, 99, shortNumber(Math.min.apply(null, s.ys)), 'end') + '</svg>';
     }
 
@@ -18714,6 +18738,7 @@
         var list = bigPanel && bigPanel.querySelector('.calc-sv-list:not([hidden]), .calc-fx-list');
         if (!bigPanel) return;
         if (list && list.classList.contains('calc-side') !== bigSide(bigPanel)) bigOf(bigPanel).render();
+        else if (bigPanel === stats) statsResized();
     }, false);
 
     // Beside the list, the line between it and the card, as the big graph's: dragged, the list is wider or narrower,

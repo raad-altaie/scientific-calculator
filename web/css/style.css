@@ -308,7 +308,7 @@
     display: flex;
 }
 
-#calculator .calc-stats-fitrow .calc-stats-fitpick {
+#calculator .calc-stats .calc-stats-fitpick {
     flex: none;
     padding: 1px 17px 1px 6px;
     background-position: right 6px center;
@@ -318,16 +318,16 @@
     line-height: 18px;
 }
 
-#calculator .calc-stats-fitrow .calc-stats-fitpick .calc-conv-chosen {
+#calculator .calc-stats .calc-stats-fitpick .calc-conv-chosen {
     font-weight: 400;
 }
 
-#calculator .calc-stats-fitrow .calc-stats-fitpick .calc-conv-menu {
+#calculator .calc-stats .calc-stats-fitpick .calc-conv-menu {
     width: max-content;
     padding: 2px;
 }
 
-#calculator .calc-stats-fitrow .calc-stats-fitpick .calc-conv-item {
+#calculator .calc-stats .calc-stats-fitpick .calc-conv-item {
     padding: 1px 7px;
     line-height: 17px;
 }
@@ -8390,14 +8390,23 @@
     line-height: 18px;
 }
 
-/* popped out, the separator and Clear as big as the tabs as well, the separator's box as tall: 24px */
-#calculator.calc-panel-big .calc-stats.calc-big-on .calc-past-head :is(.calc-stats-by-label, .calc-stats-by, .calc-past-clear) {
+/* popped out, the separator, the fit and Clear as big as the tabs as well, the boxes as tall: 24px */
+#calculator.calc-panel-big .calc-stats.calc-big-on .calc-past-head :is(.calc-stats-by-label, .calc-stats-by, .calc-stats-fitpick, .calc-past-clear) {
     font-size: 12.6px;
 }
 
-#calculator.calc-panel-big .calc-stats.calc-big-on .calc-past-head .calc-stats-by {
+#calculator.calc-panel-big .calc-stats.calc-big-on .calc-past-head :is(.calc-stats-by, .calc-stats-fitpick) {
     padding-top: 3px;
     padding-bottom: 3px;
+}
+
+/* the fit in the head on a wide page (statsFitPlace): apart from the separator after it, and of the pairs only */
+#calculator.calc-panel-big .calc-stats.calc-big-on .calc-past-head .calc-stats-fitpick {
+    margin-right: 10px;
+}
+
+#calculator .calc-stats:not(.calc-stats-pairs) .calc-past-head :is(.calc-stats-fitlabel, .calc-stats-fitpick) {
+    display: none;
 }
 
 @container calculator (min-width: 760px) {
@@ -8425,8 +8434,8 @@
     }
 
     /* The statistics popped out on a wide page: what is typed at the left, as tall as the window, and its
-       results and chart beside it */
-    #calculator.calc-panel-big .calc-stats.calc-big-on.calc-open {
+       results and chart beside it. Not the Tests tab: its cards a list at the side, as every panel's */
+    #calculator.calc-panel-big .calc-stats.calc-big-on.calc-open:not(.calc-stats-testing) {
         display: grid;
         grid-template-columns: minmax(260px, 1fr) minmax(0, 1.8fr);
         grid-template-rows: auto auto minmax(0, 1fr);
@@ -8448,10 +8457,16 @@
         margin: 8px 0 4px 22px;
     }
 
+    /* how many there are, at the left over the chart, of the pairs as well */
     #calculator.calc-panel-big .calc-stats.calc-big-on .calc-stats-note {
         grid-column: 2;
         grid-row: 2;
-        margin: 8px 30px 2px 8px;
+        justify-self: start;
+        max-width: calc(100% - 38px);
+        margin: 8px 30px 4px 8px;
+        font-size: 13px;
+        line-height: 18px;
+        text-align: left;
     }
 
     #calculator.calc-panel-big .calc-stats.calc-big-on .calc-stats-out {
@@ -8460,23 +8475,20 @@
         padding: 4px 22px 6px 4px;
     }
 
-    /* pairs: the curve fitted under the note, in the results' column, not at the bottom of the window */
-    #calculator.calc-panel-big .calc-stats-pairs.calc-big-on.calc-open {
-        grid-template-rows: auto auto auto minmax(0, 1fr);
-    }
-
-    #calculator.calc-panel-big .calc-stats-pairs.calc-big-on .calc-stats-input {
-        grid-row: 2 / 5;
-    }
-
+    /* pairs: the equation of the curve on the same line, at the right, the curve chosen in the head; each to half of it */
     #calculator.calc-panel-big .calc-stats-pairs.calc-big-on .calc-stats-fitrow {
         grid-column: 2;
-        grid-row: 3;
-        margin: 2px 30px 4px 8px;
+        grid-row: 2;
+        justify-self: end;
+        min-width: 0;
+        max-width: calc(55% - 38px);
+        margin: 8px 30px 4px 8px;
+        color: #d3d9e2;
+        font-size: 13px;
     }
 
-    #calculator.calc-panel-big .calc-stats-pairs.calc-big-on .calc-stats-out {
-        grid-row: 4;
+    #calculator.calc-panel-big .calc-stats-pairs.calc-big-on:has(.calc-stats-eq:not(:empty)) .calc-stats-note {
+        max-width: calc(45% - 38px);
     }
 }
 
