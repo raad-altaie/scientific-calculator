@@ -2926,6 +2926,20 @@ dels.forEach(function (c) {
         check(JSON.stringify(Engine.points('(1, 2), (2, 4.1) (3,5.9)')) === '[{"x":1,"y":2},{"x":2,"y":4.1},{"x":3,"y":5.9}]' &&
             Engine.points('(1,5; -2)', true)[0].y === -2 && Engine.points('(1, 2) + x') === null && Engine.points('x^2') === null,
             'points: a list of (x, y)');
+        (function () {
+            var vars = { a: 1, b: 2 }, p = Engine.points(' (a, 2), (1.5, a^2) ', false, vars, {}), c = Engine.points('(1,5; a)', true, vars, {}),
+                deg = Engine.points('(cos a, 1)', false, { a: 60 }, {});
+            check(p.map(function (q) { return [q.x, q.y].join(); }).join(' ') === '1,2 1.5,1' && p.letters.join() === 'a' &&
+                JSON.stringify(p.map(function (q) { return q.letter; })) === '[["a",""],["",null]]' &&
+                JSON.stringify(p.map(function (q) { return q.at; })) === '[[[2,3],[5,6]],[[10,13],[15,18]]]',
+                'points: of letters, each x and y worked out, where it is in the text, and which a drag moves', JSON.stringify(p));
+            vars.a = 3;
+            check(p.update(0)[1].y === 9 && c.update(0)[0].x === 1.5 && c[0].y === 3 && c[0].letter.join() === ',a' &&
+                Math.abs(deg.update(1)[0].x - 0.5) < 1e-12, 'points: worked out again as the sliders are, with the comma, in Deg');
+            check(Engine.points('(a, b)') === null && Engine.points('(x, 2)', false, vars, {}) === null && Engine.points('(a, b', false, vars, {}) === null &&
+                Engine.points('(a)', false, vars, {}) === null && Engine.points('(a, 2) + 1', false, vars, {}) === null,
+                'points: letters only with sliders; not of x, nor one part, nor more after them');
+        })();
         check(JSON.stringify(Engine.fitLine(Engine.points('(1,2),(2,4.1),(3,5.9)'))) === '{"m":1.95,"b":0.1,"r2":0.9980314961}' &&
             Engine.fitLine(Engine.points('(1, 2), (1, 3)')) === null, 'fitLine: y = 1.95x + 0.1, r² 0.998; none for one x');
         check(Engine.regionArea(inside(Engine.relation('x^2 + y^2 = 25'), -1), -5, 5, -30, 30, 0) === 78.53981634 &&

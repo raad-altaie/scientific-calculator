@@ -2396,6 +2396,39 @@ async function graphLooks(page, at) {
         !await page.calc('document.querySelector("[data-look=grid]").classList.contains("calc-on")'), t + 'as they were, opened again', await page.calc(ends));
 }
 
+// points dragged: their numbers written again in the box, round; one of sliders sets them, a letter
+// alone, so (a, 2) moves only across; a drag off the points moves the view
+async function graphDrag(page, at) {
+    var t = at + ': drag a point: ', box = 'document.querySelector(".calc-graph-input").value',
+        vars = 'JSON.stringify(JSON.parse(localStorage.getItem("graph")).p)',
+        view = 'JSON.stringify(JSON.parse(localStorage.getItem("graph")).view)';
+
+    await page.fresh(at, { graph: { f: ['(1, 2), (3, 4)'], view: null } });
+    await page.click('.calc-graph-btn');
+    await page.dragAt('.calc-graph-plot', 1, 2, 2.02, 5.01);
+    check(await page.calc(box) === '(2, 5), (3, 4)' && await page.calc(view) === 'null', t + '(1, 2) to (2, 5), the view as it was', await page.calc(box));
+    check(await page.calc('JSON.parse(localStorage.getItem("graph")).f[0]') === '(2, 5), (3, 4)', t + 'kept');
+    await page.dragAt('.calc-graph-plot', 5, 5, 6, 6);
+    check(await page.calc(box) === '(2, 5), (3, 4)' && await page.calc(view) !== 'null', t + 'off them, the view moves');
+
+    await page.fresh(at, { graph: { f: ['(a, 2), (b, b^2)'], view: null, p: { a: [1, -10, 10], b: [2, -10, 10] } } });
+    await page.click('.calc-graph-btn');
+    check(await page.calc('document.querySelector(".calc-graph-fn").classList.contains("calc-graph-live")'), t + 'of letters, no table');
+    await page.dragAt('.calc-graph-plot', 1, 2, -3, 7);
+    check(await page.calc(vars) === '{"a":[-3,-10,10],"b":[2,-10,10]}' && await page.calc(box) === '(a, 2), (b, b^2)' &&
+        await page.calc('document.querySelector(".calc-graph-slider[data-k=a] .calc-graph-val input").value') === '-3',
+        t + '(a, 2) sets a, only across, and its slider', await page.calc(box) + ' ' + await page.calc(vars));
+    await page.dragAt('.calc-graph-plot', 2, 4, 3, 0);
+    check(await page.calc(vars) === '{"a":[-3,-10,10],"b":[3,-10,10]}', t + '(b, b²) by its x, and on b²', await page.calc(vars));
+    await page.calc('(function (el) { el.value = "-4"; el.dispatchEvent(new Event("input", { bubbles: true })); })(document.querySelector(".calc-graph-slider[data-k=a] .calc-graph-end[data-end=\'0\']"))');
+    await page.dragAt('.calc-graph-plot', -3, 2, -6, 2);
+    check(await page.calc(vars) === '{"a":[-6,-6,10],"b":[3,-10,10]}', t + 'past the end of its slider, the end goes with it', await page.calc(vars));
+    await page.fresh(at, { graph: { f: ['(1, 2), (a, 3)'], view: null } });
+    await page.click('.calc-graph-btn');
+    await page.dragAt('.calc-graph-plot', 1, 2, 2, -1);
+    check(await page.calc(box) === '(2, -1), (a, 3)', t + 'a point of numbers among them, written in its place', await page.calc(box));
+}
+
 // a curve hidden and shown by a click on its dot; the graph saved or copied as a picture
 async function graphHide(page, at) {
     var t = at + ': hide: ', note = 'document.querySelector(".calc-graph-note").textContent',
@@ -4446,6 +4479,7 @@ async function adminPolicy(page) {
         await graphMany(page, '/popup.html');
         await graphList(page, '/popup.html');
         await graphLooks(page, '/popup.html');
+        await graphDrag(page, '/popup.html');
         await graphSlide(page, '/popup.html');
         await graphBig(page, '/popup.html');
         await search(page);

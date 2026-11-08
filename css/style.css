@@ -907,6 +907,11 @@
     display: flex;
 }
 
+/* points of sliders' letters have no numbers to type in rows */
+#calculator .calc-graph-fn.calc-graph-live > .calc-graph-points {
+    display: none;
+}
+
 #calculator .calc-graph-fn > .calc-graph-points:hover {
     opacity: 1;
     background: #97b3a4;
@@ -1073,6 +1078,11 @@
 
 #calculator .calc-graph-plot canvas:active {
     cursor: grabbing;
+}
+
+/* over a point typed, which a drag moves */
+#calculator .calc-graph-grab canvas {
+    cursor: grab;
 }
 
 /* the view typed, at the top left of the plot: a row for x and one for y, from and to */

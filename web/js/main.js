@@ -2397,6 +2397,8 @@
         GRAPH_TRACE = 2, // ← and → move the point clicked this many pixels along its curve, ten times as far with Shift
         FIELD_STARTS = 20, // solutions of a slope field a click adds, the first going past them
         graphTracing = -1, // the curve traced last: of the two at a crossing, the one to go on along
+        graphDragging = null, // a point typed, as it is dragged: its box i and place j, and how far from it it was taken
+        GRAPH_DRAG_REACH = 8, // a press this near a point typed drags it, a finger twice as far
         graphWindow = graphPlot.querySelector('.calc-graph-window'), // the view typed: x from and to, y from and to
         graphEnds = [].slice.call(graphWindow.querySelectorAll('input')),
         graphWindowButton = graphPlot.querySelector('[data-zoom="window"]'),
@@ -2490,15 +2492,21 @@
         var rows = [].slice.call(graphCells.querySelectorAll('.calc-graph-pair')), box = graphInputs[graphCellsRow];
         if (e.target.tagName !== 'INPUT' || !box) return;
         onlyNumber(e.target);
-        box.value = rows.map(function (row) {
+        box.value = pairsText(rows.map(function (row) {
             var x = boxNumber(row.children[0]), y = boxNumber(row.children[1]);
-            if (!row.children[0].value.trim() || !row.children[1].value.trim() || !isFinite(x) || !isFinite(y)) return '';
-            return '(' + local(String(x)) + (engine.comma ? '; ' : ', ') + local(String(y)) + ')';
-        }).filter(Boolean).join(engine.comma ? '; ' : ', ');
+            return row.children[0].value.trim() && row.children[1].value.trim() && isFinite(x) && isFinite(y) ? { x: x, y: y } : null;
+        }).filter(Boolean));
         if (rows[rows.length - 1].children[0].value || rows[rows.length - 1].children[1].value) addCell('', '');
         readGraph(true);
         saveState();
     }, false);
+
+    // points as a box has them: (1, 2), (2, 4.1), or with the comma in use (1,5; 2); (2; 4,1)
+    function pairsText(pts) {
+        return pts.map(function (q) {
+            return '(' + local(String(q.x)) + (engine.comma ? '; ' : ', ') + local(String(q.y)) + ')';
+        }).join(engine.comma ? '; ' : ', ');
+    }
 
     // Enter goes down to the row below, Shift+Enter up; Esc puts the table away
     graphCells.addEventListener('keydown', function (e) {
@@ -2804,7 +2812,7 @@
         graphFns = graphInputs.map(function (box, i) {
             var text = texts[i], r = read[i] || {}, fn = r.fn || null, rel = r.rel || null, plane = r.plane || null,
                 data = r.data || null, fit, row = graphRows[i];
-            (fn || rel || plane || { letters: [] }).letters.forEach(function (k) {
+            ((fn || rel || plane || data || {}).letters || []).forEach(function (k) {
                 if (letters.indexOf(k) < 0) letters.push(k);
             });
             graphRels[i] = graphOff[i] ? null : rel;
@@ -2813,11 +2821,12 @@
             if (!text || rel || plane) graphDiff[i] = false; // an equation has no slope of its own to draw
             if (!data && graphDiff[i]) graphDiff[i] = true; // the fit of points is the slope of a function typed in their place
             if (!text) graphOff[i] = false; // what is typed next is shown, without its slope
-            fit = data && graphDiff[i] && CalcEngine.fit(data, fitKind(i)); // the y′ of points is their best fit
+            fit = data && graphDiff[i] && CalcEngine.fit(data.filter(finitePoint), fitKind(i)); // the y′ of points is their best fit
             row.hidden = i >= graphCount;
             row.classList.toggle('calc-bad', !!text && !fn && !rel && !plane && !data);
             row.classList.toggle('calc-graph-rel', !!(rel || plane));
             row.classList.toggle('calc-graph-data', !!data);
+            row.classList.toggle('calc-graph-live', !!(data && data.update)); // of letters: no table of numbers to type
             row.classList.toggle('calc-graph-named', !!CalcEngine.named(text));
             row.classList.toggle('calc-graph-off', graphOff[i]);
             row.querySelector('.calc-graph-diff').classList.toggle('calc-on', !!graphDiff[i]);
@@ -3050,7 +3059,33 @@
         if (r) return { fn: r };
         if ((r = CalcEngine.relation(text, engine.comma, graphVars, defs))) return { rel: r };
         if ((r = CalcEngine.plane(text, engine.comma, graphVars, defs))) return { plane: r };
-        return (r = CalcEngine.points(text, engine.comma)) ? { data: r } : null;
+        return (r = CalcEngine.points(text, engine.comma, graphVars, defs)) ? { data: r.update ? r.update(deg) : r } : null;
+    }
+
+    // The points of sliders' letters, (a, b), worked out again as the letters and the unit are now, and
+    // the best fit of each such box with them; the point pointed at or clicked moves with its own
+    function livePoints() {
+        var key = JSON.stringify(graphVars) + deg;
+        graphData.forEach(function (list, i) {
+            var fit;
+            if (!list || !list.update || list.seen === key) return;
+            list.seen = key;
+            list.update(deg);
+            fit = graphDiff[i] && CalcEngine.fit(list.filter(finitePoint), fitKind(i));
+            graphFns[i] = fit ? fitCurve(fit) : null;
+            graphRows[i].querySelector('.calc-graph-diff').classList.toggle('calc-bad', !!(graphDiff[i] && !fit));
+            [graphAt, graphPinned].forEach(function (p) {
+                if (p && p.data && p.i === i && list[p.j]) {
+                    p.x = list[p.j].x;
+                    p.y = list[p.j].y;
+                }
+            });
+        });
+    }
+
+    // a point with an x and a y: (sqrt(a), 1) has none while a is below 0
+    function finitePoint(q) {
+        return isFinite(q.x) && isFinite(q.y);
     }
 
     // the best fit of points as a curve, with fit: its kind, numbers and r²
@@ -3196,6 +3231,7 @@
         if (!graph.classList.contains('calc-open') || !w || !h) return;
         graphWidth = w;
         v = viewNow();
+        livePoints();
         if (graphCanvas.width !== Math.round(w * r) || graphCanvas.height !== Math.round(h * r)) {
             graphCanvas.width = Math.round(w * r); // as sharp as the screen, however the page scales the calculator
             graphCanvas.height = Math.round(h * r);
@@ -3251,7 +3287,7 @@
     function dataMarks() {
         var out = [];
         graphData.forEach(function (list, i) {
-            (list || []).forEach(function (q) { out.push({ t: ['data'], x: q.x, y: q.y, i: i, data: true }); });
+            (list || []).forEach(function (q, j) { if (finitePoint(q)) out.push({ t: ['data'], x: q.x, y: q.y, i: i, j: j, data: true }); });
         });
         return out;
     }
@@ -4725,13 +4761,68 @@
         graphCanvas.setPointerCapture(e.pointerId);
         if (!graphPointers().length) graphMoved = false;
         graphTouch[e.pointerId] = onPlot(e);
+        graphDragging = graphPointers().length === 1 && !graphShading ? pointToDrag(graphTouch[e.pointerId], GRAPH_DRAG_REACH * (e.pointerType === 'mouse' ? 1 : 2)) : null; // a second finger pinches instead
         graphBegin();
     }, false);
+
+    // A point typed that a press at this place of the plot would drag: the nearest within reach of
+    // those of numbers, or with a letter alone to move, (1, 2) or (a, 2), and not (2a, a²); null if none
+    function pointToDrag(at, reach) {
+        var v = viewNow(), best = null;
+        graphData.forEach(function (list, i) {
+            (list || []).forEach(function (q, j) {
+                var d = Math.hypot(plotX(v, q.x) - at.x, plotY(v, q.y) - at.y);
+                if (d <= reach && (!best || d < best.d) && (!q.letter || q.letter.join() === ',' || q.letter[0] || q.letter[1])) {
+                    best = { d: d, i: i, j: j, dx: at.x - plotX(v, q.x), dy: at.y - plotY(v, q.y) };
+                }
+            });
+        });
+        return best;
+    }
+
+    // A point dragged to here, to round numbers near it as a click has them. Of numbers only, the
+    // box is written again with it, or among points of letters its numbers put in place of the ones
+    // there; else the letter that is its x or y alone is set, as its slider would be: a point of
+    // letters moves as they let it, (a, 2) only across. A table of the box shows it
+    function dragPoint(d, at) {
+        var v = viewNow(), list = graphData[d.i], q = list && list[d.j], box = graphInputs[d.i], text = box.value.trim(),
+            n = [graphNice(graphX(v, at.x - d.dx), v.ux), graphNice(graphY(v, at.y - d.dy), v.uy)], row;
+        if (!q) return;
+        if (!q.letter) {
+            q.x = n[0];
+            q.y = n[1];
+            text = pairsText(list);
+            row = graphCellsRow === d.i && graphCells.querySelectorAll('.calc-graph-pair')[d.j];
+            if (row) {
+                row.children[0].value = local(String(n[0]));
+                row.children[1].value = local(String(n[1]));
+            }
+        } else {
+            [1, 0].forEach(function (c) { // the y first, so the place of the x before it stays
+                var k = q.letter[c], r = graphRange[k], slider = k && graphSliders.querySelector('[data-k="' + k + '"]');
+                if (q.letter.join() === ',') text = text.slice(0, q.at[c][0]) + local(String(n[c])) + text.slice(q.at[c][1]);
+                if (!k || !r) return;
+                delete graphPlay[k];
+                graphVars[k] = n[c];
+                r[0] = Math.min(r[0], n[c]);
+                r[1] = Math.max(r[1], n[c]);
+                if (slider) setSlider(slider);
+            });
+        }
+        graphAt = graphPinned = null;
+        if (text !== box.value.trim()) {
+            box.value = text;
+            readGraph();
+        } else {
+            graphRender();
+        }
+    }
 
     graphCanvas.addEventListener('pointermove', function (e) {
         var at = onPlot(e), s = graphStart, p, d0, d1;
         if (!graphTouch[e.pointerId]) { // the mouse over the plot: the point under it
             if (graphPopFrom && Math.hypot(at.x - graphPopFrom.x, at.y - graphPopFrom.y) > GRAPH_POP_STILL) popLater(!graphPop.hidden);
+            graphPlot.classList.toggle('calc-graph-grab', e.pointerType === 'mouse' && !graphShading && !!pointToDrag(at, GRAPH_DRAG_REACH));
             if (e.pointerType === 'mouse' && graphShading) { // where an area would start, as a drag from here takes it
                 p = areaRegion(at);
                 graphAt = null;
@@ -4749,7 +4840,9 @@
         if (p.length === 1) {
             if (!graphMoved && Math.abs(at.x - s.p[0].x) + Math.abs(at.y - s.p[0].y) < 4) return; // a click shakes a little
             graphMoved = true;
-            if (graphShading && s.p.length === 1) { // with ∫ pressed, the view only as the area reaches a side
+            if (graphDragging) {
+                dragPoint(graphDragging, at);
+            } else if (graphShading && s.p.length === 1) { // with ∫ pressed, the view only as the area reaches a side
                 graphAreaTo(s, at);
                 areaSlide();
             } else {
@@ -4776,6 +4869,7 @@
         var at = graphTouch[e.pointerId], v = viewNow(), p = graphPinned, mouse = e.pointerType === 'mouse', s = graphStart;
         if (!at) return;
         delete graphTouch[e.pointerId];
+        graphDragging = null;
         if (graphMoved && graphShading && s && s.i >= 0 && !graphPointers().length) {
             graphEdge = null;
             graphPopShut = false;
@@ -4819,6 +4913,7 @@
     graphCanvas.addEventListener('pointerleave', function (e) {
         if (e.pointerType !== 'mouse' || graphTouch[e.pointerId]) return;
         if (graphPopFrom) popLater(!graphPop.hidden);
+        graphPlot.classList.remove('calc-graph-grab');
         graphAt = graphEdge = null;
         drawGraph();
     }, false);
@@ -5183,6 +5278,7 @@
     function renderTable() {
         var shown = tableCurves(), s;
         if (!graph.classList.contains('calc-open') || graphTab !== 'table') return;
+        livePoints();
         s = tableSteps();
         graphLines = Math.max(graphLines, 60);
         graphValues = [];

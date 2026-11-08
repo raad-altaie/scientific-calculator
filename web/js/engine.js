@@ -2625,8 +2625,9 @@
     }
 
     // Points to plot, as a list: (1, 2), (2, 4.1), (3, 5.9), or with the comma in use (1,5; 2).
-    // [{ x, y }], or null if the text is not one
-    function points(text, comma) {
+    // [{ x, y }], or null if the text is not one. With vars, of the letters of sliders too, as
+    // lettered has them: (a, b), (a, 2), (1, a^2)
+    function points(text, comma, vars, defs) {
         var s = String(text).trim().replace(/[−–]/g, '-'), out = [], rest,
             num = '\\s*([-+]?(?:\\d+' + (comma ? ',' : '\\.') + '?\\d*|' + (comma ? ',' : '\\.') + '\\d+)(?:[eE][-+]?\\d+)?)\\s*',
             pair = new RegExp('\\(' + num + (comma ? ';' : '[,;]') + num + '\\)', 'g');
@@ -2635,7 +2636,61 @@
             out.push({ x: +x.replace(',', '.'), y: +y.replace(',', '.') });
             return ' ';
         });
-        return out.length && /^[\s,;]*$/.test(rest) ? out : null;
+        return out.length && /^[\s,;]*$/.test(rest) ? out : vars ? lettered(String(text), comma, vars, defs) : null;
+    }
+
+    // Points of which an x or a y is worked out, of the letters of sliders as vars has them:
+    // (a, b), (a, 2), (cos a, sin a); null if one is not, or has x. Each has where its x and its y are
+    // in the text, at: [[from, to], [from, to]], and as a drag moves them, letter: of each, the letter
+    // it is alone, '' for a number, else null, as it cannot be moved. The list has its letters, and
+    // update(deg), which works out each x and y again as the sliders are now
+    function lettered(text, comma, vars, defs) {
+        var s = text.replace(/[−–]/g, '-'), out = [], letters = [], mark = comma ? /;/ : /[,;]/, k = 0, from, depth, parts, p,
+            num = new RegExp('^[-+]?(?:\\d+' + (comma ? ',' : '\\.') + '?\\d*|' + (comma ? ',' : '\\.') + '\\d+)(?:[eE][-+]?\\d+)?$');
+        if (s.length > MAX_PASTE) return null;
+        while (k < s.length) {
+            if (/[\s,;]/.test(s.charAt(k))) { // between the points
+                k++;
+                continue;
+            }
+            if (s.charAt(k) !== '(') return null;
+            parts = [];
+            for (from = k + 1, depth = 0; k < s.length; k++) { // its two parts, at its mark, not in brackets of their own
+                if (s.charAt(k) === '(') depth++;
+                else if (s.charAt(k) === ')' && !--depth) break;
+                else if (depth === 1 && mark.test(s.charAt(k))) {
+                    parts.push([from, k]);
+                    from = k + 1;
+                }
+            }
+            if (k++ >= s.length || parts.push([from, k - 1]) !== 2) return null;
+            p = { x: NaN, y: NaN, at: [], letter: [], trees: [] };
+            if (!parts.every(function (span, j) {
+                var part = s.slice(span[0], span[1]), bare = part.trim(), toks = bare && tokens(separators(bare, comma), null, true, defs), tree;
+                if (!toks || toks.some(function (t) { return t.t === 'const' && t.v === 'x' && !t.p; })) return false;
+                tree = parse(toks);
+                if (!tree || !complete(tree)) return false;
+                toks.forEach(function (t) {
+                    if (t.p && !t.bound && letters.indexOf(t.v) < 0) letters.push(t.v);
+                    if (t.of) t.of.letters.forEach(function (n) { if (letters.indexOf(n) < 0) letters.push(n); });
+                });
+                p.at[j] = [span[0] + part.indexOf(bare), span[0] + part.indexOf(bare) + bare.length];
+                p.letter[j] = num.test(bare) ? '' : toks.length === 1 && toks[0].p && !toks[0].bound ? toks[0].v : null;
+                p.trees[j] = tree;
+                return true;
+            })) return null;
+            out.push(p);
+        }
+        if (!out.length) return null;
+        out.letters = letters;
+        out.update = function (deg) {
+            out.forEach(function (q) {
+                q.x = valueAt(q.trees[0], 0, deg, false, vars);
+                q.y = valueAt(q.trees[1], 0, deg, false, vars);
+            });
+            return out;
+        };
+        return out.update(0);
     }
 
     // The straight line nearest points, by least squares: y = m x + b, and r², how much of how
