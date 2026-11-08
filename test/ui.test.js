@@ -2355,6 +2355,47 @@ async function graphList(page, at) {
     check(/Slope = 3$/.test(await page.calc(pop)), t + '→ goes along it', await page.calc(pop));
 }
 
+// same scale and the grid, under the view's boxes: a stretched view squared, the boxes following; the grid's
+// lines gone, a mark on each axis left; both kept
+async function graphLooks(page, at) {
+    var t = at + ': same scale and grid: ',
+        ends = 'Array.prototype.map.call(document.querySelectorAll(".calc-graph-window input"), function (b) { return +b.value; })',
+        square = '(function (n, p) { return Math.abs((n[1] - n[0]) / p.clientWidth / ((n[3] - n[2]) / p.clientHeight) - 1) < 0.02; })(' + ends +
+            ', document.querySelector(".calc-graph-plot"))',
+        // the paper at x = 5, on a line of the grid, and y = -3.7, off the axes and the curve
+        bare = '(function (c) { var k = c.width / c.clientWidth, u = 20 / c.clientWidth, d = c.getContext("2d").getImageData(' +
+            'Math.round((c.clientWidth / 2 + 5 / u) * k), Math.round((c.clientHeight / 2 + 3.7 / u) * k), 1, 1).data;' +
+            ' return d[0] === 0xb6 && d[1] === 0xd1 && d[2] === 0xc2 || d[3] === 0; })(document.querySelector(".calc-graph-plot canvas"))',
+        saved = 'JSON.stringify((function (g) { return [g.sq, g.grid]; })(JSON.parse(localStorage.getItem("graph"))))';
+
+    await page.fresh(at, { graph: { f: ['x^2-3'], view: { x: 0, y: 0, ux: 0.1, uy: 0.02 } } });
+    await page.click('.calc-graph-btn');
+    await page.click('.calc-graph-zoom [data-zoom="window"]');
+    check(!await page.calc(square) && await page.calc('document.querySelector("[data-look=grid]").classList.contains("calc-on")') &&
+        !await page.calc('document.querySelector("[data-look=square]").classList.contains("calc-on")'), t + 'off at the start, the grid on');
+    await page.click('[data-look="square"]');
+    check(await page.calc(square) && await page.calc('document.activeElement.className') === 'calc-graph-x0', t + 'same scale squares the view, the box keeping the focus', await page.calc(ends));
+    await page.click('.calc-graph-zoom [data-zoom="in"]');
+    check(await page.calc(square), t + 'zoomed, still the same', await page.calc(ends));
+    await page.click('.calc-graph-y1');
+    await page.calc('document.querySelector(".calc-graph-y1").select()');
+    await page.type('20');
+    await sleep(300);
+    check(await page.calc(square) && await page.calc(ends + '[3]') === 20, t + 'y typed, x follows it', await page.calc(ends));
+    await page.click('.calc-graph-zoom [data-zoom="home"]');
+    check(await page.calc('JSON.parse(localStorage.getItem("graph")).view') === null, t + 'home goes back to the start');
+
+    check(!await page.calc(bare), t + 'the grid is drawn');
+    await page.click('[data-look="grid"]');
+    check(await page.calc(bare) && !await page.calc('document.querySelector("[data-look=grid]").classList.contains("calc-on")'), t + 'Grid hides its lines');
+    check(await page.calc(saved) === '[true,false]', t + 'both kept', await page.calc(saved));
+    await page.fresh(at, { graph: { f: ['x^2-3'], view: { x: 0, y: 0, ux: 0.1, uy: 0.02 }, sq: true, grid: false } });
+    await page.click('.calc-graph-btn');
+    await page.click('.calc-graph-zoom [data-zoom="window"]');
+    check(await page.calc(square) && await page.calc('document.querySelector("[data-look=square]").classList.contains("calc-on")') &&
+        !await page.calc('document.querySelector("[data-look=grid]").classList.contains("calc-on")'), t + 'as they were, opened again', await page.calc(ends));
+}
+
 // a curve hidden and shown by a click on its dot; the graph saved or copied as a picture
 async function graphHide(page, at) {
     var t = at + ': hide: ', note = 'document.querySelector(".calc-graph-note").textContent',
@@ -4404,6 +4445,7 @@ async function adminPolicy(page) {
         await graphHide(page, '/popup.html');
         await graphMany(page, '/popup.html');
         await graphList(page, '/popup.html');
+        await graphLooks(page, '/popup.html');
         await graphSlide(page, '/popup.html');
         await graphBig(page, '/popup.html');
         await search(page);

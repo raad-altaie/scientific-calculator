@@ -517,10 +517,12 @@
                 <canvas></canvas>
                 <!-- the point clicked: what it is, and its x and y, each to insert -->
                 <div class="calc-graph-pop" hidden></div>
-                <!-- the view typed: x from and to, y from and to -->
+                <!-- the view typed: x from and to, y from and to; same scale and the grid -->
                 <div class="calc-graph-window" hidden>
                     <label><i>x</i><input class="calc-graph-x0" type="text" spellcheck="false" autocomplete="off" maxlength="20" aria-label="x from"><span>to</span><input class="calc-graph-x1" type="text" spellcheck="false" autocomplete="off" maxlength="20" aria-label="x to"></label>
                     <label><i>y</i><input class="calc-graph-y0" type="text" spellcheck="false" autocomplete="off" maxlength="20" aria-label="y from"><span>to</span><input class="calc-graph-y1" type="text" spellcheck="false" autocomplete="off" maxlength="20" aria-label="y to"></label>
+                    <!-- a unit of x as long as one of y, and the lines of the grid, each on or off -->
+                    <div class="calc-graph-looks"><span data-look="square" role="button" aria-pressed="false">Same scale</span><span data-look="grid" class="calc-on" role="button" aria-pressed="true">Grid</span></div>
                 </div>
                 <!-- the view: closer, farther, back to the start and typed; and the area under a curve -->
                 <div class="calc-graph-zoom">
@@ -1225,8 +1227,10 @@
                     dashed across the graph. The arrow keys then trace it: ← and → move it along its curve,
                     stopping at a root or a crossing, Shift ten times as far, and ↑ and ↓ take it to the curve
                     above or below.</li>
-                <li>The button with a frame, under home, sets the view by typing where x and y go from and to. Off
-                    the curves, a click gives the x and y of that place.</li>
+                <li>The button with a frame, under home, sets the view by typing where x and y go from and to. Under
+                    them, Same scale makes a unit of x as long as one of y, so a circle is round, however you zoom; for a
+                    curve of an angle in Deg, a radian of x as long as 1 of y. Grid hides the lines of the grid, leaving a
+                    mark on each axis at its numbers. Off the curves, a click gives the x and y of that place.</li>
                 <li>For the area under a curve, press the button with a shaded curve, under the zoom buttons, and
                     drag along the curve from one x to another: the area to the x axis is shaded, below the axis
                     counted down; started between two curves, it is the area between them; an end near a root or a

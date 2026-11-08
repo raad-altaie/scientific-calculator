@@ -1131,6 +1131,36 @@
     background: #c9e0d3;
 }
 
+/* same scale and the grid, under the boxes: light while on */
+#calculator .calc-graph-looks {
+    display: flex;
+    gap: 4px;
+    padding: 1px 3px;
+}
+
+#calculator .calc-graph-looks > span {
+    flex: 1;
+    padding: 2px 6px;
+    border: 1px solid #4d6b80;
+    border-radius: 4px;
+    color: #d3d9e2;
+    font: 12px/15px 'Play', 'Russo One', sans-serif;
+    text-align: center;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+#calculator .calc-graph-looks > span:hover {
+    border-color: #a9c4b5;
+}
+
+#calculator .calc-graph-looks > span.calc-on {
+    border-color: #a9c4b5;
+    background: #a9c4b5;
+    color: #000;
+}
+
 /* the ∫ button pressed: a drag shades an area, it does not move the view */
 #calculator .calc-graph-shading canvas,
 #calculator .calc-graph-shading canvas:active {

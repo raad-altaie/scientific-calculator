@@ -844,7 +844,7 @@
         }
         var key = target.closest('.calc-left > *, .calc-right > .del-ac, .calc-rad, .calc-mem, .calc-frac, .calc-fmt, .calc-hold, ' +
             '.calc-stat-btn, .calc-fx-btn, .calc-fx-row, .calc-gx-row, .calc-conv-btn, .calc-solve-btn, .calc-numbers-btn, .calc-chem-btn, .calc-phys-btn, .calc-bio-btn, .calc-chem-size, .calc-panel-size, .calc-pt-mode, .calc-search-clear, .calc-pt-unit, .calc-pt-temp-v, .calc-sv-row, ' +
-            '.calc-graph-btn, .calc-graph-size, .calc-graph-add, .calc-graph-del, .calc-graph-diff, .calc-graph-points, .calc-graph-zoom > span, .calc-graph-pop-end, .calc-graph-pop-row, .calc-graph-play, ' +
+            '.calc-graph-btn, .calc-graph-size, .calc-graph-add, .calc-graph-del, .calc-graph-diff, .calc-graph-points, .calc-graph-zoom > span, .calc-graph-window [data-look], .calc-graph-pop-end, .calc-graph-pop-row, .calc-graph-play, ' +
             '.calc-graph-fn > .calc-graph-swatch, ' +
             '.calc-sto, .calc-var-btn, .calc-fx-phys, input, textarea, ' +
             '.calc-stats-chart, .calc-hist, .calc-find-btn, .calc-past-export, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit, .calc-help, .calc-open-big, ' +
@@ -1154,6 +1154,7 @@
                 value = graphRows.indexOf(el.parentNode);
                 return graphInputs[value].value.trim() ? CalcTips[graphOff[value] ? 'graph show' : 'graph hide'] : null;
             }
+            if (el.dataset.look) return CalcTips['graph ' + el.dataset.look + ((el.dataset.look === 'square' ? graphSquare : graphGridOn) ? ' off' : ' on')];
             return CalcTips['graph ' + el.dataset.zoom];
         }
         if (el === pastButton) return CalcTips[past.classList.contains('calc-open') ? 'history close' : 'history'];
@@ -2399,6 +2400,9 @@
         graphWindow = graphPlot.querySelector('.calc-graph-window'), // the view typed: x from and to, y from and to
         graphEnds = [].slice.call(graphWindow.querySelectorAll('input')),
         graphWindowButton = graphPlot.querySelector('[data-zoom="window"]'),
+        graphLooks = [].slice.call(graphWindow.querySelectorAll('[data-look]')), // under them, same scale and the grid, each on or off
+        graphSquare = false, // a unit of x as long as one of y, however the view is zoomed
+        graphGridOn = true, // the lines of the grid drawn; off, a short mark on each axis where its numbers are
         graphShading = false, // the ∫ button pressed: a drag along a curve shades its area, and does not move the view
         graphAreaButton = graphPlot.querySelector('[data-zoom="area"]'),
         graphSize = graph.querySelector('.calc-graph-size'), // the graph as big as the page, and back
@@ -2728,6 +2732,9 @@
             graphHue = c.concat(graphHue.filter(function (h) { return c.indexOf(h) < 0; }));
         }
         graphView = v && [v.x, v.y, v.ux, v.uy].every(isFinite) && v.ux > 0 && v.uy > 0 ? { x: v.x, y: v.y, ux: v.ux, uy: v.uy } : null;
+        graphSquare = !!(saved && saved.sq === true);
+        graphGridOn = !(saved && saved.grid === false);
+        showLooks();
         setSide(saved && typeof saved.side === 'number' && saved.side >= GRAPH_SIDE_MIN && saved.side < 10000 ? Math.round(saved.side) : 0);
         graphOff = graphOff.map(function (off, i) { return !!(saved && Array.isArray(saved.off) && saved.off[i] === true); });
         graphDiff = graphDiff.map(function (on, i) {
@@ -3084,10 +3091,17 @@
 
     // What the plot shows. Until it is moved or zoomed it is the start: x from -10 to 10 with
     // y as much each pixel, or for a function of an angle in degrees, x a turn either way
+    // With same scale, its y as long a unit as its x, about the same middle
     function viewNow() {
-        var u = GRAPH_WIDTH / plotWidth();
-        if (graphView) return graphView;
-        return { x: 0, y: 0, ux: graphAngles() && deg ? u * (deg === 2 ? 40 : 36) : u, uy: u };
+        var u = GRAPH_WIDTH / plotWidth(),
+            v = graphView || { x: 0, y: 0, ux: graphAngles() && deg ? u * (deg === 2 ? 40 : 36) : u, uy: u };
+        return graphSquare && v.uy !== v.ux / squareRatio() ? { x: v.x, y: v.y, ux: v.ux, uy: v.ux / squareRatio() } : v;
+    }
+
+    // how many units of x are as long as one of y with same scale: one, or of a curve of an angle in Deg
+    // or Grad, as many as a radian, so sin x has the shape it has in Rad and its slope at 0 is at 45°
+    function squareRatio() {
+        return graphAngles() && deg ? (deg === 2 ? 200 : 180) / Math.PI : 1;
     }
 
     // the plot's width, as it was last drawn while the table hides it
@@ -3889,7 +3903,7 @@
         ctx.stroke();
     }
 
-    // the lines of the grid; over: the axes and the numbers along them instead, drawn over the
+    // the lines of the grid, or with it off a mark at each number; over: the axes and the numbers along them instead, drawn over the
     // curves, so they show however much of the plot a curve fills, as tan x does from far away.
     // An axis out of the view leaves its numbers at the nearest edge. Big, the numbers as big as
     // the words beside the plot (popScale)
@@ -3901,6 +3915,22 @@
             labelY = Math.min(h - 4 * f, ay + 13 * f), onLeft = ax > w - 40 * f, past = -Infinity, k, p, text;
 
         ctx.lineWidth = 1;
+        if (!over && !graphGridOn) { // no grid: a mark on each axis in view at each of its numbers
+            ctx.strokeStyle = GRAPH_INK.axis;
+            ctx.beginPath();
+            for (k = Math.ceil(graphX(v, 0) / sx); plotY(v, 0) >= 0 && plotY(v, 0) <= h && k * sx <= graphX(v, w); k++) {
+                p = Math.round(plotX(v, k * sx)) + 0.5;
+                ctx.moveTo(p, ay - 3 * f);
+                ctx.lineTo(p, ay + 3 * f);
+            }
+            for (k = Math.ceil(graphY(v, h) / sy); plotX(v, 0) >= 0 && plotX(v, 0) <= w && k * sy <= graphY(v, 0); k++) {
+                p = Math.round(plotY(v, k * sy)) + 0.5;
+                ctx.moveTo(ax - 3 * f, p);
+                ctx.lineTo(ax + 3 * f, p);
+            }
+            ctx.stroke();
+            return;
+        }
         if (!over) {
             ctx.strokeStyle = GRAPH_INK.grid;
             ctx.beginPath();
@@ -4857,13 +4887,15 @@
         if (focusBox(graphEnds[0])) graphEnds[0].select();
     }
 
-    // the boxes as the view is, unless one is being typed in
+    // the boxes as the view is, unless one is being typed in; with same scale the other two are, as they follow it
     function fillWindow(v, w, h) {
-        if (graphWindow.hidden || graphWindow.contains(document.activeElement)) return;
+        var typing = graphEnds.indexOf(document.activeElement);
+        if (graphWindow.hidden || typing > -1 && !graphSquare) return;
         [graphX(v, 0), graphX(v, w), graphY(v, h), graphY(v, 0)].forEach(function (n, k) {
+            if (typing > -1 && (k < 2) === (typing < 2)) return;
             graphEnds[k].value = local(String(graphRound(n, k < 2 ? v.ux : v.uy)));
+            graphEnds[k].parentNode.classList.remove('calc-bad');
         });
-        graphEnds.forEach(function (box) { box.parentNode.classList.remove('calc-bad'); });
     }
 
     graphEnds.forEach(function (box) {
@@ -4875,11 +4907,15 @@
             y = n[2] < n[3] && (n[3] - n[2]) / h > Math.max(1e-12, Math.max(Math.abs(n[2]), Math.abs(n[3])) * 1e-11) && (n[3] - n[2]) / h < 1e12;
             graphEnds[0].parentNode.classList.toggle('calc-bad', !x);
             graphEnds[2].parentNode.classList.toggle('calc-bad', !y);
+            if (graphSquare) { // the pair typed in, the other as long a unit
+                if (graphEnds.indexOf(box) < 2) y = false;
+                else x = false;
+            }
             if (!x && !y) return;
             graphView = {
                 x: x ? (n[0] + n[1]) / 2 : v.x,
                 y: y ? (n[2] + n[3]) / 2 : v.y,
-                ux: x ? (n[1] - n[0]) / w : v.ux,
+                ux: x ? (n[1] - n[0]) / w : graphSquare ? (n[3] - n[2]) / h * squareRatio() : v.ux,
                 uy: y ? (n[3] - n[2]) / h : v.uy
             };
             drawGraph();
@@ -4892,6 +4928,28 @@
             showWindow(false);
         }, false);
     });
+
+    // Same scale and the grid, under the boxes: a click turns each on or off, the boxes keeping the focus
+    graphLooks.forEach(function (b) {
+        b.addEventListener('mousedown', function (e) { e.preventDefault(); }, false);
+        b.addEventListener('click', function () {
+            if (b.dataset.look === 'square') graphSquare = !graphSquare;
+            else graphGridOn = !graphGridOn;
+            showLooks();
+            popShut();
+            drawGraph();
+            saveState();
+        }, false);
+    });
+
+    // the two as they are
+    function showLooks() {
+        graphLooks.forEach(function (b) {
+            var on = b.dataset.look === 'square' ? graphSquare : graphGridOn;
+            b.classList.toggle('calc-on', on);
+            b.setAttribute('aria-pressed', String(on));
+        });
+    }
 
     // the boxes left: as the view is again, a pair that was not one too
     graphWindow.addEventListener('focusout', function (e) {
@@ -18076,6 +18134,8 @@
             h = graphPlot.clientHeight;
             u = Math.max((v[1] - v[0]) / w, (v[3] - v[2]) / h);
             graphView = { x: (v[0] + v[1]) / 2, y: (v[2] + v[3]) / 2, ux: ex.stretch ? (v[1] - v[0]) / w : u, uy: ex.stretch ? (v[3] - v[2]) / h : u };
+            if (ex.stretch) graphSquare = false;
+            showLooks();
             graphRender();
         }
         (ex.play || []).forEach(function (k) { playSlider(k, true); });
@@ -19644,7 +19704,7 @@
     function saveState() {
         if (!chemAlone && !panelAlone) store('graph', {
             f: graphInputs.slice(0, graphCount).map(function (box) { return box.value; }), c: graphHue.slice(0, graphCount),
-            view: graphView, tab: graphTab, side: graphSide, from: graphFrom.value, by: graphBy.value, off: graphOff.slice(0, graphCount), d: graphDiff.slice(0, graphCount),
+            view: graphView, sq: graphSquare, grid: graphGridOn, tab: graphTab, side: graphSide, from: graphFrom.value, by: graphBy.value, off: graphOff.slice(0, graphCount), d: graphDiff.slice(0, graphCount),
             p: graphLetters.reduce(function (p, k) {
                 if (graphRange[k]) p[k] = [graphVars[k], graphRange[k][0], graphRange[k][1]];
                 return p;

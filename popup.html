@@ -535,10 +535,12 @@
                 <canvas></canvas>
                 <!-- the point clicked: what it is, and its x and y, each to insert -->
                 <div class="calc-graph-pop" hidden></div>
-                <!-- the view typed: x from and to, y from and to -->
+                <!-- the view typed: x from and to, y from and to; same scale and the grid -->
                 <div class="calc-graph-window" hidden>
                     <label><i>x</i><input class="calc-graph-x0" type="text" spellcheck="false" autocomplete="off" maxlength="20" aria-label="x from"><span>to</span><input class="calc-graph-x1" type="text" spellcheck="false" autocomplete="off" maxlength="20" aria-label="x to"></label>
                     <label><i>y</i><input class="calc-graph-y0" type="text" spellcheck="false" autocomplete="off" maxlength="20" aria-label="y from"><span>to</span><input class="calc-graph-y1" type="text" spellcheck="false" autocomplete="off" maxlength="20" aria-label="y to"></label>
+                    <!-- a unit of x as long as one of y, and the lines of the grid, each on or off -->
+                    <div class="calc-graph-looks"><span data-look="square" role="button" aria-pressed="false">Same scale</span><span data-look="grid" class="calc-on" role="button" aria-pressed="true">Grid</span></div>
                 </div>
                 <!-- the view: closer, farther, back to the start and typed; and the area under a curve -->
                 <div class="calc-graph-zoom">

@@ -876,6 +876,27 @@
             d: 'Type where x goes from and to across the graph, and y up it. Enter or Esc goes back to the graph.',
             k: ''
         },
+        'graph square on': {
+            t: 'Same scale',
+            d: 'A unit of x as long as one of y, however the graph is zoomed: a circle is round, and a slope of 1 at 45°. ' +
+                'For a curve of an angle in Deg, a radian of x as long as 1 of y.',
+            k: ''
+        },
+        'graph square off': {
+            t: 'Same scale off',
+            d: 'x and y each a scale of its own again, as typing the view sets them.',
+            k: ''
+        },
+        'graph grid on': {
+            t: 'Show the grid',
+            d: 'Draws the lines of the grid again.',
+            k: ''
+        },
+        'graph grid off': {
+            t: 'Hide the grid',
+            d: 'Leaves the axes and their numbers, with a mark at each number, and none of the lines between.',
+            k: ''
+        },
         'graph area': {
             t: 'Area under a curve',
             d: 'Press, then drag along a curve from one x to another: the area between it and the x axis is shaded, ' +
