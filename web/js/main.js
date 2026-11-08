@@ -2,7 +2,7 @@
     'use strict';
     // the words of the calculator in the language in use (lang.js): tr('Clear'), tr('{n} of {all}', { n: 3, all: 10 }),
     // trn(n, '{n} day', '{n} days'). The words of the page translated first, before anything here reads them
-    var tr = CalcLang.t, trn = CalcLang.n;
+    var tr = CalcLang.t, trn = CalcLang.n, trc = CalcLang.c;
     CalcLang.dom(document.body);
     let root = document.getElementById('calculator'), // the calculator: the page can hold more than it, as the website does
         Calc = root.querySelector('.calc-main'),
@@ -2560,7 +2560,7 @@
         return [
             ['<div class="calc-menu-picker"></div>', null, true, function (el) { colorPart(el, i); }],
             null,
-            item('Solid', st.d === 0, function () { st.d = 0; }),
+            item(trc('line', 'Solid'), st.d === 0, function () { st.d = 0; }),
             item('Dashed', st.d === 1, function () { st.d = 1; }),
             item('Dotted', st.d === 2, function () { st.d = 2; }),
             null,
@@ -18523,9 +18523,9 @@
             m.setAttribute('aria-checked', m.dataset.by === chemBy);
         });
         chemModeSeen();
-        chemLegend.innerHTML = CHEM_HEAT[chemBy] ? chemSliderHtml() + '<span class="calc-pt-key calc-pt-unknown"><i></i>Not known</span>' :
+        chemLegend.innerHTML = CHEM_HEAT[chemBy] ? chemSliderHtml() + '<span class="calc-pt-key calc-pt-unknown"><i></i>' + tr('Not known') + '</span>' :
             (chemBy === 'cat' ? CalcChem.categories : chemBy === 'state' ? CHEM_STATES : CHEM_BLOCKS).map(function (c) {
-                return '<span class="calc-pt-key calc-pt-' + (chemBy === 'block' ? c[0] + 'b' : c[0]) + (chemHot === c[0] ? ' calc-on' : '') + '" data-g="' + c[0] + '" role="button"><i></i>' + c[1] + '</span>';
+                return '<span class="calc-pt-key calc-pt-' + (chemBy === 'block' ? c[0] + 'b' : c[0]) + (chemHot === c[0] ? ' calc-on' : '') + '" data-g="' + c[0] + '" role="button"><i></i>' + (chemBy === 'state' ? chemStateName(c[0]) : tr(c[1])) + '</span>';
             }).join('') + (chemBy === 'state' ? '<span class="calc-pt-break"></span>' + chemSliderHtml() : '');
         if (chemBy === 'state' || CHEM_HEAT[chemBy]) chemSliderDraw(chemSliderPlaces());
         chemDim();
@@ -18578,7 +18578,7 @@
     // The element in the space above the transition metals: the one pointed at, or the one chosen. With
     // all, the tiles of what is known of it under the table too, each number to put in
     function chemShow(z, all) {
-        var e = CalcChem.elements[z - 1], gap = chemGrid.querySelector('.calc-pt-gap'), cat = CalcChem.categories.filter(function (c) { return c[0] === e.cat; })[0][1], tiles, cell, crystal;
+        var e = CalcChem.elements[z - 1], gap = chemGrid.querySelector('.calc-pt-gap'), cat = tr(CalcChem.categories.filter(function (c) { return c[0] === e.cat; })[0][1]), tiles, cell, crystal;
         // each part with data-pt, the tip of what it is (chemPartTip), its value in full under it
         gap.innerHTML = '<div class="calc-pt-big calc-pt-el ' + chemClass(e) + '" data-show="' + e.z + '" style="' + chemHeat(e) + '" role="button" aria-label="' + tr('All of {name}', { name: e.name }) + '"><span class="calc-pt-z" data-pt="z">' + e.z + '</span>' +
             // popped out, the tile has room for more, as on a printed table: the electronegativity and the oxidation
@@ -18593,11 +18593,11 @@
                 ['Mass', e.unstable ? e.mass : chemIn('m', e.mass), e.unstable ? 'mass number' : 'g/mol', 'mass'], ['Group', e.group, '', 'group'], ['Period', e.period, '', 'period'], ['Block', e.block, '', 'block'],
                 ['Melts', chemIn('t', e.mp), chemUnitName('t'), 'mp'], ['Boils', chemIn('t', e.bp), chemUnitName('t'), 'bp'],
                 ['Density', chemIn('d', e.density), chemUnitName('d'), 'density'], ['Ionization', chemIn('e', e.ie), chemUnitName('e'), 'ie'],
-                ['State', e.state ? e.state.charAt(0).toUpperCase() + e.state.slice(1) : null, '', 'state'], ['Radius', e.radius, 'pm', 'radius'],
+                ['State', e.state ? chemStateName(e.state) : null, '', 'state'], ['Radius', e.radius, 'pm', 'radius'],
                 ['Affinity', chemIn('e', e.affinity), chemUnitName('e'), 'affinity'], ['Ions', e.ions, '', 'ions']
             ].map(function (f) {
                 var v = f[1] === null || f[1] === undefined ? '–' : (e.predicted[f[3]] ? '≈' : '') + (typeof f[1] === 'number' ? local(String(f[1])) : f[1]);
-                return '<div data-pt="' + f[3] + '" data-full="' + (v === '–' ? '' : v + (f[2] && f[2] !== 'mass number' ? ' ' + f[2] : '')) + '"><dt>' + f[0] + (f[2] ? ' <i>' + f[2] + '</i>' : '') + '</dt><dd>' + v + '</dd></div>';
+                return '<div data-pt="' + f[3] + '" data-full="' + (v === '–' ? '' : v + (f[2] && f[2] !== 'mass number' ? ' ' + f[2] : '')) + '"><dt>' + tr(f[0]) + (f[2] ? ' <i>' + tr(f[2]) + '</i>' : '') + '</dt><dd>' + v + '</dd></div>';
             }).join('') + '</dl></div>';
         chemDimBig();
         if (!all) return;
@@ -18611,7 +18611,7 @@
             ['Atomic number', e.z], e.unstable ? ['Atomic mass', e.mass, 'mass number'] : ['Atomic mass', chemIn('m', e.mass), chemUnitName('m'), false, 'm'], ['Electronegativity', e.en, 'Pauling'],
             ['Ionization energy', chemIn('e', e.ie), chemUnitName('e'), false, 'e'], ['Melting point', chemIn('t', e.mp), chemUnitName('t'), false, 't'],
             ['Boiling point', chemIn('t', e.bp), chemUnitName('t'), false, 't'],
-            ['Density', chemIn('d', e.density), chemUnitName('d') + (e.state === 'gas' ? ' at 0 °C' : ''), false, 'd'], ['Group', e.group], ['Period', e.period],
+            ['Density', chemIn('d', e.density), (e.state === 'gas' ? tr('{unit} at 0 °C', { unit: chemUnitName('d') }) : chemUnitName('d')), false, 'd'], ['Group', e.group], ['Period', e.period],
             ['Protons', e.z], ['Electrons', e.z], ['Neutrons', Math.round(e.mass) - e.z],
             ['Electron configuration', e.config, '', true], ['Shells', e.shells.join(', '), 'K L M …', true], cell ? crystal : null, ['Block', e.block],
             ['Outer-shell electrons', e.shells[e.shells.length - 1]], ['Unpaired electrons', chemUnpaired(e.config)],
@@ -18631,11 +18631,11 @@
         chemInfo.dataset.z = z;
         chemInfo.innerHTML = '<span class="calc-pt-hide" role="button" aria-label="' + tr('Close the card') + '"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span><div class="calc-pt-head"><div class="calc-pt-big calc-pt-el ' + chemClass(e) + '" style="' + chemHeat(e) + '"><span class="calc-pt-z" data-pt="z">' + e.z + '</span><b data-pt="symbol">' + e.s +
             '</b>' + chemMassHtml(e) + '</div><div class="calc-pt-about"><span class="calc-pt-title" data-pt="name">' + e.name + '</span><span data-pt="kind" data-kind="' + e.cat + '">' + cat +
-            '</span><span data-pt="shells" data-full="' + e.shells.join(', ') + '">Shells ' + e.shells.join(', ') + '</span></div></div><div class="calc-pt-body">' + chemAtom(e) + '<div class="calc-sv-grid calc-pt-tiles">' + chemSpectrum(e) + tiles.map(function (t, i) {
+            '</span><span data-pt="shells" data-full="' + e.shells.join(', ') + '">' + tr('Shells {list}', { list: '<span>' + e.shells.join(', ') + '</span>' }) + '</span></div></div><div class="calc-pt-body">' + chemAtom(e) + '<div class="calc-sv-grid calc-pt-tiles">' + chemSpectrum(e) + tiles.map(function (t, i) {
             var num = typeof t[1] === 'number' && !(t[0] === 'Found'), known = t[1] !== null && t[1] !== undefined, guess = known && e.predicted[CHEM_FACTS[t[0]]];
             return '<div class="calc-sv-tile' + (num && known ? '' : ' calc-none') + (t[3] ? ' calc-sv-wide' : '') + (t[5] ? ' calc-pt-text' : '') + (known && !num && !t[3] && String(t[1]).length > 9 ? ' calc-pt-wrap' : '') +
-                '" style="--i: ' + i + '" data-fact="' + CHEM_FACTS[t[0]] + '"' + (num && known ? ' data-v="' + t[1] + '"' : '') + '><span class="calc-sv-label">' + t[0] +
-                (t[2] ? ' <i' + (t[4] ? ' class="calc-pt-unit" data-unit="' + t[4] + '" role="button"' : '') + '>' + t[2] + '</i>' : '') + (guess ? ' <i class="calc-pt-guess">predicted</i>' : '') + '</span><span class="calc-sv-value">' + (!known ? '–' : num ? (t[6] ? chemSci(t[1]) : statsValue(t[1]).html) : t[1]) +
+                '" style="--i: ' + i + '" data-fact="' + CHEM_FACTS[t[0]] + '"' + (num && known ? ' data-v="' + t[1] + '"' : '') + '><span class="calc-sv-label">' + tr(t[0]) +
+                (t[2] ? ' <i' + (t[4] ? ' class="calc-pt-unit" data-unit="' + t[4] + '" role="button"' : '') + '>' + tr(t[2]) + '</i>' : '') + (guess ? ' <i class="calc-pt-guess">' + tr('predicted') + '</i>' : '') + '</span><span class="calc-sv-value">' + (!known ? '–' : num ? (t[6] ? chemSci(t[1]) : statsValue(t[1]).html) : t[1]) +
                 (t[7] || '') + '</span></div>';
         }).join('') + '</div></div>';
         chemRows();
@@ -18680,18 +18680,28 @@
         var by = chemBy, h = CHEM_HEAT[by], v, text, state, NAMES = { en: 'Electronegativity', ie: 'Ionization energy', mp: 'Melts at', bp: 'Boils at',
             density: 'Density', radius: 'Atomic radius', affinity: 'Electron affinity', mass: 'Mass', year: 'Discovered' };
         if (h) {
-            v = by === 'year' ? (e.year === 0 ? 'in ancient times' : e.year) : by === 'mass' ? (e.unstable ? tr('{mass} (mass number)', { mass: e.mass }) : tr('{v} g/mol', { v: local(String(chemIn('m', e.mass))) })) :
-                e[by] === null ? 'not known' : (e.predicted[by] ? '≈' : '') + local(String(h.unit ? chemIn(h.unit, e[by]) : e[by])).replace('-', '−') + ' ' + (h.unit ? chemUnitName(h.unit) : h.label);
-            text = NAMES[by] + ' ' + v;
+            v = by === 'year' ? (e.year === 0 ? tr('in ancient times') : e.year) : by === 'mass' ? (e.unstable ? tr('{mass} (mass number)', { mass: e.mass }) : tr('{v} g/mol', { v: local(String(chemIn('m', e.mass))) })) :
+                e[by] === null ? tr('not known') : (e.predicted[by] ? '≈' : '') + local(String(h.unit ? chemIn(h.unit, e[by]) : e[by])).replace('-', '−') + ' ' + (h.unit ? chemUnitName(h.unit) : h.label);
+            text = tr(NAMES[by]) + ' ' + v;
         } else {
             state = chemBy === 'state' ? chemStateOf(e) : e.state; // coloured by state, at the temperature of its slider
             by = state === 'solid' && e.mp !== null ? 'mp' : 'bp';
-            text = !state ? 'State not known' : state.charAt(0).toUpperCase() + state.slice(1) +
-                (chemBy === 'state' && chemTemp !== 20 ? ' at ' + chemTempText() : '') + (e[by] === null ? '' : (by === 'mp' ? ' · melts at ' : ' · boils at ') +
-                (e.predicted[by] ? '≈' : '') + local(String(chemIn('t', e[by]))).replace('-', '−') + ' ' + chemUnitName('t'));
+            text = !state ? tr('State not known') : chemStateName(state) +
+                (chemBy === 'state' && chemTemp !== 20 ? ' ' + tr('at {t}', { t: chemTempText() }) : '') + (e[by] === null ? '' : ' · ' + (by === 'mp' ? tr('melts at {t}', { t: chemTempOf(e, by) }) : tr('boils at {t}', { t: chemTempOf(e, by) })));
             by = 'state';
         }
         return '<span class="calc-pt-line" data-pt="' + by + '">' + text + '</span>';
+    }
+
+    // where it melts or boils, in the unit in use, ≈ where only predicted; its own run, 1538 °C as it is in a language
+    // written right to left
+    function chemTempOf(e, by) {
+        return '<span>' + (e.predicted[by] ? '≈' : '') + local(String(chemIn('t', e[by]))).replace('-', '−') + ' ' + chemUnitName('t') + '</span>';
+    }
+
+    // a state of matter by its name: Solid not as a solid of geometry, nor a line
+    function chemStateName(s) {
+        return { solid: trc('state', 'Solid'), liquid: trc('state', 'Liquid'), gas: trc('state', 'Gas'), unknown: trc('state', 'Unknown') }[s];
     }
 
     // a number very big or very small as a × 10ⁿ, as the converter writes it: a resistivity, an abundance

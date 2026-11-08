@@ -58,6 +58,9 @@ check(L.t('{n} of {all}', { n: 3, all: 10 }) === '3 de 10', 'values put in', L.t
 check(L.t('{n} of {x}', { n: 3 }) === '3 of {x}', 'a value not given stays as it is');
 check(L.n(1, '{n} day', '{n} days') === '1 día' && L.n(5, '{n} day', '{n} days') === '5 días', 'the forms of a number');
 check(L.n(2, '{n} week', '{n} weeks') === '2 weeks', 'forms not translated: English');
+L = load({ lang: 'es' }, ['en'], LANGS, { es: { Solid: 'Sólido', 'line\u0004Solid': 'Continua' } });
+check(L.c('line', 'Solid') === 'Continua' && L.t('Solid') === 'Sólido', 'a text by its context, and without it');
+check(L.c('state', 'Solid') === 'Solid', 'a context not translated: English, not the text of no context');
 L = load({}, ['en'], LANGS);
 check(L.n(1, '{n} day', '{n} days') === '1 day' && L.n(0, '{n} day', '{n} days') === '0 days', 'English forms');
 check(L.t('Clear') === 'Clear' && L.t('{a} and {b}', { a: 'x', b: 'y' }) === 'x and y', 'English as it is, its values put in');

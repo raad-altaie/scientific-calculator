@@ -172,7 +172,7 @@ function scriptTexts(src) {
     list.forEach((tok, i) => {
         const next = list[i + 1], after = list[i + 2];
         let call = '';
-        if (tok.id && next && next.p === '(' && (ARGS[tok.id] !== undefined || tok.id === 'trn') && !(list[i - 1] && list[i - 1].p === '.') && !(list[i - 1] && list[i - 1].id === 'function')) call = tok.id;
+        if (tok.id && next && next.p === '(' && (ARGS[tok.id] !== undefined || tok.id === 'trn' || tok.id === 'trc') && !(list[i - 1] && list[i - 1].p === '.') && !(list[i - 1] && list[i - 1].id === 'function')) call = tok.id;
         if (tok.id === 'CalcLang' && next && next.p === '.' && after && /^(t|n)$/.test(after.id) && list[i + 3] && list[i + 3].p === '(') call = after.id === 't' ? 'tr' : 'trn';
         if (call) {
             let at = (tok.id === 'CalcLang' ? i + 3 : i + 1) + 1; // after the (
@@ -186,9 +186,15 @@ function scriptTexts(src) {
                 if (other) add(other[0], true, one[0]);
                 return;
             }
-            if (call === 'tr') {
+            if (call === 'tr') { // a text, or either of two: tr(x ? 'a' : 'b')
                 const lit = literal(list, at);
                 if (lit) add(lit[0], true);
+                else leaves(list, at).forEach((text) => add(text, true));
+                return;
+            }
+            if (call === 'trc') { // trc(context, text): kept under both, as CalcLang.c keeps it
+                const context = literal(list, at), text = context && list[context[1]] && list[context[1]].p === ',' && literal(list, context[1] + 1);
+                if (text) add(context[0] + '\u0004' + text[0], true);
                 return;
             }
             for (let k = ARGS[call], depth = 0; k > 0 && list[at]; at++) { // to its value: past as many commas not in brackets

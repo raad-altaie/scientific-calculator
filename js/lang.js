@@ -95,6 +95,13 @@
         return fill(typeof own === 'string' ? own : text, values);
     }
 
+    // A text that means more than one thing, Solid of a line or of a state of matter: kept under its context too, as
+    // gettext's pgettext keeps it, 'state' and the text with \u0004 between; English, or none yet, the text alone
+    function c(context, text, values) {
+        var key = context + '\u0004' + text, own = code === 'en' || code === PSEUDO ? word(text) : word(key);
+        return fill(own === key ? text : own, values);
+    }
+
     // Of a number n: one, the English with one, as '{n} day', and other with any other, '{n} days', the key of the
     // language's forms: { one: …, few: …, many: …, other: … }, each as many as the language has. {n} is n
     function n(count, one, other, values) {
@@ -170,6 +177,7 @@
         browser: browserLang, // the language the browser asks for, of these
         t: t,
         n: n,
+        c: c,
         dom: dom,
         add: add,
         missing: missing // with langDebug on, the English asked for that has no word yet in the language in use
