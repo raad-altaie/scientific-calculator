@@ -532,12 +532,16 @@
     line-height: calc(24px / 1.15);
 }
 
+#calculator.calc-big .calc-graph-undo,
+#calculator.calc-big .calc-graph-redo,
 #calculator.calc-big .calc-graph-add {
     width: calc(24px / 1.15);
     height: calc(24px / 1.15);
     border-radius: calc(5px / 1.15);
 }
 
+#calculator.calc-big .calc-graph-undo svg,
+#calculator.calc-big .calc-graph-redo svg,
 #calculator.calc-big .calc-graph-add svg {
     width: calc(14px / 1.15);
     height: calc(14px / 1.15);
@@ -1874,6 +1878,8 @@
 
 
     #calculator.calc-big .calc-graph-add,
+    #calculator.calc-big .calc-graph-undo,
+    #calculator.calc-big .calc-graph-redo,
     #calculator.calc-big .calc-past-clear {
         flex: none;
     }
@@ -1923,6 +1929,7 @@
         align-self: center;
         justify-content: safe center; /* its words, and the x and y of the point, in the middle; cut at the right if too long */
         margin-right: 96px; /* clear of pop in and close */
+        margin-left: 56px; /* and of undo and redo */
         margin-bottom: calc(12px / 1.15); /* in the middle above the line, level with the tabs */
     }
 
@@ -1974,6 +1981,23 @@
 
     #calculator.calc-big .calc-graph-size {
         right: calc((33px + env(safe-area-inset-right)) / 1.15);
+    }
+
+    /* undo and redo on the line above the plot, at its left before the line about the point, and not in
+       the head of the boxes */
+    #calculator.calc-big .calc-graph > .calc-past-head > .calc-graph-undo,
+    #calculator.calc-big .calc-graph > .calc-past-head > .calc-graph-redo {
+        display: none;
+    }
+
+    #calculator.calc-big .calc-graph-undos {
+        display: flex;
+        grid-area: 1 / 2;
+        align-self: center;
+        justify-self: start;
+        gap: 4px;
+        margin: 0 0 calc(12px / 1.15) 4px; /* level with the line, as it is with the tabs */
+        color: #d3d9e2; /* as in the head */
     }
 
     #calculator.calc-big .calc-graph-size svg,
@@ -2035,6 +2059,7 @@
 #calculator.calc-big .calc-graph-cells,
 #calculator.calc-big .calc-graph-sliders,
 #calculator.calc-big .calc-graph-note,
+#calculator.calc-big .calc-graph-undos,
 #calculator.calc-big .calc-graph-table,
 #calculator.calc-big .calc-graph-examples,
 #calculator.calc-big .calc-graph-zoom,
@@ -2123,6 +2148,11 @@
 
 /* the line between the columns is only for the big graph on a wide page */
 #calculator .calc-graph-split {
+    display: none;
+}
+
+/* undo and redo before the line about the point: only big and wide, in place of the head's */
+#calculator .calc-graph-undos {
     display: none;
 }
 
@@ -4450,6 +4480,8 @@
 #calculator .calc-graph-size,
 #calculator .calc-chem-size,
 #calculator .calc-panel-size,
+#calculator .calc-graph-undo,
+#calculator .calc-graph-redo,
 #calculator .calc-graph-add {
     height: 18px; /* as tall as the tabs: lit, the same size */
     border-radius: 4px;
@@ -4468,6 +4500,8 @@
 #calculator .calc-graph-size,
 #calculator .calc-chem-size,
 #calculator .calc-panel-size,
+#calculator .calc-graph-undo,
+#calculator .calc-graph-redo,
 #calculator .calc-graph-add {
     display: flex;
     align-items: center;
@@ -4481,14 +4515,21 @@
 #calculator .calc-graph-size:hover,
 #calculator .calc-chem-size:hover,
 #calculator .calc-panel-size:hover,
+#calculator .calc-graph-undo:hover,
+#calculator .calc-graph-redo:hover,
 #calculator .calc-graph-add:hover {
     opacity: 1;
     background: #52687d;
 }
 
-/* export, with nothing in the history to export: faint, and nothing lights up */
+/* export, with nothing in the history to export, and undo or redo with nothing to take back or do again: faint,
+   and nothing lights up */
 #calculator .calc-past-export.calc-off,
-#calculator .calc-past-export.calc-off:hover {
+#calculator .calc-past-export.calc-off:hover,
+#calculator .calc-graph-undo.calc-off,
+#calculator .calc-graph-undo.calc-off:hover,
+#calculator .calc-graph-redo.calc-off,
+#calculator .calc-graph-redo.calc-off:hover {
     opacity: 0.3;
     background: none;
     cursor: default;

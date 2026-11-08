@@ -119,6 +119,15 @@
         })(graph.querySelector('.calc-graph-fn')),
         graphFnList = graph.querySelector('.calc-graph-fns'),
         graphAdd = graph.querySelector('.calc-graph-add'),
+        // a change of the graph taken back, and done again: in its head, or big and wide on the line above the plot
+        graphUndo = [].slice.call(graph.querySelectorAll('.calc-graph-undo')),
+        graphRedo = [].slice.call(graph.querySelectorAll('.calc-graph-redo')),
+        graphPast = [], // the graph before each change, the last last: its boxes, colors, sliders, settings and lines, as graphState has them
+        graphAhead = [], // and before each undo, to redo
+        graphKept = null, // the graph as the last change left it
+        graphNext = null, // a change waiting for the next, so a word typed is one step, and the timer of it
+        GRAPH_STEP = 500, // that long
+        GRAPH_UNDO = 100, // so many changes kept to undo
         graphSliders = graph.querySelector('.calc-graph-sliders'),
         graphFits = graph.querySelector('.calc-graph-fits'), // below them, of each model fitted, y ~ a x² + b: its values and r²
         graphInputs = graphRows.map(function (row) { return row.querySelector('input'); }),
@@ -350,6 +359,7 @@
                 e.preventDefault();
                 return;
             }
+            if ((e.ctrlKey || e.metaKey) && graph.contains(e.target) && graphKeyUndo(e)) return; // in a box of the graph, its undo, not the box's
             if (e.which === 27 && !menu.hidden) { // Esc closes the menu first
                 showMenu(false);
                 e.preventDefault();
@@ -378,6 +388,7 @@
             }
             return;
         }
+        if ((e.ctrlKey || e.metaKey) && graph.classList.contains('calc-open') && graphKeyUndo(e)) return; // the graph's, while it is open
         if ((e.ctrlKey || e.metaKey) && (e.which === 90 || (noLatin && e.code === 'KeyZ'))) { // Ctrl+Z undoes, Ctrl+Shift+Z redoes
             undo(e.shiftKey);
             e.preventDefault();
@@ -393,6 +404,15 @@
         }
         if (onKeyDown(e.which, e.shiftKey)) e.preventDefault();
     }, false);
+
+    // Ctrl+Z (⌘Z) undoes a change of the graph, Ctrl+Shift+Z or Ctrl+Y redoes it; true if it was one of them
+    function graphKeyUndo(e) {
+        var z = e.which === 90 || (noLatin && e.code === 'KeyZ'), y = e.which === 89 || (noLatin && e.code === 'KeyY');
+        if (e.altKey || !z && !(y && !e.shiftKey)) return false;
+        undoGraph(y || e.shiftKey);
+        e.preventDefault();
+        return true;
+    }
 
     // the letter A to J of a key under Alt, as the keyboard's layout names it: AZERTY's A is where
     // QWERTY has Q. Where the browser cannot tell, or the layout has no Latin letters, as Russian's ф,
@@ -845,7 +865,7 @@
         }
         var key = target.closest('.calc-left > *, .calc-right > .del-ac, .calc-rad, .calc-mem, .calc-frac, .calc-fmt, .calc-hold, ' +
             '.calc-stat-btn, .calc-fx-btn, .calc-fx-row, .calc-gx-row, .calc-conv-btn, .calc-solve-btn, .calc-numbers-btn, .calc-chem-btn, .calc-phys-btn, .calc-bio-btn, .calc-chem-size, .calc-panel-size, .calc-pt-mode, .calc-search-clear, .calc-pt-unit, .calc-pt-temp-v, .calc-sv-row, ' +
-            '.calc-graph-btn, .calc-graph-size, .calc-graph-add, .calc-graph-del, .calc-graph-diff, .calc-graph-points, .calc-graph-zoom > span, .calc-graph-window [data-look], .calc-graph-window [data-arrows], .calc-graph-reset, .calc-graph-pop-end, .calc-graph-pop-row, .calc-graph-play, ' +
+            '.calc-graph-btn, .calc-graph-size, .calc-graph-add, .calc-graph-undo, .calc-graph-redo, .calc-graph-del, .calc-graph-diff, .calc-graph-points, .calc-graph-zoom > span, .calc-graph-window [data-look], .calc-graph-window [data-arrows], .calc-graph-reset, .calc-graph-pop-end, .calc-graph-pop-row, .calc-graph-play, ' +
             '.calc-graph-fn > .calc-graph-swatch, ' +
             '.calc-sto, .calc-var-btn, .calc-fx-phys, input, textarea, ' +
             '.calc-stats-chart, .calc-hist, .calc-find-btn, .calc-past-export, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit, .calc-help, .calc-open-big, ' +
@@ -1139,6 +1159,10 @@
             }
             if (el === graphSize) return CalcTips[root.classList.contains('calc-big') ? 'graph small' : 'graph big'];
             if (el === graphAdd) return CalcTips['graph add'];
+            if (graphUndo.indexOf(el) > -1 || graphRedo.indexOf(el) > -1) {
+                info = CalcTips[graphUndo.indexOf(el) > -1 ? 'graph undo' : 'graph redo'];
+                return { t: info.t, d: info.d, k: mac ? info.k.replace('Ctrl+Shift+', '⇧⌘').replace('Ctrl+', '⌘') : info.k };
+            }
             if (el.classList.contains('calc-graph-del')) return CalcTips['graph remove'];
             if (el.classList.contains('calc-graph-diff')) {
                 value = graphRows.indexOf(el.parentNode);
@@ -3299,9 +3323,10 @@
         return p * (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10);
     }
 
-    // the unit the grid of x goes by: 'deg' or 'rad' for a curve of an angle in Deg or Rad, else false
+    // the unit the grid of x goes by: 'deg' or 'rad' for a curve of an angle in Deg or Rad, else false;
+    // in Rad with same scale none, its lines as far apart as those of y, so its squares are square
     function gridAngles() {
-        return graphAngles() && (deg === 1 ? 'deg' : deg === 0 ? 'rad' : false);
+        return graphAngles() && (deg === 1 ? 'deg' : deg === 0 && !graphLook.square ? 'rad' : false);
     }
 
     // a number of the grid, as short as its step lets it be: 0.5, 20, 1e+8, with the decimal mark
@@ -4130,17 +4155,23 @@
             xIn = plotY(v, 0) >= 0 && plotY(v, 0) <= h, yIn = plotX(v, 0) >= 0 && plotX(v, 0) <= w, // the x axis in view, the y axis
             labelY = Math.min(h - 4 * f, ay + 13 * f), onLeft = ax > w - 40 * f, past = -Infinity, k, p, text, end;
 
-        // a line across the plot at each step of x, and of y, from what is put at each place
-        function lines(ink, stepX, stepY, x, y) {
+        // a line across the plot at each step of x, and of y, from what is put at each place. Of the
+        // grid, where it falls and not on a whole pixel, so its lines are evenly apart and its squares
+        // square however the graph is zoomed; none under an axis, drawn on its whole pixel, and the minor
+        // ones none where a line of the grid is. The marks on the axes on whole pixels, as sharp as they are
+        function lines(ink, stepX, stepY, x, y, minor) {
+            var nx = minor ? Math.round(sx / stepX) : 0, ny = minor ? Math.round(sy / stepY) : 0, marks = x || y;
             ctx.strokeStyle = ink;
             ctx.beginPath();
             for (k = Math.ceil(graphX(v, 0) / stepX); stepX && k * stepX <= graphX(v, w); k++) {
-                p = Math.round(plotX(v, k * stepX)) + 0.5;
+                if (nx && !(k % nx) || !marks && !k && look.yaxis) continue;
+                p = marks ? Math.round(plotX(v, k * stepX)) + 0.5 : plotX(v, k * stepX);
                 ctx.moveTo(p, x ? ay - x : 0);
                 ctx.lineTo(p, x ? ay + x : h);
             }
             for (k = Math.ceil(graphY(v, h) / stepY); stepY && k * stepY <= graphY(v, 0); k++) {
-                p = Math.round(plotY(v, k * stepY)) + 0.5;
+                if (ny && !(k % ny) || !marks && !k && look.xaxis) continue;
+                p = marks ? Math.round(plotY(v, k * stepY)) + 0.5 : plotY(v, k * stepY);
                 ctx.moveTo(y ? ax - y : 0, p);
                 ctx.lineTo(y ? ax + y : w, p);
             }
@@ -4173,7 +4204,7 @@
                 if (look.minor) rings(GRAPH_INK.minor, minorStep(p, false) / Math.max(v.ux, v.uy) >= 6 && minorStep(p, false), 15);
                 rings(GRAPH_INK.grid, p, 30);
             } else if (look.grid) {
-                if (look.minor) lines(GRAPH_INK.minor, mx / v.ux >= 6 && mx, my / v.uy >= 6 && my); // none closer than 6 pixels
+                if (look.minor) lines(GRAPH_INK.minor, mx / v.ux >= 6 && mx, my / v.uy >= 6 && my, 0, 0, true); // none closer than 6 pixels
                 lines(GRAPH_INK.grid, sx, sy);
             } else if (look.xaxis || look.yaxis) {
                 lines(GRAPH_INK.axis, look.xaxis && xIn && sx, look.yaxis && yIn && sy, 3 * f, 3 * f);
@@ -18855,6 +18886,7 @@
             u = Math.max((v[1] - v[0]) / w, (v[3] - v[2]) / h);
             graphView = { x: (v[0] + v[1]) / 2, y: (v[2] + v[3]) / 2, ux: ex.stretch ? (v[1] - v[0]) / w : u, uy: ex.stretch ? (v[3] - v[2]) / h : u };
             if (ex.stretch) graphLook.square = false;
+            if (ex.square) graphLook.square = true;
             showLooks();
             graphRender();
         }
@@ -20422,15 +20454,10 @@
     // The graph's own window saves only the graph and the calculation, the two it changes: the rest it
     // has from when it opened, and the calculator may have changed it since
     function saveState() {
-        if (!chemAlone && !panelAlone) store('graph', {
-            f: graphInputs.slice(0, graphCount).map(function (box) { return box.value; }), c: graphHue.slice(0, graphCount),
-            view: graphView, look: graphLook, tab: graphTab, side: graphSide, from: graphFrom.value, by: graphBy.value, off: graphOff.slice(0, graphCount), d: graphDiff.slice(0, graphCount),
-            s: graphStyle.slice(0, graphCount),
-            p: graphLetters.reduce(function (p, k) {
-                if (graphRange[k]) p[k] = [graphVars[k], graphRange[k][0], graphRange[k][1]];
-                return p;
-            }, {})
-        });
+        if (!chemAlone && !panelAlone) {
+            store('graph', graphObject());
+            noteGraph();
+        }
         store('calc', engine.save());
         if (!graphAlone && !chemAlone && (!panelAlone || panelAlone === 'stats')) {
             store('stat', statsTexts.list);
@@ -20446,6 +20473,78 @@
         store('dms', dmsMode);
         store('memory', engine.memory);
     }
+
+    // the graph as it is kept: its boxes, their colors, the view, the settings, the tab, the table's
+    // start and step, what is hidden and fitted, the lines, and the sliders
+    function graphObject() {
+        return {
+            f: graphInputs.slice(0, graphCount).map(function (box) { return box.value; }), c: graphHue.slice(0, graphCount),
+            view: graphView, look: graphLook, tab: graphTab, side: graphSide, from: graphFrom.value, by: graphBy.value, off: graphOff.slice(0, graphCount), d: graphDiff.slice(0, graphCount),
+            s: graphStyle.slice(0, graphCount),
+            p: graphLetters.reduce(function (p, k) {
+                if (graphRange[k]) p[k] = [graphVars[k], graphRange[k][0], graphRange[k][1]];
+                return p;
+            }, {})
+        };
+    }
+
+    // ---------- undo and redo of the graph ---------- //
+
+    // What a change of the graph is, to undo: its boxes, colors, sliders, settings and lines; not the
+    // view, nor the tab, as a drag or a zoom is no change to take back
+    function graphState() {
+        var g = graphObject();
+        return JSON.stringify({ f: g.f, c: g.c, off: g.off, d: g.d, s: g.s, p: g.p, look: g.look });
+    }
+
+    // A change saved: kept to undo once no other follows it for a moment, so typing a word, or a
+    // slider played, is one step; the redo of what was undone goes
+    function noteGraph() {
+        var now = graphState();
+        if (graphKept === null) graphKept = now;
+        clearTimeout(graphNext && graphNext.timer);
+        graphNext = now === graphKept ? null : { state: now, timer: setTimeout(keepGraph, GRAPH_STEP) };
+    }
+
+    function keepGraph() {
+        if (!graphNext) return;
+        graphPast.push(graphKept);
+        if (graphPast.length > GRAPH_UNDO) graphPast.shift();
+        graphKept = graphNext.state;
+        graphAhead = [];
+        graphNext = null;
+        undoButtons();
+    }
+
+    // Ctrl+Z, or its button: the graph as it was before the last change, or with redo as before the last
+    // undo, the view staying as it is
+    function undoGraph(redo) {
+        var from, to;
+        clearTimeout(graphNext && graphNext.timer);
+        keepGraph(); // a change waiting is the last one, and what was undone goes
+        from = redo ? graphAhead : graphPast;
+        to = redo ? graphPast : graphAhead;
+        if (!from.length) return;
+        to.push(graphKept);
+        loadGraph(Object.assign(graphObject(), JSON.parse(from.pop())));
+        readGraph();
+        graphKept = graphState(); // as it reads again, no change of its own
+        clearTimeout(graphNext && graphNext.timer);
+        graphNext = null;
+        store('graph', graphObject());
+        undoButtons();
+    }
+
+    // the buttons faint while there is nothing to undo or redo
+    function undoButtons() {
+        graphUndo.forEach(function (b) { b.classList.toggle('calc-off', !graphPast.length && !graphNext); });
+        graphRedo.forEach(function (b) { b.classList.toggle('calc-off', !graphAhead.length); });
+    }
+
+    graphUndo.concat(graphRedo).forEach(function (b) {
+        b.addEventListener('mousedown', function (e) { e.preventDefault(); }, false); // a box being typed in keeps the focus
+        b.addEventListener('click', function () { undoGraph(graphRedo.indexOf(b) > -1); }, false);
+    });
 
     // back as it was left, after the popup is closed or the page reloaded
     function loadState() {
@@ -20505,7 +20604,9 @@
         if (e.key === 'graph') {
             ownSaves.graph = e.newValue;
             loadGraph(stored('graph'));
-            return readGraph();
+            readGraph();
+            graphKept = graphState(); // changed in another window: not undone here
+            return;
         }
         if (e.key === 'calc') {
             ownSaves.calc = e.newValue;
@@ -20836,6 +20937,8 @@
 
     loadState();
     takeLink();
+    graphKept = graphState(); // what undo goes back to, at most
+    undoButtons();
     setTimeout(takePopIn, 0); // once the page has said whether this is a window of its own
 
     // the lines are measured with the font they are shown in: once it has loaded

@@ -507,6 +507,9 @@
                 <!-- a box for another curve, up to twenty-five -->
                 <span class="calc-graph-add"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 3v10M3 8h10" /></svg></span>
                 <span class="calc-past-clear">Clear</span>
+                <!-- a change of the graph taken back, and done again -->
+                <span class="calc-graph-undo calc-off" role="button" aria-label="Undo"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 3L2.5 6l3 3" /><path d="M2.5 6H10a3.5 3.5 0 0 1 0 7H7" /></svg></span>
+                <span class="calc-graph-redo calc-off" role="button" aria-label="Redo"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 3l3 3-3 3" /><path d="M13.5 6H6a3.5 3.5 0 0 0 0 7h3" /></svg></span>
                 <!-- pop out: the graph as big as the page, or in a window of its own; pop in: back in the calculator -->
                 <span class="calc-graph-size"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.5 9v3.5a1.5 1.5 0 0 1-1.5 1.5H3.5A1.5 1.5 0 0 1 2 12.5V5a1.5 1.5 0 0 1 1.5-1.5H7" /><path class="calc-graph-grow" d="M10 2h4v4M6.5 9.5L14 2" /><path class="calc-graph-shrink" d="M13 3.5L5.5 11M5.5 7v4h4" /></svg></span>
                 <span class="calc-past-close"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span>
@@ -532,6 +535,8 @@
             <div class="calc-graph-sliders" hidden></div>
             <!-- of each model fitted to points, y ~ a x² + b: its values, to insert, and r² -->
             <div class="calc-graph-fits" hidden></div>
+            <!-- big and wide, undo and redo here, before the line about the point, and not in the head -->
+            <span class="calc-graph-undos"><span class="calc-graph-undo calc-off" role="button" aria-label="Undo"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 3L2.5 6l3 3" /><path d="M2.5 6H10a3.5 3.5 0 0 1 0 7H7" /></svg></span><span class="calc-graph-redo calc-off" role="button" aria-label="Redo"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 3l3 3-3 3" /><path d="M13.5 6H6a3.5 3.5 0 0 0 0 7h3" /></svg></span></span>
             <div class="calc-graph-note"></div>
             <div class="calc-graph-plot">
                 <canvas></canvas>

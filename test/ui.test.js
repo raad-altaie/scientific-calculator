@@ -2476,6 +2476,56 @@ async function graphLooks(page, at) {
     check(/^-?\de-10$/.test(await page.calc('window.seen[0]')) && !/π/.test(await page.calc('window.seen.join()')), t + 'zoomed far in, numbers of the grid and not of π', await page.calc('window.seen.join(" ")'));
 }
 
+// undo and redo of the graph: a word typed one step, by Ctrl+Z in its box and Ctrl+Shift+Z or Ctrl+Y; Clear, a
+// curve removed and a setting taken back by the buttons; a zoom no change; faint with nothing to take back
+async function graphUndo(page, at) {
+    var t = at + ': undo: ', boxes = 'Array.prototype.map.call(document.querySelectorAll(".calc-graph-input"), function (b) { return b.value; }).filter(Boolean).join(" | ")',
+        off = function (b) { return page.calc('document.querySelector(".calc-graph-' + b + '").classList.contains("calc-off")'); },
+        ctrl = async function (key, code, shift) {
+            var k = { key: key, code: 'Key' + key.toUpperCase(), windowsVirtualKeyCode: code, modifiers: 2 + (shift ? 8 : 0) };
+            await page.send('Input.dispatchKeyEvent', Object.assign({ type: 'rawKeyDown' }, k));
+            await page.send('Input.dispatchKeyEvent', Object.assign({ type: 'keyUp' }, k));
+            await sleep(80);
+        };
+
+    await page.fresh(at, { graph: { f: ['x^2'], view: null } });
+    await page.click('.calc-graph-btn');
+    check(await off('undo') && await off('redo'), t + 'faint with nothing to undo or redo');
+    await page.calc('(function (b) { b.focus(); b.setSelectionRange(3, 3); })(document.querySelector(".calc-graph-input"))');
+    await page.type('+1');
+    await sleep(700);
+    check(!await off('undo') && await page.calc(boxes) === 'x^2+1', t + 'typed: undo lit');
+    await ctrl('z', 90);
+    check(await page.calc(boxes) === 'x^2' && !await off('redo') && await off('undo'), t + 'Ctrl+Z in the box takes back the word typed, one step', await page.calc(boxes));
+    await ctrl('z', 90, true);
+    check(await page.calc(boxes) === 'x^2+1', t + 'Ctrl+Shift+Z does it again', await page.calc(boxes));
+    await ctrl('z', 90);
+    await ctrl('y', 89);
+    check(await page.calc(boxes) === 'x^2+1', t + 'and Ctrl+Y', await page.calc(boxes));
+
+    await page.click('.calc-graph .calc-past-clear');
+    check(await page.calc(boxes) === '', t + 'cleared');
+    await page.click('.calc-graph-undo');
+    check(await page.calc(boxes) === 'x^2+1' && await off('redo') === false, t + 'Clear undone by the button', await page.calc(boxes));
+
+    await page.click('.calc-graph-add');
+    await page.type('x');
+    await sleep(700);
+    await page.click('.calc-graph-fn:nth-child(1) .calc-graph-del');
+    check(await page.calc(boxes) === 'x', t + 'a curve removed');
+    await page.click('.calc-graph-undo');
+    check(await page.calc(boxes) === 'x^2+1 | x', t + 'undone, both again', await page.calc(boxes));
+
+    await page.click('.calc-graph-zoom [data-zoom="in"]');
+    await sleep(700);
+    await page.click('.calc-graph-zoom [data-zoom="window"]');
+    await page.click('[data-look="grid"]');
+    await sleep(700);
+    await page.click('.calc-graph-undo');
+    check(await page.calc('JSON.parse(localStorage.getItem("graph")).look.grid') === true && await page.calc('JSON.parse(localStorage.getItem("graph")).view') !== null &&
+        await page.calc(boxes) === 'x^2+1 | x', t + 'a setting undone; the zoom no step, and the view stays', await page.calc(boxes));
+}
+
 // the line of a curve, from the menu of its dot: dashed with gaps in it, thick wider, kept and kept with its box
 // as one above goes; points labelled with their x and y
 async function graphStyle(page, at) {
@@ -4678,6 +4728,7 @@ async function adminPolicy(page) {
         await graphList(page, '/popup.html');
         await graphLooks(page, '/popup.html');
         await graphDrag(page, '/popup.html');
+        await graphUndo(page, '/popup.html');
         await graphStyle(page, '/popup.html');
         await graphModel(page, '/popup.html');
         await graphShare(page, '/popup.html');

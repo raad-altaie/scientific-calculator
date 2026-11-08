@@ -1669,7 +1669,7 @@
                 { t: 'Standing wave', f: ['sin(x - p)', 'sin(x + p)', 'sin(x - p) + sin(x + p)'],
                     d: 'Two waves going opposite ways, and their sum, which only grows and shrinks: it is 0 at the same places always.', p: { p: [0, 0, 6.28] }, play: ['p'], v: [-7, 7, -3, 3], rad: true },
                 { t: 'Bouncing ball', f: ['0.4 + 4e^(-(x + 9)/8)abs(sin(x)) {-9 < x < b}', '(b + 0.4cos(t), 0.4 + 4e^(-(b + 9)/8)abs(sin(b)) + 0.4sin(t))'],
-                    d: 'A ball at b, a little lower each bounce, and the path it leaves behind it.', p: { b: [-9, -9, 9] }, play: ['b'], v: [-10, 10, -2, 6], rad: true },
+                    d: 'A ball at b, a little lower each bounce, and the path it leaves behind it.', p: { b: [-9, -9, 9] }, play: ['b'], v: [-10, 10, -2, 6], rad: true, square: true },
                 { t: 'Sun, Earth and Moon', f: ['x^2 + y^2 = 25', '(5cos(t) + cos(12t), 5sin(t) + sin(12t))', '(5cos(a) + 0.55cos(t), 5sin(a) + 0.55sin(t))',
                     '(5cos(a) + cos(12a) + 0.22cos(t), 5sin(a) + sin(12a) + 0.22sin(t))', 'x^2 + y^2 <= 1'],
                     d: 'The Earth going once round the Sun as a goes to 2π, the Moon twelve times round it, along the loops it draws.', p: { a: [0, 0, 6.28] }, play: ['a'], v: [-7, 7, -7, 7], rad: true },

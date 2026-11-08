@@ -767,6 +767,16 @@
                 'or save it as PNG or SVG, with the function of each curve; or save its table as CSV. Right-click the graph for the same.',
             k: ''
         },
+        'graph undo': {
+            t: 'Undo',
+            d: 'Takes back the last change of the graph: what was typed, a curve removed or cleared, a slider, a setting, a point dragged. Not a move or a zoom of the view.',
+            k: 'Ctrl+Z'
+        },
+        'graph redo': {
+            t: 'Redo',
+            d: 'Does again what Undo took back.',
+            k: 'Ctrl+Shift+Z'
+        },
         'graph add': {
             t: 'Add a curve',
             d: 'A box for another function, in its own color: up to 25 curves.',
@@ -881,7 +891,7 @@
         'graph look square': {
             t: 'Same scale',
             d: 'A unit of x as long as one of y, however the graph is zoomed: a circle is round, and a slope of 1 at 45°. ' +
-                'For a curve of an angle in Deg, a radian of x as long as 1 of y.',
+                'For a curve of an angle in Deg, a radian of x as long as 1 of y; in Rad, the grid of x by numbers and not π, so its squares are square.',
             k: ''
         },
         'graph look grid': {
