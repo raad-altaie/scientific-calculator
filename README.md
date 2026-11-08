@@ -97,3 +97,14 @@ Copyright (c) 2026 Raad Altaie
 `web/` is a standalone copy of the calculator for the web: the calculator on the left, the options on the right. On a screen narrower than 1100px (phones and iPads) the options stay hidden until you click the `?` on the calculator. Host the folder as-is on any static host, or run `python3 -m http.server` inside it. It does not need the extension.
 
 The calculator is part of the page itself, in the extension's `popup.html` and in `web/index.html`: there is no frame around it. After changing the calculator in the extension, run `scripts/sync-web.sh` to copy it into `web/`: its styles and scripts, and its markup, which goes from `popup.html` into `web/index.html` between the two `calculator` comments. What the web changes (base font size, where the calculator sits) is kept in `web/css/site.css`, so the copies never need hand edits.
+
+## Languages
+
+The calculator shows its words in the language chosen under Options → Language, or in the browser's own while none is chosen; English where a word is not yet translated. Numbers, and the names on the keys (sin, MODE, Deg), stay as they are. [`js/lang.js`](js/lang.js) does it, with the English as the key: `tr('Clear')`, `tr('{n} of {all}', { n: 3, all: 10 })`, and `trn(n, '{n} day', '{n} days')` for a text with a form for each number. Each language's words are in `js/lang/<code>.js`.
+
+- **A new language**: `node scripts/lang.js update es Español` makes `js/lang/es.js` (and its copy in `web/`) with every English text of the calculator, each `''` till it is translated, and puts it on the options' list. Fill in its words, keeping tags (`<sup>2</sup>`) and values (`{n}`) as they are.
+- **After changing the calculator**: `node scripts/lang.js` shows how much of each language is translated, `node scripts/lang.js update es` adds the new texts, and `node scripts/lang.js missing es` lists what is still in English.
+- **New code**: write a text that has a value in it as `tr('Angles in {unit}', { unit: … })`, not `'Angles in ' + unit`, so it can be found and its words put in any order. The words of cards, formulas, tips, menus and notices (their `t`, `d`, `l`, `note` …) are translated as they are shown. Mark what must stay as it is, as a key, with `translate="no"`.
+- **Checking**: `localStorage.lang = '"qps"'` shows every translated word as `[Ŵöŕðš ~~]`, so what is still plain English is not yet translated, and what is cut off needs room for longer words. `localStorage.langDebug = true` keeps what was shown untranslated in `CalcLang.missing`.
+
+The extension's name and description in the browser and the store are in [`_locales/`](_locales/en/messages.json), one folder per language, as Chrome reads them.

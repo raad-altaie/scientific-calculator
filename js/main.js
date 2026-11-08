@@ -1,5 +1,9 @@
 (function (window) {
     'use strict';
+    // the words of the calculator in the language in use (lang.js): tr('Clear'), tr('{n} of {all}', { n: 3, all: 10 }),
+    // trn(n, '{n} day', '{n} days'). The words of the page translated first, before anything here reads them
+    var tr = CalcLang.t, trn = CalcLang.n;
+    CalcLang.dom(document.body);
     let root = document.getElementById('calculator'), // the calculator: the page can hold more than it, as the website does
         Calc = root.querySelector('.calc-main'),
         display = Calc.querySelector('.calc-display span'),
@@ -964,10 +968,10 @@
             tipEmpty = true;
             return;
         }
-        tip.innerHTML = '<div class="calc-tip-head"><b>' + info.t + '</b>' +
+        tip.innerHTML = '<div class="calc-tip-head"><b>' + tr(info.t) + '</b>' +
             (secondKey(name) ? '<span class="calc-tip-2nd">2nd</span>' : '') +
-            (info.k ? '<kbd>' + info.k + '</kbd>' : '') + '</div><div class="calc-tip-body"><div>' + info.d + '</div>' +
-            (info.second && !secondActive ? '<div class="calc-tip-more">With 2nd: ' + info.second + '</div>' : '') + '</div>';
+            (info.k ? '<kbd>' + info.k + '</kbd>' : '') + '</div><div class="calc-tip-body"><div>' + tr(info.d) + '</div>' +
+            (info.second && !secondActive ? '<div class="calc-tip-more">' + tr('With 2nd: {f}', { f: info.second }) + '</div>' : '') + '</div>';
         tip.hidden = false;
         placeTip(tip, at, gap); // above the key, in the middle of it
     }
@@ -1027,10 +1031,10 @@
         if (!info) return;
         hideTip();
         // what is under its name scrolls, too long; its buttons stay in sight under it
-        peek.innerHTML = '<div class="calc-tip-head"><b>' + info.t + '</b></div><div class="calc-tip-body">' + (info.d ? '<div>' + info.d + '</div>' : '') +
+        peek.innerHTML = '<div class="calc-tip-head"><b>' + tr(info.t) + '</b></div><div class="calc-tip-body">' + (info.d ? '<div>' + tr(info.d) + '</div>' : '') +
             (info.html === undefined ? '</div>' : '<div class="calc-peek-value">' + info.html + '</div></div><div class="calc-peek-acts">' +
-                (info.put ? '<span class="calc-peek-act" data-act="insert">Insert' + insertIcon() + '</span>' : '') +
-                '<span class="calc-peek-act" data-act="copy">Copy</span></div>');
+                (info.put ? '<span class="calc-peek-act" data-act="insert">' + tr('Insert') + insertIcon() + '</span>' : '') +
+                '<span class="calc-peek-act" data-act="copy">' + tr('Copy') + '</span></div>');
         peek.text = info.text;
         peek.hidden = false;
         placeTip(peek, inside(peekTile.getBoundingClientRect()), 8); // above the result, in the middle of it, as a key's tip
@@ -1419,7 +1423,7 @@
         menu.innerHTML = items.map(function (item, i) {
             if (!item) return '<hr>';
             // a part of its own, as the colors of a curve, with nothing to do on a click: item[3] sets it up
-            return '<div data-i="' + i + '"' + (item[2] === false ? ' class="calc-off"' : !item[1] ? ' class="calc-menu-part"' : '') + '>' + item[0] + '</div>';
+            return '<div data-i="' + i + '"' + (item[2] === false ? ' class="calc-off"' : !item[1] ? ' class="calc-menu-part"' : '') + '>' + tr(item[0]) + '</div>';
         }).join('');
         items.forEach(function (item, i) {
             if (item && item[3]) item[3](menu.querySelector('[data-i="' + i + '"]'));
@@ -1765,7 +1769,7 @@
         var op = 1; // initial opacity
 
         clearInterval(noticeTimer);
-        notification.innerHTML = text;
+        notification.innerHTML = tr(text);
         notification.style.display = 'unset';
         noticeTimer = setInterval(function () {
             if (op <= 0.1) {
@@ -6412,6 +6416,7 @@
                 var words = [group.c, item.t, item.d].concat(tab === 'formulas' ? [item.f].concat(item.v.map(function (v) {
                     return v[1] + ' ' + v[2];
                 })) : [item.s, item.u]);
+                if (CalcLang.code !== 'en') words = words.concat(tr(group.c), tr(item.t), tr(item.d)); // found in the language in use as well
                 fxItems[tab].push({ c: group.c, item: item, words: words.join(' ').replace(/<[^>]*>/g, '').toLowerCase() });
             });
         });
@@ -6505,7 +6510,7 @@
     function fxNote(note, html) {
         var form = note.closest('.calc-fx-form');
         note.classList.toggle('calc-fx-warn', html !== null);
-        note.innerHTML = html === null ? note.dataset.usual : html;
+        note.innerHTML = html === null ? note.dataset.usual : tr(html);
         if (html === null) form.querySelector('.calc-fx-actions').insertBefore(note, form.querySelector('.calc-fx-btns'));
         else form.insertBefore(note, form.querySelector('.calc-fx-fields'));
     }
@@ -6583,15 +6588,15 @@
             tab.classList.toggle('calc-on', tab.dataset.tab === fxTab);
         });
         fxList.classList.remove('calc-side');
-        fxSearch.placeholder = fxTab === 'formulas' ? 'Search formulas' : 'Search constants';
+        fxSearch.placeholder = tr(fxTab === 'formulas' ? 'Search formulas' : 'Search constants');
         fxItems[fxTab].forEach(function (entry, i) {
             var it = entry.item;
             if (!words.every(function (w) { return entry.words.indexOf(w) > -1; })) return;
-            if (entry.c !== group) html += '<div class="calc-fx-cat">' + entry.c + '</div>';
+            if (entry.c !== group) html += '<div class="calc-fx-cat">' + tr(entry.c) + '</div>';
             group = entry.c;
             // a constant is written as a formula is: its symbol = its value, a root drawn
             html += '<div class="calc-fx-item" data-i="' + i + '"><div class="calc-fx-row">' +
-                '<span class="calc-fx-col"><span class="calc-fx-name">' + fxIcon(it) + it.t + '</span>' +
+                '<span class="calc-fx-col"><span class="calc-fx-name">' + fxIcon(it) + tr(it.t) + '</span>' +
                 '<span class="calc-fx-f calc-fx-eq' + (fxTab === 'constants' ? ' calc-fx-val' : '') + '"><span>' +
                 (fxTab === 'constants' ? '<span class="calc-fx-sym">' +
                     it.s.replace(/√(\w+)/, '<span class="calc-root">$1</span>') + '</span> = ' + constantValue(it) : it.f) +
@@ -6603,7 +6608,7 @@
                 (fxTab === 'formulas' ? collapseButton() : '') +
                 '</div></div>';
         });
-        fxList.innerHTML = html || '<div class="calc-fx-none">Nothing found</div>';
+        fxList.innerHTML = html || '<div class="calc-fx-none">' + tr('Nothing found') + '</div>';
         fxList.scrollTop = 0;
         fxList.classList.toggle('calc-side', fxTab === 'formulas' && bigSide(fx));
         if (fxTab === 'formulas' && bigSide(fx)) { // beside the list, one is always open: the one open last, if found, else the first
@@ -6713,19 +6718,19 @@
         f = fxItems.formulas[+item.dataset.i].item;
         form = item.appendChild(document.createElement('div'));
         form.className = 'calc-fx-form';
-        form.innerHTML = '<div class="calc-sv-side-head"><span class="calc-sv-side-name">' + fxIcon(f) + f.t + '</span>' + item.querySelector('.calc-fx-f').outerHTML + // beside the list, at its top
-            '<p class="calc-sv-side-d">' + f.d + '</p></div>' +
-            '<div class="calc-sv-top"><span class="calc-sv-reset" role="button" hidden>Reset' + RESET_ICON + '</span></div>' + // as the cards of the other panels have
+        form.innerHTML = '<div class="calc-sv-side-head"><span class="calc-sv-side-name">' + fxIcon(f) + tr(f.t) + '</span>' + item.querySelector('.calc-fx-f').outerHTML + // beside the list, at its top
+            '<p class="calc-sv-side-d">' + tr(f.d) + '</p></div>' +
+            '<div class="calc-sv-top"><span class="calc-sv-reset" role="button" hidden>' + tr('Reset') + RESET_ICON + '</span></div>' + // as the cards of the other panels have
             '<div class="calc-fx-fields">' + f.v.map(function (v) {
             return '<label class="calc-fx-var"><span class="calc-fx-sym">' + v[1] + '</span>' +
                 // a keyboard with letters, for A to J as well as numbers
                 '<input type="text" autocapitalize="characters" spellcheck="false" autocomplete="off" maxlength="40" placeholder="' +
-                v[2] + '"></label>';
+                tr(v[2]) + '"></label>';
         }).join('') + '</div><div class="calc-fx-actions"><span class="calc-fx-note">' +
-            (f.deg ? 'Angles in ' + ['radians', 'degrees', 'gradians'][deg] + ', the unit in use' : '') +
-            '</span><span class="calc-fx-btns">' + (f.p && !physButton.hidden ? '<span class="calc-fx-phys" role="button">In Physics</span>' : '') + (f.b && !bioButton.hidden ? '<span class="calc-fx-phys calc-fx-bio" role="button">In Biology</span>' : '') + // its card of the Physics panel, beside Insert
-            (f.fin && !solveButton.hidden ? '<span class="calc-fx-phys calc-fx-fin" role="button">In Finance</span>' : '') + // of money, its card of the solver's Finance tab
-            '<span class="calc-fx-insert">Insert' + insertIcon() + '</span></span></div>';
+            (f.deg ? tr(['Angles in radians, the unit in use', 'Angles in degrees, the unit in use', 'Angles in gradians, the unit in use'][deg]) : '') +
+            '</span><span class="calc-fx-btns">' + (f.p && !physButton.hidden ? '<span class="calc-fx-phys" role="button">' + tr('In Physics') + '</span>' : '') + (f.b && !bioButton.hidden ? '<span class="calc-fx-phys calc-fx-bio" role="button">' + tr('In Biology') + '</span>' : '') + // its card of the Physics panel, beside Insert
+            (f.fin && !solveButton.hidden ? '<span class="calc-fx-phys calc-fx-fin" role="button">' + tr('In Finance') + '</span>' : '') + // of money, its card of the solver's Finance tab
+            '<span class="calc-fx-insert">' + tr('Insert') + insertIcon() + '</span></span></div>';
         item.classList.add('calc-on');
         form.querySelector('.calc-fx-note').dataset.usual = form.querySelector('.calc-fx-note').innerHTML;
         first = form.querySelector('input');
@@ -9649,9 +9654,9 @@
 
     // A date is written in numbers as the browser's region writes it: 14/10/2026 in the UK and France,
     // 14.10.2026 in Germany, 10/14/2026 in the US, 2026-10-14 in Sweden; and read so as it is typed.
-    // Its words are English, as the calculator's, in the order of the US or the UK. The weeks of the
+    // Its words are in the language in use (lang.js); in English, in the order of the US or the UK. The weeks of the
     // calendar start on the region's first day: Monday, or Sunday in the US
-    var DATE_LANG = /^en\b/i.test(navigator.language || '') ? navigator.language : 'en-GB',
+    var DATE_LANG = CalcLang.locale !== 'en' ? CalcLang.locale : /^en\b/i.test(navigator.language || '') ? navigator.language : 'en-GB',
         DATE_NUMBERS = (function () {
             var how = { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC', numberingSystem: 'latn', calendar: 'gregory' };
             try {
@@ -9986,7 +9991,7 @@
             list.innerHTML = tools[tab].map(function (tool, i) {
                 if (tool.id === openId) open = i;
                 return '<div class="calc-sv-item" data-i="' + i + '"><div class="calc-sv-row"><span class="calc-sv-col">' +
-                    '<span class="calc-sv-name">' + toolIcon(tool) + tool.t + '</span><span class="calc-sv-f calc-sv-eq calc-sv-val"><span>' +
+                    '<span class="calc-sv-name">' + toolIcon(tool) + tr(tool.t) + '</span><span class="calc-sv-f calc-sv-eq calc-sv-val"><span>' +
                     pills(tool.f, formulas) + '</span></span></span>' + collapseButton() + '</div></div>'; // each in a badge, one alone as well
             }).join('');
             list.scrollTop = 0;
@@ -10015,12 +10020,12 @@
             openId = tool.id;
             form = item.appendChild(document.createElement('div'));
             form.className = 'calc-sv-form';
-            form.innerHTML = (now.side && now.side() ? '<div class="calc-sv-side-head"><span class="calc-sv-side-name">' + toolIcon(tool) + tool.t + '</span><span class="calc-sv-f calc-sv-val">' + pills(tool.f, formulas) +
-                '</span><p class="calc-sv-side-d">' + tool.d + '</p></div>' : '') + // beside the list, its name, formula and what it does at its top
-                '<div class="calc-sv-top"><span class="calc-sv-reset" role="button" hidden>Reset' + RESET_ICON + '</span></div>' +
-                '<div class="calc-sv-boxes"></div><div class="calc-sv-note"></div>' + (tool.again ? '<span class="calc-sv-again">Again</span>' : '') +
-                (tool.example ? '<span class="calc-sv-again calc-sv-example" role="button">Example</span>' : '') +
-                '<div class="calc-sv-results">Results</div><div class="calc-sv-grid"></div><div class="calc-sv-pickfrom" hidden></div>';
+            form.innerHTML = (now.side && now.side() ? '<div class="calc-sv-side-head"><span class="calc-sv-side-name">' + toolIcon(tool) + tr(tool.t) + '</span><span class="calc-sv-f calc-sv-val">' + pills(tool.f, formulas) +
+                '</span><p class="calc-sv-side-d">' + tr(tool.d) + '</p></div>' : '') + // beside the list, its name, formula and what it does at its top
+                '<div class="calc-sv-top"><span class="calc-sv-reset" role="button" hidden>' + tr('Reset') + RESET_ICON + '</span></div>' +
+                '<div class="calc-sv-boxes"></div><div class="calc-sv-note"></div>' + (tool.again ? '<span class="calc-sv-again">' + tr('Again') + '</span>' : '') +
+                (tool.example ? '<span class="calc-sv-again calc-sv-example" role="button">' + tr('Example') + '</span>' : '') +
+                '<div class="calc-sv-results">' + tr('Results') + '</div><div class="calc-sv-grid"></div><div class="calc-sv-pickfrom" hidden></div>';
             item.classList.add('calc-on');
             fitPills(); // its badges with their Copy, cut to fit if need be
             if (tool.fills) fillEmpty(tool);
@@ -10043,7 +10048,7 @@
         function boxes(tool, item) {
             closeCalendar();
             var kept = values[tool.id] || {}, cols = tool.cols || 1, html = '<div class="calc-sv-fields" style="--cols: ' + cols + '">';
-            fieldsOf(tool, rawOf(tool)).forEach(function (f) {
+            fieldsOf(tool, rawOf(tool)).map(shownField).forEach(function (f) {
                 if (f.pick) { // a list to choose from, drawn as the converter's
                     html += '<div class="calc-sv-var' + (f.wide ? ' calc-sv-wide' : '') + '"><span class="calc-sv-sym">' + f.l + '</span><div class="calc-conv-pick calc-sv-pick" tabindex="0" role="combobox" ' +
                         'aria-haspopup="listbox" aria-expanded="false" aria-label="' + f.l + '" data-k="' + f.k + '"><span class="calc-conv-chosen"></span>' +
@@ -10054,7 +10059,7 @@
                     // while none is chosen; of a choice that makes anew (renew), an arrow going round on each, as a click on it, the one chosen too, makes more
                     html += '<div class="calc-sv-var calc-sv-wide"><span class="calc-sv-sym">' + f.l + '</span><span class="calc-sv-choice calc-sv-toggle" role="radiogroup" aria-label="' +
                         f.l + '" data-k="' + f.k + '">' + f.choice.map(function (c, i) {
-                            return '<span class="calc-sv-opt' + (chosen(f, kept[f.k]) === i ? ' calc-on' : '') + '" role="radio" tabindex="0" data-c="' + i + '">' + c + (f.renew ? AGAIN_ICON : '') + '</span>';
+                            return '<span class="calc-sv-opt' + (chosen(f, kept[f.k]) === i ? ' calc-on' : '') + '" role="radio" tabindex="0" data-c="' + i + '">' + tr(c) + (f.renew ? AGAIN_ICON : '') + '</span>';
                         }).join('') + '</span></div>';
                     return;
                 }
@@ -10071,8 +10076,8 @@
                 html += '<label class="calc-sv-var' + (f.fn ? ' calc-sv-wide' : '') + (f.date ? ' calc-sv-wide calc-sv-dated' : '') + (f.cls ? ' ' + f.cls : '') + '">' + (f.l ? '<span class="calc-sv-sym">' + f.l + '</span>' : '') +
                     (f.date ? '<span class="calc-sv-date">' : '') +
                     '<input type="text"' + ((f.fn || f.text || f.date) && !f.num ? '' : ' data-num="1"') + ' spellcheck="false" autocomplete="off" maxlength="' + (f.fn ? 200 : 40) +
-                    '" placeholder="' + (f.date ? 'Today' : f.ph) + '" data-k="' + f.k + '" aria-label="' + (f.aria || (f.fn ? tool.t : f.l.replace(/<[^>]*>/g, ''))) + '">' +
-                    (f.date ? '<span class="calc-sv-cal" title="Calendar">' + CALENDAR_ICON + '</span></span>' : '') + '</label>';
+                    '" placeholder="' + (f.date ? tr('Today') : f.ph) + '" data-k="' + f.k + '" aria-label="' + (f.aria || (f.fn ? tr(tool.t) : f.l.replace(/<[^>]*>/g, ''))) + '">' +
+                    (f.date ? '<span class="calc-sv-cal" title="' + tr('Calendar') + '">' + CALENDAR_ICON + '</span></span>' : '') + '</label>';
             });
             item.querySelector('.calc-sv-boxes').innerHTML = html + '</div>';
             [].forEach.call(item.querySelectorAll('.calc-sv-boxes input, .calc-sv-boxes textarea'), function (input) {
@@ -10133,7 +10138,7 @@
             probe.style.cssText = 'position: absolute; visibility: hidden; white-space: nowrap; width: max-content; min-width: 0';
             grid.appendChild(probe);
             Object.keys(names).forEach(function (l) {
-                probe.innerHTML = l;
+                probe.innerHTML = tr(l);
                 most = Math.max(most, probe.offsetWidth + 1); // a pixel over, as offsetWidth is rounded
             });
             most /= parseFloat(getComputedStyle(probe).fontSize) || 1;
@@ -10149,7 +10154,7 @@
             var list = f.pick(), at = list.map(function (c) { return c[0]; }).indexOf(kept);
             if (at < 0) at = Math.max(0, list.map(function (c) { return c[0]; }).indexOf(f.at));
             el.ids = list.map(function (c) { return c[0]; });
-            setPicker(el, list.map(function (c) { return c[1]; }), at);
+            setPicker(el, list.map(function (c) { return tr(c[1]); }), at);
         }
 
         // a box of now, while nothing is typed in it, shows it, to type over
@@ -10182,7 +10187,7 @@
                 if (f.fn || f.text || f.date || f.area || f.pick) return;
                 v = text ? CalcMaths.number(text, engine.comma, deg, f.inf) : f.def !== undefined ? f.def : NaN;
                 if (box) box.classList.toggle('calc-bad', !!text && isNaN(v));
-                if (box && text && isNaN(v)) bad.push(f.name || f.aria || (f.l || '').replace(/<[^>]*>/g, '')); // name: for a label that does not read in a note
+                if (box && text && isNaN(v)) bad.push(tr(f.name || f.aria || (f.l || '').replace(/<[^>]*>/g, ''))); // name: for a label that does not read in a note
                 n[f.k] = v;
             });
             out = tool.run(n, raw);
@@ -10196,8 +10201,8 @@
                 out.note = '';
             }
             if (bad.length) { // what is wrong first: the box, or boxes, that are not numbers
-                out.note = bad.length > 2 ? bad.length + ' boxes are not numbers.' :
-                    bad.length === 2 ? bad[0] + ' and ' + bad[1] + ' are not numbers.' : bad[0] + ' is not a number.';
+                out.note = bad.length > 2 ? tr('{n} boxes are not numbers.', { n: bad.length }) :
+                    bad.length === 2 ? tr('{a} and {b} are not numbers.', { a: bad[0], b: bad[1] }) : tr('{a} is not a number.', { a: bad[0] });
                 out.warn = true;
             }
             inputs.forEach(function (box) {
@@ -10241,12 +10246,12 @@
             // what to pick from, as the ions or the solubility table, in a section of its own under the results: its own
             // heading, a click on one typing it in the box (data-fill); no row of the results, so no tip of one, nor put in
             item.querySelector('.calc-sv-pickfrom').hidden = !out.pick;
-            item.querySelector('.calc-sv-pickfrom').innerHTML = !out.pick ? '' : '<div class="calc-sv-results">' + out.pick.t + '</div><div class="calc-sv-grid"' +
+            item.querySelector('.calc-sv-pickfrom').innerHTML = !out.pick ? '' : '<div class="calc-sv-results">' + tr(out.pick.t) + '</div><div class="calc-sv-grid"' +
                 (out.pick.cols ? ' style="grid-template-columns: repeat(' + out.pick.cols + ', 1fr)"' : '') + '>' + out.pick.rows.map(function (r) {
-                    return '<div class="calc-sv-tile' + (r.small ? '' : ' calc-sv-wide') + (drawnRow(r) ? ' calc-sv-drawn' : '') + '"><span class="calc-sv-label">' + r.l + '</span><span class="calc-sv-value">' + r.text + '</span></div>';
+                    return '<div class="calc-sv-tile' + (r.small ? '' : ' calc-sv-wide') + (drawnRow(r) ? ' calc-sv-drawn' : '') + '"><span class="calc-sv-label">' + tr(r.l) + '</span><span class="calc-sv-value">' + shownText(r) + '</span></div>';
                 }).join('') + '</div>';
             note = item.querySelector('.calc-sv-note');
-            note.textContent = pasted || out.note || '';
+            note.textContent = pasted || tr(out.note) || '';
             note.classList.toggle('calc-sv-warn', !!(pasted || out.warn));
             boxes = item.querySelector('.calc-sv-boxes');
             boxes.parentNode.insertBefore(note, pasted || out.warn ? boxes : boxes.nextSibling); // an error at the top, over the boxes; a note under them
@@ -10263,15 +10268,15 @@
                 for (b = r.flip.n - 1; b >= 0; b--) {
                     if (b % 16 === 15 || b === r.flip.n - 1) shown += (b < r.flip.n - 1 ? '</span>' : '') + '<span class="calc-sv-bitrow"><span class="calc-sv-bitat">' + b + '</span>';
                     shown += '<span class="calc-sv-bit' + (bits.charAt(r.flip.n - 1 - b) === '1' ? ' calc-on' : '') + (b % 4 === 3 && b % 16 !== 15 && b !== r.flip.n - 1 ? ' calc-sv-nib' : '') +
-                        '" data-b="' + b + '" title="Bit ' + b + '">' + bits.charAt(r.flip.n - 1 - b) + '</span>';
+                        '" data-b="' + b + '" title="' + tr('Bit {b}', { b: b }) + '">' + bits.charAt(r.flip.n - 1 - b) + '</span>';
                 }
                 shown += '</span></span>';
-                return '<div class="calc-sv-tile calc-sv-wide calc-sv-flip" data-r="' + i + '"><span class="calc-sv-label">' + r.l + '</span>' + shown + '</div>';
+                return '<div class="calc-sv-tile calc-sv-wide calc-sv-flip" data-r="' + i + '"><span class="calc-sv-label">' + tr(r.l) + '</span>' + shown + '</div>';
             }
             if (r.m !== undefined) { // of more than 5 columns, smaller, to fit the tile; a table under its heads, scrolling down
                 many = r.m && r.m[0].length > 5;
                 shown = r.m ? '<span class="calc-sv-cells' + (many ? ' calc-sv-many' : '') + '" style="--cols: ' + r.m[0].length + '">' + (r.head || []).map(function (h) {
-                    return '<span class="calc-sv-th">' + h + '</span>';
+                    return '<span class="calc-sv-th">' + tr(h) + '</span>';
                 }).join('') + r.m.map(function (row, a) {
                     return row.map(function (x, b) { // to 10 digits, so a row of them fits, of more than 5 columns to as many characters as its cell has room for, the whole number in its title; or to its places, as money to the cent, but a table's first column, its years; a click puts it in whole
                         return '<span class="calc-sv-cell" data-a="' + a + '" data-b="' + b + '"' + (many ? ' title="' + local(String(x)) + '"' : '') + '>' +
@@ -10280,14 +10285,29 @@
                     }).join('');
                 }).join('') + '</span>' : '<span class="calc-sv-value">–</span>';
             } else {
-                shown = '<span class="calc-sv-value">' + (r.text !== undefined ? r.text : !known ? '–' : r.html !== undefined ? r.html : // html: shown its own way, as a value of the converter
+                shown = '<span class="calc-sv-value">' + (r.text !== undefined ? shownText(r) : !known ? '–' : r.html !== undefined ? r.html : // html: shown its own way, as a value of the converter
                     (r.places !== undefined ? placesValue(r.v, r.places) : statsValue(r.dp !== undefined ? shortValue(r.v, r.dp, 0) : r.sig ? shortValue(r.v, 0, r.sig) : r.v)).html) + '</span>'; // dp: to so many places, sig: digits, as a ratio; never 0 for what is not, nor a whole part cut
             }
             return '<div class="calc-sv-tile' + (r.m !== undefined || r.wide ? ' calc-sv-wide' : '') + (r.m ? ' calc-sv-matrix' : r.copy ? ' calc-sv-copies' : '') + (r.bits ? ' calc-sv-bits' : '') + (r.wrap ? ' calc-sv-wrap' : '') +
                 (drawnRow(r) ? ' calc-sv-drawn' : '') +
-                (r.head ? ' calc-sv-table' : '') + (known && !r.m ? '' : ' calc-none') + '" data-r="' + i + '"><span class="calc-sv-label">' + r.l +
-                (r.m ? r.head ? '<span class="calc-sv-copy" role="button">Copy table</span>' : '</span><span class="calc-sv-copy calc-sv-copy-m" role="button">Copy' :
-                    r.copy ? '</span><span class="calc-sv-copy calc-sv-copy-m calc-sv-copy-t" role="button">Copy' : '') + '</span>' + shown + '</div>';
+                (r.head ? ' calc-sv-table' : '') + (known && !r.m ? '' : ' calc-none') + '" data-r="' + i + '"><span class="calc-sv-label">' + tr(r.l) +
+                (r.m ? r.head ? '<span class="calc-sv-copy" role="button">' + tr('Copy table') + '</span>' : '</span><span class="calc-sv-copy calc-sv-copy-m" role="button">' + tr('Copy') :
+                    r.copy ? '</span><span class="calc-sv-copy calc-sv-copy-m calc-sv-copy-t" role="button">' + tr('Copy') : '') + '</span>' + shown + '</div>';
+        }
+
+        // A box as it is shown, in the language in use: its name, what it stands for in a note and its heading, not the
+        // example in it, of maths; a copy, as the tool's own is read in English
+        function shownField(f) {
+            var g = Object.assign({}, f);
+            ['l', 'name', 'aria', 'head'].forEach(function (k) {
+                if (typeof g[k] === 'string') g[k] = tr(g[k]);
+            });
+            return g;
+        }
+
+        // the text of a result in the language in use where it is words, as Yes or Not prime; a number, maths or a drawing as it is
+        function shownText(r) {
+            return typeof r.text === 'string' && /^[A-Z][a-z]+(?:[ ,'-]+[A-Za-z]+)*\.?$/.test(r.text) ? tr(r.text) : r.text;
         }
 
         // x to as many digits as fit in room characters, as few as one: 0.093, not 0.0928 cut off
@@ -20508,7 +20528,7 @@
 
     function findIndex() {
         var all = [], names = {};
-        GO.forEach(function (g) { names[g[0]] = g[2]; });
+        GO.forEach(function (g) { names[g[0]] = tr(g[2]); });
 
         // a tab's name as its panel shows it: the periodic table's in full
         function tabName(go, tab) {
@@ -20516,10 +20536,13 @@
             return t ? (t.querySelector('.calc-tab-long') || t).textContent.trim() : '';
         }
 
-        // its name without its tags, lowercase, to rank by; and every word it is found by
+        // its name in the language in use, without its tags, lowercase, to rank by; and every word it is found by, in that
+        // language and in English
         function add(entry, words) {
+            var english = entry.t;
+            entry.t = tr(entry.t);
             entry.name = entry.t.replace(/<[^>]*>/g, '').toLowerCase();
-            entry.words = [entry.name, entry.w].concat(words).join(' ').replace(/<[^>]*>/g, ' ').toLowerCase();
+            entry.words = [entry.name, english, entry.w].concat(words, CalcLang.code === 'en' ? [] : words.map(tr)).join(' ').replace(/<[^>]*>/g, ' ').toLowerCase();
             all.push(entry);
         }
 
@@ -20562,17 +20585,17 @@
             });
         });
         fxItems.formulas.forEach(function (entry) {
-            add({ go: 'fx', kind: 'formula', id: entry.item.t, t: entry.item.t, s: entry.item.f, w: 'Formulas · ' + entry.c }, [entry.words]);
+            add({ go: 'fx', kind: 'formula', id: entry.item.t, t: entry.item.t, s: entry.item.f, w: tr('Formulas') + ' · ' + tr(entry.c) }, [entry.words]);
         });
         fxItems.constants.forEach(function (entry) {
-            add({ go: 'fx', kind: 'constant', id: entry.item.t, t: entry.item.t, s: entry.item.s + ' = ' + constantValue(entry.item), w: 'Constants · ' + entry.c }, [entry.words]);
+            add({ go: 'fx', kind: 'constant', id: entry.item.t, t: entry.item.t, s: entry.item.s + ' = ' + constantValue(entry.item), w: tr('Constants') + ' · ' + tr(entry.c) }, [entry.words]);
         });
         graphExItems.forEach(function (entry, i) {
             add({ go: 'graph', kind: 'example', id: i, t: entry.ex.t, s: entry.ex.f.map(function (text) { return escaped(exampleText(text)); }).join('<i class="calc-find-gap">·</i>'),
-                w: 'Graph · ' + entry.c }, [entry.words]);
+                w: tr('Graph') + ' · ' + tr(entry.c) }, [entry.words]);
         });
         CalcChem.elements.forEach(function (e) {
-            add({ go: 'chem', kind: 'element', id: e.z, sym: e.s.toLowerCase(), t: e.name, s: e.z + ' · ' + e.s, w: 'Periodic table' }, [e.s]);
+            add({ go: 'chem', kind: 'element', id: e.z, sym: e.s.toLowerCase(), t: e.name, s: e.z + ' · ' + e.s, w: tr('Periodic table') }, [e.s]);
         });
         CalcUnits.units.forEach(function (group, i) {
             add({ go: 'conv', kind: 'units', id: i, units: group.list.map(function (u) { return u.s.toLowerCase(); }).concat(group.list.map(function (u) { return u.t.toLowerCase(); })), t: group.c, s: group.list.slice(0, 6).map(function (u) { return u.s; }).join(', ') + (group.list.length > 6 ? ', …' : ''), w: 'Converter · Units' },
@@ -20606,11 +20629,11 @@
         }).filter(function (r) { return r.rank > -1; }).sort(function (a, b) {
             return a.rank - b.rank || a.i - b.i;
         }).slice(0, 60).map(function (r) { return r.entry; });
-        findList.innerHTML = (q ? '' : '<div class="calc-find-head">Go to</div>') + findShown.map(function (entry, i) {
+        findList.innerHTML = (q ? '' : '<div class="calc-find-head">' + tr('Go to') + '</div>') + findShown.map(function (entry, i) {
             return '<div class="calc-find-item" role="option" id="calc-find-' + i + '" data-i="' + i + '"><span class="calc-find-icon" aria-hidden="true">' + icons[entry.go] + '</span>' +
                 '<span class="calc-find-text"><span class="calc-find-top"><span class="calc-find-name">' + entry.t + '</span>' +
                 (entry.w ? '<span class="calc-find-where">' + entry.w + '</span>' : '') + '</span>' + (entry.s ? '<span class="calc-find-sub">' + entry.s + '</span>' : '') + '</span></div>';
-        }).join('') || '<div class="calc-find-none">Nothing found</div>';
+        }).join('') || '<div class="calc-find-none">' + tr('Nothing found') + '</div>';
         findList.scrollTop = 0;
         findLight(0);
     }
@@ -21045,6 +21068,7 @@
         if (e.key === 'popIn') return takePopIn(); // the detached window, open as a panel's own window pops in
         if (e.key === 'found') return takeFound(); // this window, open already, gone to from the search of another
         if (e.key === 'findOpen') return takeFindOpen(); // and on its Calculator tab, from the search popped out
+        if (e.key === 'lang') return location.reload(); // another language chosen on the options page: drawn again in it
         if (e.newValue !== null && e.newValue === ownSaves[e.key]) return;
         if (e.key === 'graph') {
             ownSaves.graph = e.newValue;

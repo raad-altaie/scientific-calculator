@@ -119,6 +119,7 @@
             if (localStorage.getItem('openMode') === 'advanced') document.documentElement.classList.add('home');
         } catch (e) { }
     </script>
+    <script src="js/lang.js"></script>
 </head>
 
 <body>
@@ -144,7 +145,7 @@
             <div class="calc-main">
                 <div id="display-box" class="calc-display">
                     <span id="box">0</span>
-                    <div class="calc-rad">Rad<span class="sign">2<span class="sign-pi">π</span></span></div>
+                    <div class="calc-rad" translate="no">Rad<span class="sign">2<span class="sign-pi">π</span></span></div>
                     <div class="calc-mem"></div>
                     <div class="notification"></div>
                     <div class="calc-log"></div>
@@ -248,7 +249,7 @@
                 </div>
 
 
-                <div class="calc-left calc-top">
+                <div class="calc-left calc-top" translate="no">
                     <!-- modes, the display of results, and brackets -->
                     <div class="trigo-keys">
                         <div>2nd</div>
@@ -364,7 +365,7 @@
                         <div>mr</div>
                     </div>
                 </div>
-                <div class="calc-right ">
+                <div class="calc-right " translate="no">
 
                     <div class="calc-black keys ">
                         <div>7</div>
@@ -842,6 +843,21 @@
                             <label><input type="radio" name="open-mode" value="standard"><span>Standard</span></label>
                             <label><input type="radio" name="open-mode" value="advanced"><span>Advanced</span></label>
                         </fieldset>
+                    </div>
+                </div>
+            </div>
+            <div class="option format-option" id="lang-option" hidden>
+                <span class="option-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="9"></circle>
+                        <path d="M3 12h18M12 3c2.4 2.6 3.6 5.6 3.6 9s-1.2 6.4-3.6 9c-2.4-2.6-3.6-5.6-3.6-9s1.2-6.4 3.6-9z"></path>
+                    </svg>
+                </span>
+                <div class="option-text">
+                    <h3>Language</h3>
+                    <p>The language of the calculator's words: its menus, tips, cards and results. Auto follows the browser's language. Numbers, and the names on the keys, stay as they are.</p>
+                    <div class="format-row">
+                        <select id="lang" title="Language"></select>
                     </div>
                 </div>
             </div>
@@ -1737,7 +1753,7 @@
         <div class="calc-sci" data-tab="guide">
             <h2 class="logo title sub">Scientific Functions </h2>
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     [← →]
                 </div><span class="des">The cursor: click into the equation, or double-click the small line above a result,
                     or use the arrow keys, to fix the middle of it. While the cursor is inside, keys write at the
@@ -1749,19 +1765,19 @@
             </div>
 
             <div class="info">
-                <div id="rad" class="trigo-keys">
+                <div id="rad" class="trigo-keys" translate="no">
                     Deg
                 </div><span class="des">[d or °] Changes the mode to express trigonometric functions in
                     degrees.</span>
             </div>
             <div class="info">
-                <div id="rad" class="trigo-keys">
+                <div id="rad" class="trigo-keys" translate="no">
                     Rad
                 </div><span class="des">[d or °] Changes the mode to express trigonometric functions in
                     radians.</span>
             </div>
             <div class="info">
-                <div id="rad" class="trigo-keys">
+                <div id="rad" class="trigo-keys" translate="no">
                     Grad
                 </div><span class="des">[d or °] Changes the mode to express trigonometric functions in
                     gradians, 400 to a full turn and 100 to a right angle: sin 100 is 1. The key goes from Rad to
@@ -1769,7 +1785,7 @@
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     a/b
                 </div><span class="des">[f] Turns fraction mode on and off. While it is on (FRAC in the display),
                     each division is drawn as a fraction as you type it: 1 ÷ 2 + 1 ÷ 3 shows ½ + ⅓, and = shows
@@ -1779,7 +1795,7 @@
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     °′″
                 </div><span class="des">[h, f] Shows results in degrees, minutes and seconds: sin<sup>-1</sup> 0.6 is
                     36°52′11.63″ in Deg, and 2.75 hours is 2°45′0″. Click again for decimals; the number itself stays
@@ -1787,7 +1803,7 @@
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     MODE
                 </div><span class="des">[o] Goes on to the next notation of results: Normal, Fix (1500.00), Sci
                     (1.50e+3), Eng (1.50e+3, powers of ten in steps of three) and Normal again. The display shows
@@ -1797,7 +1813,7 @@
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     2nd
                 </div> <span class="des">
                     [Space] Changes the trigonometric buttons (sin, cos, tan, sinh, cosh, and tanh)<br>
@@ -1811,7 +1827,7 @@
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     (
                 </div><span class="des">
                     [(] Opens a parenthetical expression. Expressions can be nested. Clicking on it lets a ring
@@ -1822,7 +1838,7 @@
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     )
                 </div><span class="des">[)] Closes a parenthetical expression. The ring around the ( parenthesis
                     key
@@ -1831,7 +1847,7 @@
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     %
                 </div><span class="des">[%] Calculates percentages, adds markups, and subtracts discounts. On its
                     own it divides the value by 100: 50 % returns 0.5. For example, to calculate 8% of 500, enter
@@ -1841,25 +1857,25 @@
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     1/x
                 </div><span class="des"> [\ or h, 1] Returns the reciprocal of a value in decimal format.</span>
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     x<sup>2</sup>
                 </div><span class="des"> [h, 2] Squares a value.</span>
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     x<sup>3</sup>
                 </div><span class="des"> [h, 3] Cubes a value.</span>
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     y<sup>x</sup>
                 </div><span class="des">
                     [^ or ' or &quot;] Click between values to raise the first value to the power of the second
@@ -1868,7 +1884,7 @@
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     log<sub>y</sub>
                 </div><span class="des">
                     [h, ^] The logarithm to any base: enter the number, then log<sub>y</sub>, then the base.<br>
@@ -1878,27 +1894,27 @@
 
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     x!
                 </div><span class="des">[x] Calculates the factorial of a value: whole numbers from 0 to 170, and
                     decimals as well (2.5! returns 3.32335…).</span>
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     &radic;
                 </div><span class="des">[Shift+R or h, r] Calculates the square root of a value: &radic; 16 returns 4.</span>
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     <sup>3</sup>&radic;
                 </div><span class="des">[h, Shift+R] Calculates the cube root of a value, as <sup>x</sup>&radic;y with 3;
                     it undoes x<sup>3</sup>. Cube roots of negative numbers work as well: <sup>3</sup>&radic;-8 returns -2.</span>
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     <div class="calc-radxy">
                         <sup>x</sup><em>&radic;</em><span>y</span>
                     </div>
@@ -1910,26 +1926,26 @@
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     log
                 </div><span class="des">[Shift+L] Returns the log base 10 of a value.</span>
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     10<sup>x</sup>
                 </div><span class="des">[h, Shift+L] Calculates 10 to the power of a value: 10<sup>3</sup> is
                     1000. It undoes log. (Available when the <kbd class="k">2nd</kbd> button is clicked).</span>
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     sin
                 </div><span class="des">[s] Calculates the sine of a value.</span>
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     sin<sup>-1</sup>
                 </div><span class="des">[Shift+S] Calculates the arc sine of a value. (Available when the <kbd class="k">2nd</kbd> button
                     is
@@ -1937,14 +1953,14 @@
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     cos
                 </div><span class="des">[c] Calculates the cosine of a value.</span>
             </div>
 
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     cos<sup>-1</sup>
                 </div><span class="des">[Shift+V] Calculates the arc cosine of a value. (Available when the <kbd class="k">2nd</kbd>
                     button
@@ -1953,13 +1969,13 @@
 
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     tan
                 </div><span class="des">[t] Calculates the tangent of a value.</span>
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     tan<sup>-1</sup>
                 </div><span class="des">[Shift+T] Calculates the arc tangent of a value. (Available when the <kbd class="k">2nd</kbd>
                     button
@@ -1967,27 +1983,27 @@
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     ln
                 </div><span class="des">[l] Calculates the natural log of a value.</span>
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     log<sub>2</sub>
                 </div><span class="des">[h, l] Calculates the log base 2. (Available when the <kbd class="k">2nd</kbd> button is
                     clicked).</span>
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     sinh
                 </div><span class="des">[h, s] Calculates the hyperbolic sine of a value.</span>
             </div>
 
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     sinh <sup>-1</sup>
                 </div><span class="des">[h, Shift+S] Calculates the inverse hyperbolic sine of a value. (Available
                     when
@@ -1995,26 +2011,26 @@
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     cosh
                 </div><span class="des">[h, c] Calculates the hyperbolic cosine of a value.</span>
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     cosh<sup>-1</sup>
                 </div><span class="des">[h, Shift+V] Calculates the inverse hyperbolic cosine of a value. (Available
                     when the <kbd class="k">2nd</kbd> button is clicked).</span>
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     tanh
                 </div><span class="des">[h, t] Calculates the hyperbolic tangent of a value.</span>
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     tanh<sup>-1</sup>
                 </div><span class="des">[h, Shift+T] Calculates the inverse hyperbolic tangent of a value.
                     (Available
@@ -2022,34 +2038,34 @@
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     e<sup>x</sup>
                 </div><span class="des">[e] Raises the constant 'e' (2.718281828459045…) to the power of a
                     value.</span>
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     2<sup>x</sup>
                 </div><span class="des">[Shift+X or h, e] Calculates 2 to the power of a value: 2<sup>10</sup> is
                     1024. (Available when the <kbd class="k">2nd</kbd> button is clicked).</span>
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     &pi;
                 </div><span class="des">[p] Enters the value of PI or &pi; (3.141592653589793…).</span>
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     e
                 </div><span class="des">[h, p] Enters Euler's number e (2.718281828459045…), the base of the
                     natural log. (Available when the <kbd class="k">2nd</kbd> button is clicked).</span>
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     EE
                 </div><span class="des">[Shift+W] An operator that multiplies the currently displayed value by 10 to
                     the
@@ -2057,26 +2073,26 @@
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     Ans
                 </div><span class="des">[a] Enters the last result, so it can be used anywhere in a new
                     equation: 5 × <kbd class="k">Ans</kbd>. It stays after <kbd class="k k-red">C</kbd> and <kbd class="k k-red">AC</kbd>.</span>
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     Rand
                 </div><span class="des">[h, n] Returns a random number between 0 and 1.</span>
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     mc
                 </div><span class="des">[v] Click to clear the memory.</span>
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     m+
                 </div><span class="des">[b] Click to add the displayed number to the number in memory. If no number
                     is
@@ -2085,7 +2101,7 @@
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     m-
                 </div><span class="des">[n] Click to subtract the displayed number from the number in memory. If no
                     number is in memory, click to store the displayed number as a subtraction of zero in
@@ -2093,7 +2109,7 @@
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     mr
                 </div><span class="des">[m] Click to replace the displayed number with the number in memory.<br>
                     An M on the display shows that a number is stored in memory. The M also disappears if the
@@ -2101,21 +2117,21 @@
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     <span><sup>n</sup>C<sub>r</sub></span>
                 </div><span class="des">[Shift+N] Combinations: the ways to choose r of n things. For example
                     10 nCr 3 = returns 120. It works out before × and ÷, and after powers.</span>
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     <span><sup>n</sup>P<sub>r</sub></span>
                 </div><span class="des">[Shift+P] Permutations: the ways to arrange r of n things in order. For
                     example 5 nPr 2 = returns 20.</span>
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     mod
                 </div><span class="des">[Shift+M] On the <kbd class="k">2nd</kbd> layer of <kbd class="k">%</kbd>. The remainder after dividing: 17 mod 5 = 2.
                     It takes the sign of the second number (-7 mod 3 = 2), and works with decimals (7.5 mod 2 =
@@ -2123,39 +2139,39 @@
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     gcd
                 </div><span class="des">[Shift+Q] On the <kbd class="k">2nd</kbd> layer of <kbd class="k"><sup>n</sup>C<sub>r</sub></kbd>. The greatest common divisor of two whole
                     numbers: 12 gcd 18 = 6.</span>
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     lcm
                 </div><span class="des">[Shift+K] On the <kbd class="k">2nd</kbd> layer of <kbd class="k"><sup>n</sup>P<sub>r</sub></kbd>. The least common multiple of two whole
                     numbers: 4 lcm 6 = 12.</span>
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     abs
                 </div><span class="des">[|] The absolute value: the number without its sign. abs(-3) is 3.</span>
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     round
                 </div><span class="des">[Shift+O] On the <kbd class="k">2nd</kbd> layer of <kbd class="k">Rand</kbd>. The nearest whole number, half away from 0: round(2.5) is 3, round(-2.5) is -3.</span>
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     floor
                 </div><span class="des">[Shift+Y] On the <kbd class="k">2nd</kbd> layer of <kbd class="k">abs</kbd>. The whole number at or below: floor(2.7) is 2, floor(-2.7) is -3.</span>
             </div>
 
             <div class="info">
-                <div class="trigo-keys">
+                <div class="trigo-keys" translate="no">
                     ceil
                 </div><span class="des">[Shift+U] On the <kbd class="k">2nd</kbd> layer of <kbd class="k">x!</kbd>. The whole number at or above: ceil(2.1) is 3, ceil(-2.1) is -2.</span>
             </div>

@@ -600,6 +600,11 @@ html, body {
     margin: 0.6em 0 0.6em;
 }
 
+/* the language: shown once there is more than English to choose from (options.js) */
+.option[hidden] {
+    display: none;
+}
+
 /* the icon shows 1,500 as the chosen format writes it */
 .format-icon {
     box-sizing: border-box;

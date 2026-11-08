@@ -14,6 +14,25 @@ const showTab = (name) => {
 showTab('options');
 tabs.forEach((tab) => tab.addEventListener('click', () => showTab(tab.dataset.tabFor)));
 
+// The language of the calculator's words (lang.js): Auto, the browser's own while there is one, or one chosen,
+// kept in localStorage.lang. The page drawn again in it; an open calculator draws itself again as well (main.js).
+// Shown once there is more than English to choose from
+const langPick = document.getElementById('lang');
+
+if (Object.keys(CalcLang.names).length > 1) {
+    langPick.add(new Option(CalcLang.t('Auto: {lang}', { lang: CalcLang.names[CalcLang.browser()] }), 'auto'));
+    Object.keys(CalcLang.names).forEach((code) => langPick.add(new Option(CalcLang.names[code], code)));
+    langPick.value = CalcLang.chosen();
+    langPick.addEventListener('change', () => {
+        try {
+            if (langPick.value === 'auto') localStorage.removeItem('lang');
+            else localStorage.setItem('lang', JSON.stringify(langPick.value));
+        } catch (e) { }
+        location.reload();
+    });
+    document.getElementById('lang-option').hidden = false;
+}
+
 // The number format of the results. It is kept where the calculator reads it when
 // it opens, and the calculator gets a storage event, which app.js sends within this
 // page, so it changes at once
@@ -23,9 +42,9 @@ const group = document.getElementById('format-group');
 const icon = document.getElementById('format-icon');
 
 // Auto: as many digits as each result needs, as a TI's Float
-places.add(new Option('Auto', 'auto'));
+places.add(new Option(CalcLang.t('Auto'), 'auto'));
 for (let n = 0; n <= 9; n++) {
-    places.add(new Option(n + (n === 1 ? ' decimal place' : ' decimal places'), n));
+    places.add(new Option(CalcLang.n(n, '{n} decimal place', '{n} decimal places'), n));
 }
 
 // kept as the calculator reads it: true for commas, as it was while they were the only ones

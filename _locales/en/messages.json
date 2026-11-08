@@ -1,0 +1,18 @@
+{
+    "name": {
+        "message": "Scientific Calculator",
+        "description": "The extension's name, in the browser and the store"
+    },
+    "description": {
+        "message": "A complete scientific calculator: graphing, solver, calculus, statistics, matrices, units, finance, chemistry, physics, biology.",
+        "description": "What the extension is, in the browser and the store: up to 132 characters"
+    },
+    "actionTitle": {
+        "message": "Calculator",
+        "description": "The tip of the toolbar icon"
+    },
+    "openPopup": {
+        "message": "Open Scientific Calculator",
+        "description": "The keyboard shortcut's name, on the browser's page of shortcuts"
+    }
+}

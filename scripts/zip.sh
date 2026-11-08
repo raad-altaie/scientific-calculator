@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 VERSION=$(node -p "require('./manifest.json').version")
 OUT="dist/scientific-calculator-$VERSION.zip"
 FIREFOX_OUT="dist/scientific-calculator-$VERSION-firefox.zip"
-FILES="manifest.json managed_schema.json options.html popup.html css js imgs fonts/Play-Regular.ttf"
+FILES="manifest.json _locales managed_schema.json options.html popup.html css js imgs fonts/Play-Regular.ttf"
 
 mkdir -p dist
 rm -f "$OUT" "$FIREFOX_OUT"
