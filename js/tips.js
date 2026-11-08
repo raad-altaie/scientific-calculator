@@ -873,8 +873,8 @@
         },
         'graph window': {
             t: 'Graph settings',
-            d: 'Type where x goes from and to across the graph, and y up it; below, switch the same scale, the grid, minor lines, the axes, ' +
-                'their numbers and arrows, and lock the view; and name the axes. Enter or Esc goes back to the graph.',
+            d: 'Type where x goes from and to across the graph, and y up it, and by what step the grid goes, 0.5 or π/2; below, switch the same scale, ' +
+                'the grid, minor lines, a polar grid, each axis and its numbers, and arrows, and lock the view; and name the axes. Enter or Esc goes back to the graph.',
             k: ''
         },
         'graph look square': {
@@ -893,19 +893,49 @@
             d: 'Fainter lines between those of the grid, four or five to each square.',
             k: ''
         },
-        'graph look axes': {
-            t: 'Axes',
-            d: 'The x and y axes, with their numbers and names. Off, only the curves and the grid.',
+        'graph reset': {
+            t: 'Reset',
+            d: 'Every setting as it starts, the names and steps gone, and the view back to the start.',
             k: ''
         },
-        'graph look numbers': {
-            t: 'Axis numbers',
-            d: 'The numbers along the axes.',
+        'graph look polar': {
+            t: 'Polar grid',
+            d: 'Circles about 0 and rays from it every 30° in place of the lines of the grid, for r = 2sin(3θ) and other polar curves.',
             k: ''
         },
-        'graph look arrows': {
-            t: 'Arrows',
-            d: 'Arrows on the axes: a click puts one at the end of each axis the way it goes up, then at both ends, then none.',
+        'graph look xaxis': {
+            t: 'x axis',
+            d: 'The x axis, across, with its numbers and name.',
+            k: ''
+        },
+        'graph look yaxis': {
+            t: 'y axis',
+            d: 'The y axis, up, with its numbers and name.',
+            k: ''
+        },
+        'graph look xnum': {
+            t: 'Numbers of x',
+            d: 'The numbers along the x axis.',
+            k: ''
+        },
+        'graph look ynum': {
+            t: 'Numbers of y',
+            d: 'The numbers along the y axis.',
+            k: ''
+        },
+        'graph look arrows 0': {
+            t: 'No arrows',
+            d: 'The axes as lines, with no arrows at their ends.',
+            k: ''
+        },
+        'graph look arrows 1': {
+            t: 'Arrows at one end',
+            d: 'An arrow at the end of each axis the way it goes up: the right of x and the top of y.',
+            k: ''
+        },
+        'graph look arrows 2': {
+            t: 'Arrows at both ends',
+            d: 'An arrow at each end of each axis.',
             k: ''
         },
         'graph look lock': {

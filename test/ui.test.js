@@ -1986,11 +1986,11 @@ async function graphSlopeField(page, at) {
                 ' d = c.getContext("2d").getImageData(Math.round((w / 2 + ' + x + ' * w / 20) * k) - 2, Math.round((c.clientHeight / 2 - ' + y + ' * w / 20) * k) - 2, 5, 5).data;' +
                 ' for (i = 0; i < d.length; i += 4) if (Math.abs(d[i] - 0x22) < 30 && Math.abs(d[i + 1] - 0x47) < 30 && Math.abs(d[i + 2] - 0x6a) < 30) n++; return n; })()';
         },
-        // the pixels darker than the paper in a square of 22 pixels about x, y: the lines of the field there
+        // the pixels darker than the paper in a square of 22 pixels about x, y: the lines of the field there, not the faint ones of the grid
         lines = function (x, y) {
             return '(function () { var c = document.querySelector(".calc-graph-plot canvas"), k = c.width / c.clientWidth, w = c.clientWidth, n = 0, i,' +
                 ' d = c.getContext("2d").getImageData(Math.round((w / 2 + ' + x + ' * w / 20 - 11) * k), Math.round((c.clientHeight / 2 - ' + y + ' * w / 20 - 11) * k), Math.round(22 * k), Math.round(22 * k)).data;' +
-                ' for (i = 0; i < d.length; i += 4) if (d[i] < 150 && d[i + 2] > d[i]) n++; return n; })()';
+                ' for (i = 0; i < d.length; i += 4) if (d[i] < 150 && d[i + 2] > d[i] && d[i + 3] > 100) n++; return n; })()';
         };
     function type(text) {
         return page.calc('(function (b) { b.value = ' + JSON.stringify(text) + '; b.dispatchEvent(new Event("input", { bubbles: true })); })(document.querySelector(".calc-graph-input"))');
@@ -2375,8 +2375,8 @@ async function graphLooks(page, at) {
     await page.fresh(at, { graph: { f: ['x^2-3'], view: { x: 0, y: 0, ux: 0.1, uy: 0.02 } } });
     await page.click('.calc-graph-btn');
     await page.click('.calc-graph-zoom [data-zoom="window"]');
-    check(!await page.calc(square) && await page.calc(on('grid')) && await page.calc(on('axes')) && !await page.calc(on('square')) &&
-        await page.calc('document.querySelector(".calc-graph-set-head").textContent') === 'Graph settings', t + 'the gear opens them; the grid and axes on, same scale off');
+    check(!await page.calc(square) && await page.calc(on('grid')) && await page.calc(on('minor')) && await page.calc(on('xaxis')) && await page.calc(on('ynum')) && !await page.calc(on('square')) &&
+        await page.calc('document.querySelector(".calc-graph-set-head").firstChild.textContent') === 'Graph settings', t + 'the gear opens them; the grid, minor lines and axes on, same scale off');
     await page.click('[data-look="square"]');
     check(await page.calc(square) && await page.calc(on('square')) && await page.calc('document.activeElement.className') === 'calc-graph-x0',
         t + 'same scale squares the view, the box keeping the focus', await page.calc(ends));
@@ -2395,18 +2395,47 @@ async function graphLooks(page, at) {
     check(await page.calc(paper(5, -3.7)) && !await page.calc(paper(5, 0.1)) && !await page.calc(on('grid')), t + 'Grid hides its lines, a mark on the axis left');
     await page.click('[data-look="minor"]');
     check(await page.calc(paper(5, -3.7)) && await page.calc('document.querySelector("[data-look=minor]").classList.contains("calc-off")'), t + 'minor lines need the grid');
-    await page.click('[data-look="axes"]');
-    check(await page.calc(paper(5, 0.1)) && await page.calc(paper(-3.7, 0)) && await page.calc('document.querySelector("[data-look=numbers]").classList.contains("calc-off")'),
+    await page.click('[data-look="yaxis"]');
+    check(await page.calc(paper(0, -3.7)) && !await page.calc(paper(-3.7, 0)) && await page.calc('document.querySelector("[data-look=ynum]").classList.contains("calc-off")') &&
+        !await page.calc('document.querySelector("[data-look=xnum]").classList.contains("calc-off")'), t + 'the y axis alone goes, the x axis stays');
+    await page.click('[data-look="xaxis"]');
+    check(await page.calc(paper(5, 0.1)) && await page.calc(paper(-3.7, 0)) && await page.calc('document.querySelector("[data-look=xnum]").classList.contains("calc-off")') &&
+        await page.calc('document.querySelector(".calc-graph-seg").parentNode.classList.contains("calc-off")'),
         t + 'Axes hides them, and their marks');
-    await page.click('[data-look="axes"]');
+    await page.click('[data-look="xaxis"]');
+    await page.click('[data-look="yaxis"]');
     await page.click('[data-look="grid"]');
-    var arrows = 'document.querySelector("[data-look=arrows]").textContent + " " + JSON.parse(localStorage.getItem("graph")).look.arrows';
-    await page.click('[data-look="arrows"]');
-    check(await page.calc(arrows) === 'Arrowsone end 1' && !await page.calc(paper(9.6, 0.09)) && await page.calc(paper(-9.6, 0.09)), t + 'arrows at one end', await page.calc(arrows));
-    await page.click('[data-look="arrows"]');
-    check(await page.calc(arrows) === 'Arrowsboth ends 2' && !await page.calc(paper(-9.6, 0.09)), t + 'then both', await page.calc(arrows));
-    await page.click('[data-look="arrows"]');
-    check(await page.calc(arrows) === 'Arrows 0' && await page.calc(paper(9.6, 0.09)), t + 'then none', await page.calc(arrows));
+
+    // the polar grid: the circle of 5 through 20°, off the lines of x and y
+    check(await page.calc(paper(4.698, 1.71)), t + 'no circle without the polar grid');
+    await page.click('[data-look="polar"]');
+    check(!await page.calc(paper(4.698, 1.71)) && await page.calc(on('polar')), t + 'Polar grid draws circles about 0');
+    await page.click('[data-look="polar"]');
+
+    // a step typed for x: a line of the grid at π/2, named so; one that is not a step marked
+    await page.calc('(function (w) { var o = CanvasRenderingContext2D.prototype.fillText; window.seen = w; CanvasRenderingContext2D.prototype.fillText = function (s) { w.push(s); return o.apply(this, arguments); }; })([])');
+    check(await page.calc(paper(Math.PI / 2, -3.7)), t + 'no line at π/2 by itself');
+    await page.click('.calc-graph-xstep');
+    await page.type('π/2');
+    await sleep(100);
+    check(!await page.calc(paper(Math.PI / 2, -3.7)) && await page.calc('window.seen.indexOf("π/2") > -1 && window.seen.indexOf("3π/2") > -1'),
+        t + 'x by π/2: its lines, named π/2 and 3π/2', await page.calc('window.seen.slice(-12).join(" ")'));
+    await page.calc('document.querySelector(".calc-graph-xstep").select()');
+    await page.type('ab');
+    await sleep(400);
+    check(await page.calc('document.querySelector(".calc-graph-xstep").classList.contains("calc-bad")') &&
+        await page.calc('JSON.parse(localStorage.getItem("graph")).look.xstep') === 'π/2', t + 'a step that is not one is marked, the last kept');
+    await page.calc('document.querySelector(".calc-graph-xstep").select()');
+    await page.key('Backspace', 8);
+    await sleep(400);
+    var arrows = 'document.querySelector(".calc-graph-seg .calc-on").textContent + " " + JSON.parse(localStorage.getItem("graph")).look.arrows';
+    check(await page.calc(arrows) === 'None 0' && await page.calc(paper(9.6, 0.09)), t + 'no arrows at first', await page.calc(arrows));
+    await page.click('[data-arrows="1"]');
+    check(await page.calc(arrows) === 'One end 1' && !await page.calc(paper(9.6, 0.09)) && await page.calc(paper(-9.6, 0.09)), t + 'arrows at one end', await page.calc(arrows));
+    await page.click('[data-arrows="2"]');
+    check(await page.calc(arrows) === 'Both 2' && !await page.calc(paper(-9.6, 0.09)), t + 'at both', await page.calc(arrows));
+    await page.click('[data-arrows="0"]');
+    check(await page.calc(arrows) === 'None 0' && await page.calc(paper(9.6, 0.09)), t + 'and none again', await page.calc(arrows));
 
     await page.click('[data-look="lock"]');
     check(await page.calc('getComputedStyle(document.querySelector("[data-zoom=in]")).display') === 'none', t + 'locked, no zoom buttons');
@@ -2425,8 +2454,15 @@ async function graphLooks(page, at) {
     await page.click('.calc-graph-xname');
     await page.type('t');
     await sleep(400);
-    check(await page.calc(look) === '{"square":true,"grid":true,"minor":true,"axes":true,"numbers":true,"arrows":0,"lock":true,"xname":"t","yname":""}',
+    check(await page.calc(look) === '{"square":true,"grid":true,"minor":false,"polar":false,"xaxis":true,"yaxis":true,"xnum":true,"ynum":true,"arrows":0,"lock":true,"xname":"t","yname":"","xstep":"","ystep":""}',
         t + 'all kept, with the name of x', await page.calc(look));
+
+    check(!await page.calc('document.querySelector(".calc-graph-reset").classList.contains("calc-off")'), t + 'Reset lit, with something to reset');
+    await page.click('.calc-graph-reset');
+    check(await page.calc(look) === '{"square":false,"grid":true,"minor":true,"polar":false,"xaxis":true,"yaxis":true,"xnum":true,"ynum":true,"arrows":0,"lock":false,"xname":"","yname":"","xstep":"","ystep":""}' &&
+        await page.calc(view) === 'null' && !await page.calc(on('square')) && await page.calc('document.querySelector(".calc-graph-xname").value') === '' &&
+        await page.calc('document.querySelector(".calc-graph-reset").classList.contains("calc-off")') && (await page.calc(ends + '.join(" ")')).indexOf('-10 10') === 0,
+        t + 'Reset: every setting and the view as they start, and it dim', await page.calc(look) + ' ' + await page.calc(ends + '.join(" ")'));
 
     await page.fresh(at, { graph: { f: ['x^2-3'], view: { x: 0, y: 0, ux: 0.1, uy: 0.02 }, sq: true, grid: false } });
     await page.click('.calc-graph-btn');

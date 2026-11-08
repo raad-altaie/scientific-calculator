@@ -1145,11 +1145,38 @@
 
 /* its title, quiet above the boxes */
 #calculator .calc-graph-set-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     padding: 0 3px 1px;
     color: #8fa7b6;
     font: 11px/14px 'Play', 'Russo One', sans-serif;
     letter-spacing: 0.04em;
     text-transform: uppercase;
+}
+
+/* Reset, small at its right; dim while all is as it starts */
+#calculator .calc-graph-reset {
+    padding: 1px 6px;
+    border: 1px solid #4d6b80;
+    border-radius: 4px;
+    outline: none;
+    color: #d3d9e2;
+    font-size: 10px;
+    line-height: 13px;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+#calculator .calc-graph-reset:hover,
+#calculator .calc-graph-reset:focus-visible {
+    border-color: #a9c4b5;
+    background: rgba(169, 196, 181, 0.14);
+}
+
+#calculator .calc-graph-reset.calc-off {
+    opacity: 0.4;
 }
 
 /* a switch for each way the graph is drawn, a row each: its name, and at the right a track
@@ -1162,7 +1189,8 @@
     border-top: 1px solid #34505f;
 }
 
-#calculator .calc-graph-looks > span {
+#calculator .calc-graph-looks > span,
+#calculator .calc-graph-two {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -1178,21 +1206,71 @@
 }
 
 #calculator .calc-graph-looks > span:hover,
-#calculator .calc-graph-looks > span:focus-visible {
+#calculator .calc-graph-looks > span:focus-visible,
+#calculator .calc-graph-two > [data-look]:hover,
+#calculator .calc-graph-two > [data-look]:focus-visible {
     background: rgba(169, 196, 181, 0.14);
 }
 
-/* of no use as the others are: minor lines without the grid, numbers and arrows without the axes */
-#calculator .calc-graph-looks > span.calc-off {
+/* a row of two, one for x and one for y, each its letter and its switch */
+#calculator .calc-graph-two {
+    padding-right: 1px;
+    cursor: default;
+}
+
+#calculator .calc-graph-two > span:first-child {
+    flex: 1;
+}
+
+#calculator .calc-graph-two > [data-look] {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: -2px 0;
+    padding: 2px 3px;
+    border-radius: 4px;
+    outline: none;
+    cursor: pointer;
+}
+
+#calculator .calc-graph-two i {
+    color: #8fa7b6;
+}
+
+/* of no use as the others are: minor lines and a polar grid without the grid, numbers without
+   their axis, arrows without either */
+#calculator .calc-graph-looks .calc-off {
     opacity: 0.45;
 }
 
-/* at which ends the arrows are, quiet before the switch */
-#calculator .calc-graph-looks em {
-    margin-left: auto;
-    color: #8fa7b6;
+/* the arrows, at none of the ends, one or both: three parts in a row, the one picked lit */
+#calculator .calc-graph-seg {
+    display: flex;
+    border: 1px solid #4d6b80;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+#calculator .calc-graph-seg > span {
+    padding: 0 7px;
+    outline: none;
     font-size: 11px;
-    font-style: normal;
+    line-height: 16px;
+    cursor: pointer;
+}
+
+#calculator .calc-graph-seg > span + span {
+    border-left: 1px solid #4d6b80;
+}
+
+#calculator .calc-graph-seg > span:hover,
+#calculator .calc-graph-seg > span:focus-visible {
+    background: rgba(169, 196, 181, 0.14);
+}
+
+#calculator .calc-graph-seg > span.calc-on {
+    background: #a9c4b5;
+    color: #1f333c;
 }
 
 #calculator .calc-graph-looks b {
@@ -1217,13 +1295,28 @@
     transition: transform 0.15s, background 0.15s;
 }
 
-#calculator .calc-graph-looks > span.calc-on b {
+#calculator .calc-graph-looks .calc-on b {
     background: #a9c4b5;
 }
 
-#calculator .calc-graph-looks > span.calc-on b::after {
+#calculator .calc-graph-looks .calc-on b::after {
     background: #1f333c;
     transform: translateX(12px);
+}
+
+/* the step of each axis, after its ends: auto until one is typed */
+#calculator .calc-graph-window .calc-graph-xstep,
+#calculator .calc-graph-window .calc-graph-ystep {
+    width: 44px;
+}
+
+#calculator .calc-graph-window .calc-graph-xstep::placeholder,
+#calculator .calc-graph-window .calc-graph-ystep::placeholder {
+    color: #5f7a6c;
+}
+
+#calculator .calc-graph-window input.calc-bad {
+    box-shadow: 0 0 0 2px #d86672;
 }
 
 /* the names of the axes, below them */

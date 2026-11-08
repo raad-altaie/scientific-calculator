@@ -519,23 +519,24 @@
                 <div class="calc-graph-pop" hidden></div>
                 <!-- the graph's settings: the view typed, x from and to, y from and to; a switch for each way it is drawn; the names of the axes -->
                 <div class="calc-graph-window" hidden>
-                    <div class="calc-graph-set-head">Graph settings</div>
-                    <label><i>x</i><input class="calc-graph-x0" type="text" spellcheck="false" autocomplete="off" maxlength="20" aria-label="x from"><span>to</span><input class="calc-graph-x1" type="text" spellcheck="false" autocomplete="off" maxlength="20" aria-label="x to"></label>
-                    <label><i>y</i><input class="calc-graph-y0" type="text" spellcheck="false" autocomplete="off" maxlength="20" aria-label="y from"><span>to</span><input class="calc-graph-y1" type="text" spellcheck="false" autocomplete="off" maxlength="20" aria-label="y to"></label>
+                    <div class="calc-graph-set-head">Graph settings<span class="calc-graph-reset" role="button" tabindex="0">Reset</span></div>
+                    <label><i>x</i><input class="calc-graph-x0" type="text" spellcheck="false" autocomplete="off" maxlength="20" aria-label="x from"><span>to</span><input class="calc-graph-x1" type="text" spellcheck="false" autocomplete="off" maxlength="20" aria-label="x to"><span>by</span><input class="calc-graph-xstep" type="text" spellcheck="false" autocomplete="off" maxlength="12" placeholder="auto" aria-label="x step"></label>
+                    <label><i>y</i><input class="calc-graph-y0" type="text" spellcheck="false" autocomplete="off" maxlength="20" aria-label="y from"><span>to</span><input class="calc-graph-y1" type="text" spellcheck="false" autocomplete="off" maxlength="20" aria-label="y to"><span>by</span><input class="calc-graph-ystep" type="text" spellcheck="false" autocomplete="off" maxlength="12" placeholder="auto" aria-label="y step"></label>
                     <div class="calc-graph-looks">
                         <span data-look="square" role="switch" tabindex="0" aria-checked="false">Same scale<b></b></span>
                         <span data-look="grid" class="calc-on" role="switch" tabindex="0" aria-checked="true">Grid<b></b></span>
-                        <span data-look="minor" role="switch" tabindex="0" aria-checked="false">Minor grid<b></b></span>
-                        <span data-look="axes" class="calc-on" role="switch" tabindex="0" aria-checked="true">Axes<b></b></span>
-                        <span data-look="numbers" class="calc-on" role="switch" tabindex="0" aria-checked="true">Axis numbers<b></b></span>
-                        <span data-look="arrows" role="switch" tabindex="0" aria-checked="false">Arrows<em></em><b></b></span>
+                        <span data-look="minor" class="calc-on" role="switch" tabindex="0" aria-checked="true">Minor grid<b></b></span>
+                        <span data-look="polar" role="switch" tabindex="0" aria-checked="false">Polar grid<b></b></span>
+                        <div class="calc-graph-two"><span>Axes</span><span data-look="xaxis" class="calc-on" role="switch" tabindex="0" aria-checked="true" aria-label="x axis"><i>x</i><b></b></span><span data-look="yaxis" class="calc-on" role="switch" tabindex="0" aria-checked="true" aria-label="y axis"><i>y</i><b></b></span></div>
+                        <div class="calc-graph-two"><span>Axis numbers</span><span data-look="xnum" class="calc-on" role="switch" tabindex="0" aria-checked="true" aria-label="x axis numbers"><i>x</i><b></b></span><span data-look="ynum" class="calc-on" role="switch" tabindex="0" aria-checked="true" aria-label="y axis numbers"><i>y</i><b></b></span></div>
+                        <div class="calc-graph-two"><span>Arrows</span><span class="calc-graph-seg" role="radiogroup" aria-label="Arrows"><span data-arrows="0" class="calc-on" role="radio" tabindex="0" aria-checked="true">None</span><span data-arrows="1" role="radio" tabindex="0" aria-checked="false">One end</span><span data-arrows="2" role="radio" tabindex="0" aria-checked="false">Both</span></span></div>
                         <span data-look="lock" role="switch" tabindex="0" aria-checked="false">Lock view<b></b></span>
                     </div>
                     <label class="calc-graph-axisnames"><i>x</i><input class="calc-graph-xname" type="text" spellcheck="false" autocomplete="off" maxlength="16" placeholder="name" aria-label="Name of the x axis"><i>y</i><input class="calc-graph-yname" type="text" spellcheck="false" autocomplete="off" maxlength="16" placeholder="name" aria-label="Name of the y axis"></label>
                 </div>
                 <!-- the settings, with the view typed, first; then the view: closer, farther, back to the start; and the area under a curve -->
                 <div class="calc-graph-zoom">
-                    <span data-zoom="window"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M6.9 3.1L7 1.3L9 1.3L9.1 3.1L10.7 3.8L12 2.5L13.5 4.0L12.2 5.3L12.9 6.9L14.7 7.0L14.7 9.0L12.9 9.1L12.2 10.7L13.5 12.0L12 13.5L10.7 12.2L9.1 12.9L9 14.7L7 14.7L6.9 12.9L5.3 12.2L4 13.5L2.5 12.0L3.8 10.7L3.1 9.1L1.3 9.0L1.3 7.0L3.1 6.9L3.8 5.3L2.5 4.0L4 2.5L5.3 3.8Z" /><circle cx="8" cy="8" r="2" /></svg></span>
+                    <span data-zoom="window"><svg viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><path d="M6.9 3.1L7 1.3L9 1.3L9.1 3.1L10.7 3.8L12 2.5L13.5 4.0L12.2 5.3L12.9 6.9L14.7 7.0L14.7 9.0L12.9 9.1L12.2 10.7L13.5 12.0L12 13.5L10.7 12.2L9.1 12.9L9 14.7L7 14.7L6.9 12.9L5.3 12.2L4 13.5L2.5 12.0L3.8 10.7L3.1 9.1L1.3 9.0L1.3 7.0L3.1 6.9L3.8 5.3L2.5 4.0L4 2.5L5.3 3.8Z" /><circle cx="8" cy="8" r="2" /></svg></span>
                     <span data-zoom="in"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M8 3v10M3 8h10" /></svg></span>
                     <span data-zoom="out"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 8h10" /></svg></span>
                     <span data-zoom="home"><svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="4.2" /><path d="M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3" /></svg></span>
@@ -1236,12 +1237,15 @@
                     dashed across the graph. The arrow keys then trace it: ← and → move it along its curve,
                     stopping at a root or a crossing, Shift ten times as far, and ↑ and ↓ take it to the curve
                     above or below.</li>
-                <li>The gear, at the top beside the graph, opens its settings: type where x and y go from and to, and
-                    switch how it is drawn. Same scale makes a unit of x as long as one of y, so a circle is round,
-                    however you zoom; for a curve of an angle in Deg, a radian of x as long as 1 of y. Grid and Minor
-                    grid show the lines, the axes keeping a mark at each number without them; Axes, Axis numbers and
-                    Arrows the axes, the arrows at one end of each or both as you click; Lock view stops a drag, the wheel and a pinch from moving it; and the axes can
-                    be named, t and distance. Off the curves, a click gives the x and y of that place.</li>
+                <li>The gear, at the top beside the graph, opens its settings: type where x and y go from and to,
+                    and by what step the grid goes, 0.5 or π/2, else it suits the view; and switch how it is drawn.
+                    Same scale makes a unit of x as long as one of y, so a circle is round, however you zoom; for a
+                    curve of an angle in Deg, a radian of x as long as 1 of y. Grid and Minor grid show the lines, the
+                    axes keeping a mark at each number without them, and Polar grid circles and rays in their place;
+                    Axes and Axis numbers each axis and its numbers, x and y apart; Arrows go at None, One end of each
+                    axis or Both; Lock view stops a drag, the wheel and a pinch from moving it; and the axes
+                    can be named, t and distance. Reset puts them all back as they start. A click on the graph closes them. Off the curves, a click gives the x
+                    and y of that place.</li>
                 <li>For the area under a curve, press the button with a shaded curve, under the zoom buttons, and
                     drag along the curve from one x to another: the area to the x axis is shaded, below the axis
                     counted down; started between two curves, it is the area between them; an end near a root or a
