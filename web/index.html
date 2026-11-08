@@ -503,7 +503,7 @@
                 <label class="calc-graph-fn">
                     <b class="calc-graph-swatch"></b>
                     <!-- its menu, as a right click on the dot: its line, and to label points -->
-                    <span class="calc-graph-style" role="button" aria-label="Line style"><svg viewBox="0 0 8 8" width="8" height="8" fill="currentColor"><path d="M1 2.5h6L4 6z" /></svg></span>
+                    <span class="calc-graph-style" role="button" aria-label="Color and line"><svg viewBox="0 0 8 8" width="8" height="8" fill="currentColor"><path d="M1 2.5h6L4 6z" /></svg></span>
                     <span>y =</span>
                     <input class="calc-graph-input" type="text" spellcheck="false" autocomplete="off" maxlength="200"
                         placeholder="x^2 – 3, 2sin(x), 1/x" aria-label="y = , curve 1">
@@ -538,7 +538,7 @@
                         <span data-look="grid" class="calc-on" role="switch" tabindex="0" aria-checked="true">Grid<b></b></span>
                         <span data-look="minor" class="calc-on" role="switch" tabindex="0" aria-checked="true">Minor grid<b></b></span>
                         <span data-look="polar" role="switch" tabindex="0" aria-checked="false">Polar grid<b></b></span>
-                        <div class="calc-graph-two"><span>Axes</span><span data-look="xaxis" class="calc-on" role="switch" tabindex="0" aria-checked="true" aria-label="x axis"><i>x</i><b></b></span><span data-look="yaxis" class="calc-on" role="switch" tabindex="0" aria-checked="true" aria-label="y axis"><i>y</i><b></b></span></div>
+                        <div class="calc-graph-two"><span>Log scale</span><span data-look="logx" role="switch" tabindex="0" aria-checked="false" aria-label="x on a log scale"><i>x</i><b></b></span><span data-look="logy" role="switch" tabindex="0" aria-checked="false" aria-label="y on a log scale"><i>y</i><b></b></span></div>                        <div class="calc-graph-two"><span>Axes</span><span data-look="xaxis" class="calc-on" role="switch" tabindex="0" aria-checked="true" aria-label="x axis"><i>x</i><b></b></span><span data-look="yaxis" class="calc-on" role="switch" tabindex="0" aria-checked="true" aria-label="y axis"><i>y</i><b></b></span></div>
                         <div class="calc-graph-two"><span>Axis numbers</span><span data-look="xnum" class="calc-on" role="switch" tabindex="0" aria-checked="true" aria-label="x axis numbers"><i>x</i><b></b></span><span data-look="ynum" class="calc-on" role="switch" tabindex="0" aria-checked="true" aria-label="y axis numbers"><i>y</i><b></b></span></div>
                         <div class="calc-graph-two"><span>Arrows</span><span class="calc-graph-seg" role="radiogroup" aria-label="Arrows"><span data-arrows="0" class="calc-on" role="radio" tabindex="0" aria-checked="true">None</span><span data-arrows="1" role="radio" tabindex="0" aria-checked="false">One end</span><span data-arrows="2" role="radio" tabindex="0" aria-checked="false">Both</span></span></div>
                         <span data-look="lock" role="switch" tabindex="0" aria-checked="false">Lock view<b></b></span>
@@ -1253,9 +1253,11 @@
                     Same scale makes a unit of x as long as one of y, so a circle is round, however you zoom; for a
                     curve of an angle in Deg, a radian of x as long as 1 of y, and in Rad the grid of x by numbers, not π. Grid and Minor grid show the lines, the
                     axes keeping a mark at each number without them, and Polar grid circles and rays in their place;
+                    Log scale puts x or y on a log scale, 0.01, 0.1, 1, 10 and 100 as far apart, its lines at 2 to 9 between
+                    them, for growth, decay, pH or decibels; only above 0, without same scale or the polar grid;
                     Axes and Axis numbers each axis and its numbers, x and y apart; Arrows go at None, One end of each
                     axis or Both; Lock view stops a drag, the wheel and a pinch from moving it; and the axes
-                    can be named, t and distance. Reset puts them all back as they start. A click on the graph closes them. Off the curves, a click gives the x
+                    can be named, t and distance. Reset puts them all back as they start and closes them, as a click on the graph does. Off the curves, a click gives the x
                     and y of that place.</li>
                 <li>For the area under a curve, press the button with a shaded curve, under the zoom buttons, and
                     drag along the curve from one x to another: the area to the x axis is shaded, below the axis
@@ -1296,7 +1298,7 @@
                     change of the graph and do it again: what you typed, a curve removed, Clear, a slider, a setting or a
                     point dragged; moving and zooming the view are not changes.</li>
                 <li>Click a curve's colored dot to hide it and again to show it; click the ▾ beside it, right-click it, or hold it on a touch
-                    screen, for its line, solid, dashed or dotted, thin or thick, and to label points with their x and y. The share button at the lower right
+                    screen, for its color, by its shade, hue or hex, or Auto for its own, and its line, solid, dashed or dotted, thin or thick, and to label points with their x and y. The share button at the lower right
                     copies a link that opens the same graph, its curves, sliders, view and settings, for anyone to
                     open on the website, nothing sent anywhere; copies it as a picture, or saves it as PNG or SVG, with
                     its functions; or saves its table as CSV. Right-click the graph for the same. Opening a link keeps

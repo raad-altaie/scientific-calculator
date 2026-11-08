@@ -1175,7 +1175,7 @@
             if (el.classList.contains('calc-graph-pop-end')) return CalcTips['graph end ' + el.dataset.end];
             if (el.classList.contains('calc-graph-pop-row')) return CalcTips['graph put ' + (seqOf(graphPinned) ? 'term ' : '') + el.dataset.put];
             if (el.classList.contains('calc-graph-play')) return CalcTips[graphPlay[el.parentNode.dataset.k] ? 'graph pause' : 'graph play'];
-            if (el.classList.contains('calc-graph-style')) return graphInputs[graphRows.indexOf(el.parentNode)].value.trim() ? CalcTips['graph style'] : null;
+            if (el.classList.contains('calc-graph-style')) return CalcTips['graph style'];
             if (el.classList.contains('calc-graph-swatch')) {
                 value = graphRows.indexOf(el.parentNode);
                 return graphInputs[value].value.trim() ? CalcTips[graphOff[value] ? 'graph show' : 'graph hide'] : null;
@@ -1240,14 +1240,15 @@
     // Copy and Insert; elsewhere in a panel, the menu of its box. On the keys there is none
     menu.addEventListener('click', function (e) {
         var item = e.target.closest('[data-i]');
-        if (!item || item.classList.contains('calc-off')) return;
+        if (!item || item.classList.contains('calc-off') || item.classList.contains('calc-menu-part')) return;
         showMenu(false);
         menu.items[+item.dataset.i][1]();
     }, false);
 
-    // a press in the menu leaves the focus and what is selected as they are, for what is chosen
+    // a press in the menu leaves the focus and what is selected as they are, for what is chosen; but
+    // in a box of its own, as the hex of a color, it is typed in
     menu.addEventListener('mousedown', function (e) {
-        e.preventDefault();
+        if (!e.target.closest('input')) e.preventDefault();
     }, false);
 
     document.addEventListener('contextmenu', function (e) {
@@ -1396,7 +1397,6 @@
     // right edge there; by: the button it opened from, whose press shuts it again, or null. An item
     // null is a line between them, left out at either end and where two meet, its items left out
     function openMenu(items, at, by, kind) {
-        var calc = menu.parentNode;
         items = items.filter(function (item, i) {
             return item || (i && items[i - 1]);
         });
@@ -1408,12 +1408,22 @@
         menu.className = 'calc-menu-box' + (kind ? ' ' + kind : '');
         menu.innerHTML = items.map(function (item, i) {
             if (!item) return '<hr>';
-            return '<div data-i="' + i + '"' + (item[2] === false ? ' class="calc-off"' : '') + '>' + item[0] + '</div>';
+            // a part of its own, as the colors of a curve, with nothing to do on a click: item[3] sets it up
+            return '<div data-i="' + i + '"' + (item[2] === false ? ' class="calc-off"' : !item[1] ? ' class="calc-menu-part"' : '') + '>' + item[0] + '</div>';
         }).join('');
+        items.forEach(function (item, i) {
+            if (item && item[3]) item[3](menu.querySelector('[data-i="' + i + '"]'));
+        });
         menu.style.left = menu.style.top = '0'; // measured where it has all the room, not where it was last: there it may wrap
         showMenu(true);
+        fitMenu();
+    }
+
+    // the menu where it opened, within the calculator: again as it grows
+    function fitMenu() {
+        var calc = menu.parentNode, at = menu.at;
         menu.style.left = Math.max(4, Math.min(at.alignRight ? at.left - menu.offsetWidth : at.left, calc.clientWidth - menu.offsetWidth - 4)) + 'px';
-        menu.style.top = Math.min(at.top, calc.clientHeight - menu.offsetHeight - 4) + 'px';
+        menu.style.top = Math.max(4, Math.min(at.top, calc.clientHeight - menu.offsetHeight - 4)) + 'px';
     }
 
     document.addEventListener('mousedown', function (e) {
@@ -1430,6 +1440,7 @@
     }, false);
 
     function showMenu(open) {
+        if (!open && menu.contains(document.activeElement)) document.activeElement.blur();
         menu.hidden = !open;
     }
 
@@ -2362,6 +2373,7 @@
     // dot; a click keeps it there, with the tangent of the curve, and its x, y or slope can
     // be put into the calculation, as Ans is
     var GRAPH_WIDTH = 20, // the x the plot starts with: -10 to 10, or a full turn either way in degrees
+        GRAPH_DECADES = 4, // on a log scale, the powers of ten across it at the start: 0.01 to 100
         GRAPH_INK = { grid: 'rgba(51, 68, 59, 0.16)', minor: 'rgba(51, 68, 59, 0.07)', axis: '#33443b', text: '#33443b', paper: '#b6d1c2' },
         // the colors of the curves, one for each box, each as far from the others as the green lets them be: navy, red,
         // green, purple, orange, teal, plum, gold, fuchsia, olive brown, azure, rust, lime, scarlet, blue, sea green, moss,
@@ -2403,7 +2415,7 @@
         graphDiff = GRAPH_CURVES.map(function () { return false; }), // the curves whose slope is drawn too, by their y′; of points, the kind of their fit
         // the line of each curve, as the menu of its dot sets it: d 0 solid, 1 dashed, 2 dotted; w 0 thin, 1 as it starts,
         // 2 thick; l, of points, each with its x and y beside it
-        GRAPH_STYLE = { d: 0, w: 1, l: false },
+        GRAPH_STYLE = { d: 0, w: 1, l: false, c: null }, // c: a color chosen, #rrggbb, else that of its box
         graphStyle = GRAPH_CURVES.map(function () { return Object.assign({}, GRAPH_STYLE); }),
         GRAPH_WIDTHS = [1.25, 2, 3.5],
         graphTwice = '', // a name two boxes give their functions, f of f(x) = …: the second is none
@@ -2450,9 +2462,10 @@
         // and yaxis: the line of each, with its numbers and name; xnum and ynum: those numbers; arrows: 1 a
         // head at the end of each axis that goes up, 2 at both ends; lock: no drag, wheel or pinch moves the
         // view, nor the buttons, which go; xname and yname: the names, at the ends of the axes; xstep and
-        // ystep: the step of the grid typed, 0.5 or π/2, else one that suits the view
+        // ystep: the step of the grid typed, 0.5 or π/2, else one that suits the view; logx and logy: each
+        // on a log scale, 1, 10, 100 as far apart, the view keeping its power of ten, with no same scale or polar grid
         GRAPH_LOOK = { square: false, grid: true, minor: true, polar: false, xaxis: true, yaxis: true, xnum: true, ynum: true, arrows: 0, lock: false,
-            xname: '', yname: '', xstep: '', ystep: '' },
+            xname: '', yname: '', xstep: '', ystep: '', logx: false, logy: false },
         graphLook = Object.assign({}, GRAPH_LOOK),
         graphShading = false, // the ∫ button pressed: a drag along a curve shades its area, and does not move the view
         graphAreaButton = graphPlot.querySelector('[data-zoom="area"]'),
@@ -2494,7 +2507,8 @@
             readGraph();
             saveState();
         }, false);
-        // its ▾, the menu a right click on the dot opens, below it; pressed again, shut
+        // its ▾, the menu a right click on the dot opens, below it, or beside it where there is no room below, so
+        // it is not over it; pressed again, shut
         row.querySelector('.calc-graph-style').addEventListener('click', function (e) {
             var b = e.currentTarget, items = styleItems(i), at;
             e.preventDefault(); // not the label's focus of the box
@@ -2505,12 +2519,16 @@
             }
             at = inside(b.getBoundingClientRect());
             openMenu(items, { left: at.left - 4, top: at.bottom + 4 }, b);
+            if (at.bottom + 4 + menu.offsetHeight > menu.parentNode.clientHeight - 4) {
+                menu.at = { left: at.right + 4, top: at.top - 8 };
+                fitMenu();
+            }
         }, false);
     });
 
     // The menu of a curve's dot, a right click or a finger held on it: its line solid, dashed or dotted,
     // thin, as it starts or thick, the one it is ticked; of points, their x and y beside them; and to
-    // hide or show it, as a click does. Nothing for an empty box
+    // hide or show it, as a click does. Of an empty box, its color and line, for what is typed in it
     function styleItems(i) {
         var st = graphStyle[i];
         function item(name, on, set) {
@@ -2520,8 +2538,10 @@
                 saveState();
             }];
         }
-        if (i < 0 || !graphInputs[i].value.trim()) return null;
+        if (i < 0) return null;
         return [
+            ['<div class="calc-menu-picker"></div>', null, true, function (el) { colorPart(el, i); }],
+            null,
             item('Solid', st.d === 0, function () { st.d = 0; }),
             item('Dashed', st.d === 1, function () { st.d = 1; }),
             item('Dotted', st.d === 2, function () { st.d = 2; }),
@@ -2532,8 +2552,98 @@
             null,
             graphData[i] && item('Label points', st.l, function () { st.l = !st.l; }),
             graphData[i] && null,
-            [graphOff[i] ? 'Show' : 'Hide', function () { graphRows[i].querySelector('.calc-graph-swatch').click(); }]
+            !!graphInputs[i].value.trim() && [graphOff[i] ? 'Show' : 'Hide', function () { graphRows[i].querySelector('.calc-graph-swatch').click(); }]
         ].filter(function (x) { return x !== undefined && x !== false; });
+    }
+
+    // The color of curve i in its menu: a square of the shade and a strip of the hue to drag in, and its hex
+    // to type, the curve as it is chosen; Auto, its box's own color again, dim while it has it
+    function colorPart(el, i) {
+        var st = graphStyle[i], hsv = hexHsv(curveColor(i)), shade, hue, hex, auto;
+        el.querySelector('.calc-menu-picker').innerHTML = '<div class="calc-menu-shade"><i></i></div><div class="calc-menu-hue"><i></i></div>' +
+            '<div class="calc-menu-hexrow"><label class="calc-menu-hex">#<input type="text" maxlength="7" spellcheck="false" autocomplete="off" aria-label="Hex color"></label>' +
+            '<span class="calc-menu-auto" role="button" tabindex="0">Auto</span></div>';
+        shade = el.querySelector('.calc-menu-shade');
+        hue = el.querySelector('.calc-menu-hue');
+        hex = el.querySelector('input');
+        auto = el.querySelector('.calc-menu-auto');
+
+        function show() {
+            var c = curveColor(i);
+            shade.style.setProperty('--h', hsv[0]);
+            shade.firstChild.style.left = hsv[1] * 100 + '%';
+            shade.firstChild.style.top = (1 - hsv[2]) * 100 + '%';
+            shade.firstChild.style.background = c;
+            hue.firstChild.style.left = hsv[0] / 360 * 100 + '%';
+            auto.classList.toggle('calc-off', !st.c);
+            if (document.activeElement !== hex) hex.value = c.slice(1);
+        }
+        function set(c, done) {
+            st.c = c === GRAPH_CURVES[graphHue[i]] ? null : c; // its own color: as none chosen
+            graphRows[i].querySelector('.calc-graph-swatch').style.setProperty('--c', curveColor(i));
+            show();
+            graphRender();
+            if (done) saveState();
+        }
+        function drag(part, at) {
+            function move(e) {
+                var r = part.getBoundingClientRect(), x = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)),
+                    y = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
+                at(x, y);
+                set(hsvHex(hsv), e.type === 'pointerup');
+            }
+            part.addEventListener('pointerdown', function (e) {
+                if (e.button) return;
+                e.preventDefault();
+                part.setPointerCapture(e.pointerId);
+                move(e);
+                part.onpointermove = move;
+                part.onpointerup = part.onpointercancel = function (e) {
+                    part.onpointermove = part.onpointerup = part.onpointercancel = null;
+                    move(e);
+                };
+            }, false);
+        }
+
+        drag(shade, function (x, y) { hsv = [hsv[0], x, 1 - y]; });
+        drag(hue, function (x) { hsv = [Math.min(359.9, x * 360), hsv[1], hsv[2]]; });
+        hex.addEventListener('input', function () {
+            var m = /^#?([0-9a-f]{6}|[0-9a-f]{3})$/i.exec(hex.value.trim());
+            if (!m) return;
+            m = '#' + (m[1].length === 3 ? m[1].replace(/./g, '$&$&') : m[1]).toLowerCase();
+            hsv = hexHsv(m);
+            set(m, true);
+        }, false);
+        hex.addEventListener('keydown', function (e) {
+            if (e.which === 13) showMenu(false);
+        }, false);
+        function back(e) {
+            if (e.type === 'keydown' && e.which !== 13 && e.which !== 32) return;
+            e.preventDefault();
+            if (!st.c) return;
+            hsv = hexHsv(GRAPH_CURVES[graphHue[i]]);
+            hex.blur();
+            set(GRAPH_CURVES[graphHue[i]], true);
+        }
+        auto.addEventListener('click', back, false);
+        auto.addEventListener('keydown', back, false);
+        show();
+    }
+
+    // a color #rrggbb as its hue, 0 to 360, saturation and value, 0 to 1; and back
+    function hexHsv(c) {
+        var r = parseInt(c.slice(1, 3), 16) / 255, g = parseInt(c.slice(3, 5), 16) / 255, b = parseInt(c.slice(5, 7), 16) / 255,
+            max = Math.max(r, g, b), d = max - Math.min(r, g, b),
+            h = !d ? 0 : max === r ? (g - b) / d % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+        return [(h * 60 + 360) % 360, max ? d / max : 0, max];
+    }
+
+    function hsvHex(hsv) {
+        function part(n) {
+            var k = (n + hsv[0] / 60) % 6;
+            return ('0' + Math.round(255 * (hsv[2] - hsv[2] * hsv[1] * Math.max(0, Math.min(k, 4 - k, 1)))).toString(16)).slice(-2);
+        }
+        return '#' + part(5) + part(3) + part(1);
     }
 
     // the fit after this one on its button, from none to a line and on to none again
@@ -2625,7 +2735,7 @@
 
     // the color of the curve of box i
     function curveColor(i) {
-        return GRAPH_CURVES[graphHue[i]];
+        return graphStyle[i].c || GRAPH_CURVES[graphHue[i]];
     }
 
     // The boxes after the shown ones hold the colors not in use, first to last: the next box
@@ -2852,7 +2962,10 @@
         });
         graphStyle = graphStyle.map(function (st, i) { // each as kept, else as it starts
             var was = saved && Array.isArray(saved.s) && saved.s[i] || {};
-            return { d: [0, 1, 2].indexOf(was.d) > -1 ? was.d : 0, w: [0, 1, 2].indexOf(was.w) > -1 ? was.w : 1, l: was.l === true };
+            return {
+                d: [0, 1, 2].indexOf(was.d) > -1 ? was.d : 0, w: [0, 1, 2].indexOf(was.w) > -1 ? was.w : 1, l: was.l === true,
+                c: typeof was.c === 'string' && /^#[0-9a-f]{6}$/.test(was.c) ? was.c : null
+            };
         });
         showCells(-1);
         graphFrom.value = saved && typeof saved.from === 'string' ? saved.from : '';
@@ -3290,10 +3403,45 @@
     // What the plot shows. Until it is moved or zoomed it is the start: x from -10 to 10 with
     // y as much each pixel, or for a function of an angle in degrees, x a turn either way
     // With same scale, its y as long a unit as its x, about the same middle
+    // On a log scale, x from 0.01 to 100 at the start, its powers of ten as far apart as y's, the view
+    // keeping x as its power of ten
     function viewNow() {
         var u = GRAPH_WIDTH / plotWidth(),
             v = graphView || { x: 0, y: 0, ux: graphAngles() && deg ? u * (deg === 2 ? 40 : 36) : u, uy: u };
-        return graphLook.square && v.uy !== v.ux / squareRatio() ? { x: v.x, y: v.y, ux: v.ux, uy: v.ux / squareRatio() } : v;
+        if (!graphView && graphLook.logx) v = { x: 0, y: v.y, ux: GRAPH_DECADES / plotWidth(), uy: v.uy };
+        if (!graphView && graphLook.logy) v = { x: v.x, y: 0, ux: v.ux, uy: GRAPH_DECADES / plotWidth() };
+        return squareOn() && v.uy !== v.ux / squareRatio() ? { x: v.x, y: v.y, ux: v.ux, uy: v.ux / squareRatio() } : v;
+    }
+
+    // same scale, unless an axis is on a log scale
+    function squareOn() {
+        return graphLook.square && !graphLook.logx && !graphLook.logy;
+    }
+
+    // a value as where the view has it, its power of ten on a log scale, none at 0 or below; and back
+    function scaleX(x) {
+        return graphLook.logx ? Math.log10(x) : x;
+    }
+
+    function scaleY(y) {
+        return graphLook.logy ? Math.log10(y) : y;
+    }
+
+    function valueX(s) {
+        return graphLook.logx ? Math.pow(10, s) : s;
+    }
+
+    function valueY(s) {
+        return graphLook.logy ? Math.pow(10, s) : s;
+    }
+
+    // what a pixel is at x, or y: on a log scale more as it is farther from 0
+    function pixelX(v, x) {
+        return graphLook.logx ? Math.abs(x) * Math.LN10 * v.ux : v.ux;
+    }
+
+    function pixelY(v, y) {
+        return graphLook.logy ? Math.abs(y) * Math.LN10 * v.uy : v.uy;
     }
 
     // how many units of x are as long as one of y with same scale: one, or of a curve of an angle in Deg
@@ -3309,19 +3457,19 @@
 
     // the x and y of a place on the plot, in its pixels, and back
     function graphX(v, px) {
-        return v.x + (px - graphPlot.clientWidth / 2) * v.ux;
+        return valueX(v.x + (px - graphPlot.clientWidth / 2) * v.ux);
     }
 
     function graphY(v, py) {
-        return v.y - (py - graphPlot.clientHeight / 2) * v.uy;
+        return valueY(v.y - (py - graphPlot.clientHeight / 2) * v.uy);
     }
 
     function plotX(v, x) {
-        return graphPlot.clientWidth / 2 + (x - v.x) / v.ux;
+        return graphPlot.clientWidth / 2 + (scaleX(x) - v.x) / v.ux;
     }
 
     function plotY(v, y) {
-        return graphPlot.clientHeight / 2 - (y - v.y) / v.uy;
+        return graphPlot.clientHeight / 2 - (scaleY(y) - v.y) / v.uy;
     }
 
     // the space between lines of the grid: 1, 2 or 5 times a power of ten, some 50 pixels
@@ -3339,7 +3487,7 @@
     // the unit the grid of x goes by: 'deg' or 'rad' for a curve of an angle in Deg or Rad, else false;
     // in Rad with same scale none, its lines as far apart as those of y, so its squares are square
     function gridAngles() {
-        return graphAngles() && (deg === 1 ? 'deg' : deg === 0 && !graphLook.square ? 'rad' : false);
+        return graphAngles() && (deg === 1 ? 'deg' : deg === 0 && !squareOn() ? 'rad' : false);
     }
 
     // a number of the grid, as short as its step lets it be: 0.5, 20, 1e+8, with the decimal mark
@@ -3355,6 +3503,44 @@
         }
         if (a >= 1e6 || a < 1e-4) return local(n.toExponential(Math.min(14, Math.max(2, Math.ceil(Math.log10(a / step))))).replace(/\.?0+e/, 'e'));
         return local(String(+n.toFixed(Math.max(0, 1 - Math.floor(Math.log10(step))))));
+    }
+
+    // The lines of an axis on a log scale, n pixels long: { major, minor, labels: the values of each, and even: of
+    // less than a power of ten, the step of it as a straight scale has it from a pixel half way, else 0 }. Each
+    // power of ten, or every 2nd, 3rd, 5th, 10th… to be 40 pixels apart or more (28 up y), the others minor; with
+    // room, 2 to 9 times each minor too, and 2 and 5 named
+    function logTicks(v, y, n) {
+        var u = y ? v.uy : v.ux, c = y ? v.y : v.x, s0 = c - n / 2 * u, s1 = c + n / 2 * u, d = 1 / u,
+            lo = Math.pow(10, s0), hi = Math.pow(10, s1), out = { major: [], minor: [], labels: [], even: 0 }, every, e, m, at, step, fine, k;
+        if (s1 - s0 < 1) {
+            step = out.even = gridStep((hi - lo) / n, false);
+            fine = minorStep(step, false);
+            k = Math.round(step / fine);
+            for (e = Math.ceil(lo / step); e * step <= hi; e++) out.major.push(+(e * step).toPrecision(12));
+            for (e = Math.ceil(lo / fine); fine / (hi * Math.LN10 * u) >= 6 && e * fine <= hi; e++) if (e % k) out.minor.push(e * fine);
+            out.labels = out.major;
+            return out;
+        }
+        for (every = 1; every * d < (y ? 28 : 40); every = every < 3 ? every + 1 : every < 5 ? 5 : every * 2);
+        for (e = Math.floor(s0); e <= Math.ceil(s1); e++) {
+            at = Math.pow(10, e);
+            if (at >= lo && at <= hi) out[e % every ? 'minor' : 'major'].push(at);
+            for (m = 2; every === 1 && d >= 45 && m <= 9; m++) {
+                if (m * at < lo || m * at > hi) continue;
+                out.minor.push(m * at);
+                if (d >= 120 && (m === 2 || m === 5) && Math.abs(e) <= 4) out.labels.push(m * at);
+            }
+        }
+        if (every > 1 && d < 6) out.minor = [];
+        out.labels = out.labels.concat(out.major).sort(function (a, b) { return a - b; });
+        return out;
+    }
+
+    // a number of a log scale: 0.001 to 10000 as they are, else 10⁵, 2×10⁻⁶
+    function logLabel(n) {
+        var e = Math.floor(Math.log10(n) + 1e-9), m = Math.round(n / Math.pow(10, e));
+        if (e >= -4 && e <= 4) return local(String(+n.toPrecision(12)));
+        return (m > 1 ? m + '×' : '') + '10' + String(e).replace(/./g, function (c) { return '⁻⁰¹²³⁴⁵⁶⁷⁸⁹'['-0123456789'.indexOf(c)]; });
     }
 
     // The parts of π a step of the grid is a whole number of, the fewest up to 12: 4 of π/4, 2 of 3π/2,
@@ -3443,13 +3629,13 @@
         });
         graphTangent(ctx, v, w + h, graphPinned);
         drawGrid(ctx, v, w, h, true);
-        key = [graphVersion, v.x, v.y, v.ux, v.uy, w, h, deg, JSON.stringify(graphVars)].join();
+        key = [graphVersion, v.x, v.y, v.ux, v.uy, w, h, deg, JSON.stringify(graphVars), graphLook.logx, graphLook.logy].join();
         if (Object.keys(graphPlay).length) { // while sliders play the marks wait, found again as they stop: finding them each frame is too slow
             graphMarks = dataMarks();
         } else {
             if (!graphMarksKept || graphMarksKept.key !== key) {
                 graphMarksKept = { key: key, marks: graphLayers().reduce(function (all, fns, f) { // of a list, of each of its curves, f its place
-                    return all.concat(CalcEngine.keyPoints(fns, { x0: graphX(v, 0), x1: graphX(v, w), y0: graphY(v, h), y1: graphY(v, 0) },
+                    return all.concat(CalcEngine.keyPoints(fns, { x0: graphX(v, 0), x1: graphX(v, w), y0: graphY(v, h), y1: graphY(v, 0), logx: graphLook.logx },
                         deg, f ? [] : graphRels, f ? [] : graphPlanes).map(function (m) { if (f) m.f = f; return m; }));
                 }, []) };
             }
@@ -3518,7 +3704,7 @@
     // a point on an equation, on it again as the letters and the view are now: where it was if
     // it is not
     function onEquation(v, p) {
-        var q = CalcEngine.onRelation(relPart(p), p.x, p.y, v.ux, v.uy, deg);
+        var q = CalcEngine.onRelation(relPart(p), p.x, p.y, pixelX(v, p.x), pixelY(v, p.y), deg);
         if (q) {
             p.x = q.x;
             p.y = q.y;
@@ -3541,6 +3727,25 @@
         x = plotX(v, p.x);
         y = plotY(v, p.y);
         k = isFinite(p.m) ? -p.m * v.ux / v.uy : 0; // its slope in pixels, down the plot
+        if (isFinite(p.m) && logOn()) { // on a log scale a curve, drawn as one
+            ctx.beginPath();
+            CalcEngine.trace(logCurve({
+                at: function (t) { return p.y + p.m * (t - p.x); },
+                reach: function (a, b) {
+                    var ya = p.y + p.m * (a - p.x), yb = p.y + p.m * (b - p.x);
+                    return [Math.min(ya, yb), Math.max(ya, yb), true];
+                }
+            }), drawBox(v, graphPlot.clientWidth, graphPlot.clientHeight), deg).forEach(function (line) {
+                ctx.moveTo(line[0], line[1]);
+                for (k = 2; k < line.length; k += 2) ctx.lineTo(line[k], line[k + 1]);
+            });
+            ctx.setLineDash([5, 4]);
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = curveColor(p.i);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            return;
+        }
         if (!isFinite(p.m)) { // straight up
             ctx.beginPath();
             ctx.moveTo(x, y - far);
@@ -3580,9 +3785,63 @@
     // as a curve of x is: on until it is a curve and not lines too long to draw, broken where it
     // jumps, on to the edge where it has no end, as r = 1/cos θ at 90° however far it is zoomed.
     // The places along it are kept while the unit and its letters stay; those on the plot while the view does too
+    // What the engine draws in: the view from x at its left to its right, and y at its bottom to its top, w by h pixels;
+    // on a log scale their powers of ten, and the curves as the engine sees them there (logCurve, logPlane, logRelation)
+    function drawBox(v, w, h) {
+        return { x0: v.x - graphPlot.clientWidth / 2 * v.ux, x1: v.x + (w - graphPlot.clientWidth / 2) * v.ux,
+            y0: v.y - (h - graphPlot.clientHeight / 2) * v.uy, y1: v.y + graphPlot.clientHeight / 2 * v.uy, w: w, h: h };
+    }
+
+    function logOn() {
+        return graphLook.logx || graphLook.logy;
+    }
+
+    // what a value reaches, [low, high, whole], as its power of ten: nothing of it at 0 or below, all the
+    // way down where it reaches 0
+    function logReach(r, on) {
+        if (!on || !r || isNaN(r[0])) return r;
+        if (!(r[1] > 0)) return [NaN, NaN, false];
+        return [r[0] > 0 ? Math.log10(r[0]) : -Infinity, Math.log10(r[1]), r[2]];
+    }
+
+    // a curve of x on log scales: of x's power of ten, its value's
+    function logCurve(c) {
+        if (!logOn()) return c;
+        return {
+            at: function (s, d, exact) { return scaleY(c.at(valueX(s), d, exact)); },
+            reach: c.reach && function (a, b, d) { return logReach(c.reach(valueX(a), valueX(b), d), graphLook.logy); },
+            piece: c.piece && function (s, d) { return c.piece(valueX(s), d); }
+        };
+    }
+
+    // a curve of a parameter on log scales: its x and y each as its power of ten on its own
+    function logPlane(c) {
+        if (!logOn()) return c;
+        return {
+            at: function (u, d) { var q = c.at(u, d); return [scaleX(q[0]), scaleY(q[1])]; },
+            reach: c.reach && function (a, b, d) {
+                var r = c.reach(a, b, d);
+                return r && [logReach(r[0], graphLook.logx), logReach(r[1], graphLook.logy)];
+            }
+        };
+    }
+
+    // an equation or inequality of x and y on log scales: of their powers of ten
+    function logRelation(rel) {
+        function part(p) {
+            return {
+                op: p.op,
+                at: function (s, t, d) { return p.at(valueX(s), valueY(t), d); },
+                reach: p.reach && function (s0, s1, t0, t1, d) { return p.reach(valueX(s0), valueX(s1), valueY(t0), valueY(t1), d); }
+            };
+        }
+        if (!logOn()) return rel;
+        return rel.parts ? { op: rel.op, parts: rel.parts.map(part) } : part(rel);
+    }
+
     function drawPlane(ctx, v, w, h, c, color, style) {
         var at = [deg].concat(c.letters.map(function (k) { return graphVars[k]; })).join(),
-            key = [v.x, v.y, v.ux, v.uy, w, h, at].join();
+            key = [v.x, v.y, v.ux, v.uy, w, h, at, graphLook.logx, graphLook.logy].join();
         if (!c.along || c.along.key !== at) {
             (function () {
                 var ends = c.range(deg), turn = [2 * Math.PI, 360, 400][deg] / (2 * Math.PI),
@@ -3595,7 +3854,7 @@
             })();
         }
         if (!c.kept || c.kept.key !== key) {
-            c.kept = CalcEngine.traceAlong(c, { x0: graphX(v, 0), x1: graphX(v, w), y0: graphY(v, h), y1: graphY(v, 0), w: w, h: h }, deg, c.along.us, c.along.qs);
+            c.kept = CalcEngine.traceAlong(logPlane(c), drawBox(v, w, h), deg, c.along.us, logOn() ? c.along.qs.map(function (q) { return [scaleX(q[0]), scaleY(q[1])]; }) : c.along.qs);
             c.kept.key = key;
         }
         ctx.beginPath();
@@ -3611,7 +3870,7 @@
     // A sequence, a dot in its color at each of its terms in the view, at each whole n: smaller
     // where they are close together, so they stay apart
     function drawSequence(ctx, v, w, h, c, color) {
-        var r = c.terms(deg), size = Math.min(3, Math.max(1.2, 0.35 / v.ux)), n, px, py,
+        var r = c.terms(deg), size = Math.min(3, Math.max(1.2, 0.35 / pixelX(v, graphX(v, w / 2)))), n, px, py,
             last = Math.min(r.from + r.list.length - 1, Math.floor(graphX(v, w + 4)));
         ctx.beginPath();
         for (n = Math.max(r.from, Math.ceil(graphX(v, -4))); n <= last; n++) {
@@ -3654,21 +3913,21 @@
     // A slope field: a short line across each place of a grid, 22 pixels apart, at the slope
     // there, fainter in its color, none where it has no slope and upright where it goes straight
     // up; the places at the middles of the grid's squares, so that none is on an axis, and fixed
-    // to the plane as it moves. Then the solution through each start given, in its color, a dot
-    // where it starts
-    function drawField(ctx, v, w, h, c, color) {
-        var gap = 22, half = gap * 0.31, sx = gap * v.ux, sy = gap * v.uy, i, j, x, y, px, py, m, k, dx, dy, shown = 0;
+    // to the plane as it moves. Then the solution through each start given, in its color and its
+    // line, a dot where it starts
+    function drawField(ctx, v, w, h, c, color, style) {
+        var gap = 22, half = gap * 0.31, sx = gap * v.ux, sy = gap * v.uy, box = drawBox(v, w, h), i, j, x, y, px, py, m, k, dx, dy, shown = 0;
         ctx.beginPath();
-        for (i = Math.floor(graphX(v, 0) / sx); (i + 0.5) * sx <= graphX(v, w); i++) {
-            for (j = Math.floor(graphY(v, h) / sy); (j + 0.5) * sy <= graphY(v, 0); j++) {
-                x = (i + 0.5) * sx;
-                y = (j + 0.5) * sy;
+        for (i = Math.floor(box.x0 / sx); (i + 0.5) * sx <= box.x1; i++) { // as the view keeps x and y: on a log scale, their powers of ten
+            for (j = Math.floor(box.y0 / sy); (j + 0.5) * sy <= box.y1; j++) {
+                x = valueX((i + 0.5) * sx);
+                y = valueY((j + 0.5) * sy);
                 m = c.at(x, y, deg);
                 if (isNaN(m)) continue;
                 shown++;
                 px = plotX(v, x);
                 py = plotY(v, y);
-                k = -m * v.ux / v.uy; // its slope in pixels, down the plot
+                k = -m * pixelX(v, x) / pixelY(v, y); // its slope in pixels, down the plot
                 dx = isFinite(k) ? half / Math.sqrt(1 + k * k) : 0;
                 dy = isFinite(k) ? k * dx : half;
                 ctx.moveTo(px - dx, py - dy);
@@ -3691,10 +3950,8 @@
                 if (ok && on) ctx.lineTo(a, b); else if (ok) ctx.moveTo(a, b);
                 on = ok;
             });
-            ctx.lineWidth = 2;
-            ctx.lineJoin = 'round';
             ctx.strokeStyle = color;
-            ctx.stroke();
+            strokeAs(ctx, style, false);
             if (isFinite(s.y0) && Math.abs(plotY(v, s.y0)) < 1e5) {
                 ctx.beginPath();
                 ctx.arc(plotX(v, s.x0), plotY(v, s.y0), 3, 0, 2 * Math.PI);
@@ -3708,11 +3965,12 @@
     // each way, a step a pixel and y to move no more than 4 pixels in one, as far as y stays
     // within 20 heights of the view: kept while the view, the unit and the sliders stay
     function fieldSolutions(c, v, w, h) {
-        var key = [v.x, v.y, v.ux, v.uy, w, h, deg].concat(c.letters.map(function (k) { return graphVars[k]; })).join(),
+        var key = [v.x, v.y, v.ux, v.uy, w, h, deg, graphLook.logx, graphLook.logy].concat(c.letters.map(function (k) { return graphVars[k]; })).join(),
             top = graphY(v, 0), bottom = graphY(v, h), big = Math.max(Math.abs(top), Math.abs(bottom)) + 20 * (top - bottom);
         if (c.kept && c.kept.key === key) return c.kept.sols;
         c.kept = { key: key, sols: c.starts(deg).map(function (q) {
-            var r = q.every(isFinite) ? CalcEngine.solveField(c, q[0], q[1], graphX(v, -40), graphX(v, w + 40), deg, v.ux, 4 * v.uy, big) :
+            var r = q.every(isFinite) ? CalcEngine.solveField(c, q[0], q[1], graphX(v, -40), graphX(v, w + 40), deg, pixelX(v, graphX(v, w / 2)), // on a log scale, a pixel half way
+                4 * pixelY(v, top), big) :
                 { pts: [], back: null, ahead: null };
             r.x0 = q[0];
             r.y0 = q[1];
@@ -3764,7 +4022,7 @@
             return (c.kept ? c.kept.sols : []).some(function (s) {
                 var stop = [s.back, s.ahead].filter(function (q) { return q && q.x >= from && q.x <= to && q.y >= bottom && q.y <= top; })[0];
                 if (!stop) return false;
-                out = 'The solution through ' + startText(s) + ' stops at x = ' + local(String(graphNice(stop.x, v.ux))) + ': ' + {
+                out = 'The solution through ' + startText(s) + ' stops at x = ' + local(String(graphNice(stop.x, pixelX(v, stop.x)))) + ': ' + {
                     none: 'its slope has no value there.',
                     large: 'it grows too large to draw.',
                     steep: 'it goes straight up or down there.',
@@ -3824,7 +4082,7 @@
         function wide(a, b) {
             var r = fn.reach ? fn.reach(a.x, b.x, deg) : null, s = p.j === undefined ? [0, 0, true] : low.reach ? low.reach(a.x, b.x, deg) : null;
             function plain(r, ya, yb) {
-                return r[2] && (r[1] - r[0]) / v.uy <= 2 * Math.abs(ya - yb) / v.uy + 2;
+                return r[2] && Math.abs(edge(r[1]) - edge(r[0])) <= 2 * Math.abs(edge(ya) - edge(yb)) + 2;
             }
             if (!r || !s || isNaN(r[0]) || isNaN(s[0]) || (plain(r, a.y, b.y) && plain(s, a.y0, b.y0))) return null;
             return [Math.min(r[0], s[0]), Math.max(r[1], s[1])];
@@ -3904,7 +4162,7 @@
     // none. Null where no curve has a value there
     function areaRegion(at) {
         var v = viewNow(), x = graphX(v, at.x), y = graphY(v, at.y), above = null, below = null, near = null, open = null, inner = null,
-            tall = graphPlot.clientHeight * v.uy, lo = graphY(v, graphPlot.clientHeight) - 2 * tall, hi = graphY(v, 0) + 2 * tall;
+            tall = graphY(v, 0) - graphY(v, graphPlot.clientHeight), lo = graphY(v, graphPlot.clientHeight) - 2 * tall, hi = graphY(v, 0) + 2 * tall;
         graphRels.forEach(function (rel, i) {
             var side = rel && rel.op === '=' ? (rel.at(x, y, deg) < 0 ? -1 : 1) : 0, s;
             if (!rel || !(CalcEngine.within(rel, x, y, deg, side) > 0)) return;
@@ -3932,7 +4190,7 @@
     // root or a crossing, else of a line of the grid within reach, else the x there to a round
     // step some 5 pixels wide, 1, 2 or 5 times a power of ten: 2 and not 2.04
     function areaEnd(v, r, px) {
-        var best = null, x = graphX(v, px), grid = gridStep(v.ux, gridAngles()), fine = gridStep(v.ux / 10, false);
+        var best = null, x = graphX(v, px), grid = gridStep(pixelX(v, x), !graphLook.logx && gridAngles()), fine = gridStep(pixelX(v, x) / 10, false);
         function of(i) {
             return i !== undefined && (i === r.i || i === r.j);
         }
@@ -3977,6 +4235,12 @@
         return true;
     }
 
+    // x n pixels on from x, to what a pixel tells apart there
+    function traceX(v, x, n) {
+        x = valueX(scaleX(x) + n * v.ux);
+        return graphRound(x, pixelX(v, x));
+    }
+
     // The point clicked on a curve, traced by the arrow keys: ← and → move it along the curve,
     // stopping at a dot on the way, a root or a crossing; ↑ and ↓ take it to the curve above or
     // below at its x. The view moves to keep it in, and its popup shows. False where there is
@@ -3996,7 +4260,7 @@
             next = graphPlanes[i].kind === 'seq' ? traceSequence(p, i, dir, shift ? 10 : 1) : tracePlane(v, p, i, dir, GRAPH_TRACE * (shift ? 10 : 1));
             if (!next) return true;
         } else if (graphPlanes[i] && p.sol !== undefined && (key === 37 || key === 39)) { // along a solution of a slope field, as along a curve
-            x = graphRound(p.x + dir * GRAPH_TRACE * (shift ? 10 : 1) * v.ux, v.ux);
+            x = traceX(v, p.x, dir * GRAPH_TRACE * (shift ? 10 : 1));
             next = { i: i, sol: p.sol, x: x, y: solutionAt(graphPlanes[i], p.sol, x) };
             if (!isFinite(next.y)) return true;
         } else if (graphRels[i] && (key === 37 || key === 39)) {
@@ -4014,9 +4278,9 @@
             });
             if (!next) return true;
         } else {
-            x = graphRound(p.x + dir * GRAPH_TRACE * (shift ? 10 : 1) * v.ux, v.ux);
+            x = traceX(v, p.x, dir * GRAPH_TRACE * (shift ? 10 : 1));
             graphMarks.forEach(function (m) {
-                if ((m.i === i || m.j === i) && (m.f || 0) === (p.f || 0) && (m.x - p.x) * dir > v.ux / 2 && (m.x - x) * dir <= 0 && // not the one it is on, found again
+                if ((m.i === i || m.j === i) && (m.f || 0) === (p.f || 0) && (m.x - p.x) * dir > pixelX(v, p.x) / 2 && (m.x - x) * dir <= 0 && // not the one it is on, found again
                     (!next || Math.abs(m.x - p.x) < Math.abs(next.x - p.x))) next = m;
             });
             if (!next) next = { i: i, f: p.f, x: x, y: curveAt(p).at(x, deg, true) };
@@ -4057,7 +4321,7 @@
             var dx = plotX(v, m.x) - a, dy = plotY(v, m.y) - b, on = dx * t.x + dy * t.y;
             if ((m.i === i || m.j === i) && on > 0.5 && on <= s + 0.5 && Math.abs(dx * t.y - dy * t.x) < 3 && (!near || on < near.on)) near = { on: on, m: m };
         });
-        q = near ? near.m : CalcEngine.onRelation(rel, graphX(v, a + t.x * s), graphY(v, b + t.y * s), v.ux, v.uy, deg);
+        q = near ? near.m : CalcEngine.onRelation(rel, graphX(v, a + t.x * s), graphY(v, b + t.y * s), pixelX(v, p.x), pixelY(v, p.y), deg);
         if (!q) return null;
         if (!near && graphRels[i].parts && !CalcEngine.holds(graphRels[i], q.x, q.y, deg)) return null; // past a corner
         if (!near) q = { i: i, x: q.x, y: q.y, k: p.k };
@@ -4161,6 +4425,7 @@
     // numbers as big as the words beside the plot (popScale)
     function drawGrid(ctx, v, w, h, over) {
         var f = root.classList.contains('calc-big') ? popZoom : 1, angles = gridAngles(), look = graphLook,
+            lx = look.logx && logTicks(v, false, w), ly = look.logy && logTicks(v, true, h), // the lines of an axis on a log scale
             sx = typedStep(look.xstep, v.ux) || gridStep(v.ux, angles), sy = typedStep(look.ystep, v.uy) || gridStep(v.uy, false),
             mx = minorStep(sx, angles), my = minorStep(sy, false),
             ax = Math.max(1, Math.min(w - 1, Math.round(plotX(v, 0)))) + 0.5, // where the axes are drawn, on whole pixels
@@ -4174,19 +4439,31 @@
         // ones none where a line of the grid is. The marks on the axes on whole pixels, as sharp as they are
         function lines(ink, stepX, stepY, x, y, minor) {
             var nx = minor ? Math.round(sx / stepX) : 0, ny = minor ? Math.round(sy / stepY) : 0, marks = x || y;
-            ctx.strokeStyle = ink;
-            ctx.beginPath();
-            for (k = Math.ceil(graphX(v, 0) / stepX); stepX && k * stepX <= graphX(v, w); k++) {
-                if (nx && !(k % nx) || !marks && !k && look.yaxis) continue;
-                p = marks ? Math.round(plotX(v, k * stepX)) + 0.5 : plotX(v, k * stepX);
+            function across(at) {
+                p = marks ? Math.round(plotX(v, at)) + 0.5 : plotX(v, at);
                 ctx.moveTo(p, x ? ay - x : 0);
                 ctx.lineTo(p, x ? ay + x : h);
             }
-            for (k = Math.ceil(graphY(v, h) / stepY); stepY && k * stepY <= graphY(v, 0); k++) {
-                if (ny && !(k % ny) || !marks && !k && look.xaxis) continue;
-                p = marks ? Math.round(plotY(v, k * stepY)) + 0.5 : plotY(v, k * stepY);
+            function up(at) {
+                p = marks ? Math.round(plotY(v, at)) + 0.5 : plotY(v, at);
                 ctx.moveTo(y ? ax - y : 0, p);
                 ctx.lineTo(y ? ax + y : w, p);
+            }
+            ctx.strokeStyle = ink;
+            ctx.beginPath();
+            if (lx) {
+                if (stepX) lx[minor ? 'minor' : 'major'].forEach(across);
+            } else {
+                for (k = Math.ceil(graphX(v, 0) / stepX); stepX && k * stepX <= graphX(v, w); k++) {
+                    if (!(nx && !(k % nx) || !marks && !k && look.yaxis)) across(k * stepX);
+                }
+            }
+            if (ly) {
+                if (stepY) ly[minor ? 'minor' : 'major'].forEach(up);
+            } else {
+                for (k = Math.ceil(graphY(v, h) / stepY); stepY && k * stepY <= graphY(v, 0); k++) {
+                    if (!(ny && !(k % ny) || !marks && !k && look.xaxis)) up(k * stepY);
+                }
             }
             ctx.stroke();
         }
@@ -4212,12 +4489,12 @@
 
         ctx.lineWidth = 1;
         if (!over) {
-            if (look.grid && look.polar) { // its circles as far apart as the lines of x would be, of a step typed for x too
+            if (look.grid && look.polar && !lx && !ly) { // its circles as far apart as the lines of x would be, of a step typed for x too
                 p = typedStep(look.xstep, Math.max(v.ux, v.uy)) || gridStep(Math.max(v.ux, v.uy), false);
                 if (look.minor) rings(GRAPH_INK.minor, minorStep(p, false) / Math.max(v.ux, v.uy) >= 6 && minorStep(p, false), 15);
                 rings(GRAPH_INK.grid, p, 30);
             } else if (look.grid) {
-                if (look.minor) lines(GRAPH_INK.minor, mx / v.ux >= 6 && mx, my / v.uy >= 6 && my, 0, 0, true); // none closer than 6 pixels
+                if (look.minor) lines(GRAPH_INK.minor, (lx || mx / v.ux >= 6) && mx, (ly || my / v.uy >= 6) && my, 0, 0, true); // none closer than 6 pixels
                 lines(GRAPH_INK.grid, sx, sy);
             } else if (look.xaxis || look.yaxis) {
                 lines(GRAPH_INK.axis, look.xaxis && xIn && sx, look.yaxis && yIn && sy, 3 * f, 3 * f);
@@ -4296,24 +4573,32 @@
         ctx.textBaseline = 'alphabetic';
         end = past;
         past = -Infinity;
-        for (k = Math.ceil(graphX(v, 0) / sx); look.xaxis && look.xnum && k * sx <= graphX(v, w); k++) {
-            p = plotX(v, k * sx);
-            if (!k || p < 10 * f || p > w - 10 * f) continue;
-            text = gridLabel(k * sx, sx);
-            if (p - ctx.measureText(text).width / 2 < past + 6 * f) continue; // too long to fit beside the last, as far out
-            if (graphLook.xname && (ay < 18 * f || labelY < ay + 13 * f) && p + ctx.measureText(text).width / 2 > end - 4 * f) continue; // the name on their side of the axis
+        function xLabel(at, text) {
+            p = plotX(v, at);
+            if (p < 10 * f || p > w - 10 * f) return;
+            if (p - ctx.measureText(text).width / 2 < past + 6 * f) return; // too long to fit beside the last, as far out
+            if (graphLook.xname && (ay < 18 * f || labelY < ay + 13 * f) && p + ctx.measureText(text).width / 2 > end - 4 * f) return; // the name on their side of the axis
             past = p + ctx.measureText(text).width / 2;
             ctx.strokeText(text, p, labelY);
             ctx.fillText(text, p, labelY);
         }
-        ctx.textAlign = onLeft ? 'right' : 'left';
-        ctx.textBaseline = 'middle';
-        for (k = Math.ceil(graphY(v, h) / sy); look.yaxis && look.ynum && k * sy <= graphY(v, 0); k++) {
-            p = plotY(v, k * sy);
-            if (!k || p < 8 * f || p > h - 8 * f || graphLook.yname && p < 24 * f) continue; // not over the name of y
-            text = gridLabel(k * sy, sy);
+        function yLabel(at, text) {
+            p = plotY(v, at);
+            if (p < 8 * f || p > h - 8 * f || graphLook.yname && p < 24 * f || p > past - 12 * f) return; // not over the name of y, nor the last
+            past = p;
             ctx.strokeText(text, onLeft ? ax - 4 * f : ax + 4 * f, p);
             ctx.fillText(text, onLeft ? ax - 4 * f : ax + 4 * f, p);
+        }
+        if (look.xaxis && look.xnum && lx) lx.labels.forEach(function (at) { xLabel(at, lx.even ? gridLabel(at, lx.even) : logLabel(at)); });
+        for (k = Math.ceil(graphX(v, 0) / sx); !lx && look.xaxis && look.xnum && k * sx <= graphX(v, w); k++) {
+            if (k) xLabel(k * sx, gridLabel(k * sx, sx));
+        }
+        ctx.textAlign = onLeft ? 'right' : 'left';
+        ctx.textBaseline = 'middle';
+        past = Infinity; // up from the bottom
+        if (look.yaxis && look.ynum && ly) ly.labels.forEach(function (at) { yLabel(at, ly.even ? gridLabel(at, ly.even) : logLabel(at)); });
+        for (k = Math.ceil(graphY(v, h) / sy); !ly && look.yaxis && look.ynum && k * sy <= graphY(v, 0); k++) {
+            if (k) yLabel(k * sy, gridLabel(k * sy, sy));
         }
     }
 
@@ -4341,7 +4626,7 @@
     // while the view, the unit and the letters stay, as the pointer moving draws it again
     function drawRelation(ctx, v, w, h, rel, color, style) {
         var c = 3, nx = Math.ceil(w / c), ny = Math.ceil(h / c), parts = rel.parts || [rel], grids, drawn, i, j, run,
-            key = [v.x, v.y, v.ux, v.uy, w, h, deg].concat(rel.letters.map(function (k) { return graphVars[k]; })).join();
+            key = [v.x, v.y, v.ux, v.uy, w, h, deg, graphLook.logx, graphLook.logy].concat(rel.letters.map(function (k) { return graphVars[k]; })).join();
         function corners(g, i, j) {
             return [g[j][i], g[j][i + 1], g[j + 1][i + 1], g[j + 1][i]];
         }
@@ -4355,7 +4640,7 @@
             grids = rel.kept.grids;
             drawn = rel.kept.drawn;
         } else {
-            drawn = CalcEngine.contour(rel, { x0: graphX(v, 0), x1: graphX(v, w), y0: graphY(v, h), y1: graphY(v, 0), w: w, h: h }, deg);
+            drawn = CalcEngine.contour(logRelation(rel), drawBox(v, w, h), deg);
             grids = drawn ? null : parts.map(function (part) {
                 var grid = [];
                 for (j = 0; j <= ny; j++) {
@@ -4554,9 +4839,9 @@
     // the edge where it has no end, and a solid stroke where it goes up and down faster than a
     // pixel shows, as tan x far out does. Its lines are kept while the view, the unit and its letters stay
     function drawCurve(ctx, v, w, h, fn, color, dashed, style) {
-        var key = [v.x, v.y, v.ux, v.uy, w, h, deg].concat((fn.letters || []).map(function (k) { return graphVars[k]; })).join();
+        var key = [v.x, v.y, v.ux, v.uy, w, h, deg, graphLook.logx, graphLook.logy].concat((fn.letters || []).map(function (k) { return graphVars[k]; })).join();
         if (!fn.traced || fn.traced.key !== key) {
-            fn.traced = { key: key, lines: CalcEngine.trace(fn, { x0: graphX(v, 0), x1: graphX(v, w), y0: graphY(v, h), y1: graphY(v, 0), w: w, h: h }, deg) };
+            fn.traced = { key: key, lines: CalcEngine.trace(logCurve(fn), drawBox(v, w, h), deg) };
         }
         ctx.beginPath();
         fn.traced.lines.forEach(function (line) {
@@ -4586,7 +4871,7 @@
     // reach above or below it, the nearest, at its x, a round one within near pixels (graphNice); else
     // a mark within markReach; else the place itself, its x and y rounded to what a pixel tells apart (spot)
     function graphPoint(at, reach, markReach, near) {
-        var v = viewNow(), x = graphNice(graphX(v, at.x), v.ux, near), best = null, far;
+        var v = viewNow(), x = graphNice(graphX(v, at.x), pixelX(v, graphX(v, at.x)), near), best = null, far;
         function nice(n, u) {
             return graphNice(n, u, near);
         }
@@ -4610,7 +4895,7 @@
         });
         graphRels.forEach(function (rel, i) { // an equation: the place on it nearest; of an inequality of two, on either line where the other holds
             (rel ? rel.parts || [rel] : []).forEach(function (part, k) {
-                var q = CalcEngine.onRelation(part, graphX(v, at.x), graphY(v, at.y), v.ux, v.uy, deg, nice),
+                var q = CalcEngine.onRelation(part, graphX(v, at.x), graphY(v, at.y), pixelX(v, graphX(v, at.x)), pixelY(v, graphY(v, at.y)), deg, nice),
                     d = q && (!rel.parts || CalcEngine.holds(rel, q.x, q.y, deg)) ? Math.hypot(plotX(v, q.x) - at.x, plotY(v, q.y) - at.y) : Infinity;
                 if (d <= reach * 1.2 && (!best || d < best.d)) best = { d: d, p: { i: i, x: q.x, y: q.y } };
                 if (best && best.d === d && k) best.p.k = k;
@@ -4669,33 +4954,34 @@
             }
             best = { d: close.d, p: { i: i, u: r.u, x: r.x, y: r.y } };
         });
-        return best ? best.p : far ? far.p : { x: x, y: graphNice(graphY(v, at.y), v.uy, near), spot: true };
+        return best ? best.p : far ? far.p : { x: x, y: graphNice(graphY(v, at.y), pixelY(v, graphY(v, at.y)), near), spot: true };
     }
 
     // The point of a curve y = f(x) a click near it most likely means, within near pixels of where the
     // click's x meets it: the one whose x and y are both roundest, (2, 4) on x², else the one whose x
     // is, or where it is steep its y; the nearer of two as round. Null if none is round
     function likelyPoint(fn, v, at, near) {
-        var x0 = graphX(v, at.x), y0 = fn.at(x0, deg, true), steep = Math.abs(fn.at(x0 + v.ux, deg, true) - fn.at(x0 - v.ux, deg, true)) / (2 * v.uy) > 1,
-            q = Math.pow(10, Math.floor(Math.log10(v.ux))), p = Math.pow(10, Math.ceil(Math.log10(v.uy))), best = null, k, m, a, b, ya, yb;
+        var x0 = graphX(v, at.x), y0 = fn.at(x0, deg, true), ux = pixelX(v, x0), uy = pixelY(v, y0), // a pixel there, on a log scale too
+            steep = Math.abs(fn.at(x0 + ux, deg, true) - fn.at(x0 - ux, deg, true)) / (2 * uy) > 1,
+            q = Math.pow(10, Math.floor(Math.log10(ux))), p = Math.pow(10, Math.ceil(Math.log10(uy))), best = null, k, m, a, b, ya, yb;
         function consider(x, y) {
             var d = Math.hypot(plotX(v, x) - at.x, plotY(v, y) - plotY(v, y0)), s;
             if (!isFinite(y) || d > near) return;
             s = roundScore(v, x, y, d, steep);
             if (rounder(s, best)) best = { s: s, x: x, y: y };
         }
-        if (!isFinite(y0)) return null;
-        for (k = Math.ceil((x0 - near * v.ux) / q); k * q <= x0 + near * v.ux; k++) { // round x, a tenth of a pixel or more apart
+        if (!isFinite(y0) || !(ux > 0) || !(uy > 0)) return null;
+        for (k = Math.ceil((x0 - near * ux) / q); k * q <= x0 + near * ux; k++) { // round x, a tenth of a pixel or more apart
             m = +(k * q).toPrecision(12);
             consider(m, fn.at(m, deg, true));
         }
         for (k = -near; k < near; k++) { // round y, a pixel or more apart, where the curve crosses it
-            a = x0 + k * v.ux;
-            b = a + v.ux;
+            a = x0 + k * ux;
+            b = a + ux;
             ya = fn.at(a, deg, true);
             yb = fn.at(b, deg, true);
             if (!isFinite(ya) || !isFinite(yb)) continue;
-            for (m = Math.ceil(Math.max(Math.min(ya, yb), y0 - near * v.uy) / p) * p; m <= Math.min(Math.max(ya, yb), y0 + near * v.uy); m += p) {
+            for (m = Math.ceil(Math.max(Math.min(ya, yb), y0 - near * uy) / p) * p; m <= Math.min(Math.max(ya, yb), y0 + near * uy); m += p) {
                 consider(crossing(fn, a, b, ya, +m.toPrecision(12)), +m.toPrecision(12));
             }
         }
@@ -4707,7 +4993,7 @@
     // roundest, as likelyPoint has it, y = 1 and not 0.9999995. Null if none is round
     function likelyAlong(c, v, u0, pts, k0, near) {
         var p0 = c.at(u0, deg), x0 = plotX(v, p0[0]), y0 = plotY(v, p0[1]), h = Math.abs(u0) * 1e-7 || 1e-7,
-            a = c.at(u0 - h, deg), b = c.at(u0 + h, deg), steep = Math.abs((b[1] - a[1]) / v.uy) > Math.abs((b[0] - a[0]) / v.ux),
+            a = c.at(u0 - h, deg), b = c.at(u0 + h, deg), steep = Math.abs((b[1] - a[1]) / pixelY(v, p0[1])) > Math.abs((b[0] - a[0]) / pixelX(v, p0[0])),
             lo = k0, hi = k0, n = 64, best = null, k, u1, u2;
         function away(k) {
             return Math.hypot(pts[k].px - x0, pts[k].py - y0);
@@ -4734,7 +5020,7 @@
             u2 = pts[lo].u + (pts[hi].u - pts[lo].u) * (k + 1) / n;
             a = c.at(u1, deg);
             b = c.at(u2, deg);
-            [v.ux, v.uy].forEach(function (u, j) {
+            [pixelX(v, p0[0]), pixelY(v, p0[1])].forEach(function (u, j) {
                 var q = Math.pow(10, Math.ceil(Math.log10(u))), m, w, p, d, s;
                 if (!isFinite(a[j]) || !isFinite(b[j])) return;
                 for (m = Math.ceil(Math.max(Math.min(a[j], b[j]), p0[j] - near * u) / q) * q; m <= Math.min(Math.max(a[j], b[j]), p0[j] + near * u); m += q) {
@@ -4754,7 +5040,7 @@
     // how round a point is, a pixel being v.ux by v.uy, to choose the likeliest of a few: the rounder of
     // its x and y, then its x, or where the curve is steep its y, then the nearer, d pixels away
     function roundScore(v, x, y, d, steep) {
-        var rx = graphRoundness(x, v.ux), ry = graphRoundness(y, v.uy);
+        var rx = graphRoundness(x, pixelX(v, x)), ry = graphRoundness(y, pixelY(v, y));
         return [Math.min(rx, ry), steep ? ry : rx, -d];
     }
 
@@ -4849,8 +5135,8 @@
             graphNote.textContent = 'Drag along a curve for the area under it, between two for the area between, in a region for its area.';
         } else if (p) { // of a term of a sequence, its n and a(n)
             graphNote.innerHTML = graphSwatches(p) + '<em>' + graphName(p) + '</em>' +
-                '<span>' + (seq ? '<i>n</i>' : '<i>x</i>') + ' = ' + graphValue(p, 'x', near && v.ux) + '</span>' +
-                '<span>' + (seq ? '<i>' + seq.name + '</i>(<i>n</i>)' : '<i>y</i>') + ' = ' + (isFinite(p.y) ? graphValue(p, 'y', near && v.uy) : 'none') + '</span>';
+                '<span>' + (seq ? '<i>n</i>' : '<i>x</i>') + ' = ' + graphValue(p, 'x', near && pixelX(v, p.x)) + '</span>' +
+                '<span>' + (seq ? '<i>' + seq.name + '</i>(<i>n</i>)' : '<i>y</i>') + ' = ' + (isFinite(p.y) ? graphValue(p, 'y', near && pixelY(v, p.y)) : 'none') + '</span>';
         } else if (!graphInputs.some(function (box) { return box.value.trim(); })) {
             graphNote.textContent = 'Type a function of x. Drag to move, scroll or pinch to zoom.';
         } else if (sequenceNote(false)) {
@@ -5012,7 +5298,8 @@
 
     // the view with the point at p0 of the plot moved to p1, and the scale times k
     function graphMove(start, p0, p1, k) {
-        var x = graphX(start, p0.x), y = graphY(start, p0.y), ux = start.ux * k, uy = start.uy * k,
+        var x = start.x + (p0.x - graphPlot.clientWidth / 2) * start.ux, y = start.y - (p0.y - graphPlot.clientHeight / 2) * start.uy, // as the view keeps them
+            ux = start.ux * k, uy = start.uy * k,
             v = { x: x - (p1.x - graphPlot.clientWidth / 2) * ux, y: y + (p1.y - graphPlot.clientHeight / 2) * uy, ux: ux, uy: uy };
         if (!(ux < 1e12 && uy < 1e12) || (k < 1 && !sharp(v))) return; // no closer or farther than numbers stay sharp
         graphView = v;
@@ -5093,7 +5380,7 @@
     // letters moves as they let it, (a, 2) only across. A table of the box shows it
     function dragPoint(d, at) {
         var v = viewNow(), list = graphData[d.i], q = list && list[d.j], box = graphInputs[d.i], text = box.value.trim(),
-            n = [graphNice(graphX(v, at.x - d.dx), v.ux), graphNice(graphY(v, at.y - d.dy), v.uy)], row;
+            n = [graphNice(graphX(v, at.x - d.dx), pixelX(v, graphX(v, at.x - d.dx))), graphNice(graphY(v, at.y - d.dy), pixelY(v, graphY(v, at.y - d.dy)))], row;
         if (!q) return;
         if (!q.letter) {
             q.x = n[0];
@@ -5302,10 +5589,10 @@
     function fillWindow(v, w, h) {
         var typing = graphEnds.indexOf(document.activeElement);
         if (!graphWindow.hidden) graphReset.classList.toggle('calc-off', !graphView && JSON.stringify(graphLook) === JSON.stringify(GRAPH_LOOK));
-        if (graphWindow.hidden || typing > -1 && !graphLook.square) return;
+        if (graphWindow.hidden || typing > -1 && !squareOn()) return;
         [graphX(v, 0), graphX(v, w), graphY(v, h), graphY(v, 0)].forEach(function (n, k) {
             if (typing > -1 && (k < 2) === (typing < 2)) return;
-            graphEnds[k].value = local(String(graphRound(n, k < 2 ? v.ux : v.uy)));
+            graphEnds[k].value = local(String(graphRound(n, k < 2 ? pixelX(v, n) : pixelY(v, n))));
             graphEnds[k].parentNode.classList.remove('calc-bad');
         });
     }
@@ -5315,11 +5602,12 @@
             var w = graphPlot.clientWidth, h = graphPlot.clientHeight, v = viewNow(), n, x, y;
             onlyNumber(box);
             n = graphEnds.map(boxNumber);
-            x = n[0] < n[1] && (n[1] - n[0]) / w > Math.max(1e-12, Math.max(Math.abs(n[0]), Math.abs(n[1])) * 1e-11) && (n[1] - n[0]) / w < 1e12;
-            y = n[2] < n[3] && (n[3] - n[2]) / h > Math.max(1e-12, Math.max(Math.abs(n[2]), Math.abs(n[3])) * 1e-11) && (n[3] - n[2]) / h < 1e12;
+            n = [scaleX(n[0]), scaleX(n[1]), scaleY(n[2]), scaleY(n[3])]; // on a log scale, their powers of ten: above 0
+            x = n[0] < n[1] && isFinite(n[0]) && isFinite(n[1]) && (n[1] - n[0]) / w > Math.max(1e-12, Math.max(Math.abs(n[0]), Math.abs(n[1])) * 1e-11) && (n[1] - n[0]) / w < 1e12;
+            y = n[2] < n[3] && isFinite(n[2]) && isFinite(n[3]) && (n[3] - n[2]) / h > Math.max(1e-12, Math.max(Math.abs(n[2]), Math.abs(n[3])) * 1e-11) && (n[3] - n[2]) / h < 1e12;
             graphEnds[0].parentNode.classList.toggle('calc-bad', !x);
             graphEnds[2].parentNode.classList.toggle('calc-bad', !y);
-            if (graphLook.square) { // the pair typed in, the other as long a unit
+            if (squareOn()) { // the pair typed in, the other as long a unit
                 if (graphEnds.indexOf(box) < 2) y = false;
                 else x = false;
             }
@@ -5327,7 +5615,7 @@
             graphView = {
                 x: x ? (n[0] + n[1]) / 2 : v.x,
                 y: y ? (n[2] + n[3]) / 2 : v.y,
-                ux: x ? (n[1] - n[0]) / w : graphLook.square ? (n[3] - n[2]) / h * squareRatio() : v.ux,
+                ux: x ? (n[1] - n[0]) / w : squareOn() ? (n[3] - n[2]) / h * squareRatio() : v.ux,
                 uy: y ? (n[3] - n[2]) / h : v.uy
             };
             drawGraph();
@@ -5347,6 +5635,7 @@
     graphLooks.concat(graphArrows).forEach(function (b) {
         function flip() {
             if (b.dataset.arrows) graphLook.arrows = +b.dataset.arrows;
+            else if (/^log/.test(b.dataset.look)) logScale(b.dataset.look, !graphLook[b.dataset.look]);
             else graphLook[b.dataset.look] = !graphLook[b.dataset.look];
             showLooks();
             popShut();
@@ -5362,12 +5651,32 @@
         }, false);
     });
 
-    // Reset: every setting as it starts, and the view; a click leaves the focus where it was, but
-    // not in a box, so the boxes show the view again
+    // An axis on a log scale, or off it, as much of it seen as was: from 0.01 to 100 where all of it was
+    // 0 or below, else from where it was above 0 to its end, at least four powers of ten
+    function logScale(k, on) {
+        var v = viewNow(), x = k === 'logx', n = x ? plotWidth() : graphPlot.clientHeight || plotWidth(),
+            lo = x ? graphX(v, 0) : graphY(v, n), hi = x ? graphX(v, n) : graphY(v, 0), c, u;
+        graphLook[k] = on;
+        if (on && !(hi > 0)) {
+            c = 0;
+            u = GRAPH_DECADES / n;
+        } else if (on) {
+            lo = Math.log10(Math.min(lo > 0 ? lo : Infinity, hi / Math.pow(10, GRAPH_DECADES)));
+            c = (lo + Math.log10(hi)) / 2;
+            u = (Math.log10(hi) - lo) / n;
+        } else {
+            c = (lo + hi) / 2;
+            u = (hi - lo) / n;
+        }
+        if (!isFinite(c) || !(u > 0)) return;
+        graphView = x ? { x: c, y: v.y, ux: u, uy: v.uy } : { x: v.x, y: c, ux: v.ux, uy: u };
+    }
+
+    // Reset: every setting as it starts, and the view, and the settings shut, back to the plot
     function resetLooks() {
         graphLook = Object.assign({}, GRAPH_LOOK);
         graphView = null;
-        if (graphWindow.contains(document.activeElement)) document.activeElement.blur();
+        showWindow(false);
         showLooks();
         popShut();
         drawGraph();
@@ -5420,7 +5729,7 @@
             var on = !!graphLook[b.dataset.look];
             b.classList.toggle('calc-on', on);
             b.classList.toggle('calc-off', /^(minor|polar)$/.test(b.dataset.look) && !graphLook.grid || b.dataset.look === 'xnum' && !graphLook.xaxis ||
-                b.dataset.look === 'ynum' && !graphLook.yaxis);
+                b.dataset.look === 'ynum' && !graphLook.yaxis || /^(square|polar)$/.test(b.dataset.look) && (graphLook.logx || graphLook.logy));
             b.setAttribute('aria-checked', String(on));
         });
         graphArrows.forEach(function (b) {
@@ -5742,7 +6051,7 @@
         if (graphView) g.view = graphView;
         if (graphOff.slice(0, graphCount).some(Boolean)) g.off = graphOff.slice(0, graphCount);
         if (graphDiff.slice(0, graphCount).some(Boolean)) g.d = graphDiff.slice(0, graphCount);
-        if (graphStyle.slice(0, graphCount).some(function (st) { return st.d || st.w !== 1 || st.l; })) g.s = graphStyle.slice(0, graphCount);
+        if (graphStyle.slice(0, graphCount).some(function (st) { return st.d || st.w !== 1 || st.l || st.c; })) g.s = graphStyle.slice(0, graphCount);
         if (graphLetters.length) g.p = graphLetters.reduce(function (p, k) {
             if (graphRange[k]) p[k] = [graphVars[k], graphRange[k][0], graphRange[k][1]];
             return p;
@@ -5876,7 +6185,8 @@
     // holds no number, or a step that is not above 0, is marked, and goes by the view. Of
     // sequences alone, n from the first of them, by 1
     function tableSteps() {
-        var v = viewNow(), w = plotWidth(), want = w * v.ux / 20, p = Math.pow(10, Math.floor(Math.log10(want))), m = want / p,
+        var v = viewNow(), w = plotWidth(), left = valueX(v.x - w / 2 * v.ux), want = (valueX(v.x + w / 2 * v.ux) - left) / 20, // on a log scale too, the view's ends
+            p = Math.pow(10, Math.floor(Math.log10(want))), m = want / p,
             by = graphAngles() && deg === 1 && want > 3 && want <= 180 ?
                 [5, 10, 15, 30, 45, 90, 180].filter(function (d) { return d >= want; })[0] :
                 p * (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10),
@@ -5887,7 +6197,7 @@
         graphBy.parentNode.classList.toggle('calc-bad', !!graphBy.value && !(typed > 0 && isFinite(typed)));
         if (graphBy.value && typed > 0 && isFinite(typed)) by = typed;
         from = seqs ? Math.min.apply(null, seqs.map(function (i) { return graphPlanes[i].range(deg)[0]; })) :
-            +(Math.ceil((v.x - w / 2 * v.ux) / by) * by).toPrecision(12);
+            +(Math.ceil(left / by) * by).toPrecision(12);
         graphFrom.placeholder = local(String(from));
         typed = boxNumber(graphFrom);
         graphFrom.parentNode.classList.toggle('calc-bad', !!graphFrom.value && !isFinite(typed));
@@ -18891,6 +19201,8 @@
         if (ex.rad && deg) setUnit(0);
         showCells(-1);
         graphView = null;
+        graphLook.logx = graphLook.logy = false; // drawn as it is made, on straight scales
+        showLooks();
         showGraphTab('graph');
         readGraph();
         if (v) { // all of its view shown, as much each way, or with stretch each filling the plot

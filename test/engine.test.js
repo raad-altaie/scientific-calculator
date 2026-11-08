@@ -3137,6 +3137,17 @@ dels.forEach(function (c) {
         check(Engine.keyPoints([null], view, 0, [Engine.relation('x y = 4')]).length === 0, 'keyPoints: x y = 4 meets neither axis');
     })();
 
+    // on a log x axis, looked at evenly along it: its small end as closely as its large, where
+    // evenly in x all of 0.01 to 0.26 is between two places
+    (function () {
+        var view = { x0: 0.01, x1: 100, y0: -1, y1: 1, logx: true }, text = Engine.keyPoints([Engine.graph('(x - 0.03)^2 - 0.5'),
+            Engine.graph('(x - 0.02)(x - 0.05)')], view, 0).map(function (p) {
+                return p.t.join() + ' ' + +p.x.toPrecision(10) + ' ' + +p.y.toPrecision(10);
+            }).sort().join('; ');
+        check(text === 'min 0.03 -0.5; min 0.035 -0.000225; root 0.02 0; root 0.05 0; root 0.7371067812 0',
+            'keyPoints on a log x axis: lows and roots near 0.01 found', text);
+    })();
+
     // the area under a curve, its integral from a to b
     [
         ['x^2', 0, 3, 0, 9, 'x² from 0 to 3'],

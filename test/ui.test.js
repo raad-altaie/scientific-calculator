@@ -2454,12 +2454,15 @@ async function graphLooks(page, at) {
     await page.click('.calc-graph-xname');
     await page.type('t');
     await sleep(400);
-    check(await page.calc(look) === '{"square":true,"grid":true,"minor":false,"polar":false,"xaxis":true,"yaxis":true,"xnum":true,"ynum":true,"arrows":0,"lock":true,"xname":"t","yname":"","xstep":"","ystep":""}',
+    check(await page.calc(look) === '{"square":true,"grid":true,"minor":false,"polar":false,"xaxis":true,"yaxis":true,"xnum":true,"ynum":true,"arrows":0,"lock":true,"xname":"t","yname":"","xstep":"","ystep":"","logx":false,"logy":false}',
         t + 'all kept, with the name of x', await page.calc(look));
 
     check(!await page.calc('document.querySelector(".calc-graph-reset").classList.contains("calc-off")'), t + 'Reset lit, with something to reset');
     await page.click('.calc-graph-reset');
-    check(await page.calc(look) === '{"square":false,"grid":true,"minor":true,"polar":false,"xaxis":true,"yaxis":true,"xnum":true,"ynum":true,"arrows":0,"lock":false,"xname":"","yname":"","xstep":"","ystep":""}' &&
+    check(await page.calc('document.querySelector(".calc-graph-window").hidden') && !await page.calc('document.querySelector(".calc-graph-zoom [data-zoom=\\"window\\"]").classList.contains("calc-on")'),
+        t + 'Reset shuts the settings');
+    await page.click('.calc-graph-zoom [data-zoom="window"]');
+    check(await page.calc(look) === '{"square":false,"grid":true,"minor":true,"polar":false,"xaxis":true,"yaxis":true,"xnum":true,"ynum":true,"arrows":0,"lock":false,"xname":"","yname":"","xstep":"","ystep":"","logx":false,"logy":false}' &&
         await page.calc(view) === 'null' && !await page.calc(on('square')) && await page.calc('document.querySelector(".calc-graph-xname").value') === '' &&
         await page.calc('document.querySelector(".calc-graph-reset").classList.contains("calc-off")') && (await page.calc(ends + '.join(" ")')).indexOf('-10 10') === 0,
         t + 'Reset: every setting and the view as they start, and it dim', await page.calc(look) + ' ' + await page.calc(ends + '.join(" ")'));
@@ -2474,6 +2477,40 @@ async function graphLooks(page, at) {
     await page.calc('(function (w) { var o = CanvasRenderingContext2D.prototype.fillText; window.seen = w; CanvasRenderingContext2D.prototype.fillText = function (s) { w.push(s); return o.apply(this, arguments); }; })([])');
     await page.click('.calc-graph-btn');
     check(/^-?\de-10$/.test(await page.calc('window.seen[0]')) && !/π/.test(await page.calc('window.seen.join()')), t + 'zoomed far in, numbers of the grid and not of π', await page.calc('window.seen.join(" ")'));
+}
+
+// log scales: 1, 10, 100 named, no negative numbers; the pointer on x² at a round y; the view's ends above 0, one at 0
+// or below marked; same scale and the polar grid dim; off, the same x straight, and on again as it was
+async function graphLog(page, at) {
+    var t = at + ': log: ', note = 'document.querySelector(".calc-graph-note").textContent',
+        ends = 'Array.prototype.map.call(document.querySelectorAll(".calc-graph-x0, .calc-graph-x1, .calc-graph-y0, .calc-graph-y1"), function (b) { return b.value; }).join(" ")',
+        look = 'JSON.parse(localStorage.getItem("graph")).look';
+
+    await page.fresh(at, { graph: { f: ['x^2'], view: null, look: { logx: true, logy: true } } });
+    await page.click('.calc-graph-btn');
+    await page.calc('(function (w) { var o = CanvasRenderingContext2D.prototype.fillText; window.seen = w; CanvasRenderingContext2D.prototype.fillText = function (s) { w.push(s); return o.apply(this, arguments); }; })([])');
+    await page.calc('window.dispatchEvent(new Event("resize"))');
+    await sleep(100);
+    check(await page.calc('["0.1", "1", "10"].every(function (n) { return window.seen.indexOf(n) > -1; }) && !window.seen.some(function (s) { return /^-/.test(s); })'),
+        t + '0.1, 1 and 10 named, nothing below 0', await page.calc('window.seen.join(" ")'));
+    await page.hoverAt('.calc-graph-plot', 2.5, 5); // x 10^0.5, y 10: as the plot starts, 4 powers of ten across it
+    await sleep(100);
+    check(/y = 10(?![\d.])/.test(await page.calc(note)) && /x = 3\.16/.test(await page.calc(note)), t + 'x² pointed at: x √10, y 10', await page.calc(note));
+
+    await page.click('.calc-graph-zoom [data-zoom="window"]');
+    check(await page.calc(ends) === '0.01 100 ' + await page.calc('document.querySelector(".calc-graph-y0").value + " " + document.querySelector(".calc-graph-y1").value') &&
+        await page.calc('+document.querySelector(".calc-graph-y0").value > 0'), t + 'the ends: x 0.01 to 100, y above 0', await page.calc(ends));
+    check(await page.calc('document.querySelector("[data-look=square]").classList.contains("calc-off") && document.querySelector("[data-look=polar]").classList.contains("calc-off")'),
+        t + 'same scale and the polar grid dim');
+    await page.calc('(function (b) { b.value = "-1"; b.dispatchEvent(new Event("input", { bubbles: true })); })(document.querySelector(".calc-graph-x0"))');
+    check(await page.calc('document.querySelector(".calc-graph-x0").parentNode.classList.contains("calc-bad")'), t + 'x from -1: marked');
+    await page.calc('(function (b) { b.value = "0.01"; b.dispatchEvent(new Event("input", { bubbles: true })); })(document.querySelector(".calc-graph-x0"))');
+    await page.click('[data-look=logx]');
+    await sleep(350);
+    check(await page.calc(look + '.logx') === false && (await page.calc(ends)).indexOf('0.01 100 ') === 0, t + 'x off the log scale: from 0.01 to 100 still', await page.calc(ends));
+    await page.click('[data-look=logx]');
+    await sleep(350);
+    check(await page.calc(look + '.logx') === true && (await page.calc(ends)).indexOf('0.01 100 ') === 0, t + 'and on again as it was', await page.calc(ends));
 }
 
 // undo and redo of the graph: a word typed one step, by Ctrl+Z in its box and Ctrl+Shift+Z or Ctrl+Y; Clear, a
@@ -2536,7 +2573,7 @@ async function graphStyle(page, at) {
         pick = function (name) {
             return page.calc('(function (n) { Array.prototype.filter.call(document.querySelectorAll(".calc-menu-box > div"), function (d) { return d.textContent === n || d.textContent === "✓" + n; })[0]' +
                 '.dispatchEvent(new MouseEvent("click", { bubbles: true })); })(' + JSON.stringify(name) + ')');
-        }, solid, n;
+        }, solid, n, dot, hex;
 
     await page.fresh(at, { graph: { f: ['x', '(1, 2), (3, 4)'], view: null } });
     await page.click('.calc-graph-btn');
@@ -2545,7 +2582,7 @@ async function graphStyle(page, at) {
     check(await menu(page) === '✓Solid|Dashed|Dotted|Thin|✓Normal|Thick|Hide', t + 'the menu of its dot, solid and normal ticked', await menu(page));
     await pick('Dashed');
     n = await page.calc(navy);
-    check(n < solid * 0.8 && n > solid * 0.4 && await page.calc(saved) === '[{"d":1,"w":1,"l":false},{"d":0,"w":1,"l":false}]', t + 'Dashed: gaps in it, kept', n + ' of ' + solid + ' ' + await page.calc(saved));
+    check(n < solid * 0.8 && n > solid * 0.4 && await page.calc(saved) === '[{"d":1,"w":1,"l":false,"c":null},{"d":0,"w":1,"l":false,"c":null}]', t + 'Dashed: gaps in it, kept', n + ' of ' + solid + ' ' + await page.calc(saved));
     await page.rightClick('.calc-graph-fn:nth-child(1) .calc-graph-swatch');
     await pick('Solid');
     await page.rightClick('.calc-graph-fn:nth-child(1) .calc-graph-swatch');
@@ -2563,8 +2600,26 @@ async function graphStyle(page, at) {
     await page.click('.calc-graph-fn:nth-child(2) .calc-graph-style');
     check(await page.calc('document.querySelector(".calc-menu-box").hidden'), t + 'pressed again, shut');
 
+    // its color: the picker, with its hex and Auto dim; a hex typed, its dot and kept; the hue clicked; Auto, its own again
+    dot = 'getComputedStyle(document.querySelector(".calc-graph-fn:nth-child(2) .calc-graph-swatch")).getPropertyValue("--c").trim()';
+    hex = function (text) {
+        return page.calc('(function (b) { b.value = ' + JSON.stringify(text) + '; b.dispatchEvent(new Event("input", { bubbles: true })); })(document.querySelector(".calc-menu-hex input"))');
+    };
+    await page.click('.calc-graph-fn:nth-child(2) .calc-graph-style');
+    check(await page.calc('document.querySelector(".calc-menu-hex input").value') === 'b0414d' && await page.calc('document.querySelector(".calc-menu-auto").classList.contains("calc-off")'),
+        t + 'the picker, its own color\'s hex, Auto dim', await page.calc('document.querySelector(".calc-menu-hex input").value'));
+    await hex('1a2b3c');
+    check(await page.calc(dot) === '#1a2b3c' && await page.calc(saved + '.indexOf(\'"c":"#1a2b3c"\') > -1') && !await page.calc('document.querySelector(".calc-menu-auto").classList.contains("calc-off")'),
+        t + 'a hex typed: its dot, kept, Auto lit', await page.calc(dot) + ' ' + await page.calc(saved));
+    await page.click('.calc-menu-hue');
+    check(await page.calc(dot) !== '#1a2b3c' && /^#[0-9a-f]{6}$/.test(await page.calc(dot)), t + 'its hue clicked', await page.calc(dot));
+    await page.click('.calc-menu-auto');
+    check(await page.calc(dot) === '#b0414d' && await page.calc(saved + '.indexOf(\'"c":null}]\') > -1'), t + 'Auto: its own color again, none chosen', await page.calc(dot) + ' ' + await page.calc(saved));
+    await hex('c2621a');
+    await page.click('.calc-graph-fn:nth-child(2) .calc-graph-style'); // shut
+
     await page.click('.calc-graph-fn:nth-child(1) .calc-graph-del');
-    check(await page.calc(saved) === '[{"d":0,"w":1,"l":true}]', t + 'with its box as the one above goes', await page.calc(saved));
+    check(await page.calc(saved) === '[{"d":0,"w":1,"l":true,"c":"#c2621a"}]', t + 'with its box as the one above goes', await page.calc(saved));
 }
 
 // a model of one's own fitted to points, y ~ a x² + b: its letters found and shown with r², no sliders for
@@ -3831,7 +3886,7 @@ async function statsMore(page, at) {
 
 // the lines of the open menu, the ones that cannot be chosen in brackets; '' while it is closed
 function menu(page) {
-    return page.calc('(function (m) { return m.hidden ? "" : [].map.call(m.querySelectorAll(":scope > div"), function (d) {' +
+    return page.calc('(function (m) { return m.hidden ? "" : [].map.call(m.querySelectorAll(":scope > div:not(.calc-menu-part)"), function (d) {' +
         ' return d.classList.contains("calc-off") ? "(" + d.textContent + ")" : d.textContent; }).join("|"); })' +
         '(document.querySelector(".calc-menu-box"))');
 }
@@ -4734,6 +4789,7 @@ async function adminPolicy(page) {
         await graphLooks(page, '/popup.html');
         await graphDrag(page, '/popup.html');
         await graphUndo(page, '/popup.html');
+        await graphLog(page, '/popup.html');
         await graphStyle(page, '/popup.html');
         await graphModel(page, '/popup.html');
         await graphShare(page, '/popup.html');

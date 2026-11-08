@@ -3001,9 +3001,10 @@
 
     // Where the lines of two equations cross within the view, a and b their differences: in each
     // square of a grid where both change sign, Newton's steps for both at once from its middle,
-    // kept if they end close by. Each is { x, y }, once
+    // kept if they end close by. Each is { x, y }, once. With view.logx its columns evenly apart
+    // in x's power of ten, as the plot has them
     function crossings(a, b, view, deg) {
-        var n = 80, dx = (view.x1 - view.x0) / n, dy = (view.y1 - view.y0) / n, fa = [], fb = [], out = [], i, j;
+        var n = 80, dy = (view.y1 - view.y0) / n, fa = [], fb = [], out = [], i, j, at = sampleX(view, n), dx;
         function f(x, y) {
             return [a.at(x, y, deg), b.at(x, y, deg)];
         }
@@ -3015,13 +3016,16 @@
             fa.push([]);
             fb.push([]);
             for (i = 0; i <= n; i++) {
-                fa[j].push(a.at(view.x0 + i * dx, view.y0 + j * dy, deg));
-                fb[j].push(b.at(view.x0 + i * dx, view.y0 + j * dy, deg));
+                fa[j].push(a.at(at.xs[i], view.y0 + j * dy, deg));
+                fb[j].push(b.at(at.xs[i], view.y0 + j * dy, deg));
             }
         }
         for (j = 0; j < n; j++) {
             for (i = 0; i < n; i++) {
-                if (changes(fa, i, j) && changes(fb, i, j)) newton(view.x0 + (i + 0.5) * dx, view.y0 + (j + 0.5) * dy);
+                if (changes(fa, i, j) && changes(fb, i, j)) {
+                    dx = at.step(at.xs[i]);
+                    newton(at.log ? Math.sqrt(at.xs[i] * at.xs[i + 1]) : view.x0 + (i + 0.5) * dx, view.y0 + (j + 0.5) * dy);
+                }
             }
         }
         return out;
@@ -3047,7 +3051,7 @@
             if (!(Math.abs(v[0]) <= 1e-7 * (1 + Math.abs(a.at(x + dx, y, deg))) && Math.abs(v[1]) <= 1e-7 * (1 + Math.abs(b.at(x + dx, y, deg))))) return;
             x = +x.toPrecision(12);
             y = +y.toPrecision(12);
-            if (out.some(function (p) { return Math.abs(p.x - x) < dx / 2 && Math.abs(p.y - y) < dy / 2; })) return;
+            if (out.some(function (p) { return Math.abs(p.x - x) < at.step(x) / 2 && Math.abs(p.y - y) < dy / 2; })) return;
             out.push({ x: x, y: y });
         }
     }
@@ -3107,7 +3111,7 @@
     // where h is 0, from its samples s at xs: a sample of 0 between others, or a change
     // of sign that halving finds a 0 in. Where h only jumps from one sign to the other,
     // as tan x does at 90°, the halving ends where it is larger, not smaller: no 0 there.
-    // None when there are more than KEY_MAX places to look
+    // None when there are more than KEY_MAX places to look. tol: how near, or what gives it at a place
     function zeros(h, xs, s, tol) {
         var out = [], last = s.length - 1, at = [], k, r, hr;
         for (k = 0; k <= last && at.length <= KEY_MAX; k++) {
@@ -3119,10 +3123,21 @@
             r = bisect(h, xs[k - 1], xs[k], s[k - 1]);
             hr = r === null ? NaN : Math.abs(h(r));
             if (hr <= Math.min(Math.abs(s[k - 1]), Math.abs(s[k]))) {
-                out.push(snap(r, tol, function (q) { return Math.abs(h(q)) <= hr; }));
+                out.push(snap(r, typeof tol === 'function' ? tol(r) : tol, function (q) { return Math.abs(h(q)) <= hr; }));
             }
         });
         return out;
+    }
+
+    // n + 1 places across the view from x0 to x1, evenly apart, or with view.logx evenly apart in x's
+    // power of ten, as a log axis has them, so its small end is looked at as closely as its large:
+    // xs, and step, how far apart they are about x
+    function sampleX(view, n) {
+        var log = view.logx && view.x0 > 0 && isFinite(view.x1 / view.x0), dx = (view.x1 - view.x0) / n,
+            r = log && Math.pow(view.x1 / view.x0, 1 / n), xs = [], k;
+        for (k = 0; k <= n; k++) xs.push(log ? view.x0 * Math.pow(r, k) : view.x0 + k * dx);
+        if (log) xs[n] = view.x1;
+        return { xs: xs, log: log, step: log ? function (x) { return Math.abs(x) * (r - 1); } : function () { return dx; } };
     }
 
     // The points of the curves worth marking within the view x0 to x1, y0 to y1: where each
@@ -3134,12 +3149,15 @@
     // meet the x axis (xint) and the y axis (yint), where they cross a curve or each other
     // (cross), each of two inequalities where the other holds, with k the one. planes: the
     // curves of a parameter that plane gives: where they meet the axes and cross a curve or an
-    // equation, u being the parameter there
+    // equation, u being the parameter there. view.logx: x on a log scale, looked at evenly along it
     function keyPoints(curves, view, deg, rels, planes) {
-        var n = 400, dx = (view.x1 - view.x0) / n, jump = (view.y1 - view.y0) / 2, xs = [], ys = [], found = [], k,
+        var n = 400, at = sampleX(view, n), xs = at.xs, step = at.step, jump = (view.y1 - view.y0) / 2, ys = [], found = [], k,
             stop = Date.now() + TRACE_TIME; // past it no more are looked for, as of a sum of thousands of terms
 
-        for (k = 0; k <= n; k++) xs.push(view.x0 + k * dx);
+        function tol(x) {
+            return step(x) * 1e-6;
+        }
+
         curves.forEach(function (c, i) {
             ys[i] = c && xs.map(function (x) { return c.at(x, deg); });
         });
@@ -3158,7 +3176,7 @@
             }
 
             if (Date.now() > stop) return;
-            add(zeros(f, xs, y, dx * 1e-6), function (x) { return { t: ['root'], x: x, y: 0, i: i }; });
+            add(zeros(f, xs, y, tol), function (x) { return { t: ['root'], x: x, y: 0, i: i }; });
 
             // three samples, the middle one higher or lower than both its neighbours, with no jump
             // between them: the golden section finds the top, or the bottom, between the outer two
@@ -3178,8 +3196,8 @@
                     return isFinite(v) ? sign * v : -Infinity;
                 }
                 add(kind[0].filter(function () { return Date.now() <= stop; }).map(function (x) {
-                    var top = peak(g, x - dx, x + dx), best = g(top);
-                    return snap(top, dx * 1e-4, function (q) { return g(q) >= best - 1e-15 * Math.max(1, Math.abs(best)); });
+                    var top = peak(g, x - step(x), x + step(x)), best = g(top);
+                    return snap(top, step(top) * 1e-4, function (q) { return g(q) >= best - 1e-15 * Math.max(1, Math.abs(best)); });
                 }), function (x) {
                     var v = c.at(x, deg, true);
                     return { t: [v === 0 ? 'root' : kind[2]], x: x, y: v, i: i }; // a lowest point at 0, as x² has, is a root
@@ -3191,14 +3209,15 @@
             // then more finely. Not of a slope found by steps, whose bends its rounding makes
             if (!c.rough) {
                 bends(y).forEach(function (h) {
-                    var r = Date.now() <= stop ? bisect(function (x) { return bend(x, dx); }, xs[h[0]], xs[h[1]], h[2]) : null, lo, hi;
-                    if (r === null || !(Math.abs(bend(r, dx)) <= h[3])) return;
-                    lo = fine(r - dx);
-                    hi = fine(r + dx);
-                    if (lo * hi < 0) r = bisect(fine, r - dx, r + dx, lo) || r;
+                    var r = Date.now() <= stop ? bisect(function (x) { return bend(x, step(x)); }, xs[h[0]], xs[h[1]], h[2]) : null, lo, hi, s;
+                    if (r === null || !(Math.abs(bend(r, step(r))) <= h[3])) return;
+                    s = step(r);
+                    lo = fine(r - s);
+                    hi = fine(r + s);
+                    if (lo * hi < 0) r = bisect(fine, r - s, r + s, lo) || r;
                     hi = Math.abs(fine(r));
-                    r = snap(r, dx * 1e-6, function (q) { // as small, or as small as its rounding tells: 2, not 1.999999999987
-                        return Math.abs(fine(q)) <= Math.max(hi, 2e-14 * (Math.abs(f(q - dx / 2)) + Math.abs(f(q)) + Math.abs(f(q + dx / 2))));
+                    r = snap(r, s * 1e-6, function (q) { // as small, or as small as its rounding tells: 2, not 1.999999999987
+                        return Math.abs(fine(q)) <= Math.max(hi, 2e-14 * (Math.abs(f(q - s / 2)) + Math.abs(f(q)) + Math.abs(f(q + s / 2))));
                     });
                     found.push({ t: ['infl'], x: r, y: c.at(r, deg, true), i: i });
                 });
@@ -3208,14 +3227,15 @@
             }
             // the bend with a quarter of the step, and the part of it that the step makes taken away
             function fine(x) {
-                return 16 * bend(x, dx / 4) - bend(x, dx / 2);
+                return 16 * bend(x, step(x) / 4) - bend(x, step(x) / 2);
             }
 
             if (view.x0 <= 0 && view.x1 >= 0) found.push({ t: ['yint'], x: 0, y: c.at(0, deg, true), i: i });
         });
 
         // the places where the samples y bend the other way: [one before, one after, its bend, the
-        // smaller of their bends]. A bend as small as the values' rounding is none, as of a line
+        // smaller of their bends]. A bend as small as the values' rounding is none, as of a line.
+        // On a log scale, of samples unevenly apart in x, the bend in x as it is with the step there
         function bends(y) {
             var out = [], last = -1, b = [], k, p, q, r;
             for (k = 1; k < n; k++) {
@@ -3226,7 +3246,7 @@
                     last = -1;
                     continue;
                 }
-                b[k] = p - 2 * q + r;
+                b[k] = at.log ? 2 * ((r - q) / (xs[k + 1] - xs[k]) - (q - p) / (xs[k] - xs[k - 1])) / (xs[k + 1] - xs[k - 1]) * step(xs[k]) * step(xs[k]) : p - 2 * q + r;
                 if (Math.abs(b[k]) <= 1e-11 * (Math.abs(p) + Math.abs(q) + Math.abs(r))) continue;
                 if (last > 0 && k - last <= 4 && b[last] * b[k] < 0) out.push([last, k, b[last], Math.min(Math.abs(b[last]), Math.abs(b[k]))]);
                 last = k;
@@ -3239,7 +3259,7 @@
                 if (!c || !e || j <= i) return;
                 add(zeros(function (x) { return c.at(x, deg) - e.at(x, deg); }, xs, xs.map(function (x, k) {
                     return ys[i][k] - ys[j][k];
-                }), dx * 1e-6), function (x) { return { t: ['cross'], x: x, y: c.at(x, deg, true), i: i, j: j }; });
+                }), tol), function (x) { return { t: ['cross'], x: x, y: c.at(x, deg, true), i: i, j: j }; });
             });
         });
 
@@ -3263,7 +3283,7 @@
             for (k = 0; k <= n; k++) ys.push(view.y0 + k * dy);
             lines(r).forEach(function (line) {
                 var flat = function (x) { return line.at(x, 0, deg); }, up = function (y) { return line.at(0, y, deg); };
-                zeros(flat, xs, xs.map(flat), dx * 1e-6).forEach(function (x) {
+                zeros(flat, xs, xs.map(flat), tol).forEach(function (x) {
                     if (line.ok(x, 0)) found.push(mark('xint', x, 0, i, line.k));
                 });
                 if (view.x0 <= 0 && view.x1 >= 0) {
@@ -3275,7 +3295,7 @@
                     var on;
                     if (!c || j === i) return;
                     on = function (x) { return line.at(x, c.at(x, deg), deg); };
-                    zeros(on, xs, xs.map(on), dx * 1e-6).forEach(function (x) {
+                    zeros(on, xs, xs.map(on), tol).forEach(function (x) {
                         var y = c.at(x, deg, true);
                         if (line.ok(x, y)) found.push(mark('cross', x, y, Math.min(i, j), 0, Math.max(i, j)));
                     });
@@ -3344,7 +3364,7 @@
         }).sort(function (p, q) { return p.x - q.x; });
         return found.filter(function (p, at) {
             var same = found.slice(0, at).filter(function (q) {
-                return q.i === p.i && Math.abs(q.x - p.x) < dx / 2 && Math.abs(q.y - p.y) <= 1e-9 * Math.max(1, Math.abs(p.y));
+                return q.i === p.i && Math.abs(q.x - p.x) < step(p.x) / 2 && Math.abs(q.y - p.y) <= 1e-9 * Math.max(1, Math.abs(p.y));
             })[0];
             if (same && same.t.indexOf(p.t[0]) < 0) same.t.push(p.t[0]);
             if (same && /^(root|yint|cross)$/.test(p.t[0]) && same.t.every(function (t) { return /^(min|max|infl)$/.test(t) || t === p.t[0]; })) {

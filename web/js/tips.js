@@ -841,17 +841,18 @@
         'graph hide': {
             t: 'Hide the curve',
             d: 'Hides this curve and its points, and leaves it out of the table. What is typed stays. ' +
-                'The ▾ beside it, or a right click, picks its line, solid, dashed or dotted, thin or thick, and labels points.',
+                'The ▾ beside it, or a right click, picks its color and its line, solid, dashed or dotted, thin or thick, and labels points.',
             k: ''
         },
         'graph show': {
             t: 'Show the curve',
-            d: 'Draws this curve again. The ▾ beside it, or a right click, picks its line, solid, dashed or dotted, thin or thick, and labels points.',
+            d: 'Draws this curve again. The ▾ beside it, or a right click, picks its color and its line, solid, dashed or dotted, thin or thick, and labels points.',
             k: ''
         },
         'graph style': {
-            t: 'Line style',
-            d: 'Its line solid, dashed or dotted, thin, normal or thick; of points, their x and y beside them; and Hide or Show.',
+            t: 'Color and line',
+            d: 'Its color, by its shade, hue or hex, Auto its own again; its line solid, dashed or dotted, ' +
+                'thin, normal or thick; of points, their x and y beside them; and Hide or Show.',
             k: ''
         },
         'graph put u': {
@@ -911,12 +912,24 @@
         },
         'graph reset': {
             t: 'Reset',
-            d: 'Every setting as it starts, the names and steps gone, and the view back to the start.',
+            d: 'Every setting as it starts, the names and steps gone, and the view back to the start; the settings then close.',
             k: ''
         },
         'graph look polar': {
             t: 'Polar grid',
             d: 'Circles about 0 and rays from it every 30° in place of the lines of the grid, for r = 2sin(3θ) and other polar curves.',
+            k: ''
+        },
+        'graph look logx': {
+            t: 'x on a log scale',
+            d: 'x by powers of ten, 0.01, 1, 100 as far apart, as much of it as is seen kept; only x above 0. ' +
+                'Without same scale or the polar grid.',
+            k: ''
+        },
+        'graph look logy': {
+            t: 'y on a log scale',
+            d: 'y by powers of ten, 0.01, 1, 100 as far apart, for growth, decay or pH; only y above 0. ' +
+                'Without same scale or the polar grid.',
             k: ''
         },
         'graph look xaxis': {

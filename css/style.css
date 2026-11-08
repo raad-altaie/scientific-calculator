@@ -649,8 +649,8 @@
     box-shadow: inset 0 0 0 2px var(--c);
 }
 
-/* its ▾ beside it, for the menu of its line, quiet until pointed at, as y′; its room kept while
-   the box is empty, the boxes alike, but not seen */
+/* its ▾ beside it, for the menu of its color and line, quiet until pointed at, as y′; in an empty box too,
+   for what is typed in it */
 #calculator .calc-graph-fn > .calc-graph-style {
     position: relative;
     display: flex;
@@ -674,10 +674,6 @@
 #calculator .calc-graph-fn > .calc-graph-style:hover {
     opacity: 1;
     background: #97b3a4;
-}
-
-#calculator .calc-graph-fn.calc-graph-empty > .calc-graph-style {
-    visibility: hidden;
 }
 
 #calculator .calc-graph-fn.calc-graph-off .calc-graph-input {
@@ -1405,6 +1401,7 @@
 #calculator .calc-graph-window .calc-graph-axisnames {
     padding-top: 4px;
     border-top: 1px solid #34505f;
+    border-radius: 0; /* a straight line above them, as above the switches */
 }
 
 #calculator .calc-graph-window .calc-graph-axisnames input {
@@ -5971,6 +5968,121 @@
     margin: 0 -2px 0 auto;
     padding-left: 16px;
     opacity: 0.7;
+}
+
+/* a part of its own in the menu, as the color of a curve: no line to press */
+#calculator .calc-menu-box > .calc-menu-part {
+    padding: 6px 6px 4px;
+    cursor: default;
+}
+
+#calculator .calc-menu-box > .calc-menu-part:hover {
+    background: none;
+}
+
+/* the color of a curve: the shade to drag in, white to its hue across and to black down, the hue below it, and
+   its hex with Auto, back to its box's own */
+#calculator .calc-menu-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 132px;
+}
+
+#calculator .calc-menu-shade,
+#calculator .calc-menu-hue {
+    position: relative;
+    touch-action: none;
+    cursor: pointer;
+}
+
+#calculator .calc-menu-shade {
+    height: 84px;
+    border-radius: 5px;
+    background: linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, hsl(var(--h, 0), 100%, 50%));
+    cursor: crosshair;
+}
+
+#calculator .calc-menu-hue {
+    height: 10px;
+    border-radius: 5px;
+    background: linear-gradient(to right, #f00, #ff0 16.67%, #0f0 33.33%, #0ff 50%, #00f 66.67%, #f0f 83.33%, #f00);
+}
+
+#calculator .calc-menu-shade > i,
+#calculator .calc-menu-hue > i {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    margin: -6px 0 0 -6px;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-sizing: border-box;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+    pointer-events: none;
+}
+
+#calculator .calc-menu-hue > i {
+    top: 50%;
+}
+
+#calculator .calc-menu-hexrow {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#calculator .calc-menu-auto {
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: #5b7186;
+    color: #d3d9e2;
+    font-size: 12px;
+    line-height: 16px;
+    cursor: pointer;
+}
+
+#calculator .calc-menu-auto:hover {
+    background: #6c8297;
+    color: #fff;
+}
+
+#calculator .calc-menu-auto.calc-off {
+    opacity: 0.4;
+    cursor: default;
+}
+
+#calculator .calc-menu-auto.calc-off:hover {
+    background: #5b7186;
+    color: #d3d9e2;
+}
+
+#calculator .calc-menu-hex {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: #aab6c4;
+    font-size: 13px;
+}
+
+#calculator .calc-menu-hex input {
+    flex: 1;
+    min-width: 0;
+    padding: 2px 5px;
+    border: 0;
+    border-radius: 4px;
+    outline: none;
+    background: #a9c4b5;
+    color: #000;
+    font: 13px/17px 'Play', 'Russo One', sans-serif;
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+#calculator .calc-menu-hex input:focus {
+    background: #c9e0d3;
 }
 
 /* Store in Var: the letters two by two, each with what it holds */
