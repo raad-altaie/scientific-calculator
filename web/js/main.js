@@ -866,7 +866,7 @@
         var key = target.closest('.calc-left > *, .calc-right > .del-ac, .calc-rad, .calc-mem, .calc-frac, .calc-fmt, .calc-hold, ' +
             '.calc-stat-btn, .calc-fx-btn, .calc-fx-row, .calc-gx-row, .calc-conv-btn, .calc-solve-btn, .calc-numbers-btn, .calc-chem-btn, .calc-phys-btn, .calc-bio-btn, .calc-chem-size, .calc-panel-size, .calc-pt-mode, .calc-search-clear, .calc-pt-unit, .calc-pt-temp-v, .calc-sv-row, ' +
             '.calc-graph-btn, .calc-graph-size, .calc-graph-add, .calc-graph-undo, .calc-graph-redo, .calc-graph-del, .calc-graph-diff, .calc-graph-points, .calc-graph-zoom > span, .calc-graph-window [data-look], .calc-graph-window [data-arrows], .calc-graph-reset, .calc-graph-pop-end, .calc-graph-pop-row, .calc-graph-play, ' +
-            '.calc-graph-fn > .calc-graph-swatch, ' +
+            '.calc-graph-fn > .calc-graph-swatch, .calc-graph-fn > .calc-graph-style, ' +
             '.calc-sto, .calc-var-btn, .calc-fx-phys, input, textarea, ' +
             '.calc-stats-chart, .calc-hist, .calc-find-btn, .calc-past-export, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit, .calc-help, .calc-open-big, ' +
             '.calc-solve .calc-solve-tab, .calc-chem .calc-solve-tab, .calc-stats .calc-solve-tab, .calc-phys .calc-solve-tab, .calc-bio .calc-solve-tab, .calc-stats-fitpick, .calc-chem [data-pt], .calc-sv-opt, .calc-sv-copy, .calc-f-copy, .calc-sv-example, .calc-sv-reset, .calc-sv-boxes .calc-sv-sym') || letterIn(target);
@@ -1175,6 +1175,7 @@
             if (el.classList.contains('calc-graph-pop-end')) return CalcTips['graph end ' + el.dataset.end];
             if (el.classList.contains('calc-graph-pop-row')) return CalcTips['graph put ' + (seqOf(graphPinned) ? 'term ' : '') + el.dataset.put];
             if (el.classList.contains('calc-graph-play')) return CalcTips[graphPlay[el.parentNode.dataset.k] ? 'graph pause' : 'graph play'];
+            if (el.classList.contains('calc-graph-style')) return graphInputs[graphRows.indexOf(el.parentNode)].value.trim() ? CalcTips['graph style'] : null;
             if (el.classList.contains('calc-graph-swatch')) {
                 value = graphRows.indexOf(el.parentNode);
                 return graphInputs[value].value.trim() ? CalcTips[graphOff[value] ? 'graph show' : 'graph hide'] : null;
@@ -2492,6 +2493,18 @@
             hideTip();
             readGraph();
             saveState();
+        }, false);
+        // its ▾, the menu a right click on the dot opens, below it; pressed again, shut
+        row.querySelector('.calc-graph-style').addEventListener('click', function (e) {
+            var b = e.currentTarget, items = styleItems(i), at;
+            e.preventDefault(); // not the label's focus of the box
+            hideTip();
+            if (b.shut || !items) {
+                b.shut = false;
+                return;
+            }
+            at = inside(b.getBoundingClientRect());
+            openMenu(items, { left: at.left - 4, top: at.bottom + 4 }, b);
         }, false);
     });
 

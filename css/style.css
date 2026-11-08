@@ -554,13 +554,17 @@
 
 #calculator.calc-big .calc-graph-fn {
     gap: 8px;
-    padding: 0 10px;
+    padding: 0 10px 0 7px;
     border-radius: 6px;
 }
 
 #calculator.calc-big .calc-graph-fn .calc-graph-swatch {
     width: 12px;
     height: 12px;
+}
+
+#calculator.calc-big .calc-graph-fn > .calc-graph-style {
+    margin-left: -6px;
 }
 
 #calculator.calc-big .calc-graph-input {
@@ -594,7 +598,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 0 9px;
+    padding: 0 9px 0 8px;
     border-radius: 5px;
     background: #a9c4b5;
     cursor: text;
@@ -643,6 +647,37 @@
 #calculator .calc-graph-fn.calc-graph-off .calc-graph-swatch {
     background: none;
     box-shadow: inset 0 0 0 2px var(--c);
+}
+
+/* its ▾ beside it, for the menu of its line, quiet until pointed at, as y′; its room kept while
+   the box is empty, the boxes alike, but not seen */
+#calculator .calc-graph-fn > .calc-graph-style {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 16px;
+    margin-left: -4px; /* nearer the dot than the gap */
+    padding: 0 3px;
+    border-radius: 3px;
+    color: #33443b;
+    opacity: 0.55;
+    cursor: pointer;
+}
+
+#calculator .calc-graph-fn > .calc-graph-style::after { /* easier to hit */
+    content: '';
+    position: absolute;
+    inset: -4px 0;
+}
+
+#calculator .calc-graph-fn > .calc-graph-style:hover {
+    opacity: 1;
+    background: #97b3a4;
+}
+
+#calculator .calc-graph-fn.calc-graph-empty > .calc-graph-style {
+    visibility: hidden;
 }
 
 #calculator .calc-graph-fn.calc-graph-off .calc-graph-input {
@@ -1140,6 +1175,7 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+    box-sizing: border-box; /* its padding and border within its height, 6px clear of the plot's bottom */
     max-height: calc(100% - 12px); /* a short plot scrolls it */
     overflow-y: auto;
     padding: 5px;

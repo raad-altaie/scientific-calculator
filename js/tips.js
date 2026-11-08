@@ -841,12 +841,17 @@
         'graph hide': {
             t: 'Hide the curve',
             d: 'Hides this curve and its points, and leaves it out of the table. What is typed stays. ' +
-                'Right-click it for its line, solid, dashed or dotted, thin or thick, and to label points.',
+                'The ▾ beside it, or a right click, picks its line, solid, dashed or dotted, thin or thick, and labels points.',
             k: ''
         },
         'graph show': {
             t: 'Show the curve',
-            d: 'Draws this curve again. Right-click it for its line, solid, dashed or dotted, thin or thick, and to label points.',
+            d: 'Draws this curve again. The ▾ beside it, or a right click, picks its line, solid, dashed or dotted, thin or thick, and labels points.',
+            k: ''
+        },
+        'graph style': {
+            t: 'Line style',
+            d: 'Its line solid, dashed or dotted, thin, normal or thick; of points, their x and y beside them; and Hide or Show.',
             k: ''
         },
         'graph put u': {

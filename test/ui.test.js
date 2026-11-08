@@ -2557,6 +2557,11 @@ async function graphStyle(page, at) {
     await page.calc('(function (w) { var o = CanvasRenderingContext2D.prototype.fillText; window.seen = w; CanvasRenderingContext2D.prototype.fillText = function (s) { w.push(s); return o.apply(this, arguments); }; })([])');
     await pick('Label points');
     check(await page.calc('window.seen.indexOf("(1, 2)") > -1 && window.seen.indexOf("(3, 4)") > -1'), t + 'labelled with their x and y', await page.calc('window.seen.join(" ")'));
+    await page.click('.calc-graph-fn:nth-child(2) .calc-graph-style');
+    check(await menu(page) === '✓Solid|Dashed|Dotted|Thin|✓Normal|Thick|✓Label points|Hide' && !await page.calc('document.activeElement.classList.contains("calc-graph-input")'),
+        t + 'its ▾ opens the same menu, the box not focused', await menu(page));
+    await page.click('.calc-graph-fn:nth-child(2) .calc-graph-style');
+    check(await page.calc('document.querySelector(".calc-menu-box").hidden'), t + 'pressed again, shut');
 
     await page.click('.calc-graph-fn:nth-child(1) .calc-graph-del');
     check(await page.calc(saved) === '[{"d":0,"w":1,"l":true}]', t + 'with its box as the one above goes', await page.calc(saved));
