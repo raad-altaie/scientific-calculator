@@ -2,13 +2,16 @@
 // Run in the head of each page, before the rest: the words of the language are read from js/lang/<code>.js,
 // loaded here, before the page is drawn.
 //
-// The English is the key: CalcLang.t('Clear') gives the word for Clear in the language in use, and Clear itself
+// The code asks in English: CalcLang.t('Clear') gives the word for Clear in the language in use, and Clear itself
 // where it has none yet, so a new card shows in English till it is translated. A text with a value in it names it
 // in braces, t('{n} of {all}', { n: 3, all: 10 }), as the order of the words differs from language to language;
 // one of a number has a form for each number, n(3, '{n} day', '{n} days'), as a language has them (Intl.PluralRules).
 //
-// A language added: its file, CalcLang.add('es', { 'Clear': 'Borrar', … }), made with node scripts/lang.js
-// update es, and its name in LANGS below. The pseudo-language qps, chosen with localStorage.lang = '"qps"',
+// Each text has a short name: js/lang/en.js has the English of each, { clear: 'Clear', … }, and each language its
+// words by the same names, { clear: 'Borrar', … }; the name stays when the English changes a little, so the words
+// do too. Both files are made by node scripts/lang.js, which finds the English in the code. A language added:
+// node scripts/lang.js add es Español, its words then filled in. A language of a country, pt-BR, has what it does
+// not have itself from pt where there is one. The pseudo-language qps, chosen with localStorage.lang = '"qps"',
 // makes every word that goes through here [Ŵîţĥ åççéñţš ~~], longer, so what is still in plain English is
 // what is not yet translated, and what is cut short has too little room for a longer language
 (function (root) {
@@ -16,7 +19,9 @@
 
     var LANGS = { en: 'English', ar: 'العربية' }, // the languages it has, each by its own name, in the order of the options' list
         RTL = /^(ar|fa|he|ur)$/, // written right to left: the class lang-rtl, the layout as it is
-        tables = {}, // the words of each language loaded: English → its own
+        tables = {}, // the words of each language loaded, by name; en's the English of each
+        names = null, // the English → its name, made from en's words as first asked
+        chain = [], // the language in use, then the one of its country's language, pt-BR then pt
         chosen = 'auto', // as the options page keeps it, in localStorage.lang: a language, or auto for the browser's
         code = 'en',
         plural = null, // Intl.PluralRules of the language in use
@@ -78,15 +83,37 @@
         });
     }
 
+    // the English of a text of en.js, as the code asks for it: the text, the other of a number's forms, or a text
+    // of a context, 'state' and the text with \u0004 between
+    function englishOf(entry) {
+        return typeof entry === 'string' ? entry : entry.other !== undefined ? entry.other : entry.context + '\u0004' + entry.text;
+    }
+
+    // The words of the language in use for an English text: a text, or the forms of a number; of its country's
+    // language where it has none itself; undefined where neither has them yet
+    function wordsOf(text) {
+        var name, i, table, value;
+        if (!names) {
+            names = Object.create(null);
+            Object.keys(tables.en || {}).forEach(function (n) { names[englishOf(tables.en[n])] = n; });
+        }
+        name = names[text];
+        for (i = 0; name && i < chain.length; i++) {
+            table = tables[chain[i]];
+            value = table && Object.prototype.hasOwnProperty.call(table, name) ? table[name] : null;
+            if (value && (typeof value === 'string' || value.other)) return value;
+        }
+    }
+
     // the words of the language in use for the English text, or the English while it has none
     function word(text) {
-        var table = tables[code], own;
+        var found;
         if (code === 'en' || typeof text !== 'string' || !text) return text;
         if (code === PSEUDO) return pseudo(text);
-        own = table && table[text];
-        if (typeof own === 'string' && own) return own;
-        if (debug && !own) missing[text] = true;
-        return own || text;
+        found = wordsOf(text);
+        if (typeof found === 'string') return found;
+        if (debug) missing[text] = true;
+        return text;
     }
 
     // The text in the language in use, its values put in
@@ -105,7 +132,7 @@
     // Of a number n: one, the English with one, as '{n} day', and other with any other, '{n} days', the key of the
     // language's forms: { one: …, few: …, many: …, other: … }, each as many as the language has. {n} is n
     function n(count, one, other, values) {
-        var forms = code !== 'en' && code !== PSEUDO && tables[code] && tables[code][other], form, all = { n: count };
+        var forms = code !== 'en' && code !== PSEUDO && wordsOf(other), form, all = { n: count };
         if (values) Object.keys(values).forEach(function (k) { all[k] = values[k]; });
         if (code === PSEUDO) return fill(pseudo(count === 1 ? one : other), all);
         if (forms && typeof forms === 'object') {
@@ -149,12 +176,16 @@
         })(el);
     }
 
-    // a language's words, from its file
+    // a language's words, from its file; en's, the English of each name. What a file has to check after it, the
+    // names translated from an earlier English, is for scripts/lang.js
     function add(lang, table) {
         tables[lang] = table;
+        if (lang === 'en') names = null;
     }
 
     code = pick();
+    chain = [code];
+    if (code.indexOf('-') > 0 && LANGS[code.split('-')[0]]) chain.push(code.split('-')[0]);
     try {
         plural = new Intl.PluralRules(code === PSEUDO ? 'en' : code);
     } catch (e) { }
@@ -162,7 +193,10 @@
     // before those after it. Only from the head, where the page is still being read
     if (typeof document !== 'undefined') { // not in the tests, under Node
         if (code !== 'en' && code !== PSEUDO && document.currentScript && document.readyState === 'loading') {
-            document.write('<script src="' + document.currentScript.src.replace(/lang\.js(\?.*)?$/, 'lang/' + code + '.js') + '"><\/script>');
+            // the English of each name, then the language of its country, then its own
+            ['en'].concat(chain.slice(1), code).forEach(function (file) {
+                document.write('<script src="' + document.currentScript.src.replace(/lang\.js(\?.*)?$/, 'lang/' + file + '.js') + '"><\/script>');
+            });
         }
         document.documentElement.lang = code === PSEUDO ? 'en' : code;
         // written right to left: the page laid out as it is, each text read from the right (style.css, options.css)
@@ -172,6 +206,7 @@
     root.CalcLang = {
         code: code, // the language in use
         locale: code === PSEUDO ? 'en' : code, // and as Intl and toLocaleString take it
+        rtl: RTL.test(code), // written right to left: the class lang-rtl on the page
         chosen: function () { return chosen; }, // as chosen: a language, or auto
         names: LANGS,
         browser: browserLang, // the language the browser asks for, of these

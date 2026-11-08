@@ -9,6 +9,29 @@
     src: url('../fonts/Play-Bold.ttf');
 }
 
+/* Arabic in Noto Kufi Arabic (fonts/NotoKufiArabic-*.ttf, SIL Open Font License), its letters alone: Play has none,
+   and Latin, the numbers and the maths stay in Play. Bold made from it, as Play's is: a face of 700 in Play would take
+   Play from the bold of Latin. Of Play Bold, its own bold */
+@font-face {
+    font-family: Play;
+    src: url('../fonts/NotoKufiArabic-Regular.ttf');
+    size-adjust: 90%; /* a little smaller: wider and taller than Play beside it */
+    ascent-override: 105%; /* its lines as close as Play's, not its own 1.9 */
+    descent-override: 35%;
+    line-gap-override: 0%;
+    unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+
+@font-face {
+    font-family: 'Play Bold';
+    src: url('../fonts/NotoKufiArabic-Bold.ttf');
+    size-adjust: 90%; /* a little smaller: wider and taller than Play beside it */
+    ascent-override: 105%; /* its lines as close as Play's, not its own 1.9 */
+    descent-override: 35%;
+    line-gap-override: 0%;
+    unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+
 /* Every size in here is in em, from this font: set, and not the browser's, which is not the
    same in Chrome's popup, Firefox's and a web page, so the calculator looks the same in each */
 #calculator {
@@ -9173,11 +9196,599 @@
 
 /* A language written right to left, as Arabic (lang.js): the calculator laid out as it is, each of its texts read
    from the right as its first letter says, its numbers and maths as they are; a text of the left set from the start of
-   its own direction. Not the display and the keys, what is typed, nor the drawings */
-.lang-rtl #calculator :not(.calc-display, .calc-display *, .calc-left, .calc-left *, .calc-right, .calc-right *, input, textarea, svg, svg *, kbd) {
+   its own direction. Not the display and the keys, what is typed, nor the drawings; nor a mark of a word, a sub or a
+   sup, italic or bold, which goes with the word it is of: V<sub>out</sub> as V and its out, not out on V's other side */
+.lang-rtl #calculator :not(.calc-display, .calc-display *, .calc-left, .calc-left *, .calc-right, .calc-right *, input, textarea, svg, svg *, kbd, sub, sup, i, b, em, strong) {
     unicode-bidi: plaintext;
 }
 
-.lang-rtl #calculator .calc-tip {
+/* a tip from the right, a line of Arabic as main.js marks it, its maths and English left to right inside it
+   (ltrRuns); a line with no Arabic at the right as well, read from its left */
+.lang-rtl #calculator .calc-tip,
+.lang-rtl #calculator .calc-tip * {
+    text-align: right;
+}
+
+.lang-rtl #calculator .calc-tip .calc-rtl {
+    unicode-bidi: isolate;
+    direction: rtl;
+}
+
+.lang-rtl #calculator .calc-tip .calc-ltr {
+    unicode-bidi: isolate;
+    direction: ltr;
+}
+
+.lang-rtl #calculator .calc-tip-scrolls .calc-tip-body.calc-rtl {
+    margin-right: 0;
+    margin-left: -6px;
+    padding-right: 0;
+    padding-left: 6px;
+}
+
+/* the strip above the display mirrored: the name at the right, the ? and open big at the left */
+.lang-rtl #calculator .logo {
+    float: right;
+    margin-right: 11px;
+    margin-left: 0;
+}
+
+.lang-rtl #calculator .calc-help {
+    right: auto;
+    left: 11px;
+}
+
+.lang-rtl #calculator .calc-open-big {
+    right: auto;
+    left: 33px;
+}
+
+/* Advanced mode, and a tool popped out, right to left: the rail down the right, what is popped out beside it at its
+   left, as the page reads; the calculator itself as it is. Pop in and close of a tool's own window on its
+   Calculator tab at the top left, where every tool's are (below) */
+.lang-rtl #calculator.calc-panel-big .calc-big-on,
+.lang-rtl #calculator.calc-big .calc-graph {
+    right: var(--calc-go-left) !important;
+    left: 0 !important;
+    padding-right: 0;
+    padding-left: env(safe-area-inset-left);
+}
+
+.lang-rtl #calculator:is(.calc-big, .calc-panel-big, .calc-home) ~ .calc-go {
+    right: 0;
+    left: auto;
+    padding-right: env(safe-area-inset-right);
+    padding-left: 0;
+}
+
+.lang-rtl #calculator.calc-home:not(.calc-big, .calc-chem-big, .calc-panel-big) ~ .calc-home-acts {
+    right: auto;
+    left: 0;
+    flex-direction: row-reverse;
+    padding: calc(4px + env(safe-area-inset-top)) 6px 4px calc(5px + env(safe-area-inset-left));
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 10px;
+}
+
+/* on a phone the bar across the top, from the right: the calculator first, the options and the guide at its left end */
+@media (max-width: 743px) {
+    .lang-rtl #calculator:is(.calc-big, .calc-panel-big, .calc-home) ~ .calc-go {
+        left: 0;
+        direction: rtl;
+        padding-right: calc(4px + env(safe-area-inset-right));
+        padding-left: calc(4px + env(safe-area-inset-left));
+    }
+
+    .lang-rtl .calc-go .calc-go-find {
+        margin-right: 0;
+        margin-left: 9px;
+    }
+
+    .lang-rtl .calc-go .calc-go-find::before {
+        right: auto;
+        left: -7px;
+    }
+
+    .lang-rtl .calc-go .calc-go-item[data-tab="options"] {
+        margin-right: auto;
+        margin-left: 0;
+    }
+
+    .lang-rtl .calc-go .calc-go-item[data-tab="options"]::before {
+        right: -5px;
+        left: auto;
+    }
+
+    .lang-rtl #calculator.calc-home:not(.calc-big, .calc-chem-big, .calc-panel-big) ~ .calc-home-acts {
+        padding-top: 4px;
+    }
+}
+
+/* right to left, the cards of the panels, popped in or out: the name with its icon at the top right, the icon its
+   room toward the name; the arrow, and insert of a constant, at the left */
+.lang-rtl #calculator .calc-icon {
+    margin: 0 -0.75px 0 3.25px;
+}
+
+/* a card's name from the right, its icon first at the right, though it has no Arabic in it: IEEE 754 */
+.lang-rtl #calculator :is(.calc-fx-name, .calc-gx-name, .calc-sv-name, .calc-sv-side-name) {
+    unicode-bidi: isolate;
+    direction: rtl;
+}
+
+.lang-rtl #calculator .calc-side .calc-sv-side-name .calc-icon {
+    margin: 0 -1px 0 4px;
+}
+
+.lang-rtl #calculator .calc-fx-row:has(.calc-fx-eq) .calc-fx-name,
+.lang-rtl #calculator .calc-gx-row:has(.calc-gx-eq) .calc-gx-name,
+.lang-rtl #calculator .calc-sv-row:has(.calc-sv-eq) .calc-sv-name {
+    right: 9px;
+    left: auto;
+}
+
+/* the graph's examples as the formulas' cards: from the right, the scrollbar at the left; what each types as it is */
+.lang-rtl #calculator .calc-gx-list {
+    direction: rtl;
+}
+
+.lang-rtl #calculator .calc-gx-f {
+    direction: ltr;
+}
+
+@container calculator (min-width: 760px) {
+    .lang-rtl #calculator.calc-big .calc-gx-list {
+        padding: 4px 16px 12px 8px;
+    }
+}
+
+.lang-rtl #calculator .calc-item-collapse {
+    right: auto;
+    left: 5px;
+}
+
+/* not of the graph's examples, left to right as the graph is (below) */
+.lang-rtl #calculator .calc-gx-list .calc-item-collapse {
+    right: 5px;
+    left: auto;
+}
+
+.lang-rtl #calculator .calc-fx-row .calc-fx-put {
+    right: auto;
+    left: 6px;
+}
+
+/* and laid out from the right, a card open as well: its boxes after their names at their left, its results and
+   tables, Reset at the left. Not what keeps its order: what is typed, the formulas, the drawings, a matrix and its
+   boxes, the bits of a number, a sequence, the bands of a resistor */
+.lang-rtl #calculator :is(.calc-sv-list, .calc-fx-list) {
+    direction: rtl;
+}
+
+.lang-rtl #calculator :is(.calc-sv-list, .calc-fx-list) :is(svg, canvas, .calc-sv-f, .calc-fx-f, .calc-sv-tile:not(.calc-sv-table) .calc-sv-cells, .calc-sv-cells-in, .calc-sv-bits, .calc-bio-seq, .calc-bio-aln, .calc-sv-choice:has(.calc-band)) {
+    direction: ltr;
+}
+
+/* a result's name at the right of its tile, a list of numbers from the right; Copy of a matrix at the left */
+.lang-rtl #calculator :is(.calc-sv-list, .calc-fx-list) :is(.calc-sv-label, .calc-sv-wrap .calc-sv-value) {
+    text-align: right;
+}
+
+.lang-rtl #calculator :is(.calc-sv-matrix:not(.calc-sv-table), .calc-sv-copies) .calc-sv-label {
+    padding-right: 0;
+    padding-left: 46px;
+}
+
+.lang-rtl #calculator .calc-sv-copy-m {
+    right: auto;
+    left: 6px;
+}
+
+/* every arrow of Insert from the right, up into the display, as the page reads: mirrored back where it was
+   mirrored, and of a letter's value, drawn from the left (insertIcon), mirrored */
+.lang-rtl #calculator :is(.calc-fx-insert, .calc-fx-put, .calc-peek-act, .calc-graph-pop-row) svg {
+    transform: none;
+}
+
+.lang-rtl #calculator .calc-var-btn[data-act="insert"] svg {
+    transform: scaleX(-1);
+}
+
+/* a table's lines between its columns on their right, as it reads: none after its first, the years, at the right */
+.lang-rtl #calculator :is(.calc-sv-list, .calc-fx-list) .calc-sv-table :is(.calc-sv-cell, .calc-sv-th) {
+    border-right: 1px solid #8eab9b;
+    border-left: none;
+}
+
+.lang-rtl #calculator :is(.calc-sv-list, .calc-fx-list) .calc-sv-table .calc-sv-cells > :nth-child(4n + 1) {
+    border-right: none;
+}
+
+/* The graph popped out on a wide page, right to left: its boxes, points, sliders and examples at the right, the plot
+   or the table at their left, the line between them dragged from the right (main.js); pop in and close at the top
+   left, as every panel's, undo and redo beside the boxes, the line about the point between them. What is in each
+   column as it is, left to right */
+@container calculator (min-width: 760px) {
+    .lang-rtl #calculator.calc-big .calc-graph.calc-open {
+        direction: rtl;
+    }
+
+    .lang-rtl #calculator.calc-big .calc-graph.calc-open > :not(.calc-past-head, .calc-graph-note, .calc-graph-undos) {
+        direction: ltr;
+    }
+
+    .lang-rtl #calculator.calc-big .calc-graph-size,
+    .lang-rtl #calculator.calc-big .calc-graph .calc-past-close {
+        right: auto;
+        left: calc((5px + env(safe-area-inset-left)) / 1.15);
+    }
+
+    .lang-rtl #calculator.calc-big .calc-graph-size {
+        left: calc((33px + env(safe-area-inset-left)) / 1.15);
+    }
+
+    .lang-rtl #calculator.calc-big .calc-graph-undos {
+        margin: 0 4px calc(12px / 1.15) 0;
+    }
+
+    .lang-rtl #calculator.calc-big .calc-graph-note {
+        margin-right: 56px;
+        margin-left: 96px;
+    }
+
+    .lang-rtl #calculator.calc-big :is(.calc-graph-plot, .calc-graph-table) {
+        margin-right: 4px;
+        margin-left: 0;
+    }
+
+    .lang-rtl #calculator.calc-big .calc-graph-split {
+        margin-right: 1px;
+        margin-left: 0;
+    }
+
+    .lang-rtl #calculator.calc-big .calc-graph-split::after {
+        margin-left: 9px;
+    }
+}
+
+/* the statistics from the right: its results, each name at the right of its tile, and what is typed, Arabic from
+   the right and the numbers as they are; a letter of the variables at the right */
+.lang-rtl #calculator .calc-stats-grid {
+    direction: rtl;
+}
+
+.lang-rtl #calculator .calc-stats-grid :is(.calc-stats-label, .calc-sv-label) {
+    text-align: right;
+}
+
+.lang-rtl #calculator .calc-stats-input {
+    direction: ltr; /* as the boxes (below) */
+    unicode-bidi: plaintext;
+    text-align: right;
+}
+
+/* popped out on a wide page, what is typed at the right, and how many there are, the chart and the results at its
+   left; the chart as it is */
+@container calculator (min-width: 760px) {
+    .lang-rtl #calculator.calc-panel-big .calc-stats.calc-big-on.calc-open:not(.calc-stats-testing) {
+        direction: rtl;
+    }
+
+    .lang-rtl #calculator.calc-panel-big .calc-stats.calc-big-on .calc-stats-input {
+        margin: 8px 22px 4px 0;
+    }
+
+    .lang-rtl #calculator.calc-panel-big .calc-stats.calc-big-on :is(.calc-stats-note, .calc-stats-fitrow) {
+        margin: 8px 8px 4px 30px;
+        text-align: right;
+    }
+
+    .lang-rtl #calculator.calc-panel-big .calc-stats.calc-big-on .calc-stats-out {
+        padding: 4px 4px 6px 22px;
+    }
+}
+
+.lang-rtl #calculator .calc-stats svg {
+    direction: ltr;
+}
+
+.lang-rtl #calculator .calc-var-row {
+    padding: 3.25px 10px 3.25px 4px;
+}
+
+.lang-rtl #calculator.calc-panel-big .calc-big-on .calc-var-row {
+    padding: 5px 14px 5px 6px;
+}
+
+/* the letter at the right of its room, by the edge, as it is at the left in English: A is a text of the left */
+.lang-rtl #calculator .calc-var-k {
+    text-align: right;
+}
+
+/* every panel's words from the start of their own direction, Arabic at the right, not all at the left as in English;
+   what stays left to right, maths and a sequence, at the left */
+.lang-rtl #calculator .calc-past {
     text-align: start;
+}
+
+/* the buttons of the plot, closer, farther, the start and its settings, at its top left, the settings they open at its
+   top right; save in the corner below at the left */
+.lang-rtl #calculator .calc-graph-zoom {
+    right: auto;
+    left: 6px;
+}
+
+.lang-rtl #calculator .calc-graph-export {
+    left: 1px;
+}
+
+.lang-rtl #calculator .calc-graph-window {
+    right: 6px;
+    left: auto;
+    direction: rtl; /* its rows from the right: x, from, to, its step; a switch's name at the right */
+    text-align: right;
+}
+
+.lang-rtl #calculator .calc-graph-window input {
+    direction: ltr; /* -10, not 10- */
+}
+
+/* each row's switch as far from the left as from the right in English: 4px, a single one or the y of two */
+.lang-rtl #calculator .calc-graph-looks > span,
+.lang-rtl #calculator .calc-graph-two {
+    padding-right: 3px;
+    padding-left: 4px;
+}
+
+.lang-rtl #calculator .calc-graph-two {
+    padding-right: 3px;
+    padding-left: 1px;
+}
+
+/* the line between the arrows' parts at the right of each after the first, not doubled on the edge of the row */
+.lang-rtl #calculator .calc-graph-seg > span + span {
+    border-right: 1px solid #4d6b80;
+    border-left: 0;
+}
+
+/* a switch on at the left, the way it goes, as the options' */
+.lang-rtl #calculator .calc-graph-looks b::after {
+    right: 2px;
+    left: auto;
+}
+
+.lang-rtl #calculator .calc-graph-looks .calc-on b::after {
+    transform: translateX(-12px);
+}
+
+/* the menu of a right click from the right, at the left of the pointer (main.js): the arrow of a line that opens the
+   letters at its left, pointing that way. The color of a curve as it is */
+.lang-rtl #calculator .calc-menu-box {
+    direction: rtl;
+    text-align: right;
+}
+
+.lang-rtl #calculator .calc-menu-more {
+    margin: 0 auto 0 -2px;
+    transform: scaleX(-1); /* its room to the text with it, at its right */
+}
+
+/* but the letters of Insert Var and Store in Var as they are, A to J from the left, each with its value after it */
+.lang-rtl #calculator .calc-menu-box.calc-menu-letters {
+    direction: ltr;
+    text-align: left;
+}
+
+.lang-rtl #calculator .calc-menu-picker {
+    direction: ltr;
+}
+
+/* but not the element shown in the gap at the top of the periodic table, left to right as the table is, nor the
+   graph: its boxes, notes, examples and table as in English, its tabs and search from the right as every panel's */
+.lang-rtl #calculator :is(.calc-pt-gap, .calc-graph) {
+    text-align: left;
+}
+
+/* The periodic table right to left, popped in or out: the card of the element at the left of the table on a wide
+   page, its words and tiles from the right, its big tile at the right of its name; the search, its ways and the
+   colours' key from the right. The table as it is everywhere, hydrogen at the top left, its tiles as they are, the
+   element shown in its gap at the top, and the drawings */
+.lang-rtl #calculator .calc-pt {
+    direction: rtl;
+}
+
+.lang-rtl #calculator .calc-pt :is(.calc-pt-grid, .calc-pt-el, svg) {
+    direction: ltr;
+}
+
+.lang-rtl #calculator.calc-chem-big .calc-pt-head .calc-pt-big {
+    margin-right: 2px;
+    margin-left: 0;
+}
+
+.lang-rtl #calculator.calc-chem-big .calc-pt-atom {
+    margin-right: 0;
+}
+
+@container calculator (min-width: 900px) {
+    .lang-rtl #calculator.calc-chem-big .calc-pt-body {
+        padding: 0 12px 0 6px;
+    }
+
+    .lang-rtl #calculator.calc-chem-big .calc-pt-hide {
+        right: auto;
+        left: 8px;
+    }
+
+    .lang-rtl #calculator.calc-chem-big .calc-pt-head {
+        padding-right: 0;
+        padding-left: 26px; /* clear of its ×, at the left */
+    }
+}
+
+/* what is said of an element, at the right */
+.lang-rtl #calculator .calc-pt-text .calc-sv-value {
+    text-align: right;
+}
+
+/* the solubility table's cations down its right, each toward the table */
+.lang-rtl #calculator .calc-sol-side {
+    padding-right: 0;
+    padding-left: 3px;
+    text-align: left;
+}
+
+/* The boxes and the searches typed from the right, the overlay of Search as well: Arabic read from the right, a
+   number or maths as it is, read from its left as its first letter says (plaintext: -12 stays -12), all at the
+   right. Not a matrix's boxes, in the middle of theirs */
+.lang-rtl #calculator :is(.calc-sv-list, .calc-fx-list) :is(input, textarea),
+.lang-rtl #calculator :is(.calc-fx-search, .calc-gx-search, .calc-pt-search),
+.lang-rtl .calc-find-input {
+    direction: ltr; /* a line with no letters, 4 8 15 -16, from its left: rtl would turn it to 15- 8 4 */
+    unicode-bidi: plaintext;
+    text-align: right;
+}
+
+/* a search empty, its hint read from the right, its … at the end at its left, as the box's own direction sets a
+   hint's. Not a card's box, whose hint is a number, -9.81, not 9.81- */
+.lang-rtl #calculator :is(.calc-fx-search, .calc-gx-search, .calc-pt-search):placeholder-shown,
+.lang-rtl .calc-find-input:placeholder-shown {
+    direction: rtl;
+}
+
+.lang-rtl #calculator :is(.calc-sv-list, .calc-fx-list) .calc-sv-cells-in input {
+    direction: ltr;
+    text-align: center;
+}
+
+/* a date's calendar button at the left of its box, the room for it there; popped out as well */
+.lang-rtl #calculator .calc-sv-var .calc-sv-date input {
+    padding-right: 7px;
+    padding-left: 30px;
+}
+
+.lang-rtl #calculator.calc-panel-big .calc-big-on .calc-sv-var .calc-sv-date input {
+    padding-right: 9px;
+}
+
+.lang-rtl #calculator .calc-sv-cal {
+    right: auto;
+    left: 3px;
+}
+
+/* the × of a search at the left of its box, the room for it there */
+.lang-rtl #calculator :is(.calc-fx-search, .calc-gx-search) {
+    padding-right: 9px;
+    padding-left: 28px;
+}
+
+.lang-rtl #calculator.calc-big .calc-gx-search {
+    padding-right: 11px;
+    padding-left: 34px;
+}
+
+.lang-rtl #calculator .calc-pt-search {
+    padding-right: 8px;
+    padding-left: 28px;
+}
+
+.lang-rtl #calculator .calc-search-clear {
+    right: auto;
+    left: 3px;
+}
+
+.lang-rtl #calculator .calc-pt-find > .calc-search-clear {
+    right: auto;
+    left: 1px;
+}
+
+.lang-rtl #calculator.calc-panel-big .calc-big-on .calc-search-clear,
+.lang-rtl #calculator.calc-big .calc-graph-examples .calc-search-clear,
+.lang-rtl #calculator.calc-chem-big .calc-pt-find > .calc-search-clear {
+    right: auto;
+    left: 5px;
+}
+
+/* Search from the right, over the page or in the calculator: its icon at the right of its box, Esc and its × at the
+   left; what it finds each with its tool's icon at the right, where it is at the left, each text read as its first
+   letter says */
+.lang-rtl .calc-find {
+    text-align: right;
+}
+
+.lang-rtl :is(.calc-find-box, .calc-find-panel .calc-find-bar, .calc-find-panel .calc-find-list) {
+    direction: rtl;
+    text-align: right;
+}
+
+.lang-rtl .calc-find-box :not(svg, svg *, kbd, input) {
+    unicode-bidi: plaintext;
+}
+
+.lang-rtl #calculator :is(.calc-sv-fields, .calc-fx-fields) :is(.calc-sv-sym, .calc-fx-sym) {
+    padding-right: 4px;
+    padding-left: 0;
+}
+
+/* popped out on a wide page, the list at the right, its scrollbar at its left, and the card open beside it at the
+   left; the line between them dragged from the right (main.js) */
+.lang-rtl #calculator.calc-panel-big .calc-big-on :is(.calc-sv-list, .calc-fx-list).calc-side {
+    margin-right: 0;
+    margin-left: auto;
+    padding: 12px 16px 12px 8px;
+}
+
+.lang-rtl #calculator .calc-side :is(.calc-sv-form, .calc-fx-form) {
+    right: auto;
+    left: 22px;
+    margin-left: 0;
+}
+
+.lang-rtl #calculator.calc-panel-big .calc-big-on:has(> .calc-side) > .calc-side-split {
+    right: calc(var(--calc-side) + 1px);
+    left: auto;
+}
+
+.lang-rtl #calculator .calc-side-split::after {
+    margin-left: 9px;
+}
+
+@container calculator (min-width: 760px) {
+    .lang-rtl #calculator.calc-panel-big .calc-fx.calc-big-on:has(.calc-fx-list.calc-side) .calc-search,
+    .lang-rtl #calculator.calc-panel-big .calc-conv.calc-big-on:has(.calc-conv-units.calc-side) .calc-search {
+        margin-right: 16px;
+        margin-left: auto;
+    }
+}
+
+/* the tabs of every tool from the right, popped in or out, pop out, pop in and close at the left */
+.lang-rtl #calculator .calc-past-head {
+    direction: rtl;
+    padding-right: 12px;
+    padding-left: 4px;
+}
+
+.lang-rtl #calculator.calc-panel-big .calc-big-on > .calc-past-head {
+    padding: 4px 20px 4px 5px;
+}
+
+/* the tabs as near the edge as in English, popped in or out: 6px into the head's room at the right */
+.lang-rtl #calculator :is(.calc-fx-tabs, .calc-graph-tabs, .calc-solve-tabs, .calc-past-tabs) {
+    margin-right: -6px;
+    margin-left: 0;
+}
+
+.lang-rtl #calculator .calc-past-head .calc-stats-by {
+    margin-right: 0;
+    margin-left: 4px;
+}
+
+.lang-rtl #calculator.calc-panel-big .calc-stats.calc-big-on .calc-past-head .calc-stats-fitpick {
+    margin-right: 0;
+    margin-left: 10px;
+}
+
+.lang-rtl #calculator.calc-panel-big .calc-big-on > .calc-past-head > :is(.calc-chem-size, .calc-panel-size) {
+    margin-right: 0;
+    margin-left: -4px;
 }

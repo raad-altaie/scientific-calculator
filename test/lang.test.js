@@ -1,6 +1,7 @@
 // Run with: node test/lang.test.js
-// The languages (js/lang.js): the one chosen or the browser's, words by their English with English where there
-// are none, values and forms of a number, the pseudo-language; and what scripts/lang.js finds to translate
+// The languages (js/lang.js): the one chosen or the browser's, words by the names of the English, English where
+// there are none, a country's language from its language, values and forms of a number, the pseudo-language; what
+// scripts/lang.js finds to translate, and that every language's words are good
 'use strict';
 
 var fs = require('fs'),
@@ -35,7 +36,9 @@ function load(kept, languages, langs, tables) {
 }
 
 var LANGS = { en: 'English', es: 'Español', 'pt-BR': 'Português (Brasil)' },
-    ES = { Clear: 'Borrar', 'Not yet': '', '{n} of {all}': '{n} de {all}', '{n} days': { one: '{n} día', other: '{n} días' } },
+    EN = { clear: 'Clear', not_yet: 'Not yet', n_of_all: '{n} of {all}', n_days: { one: '{n} day', other: '{n} days' }, solid: 'Solid',
+        solid_line: { context: 'line', text: 'Solid' }, solid_state: { context: 'state', text: 'Solid' }, constructor: 'Built by' },
+    ES = { clear: 'Borrar', not_yet: '', n_of_all: '{n} de {all}', n_days: { one: '{n} día', other: '{n} días' } },
     L;
 
 // which language: the one chosen, else the browser's first that there is, else English
@@ -50,7 +53,7 @@ check(load({ lang: 'xx' }, ['es'], LANGS).chosen() === 'auto', 'and it reads as 
 check(load({ lang: 'es' }, ['en'], LANGS).locale === 'es', 'the locale for dates');
 
 // words by their English, English where there are none
-L = load({ lang: 'es' }, ['en'], LANGS, { es: ES });
+L = load({ lang: 'es' }, ['en'], LANGS, { en: EN, es: ES });
 check(L.t('Clear') === 'Borrar', 'a word');
 check(L.t('Not yet') === 'Not yet', 'one left \'\' is English');
 check(L.t('Never seen') === 'Never seen', 'one not in the file is English');
@@ -58,9 +61,12 @@ check(L.t('{n} of {all}', { n: 3, all: 10 }) === '3 de 10', 'values put in', L.t
 check(L.t('{n} of {x}', { n: 3 }) === '3 of {x}', 'a value not given stays as it is');
 check(L.n(1, '{n} day', '{n} days') === '1 día' && L.n(5, '{n} day', '{n} days') === '5 días', 'the forms of a number');
 check(L.n(2, '{n} week', '{n} weeks') === '2 weeks', 'forms not translated: English');
-L = load({ lang: 'es' }, ['en'], LANGS, { es: { Solid: 'Sólido', 'line\u0004Solid': 'Continua' } });
+check(L.t('Built by') === 'Built by' && L.t('constructor') === 'constructor', 'a name not in the file, constructor, is English, not of Object');
+L = load({ lang: 'es' }, ['en'], LANGS, { en: EN, es: { solid: 'Sólido', solid_line: 'Continua' } });
 check(L.c('line', 'Solid') === 'Continua' && L.t('Solid') === 'Sólido', 'a text by its context, and without it');
 check(L.c('state', 'Solid') === 'Solid', 'a context not translated: English, not the text of no context');
+L = load({}, ['pt-BR'], { en: 'English', pt: 'Português', 'pt-BR': 'Português (Brasil)' }, { en: EN, pt: { clear: 'Limpar', not_yet: 'Ainda não' }, 'pt-BR': { clear: 'Apagar', not_yet: '' } });
+check(L.t('Clear') === 'Apagar' && L.t('Not yet') === 'Ainda não', 'pt-BR its own words, then pt\'s where it has none');
 L = load({}, ['en'], LANGS);
 check(L.n(1, '{n} day', '{n} days') === '1 day' && L.n(0, '{n} day', '{n} days') === '0 days', 'English forms');
 check(L.t('Clear') === 'Clear' && L.t('{a} and {b}', { a: 'x', b: 'y' }) === 'x and y', 'English as it is, its values put in');
@@ -82,7 +88,16 @@ var found = childProcess.execFileSync('node', [path.join(ROOT, 'scripts/lang.js'
 });
 check(found.filter(Boolean).length === new Set(found.filter(Boolean)).size, 'each once');
 
-// every language's file: loads, and is on the list
+// every language's file: loads, and is on the list; their words good, en.js up to date with the code
+check((function () {
+    try {
+        childProcess.execFileSync('node', [path.join(ROOT, 'scripts/lang.js'), 'check'], { stdio: 'pipe' });
+        return true;
+    } catch (e) {
+        console.log(String(e.stdout));
+        return false;
+    }
+})(), 'node scripts/lang.js check: every language\'s values and tags as the English\'s');
 fs.readdirSync(path.join(ROOT, 'js/lang')).filter(function (f) { return /\.js$/.test(f); }).forEach(function (file) {
     var code = file.replace(/\.js$/, ''), table = null;
     vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'js/lang', file), 'utf8'), { CalcLang: { add: function (c, t) { table = c === code ? t : null; } } });

@@ -15,6 +15,8 @@ const PANELS = {
     bio: ['Biology', 'biology'],
 };
 const panel = Object.hasOwn(PANELS, params.get('panel')) ? params.get('panel') : '';
+// the window's title in the language in use: what it shows, then the calculator's name
+const setTitle = (name) => { document.title = CalcLang.t(name) + ' | ' + CalcLang.t('Scientific Calculator'); };
 
 // An administrator's change (policy.js): the calculator takes its panels out, and the detached
 // window or the graph's own window closes when what it shows is turned off. The Calculator tab of a tool's
@@ -145,14 +147,14 @@ const goWindow = (to) => {
 // button and Esc close the window; a value put in goes to its Calculator tab, which has it
 // through the storage
 if (params.has('graph')) {
-    document.title = 'Graph | Scientific Calculator';
+    setTitle('Graph');
     calculator.dispatchEvent(new CustomEvent('calc-graph', { detail: { big: true, alone: true } }));
     keepAtLeast({ width: MIN_WIDTH, height: 640 });
     document.addEventListener('calc-graph-close', () => window.close());
     document.addEventListener('calc-graph-put', () => goWindow('calc'));
 } else if (params.has('chem')) {
     // The periodic table's own window, popup.html?chem: only the table, as big as the window, the same way
-    document.title = 'Chemistry | Scientific Calculator';
+    setTitle('Chemistry');
     calculator.dispatchEvent(new CustomEvent('calc-chem', { detail: { big: true, alone: true } }));
     // no smaller than an iPad mini is wide, and the room of the table's rows high, as in background.js
     keepAtLeast({ width: MIN_WIDTH, height: 700 });
@@ -160,7 +162,7 @@ if (params.has('graph')) {
     document.addEventListener('calc-chem-put', () => goWindow('calc'));
 } else if (panel) {
     // Any other panel's own window, popup.html?panel=solve: only the panel, as big as the window, the same way
-    document.title = PANELS[panel][0] + ' | Scientific Calculator';
+    setTitle(PANELS[panel][0]);
     calculator.dispatchEvent(new CustomEvent('calc-panel', { detail: { panel } }));
     // no smaller than an iPad mini is wide, as in background.js
     keepAtLeast({ width: MIN_WIDTH, height: 640 });
@@ -177,11 +179,12 @@ if (params.has('graph')) {
     const fitHome = () => {
         const rail = bar.getBoundingClientRect(); // zoomed as the window is big (main.js, popScale)
         const across = rail.width > rail.height; // a bar across the top, on a narrow window (style.css)
-        const left = across ? 0 : rail.width;
+        const side = across ? 0 : rail.width;
+        const left = rail.left > 0 ? 0 : side; // right to left, the rail down the right (style.css)
         const top = across ? rail.height : 0;
         // pop in and close under the bar: the calculator in the middle of the room under the bar, kept clear of them
         const clear = across ? acts.getBoundingClientRect().height : 0;
-        const room = { width: window.innerWidth - left - 8, height: window.innerHeight - top - 8 };
+        const room = { width: window.innerWidth - side - 8, height: window.innerHeight - top - 8 };
         const size = { width: calculator.offsetWidth + 8, height: calculator.offsetHeight + 6 };
         let scale = Math.min(room.width / size.width, (room.height - clear) / size.height, MAX_SCALE);
 
@@ -193,7 +196,7 @@ if (params.has('graph')) {
         calculator.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
     };
 
-    document.title = 'Calculator | Scientific Calculator';
+    setTitle('Calculator');
     document.documentElement.classList.add('home');
     calculator.dispatchEvent(new CustomEvent('calc-home'));
     // no smaller than the panels' windows, as the window it opens in (background.js), for going from tab to tab

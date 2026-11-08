@@ -1,0 +1,18 @@
+{
+    "name": {
+        "message": "الحاسبة العلمية",
+        "description": "The extension's name, in the browser and the store"
+    },
+    "description": {
+        "message": "حاسبة علمية متكاملة: رسم بياني، وحل المعادلات، وتفاضل وتكامل، وإحصاء، ومصفوفات، ووحدات، ومالية، وكيمياء، وفيزياء، وأحياء.",
+        "description": "What the extension is, in the browser and the store: up to 132 characters"
+    },
+    "actionTitle": {
+        "message": "الحاسبة",
+        "description": "The tip of the toolbar icon"
+    },
+    "openPopup": {
+        "message": "فتح الحاسبة العلمية",
+        "description": "The keyboard shortcut's name, on the browser's page of shortcuts"
+    }
+}

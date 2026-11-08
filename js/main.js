@@ -933,12 +933,69 @@
         }, true);
     });
 
+    // Written right to left, as Arabic (lang.js): a text with Arabic in it read from the right (.calc-rtl), each run
+    // of it with none, maths, a name or a key, kept together left to right inside it (.calc-ltr), the spaces and stops
+    // at its ends with the Arabic: 2 x³ = 8 as it is, not 8 = x³ 2. Its blocks, and a part of a line with Arabic in
+    // it, done the same; a text with no Arabic in it is left as it is
+    var RTL_TEXT = /[֐-ࣿיִ-﷿ﹰ-﻿]/,
+        LTR_TEXT = /[0-9A-Za-zÀ-ɏͰ-Ͽ⁰-₟∀-⋿]/;
+
+    function ltrRuns(el) {
+        var out = [], run = [];
+
+        function textOf(t) {
+            return typeof t === 'string' ? t : t.textContent;
+        }
+
+        function flush() {
+            var lead, trail, span;
+            if (!run.length) return;
+            // not the point of .5 nor the ! of !A, before what they are of; nor the ! of n!, after
+            lead = typeof run[0] === 'string' ? /^[\s.,:;!?]*?(?=[.!]?[^\s.,:;!?]|$)/.exec(run[0])[0] : '';
+            if (lead) run[0] = run[0].slice(lead.length);
+            trail = typeof run[run.length - 1] === 'string' ? /(?:[\s.,:;?]|(?<=[\s.,:;?])!)*$/.exec(run[run.length - 1])[0] : '';
+            if (trail) run[run.length - 1] = run[run.length - 1].slice(0, -trail.length);
+            if (lead) out.push(lead);
+            if (LTR_TEXT.test(run.map(textOf).join(''))) {
+                span = document.createElement('span');
+                span.className = 'calc-ltr';
+                span.append.apply(span, run);
+                out.push(span);
+            } else out.push.apply(out, run);
+            if (trail) out.push(trail);
+            run = [];
+        }
+
+        // the tip and its peek kept and filled again: of English after Arabic, read from the left again
+        if (!el.classList.toggle('calc-rtl', RTL_TEXT.test(el.textContent))) return;
+        [].slice.call(el.childNodes).forEach(function (n) {
+            if (n.nodeType === 3) {
+                n.data.split(/([֐-ࣿיִ-﷿ﹰ-﻿]+)/).forEach(function (s, i) {
+                    if (!s) return;
+                    if (i % 2) {
+                        flush();
+                        out.push(s);
+                    } else run.push(s);
+                });
+            } else if (n.nodeType === 1 && /^inline/.test(getComputedStyle(n).display) && !RTL_TEXT.test(n.textContent)) {
+                run.push(n);
+            } else if (n.nodeType === 1) {
+                flush();
+                out.push(n);
+                ltrRuns(n);
+            }
+        });
+        flush();
+        el.replaceChildren.apply(el, out.filter(function (t) { return t !== ''; }));
+    }
+
     // A tip above its key, or below it where there is no room above; too long for the room on either
     // side, it goes where there is more, and what is under its name scrolls (.calc-tip-body), no higher
     // than the CSS lets it be as well. One that scrolls takes the pointer, to scroll it
     function placeTip(box, at, gap) {
         var calc = tip.parentNode, body = box.querySelector('.calc-tip-body'),
             above = at.top - gap - 4, below = calc.clientHeight - at.bottom - gap - 4, under, left;
+        if (CalcLang.rtl) ltrRuns(box);
         box.style.removeProperty('--room');
         under = box.offsetHeight > above && (box.offsetHeight <= below || below > above);
         if (body && box.offsetHeight > (under ? below : above)) {
@@ -1266,6 +1323,7 @@
         var items, at;
         if (!root.contains(e.target)) return; // the rest of the page has the menu of the browser
         at = menu.at = inside({ left: e.clientX, top: e.clientY }); // where Store in Var opens the letters
+        at.alignRight = CalcLang.rtl; // right to left, at the left of the pointer, its lines from the right
         items = menuItems(e.target); // taken now, while what is selected is still selected
         menu.had = !!items; // for a hold, which opened it: let go, it presses nothing
         e.preventDefault(); // in the calculator the menu of the browser is never shown
@@ -1419,8 +1477,9 @@
         menu.className = 'calc-menu-box' + (kind ? ' ' + kind : '');
         menu.innerHTML = items.map(function (item, i) {
             if (!item) return '<hr>';
-            // a part of its own, as the colors of a curve, with nothing to do on a click: item[3] sets it up
-            return '<div data-i="' + i + '"' + (item[2] === false ? ' class="calc-off"' : !item[1] ? ' class="calc-menu-part"' : '') + '>' + tr(item[0]) + '</div>';
+            // a part of its own, as the colors of a curve, with nothing to do on a click: item[3] sets it up. Each
+            // in the language in use already, as it is shown: tr('Copy'), its tick or its value with it
+            return '<div data-i="' + i + '"' + (item[2] === false ? ' class="calc-off"' : !item[1] ? ' class="calc-menu-part"' : '') + '>' + item[0] + '</div>';
         }).join('');
         items.forEach(function (item, i) {
             if (item && item[3]) item[3](menu.querySelector('[data-i="' + i + '"]'));
@@ -1465,17 +1524,17 @@
         if (el.closest('.calc-display')) {
             text = selectedText(); // taken now, as it is selected
             span = selectedSpan();
-            paste = ['Paste', function () { askPaste(null); }];
+            paste = [tr('Paste'), function () { askPaste(null); }];
             paste.clip = true;
             return [
-                !empty() && ['Cut', function () { copy(text || copyText()); cutOut(span); }],
-                !empty() && ['Copy', function () { copy(text || copyText()); }],
+                !empty() && [tr('Cut'), function () { copy(text || copyText()); cutOut(span); }],
+                !empty() && [tr('Copy'), function () { copy(text || copyText()); }],
                 paste,
                 null,
                 insertItem(),
                 !empty() && !engine.error && storeItem(storeIn),
                 null,
-                ['Reset all', resetAll]
+                [tr('Reset all'), resetAll]
             ].filter(function (item) { return item !== false; });
         }
         if (!panel) return null; // the keys
@@ -1485,9 +1544,9 @@
         if ((row = el.closest('.calc-sv-tile')) && row.row && (part = peekOf(row)) && part.put) {
             k = row.row.v;
             return [
-                ['Copy', function () { copy(part.text); }],
-                row.row.unit && ['Copy with unit', function () { copy(part.text + (row.row.dms ? '' : ' ' + row.row.unit)); }],
-                ['Insert', function () { row.click(); }],
+                [tr('Copy'), function () { copy(part.text); }],
+                row.row.unit && [tr('Copy with unit'), function () { copy(part.text + (row.row.dms ? '' : ' ' + row.row.unit)); }],
+                [tr('Insert'), function () { row.click(); }],
                 null,
                 storeItem(function (letter) { setLetter(letter, k); })
             ].filter(function (item) { return item !== undefined; });
@@ -1496,8 +1555,8 @@
             text = local(statsValue(statsNow[row.dataset.k]).text);
             k = statsNow[row.dataset.k];
             return [
-                ['Copy', function () { copy(text); }],
-                ['Insert', function () { row.click(); }],
+                [tr('Copy'), function () { copy(text); }],
+                [tr('Insert'), function () { row.click(); }],
                 null,
                 storeItem(function (letter) { setLetter(letter, k); })
             ];
@@ -1505,45 +1564,45 @@
         if (panel === past && (row = el.closest('.calc-var'))) {
             k = row.dataset.k;
             return [
-                ['Insert', function () { putLetter(k); }],
-                ['Copy', function () { copy(letterText(k)); }],
-                ['Store result', function () { storeIn(k); }, !engine.error],
-                ['Clear', function () { setLetter(k, 0); }, !!engine.vars[k]]
+                [tr('Insert'), function () { putLetter(k); }],
+                [tr('Copy'), function () { copy(letterText(k)); }],
+                [tr('Store result'), function () { storeIn(k); }, !engine.error],
+                [tr('Clear'), function () { setLetter(k, 0); }, !!engine.vars[k]]
             ];
         }
         if (panel === fx && (row = el.closest('.calc-fx-item'))) {
             k = fxItems[fxTab][+row.dataset.i].item;
             if (fxTab === 'constants') {
                 return [
-                    ['Copy', function () { copy(local(k.v)); }],
-                    ['Copy with unit', function () { copy(local(k.v) + ' ' + plain(k.u)); }, !!k.u],
-                    ['Insert', function () { putConstant(k); }],
+                    [tr('Copy'), function () { copy(local(k.v)); }],
+                    [tr('Copy with unit'), function () { copy(local(k.v) + ' ' + plain(k.u)); }, !!k.u],
+                    [tr('Insert'), function () { putConstant(k); }],
                     null,
                     storeItem(function (letter) { setLetter(letter, k.v); })
                 ];
             }
             return [
-                ['Copy', function () { copy(formulaText(k.f)); }],
-                row.classList.contains('calc-on') ? ['Insert', function () { insertFormula(row); }] :
-                    ['Open', function () { openFormula(row); }]
+                [tr('Copy'), function () { copy(formulaText(k.f)); }],
+                row.classList.contains('calc-on') ? [tr('Insert'), function () { insertFormula(row); }] :
+                    [tr('Open'), function () { openFormula(row); }]
             ];
         }
         if (panel === past) {
             row = el.closest('.calc-past-row');
-            if (!row) return [[pastTab === 'vars' ? 'Clear variables' : 'Clear history', function () { pastClear.click(); }, !pastClear.classList.contains('calc-off')]];
+            if (!row) return [[tr(pastTab === 'vars' ? 'Clear variables' : 'Clear history'), function () { pastClear.click(); }, !pastClear.classList.contains('calc-off')]];
             // on the equation, the equation; anywhere else on the line, its result
             part = el.closest('.calc-past-eq') || row.querySelector('.calc-past-res');
             k = engine.past[+row.dataset.i];
             return ['copy', 'insert'].map(function (act) {
-                return [act === 'copy' ? 'Copy' : 'Insert', function () { part.querySelector('[data-act="' + act + '"]').click(); }];
+                return [act === 'copy' ? tr('Copy') : tr('Insert'), function () { part.querySelector('[data-act="' + act + '"]').click(); }];
             }).concat([null, storeItem(function (letter) { setLetter(letter, +k.value); }), null,
-                ['Delete', function () { row.querySelector('.calc-past-del').click(); }]]);
+                [tr('Delete'), function () { row.querySelector('.calc-past-del').click(); }]]);
         }
         if (panel === graph && (row = el.closest('.calc-graph-cell')) && isFinite(k = graphValues[row.dataset.r][row.dataset.c])) {
             text = local(+row.dataset.c ? statsValue(k).text : String(k));
             return [
-                ['Copy', function () { copy(text); }],
-                ['Insert', function () { row.click(); }],
+                [tr('Copy'), function () { copy(text); }],
+                [tr('Insert'), function () { row.click(); }],
                 null,
                 storeItem(function (letter) { setLetter(letter, k); })
             ];
@@ -1555,8 +1614,8 @@
         if (panel === graph && (row = el.closest('.calc-graph-pop-row')) && graphPinned) {
             k = graphPinned[row.dataset.put];
             return [
-                ['Copy', function () { copy(local(graphPinned.spot ? k : statsValue(k).text)); }],
-                ['Insert', function () { row.click(); }],
+                [tr('Copy'), function () { copy(local(graphPinned.spot ? k : statsValue(k).text)); }],
+                [tr('Insert'), function () { row.click(); }],
                 null,
                 storeItem(function (letter) { setLetter(letter, +k); }, isFinite(+k))
             ];
@@ -1570,10 +1629,10 @@
     function boxItems(box) {
         var some = box.selectionStart !== box.selectionEnd;
         return [
-            ['Cut', function () { box.focus(); document.execCommand('cut'); }, some],
-            ['Copy', function () { box.focus(); document.execCommand('copy'); }, some],
-            ['Paste', function () { askPaste(box); }],
-            ['Select all', function () { box.focus(); box.select(); }, !!box.value]
+            [tr('Cut'), function () { box.focus(); document.execCommand('cut'); }, some],
+            [tr('Copy'), function () { box.focus(); document.execCommand('copy'); }, some],
+            [tr('Paste'), function () { askPaste(box); }],
+            [tr('Select all'), function () { box.focus(); box.select(); }, !!box.value]
         ];
     }
 
@@ -1722,13 +1781,13 @@
     // Store in Var: a menu of the letters, each with what it holds, in place of the menu it was chosen in
     function storeItem(store, can) {
         var at = menu.at;
-        return ['Store in Var' + MORE, function () { lettersMenu(store, at); }, can !== false];
+        return [tr('Store in Var') + MORE, function () { lettersMenu(store, at); }, can !== false];
     }
 
     // Insert Var: the same menu of the letters, the one chosen put in at the cursor, as Shift+A does
     function insertItem() {
         var at = menu.at;
-        return ['Insert Var' + MORE, function () { lettersMenu(putLetter, at); }];
+        return [tr('Insert Var') + MORE, function () { lettersMenu(putLetter, at); }];
     }
 
     function lettersMenu(pick, at) {
@@ -1846,9 +1905,9 @@
             return;
         }
         openMenu([
-            ['Copy as text', function () { copy(pastText()); }],
-            ['Save as CSV', function () { saveText(pastCsv(), 'text/csv', 'csv'); }],
-            ['Save as text', function () { saveText(pastText(), 'text/plain', 'txt'); }]
+            [tr('Copy as text'), function () { copy(pastText()); }],
+            [tr('Save as CSV'), function () { saveText(pastCsv(), 'text/csv', 'csv'); }],
+            [tr('Save as text'), function () { saveText(pastText(), 'text/plain', 'txt'); }]
         ], { left: at.right, top: at.bottom + 4, alignRight: true }, pastExport);
     }, false);
 
@@ -2561,16 +2620,16 @@
             ['<div class="calc-menu-picker"></div>', null, true, function (el) { colorPart(el, i); }],
             null,
             item(trc('line', 'Solid'), st.d === 0, function () { st.d = 0; }),
-            item('Dashed', st.d === 1, function () { st.d = 1; }),
-            item('Dotted', st.d === 2, function () { st.d = 2; }),
+            item(tr('Dashed'), st.d === 1, function () { st.d = 1; }),
+            item(tr('Dotted'), st.d === 2, function () { st.d = 2; }),
             null,
-            item('Thin', st.w === 0, function () { st.w = 0; }),
-            item('Normal', st.w === 1, function () { st.w = 1; }),
-            item('Thick', st.w === 2, function () { st.w = 2; }),
+            item(tr('Thin'), st.w === 0, function () { st.w = 0; }),
+            item(tr('Normal'), st.w === 1, function () { st.w = 1; }),
+            item(tr('Thick'), st.w === 2, function () { st.w = 2; }),
             null,
-            graphData[i] && item('Label points', st.l, function () { st.l = !st.l; }),
+            graphData[i] && item(tr('Label points'), st.l, function () { st.l = !st.l; }),
             graphData[i] && null,
-            !!graphInputs[i].value.trim() && [graphOff[i] ? 'Show' : 'Hide', function () { graphRows[i].querySelector('.calc-graph-swatch').click(); }]
+            !!graphInputs[i].value.trim() && [tr(graphOff[i] ? 'Show' : 'Hide'), function () { graphRows[i].querySelector('.calc-graph-swatch').click(); }]
         ].filter(function (x) { return x !== undefined && x !== false; });
     }
 
@@ -2580,7 +2639,7 @@
         var st = graphStyle[i], hsv = hexHsv(curveColor(i)), shade, hue, hex, auto;
         el.querySelector('.calc-menu-picker').innerHTML = '<div class="calc-menu-shade"><i></i></div><div class="calc-menu-hue"><i></i></div>' +
             '<div class="calc-menu-hexrow"><label class="calc-menu-hex">#<input type="text" maxlength="7" spellcheck="false" autocomplete="off" aria-label="' + tr('Hex color') + '"></label>' +
-            '<span class="calc-menu-auto" role="button" tabindex="0">Auto</span></div>';
+            '<span class="calc-menu-auto" role="button" tabindex="0">' + tr('Auto') + '</span></div>';
         shade = el.querySelector('.calc-menu-shade');
         hue = el.querySelector('.calc-menu-hue');
         hex = el.querySelector('input');
@@ -2857,9 +2916,10 @@
 
     graphSplit.addEventListener('pointermove', function (e) {
         var cs = getComputedStyle(graph),
-            room = (graph.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - GRAPH_PLOT_MIN) * GRAPH_SIDE_MAX;
+            room = (graph.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - GRAPH_PLOT_MIN) * GRAPH_SIDE_MAX,
+            rtl = CalcLang.rtl; // right to left, the boxes at the right (style.css): dragged left, wider
         if (!graphSplitFrom || !graphSplit.hasPointerCapture(e.pointerId)) return;
-        setSide(Math.round(Math.max(GRAPH_SIDE_MIN * popZoom, Math.min(room, graphSplitFrom.w + e.clientX - graphSplitFrom.x))));
+        setSide(Math.round(Math.max(GRAPH_SIDE_MIN * popZoom, Math.min(room, graphSplitFrom.w + (e.clientX - graphSplitFrom.x) * (rtl ? -1 : 1)))));
         drawGraph();
     }, false);
 
@@ -5177,13 +5237,13 @@
     function graphName(p) {
         var fit = !p.spot && !p.area && !p.t && graphData[p.i] && graphFns[p.i] && graphFns[p.i].fit;
         if (fit) return tr('Best fit, r² = {v}', { v: local(String(+fit.r2.toPrecision(4))) });
-        if (seqOf(p)) return 'Term';
+        if (seqOf(p)) return tr('Term');
         if (p.data && graphData[p.i] && graphData[p.i].name) return graphData[p.i].name;
         if (!p.spot && !p.area && p.sol !== undefined && graphPlanes[p.i]) {
-            return graphPlanes[p.i].kept && graphPlanes[p.i].kept.sols[p.sol] ? tr('Solution through {graphPlanes}', { graphPlanes: startText(graphPlanes[p.i].kept.sols[p.sol]) }) : 'Solution';
+            return graphPlanes[p.i].kept && graphPlanes[p.i].kept.sols[p.sol] ? tr('Solution through {graphPlanes}', { graphPlanes: startText(graphPlanes[p.i].kept.sols[p.sol]) }) : tr('Solution');
         }
-        return p.spot ? 'Point' : p.area ? (p.rel ? 'Area of the region' : p.j === undefined ? 'Area under the curve' : 'Area between the curves') :
-            p.t ? p.t.map(function (t) { return GRAPH_NAMES[t]; }).join(', ') : 'On the curve';
+        return tr(p.spot ? 'Point' : p.area ? (p.rel ? 'Area of the region' : p.j === undefined ? 'Area under the curve' : 'Area between the curves') :
+            p.t ? null : 'On the curve') || p.t.map(function (t) { return tr(GRAPH_NAMES[t]); }).join(tr(', '));
     }
 
     // to 13 digits, as the display shows a result: 1.732050807569; with u, a pixel, to what one tells
@@ -5223,25 +5283,25 @@
             kind = fitKind(graphRows.findIndex(function (row, i) { return graphData[i] && graphDiff[i] && !graphFns[i]; }));
             graphNote.textContent = 'No ' + GRAPH_FIT_NAMES[kind] + ' fit: it needs ' + GRAPH_FIT_NEEDS[kind] + '.';
         } else if (!graphFns.concat(graphRels, graphPlanes, graphData).some(Boolean) && graphOff.some(Boolean)) {
-            graphNote.textContent = 'Every curve is hidden: click its dot to show it.';
+            graphNote.textContent = tr('Every curve is hidden: click its dot to show it.');
         } else if (graphTab === 'table') {
-            graphNote.textContent = !tableCurves().length ? 'Type a function of x for its values.' :
-                graphTable.querySelector('.calc-bad') ? 'Start and step are numbers, the step above 0.' :
+            graphNote.textContent = !tableCurves().length ? tr('Type a function of x for its values.') :
+                graphTable.querySelector('.calc-bad') ? tr('Start and step are numbers, the step above 0.') :
                     tr('Click a value to put it in the equation.{v}', { v: (unit ? ' · ' + unit : '') });
         } else if (graphShading && graphFns.concat(graphRels).some(Boolean) && graphStart && graphPinned && graphPinned.area) {
-            graphNote.innerHTML = graphSwatches(graphPinned) + '<span>From <i>x</i> = ' + graphValue(graphPinned, 'a') + '</span>' +
-                '<span>to <i>x</i> = ' + graphValue(graphPinned, 'b') + '</span>';
+            graphNote.innerHTML = graphSwatches(graphPinned) + '<span>' + tr('From <i>x</i> = {v}', { v: graphValue(graphPinned, 'a') }) + '</span>' +
+                '<span>' + tr('to <i>x</i> = {v}', { v: graphValue(graphPinned, 'b') }) + '</span>';
         } else if (graphShading && graphEdge) {
-            graphNote.innerHTML = graphSwatches(graphEdge) + '<span>From <i>x</i> = ' + graphValue(graphEdge, 'x') + '</span>' +
-                '<span>Drag to where it ends</span>';
+            graphNote.innerHTML = graphSwatches(graphEdge) + '<span>' + tr('From <i>x</i> = {v}', { v: graphValue(graphEdge, 'x') }) + '</span>' +
+                '<span>' + tr('Drag to where it ends') + '</span>';
         } else if (graphShading && graphFns.concat(graphRels).some(Boolean)) {
-            graphNote.textContent = 'Drag along a curve for the area under it, between two for the area between, in a region for its area.';
+            graphNote.textContent = tr('Drag along a curve for the area under it, between two for the area between, in a region for its area.');
         } else if (p) { // of a term of a sequence, its n and a(n)
             graphNote.innerHTML = graphSwatches(p) + '<em>' + graphName(p) + '</em>' +
                 '<span>' + (seq ? '<i>n</i>' : '<i>x</i>') + ' = ' + graphValue(p, 'x', near && pixelX(v, p.x)) + '</span>' +
                 '<span>' + (seq ? '<i>' + seq.name + '</i>(<i>n</i>)' : '<i>y</i>') + ' = ' + (isFinite(p.y) ? graphValue(p, 'y', near && pixelY(v, p.y)) : 'none') + '</span>';
         } else if (!graphInputs.some(function (box) { return box.value.trim(); })) {
-            graphNote.textContent = 'Type a function of x. Drag to move, scroll or pinch to zoom.';
+            graphNote.textContent = tr('Type a function of x. Drag to move, scroll or pinch to zoom.');
         } else if (sequenceNote(false)) {
             graphNote.textContent = sequenceNote(false);
         } else if (fieldNote()) {
@@ -6234,16 +6294,16 @@
     // its menu: a link of it, the picture copied or saved as PNG, saved as SVG, and the table as CSV
     function exportItems() {
         return [
-            ['Copy link', function () {
+            [tr('Copy link'), function () {
                 copy(graphLink());
                 notify('Link copied');
             }],
             null,
-            ['Copy picture', copyGraph],
-            ['Save as PNG', saveGraph],
-            ['Save as SVG', saveSvg],
+            [tr('Copy picture'), copyGraph],
+            [tr('Save as PNG'), saveGraph],
+            [tr('Save as SVG'), saveSvg],
             null,
-            ['Save table as CSV', saveTable, tableCurves().length > 0]
+            [tr('Save table as CSV'), saveTable, tableCurves().length > 0]
         ];
     }
 
@@ -6620,8 +6680,8 @@
         var typing = varList.contains(document.activeElement) ? document.activeElement : null;
         if (!varList.querySelector('.calc-var')) {
             varList.innerHTML = '<div class="calc-var-head"><span>' +
-                '<kbd>' + (mac ? '⌥ Option' : 'Alt') + '</kbd> + Letter stores var<span class="calc-var-sep"></span>' +
-                '<kbd>⇧ Shift</kbd> + Letter inserts var</span></div>' +
+                tr('{key} + Letter stores var', { key: '<kbd>' + (mac ? '⌥ Option' : 'Alt') + '</kbd>' }) + '<span class="calc-var-sep"></span>' +
+                tr('{key} + Letter inserts var', { key: '<kbd>⇧ Shift</kbd>' }) + '</span></div>' +
                 CalcEngine.LETTERS.split('').map(function (k) {
                     return '<div class="calc-fx-item calc-var" data-k="' + k + '"><div class="calc-fx-row calc-var-row">' +
                         '<span class="calc-var-k">' + k + '</span>' +
@@ -8990,7 +9050,7 @@
         var k = a.every(function (r) { return r.every(isFinite); }) ? CalcMaths.condition(a) : NaN, right;
         if (!(k >= 1e6) || k === Infinity) return '';
         right = Math.max(0, Math.floor(16 - Math.log10(k)));
-        return tr('Badly conditioned, κ ≈ {k}: {v} of what is worked out of it can be trusted.', { k: local(k.toPrecision(2).replace(/e\+?/, 'e')), v: (right ? (right === 1 ? tr('only about {right} digit', { right: right }) : tr('only about {right} digits', { right: right })) : tr('none of the digits')) });
+        return tr('Badly conditioned, κ ≈ {k}: {v} of what is worked out of it can be trusted.', { k: local(k.toPrecision(2).replace(/e\+?/, 'e')), v: (right ? trn(right, 'only about {n} digit', 'only about {n} digits') : tr('none of the digits')) });
     }
 
     // a note, and another after it, either of which may be ''
@@ -9557,7 +9617,7 @@
             return isFinite(CalcMaths.zoneOffset(zoneOf(c[0]), ms)); // not a zone the browser does not have
         }).map(function (c) {
             var z = zoneOf(c[0]);
-            return [c[0], (z.here ? tr('Here, {v}', { v: (z.id || '').split('/').pop().replace(/_/g, ' ') }) : c[0]) +
+            return [c[0], (z.here ? tr('Here, {v}', { v: tr((z.id || '').split('/').pop().replace(/_/g, ' ')) }) : tr(c[0])) +
                 ' <span class="calc-conv-of">(' + CalcMaths.offsetText(CalcMaths.zoneOffset(z, ms)) + ')</span>'];
         });
     }
@@ -9758,7 +9818,9 @@
             k = p.width / panel.offsetWidth || 1, h = calendar.offsetHeight, top = (b.bottom - p.top) / k + 4;
         if (top + h > panel.clientHeight - 4) top = Math.max((b.top - p.top) / k - h - 4, panel.clientHeight - 4 - h);
         calendar.style.top = Math.max(4, top) + 'px';
-        calendar.style.left = Math.max(6, (b.right - p.left) / k - calendar.offsetWidth) + 'px';
+        calendar.style.left = (CalcLang.rtl ? // under its button: at the left of the box, right to left
+            Math.max(6, Math.min((b.left - p.left) / k, panel.clientWidth - 6 - calendar.offsetWidth)) :
+            Math.max(6, (b.right - p.left) / k - calendar.offsetWidth)) + 'px';
     }
 
     // the day lit moved on by days, or by months, below 0 back; never past the year 1 or 9999
@@ -10051,7 +10113,7 @@
                 }
                 if (f.area) { // numbers of a list, on lines of their own as well, as a column of a spreadsheet is pasted
                     html += '<label class="calc-sv-var calc-sv-wide calc-sv-areas"><span class="calc-sv-sym">' + f.l + '</span><textarea class="calc-sv-area" rows="3" spellcheck="false" ' +
-                        'autocomplete="off" maxlength="20000" placeholder="' + f.ph + '" data-k="' + f.k + '" aria-label="' + f.l + '"></textarea></label>';
+                        'autocomplete="off" maxlength="20000" placeholder="' + tr(f.ph || '') + '" data-k="' + f.k + '" aria-label="' + f.l + '"></textarea></label>';
                     return;
                 }
                 if (f.head) { // a matrix: of more than 5 columns, smaller boxes, so up to 11 fit across the card
@@ -10062,7 +10124,7 @@
                 html += '<label class="calc-sv-var' + (f.fn ? ' calc-sv-wide' : '') + (f.date ? ' calc-sv-wide calc-sv-dated' : '') + (f.cls ? ' ' + f.cls : '') + '">' + (f.l ? '<span class="calc-sv-sym">' + f.l + '</span>' : '') +
                     (f.date ? '<span class="calc-sv-date">' : '') +
                     '<input type="text"' + ((f.fn || f.text || f.date) && !f.num ? '' : ' data-num="1"') + ' spellcheck="false" autocomplete="off" maxlength="' + (f.fn ? 200 : 40) +
-                    '" placeholder="' + (f.date ? tr('Today') : f.ph) + '" data-k="' + f.k + '" aria-label="' + (f.aria || (f.fn ? tr(tool.t) : f.l.replace(/<[^>]*>/g, ''))) + '">' +
+                    '" placeholder="' + (f.date ? tr('Today') : tr(f.ph || '')) + '" data-k="' + f.k + '" aria-label="' + (f.aria || (f.fn ? tr(tool.t) : f.l.replace(/<[^>]*>/g, ''))) + '">' +
                     (f.date ? '<span class="calc-sv-cal" title="' + tr('Calendar') + '">' + CALENDAR_ICON + '</span></span>' : '') + '</label>';
             });
             item.querySelector('.calc-sv-boxes').innerHTML = html + '</div>';
@@ -18145,7 +18207,7 @@
     }
 
     function chemUnitName(kind) {
-        return CHEM_UNITS[kind][chemUnit[kind]][0];
+        return tr(CHEM_UNITS[kind][chemUnit[kind]][0]);
     }
 
     // coloured by a number: from pale yellow at its least to red at its most
@@ -18172,10 +18234,10 @@
     function chemSpectrum(e) {
         var lines = CalcChem.spectrum(e.s) || [], W = 300, L = 8, R = W - 8, T = 6, B = 28, id = 'calc-plot-' + (++plotIds), abs = chemSpec === 'abs', body,
             px = function (nm) { return L + (R - L) * (nm - 380) / 370; },
-            none = !lines.length && (lines.unseen ? 'None in visible light' : 'None measured'),
+            none = !lines.length && (lines.unseen ? tr('None in visible light') : tr('None measured')),
             said = !none ? (lines.ion ? tr('Of its ion, {s}⁺: ', { s: e.s }) : '') + lines.map(function (l) { return local(l.nm.toFixed(2)); }).join(', ') + ' nm' :
                 lines.unseen ? tr('None in visible light: its strongest are ultraviolet, {unseen} nm', { unseen: lines.unseen.map(function (nm) { return local(String(nm)); }).join(' and ') }) :
-                'None measured: NIST has no lines of it, as too few of its atoms have ever been made to see their light';
+                tr('None measured: NIST has no lines of it, as too few of its atoms have ever been made to see their light');
         body = (abs ? rainbow(id) : '') + '<rect x="' + L + '" y="' + T + '" width="' + (R - L) + '" height="' + (B - T) + '" fill="' + (abs ? 'url(#' + id + ')' : '#07090c') + '"' + (none ? ' opacity="0.3"' : '') + '/>';
         if (none) body += svgText(W / 2, (T + B) / 2 + 3.5, none, 'middle', 'calc-sv-small calc-sv-bold');
         lines.forEach(function (l) {
@@ -18187,7 +18249,7 @@
         });
         return '<div class="calc-sv-tile calc-sv-wide calc-pt-spec" style="--i: 0" data-fact="spectrum" data-lines="' + said + '">' +
             '<span class="calc-sv-label">' + tr('Spectrum') + ' <i class="calc-pt-unit" role="button">' + tr(abs ? 'absorption' : 'emission') + '</i></span><span class="calc-sv-value">' +
-            svgOf('', W, B + 14, tr(abs ? '{name}\'s absorption spectrum: {lines}' : '{name}\'s emission spectrum: {lines}', { name: e.name, lines: said }),
+            svgOf('', W, B + 14, tr(abs ? '{name}\'s absorption spectrum: {lines}' : '{name}\'s emission spectrum: {lines}', { name: tr(e.name), lines: said }),
                 body + '<path class="calc-sv-ground" d="M' + L + ' ' + T + 'h' + (R - L) + 'v' + (B - T) + 'H' + L + 'Z"/>') + '</span></div>';
     }
 
@@ -18461,7 +18523,7 @@
             // its name with a capital, but α-Fe as it is: a Greek letter's capital is another letter
             var m = part.match(/^([^:]+):\s*(.+)$/), name = m ? (/^[a-z]/.test(m[1]) ? m[1].charAt(0).toUpperCase() + m[1].slice(1) : m[1]) : '', words = m ? m[2] : part,
                 c = crystalOf(e, words, name);
-            return c && '<span class="calc-pt-form">' + crystalSvg(c, e.name + (name ? ', ' + name : '') + ': ' + words.toLowerCase() + (c.label ? ', ' + c.label : c.cells ? tr(', a hexagonal prism of {cells} unit cells', { cells: c.cells }) : ' unit cell')) +
+            return c && '<span class="calc-pt-form">' + crystalSvg(c, tr(e.name) + (name ? ', ' + name : '') + ': ' + words.toLowerCase() + (c.label ? ', ' + c.label : c.cells ? tr(', a hexagonal prism of {cells} unit cells', { cells: c.cells }) : ' unit cell')) +
                 (parts.length > 1 ? '<b>' + name + '</b>' : '') + '<span class="calc-pt-count">' + (c.note || crystalCount(c)) + '</span></span>';
         }).filter(Boolean);
         return cells.length ? '<span class="calc-pt-cells">' + cells.join('') + '</span>' : '';
@@ -18491,12 +18553,13 @@
     function chemFactPeek(el) {
         var info = CalcTips['chem fact ' + el.dataset.fact], label = el.querySelector('.calc-sv-label'), value = el.querySelector('.calc-sv-value'),
             // the crystal structure's drawing left out: its words alone
-            drawn = value.querySelector('.calc-pt-cells'), unit = label.querySelector('i'), name = label.firstChild.data.trim(),
+            drawn = value.querySelector('.calc-pt-cells'), unit = label.querySelector('i:not(.calc-pt-guess)'), name = label.firstChild.data.trim(),
             shown = [].filter.call(value.childNodes, function (n) { return n !== drawn; }).map(function (n) { return n.textContent; }).join('').trim(), u;
         if (!info) return null;
         if (el.dataset.lines) return { t: name, d: '<div class="calc-tip-value">' + el.dataset.lines + '</div>' + info.d }; // the spectrum: its lines
         if (el.classList.contains('calc-pt-text') || /^–?$/.test(shown)) return { t: name, d: info.d };
-        u = unit && !/^(K L M …|Pauling|mass number)$/.test(unit.textContent) ? ' ' + unit.textContent.replace(', 3 places', '') : '';
+        // not a name in place of a unit; the mass in full, whatever its places
+        u = unit && [tr('mass number'), tr('Pauling'), 'K L M …'].indexOf(unit.textContent) < 0 ? ' ' + (unit.dataset.unit === 'm' ? tr('g/mol') : unit.textContent) : '';
         return { t: name, d: info.d, html: (drawn ? shown : value.innerHTML) + u, text: el.hasAttribute('data-v') ? local(statsValue(+el.dataset.v).text) : shown, put: el.hasAttribute('data-v') };
     }
 
@@ -18515,7 +18578,7 @@
             '<div class="calc-pt-el calc-pt-series calc-pt-' + (chemBy === 'cat' ? 'actinide' : chemBy === 'block' ? 'fb' : 'solid') + '" style="grid-area: 7 / 3" data-from="89" role="button" aria-label="' + tr('Actinides, 89 to 103') + '"><b><span>Ac–</span><span>Lr</span></b><span class="calc-pt-mass">89–103</span></div>' +
             CalcChem.elements.map(function (e) {
                 return '<div class="calc-pt-el ' + chemClass(e) + '" data-z="' + e.z + '" style="' + chemHeat(e) + 'grid-area: ' + e.row + ' / ' + e.col + '"' +
-                    ' role="button" aria-label="' + e.name + ', ' + e.z + '"><span class="calc-pt-z">' + e.z + '</span><b>' + e.s + '</b><span class="calc-pt-name">' + e.name +
+                    ' role="button" aria-label="' + tr(e.name) + ', ' + e.z + '"><span class="calc-pt-z">' + e.z + '</span><b>' + e.s + '</b><span class="calc-pt-name">' + tr(e.name) +
                     '</span><span class="calc-pt-mass">' + chemMass(e) + '</span></div>';
             }).join('');
         [].forEach.call(chemModes.children, function (m) {
@@ -18536,7 +18599,7 @@
     // an element of the search, of the legend clicked, or both: the others dimmed
     function chemMatches(e, q) {
         q = q.toLowerCase();
-        return !q || e.s.toLowerCase() === q || String(e.z) === q || e.name.toLowerCase().indexOf(q) > -1 || (q.length < 3 && e.s.toLowerCase().indexOf(q) === 0);
+        return !q || e.s.toLowerCase() === q || String(e.z) === q || e.name.toLowerCase().indexOf(q) > -1 || tr(e.name).toLowerCase().indexOf(q) > -1 || (q.length < 3 && e.s.toLowerCase().indexOf(q) === 0);
     }
 
     // An element faint: not of what is searched, not of the colour lit, or cut out by the slider
@@ -18580,35 +18643,37 @@
     function chemShow(z, all) {
         var e = CalcChem.elements[z - 1], gap = chemGrid.querySelector('.calc-pt-gap'), cat = tr(CalcChem.categories.filter(function (c) { return c[0] === e.cat; })[0][1]), tiles, cell, crystal;
         // each part with data-pt, the tip of what it is (chemPartTip), its value in full under it
-        gap.innerHTML = '<div class="calc-pt-big calc-pt-el ' + chemClass(e) + '" data-show="' + e.z + '" style="' + chemHeat(e) + '" role="button" aria-label="' + tr('All of {name}', { name: e.name }) + '"><span class="calc-pt-z" data-pt="z">' + e.z + '</span>' +
+        gap.innerHTML = '<div class="calc-pt-big calc-pt-el ' + chemClass(e) + '" data-show="' + e.z + '" style="' + chemHeat(e) + '" role="button" aria-label="' + tr('All of {name}', { name: tr(e.name) }) + '"><span class="calc-pt-z" data-pt="z">' + e.z + '</span>' +
             // popped out, the tile has room for more, as on a printed table: the electronegativity and the oxidation
             // states at the top right, the name under the symbol, the configuration at the foot
             '<span class="calc-pt-more calc-pt-en" data-pt="en">' + (e.en === null ? '' : (e.predicted.en ? '≈' : '') + local(String(e.en))) + '</span>' +
             '<span class="calc-pt-more calc-pt-ox" data-pt="ox" data-full="' + (e.ox || '').split(' ').join(', ') + '">' + (e.ox || '').split(' ').join('<br>') + '</span>' +
-            '<b data-pt="symbol">' + e.s + '</b><span class="calc-pt-more calc-pt-full" data-pt="name">' + e.name + '</span>' + chemMassHtml(e) +
+            '<b data-pt="symbol">' + e.s + '</b><span class="calc-pt-more calc-pt-full" data-pt="name">' + tr(e.name) + '</span>' + chemMassHtml(e) +
             '<span class="calc-pt-more calc-pt-conf" data-pt="config">' + e.config + '</span></div>' +
-            '<div class="calc-pt-about"><span class="calc-pt-title" data-pt="name">' + e.name + '</span><span data-pt="kind" data-kind="' + e.cat + '">' + cat + '</span>' + chemLine(e) +
+            '<div class="calc-pt-about"><span class="calc-pt-title" data-pt="name">' + tr(e.name) + '</span><span data-pt="kind" data-kind="' + e.cat + '">' + cat + '</span>' + chemLine(e) +
             // and beside it, what the tile has no room for, a label over each value
             '<dl class="calc-pt-facts">' + [
-                ['Mass', e.unstable ? e.mass : chemIn('m', e.mass), e.unstable ? 'mass number' : 'g/mol', 'mass'], ['Group', e.group, '', 'group'], ['Period', e.period, '', 'period'], ['Block', e.block, '', 'block'],
-                ['Melts', chemIn('t', e.mp), chemUnitName('t'), 'mp'], ['Boils', chemIn('t', e.bp), chemUnitName('t'), 'bp'],
-                ['Density', chemIn('d', e.density), chemUnitName('d'), 'density'], ['Ionization', chemIn('e', e.ie), chemUnitName('e'), 'ie'],
-                ['State', e.state ? chemStateName(e.state) : null, '', 'state'], ['Radius', e.radius, 'pm', 'radius'],
-                ['Affinity', chemIn('e', e.affinity), chemUnitName('e'), 'affinity'], ['Ions', e.ions, '', 'ions']
+                // each label and unit in the language in use, as it is shown
+                [tr('Mass'), e.unstable ? e.mass : chemIn('m', e.mass), e.unstable ? tr('mass number') : tr('g/mol'), 'mass'], [tr('Group'), e.group, '', 'group'], [tr('Period'), e.period, '', 'period'],
+                [tr('Block'), e.block, '', 'block'], [tr('Melts'), chemIn('t', e.mp), chemUnitName('t'), 'mp'], [tr('Boils'), chemIn('t', e.bp), chemUnitName('t'), 'bp'],
+                [tr('Density'), chemIn('d', e.density), chemUnitName('d'), 'density'], [tr('Ionization'), chemIn('e', e.ie), chemUnitName('e'), 'ie'],
+                [tr('State'), e.state ? chemStateName(e.state) : null, '', 'state'], [tr('Radius'), e.radius, 'pm', 'radius'],
+                [tr('Affinity'), chemIn('e', e.affinity), chemUnitName('e'), 'affinity'], [tr('Ions'), e.ions, '', 'ions']
             ].map(function (f) {
                 var v = f[1] === null || f[1] === undefined ? '–' : (e.predicted[f[3]] ? '≈' : '') + (typeof f[1] === 'number' ? local(String(f[1])) : f[1]);
-                return '<div data-pt="' + f[3] + '" data-full="' + (v === '–' ? '' : v + (f[2] && f[2] !== 'mass number' ? ' ' + f[2] : '')) + '"><dt>' + tr(f[0]) + (f[2] ? ' <i>' + tr(f[2]) + '</i>' : '') + '</dt><dd>' + v + '</dd></div>';
+                return '<div data-pt="' + f[3] + '" data-full="' + (v === '–' ? '' : v + (f[2] && !(f[3] === 'mass' && e.unstable) ? ' ' + f[2] : '')) + '"><dt>' + f[0] + (f[2] ? ' <i>' + f[2] + '</i>' : '') + '</dt><dd>' + v + '</dd></div>';
             }).join('') + '</dl></div>';
         chemDimBig();
         if (!all) return;
         chemAt = z;
         [].forEach.call(chemGrid.querySelectorAll('.calc-pt-el.calc-on'), function (t) { t.classList.remove('calc-on'); });
         if (chemGrid.querySelector('.calc-pt-el[data-z="' + z + '"]')) chemGrid.querySelector('.calc-pt-el[data-z="' + z + '"]').classList.add('calc-on');
-        // its crystal, drawn, beneath the shells, after the atom and its spectrum; with none drawn, among the words
+        // its crystal, drawn, beneath the shells, after the atom and its spectrum; with none drawn, among the words.
+        // Each unit in the language in use already, as it is shown
         cell = chemCrystal(e);
-        crystal = ['Crystal structure', e.crystal, '', true, '', false, false, cell];
+        crystal = ['Crystal structure', e.crystal && tr(e.crystal), '', true, '', false, false, cell];
         tiles = [
-            ['Atomic number', e.z], e.unstable ? ['Atomic mass', e.mass, 'mass number'] : ['Atomic mass', chemIn('m', e.mass), chemUnitName('m'), false, 'm'], ['Electronegativity', e.en, 'Pauling'],
+            ['Atomic number', e.z], e.unstable ? ['Atomic mass', e.mass, tr('mass number')] : ['Atomic mass', chemIn('m', e.mass), chemUnitName('m'), false, 'm'], ['Electronegativity', e.en, tr('Pauling')],
             ['Ionization energy', chemIn('e', e.ie), chemUnitName('e'), false, 'e'], ['Melting point', chemIn('t', e.mp), chemUnitName('t'), false, 't'],
             ['Boiling point', chemIn('t', e.bp), chemUnitName('t'), false, 't'],
             ['Density', chemIn('d', e.density), (e.state === 'gas' ? tr('{unit} at 0 °C', { unit: chemUnitName('d') }) : chemUnitName('d')), false, 'd'], ['Group', e.group], ['Period', e.period],
@@ -18617,25 +18682,25 @@
             ['Outer-shell electrons', e.shells[e.shells.length - 1]], ['Unpaired electrons', chemUnpaired(e.config)],
             // the small tiles in threes, so each row is full before a wide one
             ['Atomic radius', e.radius, 'pm'], ['Covalent radius', e.covalent, 'pm'], ['Electron affinity', chemIn('e', e.affinity), chemUnitName('e'), false, 'e'],
-            ['State at 20 °C', e.state ? e.state.charAt(0).toUpperCase() + e.state.slice(1) : 'Not known'], ['Specific heat', e.heat, 'J/(g·K)'], ['Mohs hardness', e.mohs],
+            ['State at 20 °C', e.state ? chemStateName(e.state) : tr('Not known')], ['Specific heat', e.heat, 'J/(g·K)'], ['Mohs hardness', e.mohs],
             ['Common ions', e.ions || '–', '', true], ['Oxidation states', e.ox || '–', '', true],
             ['Heat of fusion', e.fusion, 'kJ/mol'], ['Heat of vaporization', e.vaporization, 'kJ/mol'], ['Thermal conductivity', e.conductivity, 'W/(m·K)'],
-            ['Electrical resistivity', e.resistivity, 'Ω·m at 20 °C', false, '', false, true], ['Abundance in the crust', e.abundance, typeof e.abundance === 'number' ? 'mg/kg' : '', false, '', false, true], ['CAS number', e.cas],
-            ['Magnetism', e.magnetic, '', true], cell ? null : crystal, ['Appearance', e.appearance, '', true],
+            ['Electrical resistivity', e.resistivity, tr('Ω·m at 20 °C'), false, '', false, true], ['Abundance in the crust', e.abundance, typeof e.abundance === 'number' ? 'mg/kg' : '', false, '', false, true], ['CAS number', e.cas],
+            ['Magnetism', e.magnetic && tr(e.magnetic), '', true], cell ? null : crystal, ['Appearance', e.appearance && tr(e.appearance), '', true],
             // in words, each on its own line: when and by whom it was found, its isotopes, its name, its uses
-            ['Discovered', (e.year === 0 ? 'In ancient times' : e.year) + (e.foundBy ? ', by ' + e.foundBy : '') + (e.isolatedBy ? tr('; isolated by {isolatedBy}', { isolatedBy: e.isolatedBy }) : ''), '', true, '', true],
-            ['Isotopes', e.isotopes || '–', '', true, '', true],
-            [/^The name/.test(e.story || '') ? 'Name' : 'History', e.story || '–', '', true, '', true], ['Uses', e.uses || '–', '', true, '', true]
+            ['Discovered', (e.year === 0 ? tr('In ancient times') : e.year) + (e.foundBy ? tr(', by {foundBy}', { foundBy: tr(e.foundBy) }) : '') + (e.isolatedBy ? tr('; isolated by {isolatedBy}', { isolatedBy: tr(e.isolatedBy) }) : ''), '', true, '', true],
+            ['Isotopes', chemIsotopes(e.isotopes) || '–', '', true, '', true],
+            [/^The name/.test(e.story || '') ? 'Name' : 'History', e.story ? tr(e.story) : '–', '', true, '', true], ['Uses', e.uses ? tr(e.uses) : '–', '', true, '', true]
         ].filter(Boolean);
         chemInfo.classList.toggle('calc-pt-new', String(z) !== chemInfo.dataset.z); // its details come in with a move, once for each element
         chemInfo.dataset.z = z;
         chemInfo.innerHTML = '<span class="calc-pt-hide" role="button" aria-label="' + tr('Close the card') + '"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span><div class="calc-pt-head"><div class="calc-pt-big calc-pt-el ' + chemClass(e) + '" style="' + chemHeat(e) + '"><span class="calc-pt-z" data-pt="z">' + e.z + '</span><b data-pt="symbol">' + e.s +
-            '</b>' + chemMassHtml(e) + '</div><div class="calc-pt-about"><span class="calc-pt-title" data-pt="name">' + e.name + '</span><span data-pt="kind" data-kind="' + e.cat + '">' + cat +
+            '</b>' + chemMassHtml(e) + '</div><div class="calc-pt-about"><span class="calc-pt-title" data-pt="name">' + tr(e.name) + '</span><span data-pt="kind" data-kind="' + e.cat + '">' + cat +
             '</span><span data-pt="shells" data-full="' + e.shells.join(', ') + '">' + tr('Shells {list}', { list: '<span>' + e.shells.join(', ') + '</span>' }) + '</span></div></div><div class="calc-pt-body">' + chemAtom(e) + '<div class="calc-sv-grid calc-pt-tiles">' + chemSpectrum(e) + tiles.map(function (t, i) {
             var num = typeof t[1] === 'number' && !(t[0] === 'Found'), known = t[1] !== null && t[1] !== undefined, guess = known && e.predicted[CHEM_FACTS[t[0]]];
             return '<div class="calc-sv-tile' + (num && known ? '' : ' calc-none') + (t[3] ? ' calc-sv-wide' : '') + (t[5] ? ' calc-pt-text' : '') + (known && !num && !t[3] && String(t[1]).length > 9 ? ' calc-pt-wrap' : '') +
                 '" style="--i: ' + i + '" data-fact="' + CHEM_FACTS[t[0]] + '"' + (num && known ? ' data-v="' + t[1] + '"' : '') + '><span class="calc-sv-label">' + tr(t[0]) +
-                (t[2] ? ' <i' + (t[4] ? ' class="calc-pt-unit" data-unit="' + t[4] + '" role="button"' : '') + '>' + tr(t[2]) + '</i>' : '') + (guess ? ' <i class="calc-pt-guess">' + tr('predicted') + '</i>' : '') + '</span><span class="calc-sv-value">' + (!known ? '–' : num ? (t[6] ? chemSci(t[1]) : statsValue(t[1]).html) : t[1]) +
+                (t[2] ? ' <i' + (t[4] ? ' class="calc-pt-unit" data-unit="' + t[4] + '" role="button"' : '') + '>' + t[2] + '</i>' : '') + (guess ? ' <i class="calc-pt-guess">' + tr('predicted') + '</i>' : '') + '</span><span class="calc-sv-value">' + (!known ? '–' : num ? (t[6] ? chemSci(t[1]) : statsValue(t[1]).html) : t[1]) +
                 (t[7] || '') + '</span></div>';
         }).join('') + '</div></div>';
         chemRows();
@@ -18697,6 +18762,22 @@
     // written right to left
     function chemTempOf(e, by) {
         return '<span>' + (e.predicted[by] ? '≈' : '') + local(String(chemIn('t', e[by]))).replace('-', '−') + ' ' + chemUnitName('t') + '</span>';
+    }
+
+    // an element's isotopes in words, as chem.js has them: '2 stable: ¹H, ²H'; 'None stable; longest-lived ⁹⁷Tc,
+    // half-life 4.21×10⁶ years', or no half-life known; 'None stable; found in nature as ²⁰⁹Bi'
+    function chemIsotopes(text) {
+        var m;
+        if (!text) return text;
+        if ((m = /^(\d+) stable: (.*)$/.exec(text))) return trn(+m[1], '{n} stable: {list}', '{n} stable: {list}', { list: m[2] });
+        if ((m = /^None stable; longest-lived (\S+), half-life (\S+) (\S+)$/.exec(text))) {
+            return tr('None stable; longest-lived {isotope}, half-life {time}', { isotope: m[1], time: { years: tr('{t} years', { t: m[2] }), days: tr('{t} days', { t: m[2] }),
+                hours: tr('{t} hours', { t: m[2] }), minutes: tr('{t} minutes', { t: m[2] }), s: tr('{t} s', { t: m[2] }), ms: tr('{t} ms', { t: m[2] }),
+                'μs': tr('{t} μs', { t: m[2] }) }[m[3]] || m[2] + ' ' + m[3] });
+        }
+        if ((m = /^None stable; longest-lived (\S+)$/.exec(text))) return tr('None stable; longest-lived {isotope}', { isotope: m[1] });
+        if ((m = /^None stable; found in nature as (.*)$/.exec(text))) return tr('None stable; found in nature as {isotope}', { isotope: m[1] });
+        return text;
     }
 
     // a state of matter by its name: Solid not as a solid of geometry, nor a line
@@ -19055,7 +19136,7 @@
 
     chemSearch.addEventListener('input', function () {
         var q = chemSearch.value.trim().toLowerCase(), exact = CalcChem.elements.filter(function (e) {
-            return q && (e.s.toLowerCase() === q || String(e.z) === q || e.name.toLowerCase() === q);
+            return q && (e.s.toLowerCase() === q || String(e.z) === q || e.name.toLowerCase() === q || tr(e.name).toLowerCase() === q);
         })[0];
         chemDim();
         if (exact) {
@@ -19252,7 +19333,7 @@
     // each example, with the words it is found by: its group, its name, what it types and what it is
     CalcFormulas.graphs.forEach(function (group) {
         group.list.forEach(function (ex) {
-            graphExItems.push({ c: group.c, ex: ex, words: [group.c, ex.t, ex.f.join(' '), ex.d].join(' ').toLowerCase() });
+            graphExItems.push({ c: group.c, ex: ex, words: [group.c, ex.t, ex.f.join(' '), ex.d, tr(group.c), tr(ex.t), tr(ex.d)].join(' ').toLowerCase() }); // in English and the language in use
         });
     });
 
@@ -19282,15 +19363,15 @@
         var words = graphSearch.value.trim().toLowerCase().split(/\s+/).filter(Boolean), group = null, html = '';
         graphExItems.forEach(function (entry, i) {
             if (!words.every(function (w) { return entry.words.indexOf(w) > -1; })) return;
-            if (entry.c !== group) html += '<div class="calc-gx-cat">' + entry.c + '</div>';
+            if (entry.c !== group) html += '<div class="calc-gx-cat">' + tr(entry.c) + '</div>';
             group = entry.c;
             html += '<div class="calc-gx-item" data-i="' + i + '"><div class="calc-gx-row">' +
-                '<span class="calc-gx-col"><span class="calc-gx-name">' + entry.ex.t + '</span>' +
+                '<span class="calc-gx-col"><span class="calc-gx-name">' + tr(entry.ex.t) + '</span>' +
                 '<span class="calc-gx-f calc-gx-eq calc-gx-val"><span>' + entry.ex.f.map(function (text) {
                     return exampleText(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                 }).join('<span class="calc-graph-ex-gap"></span>') + '</span></span></span></div></div>';
         });
-        graphExList.innerHTML = html || '<div class="calc-gx-none">Nothing found</div>';
+        graphExList.innerHTML = html || '<div class="calc-gx-none">' + tr('Nothing found') + '</div>';
         graphExList.scrollTop = 0;
         hideTip();
     }
@@ -19341,7 +19422,7 @@
     // the tip of an example: what it is, and that a click draws it
     function exampleTip(el) {
         var ex = graphExItems[+el.parentNode.dataset.i].ex;
-        return { t: ex.t, d: tr('{d} Click to draw it in place of the curves there are.', { d: ex.d + (ex.rad && deg ? tr(' It is drawn in Rad.') : '') }), k: '' };
+        return { t: ex.t, d: tr('{d} Click to draw it in place of the curves there are.', { d: tr(ex.d) + (ex.rad && deg ? tr(' It is drawn in Rad.') : '') }), k: '' };
     }
 
     // ---------------- converter ---------------- //
@@ -19357,13 +19438,13 @@
                 id: 'units-' + g.c.toLowerCase().replace(/[^a-z]+/g, '-'),
                 t: g.c,
                 f: g.list.slice(0, 3).map(function (u) { return u.s; }),
-                d: 'A value in one of its ' + names.length + ' units in all the others: ' + names.slice(0, 4).join(', ') +
-                    (names.length > 4 ? ' and more' : '') + '. An empty value is 1.',
+                d: tr('A value in one of its {units} in all the others: {names}{more}. An empty value is 1.', { units: trn(names.length, '{n} unit', '{n} units'),
+                    names: names.slice(0, 4).map(function (t) { return tr(t); }).join(tr(', ')), more: names.length > 4 ? tr(' and more') : '' }),
                 fills: true,
                 fields: [
                     { k: 'v', l: 'Value', ph: '1', text: true, num: true },
                     { k: 'u', l: 'From', at: g.list[0].t, pick: function () {
-                        return g.list.map(function (u) { return [u.t, u.t + ' <span class="calc-conv-of">(' + u.s + ')</span>']; });
+                        return g.list.map(function (u) { return [u.t, tr(u.t) + ' <span class="calc-conv-of">(' + u.s + ')</span>']; });
                     } }
                 ],
                 cols: 2,
@@ -19387,9 +19468,9 @@
         }
         return {
             rows: group.list.map(function (u, i) {
-                var v = isFinite(x) ? CalcUnits.convert(gi, from, i, x) : NaN, dms = u.dms && isFinite(v) && local(CalcEngine.dms(v) || '');
+                var v = isFinite(x) ? CalcUnits.convert(gi, from, i, x) : NaN, dms = u.dms && isFinite(v) && local(CalcEngine.dms(v) || ''), name = tr(u.t);
                 return i === from ? null : {
-                    l: u.t.charAt(0).toUpperCase() + u.t.slice(1) + ' (' + u.s + ')', v: isFinite(v) ? +v.toPrecision(15) : NaN,
+                    l: name.charAt(0).toUpperCase() + name.slice(1) + ' (' + u.s + ')', v: isFinite(v) ? +v.toPrecision(15) : NaN,
                     html: isFinite(v) ? dms || convValue(v) : undefined, say: isFinite(v) ? dms || local(+v.toPrecision(15)) : '',
                     unit: plain(u.s), dms: !!u.dms
                 };
@@ -19778,7 +19859,7 @@
                 'stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg>';
             pastList.appendChild(row);
         }
-        if (!n) pastList.innerHTML = '<div class="calc-fx-none">No calculations yet</div>'; // the letters are on the other tab
+        if (!n) pastList.innerHTML = '<div class="calc-fx-none">' + tr('No calculations yet') + '</div>'; // the letters are on the other tab
     }
 
     // A result in the history: as a fraction if it was done in fraction mode,
@@ -20266,9 +20347,10 @@
             from = { x: e.clientX, w: list.offsetWidth };
         }, false);
         split.addEventListener('pointermove', function (e) {
-            var room = panel.clientWidth / popZoom;
+            var room = panel.clientWidth / popZoom,
+                rtl = CalcLang.rtl; // the list at the right (style.css)
             if (!from || !split.hasPointerCapture(e.pointerId)) return;
-            sideWidth(Math.round(Math.max(SIDE_MIN, Math.min(room - 36 - SIDE_CARD_MIN, room * SIDE_MAX, from.w + (e.clientX - from.x) / popZoom))));
+            sideWidth(Math.round(Math.max(SIDE_MIN, Math.min(room - 36 - SIDE_CARD_MIN, room * SIDE_MAX, from.w + (e.clientX - from.x) * (rtl ? -1 : 1) / popZoom))));
         }, false);
         split.addEventListener('lostpointercapture', function () {
             from = null;
@@ -20348,10 +20430,10 @@
         item.className = 'calc-go-item';
         item.dataset.go = g[0];
         item.setAttribute('role', 'button');
-        item.setAttribute('aria-label', g[2]);
-        item.title = g[2]; // its name, on a narrow page where the rail has its icon alone
+        item.setAttribute('aria-label', tr(g[2]));
+        item.title = tr(g[2]); // its name, on a narrow page where the rail has its icon alone
         item.tabIndex = 0;
-        name.textContent = g[2];
+        name.textContent = tr(g[2]);
         item.appendChild(g[1].querySelector('svg').cloneNode(true));
         item.appendChild(name);
         goBar.insertBefore(item, goOpt);
@@ -20557,7 +20639,7 @@
         GO.forEach(function (g) {
             add({ go: g[0], kind: 'tool', t: g[2], s: '', w: '' }, []);
             [].forEach.call(FIND_PANELS[g[0]].querySelectorAll('.calc-past-head [data-tab]'), function (el) {
-                add({ go: g[0], kind: 'tab', tab: el.dataset.tab, t: tabName(g[0], el.dataset.tab), s: '', w: g[2] }, tipWords(CalcTips[g[0] + ' tab ' + el.dataset.tab]));
+                add({ go: g[0], kind: 'tab', tab: el.dataset.tab, t: tabName(g[0], el.dataset.tab), s: '', w: names[g[0]] }, tipWords(CalcTips[g[0] + ' tab ' + el.dataset.tab]));
             });
         });
         [['solve', SOLVE_TOOLS], ['numbers', NUMBER_TOOLS], ['phys', PHYS_TOOLS], ['bio', BIO_TOOLS], ['chem', CHEM_TOOLS], ['conv', DATE_TOOLS], ['stats', TEST_TOOLS]].forEach(function (p) {
@@ -20657,7 +20739,7 @@
             }
             (small ? findPanel : findWide).appendChild(findBar);
             (small ? findPanel : findWide).appendChild(findList);
-            findInput.placeholder = small ? 'Search cards, formulas, units…' : findPh; // the panel's narrow
+            findInput.placeholder = small ? tr('Search cards, formulas, units…') : findPh; // the panel's narrow
         } else if (findBox.contains(document.activeElement) || findPanel.contains(document.activeElement)) {
             document.activeElement.blur(); // the keys are the calculator's again
         }

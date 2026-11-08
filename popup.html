@@ -115,6 +115,24 @@
             }
         }
 
+        /* right to left, the rail down the right (style.css): beside it at its left */
+        .lang-rtl .options-over {
+            right: calc(37px * var(--calc-pop, 1));
+            left: 0;
+        }
+
+        @media (min-width: 760px) {
+            .lang-rtl .options-over {
+                right: calc(58px * var(--calc-pop, 1));
+            }
+        }
+
+        @media (max-width: 743px) {
+            .lang-rtl .options-over {
+                right: 0;
+            }
+        }
+
         /* while they are open, Options or Guide is the one marked on the rail, not the tool under them */
         .options-shown .calc-go .calc-go-item.calc-on {
             opacity: 0.6;

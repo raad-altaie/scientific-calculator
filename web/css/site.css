@@ -112,6 +112,11 @@ html:has(.options-open),
     pointer-events: none;
 }
 
+/* right to left, at the left of the options, as the page reads */
+.lang-rtl .options-bar {
+    justify-content: flex-start;
+}
+
 .close-options {
     display: flex;
     align-items: center;
@@ -217,6 +222,11 @@ html:has(.options-open),
     html:not(.options-hidden, .home) #calculator:is(.calc-big, .calc-panel-big) {
         right: 50%;
     }
+
+    /* right to left, its rail down its right, at the middle of the page beside the options */
+    html.lang-rtl:not(.options-hidden, .home) #calculator:is(.calc-big, .calc-panel-big) ~ .calc-go {
+        right: 50%;
+    }
 }
 
 /* Advanced mode (app.js), as the extension's Advanced mode opens the calculator: the rail of the tools down the left
@@ -237,6 +247,30 @@ html:has(.options-open),
     .home .calc-pane {
         padding-left: env(safe-area-inset-left);
         padding-top: calc((40px + env(safe-area-inset-top)) * var(--calc-pop, 1));
+    }
+}
+
+/* right to left, the rail down the right (style.css): the calculator in the middle of the room beside it at its left */
+.lang-rtl.home .calc-pane {
+    padding-right: calc((37px + env(safe-area-inset-right)) * var(--calc-pop, 1) + 4px);
+    padding-left: max(4px, env(safe-area-inset-left));
+}
+
+@media (max-width: 1099px) {
+    .lang-rtl.home .calc-pane {
+        padding-left: env(safe-area-inset-left);
+    }
+}
+
+@media (min-width: 760px) {
+    .lang-rtl.home .calc-pane {
+        padding-right: calc((58px + env(safe-area-inset-right)) * var(--calc-pop, 1) + 4px);
+    }
+}
+
+@media (max-width: 743px) {
+    .lang-rtl.home .calc-pane {
+        padding-right: env(safe-area-inset-right);
     }
 }
 
@@ -279,6 +313,24 @@ html:has(.options-open),
     .home .options-pane {
         top: calc((40px + env(safe-area-inset-top)) * var(--calc-pop, 1));
         left: 0;
+    }
+}
+
+/* right to left, beside the rail at its left */
+.lang-rtl.home .options-pane {
+    right: calc((37px + env(safe-area-inset-right)) * var(--calc-pop, 1));
+    left: 0;
+}
+
+@media (min-width: 760px) {
+    .lang-rtl.home .options-pane {
+        right: calc((58px + env(safe-area-inset-right)) * var(--calc-pop, 1));
+    }
+}
+
+@media (max-width: 743px) {
+    .lang-rtl.home .options-pane {
+        right: 0;
     }
 }
 

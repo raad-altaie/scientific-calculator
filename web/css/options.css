@@ -3,6 +3,17 @@
     src: url('../fonts/Play-Regular.ttf');
 }
 
+/* Arabic in Noto Kufi Arabic, its letters alone, as in the calculator (style.css) */
+@font-face {
+    font-family: Play;
+    src: url('../fonts/NotoKufiArabic-Regular.ttf');
+    size-adjust: 90%; /* a little smaller: wider and taller than Play beside it */
+    ascent-override: 105%; /* its lines as close as Play's, not its own 1.9 */
+    descent-override: 35%;
+    line-gap-override: 0%;
+    unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+
 html, body {
     background: #39576f;
     margin: 0;
@@ -1068,7 +1079,68 @@ html, body {
 }
 
 /* A language written right to left, as Arabic (lang.js): the page laid out as it is, each text read from the right as
-   its first letter says, a paragraph from its right edge */
-.lang-rtl body :not(svg, svg *, input, kbd, .trigo-keys, .trigo-keys *) {
+   its first letter says, a paragraph from its right edge; a sub, a sup, italic or bold with the word it is of (style.css) */
+.lang-rtl body :not(svg, svg *, input, kbd, .trigo-keys, .trigo-keys *, sub, sup, i, b, em, strong) {
     unicode-bidi: plaintext;
+}
+
+/* The options and the guide right to left, as the panels of the calculator: each option's icon at the right, its
+   choices and switch at the left, the tabs and the guide's lists from the right, a key of the guide at the right of
+   what it does, the copyright from the right. What stays left to right: a key, a sum of a page, what is typed */
+.lang-rtl :is(.wrapper, .footer) {
+    direction: rtl;
+}
+
+.lang-rtl :is(.features, .info, .options) {
+    text-align: right;
+}
+
+.lang-rtl .wrapper :is(.keys, .trigo-keys, .k, kbd, .page-maths, input) {
+    direction: ltr;
+}
+
+/* each paragraph read from the right as a whole, not from its first letter: [Backspace] at the start of its Arabic,
+   and the copyright, © 2026 raad.dev, at the right of its Arabic. A word or a sum inside one as its letters say */
+.lang-rtl :is(.wrapper, .footer) :is(p, li, h1, h2, h3, .des, .title, .logo) {
+    unicode-bidi: isolate;
+}
+
+:where(.lang-rtl .wrapper) .logo {
+    margin-right: 15px;
+    margin-left: 0;
+}
+
+/* a switch on at the left, the way it goes */
+.lang-rtl .switch span::after {
+    left: auto;
+    right: 3px;
+    transition: right 0.2s, background 0.2s;
+}
+
+.lang-rtl .switch input:checked + span::after {
+    right: 21px;
+}
+
+/* a list's arrow at the left of its box */
+.lang-rtl .format-row select {
+    padding: 0.45em 0.6em 0.45em 1.9em;
+    background-position: left 0.7em center;
+}
+
+@media (max-width: 600px) {
+    :where(.lang-rtl .wrapper) .logo {
+        margin-right: 0;
+    }
+
+    .lang-rtl .features ul {
+        padding: 0 1.2em 1em 0;
+    }
+
+    .lang-rtl .launch {
+        margin: 0 calc(50% - 4.5em + (40px + 0.9em) / 2) 0 calc(50% - 4.5em - (40px + 0.9em) / 2);
+    }
+
+    .lang-rtl .des {
+        padding: 0 10px 0 0;
+    }
 }
