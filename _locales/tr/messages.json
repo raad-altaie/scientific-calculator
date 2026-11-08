@@ -1,0 +1,18 @@
+{
+    "name": {
+        "message": "Bilimsel Hesap Makinesi",
+        "description": "The extension's name, in the browser and the store"
+    },
+    "description": {
+        "message": "Eksiksiz bir bilimsel hesap makinesi: grafik, denklemler, kalkülüs, istatistik, matrisler, birimler, finans, kimya, fizik, biyoloji.",
+        "description": "What the extension is, in the browser and the store: up to 132 characters"
+    },
+    "actionTitle": {
+        "message": "Hesap makinesi",
+        "description": "The tip of the toolbar icon"
+    },
+    "openPopup": {
+        "message": "Bilimsel Hesap Makinesini aç",
+        "description": "The keyboard shortcut's name, on the browser's page of shortcuts"
+    }
+}

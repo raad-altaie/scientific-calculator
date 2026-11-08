@@ -1,0 +1,18 @@
+{
+    "name": {
+        "message": "Научный калькулятор",
+        "description": "The extension's name, in the browser and the store"
+    },
+    "description": {
+        "message": "Полный научный калькулятор: графики, уравнения, матанализ, статистика, матрицы, единицы, финансы, химия, физика, биология.",
+        "description": "What the extension is, in the browser and the store: up to 132 characters"
+    },
+    "actionTitle": {
+        "message": "Калькулятор",
+        "description": "The tip of the toolbar icon"
+    },
+    "openPopup": {
+        "message": "Открыть научный калькулятор",
+        "description": "The keyboard shortcut's name, on the browser's page of shortcuts"
+    }
+}

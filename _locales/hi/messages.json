@@ -1,0 +1,18 @@
+{
+    "name": {
+        "message": "वैज्ञानिक कैलकुलेटर",
+        "description": "The extension's name, in the browser and the store"
+    },
+    "description": {
+        "message": "एक संपूर्ण वैज्ञानिक कैलकुलेटर: ग्राफ़, समीकरण, कैलकुलस, सांख्यिकी, मैट्रिक्स, इकाइयाँ, वित्त, रसायन, भौतिकी, जीव विज्ञान।",
+        "description": "What the extension is, in the browser and the store: up to 132 characters"
+    },
+    "actionTitle": {
+        "message": "कैलकुलेटर",
+        "description": "The tip of the toolbar icon"
+    },
+    "openPopup": {
+        "message": "वैज्ञानिक कैलकुलेटर खोलें",
+        "description": "The keyboard shortcut's name, on the browser's page of shortcuts"
+    }
+}

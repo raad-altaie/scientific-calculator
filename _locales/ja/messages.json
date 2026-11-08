@@ -1,0 +1,18 @@
+{
+    "name": {
+        "message": "関数電卓",
+        "description": "The extension's name, in the browser and the store"
+    },
+    "description": {
+        "message": "多機能な関数電卓：グラフ、方程式、微積分、統計、行列、単位換算、金融、化学、物理、生物。",
+        "description": "What the extension is, in the browser and the store: up to 132 characters"
+    },
+    "actionTitle": {
+        "message": "電卓",
+        "description": "The tip of the toolbar icon"
+    },
+    "openPopup": {
+        "message": "関数電卓を開く",
+        "description": "The keyboard shortcut's name, on the browser's page of shortcuts"
+    }
+}

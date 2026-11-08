@@ -1,0 +1,18 @@
+{
+    "name": {
+        "message": "科学计算器",
+        "description": "The extension's name, in the browser and the store"
+    },
+    "description": {
+        "message": "功能齐全的科学计算器：函数图像、解方程、微积分、统计、矩阵、单位换算、金融、化学、物理、生物。",
+        "description": "What the extension is, in the browser and the store: up to 132 characters"
+    },
+    "actionTitle": {
+        "message": "计算器",
+        "description": "The tip of the toolbar icon"
+    },
+    "openPopup": {
+        "message": "打开科学计算器",
+        "description": "The keyboard shortcut's name, on the browser's page of shortcuts"
+    }
+}

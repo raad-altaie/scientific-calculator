@@ -1,0 +1,18 @@
+{
+    "name": {
+        "message": "공학용 계산기",
+        "description": "The extension's name, in the browser and the store"
+    },
+    "description": {
+        "message": "완전한 공학용 계산기: 그래프, 방정식, 미적분, 통계, 행렬, 단위 변환, 금융, 화학, 물리, 생물.",
+        "description": "What the extension is, in the browser and the store: up to 132 characters"
+    },
+    "actionTitle": {
+        "message": "계산기",
+        "description": "The tip of the toolbar icon"
+    },
+    "openPopup": {
+        "message": "공학용 계산기 열기",
+        "description": "The keyboard shortcut's name, on the browser's page of shortcuts"
+    }
+}
