@@ -659,6 +659,47 @@
     display: none;
 }
 
+/* below them, a line of each model fitted, in its color: its values, each to click, and r² */
+#calculator .calc-graph-fits {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    gap: 3px;
+    margin: 6px 8px 0;
+}
+
+#calculator .calc-graph-fits[hidden] {
+    display: none;
+}
+
+#calculator .calc-graph-fit {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 10px;
+    padding: 3px 8px;
+    border-left: 3px solid var(--c);
+    border-radius: 4px;
+    background: rgba(169, 196, 181, 0.16);
+    color: #d3d9e2;
+    font: 13px/17px 'Play', 'Russo One', sans-serif;
+}
+
+#calculator .calc-graph-fit-val {
+    padding: 0 3px;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+#calculator .calc-graph-fit-val:hover {
+    background: rgba(169, 196, 181, 0.25);
+}
+
+#calculator .calc-graph-fit-r2,
+#calculator .calc-graph-fit-none {
+    color: #9fb0bd;
+}
+
 #calculator .calc-graph-sliders.calc-graph-many {
     max-height: 57px;
     margin: 5px 6px 0;
@@ -883,7 +924,8 @@
 }
 
 /* an equation of x and y, x² + y² = 25, has no y = before it: it is written in the box; nor have
-   points, nor a function named, f(x) = x^2 */
+   points, a function named, f(x) = x^2, nor a model, y ~ a x^2 + b */
+#calculator .calc-graph-fn.calc-graph-model > span:not([class]),
 #calculator .calc-graph-fn.calc-graph-data > span:not([class]),
 #calculator .calc-graph-fn.calc-graph-named > span:not([class]),
 #calculator .calc-graph-fn.calc-graph-rel > span:not([class]) {
@@ -1332,6 +1374,63 @@
 
 #calculator .calc-graph-window .calc-graph-axisnames input::placeholder {
     color: #5f7a6c;
+}
+
+/* the tick of the line of a curve its menu has, before its name, the others as far in */
+#calculator .calc-menu-tick {
+    display: inline-block;
+    width: 1.1em;
+}
+
+/* a graph opened from a link, at the top of the plot: what it is, and to keep it or go back to one's own */
+#calculator .calc-graph-shared {
+    position: absolute;
+    z-index: 2;
+    top: 6px;
+    left: 50%;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 4px 3px 9px;
+    border: 1px solid #4d6b80;
+    border-radius: 7px;
+    background: #1f333c;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+    color: #d3d9e2;
+    font: 12px/16px 'Play', 'Russo One', sans-serif;
+    white-space: nowrap;
+    transform: translateX(-50%);
+}
+
+#calculator .calc-graph-shared[hidden] {
+    display: none;
+}
+
+#calculator .calc-graph-shared > span:first-child {
+    margin-right: 4px;
+}
+
+#calculator .calc-graph-shared [data-shared] {
+    padding: 1px 7px;
+    border-radius: 4px;
+    outline: none;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+#calculator .calc-graph-shared [data-shared="keep"] {
+    background: #a9c4b5;
+    color: #1f333c;
+}
+
+#calculator .calc-graph-shared [data-shared="back"] {
+    border: 1px solid #4d6b80;
+}
+
+#calculator .calc-graph-shared [data-shared]:hover,
+#calculator .calc-graph-shared [data-shared]:focus-visible {
+    filter: brightness(1.15);
 }
 
 /* the view locked: no buttons to move it, and no hand to drag it */

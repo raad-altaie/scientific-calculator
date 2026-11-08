@@ -120,6 +120,7 @@
         graphFnList = graph.querySelector('.calc-graph-fns'),
         graphAdd = graph.querySelector('.calc-graph-add'),
         graphSliders = graph.querySelector('.calc-graph-sliders'),
+        graphFits = graph.querySelector('.calc-graph-fits'), // below them, of each model fitted, y ~ a x² + b: its values and r²
         graphInputs = graphRows.map(function (row) { return row.querySelector('input'); }),
         graphNote = graph.querySelector('.calc-graph-note'),
         graphPlot = graph.querySelector('.calc-graph-plot'),
@@ -1500,11 +1501,9 @@
                 storeItem(function (letter) { setLetter(letter, k); })
             ];
         }
+        if (panel === graph && el.closest('.calc-graph-fn > .calc-graph-swatch')) return styleItems(graphRows.indexOf(el.closest('.calc-graph-fn')));
         if (panel === graph && el.closest('.calc-graph-plot') && !el.closest('.calc-graph-pop')) {
-            return [
-                ['Copy picture', copyGraph],
-                ['Save picture', saveGraph]
-            ];
+            return exportItems();
         }
         if (panel === graph && (row = el.closest('.calc-graph-pop-row')) && graphPinned) {
             k = graphPinned[row.dataset.put];
@@ -2377,6 +2376,11 @@
         GRAPH_CLICK_NICE = 10, // a click on a curve puts its point where x and y are roundest this many pixels away, (2, 4) and not (1.97, 3.8809)
         graphOff = GRAPH_CURVES.map(function () { return false; }), // the curves hidden by a click on their dot: kept, not drawn
         graphDiff = GRAPH_CURVES.map(function () { return false; }), // the curves whose slope is drawn too, by their y′; of points, the kind of their fit
+        // the line of each curve, as the menu of its dot sets it: d 0 solid, 1 dashed, 2 dotted; w 0 thin, 1 as it starts,
+        // 2 thick; l, of points, each with its x and y beside it
+        GRAPH_STYLE = { d: 0, w: 1, l: false },
+        graphStyle = GRAPH_CURVES.map(function () { return Object.assign({}, GRAPH_STYLE); }),
+        GRAPH_WIDTHS = [1.25, 2, 3.5],
         graphTwice = '', // a name two boxes give their functions, f of f(x) = …: the second is none
         graphCells = graph.querySelector('.calc-graph-cells'), // the points of a box as a table of x and y, to type in
         graphCellsRow = -1, // the box that table is of
@@ -2387,10 +2391,15 @@
         graphRels = [], // the boxes with an equation or an inequality of x and y in place of a function of x, x² + y² = 25
         graphPlanes = [], // the boxes with a curve of a parameter, polar, r = 2sin(3θ), or parametric, (cos t, sin t)
         graphData = [], // the boxes with points, (1, 2), (2, 4.1): their { x, y }; the function of such a box is its best fit, if on
+        graphModels = [], // the boxes of a model to fit to points, y ~ a x² + b: { fn, keys, of: the box of the points, fit: its values and r² }
         graphVersion = 0, // goes up as the boxes are read again, so the marks found are found again
         graphMarksKept = null, // the marks found, while the view, the unit, the letters and the boxes stay
         graphSharp = 0, // pixels of the canvas to each of the plot at least: 2 while a picture is made
         graphPop = graphPlot.querySelector('.calc-graph-pop'), // the point clicked: its x and y, each to insert
+        graphSave = graphPlot.querySelector('[data-zoom="save"]'), // in the corner below: its menu, to share and save the graph
+        graphShared = graphPlot.querySelector('.calc-graph-shared'), // a graph opened from a link: keep it, or back to one's own
+        GRAPH_SITE = 'https://raad.dev/calculator/', // where a link of the graph opens, from the extension too
+        graphDrawTo = null, // the SVG the graph is drawn into in place of its canvas, while it is saved as one
         GRAPH_POP_WAIT = 3500, // the popup opened with the mouse goes this many ms after the mouse is off it
         graphHiding, // that wait
         graphPopFrom = null, // where the mouse was as it opened the popup: the wait starts once it is moved off there
@@ -2461,6 +2470,34 @@
             saveState();
         }, false);
     });
+
+    // The menu of a curve's dot, a right click or a finger held on it: its line solid, dashed or dotted,
+    // thin, as it starts or thick, the one it is ticked; of points, their x and y beside them; and to
+    // hide or show it, as a click does. Nothing for an empty box
+    function styleItems(i) {
+        var st = graphStyle[i];
+        function item(name, on, set) {
+            return ['<span class="calc-menu-tick">' + (on ? '✓' : '') + '</span>' + name, function () {
+                set();
+                graphRender();
+                saveState();
+            }];
+        }
+        if (i < 0 || !graphInputs[i].value.trim()) return null;
+        return [
+            item('Solid', st.d === 0, function () { st.d = 0; }),
+            item('Dashed', st.d === 1, function () { st.d = 1; }),
+            item('Dotted', st.d === 2, function () { st.d = 2; }),
+            null,
+            item('Thin', st.w === 0, function () { st.w = 0; }),
+            item('Normal', st.w === 1, function () { st.w = 1; }),
+            item('Thick', st.w === 2, function () { st.w = 2; }),
+            null,
+            graphData[i] && item('Label points', st.l, function () { st.l = !st.l; }),
+            graphData[i] && null,
+            [graphOff[i] ? 'Show' : 'Hide', function () { graphRows[i].querySelector('.calc-graph-swatch').click(); }]
+        ].filter(function (x) { return x !== undefined && x !== false; });
+    }
 
     // the fit after this one on its button, from none to a line and on to none again
     function nextFit(kind) {
@@ -2588,6 +2625,8 @@
         graphOff.push(false);
         graphDiff.splice(i, 1);
         graphDiff.push(false);
+        graphStyle.splice(i, 1);
+        graphStyle.push(Object.assign({}, GRAPH_STYLE));
         showCells(-1);
         graphHue.splice(i, 1);
         graphHue.splice(graphCount - 1, 0, hue);
@@ -2690,6 +2729,7 @@
         graphHue = allHues();
         graphOff = graphOff.map(function () { return false; });
         graphDiff = graphDiff.map(function () { return false; });
+        graphStyle = graphStyle.map(function () { return Object.assign({}, GRAPH_STYLE); });
         showCells(-1);
         forgetLetters();
         graphView = null;
@@ -2773,6 +2813,10 @@
             var d = saved && Array.isArray(saved.d) ? saved.d[i] : false;
             return d === true || GRAPH_FITS.indexOf(d) > -1 ? d : false;
         });
+        graphStyle = graphStyle.map(function (st, i) { // each as kept, else as it starts
+            var was = saved && Array.isArray(saved.s) && saved.s[i] || {};
+            return { d: [0, 1, 2].indexOf(was.d) > -1 ? was.d : 0, w: [0, 1, 2].indexOf(was.w) > -1 ? was.w : 1, l: was.l === true };
+        });
         showCells(-1);
         graphFrom.value = saved && typeof saved.from === 'string' ? saved.from : '';
         graphBy.value = saved && typeof saved.by === 'string' ? saved.by : '';
@@ -2810,6 +2854,7 @@
         graphRels = [];
         graphPlanes = [];
         graphData = [];
+        graphModels = [];
         graphTwice = '';
         graphVersion++;
         names.forEach(function (k, i) {
@@ -2834,11 +2879,12 @@
             });
         }
         graphFns = graphInputs.map(function (box, i) {
-            var text = texts[i], r = read[i] || {}, fn = r.fn || null, rel = r.rel || null, plane = r.plane || null,
+            var text = texts[i], r = read[i] || {}, fn = r.fn || r.model || null, rel = r.rel || null, plane = r.plane || null,
                 data = r.data || null, fit, row = graphRows[i];
             ((fn || rel || plane || data || {}).letters || []).forEach(function (k) {
                 if (letters.indexOf(k) < 0) letters.push(k);
             });
+            if (r.model && !graphOff[i]) graphModels[i] = { fn: r.model, keys: r.model.letters };
             graphRels[i] = graphOff[i] ? null : rel;
             graphPlanes[i] = graphOff[i] ? null : plane;
             graphData[i] = graphOff[i] ? null : data;
@@ -2848,6 +2894,7 @@
             fit = data && graphDiff[i] && CalcEngine.fit(data.filter(finitePoint), fitKind(i)); // the y′ of points is their best fit
             row.hidden = i >= graphCount;
             row.classList.toggle('calc-bad', !!text && !fn && !rel && !plane && !data);
+            row.classList.toggle('calc-graph-model', !!r.model);
             row.classList.toggle('calc-graph-rel', !!(rel || plane));
             row.classList.toggle('calc-graph-data', !!data);
             row.classList.toggle('calc-graph-live', !!(data && data.update)); // of letters: no table of numbers to type
@@ -2859,6 +2906,13 @@
             row.classList.toggle('calc-graph-empty', !text);
             row.querySelector('.calc-graph-swatch').style.setProperty('--c', curveColor(i));
             return graphOff[i] ? null : data ? fit && fitCurve(fit) : fn;
+        });
+        fitModels();
+        graphModels.forEach(function (m) { // its letters found, not slid
+            letters = letters.filter(function (k) { return m.keys.indexOf(k) < 0; });
+        });
+        graphRows.forEach(function (row, i) {
+            if (graphModels[i]) row.classList.toggle('calc-bad', !graphModels[i].fit);
         });
         if (graphCellsRow > -1 && (graphCellsRow >= graphCount || !(graphData[graphCellsRow] || !texts[graphCellsRow] ||
             CalcEngine.points(texts[graphCellsRow], engine.comma)))) showCells(-1); // its box is not of points now
@@ -3071,13 +3125,16 @@
         if (graphTab === 'table') renderTable(); else drawGraph();
     }
 
-    // What a box is: a function of x, an equation or an inequality, a curve of a parameter or
-    // points, as { fn }, { rel }, { plane } or { data }; null if none. A sequence, a(n) = 2n + 1,
+    // What a box is: a function of x, an equation or an inequality, a curve of a parameter,
+    // points, or a model to fit to them, as { fn }, { rel }, { plane }, { data } or { model }; null if none. A sequence, a(n) = 2n + 1,
     // is a plane too, of its kind seq: it has its range and its extra boxes as a polar curve has;
     // and a slope field, dy/dx = x – y, of its kind field, read before an equation would take it
     // as one of d, y and x. defs: the functions named
     function readBox(text, defs) {
-        var r = CalcEngine.slopeField(text, engine.comma, graphVars, defs) || CalcEngine.sequence(text, engine.comma, graphVars, defs);
+        var m = /^(?:y\s*)?~\s*([\s\S]+)$/.exec(text),
+            r = m ? CalcEngine.graph(m[1], engine.comma, graphVars, defs) : null;
+        if (m) return r && r.letters.length ? { model: r } : null; // y ~ a x² + b: a model of letters to fit
+        r = CalcEngine.slopeField(text, engine.comma, graphVars, defs) || CalcEngine.sequence(text, engine.comma, graphVars, defs);
         if (r) return { plane: r };
         r = CalcEngine.graph(text, engine.comma, graphVars, defs);
         if (r) return { fn: r };
@@ -3089,10 +3146,11 @@
     // The points of sliders' letters, (a, b), worked out again as the letters and the unit are now, and
     // the best fit of each such box with them; the point pointed at or clicked moves with its own
     function livePoints() {
-        var key = JSON.stringify(graphVars) + deg;
+        var key = JSON.stringify(graphVars) + deg, moved = false;
         graphData.forEach(function (list, i) {
             var fit;
             if (!list || !list.update || list.seen === key) return;
+            moved = true;
             list.seen = key;
             list.update(deg);
             fit = graphDiff[i] && CalcEngine.fit(list.filter(finitePoint), fitKind(i));
@@ -3105,7 +3163,51 @@
                 }
             });
         });
+        if (moved && graphModels.some(Boolean)) { // the models fitted to them again, the key as they leave the letters
+            fitModels();
+            graphData.forEach(function (list) { if (list && list.update) list.seen = JSON.stringify(graphVars) + deg; });
+        }
     }
+
+    // Each model fitted to the points of the nearest box of points above it, else below it: its
+    // letters set to the values that bring it nearest them, and those shown below the sliders
+    function fitModels() {
+        graphModels.forEach(function (m, i) {
+            var j, of = -1;
+            for (j = i - 1; j >= 0 && of < 0; j--) if (graphData[j]) of = j;
+            for (j = i + 1; j < graphData.length && of < 0; j++) if (graphData[j]) of = j;
+            m.of = of;
+            m.fit = of > -1 ? CalcEngine.fitModel(graphData[of].filter(finitePoint), m.fn, m.keys, graphVars, deg) : null;
+        });
+        showFits();
+    }
+
+    // below the sliders, a line of each model, in its color: its values, each to put into the
+    // calculation with a click, and r²; or why it has none
+    function showFits() {
+        var lines = [];
+        graphModels.forEach(function (m, i) {
+            lines.push('<div class="calc-graph-fit" style="--c: ' + curveColor(i) + '">' + (!m.fit ?
+                '<span class="calc-graph-fit-none">' + (m.of < 0 ? 'No points to fit: type them in a box above it.' :
+                    'No fit: ' + (graphData[m.of].length < m.keys.length ? 'more points than letters are needed.' : 'it comes near none of them.')) + '</span>' :
+                m.keys.map(function (k) {
+                    return '<span class="calc-graph-fit-val" data-k="' + k + '"><i>' + k + '</i> = ' + local(String(+m.fit.values[k].toPrecision(6))) + '</span>';
+                }).join('') + '<span class="calc-graph-fit-r2"><i>r</i>² = ' + local(String(+m.fit.r2.toPrecision(6))) + '</span>') + '</div>');
+        });
+        graphFits.innerHTML = lines.join('');
+        graphFits.hidden = !lines.length;
+    }
+
+    // a value of a fit clicked goes into the calculation, as a value of the table does
+    graphFits.addEventListener('click', function (e) {
+        var val = e.target.closest('.calc-graph-fit-val'), n = val && graphVars[val.dataset.k];
+        if (!val || !isFinite(n) || !engine.put(n)) return;
+        keyBoard['AC'].children[0].firstChild.data = 'C';
+        showGraph(false);
+        refresh();
+        saveState();
+        if (graphAlone) ask('graph-put');
+    }, false);
 
     // a point with an x and a y: (sqrt(a), 1) has none while a is below 0
     function finitePoint(q) {
@@ -3280,12 +3382,12 @@
 
     function drawGraph() {
         var w = graphPlot.clientWidth, h = graphPlot.clientHeight, r = Math.max(graphSharp, (window.devicePixelRatio || 1) * scale()),
-            ctx = graphCanvas.getContext('2d'), v, key;
+            ctx = graphDrawTo || graphCanvas.getContext('2d'), v, key;
         if (!graph.classList.contains('calc-open') || !w || !h) return;
         graphWidth = w;
         v = viewNow();
         livePoints();
-        if (graphCanvas.width !== Math.round(w * r) || graphCanvas.height !== Math.round(h * r)) {
+        if (!graphDrawTo && (graphCanvas.width !== Math.round(w * r) || graphCanvas.height !== Math.round(h * r))) {
             graphCanvas.width = Math.round(w * r); // as sharp as the screen, however the page scales the calculator
             graphCanvas.height = Math.round(h * r);
         }
@@ -3295,11 +3397,11 @@
         if (graphPinned && graphPinned.area) graphShade(ctx, v, w, h, graphPinned);
         graphFns.forEach(function (fn, i) {
             (fn ? fn.family || [fn] : []).forEach(function (c) { // of a list, each of its curves
-                drawCurve(ctx, v, w, h, c, curveColor(i));
-                if (graphDiff[i] && !graphData[i]) drawCurve(ctx, v, w, h, slopeCurve(c), curveColor(i), true);
+                drawCurve(ctx, v, w, h, c, curveColor(i), false, graphStyle[i]);
+                if (graphDiff[i] && !graphData[i]) drawCurve(ctx, v, w, h, slopeCurve(c), curveColor(i), true, graphStyle[i]);
             });
-            if (graphRels[i]) drawRelation(ctx, v, w, h, graphRels[i], curveColor(i));
-            if (graphPlanes[i]) ({ seq: drawSequence, field: drawField }[graphPlanes[i].kind] || drawPlane)(ctx, v, w, h, graphPlanes[i], curveColor(i));
+            if (graphRels[i]) drawRelation(ctx, v, w, h, graphRels[i], curveColor(i), graphStyle[i]);
+            if (graphPlanes[i]) ({ seq: drawSequence, field: drawField }[graphPlanes[i].kind] || drawPlane)(ctx, v, w, h, graphPlanes[i], curveColor(i), graphStyle[i]);
         });
         graphTangent(ctx, v, w + h, graphPinned);
         drawGrid(ctx, v, w, h, true);
@@ -3319,6 +3421,7 @@
             if (p.data) graphDot(ctx, v, p, 3.5, curveColor(p.i), curveColor(p.i)); // a point typed: full
             else graphDot(ctx, v, p, 3.5, GRAPH_INK.paper, curveColor(p.i));
         });
+        pointLabels(ctx, v);
         if (graphShading && graphEdge) graphEdgeLine(ctx, v, h, graphEdge);
         [graphAt, graphPinned].forEach(function (p, at) {
             if (!p || p.area || (at && p === graphAt)) return;
@@ -3334,6 +3437,28 @@
         graphShown();
         placePop(v);
         fillWindow(v, w, h);
+    }
+
+    // Of a box of points whose menu labels them, each point's x and y beside it, up and to the right,
+    // in its color on a rim of the paper, as the numbers of the axes are
+    function pointLabels(ctx, v) {
+        var f = root.classList.contains('calc-big') ? popZoom : 1;
+        ctx.font = 11 * f + 'px Play, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'bottom';
+        ctx.lineWidth = 3;
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = GRAPH_INK.paper;
+        graphData.forEach(function (list, i) {
+            if (!list || !graphStyle[i].l) return;
+            ctx.fillStyle = curveColor(i);
+            list.filter(finitePoint).forEach(function (q) {
+                var text = '(' + local(String(+q.x.toPrecision(6))) + (engine.comma ? '; ' : ', ') + local(String(+q.y.toPrecision(6))) + ')',
+                    x = plotX(v, q.x) + 5 * f, y = plotY(v, q.y) - 4 * f;
+                ctx.strokeText(text, x, y);
+                ctx.fillText(text, x, y);
+            });
+        });
     }
 
     // the points typed in the boxes, as marks to point at and click
@@ -3417,7 +3542,7 @@
     // as a curve of x is: on until it is a curve and not lines too long to draw, broken where it
     // jumps, on to the edge where it has no end, as r = 1/cos θ at 90° however far it is zoomed.
     // The places along it are kept while the unit and its letters stay; those on the plot while the view does too
-    function drawPlane(ctx, v, w, h, c, color) {
+    function drawPlane(ctx, v, w, h, c, color, style) {
         var at = [deg].concat(c.letters.map(function (k) { return graphVars[k]; })).join(),
             key = [v.x, v.y, v.ux, v.uy, w, h, at].join();
         if (!c.along || c.along.key !== at) {
@@ -3441,10 +3566,8 @@
             ctx.moveTo(line[0], line[1]);
             for (k = 2; k < line.length; k += 2) ctx.lineTo(line[k], line[k + 1]);
         });
-        ctx.lineWidth = 2;
-        ctx.lineJoin = 'round';
         ctx.strokeStyle = color;
-        ctx.stroke();
+        strokeAs(ctx, style, false);
     }
 
     // A sequence, a dot in its color at each of its terms in the view, at each whole n: smaller
@@ -4025,9 +4148,9 @@
         }
 
         // circles about 0 a step apart, from the nearest of the view to its farthest corner, and rays
-        // from 0 every so many degrees, as far
+        // from 0 every so many degrees, as far; about 0 where the axes are drawn, on its whole pixel, as they are
         function rings(ink, step, every) {
-            var x0 = graphX(v, 0), x1 = graphX(v, w), y0 = graphY(v, h), y1 = graphY(v, 0), cx = plotX(v, 0), cy = plotY(v, 0),
+            var x0 = graphX(v, 0), x1 = graphX(v, w), y0 = graphY(v, h), y1 = graphY(v, 0), cx = Math.round(plotX(v, 0)) + 0.5, cy = Math.round(plotY(v, 0)) + 0.5,
                 far = Math.max(Math.hypot(x0, y0), Math.hypot(x0, y1), Math.hypot(x1, y0), Math.hypot(x1, y1)),
                 near = Math.hypot(Math.max(x0, 0, -x1), Math.max(y0, 0, -y1)), t;
             ctx.strokeStyle = ink;
@@ -4172,7 +4295,7 @@
     // its line is dashed where the line itself is not in it, for < and >. Of two, 1 < x < 3,
     // where both are, each line drawn where the other holds. The values and the lines are kept
     // while the view, the unit and the letters stay, as the pointer moving draws it again
-    function drawRelation(ctx, v, w, h, rel, color) {
+    function drawRelation(ctx, v, w, h, rel, color, style) {
         var c = 3, nx = Math.ceil(w / c), ny = Math.ceil(h / c), parts = rel.parts || [rel], grids, drawn, i, j, run,
             key = [v.x, v.y, v.ux, v.uy, w, h, deg].concat(rel.letters.map(function (k) { return graphVars[k]; })).join();
         function corners(g, i, j) {
@@ -4247,14 +4370,8 @@
                 ctx.moveTo(line[0][0], line[0][1]);
                 line.slice(1).forEach(function (p) { ctx.lineTo(p[0], p[1]); });
             });
-            ctx.lineWidth = 2;
-            ctx.lineCap = strict(part) ? 'butt' : 'round';
-            ctx.lineJoin = 'round';
             ctx.strokeStyle = color;
-            ctx.setLineDash(strict(part) ? [6, 4] : []);
-            ctx.stroke();
-            ctx.setLineDash([]);
-            ctx.lineCap = 'butt';
+            strokeAs(ctx, style, strict(part), !strict(part));
         });
 
         // true if each part but k holds at px, py
@@ -4392,7 +4509,7 @@
     // A curve, dashed for the slope of one, as the engine traces it: broken at its jumps, on to
     // the edge where it has no end, and a solid stroke where it goes up and down faster than a
     // pixel shows, as tan x far out does. Its lines are kept while the view, the unit and its letters stay
-    function drawCurve(ctx, v, w, h, fn, color, dashed) {
+    function drawCurve(ctx, v, w, h, fn, color, dashed, style) {
         var key = [v.x, v.y, v.ux, v.uy, w, h, deg].concat((fn.letters || []).map(function (k) { return graphVars[k]; })).join();
         if (!fn.traced || fn.traced.key !== key) {
             fn.traced = { key: key, lines: CalcEngine.trace(fn, { x0: graphX(v, 0), x1: graphX(v, w), y0: graphY(v, h), y1: graphY(v, 0), w: w, h: h }, deg) };
@@ -4403,12 +4520,22 @@
             ctx.moveTo(line[0], line[1]);
             for (k = 2; k < line.length; k += 2) ctx.lineTo(line[k], line[k + 1]);
         });
-        ctx.lineWidth = 2;
-        ctx.lineJoin = 'round';
         ctx.strokeStyle = color;
-        ctx.setLineDash(dashed ? [7, 4] : []);
+        strokeAs(ctx, style, dashed);
+    }
+
+    // a line stroked as the style of its curve has it: its width, and dashed or dotted, the dashes as
+    // long as it is wide; dashed: the slope of a curve, or a line not in an inequality, dashed whatever it
+    // is; round: its ends round, as an equation's pieces join
+    function strokeAs(ctx, style, dashed, round) {
+        var w = GRAPH_WIDTHS[style ? style.w : 1], k = w / 2, d = style ? style.d : 0;
+        ctx.lineWidth = w;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = d === 2 && !dashed || round && d === 0 ? 'round' : 'butt';
+        ctx.setLineDash(dashed || d === 1 ? [7 * k, 4 * k] : d === 2 ? [0.01, 3.5 * k + 2] : []);
         ctx.stroke();
         ctx.setLineDash([]);
+        ctx.lineCap = 'butt';
     }
 
     // The point at a place of the plot: a mark within reach of it, the nearest; else the curve within
@@ -4626,9 +4753,12 @@
             p.t ? p.t.map(function (t) { return GRAPH_NAMES[t]; }).join(', ') : 'On the curve';
     }
 
-    // to 13 digits, as the display shows a result: 1.732050807569. What is inserted is the whole number
-    function graphValue(p, k) {
+    // to 13 digits, as the display shows a result: 1.732050807569; with u, a pixel, to what one tells
+    // apart, 0.9992 and not 0.999167945271, a fraction or degrees as tableValue has them. What is
+    // inserted is the whole number
+    function graphValue(p, k, u) {
         var n = String(+p[k].toPrecision(13));
+        if (u && !(k === 'y' && !p.spot && ((fracMode && CalcEngine.fraction(p[k])) || (dmsMode && CalcEngine.dms(p[k]))))) n = String(graphRound(p[k], u));
         return p.spot || k === 'x' || k === 'a' || k === 'b' ? shownResult({ value: n }, n).html : statsValue(p[k]).html;
     }
 
@@ -4649,7 +4779,7 @@
 
     // the line above the plot: the point under the pointer, what it is and its x and y; else what to do
     function graphShown() {
-        var unit = graphAngles() ? UNITS[deg] : '', p = graphAt, kind, seq = seqOf(p);
+        var unit = graphAngles() ? UNITS[deg] : '', p = graphAt, kind, seq = seqOf(p), v = viewNow(), near = p && !p.t && !seq; // a place along a curve, not a mark, to its pixel
         if (graphTwice) {
             graphNote.textContent = graphTwice + '(x) is named twice: give each function its own letter.';
         } else if (graphRows.some(function (row) { return row.classList.contains('calc-bad'); })) {
@@ -4675,8 +4805,8 @@
             graphNote.textContent = 'Drag along a curve for the area under it, between two for the area between, in a region for its area.';
         } else if (p) { // of a term of a sequence, its n and a(n)
             graphNote.innerHTML = graphSwatches(p) + '<em>' + graphName(p) + '</em>' +
-                '<span>' + (seq ? '<i>n</i>' : '<i>x</i>') + ' = ' + graphValue(p, 'x') + '</span>' +
-                '<span>' + (seq ? '<i>' + seq.name + '</i>(<i>n</i>)' : '<i>y</i>') + ' = ' + (isFinite(p.y) ? graphValue(p, 'y') : 'none') + '</span>';
+                '<span>' + (seq ? '<i>n</i>' : '<i>x</i>') + ' = ' + graphValue(p, 'x', near && v.ux) + '</span>' +
+                '<span>' + (seq ? '<i>' + seq.name + '</i>(<i>n</i>)' : '<i>y</i>') + ' = ' + (isFinite(p.y) ? graphValue(p, 'y', near && v.uy) : 'none') + '</span>';
         } else if (!graphInputs.some(function (box) { return box.value.trim(); })) {
             graphNote.textContent = 'Type a function of x. Drag to move, scroll or pinch to zoom.';
         } else if (sequenceNote(false)) {
@@ -5076,10 +5206,16 @@
     // the buttons: twice as close, twice as far, about the middle; the start again; the view
     // typed; ∫ for an area; and the picture, in the corner below. A button of the view lets ∫ go
     graphPlot.addEventListener('click', function (e) {
-        var b = e.target.closest('[data-zoom]'), mid = { x: graphPlot.clientWidth / 2, y: graphPlot.clientHeight / 2 };
+        var b = e.target.closest('[data-zoom]'), mid = { x: graphPlot.clientWidth / 2, y: graphPlot.clientHeight / 2 }, at;
         if (!b) return;
-        if (b.dataset.zoom === 'save') {
-            saveGraph();
+        if (b.dataset.zoom === 'save') { // its menu, above it, as the history's Export has one
+            at = inside(b.getBoundingClientRect());
+            if (b.shut) {
+                b.shut = false;
+                return;
+            }
+            openMenu(exportItems(), { left: at.right, top: at.top, alignRight: true }, b);
+            menu.style.top = Math.max(4, at.top - 4 - menu.offsetHeight) + 'px';
             return;
         }
         if (b.dataset.zoom === 'area') {
@@ -5271,7 +5407,7 @@
     // least, without the point pointed at, and in its top left the function of each curve shown,
     // and an area shaded, from where to where and how much
     function graphPicture() {
-        var at = graphAt, pinned = graphPinned, pic = document.createElement('canvas'), ctx = pic.getContext('2d'), r, lines, wide;
+        var at = graphAt, pinned = graphPinned, pic = document.createElement('canvas'), ctx = pic.getContext('2d'), r;
         graphAt = null;
         graphPinned = pinned && pinned.area ? pinned : null;
         graphSharp = 2;
@@ -5286,20 +5422,33 @@
         graphPinned = pinned;
         graphSharp = 0;
         drawGraph();
+        ctx.setTransform(r, 0, 0, r, 0, 0);
+        graphLegend(ctx, pinned);
+        return pic;
+    }
 
-        lines = [];
+    // In the top left of a picture of the graph, the function of each curve shown, its points and
+    // their fit, an area shaded, from where to where and how much, and the values of the letters
+    function graphLegend(ctx, pinned) {
+        var lines = [], wide;
         graphFns.forEach(function (fn, i) {
             if (graphData[i] && !graphOff[i]) {
                 lines.push({ i: i, text: graphData[i].length === 1 ? '1 point' : graphData[i].length + ' points' });
                 if (fn) lines.push({ i: i, text: 'Best fit ' + fitText(fn.fit) });
                 return;
             }
-            if (fn) lines.push({ i: i, text: CalcEngine.named(graphInputs[i].value) ? graphInputs[i].value.trim() :
-                'y = ' + graphInputs[i].value.trim().replace(/^y\s*=\s*/i, '') });
+            if (fn && graphModels[i]) {
+                lines.push({ i: i, text: graphInputs[i].value.trim() + (graphModels[i].fit ? ':  ' + graphModels[i].keys.map(function (k) {
+                    return k + ' = ' + local(String(+graphModels[i].fit.values[k].toPrecision(6)));
+                }).join(', ') + ',  r² = ' + local(String(+graphModels[i].fit.r2.toPrecision(6))) : '') });
+            } else if (fn) {
+                lines.push({ i: i, text: CalcEngine.named(graphInputs[i].value) ? graphInputs[i].value.trim() :
+                    'y = ' + graphInputs[i].value.trim().replace(/^y\s*=\s*/i, '') });
+            }
             if (graphRels[i] || graphPlanes[i]) lines.push({ i: i, text: graphInputs[i].value.trim() });
             if (fn && graphDiff[i]) lines.push({ i: i, text: 'y′ of ' + graphInputs[i].value.trim(), dashed: true });
         });
-        if (!lines.length) return pic;
+        if (!lines.length) return;
         if (pinned && pinned.area) {
             lines.push({
                 i: pinned.i,
@@ -5313,14 +5462,13 @@
             });
         }
         // a light box over the plot, lifted off it a little, so it reads apart from the curves
-        ctx.setTransform(r, 0, 0, r, 0, 0);
         ctx.font = '13px Play, sans-serif';
         wide = Math.max.apply(null, lines.map(function (l) { return ctx.measureText(l.text).width + (l.i === undefined ? 17 : 42); }));
         ctx.beginPath();
         ctx.roundRect(8, 8, wide + 2, lines.length * 20 + 12, 6);
         ctx.shadowColor = 'rgba(0, 0, 0, 0.18)';
-        ctx.shadowBlur = 6 * r;
-        ctx.shadowOffsetY = r;
+        ctx.shadowBlur = 6 * ctx.getTransform().a;
+        ctx.shadowOffsetY = ctx.getTransform().a;
         ctx.fillStyle = 'rgba(236, 244, 239, 0.95)';
         ctx.fill();
         ctx.shadowColor = 'transparent';
@@ -5338,15 +5486,10 @@
             ctx.beginPath();
             ctx.moveTo(17, y);
             ctx.lineTo(35, y);
-            ctx.lineWidth = 3;
-            ctx.lineCap = l.dashed ? 'butt' : 'round';
             ctx.strokeStyle = curveColor(l.i);
-            ctx.setLineDash(l.dashed ? [5, 3] : []);
-            ctx.stroke();
-            ctx.setLineDash([]);
+            strokeAs(ctx, { d: graphStyle[l.i].d, w: Math.min(2, graphStyle[l.i].w + 1) }, l.dashed); // a little thicker, to show its color
             ctx.fillText(l.text, 42, y);
         });
-        return pic;
     }
 
     // saved as a file, graph.png
@@ -5374,6 +5517,273 @@
         } catch (e) {
             saveGraph(); // no copying of pictures here: the file
         }
+    }
+
+    // The graph as SVG, to scale without blur in a paper or slides: drawn as on its canvas, without the
+    // point pointed at, into an SvgDraw in its place, the paper under it and its functions over it
+    function graphSvg() {
+        var at = graphAt, pinned = graphPinned, svg = new SvgDraw(graphPlot.clientWidth, graphPlot.clientHeight);
+        graphAt = null;
+        graphPinned = pinned && pinned.area ? pinned : null;
+        graphDrawTo = svg;
+        try {
+            drawGraph();
+            graphLegend(svg, pinned);
+        } finally {
+            graphDrawTo = null;
+            graphAt = at;
+            graphPinned = pinned;
+            drawGraph();
+        }
+        return svg.text(GRAPH_INK.paper);
+    }
+
+    function saveSvg() {
+        saveBlob(new Blob([graphSvg()], { type: 'image/svg+xml;charset=utf-8' }), 'graph.svg');
+    }
+
+    // What the graph draws with, written as SVG: each path stroked or filled an element of its own, and
+    // each text, in the plot's own pixels. What is put under the rest (destination-over) goes first; the
+    // paper's rim the axes have over the curves (source-atop) is left out, as it only lets them show
+    // through a curve that fills the plot
+    function SvgDraw(w, h) {
+        this.w = w;
+        this.h = h;
+        this.parts = [];
+        this.d = '';
+        this.dash = [];
+        this.at = null;
+        this.measure = document.createElement('canvas').getContext('2d');
+        this.strokeStyle = this.fillStyle = '#000';
+        this.lineWidth = 1;
+        this.lineCap = 'butt';
+        this.lineJoin = 'miter';
+        this.globalAlpha = 1;
+        this.globalCompositeOperation = 'source-over';
+        this.font = '10px sans-serif';
+        this.textAlign = 'start';
+        this.textBaseline = 'alphabetic';
+    }
+
+    SvgDraw.prototype = {
+        n: function (x) { return String(Math.round(x * 100) / 100); },
+        esc: function (t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); },
+        setTransform: function () { }, // in the plot's pixels, however sharp the canvas is
+        getTransform: function () { return { a: 1 }; },
+        clearRect: function () { },
+        beginPath: function () {
+            this.d = '';
+            this.at = null;
+        },
+        moveTo: function (x, y) {
+            this.d += 'M' + this.n(x) + ' ' + this.n(y);
+            this.at = [x, y];
+        },
+        lineTo: function (x, y) {
+            if (!this.at) return this.moveTo(x, y);
+            this.d += 'L' + this.n(x) + ' ' + this.n(y);
+            this.at = [x, y];
+        },
+        closePath: function () {
+            this.d += 'Z';
+        },
+        rect: function (x, y, w, h) {
+            this.moveTo(x, y);
+            this.d += 'h' + this.n(w) + 'v' + this.n(h) + 'h' + this.n(-w) + 'Z';
+        },
+        roundRect: function (x, y, w, h, r) {
+            this.moveTo(x + r, y);
+            this.d += 'H' + this.n(x + w - r) + 'A' + r + ' ' + r + ' 0 0 1 ' + this.n(x + w) + ' ' + this.n(y + r) + 'V' + this.n(y + h - r) +
+                'A' + r + ' ' + r + ' 0 0 1 ' + this.n(x + w - r) + ' ' + this.n(y + h) + 'H' + this.n(x + r) +
+                'A' + r + ' ' + r + ' 0 0 1 ' + this.n(x) + ' ' + this.n(y + h - r) + 'V' + this.n(y + r) +
+                'A' + r + ' ' + r + ' 0 0 1 ' + this.n(x + r) + ' ' + this.n(y) + 'Z';
+        },
+        arc: function (x, y, r, a0, a1, back) {
+            this.ellipse(x, y, r, r, 0, a0, a1, back);
+        },
+        // from where it starts on, a line to it first as the canvas draws one; a whole turn as two halves
+        ellipse: function (x, y, rx, ry, turn, a0, a1, back) {
+            var span = back ? a0 - a1 : a1 - a0, sweep = back ? 0 : 1, mid;
+            if (span >= 2 * Math.PI - 1e-9) {
+                mid = a0 + (back ? -Math.PI : Math.PI);
+                this.ellipse(x, y, rx, ry, turn, a0, mid, back);
+                return this.ellipse(x, y, rx, ry, turn, mid, a0 + (back ? -2 : 2) * Math.PI, back);
+            }
+            span = ((span % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+            this.lineTo(x + rx * Math.cos(a0), y + ry * Math.sin(a0));
+            this.d += 'A' + this.n(rx) + ' ' + this.n(ry) + ' 0 ' + (span > Math.PI ? 1 : 0) + ' ' + sweep + ' ' +
+                this.n(x + rx * Math.cos(a1)) + ' ' + this.n(y + ry * Math.sin(a1));
+            this.at = [x + rx * Math.cos(a1), y + ry * Math.sin(a1)];
+        },
+        setLineDash: function (dash) {
+            this.dash = dash || [];
+        },
+        // an element, under the rest or over it as the canvas would put it; none where it only shows the axes through
+        put: function (el) {
+            if (this.globalCompositeOperation === 'source-atop') return;
+            if (this.globalCompositeOperation === 'destination-over') this.parts.unshift(el);
+            else this.parts.push(el);
+        },
+        alpha: function () {
+            return this.globalAlpha < 1 ? ' opacity="' + this.globalAlpha + '"' : '';
+        },
+        stroke: function () {
+            if (!this.d) return;
+            this.put('<path d="' + this.d + '" fill="none" stroke="' + this.esc(this.strokeStyle) + '" stroke-width="' + this.n(this.lineWidth) + '"' +
+                (this.lineCap !== 'butt' ? ' stroke-linecap="' + this.lineCap + '"' : '') + (this.lineJoin !== 'miter' ? ' stroke-linejoin="' + this.lineJoin + '"' : '') +
+                (this.dash.length ? ' stroke-dasharray="' + this.dash.join(' ') + '"' : '') + this.alpha() + '/>');
+        },
+        fill: function () {
+            if (!this.d) return;
+            this.put('<path d="' + this.d + '" fill="' + this.esc(this.fillStyle) + '"' + this.alpha() + '/>');
+        },
+        fillRect: function (x, y, w, h) {
+            this.put('<rect x="' + this.n(x) + '" y="' + this.n(y) + '" width="' + this.n(w) + '" height="' + this.n(h) + '" fill="' + this.esc(this.fillStyle) + '"' + this.alpha() + '/>');
+        },
+        measureText: function (t) {
+            this.measure.font = this.font;
+            return this.measure.measureText(t);
+        },
+        words: function (t, x, y, paint) {
+            this.put('<text x="' + this.n(x) + '" y="' + this.n(y) + '" style="font: ' + this.esc(this.font) + '"' +
+                ({ center: ' text-anchor="middle"', right: ' text-anchor="end"', end: ' text-anchor="end"' }[this.textAlign] || '') +
+                ({ middle: ' dominant-baseline="central"', top: ' dominant-baseline="hanging"', bottom: ' dominant-baseline="text-after-edge"' }[this.textBaseline] || '') +
+                paint + this.alpha() + '>' + this.esc(t) + '</text>');
+        },
+        fillText: function (t, x, y) {
+            this.words(t, x, y, ' fill="' + this.esc(this.fillStyle) + '"');
+        },
+        strokeText: function (t, x, y) {
+            this.words(t, x, y, ' fill="none" stroke="' + this.esc(this.strokeStyle) + '" stroke-width="' + this.n(this.lineWidth) + '" stroke-linejoin="round"');
+        },
+        // the whole of it, on the paper, cut to the plot as the canvas is
+        text: function (paper) {
+            return '<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="' + this.w + '" height="' + this.h +
+                '" viewBox="0 0 ' + this.w + ' ' + this.h + '"><defs><clipPath id="plot"><rect width="' + this.w + '" height="' + this.h + '"/></clipPath></defs>' +
+                '<rect width="' + this.w + '" height="' + this.h + '" fill="' + paper + '"/><g clip-path="url(#plot)">\n' + this.parts.join('\n') + '\n</g></svg>\n';
+        }
+    };
+
+    // The table as CSV, for a spreadsheet: x, or n of sequences, and each curve's y, as many rows as
+    // the Table tab has, 60 at least; apart by commas, or semicolons where the decimal mark is a comma
+    function tableCsv() {
+        var shown = tableCurves(), s = tableSteps(), mark = engine.comma ? ';' : ',', rows = [], k, x;
+        function cell(t) {
+            if (/^[=+@\t\r]/.test(t) || /^-(?!\d)/.test(t)) t = "'" + t;
+            return t.indexOf(mark) > -1 || /["\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+        }
+        rows.push([tableSeqs() ? 'n' : 'x'].concat(shown.map(function (i) { return graphInputs[i].value.trim(); })));
+        for (k = 0; k < Math.max(graphLines, 60); k++) {
+            x = +(s.from + k * s.by).toPrecision(12);
+            rows.push([local(String(x))].concat(shown.map(function (i) {
+                var y = graphFns[i] ? graphFns[i].at(x, deg, true) : graphPlanes[i].at(x, deg)[1];
+                return isFinite(y) ? local(String(+y.toPrecision(15))) : '';
+            })));
+        }
+        return '\ufeff' + rows.map(function (row) { return row.map(cell).join(mark); }).join('\r\n') + '\r\n';
+    }
+
+    function saveTable() {
+        livePoints();
+        saveBlob(new Blob([tableCsv()], { type: 'text/csv;charset=utf-8' }), 'graph-table.csv');
+    }
+
+    // The graph as a link: its boxes, their colors, what is hidden and fitted, the sliders, the view,
+    // the settings that are not as they start, and the unit of angles, as JSON in base64url after #g=,
+    // of the website's page, or of this one where it is the website. Nothing is sent anywhere: the
+    // browser keeps what is after # to itself
+    function graphLink() {
+        var g = { f: graphInputs.slice(0, graphCount).map(function (box) { return box.value; }), u: deg }, look = {}, bytes, bin = '';
+        if (graphHue.slice(0, graphCount).some(function (h, i) { return h !== i; })) g.c = graphHue.slice(0, graphCount);
+        if (graphView) g.view = graphView;
+        if (graphOff.slice(0, graphCount).some(Boolean)) g.off = graphOff.slice(0, graphCount);
+        if (graphDiff.slice(0, graphCount).some(Boolean)) g.d = graphDiff.slice(0, graphCount);
+        if (graphStyle.slice(0, graphCount).some(function (st) { return st.d || st.w !== 1 || st.l; })) g.s = graphStyle.slice(0, graphCount);
+        if (graphLetters.length) g.p = graphLetters.reduce(function (p, k) {
+            if (graphRange[k]) p[k] = [graphVars[k], graphRange[k][0], graphRange[k][1]];
+            return p;
+        }, {});
+        Object.keys(GRAPH_LOOK).forEach(function (k) { if (graphLook[k] !== GRAPH_LOOK[k]) look[k] = graphLook[k]; });
+        if (Object.keys(look).length) g.look = look;
+        bytes = new TextEncoder().encode(JSON.stringify(g));
+        bytes.forEach(function (b) { bin += String.fromCharCode(b); });
+        return (/^https?:$/.test(location.protocol) ? location.href.split('#')[0] : GRAPH_SITE) + '#g=' +
+            btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    // a graph of a link, as graphLink writes it, in the form saveState keeps one; null if it is not one
+    function linkedGraph(hash) {
+        var m = /^#g=([A-Za-z0-9_-]{1,40000})$/.exec(hash), g, bin;
+        if (!m) return null;
+        try {
+            bin = atob(m[1].replace(/-/g, '+').replace(/_/g, '/'));
+            g = JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, function (c) { return c.charCodeAt(0); })));
+        } catch (e) {
+            return null;
+        }
+        if (!g || !Array.isArray(g.f) || !g.f.every(function (t) { return typeof t === 'string'; })) return null;
+        return {
+            f: g.f.map(function (t) { return t.slice(0, 2000); }), c: g.c, view: g.view || null, off: g.off, d: g.d, p: g.p, s: g.s,
+            look: Object.assign({}, GRAPH_LOOK, g.look && typeof g.look === 'object' ? g.look : {}), u: [0, 1, 2].indexOf(g.u) > -1 ? g.u : deg
+        };
+    }
+
+    // A page opened from a link of a graph shows that graph, with one's own kept aside and the line over
+    // the plot to keep the one shown or go back to one's own, until one of them is picked, through a
+    // reload too. The link goes from the address, so a reload does not open it again
+    function takeLink() {
+        var g = linkedGraph(location.hash);
+        if (g) {
+            try {
+                history.replaceState(null, '', location.href.split('#')[0]);
+            } catch (e) { }
+            if (!stored('graphMine')) store('graphMine', { graph: stored('graph'), u: deg });
+            loadGraph(g);
+            setUnit(g.u);
+            readGraph(); // its letters known, for their sliders to be kept
+            saveState();
+            showGraph(true);
+        }
+        graphShared.hidden = !stored('graphMine');
+    }
+
+    graphShared.addEventListener('keydown', function (e) {
+        if ((e.which === 13 || e.which === 32) && e.target.dataset.shared) {
+            e.preventDefault();
+            e.target.click();
+        }
+    }, false);
+
+    // kept: one's own goes; back: it comes again as it was, with its unit of angles
+    graphShared.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-shared]'), mine = stored('graphMine');
+        if (!b) return;
+        if (b.dataset.shared === 'back' && mine) {
+            loadGraph(mine.graph);
+            if ([0, 1, 2].indexOf(mine.u) > -1) setUnit(mine.u);
+            readGraph();
+        }
+        try {
+            localStorage.removeItem('graphMine');
+        } catch (err) { }
+        graphShared.hidden = true;
+        saveState();
+    }, false);
+
+    // its menu: a link of it, the picture copied or saved as PNG, saved as SVG, and the table as CSV
+    function exportItems() {
+        return [
+            ['Copy link', function () {
+                copy(graphLink());
+                notify('Link copied');
+            }],
+            null,
+            ['Copy picture', copyGraph],
+            ['Save as PNG', saveGraph],
+            ['Save as SVG', saveSvg],
+            null,
+            ['Save table as CSV', saveTable, tableCurves().length > 0]
+        ];
     }
 
     // ---------- the table of the graph ---------- //
@@ -18426,6 +18836,7 @@
         graphHue = (ex.hue || []).concat(allHues().filter(function (h) { return !ex.hue || ex.hue.indexOf(h) < 0; }));
         graphOff = graphOff.map(function () { return false; });
         graphDiff = graphDiff.map(function (d, i) { return !i && ex.fit ? ex.fit : false; });
+        graphStyle = graphStyle.map(function () { return Object.assign({}, GRAPH_STYLE); });
         graphFrom.value = graphBy.value = '';
         graphLines = 0;
         forgetLetters();
@@ -20014,6 +20425,7 @@
         if (!chemAlone && !panelAlone) store('graph', {
             f: graphInputs.slice(0, graphCount).map(function (box) { return box.value; }), c: graphHue.slice(0, graphCount),
             view: graphView, look: graphLook, tab: graphTab, side: graphSide, from: graphFrom.value, by: graphBy.value, off: graphOff.slice(0, graphCount), d: graphDiff.slice(0, graphCount),
+            s: graphStyle.slice(0, graphCount),
             p: graphLetters.reduce(function (p, k) {
                 if (graphRange[k]) p[k] = [graphVars[k], graphRange[k][0], graphRange[k][1]];
                 return p;
@@ -20423,6 +20835,7 @@
     }
 
     loadState();
+    takeLink();
     setTimeout(takePopIn, 0); // once the page has said whether this is a window of its own
 
     // the lines are measured with the font they are shown in: once it has loaded

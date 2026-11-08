@@ -762,9 +762,9 @@
         },
 
         'graph save': {
-            t: 'Save the graph',
-            d: 'Saves the graph as a picture, graph.png, with the function of each curve. ' +
-                'Right-click the graph to copy it instead.',
+            t: 'Share and save',
+            d: 'Copy a link that opens this graph, its curves, sliders, view and settings, for anyone; copy it as a picture, ' +
+                'or save it as PNG or SVG, with the function of each curve; or save its table as CSV. Right-click the graph for the same.',
             k: ''
         },
         'graph add': {
@@ -830,12 +830,13 @@
         },
         'graph hide': {
             t: 'Hide the curve',
-            d: 'Hides this curve and its points, and leaves it out of the table. What is typed stays.',
+            d: 'Hides this curve and its points, and leaves it out of the table. What is typed stays. ' +
+                'Right-click it for its line, solid, dashed or dotted, thin or thick, and to label points.',
             k: ''
         },
         'graph show': {
             t: 'Show the curve',
-            d: 'Draws this curve again.',
+            d: 'Draws this curve again. Right-click it for its line, solid, dashed or dotted, thin or thick, and to label points.',
             k: ''
         },
         'graph put u': {

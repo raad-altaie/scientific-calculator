@@ -2940,6 +2940,20 @@ dels.forEach(function (c) {
                 Engine.points('(a)', false, vars, {}) === null && Engine.points('(a, 2) + 1', false, vars, {}) === null,
                 'points: letters only with sliders; not of x, nor one part, nor more after them');
         })();
+        (function () {
+            function model(text, pts) {
+                var vars = {}, g = Engine.graph(text, false, vars, {}), r = Engine.fitModel(pts, g, g.letters, vars, 0);
+                return r && { v: g.letters.map(function (k) { return +r.values[k].toPrecision(8); }).join(), r2: r.r2, set: g.letters.map(function (k) { return vars[k]; }).join() };
+            }
+            var quad = model('a x^2 + b', [{ x: 0, y: 1 }, { x: 1, y: 3 }, { x: 2, y: 9 }, { x: 3, y: 19 }]),
+                ex = model('a e^(k x)', [0, 1, 2, 3, 4].map(function (x) { return { x: x, y: 3 * Math.exp(0.5 * x) }; })),
+                wave = model('a sin(b x + c)', [0, 1, 2, 3, 4, 5, 6, 7].map(function (x) { return { x: x, y: 2 * Math.sin(1.3 * x + 0.4) }; })),
+                line = model('m x + c', [{ x: 1, y: 2 }, { x: 2, y: 4.1 }, { x: 3, y: 5.9 }]);
+            check(quad.v === '2,1' && quad.r2 === 1 && quad.set === '2,1' && ex.v === '3,0.5' && wave.v === '2,1.3,0.4',
+                'fitModel: a x² + b, a e^(kx) and a sin(bx + c) found from their points, the letters set', JSON.stringify([quad, ex, wave]));
+            check(line.v === '1.95,0.1' && line.r2 === 0.9980314961 && model('a x + b x^2 + c x^3', [{ x: 1, y: 1 }]) === null,
+                'fitModel: a line as fitLine has it, r² 0.998; none with more letters than points', JSON.stringify(line));
+        })();
         check(JSON.stringify(Engine.fitLine(Engine.points('(1,2),(2,4.1),(3,5.9)'))) === '{"m":1.95,"b":0.1,"r2":0.9980314961}' &&
             Engine.fitLine(Engine.points('(1, 2), (1, 3)')) === null, 'fitLine: y = 1.95x + 0.1, r² 0.998; none for one x');
         check(Engine.regionArea(inside(Engine.relation('x^2 + y^2 = 25'), -1), -5, 5, -30, 30, 0) === 78.53981634 &&

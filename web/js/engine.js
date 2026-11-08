@@ -2720,6 +2720,98 @@
         };
     }
 
+    // A model of one's own nearest points, by least squares: model a function of x of letters, as graph
+    // gives, y ~ a x^2 + b, its letters those to find, keys, which vars holds the values of, as they are
+    // set to the best. Levenberg–Marquardt, from the values the letters have, and from 1, 0.5, -1 and 0.1
+    // for each, the nearest of them kept: a line or a polynomial in one step, a·e^(k x) in a few.
+    // { values: { a, b }, r2 }, its values set in vars; null where there are more letters than points or
+    // none comes near, vars as they were
+    function fitModel(points, model, keys, vars, deg) {
+        var n = points.length, m = keys.length, was = keys.map(function (k) { return vars[k]; }), best = null, my = 0, all = 0;
+        if (!m || n < m) return null;
+        // how far the model is from the points, as the sum of the squares of the misses, of these values
+        function misses(p) {
+            keys.forEach(function (k, j) { vars[k] = p[j]; });
+            return points.map(function (q) { return q.y - model.at(q.x, deg); });
+        }
+        function cost(r) {
+            var c = r.reduce(function (s, e) { return s + e * e; }, 0);
+            return isFinite(c) ? c : Infinity;
+        }
+        // the change of the values that solves (JᵀJ + λ diag JᵀJ) d = Jᵀr, by elimination; null if none
+        function step(J, r, lambda) {
+            var A = [], i, j, k, t, f;
+            for (i = 0; i < m; i++) {
+                A.push([]);
+                for (j = 0; j < m; j++) A[i].push(J.reduce(function (s, row) { return s + row[i] * row[j]; }, 0));
+                A[i][i] *= 1 + lambda;
+                if (!A[i][i]) A[i][i] = lambda;
+                A[i].push(J.reduce(function (s, row, q) { return s + row[i] * r[q]; }, 0));
+            }
+            for (k = 0; k < m; k++) {
+                for (t = k, i = k + 1; i < m; i++) if (Math.abs(A[i][k]) > Math.abs(A[t][k])) t = i;
+                f = A[k];
+                A[k] = A[t];
+                A[t] = f;
+                if (!A[k][k] || !isFinite(A[k][k])) return null;
+                for (i = k + 1; i < m; i++) {
+                    f = A[i][k] / A[k][k];
+                    for (j = k; j <= m; j++) A[i][j] -= f * A[k][j];
+                }
+            }
+            for (k = m - 1; k >= 0; k--) {
+                for (j = k + 1; j < m; j++) A[k][m] -= A[k][j] * A[j][m];
+                A[k][m] /= A[k][k];
+            }
+            return A.map(function (row) { return row[m]; });
+        }
+        function solve(p) {
+            var r = misses(p), c = cost(r), lambda = 1e-3, it, J, d, q, rq, cq;
+            for (it = 0; it < 200 && isFinite(c) && lambda < 1e12; it++) {
+                J = points.map(function () { return []; });
+                p.forEach(function (v, j) { // the slope of each value, from a nudge of it
+                    var h = 1e-6 * Math.max(1, Math.abs(v)), up = p.slice();
+                    up[j] += h;
+                    misses(up).forEach(function (e, i) { J[i][j] = (r[i] - e) / h; });
+                });
+                if (J.some(function (row) { return row.some(function (v) { return !isFinite(v); }); })) return null;
+                for (;;) {
+                    d = step(J, r, lambda);
+                    q = d && p.map(function (v, j) { return v + d[j]; });
+                    rq = q && misses(q);
+                    cq = rq ? cost(rq) : Infinity;
+                    if (cq < c) break;
+                    lambda *= 10;
+                    if (lambda >= 1e12) return { p: p, c: c };
+                }
+                lambda = Math.max(lambda / 10, 1e-12);
+                if (c - cq <= 1e-15 * c + 1e-300) return { p: q, c: cq };
+                p = q;
+                r = rq;
+                c = cq;
+            }
+            return isFinite(c) ? { p: p, c: c } : null;
+        }
+        [was.map(function (v) { return isFinite(v) ? v : 1; }), 1, 0.5, -1, 0.1].forEach(function (start) {
+            var got = solve(Array.isArray(start) ? start : keys.map(function () { return start; }));
+            if (got && (!best || got.c < best.c)) best = got;
+        });
+        if (!best) {
+            keys.forEach(function (k, j) { vars[k] = was[j]; });
+            return null;
+        }
+        points.forEach(function (q) { my += q.y / n; });
+        points.forEach(function (q) { all += (q.y - my) * (q.y - my); });
+        misses(best.p.map(function (v) { return +v.toPrecision(12); }));
+        return {
+            values: keys.reduce(function (o, k) {
+                o[k] = vars[k];
+                return o;
+            }, {}),
+            r2: all > 0 ? +Math.max(0, 1 - best.c / all).toPrecision(10) : 1
+        };
+    }
+
     // The curve of a kind nearest points, by least squares: lin, y = m x + b; quad, y = a x² + b x + c;
     // exp, y = a·bˣ; pow, y = a·xᵇ; log, y = a + b ln x. The last three are the straight line of
     // ln y or ln x, as calculators fit them, with that line's r². { kind, k: its numbers in that
@@ -5781,6 +5873,7 @@
     Engine.points = points;
     Engine.fitLine = fitLine;
     Engine.fit = fit;
+    Engine.fitModel = fitModel;
     Engine.named = named;
     Engine.tree = tree;
     Engine.spans = spans;

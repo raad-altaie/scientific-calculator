@@ -845,8 +845,8 @@ async function graphPanel(page, at) {
     await page.hoverAt('.calc-graph-plot', 0.1, -5.05);
     check(/^y-intercept\s*x = 0\s*y = -5$/.test((await page.calc(note)).trim()), t + 'and the y axis', await page.calc(note));
     await page.hoverAt('.calc-graph-plot', -2.9, 4.2);
-    check(await page.calc('(function (m) { return !!m && Math.abs(m[1] * m[1] + m[2] * m[2] - 25) < 1e-9; })(/On the curve\\s*x = (\\S+)\\s*y = (\\S+)/' +
-        '.exec(document.querySelector(".calc-graph-note").textContent.replace(/\u2013|\u2212/g, "-")))'), t + 'pointed at: a place on the circle', await page.calc(note));
+    check(await page.calc('(function (m) { return !!m && Math.abs(Math.hypot(m[1], m[2]) - 5) < 0.05; })(/On the curve\\s*x = (\\S+)\\s*y = (\\S+)/' +
+        '.exec(document.querySelector(".calc-graph-note").textContent.replace(/\u2013|\u2212/g, "-")))'), t + 'pointed at: a place on the circle, to its pixel', await page.calc(note));
     await page.clickAt('.calc-graph-plot', 3, 4);
     check(/^On the curve\s*x = 3\s*y = 4\s*Slope = -0\.75$/.test(await page.calc(pop)), t + 'clicked: (3, 4), its slope -3/4', await page.calc(pop));
     await page.key('ArrowRight', 39);
@@ -2476,6 +2476,123 @@ async function graphLooks(page, at) {
     check(/^-?\de-10$/.test(await page.calc('window.seen[0]')) && !/π/.test(await page.calc('window.seen.join()')), t + 'zoomed far in, numbers of the grid and not of π', await page.calc('window.seen.join(" ")'));
 }
 
+// the line of a curve, from the menu of its dot: dashed with gaps in it, thick wider, kept and kept with its box
+// as one above goes; points labelled with their x and y
+async function graphStyle(page, at) {
+    var t = at + ': style: ', saved = 'JSON.stringify(JSON.parse(localStorage.getItem("graph")).s)',
+        navy = '(function (c) { var d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data, n = 0, i;' +
+            ' for (i = 0; i < d.length; i += 4) if (Math.abs(d[i] - 0x22) < 24 && Math.abs(d[i + 1] - 0x47) < 24 &&' +
+            ' Math.abs(d[i + 2] - 0x6a) < 24 && d[i + 3] > 200) n++; return n; })(document.querySelector(".calc-graph-plot canvas"))',
+        pick = function (name) {
+            return page.calc('(function (n) { Array.prototype.filter.call(document.querySelectorAll(".calc-menu-box > div"), function (d) { return d.textContent === n || d.textContent === "✓" + n; })[0]' +
+                '.dispatchEvent(new MouseEvent("click", { bubbles: true })); })(' + JSON.stringify(name) + ')');
+        }, solid, n;
+
+    await page.fresh(at, { graph: { f: ['x', '(1, 2), (3, 4)'], view: null } });
+    await page.click('.calc-graph-btn');
+    solid = await page.calc(navy);
+    await page.rightClick('.calc-graph-fn:nth-child(1) .calc-graph-swatch');
+    check(await menu(page) === '✓Solid|Dashed|Dotted|Thin|✓Normal|Thick|Hide', t + 'the menu of its dot, solid and normal ticked', await menu(page));
+    await pick('Dashed');
+    n = await page.calc(navy);
+    check(n < solid * 0.8 && n > solid * 0.4 && await page.calc(saved) === '[{"d":1,"w":1,"l":false},{"d":0,"w":1,"l":false}]', t + 'Dashed: gaps in it, kept', n + ' of ' + solid + ' ' + await page.calc(saved));
+    await page.rightClick('.calc-graph-fn:nth-child(1) .calc-graph-swatch');
+    await pick('Solid');
+    await page.rightClick('.calc-graph-fn:nth-child(1) .calc-graph-swatch');
+    await pick('Thick');
+    check(await page.calc(navy) > solid * 1.4, t + 'Thick: wider', await page.calc(navy) + ' of ' + solid);
+
+    await page.rightClick('.calc-graph-fn:nth-child(2) .calc-graph-swatch');
+    check(await menu(page) === '✓Solid|Dashed|Dotted|Thin|✓Normal|Thick|Label points|Hide', t + 'of points, Label points too', await menu(page));
+    await page.calc('(function (w) { var o = CanvasRenderingContext2D.prototype.fillText; window.seen = w; CanvasRenderingContext2D.prototype.fillText = function (s) { w.push(s); return o.apply(this, arguments); }; })([])');
+    await pick('Label points');
+    check(await page.calc('window.seen.indexOf("(1, 2)") > -1 && window.seen.indexOf("(3, 4)") > -1'), t + 'labelled with their x and y', await page.calc('window.seen.join(" ")'));
+
+    await page.click('.calc-graph-fn:nth-child(1) .calc-graph-del');
+    check(await page.calc(saved) === '[{"d":0,"w":1,"l":true}]', t + 'with its box as the one above goes', await page.calc(saved));
+}
+
+// a model of one's own fitted to points, y ~ a x² + b: its letters found and shown with r², no sliders for
+// them, a value clicked put in; fitted again as a point is dragged; none without points, said
+async function graphModel(page, at) {
+    var t = at + ': model: ', fits = 'document.querySelector(".calc-graph-fits").textContent.replace(/\\s+/g, " ").trim()';
+
+    await page.fresh(at, { graph: { f: ['(0, 1), (1, 1.5), (2, 3), (3, 5.5)', 'y ~ a x^2 + b'], view: null } });
+    await page.click('.calc-graph-btn');
+    check(await page.calc(fits) === 'a = 0.5b = 1r² = 1' && await page.calc('document.querySelector(".calc-graph-sliders").hidden') &&
+        !await page.calc('document.querySelectorAll(".calc-graph-fn")[1].classList.contains("calc-bad")'), t + 'y ~ a x² + b: a = 0.5, b = 1, r² = 1, and no sliders', await page.calc(fits));
+    await page.dragAt('.calc-graph-plot', 2, 3, 2, 4);
+    check(/^a = 0\.5\d+b = /.test(await page.calc(fits)) && await page.calc('document.querySelector(".calc-graph-input").value') === '(0, 1), (1, 1.5), (2, 4), (3, 5.5)',
+        t + 'a point dragged, fitted again', await page.calc(fits) + ' ' + await page.calc('document.querySelector(".calc-graph-input").value'));
+    await page.click('.calc-graph-fit-val[data-k="b"]');
+    check(!await page.calc('document.querySelector(".calc-graph").classList.contains("calc-open")') && /^\d/.test(await page.calc('document.querySelector(".calc-display").textContent.trim()')),
+        t + 'a value clicked goes into the calculation', await page.calc('document.querySelector(".calc-display").textContent'));
+
+    await page.fresh(at, { graph: { f: ['y ~ a e^(k x)'], view: null } });
+    await page.click('.calc-graph-btn');
+    check(await page.calc(fits) === 'No points to fit: type them in a box above it.' && await page.calc('document.querySelector(".calc-graph-fn").classList.contains("calc-bad")'),
+        t + 'without points, said', await page.calc(fits));
+}
+
+// the graph's menu: a link of it, opened in a page with a graph of its own, kept aside till Keep or Back
+// to mine; a bad link nothing; the graph saved as SVG and its table as CSV
+async function graphShare(page, at) {
+    var t = at + ': share: ', link, boxes = 'Array.prototype.map.call(document.querySelectorAll(".calc-graph-input"), function (b) { return b.value; }).filter(Boolean).join(" | ")',
+        banner = '!document.querySelector(".calc-graph-shared").hidden', saved = function (k) { return 'JSON.stringify(JSON.parse(localStorage.getItem("graph"))' + k + ')'; },
+        blobs = '(function (o) { window.blobs = []; URL.createObjectURL = function (b) { window.blobs.push(b); return o.call(URL, b); }; })(URL.createObjectURL)',
+        open = async function (url) {
+            await page.send('Page.navigate', { url: 'about:blank' });
+            await sleep(100);
+            await page.go(url);
+        },
+        item = async function (name) {
+            await page.click('.calc-graph-export [data-zoom="save"]');
+            await page.calc('(function (n) { Array.prototype.filter.call(document.querySelectorAll(".calc-menu-box > div"), function (d) { return d.textContent === n; })[0].dispatchEvent(new MouseEvent("click", { bubbles: true })); })(' + JSON.stringify(name) + ')');
+            await sleep(100);
+        };
+
+    await page.fresh(at, { deg: true, graph: { f: ['sin(a x)', '(1, 2), (3, 4)'], view: { x: 1, y: 2, ux: 0.05, uy: 0.05 }, p: { a: [2, -5, 5] }, look: { polar: true, xname: 't' } } });
+    await page.click('.calc-graph-btn');
+    await page.click('.calc-graph-export [data-zoom="save"]');
+    check(await page.calc('Array.prototype.map.call(document.querySelectorAll(".calc-menu-box > div"), function (d) { return d.textContent; }).join(", ")') ===
+        'Copy link, Copy picture, Save as PNG, Save as SVG, Save table as CSV', t + 'its menu', await page.calc('document.querySelector(".calc-menu-box").textContent'));
+    await page.key('Escape', 27);
+    await item('Copy link');
+    link = await page.calc('document.querySelector("#calculator textarea").value');
+    check(link.indexOf(page.base + at + '#g=') === 0 && link.length < 400, t + 'Copy link: this page, the graph after #g=', link);
+
+    await page.fresh(at, { graph: { f: ['x^2'] } });
+    await open(link);
+    check(await page.calc(boxes) === 'sin(a x) | (1, 2), (3, 4)' && await page.calc(saved('.p')) === '{"a":[2,-5,5]}' && await page.calc(saved('.view.x')) === '1' &&
+        await page.calc(saved('.look.polar')) === 'true' && await page.calc(saved('.look.xname')) === '"t"' && await page.calc('localStorage.getItem("deg")') === 'true',
+        t + 'opened, the graph of the link, with its sliders, view, settings and unit', await page.calc(boxes) + ' ' + await page.calc('localStorage.getItem("graph")'));
+    check(await page.calc(banner) && await page.calc('location.hash') === '' && await page.calc('JSON.parse(localStorage.getItem("graphMine")).graph.f[0]') === 'x^2' &&
+        await page.calc('document.querySelector(".calc-graph").classList.contains("calc-open")'), t + 'shown, one\'s own kept aside, the link gone from the address');
+    await page.click('[data-shared="back"]');
+    check(await page.calc(boxes) === 'x^2' && !await page.calc(banner) && await page.calc('localStorage.getItem("graphMine")') === null &&
+        await page.calc('localStorage.getItem("deg")') === 'false', t + 'Back to mine: one\'s own again, in its unit', await page.calc(boxes));
+
+    await open(link);
+    await page.go(page.base + at); // reloaded before a choice: still asked
+    check(await page.calc(banner) && await page.calc(boxes) === 'sin(a x) | (1, 2), (3, 4)', t + 'through a reload, still to choose');
+    if (!await page.calc('document.querySelector(".calc-graph").classList.contains("calc-open")')) await page.click('.calc-graph-btn');
+    await page.click('[data-shared="keep"]');
+    check(!await page.calc(banner) && await page.calc('localStorage.getItem("graphMine")') === null && await page.calc(boxes) === 'sin(a x) | (1, 2), (3, 4)', t + 'Keep: the graph of the link stays');
+
+    await open(page.base + at + '#g=@@notone');
+    check(!await page.calc(banner) && await page.calc(boxes) === 'sin(a x) | (1, 2), (3, 4)', t + 'a link that is not one does nothing');
+
+    if (!await page.calc('document.querySelector(".calc-graph").classList.contains("calc-open")')) await page.click('.calc-graph-btn');
+    await page.calc(blobs);
+    await item('Save as SVG');
+    check(await page.calc('window.blobs[0].text().then(function (s) { var d = new DOMParser().parseFromString(s, "image/svg+xml");' +
+        ' return !d.querySelector("parsererror") && d.querySelectorAll("path").length > 5 && /sin\\(a x\\)/.test(s) && /a = 2/.test(s) && d.documentElement.getAttribute("width") > 100; })'),
+        t + 'Save as SVG: an SVG of paths and words, its functions and sliders in it', await page.calc('window.blobs[0] && window.blobs[0].text().then(function (s) { return s.slice(0, 300); })'));
+    await item('Save table as CSV');
+    check(await page.calc('window.blobs[1].text().then(function (s) { var rows = s.replace(/^\\ufeff/, "").trim().split("\\r\\n"); return rows.length === 61 && rows[0] === "x,sin(a x)" && rows[1].split(",").length === 2; })'),
+        t + 'Save table as CSV: x and y of the curve, 60 rows', await page.calc('window.blobs[1] && window.blobs[1].text().then(function (s) { return s.slice(0, 120); })'));
+}
+
 // points dragged: their numbers written again in the box, round; one of sliders sets them, a letter
 // alone, so (a, 2) moves only across; a drag off the points moves the view
 async function graphDrag(page, at) {
@@ -2540,21 +2657,22 @@ async function graphHide(page, at) {
     check(await page.calc('document.querySelectorAll(".calc-graph-names .calc-graph-swatch").length') === 1, t + 'the table has only the curve shown');
     await page.click('.calc-graph-tab[data-tab="graph"]');
 
-    // kept after closing; the picture: the menu of the plot, and the button saves graph.png
+    // kept after closing; the picture: the menu of the plot, and the button's Save as PNG saves graph.png
     await page.go(page.base + at);
     await page.click('.calc-graph-btn');
     check(await page.calc(navy) === 0 && await page.calc(saved) === '[true,false]', t + 'still hidden when opened again', await page.calc(saved));
     await page.rightClick('.calc-graph-plot');
-    check(await menu(page) === 'Copy picture|Save picture', t + 'the plot has Copy picture and Save picture', await menu(page));
+    check(await menu(page) === 'Copy link|Copy picture|Save as PNG|Save as SVG|Save table as CSV', t + 'the plot has the menu of sharing and saving', await menu(page));
     await page.click('.calc-graph-note'); // the menu goes; Esc would close the graph too
     check(await open(page, '.calc-graph') && await page.calc('document.querySelector(".calc-menu-box").hidden'), t + 'a click away closes the menu');
     await page.calc('(function (w) { w.saved = null; var make = w.URL.createObjectURL;' + // in the calculator's window, an iframe in the popup
         ' w.URL.createObjectURL = function (b) { w.saved = { size: b.size, type: b.type }; return make.call(w.URL, b); };' +
         ' w.HTMLAnchorElement.prototype.click = function () { w.saved.name = this.download; }; })(document.defaultView)');
     await page.click('.calc-graph-zoom [data-zoom="save"]');
+    await page.calc('Array.prototype.filter.call(document.querySelectorAll(".calc-menu-box > div"), function (d) { return d.textContent === "Save as PNG"; })[0].dispatchEvent(new MouseEvent("click", { bubbles: true }))');
     for (var wait = 0; wait < 60 && !await page.calc('!!(document.defaultView.saved && document.defaultView.saved.name)'); wait++) await sleep(100); // the picture is made apart
     check(await page.calc('(function (s) { return JSON.stringify(s && [s.name, s.type, s.size > 2000]); })(document.defaultView.saved)') ===
-        '["graph.png","image/png",true]', t + 'the button saves the picture as graph.png', await page.calc('JSON.stringify(document.defaultView.saved)'));
+        '["graph.png","image/png",true]', t + 'its Save as PNG saves the picture as graph.png', await page.calc('JSON.stringify(document.defaultView.saved)'));
 
     // Clear shows every curve again
     await page.click('.calc-graph .calc-past-clear');
@@ -4560,6 +4678,9 @@ async function adminPolicy(page) {
         await graphList(page, '/popup.html');
         await graphLooks(page, '/popup.html');
         await graphDrag(page, '/popup.html');
+        await graphStyle(page, '/popup.html');
+        await graphModel(page, '/popup.html');
+        await graphShare(page, '/popup.html');
         await graphSlide(page, '/popup.html');
         await graphBig(page, '/popup.html');
         await search(page);
