@@ -4214,11 +4214,11 @@
         ctx.setLineDash([]);
     }
 
-    // The point at a place of the plot: a mark within reach of it, or markReach, the nearest; else
-    // the curve within reach above or below it, the nearest, at its x, a round one within near
-    // pixels (graphNice); else the place itself, its x and y rounded to what a pixel tells apart (spot)
+    // The point at a place of the plot: a mark within reach of it, the nearest; else the curve within
+    // reach above or below it, the nearest, at its x, a round one within near pixels (graphNice); else
+    // a mark within markReach; else the place itself, its x and y rounded to what a pixel tells apart (spot)
     function graphPoint(at, reach, markReach, near) {
-        var v = viewNow(), x = graphNice(graphX(v, at.x), v.ux, near), best = null;
+        var v = viewNow(), x = graphNice(graphX(v, at.x), v.ux, near), best = null, far;
         function nice(n, u) {
             return graphNice(n, u, near);
         }
@@ -4226,12 +4226,14 @@
             var d = Math.hypot(plotX(v, p.x) - at.x, plotY(v, p.y) - at.y);
             if (d <= (markReach || reach) && (!best || d < best.d)) best = { d: d, p: p };
         });
-        if (best) return best.p;
+        if (best && best.d <= reach) return best.p;
+        far = best; // a mark a little farther, unless a curve is there: a click on x² – 3 below its root is on the curve
+        best = null;
         graphFns.forEach(function (fn, i) {
             (fn ? fn.family || [fn] : []).forEach(function (c, f) { // of a list, the nearest of its curves
                 var y = c.at(graphX(v, at.x), deg, true), d = Math.abs(plotY(v, y) - at.y);
                 if (isFinite(y) && d <= reach * 1.2 && (!best || d < best.d)) { // on it at the pointer's x, then the likeliest point near that
-                    best = { d: d, p: likelyPoint(c, v, at, near || 3) || { x: graphRound(graphX(v, at.x), v.ux) } };
+                    best = { d: d, p: likelyPoint(c, v, at, near || 3) || { x: x } }; // else a round x near it, as graphNice has it
                     if (best.p.y === undefined) best.p.y = c.at(best.p.x, deg, true);
                     best.p.i = i;
                     if (f) best.p.f = f;
@@ -4247,10 +4249,13 @@
             });
         });
         graphPlanes.forEach(function (c, i) { // a curve of a parameter: the nearest of its places drawn, then nearer between them
-            var pts = c && c.kept && c.kept.pts, near = null, lo, hi, k, m1, m2, q, d, r;
+            var pts = c && c.kept && c.kept.pts, close = null, lo, hi, k, d, r;
             function off(u) {
                 var q = c.at(u, deg);
                 return Math.hypot(plotX(v, q[0]) - at.x, plotY(v, q[1]) - at.y);
+            }
+            function dist(q) {
+                return Math.hypot(q.px - at.x, q.py - at.y);
             }
             if (c && c.kind === 'field') { // a slope field: its solution within reach above or below, at its x
                 (c.kept ? c.kept.sols : []).forEach(function (s, k) {
@@ -4273,38 +4278,43 @@
                 return;
             }
             if (!pts) return;
+            // each place nearer than those beside it, then nearer between them: of two as near, within half a
+            // pixel, the first traced, as θ = π/6 of r = 2sin 3θ and not 7π/6, where it passes again
             pts.forEach(function (q, k) {
-                var d = Math.hypot(q.px - at.x, q.py - at.y);
-                if (d < (near ? near.d : Infinity)) near = { d: d, k: k };
+                var d = dist(q), lo, hi, m1, m2, n;
+                if (d > reach * 2 || k && d > dist(pts[k - 1]) || k < pts.length - 1 && d >= dist(pts[k + 1])) return;
+                lo = pts[Math.max(0, k - 1)].u;
+                hi = pts[Math.min(pts.length - 1, k + 1)].u;
+                for (n = 0; n < 50; n++) {
+                    m1 = lo + (hi - lo) / 3;
+                    m2 = hi - (hi - lo) / 3;
+                    if (off(m1) <= off(m2)) hi = m2; else lo = m1;
+                }
+                d = off((lo + hi) / 2);
+                if (!close || d < close.d - 0.5) close = { d: d, k: k, u: (lo + hi) / 2 };
             });
-            if (!near || near.d > reach * 2) return;
-            lo = pts[Math.max(0, near.k - 1)].u;
-            hi = pts[Math.min(pts.length - 1, near.k + 1)].u;
-            for (k = 0; k < 50; k++) {
-                m1 = lo + (hi - lo) / 3;
-                m2 = hi - (hi - lo) / 3;
-                if (off(m1) <= off(m2)) hi = m2; else lo = m1;
+            if (!close || !(close.d <= reach * 1.2) || best && close.d >= best.d) return;
+            r = likelyAlong(c, v, close.u, pts, close.k, near || 3);
+            if (!r) {
+                d = c.at(close.u, deg);
+                r = { u: close.u, x: d[0], y: d[1] };
             }
-            q = c.at((lo + hi) / 2, deg);
-            d = off((lo + hi) / 2);
-            if (d <= reach * 1.2 && (!best || d < best.d)) best = { d: d, p: { i: i, u: (lo + hi) / 2, x: q[0], y: q[1] } };
+            best = { d: close.d, p: { i: i, u: r.u, x: r.x, y: r.y } };
         });
-        return best ? best.p : { x: x, y: graphNice(graphY(v, at.y), v.uy, near), spot: true };
+        return best ? best.p : far ? far.p : { x: x, y: graphNice(graphY(v, at.y), v.uy, near), spot: true };
     }
 
     // The point of a curve y = f(x) a click near it most likely means, within near pixels of where the
     // click's x meets it: the one whose x and y are both roundest, (2, 4) on x², else the one whose x
-    // is, or where it is steep its y; the nearer of two as round. Null if there is none
+    // is, or where it is steep its y; the nearer of two as round. Null if none is round
     function likelyPoint(fn, v, at, near) {
         var x0 = graphX(v, at.x), y0 = fn.at(x0, deg, true), steep = Math.abs(fn.at(x0 + v.ux, deg, true) - fn.at(x0 - v.ux, deg, true)) / (2 * v.uy) > 1,
             q = Math.pow(10, Math.floor(Math.log10(v.ux))), p = Math.pow(10, Math.ceil(Math.log10(v.uy))), best = null, k, m, a, b, ya, yb;
         function consider(x, y) {
-            var d = Math.hypot(plotX(v, x) - at.x, plotY(v, y) - plotY(v, y0)), rx, ry, s;
+            var d = Math.hypot(plotX(v, x) - at.x, plotY(v, y) - plotY(v, y0)), s;
             if (!isFinite(y) || d > near) return;
-            rx = graphRoundness(x, v.ux);
-            ry = graphRoundness(y, v.uy);
-            s = [Math.min(rx, ry), steep ? ry : rx, -d];
-            if (!best || s[0] > best.s[0] || s[0] === best.s[0] && (s[1] > best.s[1] || s[1] === best.s[1] && s[2] > best.s[2])) best = { s: s, x: x, y: y };
+            s = roundScore(v, x, y, d, steep);
+            if (rounder(s, best)) best = { s: s, x: x, y: y };
         }
         if (!isFinite(y0)) return null;
         for (k = Math.ceil((x0 - near * v.ux) / q); k * q <= x0 + near * v.ux; k++) { // round x, a tenth of a pixel or more apart
@@ -4321,7 +4331,68 @@
                 consider(crossing(fn, a, b, ya, +m.toPrecision(12)), +m.toPrecision(12));
             }
         }
-        return best && { x: best.x, y: best.y };
+        return best && (best.s[0] || best.s[1]) ? { x: best.x, y: best.y } : null;
+    }
+
+    // The point of a curve of a parameter a click near it most likely means, within near pixels of its
+    // place nearest the click, at u0, which the place k0 it traced is by: where its x or its y is
+    // roundest, as likelyPoint has it, y = 1 and not 0.9999995. Null if none is round
+    function likelyAlong(c, v, u0, pts, k0, near) {
+        var p0 = c.at(u0, deg), x0 = plotX(v, p0[0]), y0 = plotY(v, p0[1]), h = Math.abs(u0) * 1e-7 || 1e-7,
+            a = c.at(u0 - h, deg), b = c.at(u0 + h, deg), steep = Math.abs((b[1] - a[1]) / v.uy) > Math.abs((b[0] - a[0]) / v.ux),
+            lo = k0, hi = k0, n = 64, best = null, k, u1, u2;
+        function away(k) {
+            return Math.hypot(pts[k].px - x0, pts[k].py - y0);
+        }
+        function cross(j, ua, ub, m) { // where x, or y for j = 1, is m between ua and ub, by halving
+            var fa = c.at(ua, deg)[j] - m, k, uc, fc;
+            for (k = 0; k < 50; k++) {
+                uc = (ua + ub) / 2;
+                fc = c.at(uc, deg)[j] - m;
+                if (fc * fa > 0) {
+                    ua = uc;
+                    fa = fc;
+                } else {
+                    ub = uc;
+                }
+            }
+            return (ua + ub) / 2;
+        }
+        if (!isFinite(y0) || !isFinite(x0)) return null;
+        while (lo > 0 && away(lo) <= near) lo--; // the places traced within reach, and one past them each way
+        while (hi < pts.length - 1 && away(hi) <= near) hi++;
+        for (k = 0; k < n; k++) { // round x and y, a pixel or more apart, where it crosses them
+            u1 = pts[lo].u + (pts[hi].u - pts[lo].u) * k / n;
+            u2 = pts[lo].u + (pts[hi].u - pts[lo].u) * (k + 1) / n;
+            a = c.at(u1, deg);
+            b = c.at(u2, deg);
+            [v.ux, v.uy].forEach(function (u, j) {
+                var q = Math.pow(10, Math.ceil(Math.log10(u))), m, w, p, d, s;
+                if (!isFinite(a[j]) || !isFinite(b[j])) return;
+                for (m = Math.ceil(Math.max(Math.min(a[j], b[j]), p0[j] - near * u) / q) * q; m <= Math.min(Math.max(a[j], b[j]), p0[j] + near * u); m += q) {
+                    w = cross(j, u1, u2, +m.toPrecision(12));
+                    p = c.at(w, deg).slice();
+                    p[j] = +m.toPrecision(12);
+                    d = Math.hypot(plotX(v, p[0]) - x0, plotY(v, p[1]) - y0);
+                    if (!isFinite(p[1 - j]) || d > near) continue;
+                    s = roundScore(v, p[0], p[1], d, steep);
+                    if (rounder(s, best)) best = { s: s, u: w, x: p[0], y: p[1] };
+                }
+            });
+        }
+        return best && (best.s[0] || best.s[1]) ? { u: best.u, x: best.x, y: best.y } : null;
+    }
+
+    // how round a point is, a pixel being v.ux by v.uy, to choose the likeliest of a few: the rounder of
+    // its x and y, then its x, or where the curve is steep its y, then the nearer, d pixels away
+    function roundScore(v, x, y, d, steep) {
+        var rx = graphRoundness(x, v.ux), ry = graphRoundness(y, v.uy);
+        return [Math.min(rx, ry), steep ? ry : rx, -d];
+    }
+
+    // whether score s of roundScore is higher than that of the best so far, or there is none
+    function rounder(s, best) {
+        return !best || s[0] > best.s[0] || s[0] === best.s[0] && (s[1] > best.s[1] || s[1] === best.s[1] && s[2] > best.s[2]);
     }
 
     // where f(x) = y between a and b, f(a) being ya, by halving
