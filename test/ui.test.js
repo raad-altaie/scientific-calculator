@@ -2481,6 +2481,29 @@ async function graphLooks(page, at) {
 
 // log scales: 1, 10, 100 named, no negative numbers; the pointer on x² at a round y; the view's ends above 0, one at 0
 // or below marked; same scale and the polar grid dim; off, the same x straight, and on again as it was
+// the plot tabbed to, with nothing clicked: the arrow keys trace from the middle of the view,
+// each step said to a screen reader as the line above the plot shows it, with its curve
+async function graphSay(page, at) {
+    var t = at + ': said: ', say = 'document.querySelector(".calc-graph-say").textContent', found = '';
+
+    await page.fresh(at, { graph: { f: ['x^2 - 4', 'sin(x)'], view: null } });
+    await page.click('.calc-graph-btn');
+    await page.calc('document.querySelector(".calc-graph-plot").focus()');
+    await page.key('ArrowRight', 39);
+    await sleep(100);
+    check(await page.calc(say) === 'Min, y-intercept, x = 0, y = -4, x^2 - 4', t + 'the first press: the dot at the middle', await page.calc(say));
+    for (var i = 0; i < 40 && !found; i++) {
+        await page.key('ArrowRight', 39);
+        if (!/^On the curve/.test(await page.calc(say))) found = await page.calc(say);
+    }
+    check(found === 'Root, x = 2, y = 0, x^2 - 4', t + 'along it, stopping at its root', found);
+    await page.key('ArrowLeft', 37);
+    await page.key('ArrowUp', 38);
+    await sleep(100);
+    check(/^On the curve, x = 1\.\d+, y = 0\.9\d*, sin\(x\)$/.test(await page.calc(say)), t + 'up to the curve above', await page.calc(say));
+    await page.key('Escape', 27);
+}
+
 async function graphLog(page, at) {
     var t = at + ': log: ', note = 'document.querySelector(".calc-graph-note").textContent',
         ends = 'Array.prototype.map.call(document.querySelectorAll(".calc-graph-x0, .calc-graph-x1, .calc-graph-y0, .calc-graph-y1"), function (b) { return b.value; }).join(" ")',
@@ -2511,6 +2534,17 @@ async function graphLog(page, at) {
     await page.click('[data-look=logx]');
     await sleep(350);
     check(await page.calc(look + '.logx') === true && (await page.calc(ends)).indexOf('0.01 100 ') === 0, t + 'and on again as it was', await page.calc(ends));
+
+    // an example for a log scale puts it on, x 1 to 10^6 about 10^3; another takes it off
+    await page.click('.calc-graph-tab[data-tab="examples"]');
+    await page.type('low-pass\r');
+    await sleep(300);
+    check(await page.calc(look + '.logx') === true && await page.calc(look + '.logy') === true &&
+        await page.calc('JSON.parse(localStorage.getItem("graph")).view.x') === 3, t + 'the low-pass example: on a log scale both ways', await page.calc('localStorage.getItem("graph")'));
+    await page.click('.calc-graph-tab[data-tab="examples"]');
+    await page.type('cardioid\r');
+    await sleep(300);
+    check(await page.calc(look + '.logx') === false && await page.calc(look + '.logy') === false, t + 'another example: off it');
 }
 
 // undo and redo of the graph: a word typed one step, by Ctrl+Z in its box and Ctrl+Shift+Z or Ctrl+Y; Clear, a
@@ -2734,6 +2768,27 @@ async function graphDrag(page, at) {
     await page.click('.calc-graph-btn');
     await page.dragAt('.calc-graph-plot', 1, 2, 2, -1);
     check(await page.calc(box) === '(2, -1), (a, 3)', t + 'a point of numbers among them, written in its place', await page.calc(box));
+
+    // a point named, its name beside it, in the line above the plot, and kept as it is dragged or typed in its table
+    await page.fresh(at, { graph: { f: ['A = (1, 2)', 'P1 = (a, 3)'], view: null, p: { a: [-2, -10, 10] } } });
+    await page.click('.calc-graph-btn');
+    await page.calc('(function (w) { var o = CanvasRenderingContext2D.prototype.fillText; window.seen = w; CanvasRenderingContext2D.prototype.fillText = function (s) { w.push(s); return o.apply(this, arguments); }; })([])');
+    await page.calc('window.dispatchEvent(new Event("resize"))');
+    await sleep(100);
+    check(await page.calc('window.seen.indexOf("A") > -1 && window.seen.indexOf("P1") > -1'), t + 'named: A and P1 beside them', await page.calc('window.seen.join(" ")'));
+    await page.hoverAt('.calc-graph-plot', 1, 2);
+    await sleep(100);
+    check(/^A\s*x = 1\s*y = 2$/.test((await page.calc('document.querySelector(".calc-graph-note").textContent')).trim()), t + 'named: A, pointed at',
+        await page.calc('document.querySelector(".calc-graph-note").textContent'));
+    await page.dragAt('.calc-graph-plot', 1, 2, 2, 5);
+    check(await page.calc(box) === 'A = (2, 5)', t + 'named: A dragged, its name kept', await page.calc(box));
+    await page.dragAt('.calc-graph-plot', -2, 3, 4, 3);
+    check(await page.calc('document.querySelectorAll(".calc-graph-input")[1].value') === 'P1 = (a, 3)' && await page.calc(vars) === '{"a":[4,-10,10]}',
+        t + 'named: P1 of a dragged, a set', await page.calc(vars));
+    await page.click('.calc-graph-points');
+    await page.calc('(function (el) { el.value = "7"; el.dispatchEvent(new Event("input", { bubbles: true })); })(document.querySelector(".calc-graph-pair input"))');
+    check(await page.calc(box) === 'A = (7, 5)', t + 'named: its table typed in, its name kept', await page.calc(box));
+    await page.key('Escape', 27);
 }
 
 // a curve hidden and shown by a click on its dot; the graph saved or copied as a picture
@@ -4790,6 +4845,7 @@ async function adminPolicy(page) {
         await graphDrag(page, '/popup.html');
         await graphUndo(page, '/popup.html');
         await graphLog(page, '/popup.html');
+        await graphSay(page, '/popup.html');
         await graphStyle(page, '/popup.html');
         await graphModel(page, '/popup.html');
         await graphShare(page, '/popup.html');

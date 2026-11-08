@@ -1552,6 +1552,7 @@
     // is. p: the values of its sliders, [value, from, to]; fit: the best fit of its points;
     // v: the view, [x from, to, y from, to], all of it shown, and with stretch each of them
     // filling the plot, x and y apart; rad: drawn in Rad, its t or x being a number and not an angle;
+    // logx, logy: drawn on a log scale that way, its view v in values and not powers of ten;
     // play: the sliders that play as it is drawn; hue: the colors of its first boxes, in place of the first ones, the others after them in order
     var graphs = [
         {
@@ -1661,7 +1662,23 @@
             c: 'Points', list: [
                 { t: 'Along a line', f: ['(1, 2), (2, 4.1), (3, 5.9), (4, 8.2), (5, 9.8)'], d: 'With the line nearest them; point at it for r².', fit: 'lin' },
                 { t: 'Thrown up', f: ['(0, 0), (1, 4.2), (2, 6.1), (3, 6.3), (4, 3.9), (5, 0.2)'], d: 'Heights of a ball, with the parabola nearest them.', fit: 'quad' },
-                { t: 'Doubling', f: ['(0, 1), (1, 1.9), (2, 4.2), (3, 7.8), (4, 16.5)'], d: 'Growth, with the exponential nearest it.', fit: 'exp', v: [-1, 6, -2, 18] }
+                { t: 'Doubling', f: ['(0, 1), (1, 1.9), (2, 4.2), (3, 7.8), (4, 16.5)'], d: 'Growth, with the exponential nearest it.', fit: 'exp', v: [-1, 6, -2, 18] },
+                { t: 'Named points', f: ['A = (-3, -2)', 'B = (4, -1)', 'C = (1, 4)'], d: 'A capital letter and = before a point name it, its name beside it. Drag one: it keeps it.',
+                    v: [-6, 7, -4, 6] }
+            ]
+        },
+        {
+            c: 'Log scale', list: [
+                { t: 'Growth in a line', f: ['2^x', '10^x', '(1/2)^x'], d: 'On a log y scale growth at a steady rate is a straight line, steeper the faster it grows, and halving a line going down.',
+                    logy: true, v: [-6, 6, 0.001, 1000] },
+                { t: 'Powers in a line', f: ['x^2', 'sqrt(x)', '1/x'], d: 'On log scales both ways each power of x is a straight line through (1, 1), its slope the power: 2, 1/2 and –1.',
+                    logx: true, logy: true, v: [0.01, 100, 0.0001, 10000] },
+                { t: 'Low-pass filter', f: ['1/sqrt(1 + (x/1000)^2)'], d: 'The gain of a filter at each frequency in Hz: flat to 1 kHz, then ten times less each ten times higher.',
+                    logx: true, logy: true, v: [1, 1000000, 0.0001, 3] },
+                { t: 'Carbon-14', f: ['100(1/2)^(x/5730)'], d: 'The % of carbon-14 left after x years, half each 5730: a straight line on a log y scale.',
+                    logy: true, v: [-2000, 60000, 0.01, 200] },
+                { t: 'Logarithm', f: ['log(x)', 'ln(x)'], d: 'On a log x scale each is a straight line, rising by the same each ten times x.',
+                    logx: true, v: [0.001, 1000, -8, 8] }
             ]
         },
         {

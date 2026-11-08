@@ -2939,6 +2939,11 @@ dels.forEach(function (c) {
             check(Engine.points('(a, b)') === null && Engine.points('(x, 2)', false, vars, {}) === null && Engine.points('(a, b', false, vars, {}) === null &&
                 Engine.points('(a)', false, vars, {}) === null && Engine.points('(a, 2) + 1', false, vars, {}) === null,
                 'points: letters only with sliders; not of x, nor one part, nor more after them');
+            var named = Engine.points('P1 = (a, 2)', false, vars, {});
+            check(Engine.points('A = (2, 4)').name === 'A' && Engine.points('B = (1,5; 2)', true)[0].x === 1.5 &&
+                named.name === 'P1' && named[0].x === 3 && JSON.stringify(named[0].at) === '[[6,7],[9,10]]' &&
+                Engine.points('A = (1, 2), (3, 4)') === null && Engine.points('a = (1, 2)') === null && Engine.points('(1, 2)').name === undefined,
+                'points: one named, A = (2, 4), where its x and y are from the start; not two, nor a small letter', JSON.stringify(named));
         })();
         (function () {
             function model(text, pts) {

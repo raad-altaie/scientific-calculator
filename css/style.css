@@ -795,6 +795,11 @@
     display: inline;
 }
 
+/* Animate and its letter on the border, only in the big window */
+#calculator .calc-graph-legend {
+    display: none;
+}
+
 #calculator .calc-graph-val {
     display: flex;
     flex: none;
@@ -1143,6 +1148,31 @@
     background: #b6d1c2;
 }
 
+/* tabbed to: the arrow keys trace a curve, read out as it goes */
+#calculator .calc-graph-plot:focus {
+    outline: none;
+}
+
+#calculator .calc-graph-plot:focus-visible::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    border: 2px solid #7fa893;
+    border-radius: 5px;
+    pointer-events: none;
+}
+
+/* the point traced, said by a screen reader and not seen */
+#calculator .calc-graph-say {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
 #calculator .calc-graph-plot canvas {
     position: absolute;
     left: 0;
@@ -1235,13 +1265,13 @@
 
 /* Reset, small at its right; dim while all is as it starts */
 #calculator .calc-graph-reset {
-    padding: 1px 6px;
+    padding: 0 5px;
     border: 1px solid #4d6b80;
     border-radius: 4px;
     outline: none;
     color: #d3d9e2;
-    font-size: 10px;
-    line-height: 13px;
+    font-size: 9px;
+    line-height: 12px;
     cursor: pointer;
     -webkit-user-select: none;
     user-select: none;
@@ -1411,6 +1441,36 @@
 
 #calculator .calc-graph-window .calc-graph-axisnames input::placeholder {
     color: #5f7a6c;
+}
+
+/* popped in, closer together, so all of them fit in the plot and none scroll */
+#calculator:not(.calc-big) .calc-graph-window {
+    gap: 3px;
+}
+
+#calculator:not(.calc-big) .calc-graph-window input {
+    padding-top: 1px;
+    padding-bottom: 1px;
+}
+
+#calculator:not(.calc-big) .calc-graph-set-head {
+    padding-bottom: 3px; /* some room under Reset */
+}
+
+#calculator:not(.calc-big) .calc-graph-looks {
+    margin-top: 3px; /* some room on both sides of the line above it */
+    padding-top: 5px;
+}
+
+#calculator:not(.calc-big) .calc-graph-looks > span,
+#calculator:not(.calc-big) .calc-graph-two {
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+
+#calculator:not(.calc-big) .calc-graph-window .calc-graph-axisnames {
+    margin-top: 3px;
+    padding-top: 6px;
 }
 
 /* the tick of the line of a curve its menu has, before its name, the others as far in */
@@ -1660,6 +1720,13 @@
 #calculator .calc-graph.calc-graph-browse .calc-graph-sliders,
 #calculator .calc-graph.calc-graph-browse .calc-graph-note,
 #calculator .calc-graph.calc-graph-browse .calc-graph-plot {
+    display: none;
+}
+
+/* undo and redo only on the graph's tab: not on the table or the examples */
+#calculator .calc-graph.calc-graph-other-tab .calc-graph-undo,
+#calculator .calc-graph.calc-graph-other-tab .calc-graph-redo,
+#calculator .calc-graph.calc-graph-other-tab .calc-graph-undos {
     display: none;
 }
 
@@ -1932,24 +1999,46 @@
 
     #calculator.calc-big .calc-graph-sliders {
         grid-area: 4 / 1;
-        gap: 8px;
+        gap: 12px;
+        padding-top: 6px; /* the first one's name on its border not cut off as they scroll */
     }
 
-    /* a slider on two lines, as the column is narrow: ▶ and the letter's box across it, then under the box
-       where it goes from, the slider and where it goes to, the slider long enough to drag */
+    /* a slider on two lines, as the column is narrow: the letter's box across it, then under the box
+       ▶, where it goes from, the slider and where it goes to, the slider long enough to drag; the two
+       lines together in a faint border, Animate and its letter on it */
     #calculator.calc-big .calc-graph-slider {
+        position: relative;
         flex-wrap: wrap;
-        row-gap: 2px;
+        row-gap: 4px;
         height: auto;
+        padding: 9px 5px 5px;
+        border: 1px solid rgba(169, 196, 181, 0.22);
+        border-radius: 8px;
+    }
+
+    #calculator.calc-big .calc-graph-legend {
+        display: block;
+        position: absolute;
+        top: -7px;
+        left: 9px;
+        padding: 0 4px;
+        background: #4a5f73; /* the panel's, over the border */
+        color: #9fb0bd;
+        font: 10px/12px 'Play', 'Russo One', sans-serif;
+        pointer-events: none;
+    }
+
+    #calculator.calc-big .calc-graph-legend b {
+        color: #d3d9e2;
+        font-family: 'Play Bold', 'Play', 'Russo One', sans-serif;
+        font-weight: normal; /* the real bold of Play, not one made from the regular */
     }
 
     #calculator.calc-big .calc-graph-val {
-        flex: 1 0 calc(100% - 30px);
+        order: -1;
+        flex: 1 0 100%;
         width: auto;
-    }
-
-    #calculator.calc-big .calc-graph-end[data-end="0"] {
-        margin-left: 24px; /* under the box, past ▶ and the gap */
+        min-width: 0; /* not as wide as its box's own 20 letters */
     }
 
     #calculator.calc-big .calc-graph-examples {
@@ -6083,6 +6172,67 @@
 
 #calculator .calc-menu-hex input:focus {
     background: #c9e0d3;
+}
+
+/* the menu of a curve, smaller than the others: it has the most in it. Big, as the others, as there is room */
+#calculator:not(.calc-big) .calc-menu-box:has(.calc-menu-picker) {
+    font-size: 13px;
+}
+
+#calculator:not(.calc-big) .calc-menu-box:has(.calc-menu-picker) > div {
+    padding: 3px 8px;
+}
+
+#calculator:not(.calc-big) .calc-menu-box:has(.calc-menu-picker) > .calc-menu-part {
+    padding: 4px 4px 3px;
+}
+
+#calculator:not(.calc-big) .calc-menu-box:has(.calc-menu-picker) > hr {
+    margin: 3px 6px;
+}
+
+#calculator:not(.calc-big) .calc-menu-box:has(.calc-menu-picker) .calc-menu-picker {
+    gap: 6px;
+    width: 123px;
+}
+
+#calculator:not(.calc-big) .calc-menu-box:has(.calc-menu-picker) .calc-menu-shade {
+    height: 73px;
+}
+
+#calculator:not(.calc-big) .calc-menu-box:has(.calc-menu-picker) .calc-menu-auto {
+    font-size: 11px;
+    line-height: 15px;
+}
+
+#calculator:not(.calc-big) .calc-menu-box:has(.calc-menu-picker) .calc-menu-hex {
+    font-size: 12px;
+}
+
+#calculator:not(.calc-big) .calc-menu-box:has(.calc-menu-picker) .calc-menu-hex input {
+    padding: 1px 4px;
+    font-size: 12px;
+    line-height: 16px;
+}
+
+#calculator.calc-big .calc-menu-box:has(.calc-menu-picker) {
+    font-size: 15px;
+}
+
+#calculator.calc-big .calc-menu-box:has(.calc-menu-picker) > div {
+    padding: 5px 8px;
+}
+
+#calculator.calc-big .calc-menu-box:has(.calc-menu-picker) > .calc-menu-part {
+    padding: 5px 4px 4px;
+}
+
+#calculator.calc-big .calc-menu-box:has(.calc-menu-picker) .calc-menu-picker {
+    width: 160px;
+}
+
+#calculator.calc-big .calc-menu-box:has(.calc-menu-picker) .calc-menu-shade {
+    height: 94px;
 }
 
 /* Store in Var: the letters two by two, each with what it holds */

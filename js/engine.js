@@ -1417,11 +1417,12 @@
     // view where it has no end, as tan x has at 90° however far away it is seen; filled between
     // two such less than 3 pixels apart. Where it goes up
     // and down more than a pixel shows, as sin(1000x) or tan x seen from far away do, a stroke
-    // up and down the pixel covers all it reaches, as many values are there
+    // up and down the pixel covers all it reaches, as many values are there. view.until: when the
+    // time of all that is drawn with it is up, if before its own; the lines then rough, to trace again
     function trace(c, view, deg) {
         var w = view.w, h = view.h, kx = (view.x1 - view.x0) / w, ky = h / (view.y1 - view.y0),
             n = 2 * Math.ceil(w) + 4, more = 40 * n, lines = [], line = null, last = null, ends = [], k, a, b,
-            start = Date.now(), stop = start + TRACE_TIME, placed = 0, step = 1;
+            start = Date.now(), stop = Math.min(start + TRACE_TIME, view.until || Infinity), late = false, placed = 0, step = 1;
 
         function place(x) {
             var y = c.at(x, deg);
@@ -1516,7 +1517,7 @@
             if (even(a, m, b, r)) return to(b);
             if ((b.px - a.px < 1e-3 && (!r || (isFinite(r[0]) && isFinite(r[1])))) || depth > 60 ||
                 (r && !r[2] && across(a, b))) return end(a, b, r);
-            if (more <= 0 || Date.now() > stop) return stroke(a, b, r, [a, m, b]); // as far as there is time for
+            if (more <= 0 || (late = late || Date.now() > stop)) return stroke(a, b, r, [a, m, b]); // as far as there is time for
             r1 = reach(a, m);
             r2 = reach(m, b);
             if (!still(a, m, r1) && !still(m, b, r2)) { // more than a pixel shows, unless each half goes smoothly
@@ -1560,7 +1561,8 @@
             if (Date.now() <= stop) {
                 join(a, b, 0, reach(a, b));
             } else {
-                if (step === 1) step = Math.max(1, Math.ceil((n - k) * (Date.now() - start) / placed / TRACE_TIME));
+                late = true;
+                if (step === 1) step = Math.max(1, Math.ceil((n - k) * (Date.now() - start) / placed / Math.max(stop - start, TRACE_TIME / 10)));
                 if (isFinite(a.py) && isFinite(b.py) && a.k === b.k) to(b);
                 else from(b);
             }
@@ -1578,6 +1580,7 @@
             bottom = Math.min(h + 4, down(r[0]));
             for (px = p.px; top < bottom && px < q.px + 0.75; px += 1.5) lines.push([px, top, px, bottom]);
         });
+        lines.rough = late && stop < start + TRACE_TIME;
         return lines;
     }
 
@@ -2519,15 +2522,25 @@
     // way backward. { pts: [[x, y], …] by x, back and ahead: where
     // it stops each way and why, { x, y, why: 'none' of a slope of no value, 'large' of y past big,
     // 'steep' of one steeper than its smallest step can follow, 'many' of more than 100000 steps },
-    // or null where it goes as far as it was to go }
+    // or null where it goes as far as it was to go }. h and dy may be functions of x and of y, the
+    // step there, as a pixel on a log scale is
     function solveField(field, x0, y0, from, to, deg, h, dy, big) {
-        var back = walk(-1, from), ahead = walk(1, to);
+        var hAt = typeof h === 'function' && h, dyAt = typeof dy === 'function' && dy, back = walk(-1, from), ahead = walk(1, to);
         return { pts: back.pts.reverse().concat(isFinite(field.at(x0, y0, deg)) ? [[x0, y0]] : [], ahead.pts), back: back.stop, ahead: ahead.stop };
 
+        // the steps where it is
+        function steps(x, y) {
+            if (hAt) h = hAt(x);
+            if (dyAt) dy = dyAt(y);
+        }
+
         function walk(dir, end) {
-            var x = x0, y = y0, pts = [], stop = null, n = 0, last = h, step, k1, k2, k3, k4, next, ok, j, up, nx, ny;
+            var x = x0, y = y0, pts = [], stop = null, n = 0, last, step, k1, k2, k3, k4, next, ok, j, up, nx, ny;
+            steps(x0, y0);
+            last = h;
             if (!isFinite(x0) || !isFinite(y0)) return { pts: pts, stop: { x: x0, y: y0, why: 'none' } };
             while ((end - x) * dir > 1e-9 * h && !stop) {
+                steps(x, y);
                 k1 = field.at(x, y, deg);
                 if (!isFinite(k1)) {
                     stop = { x: x, y: y, why: isNaN(k1) ? 'none' : 'steep' };
@@ -2626,11 +2639,22 @@
 
     // Points to plot, as a list: (1, 2), (2, 4.1), (3, 5.9), or with the comma in use (1,5; 2).
     // [{ x, y }], or null if the text is not one. With vars, of the letters of sliders too, as
-    // lettered has them: (a, b), (a, 2), (1, a^2)
+    // lettered has them: (a, b), (a, 2), (1, a^2). One point may be named, A = (2, 4), P1 = (a, b):
+    // the list has its name, and where its x and y are counted from the start of the text
     function points(text, comma, vars, defs) {
-        var s = String(text).trim().replace(/[−–]/g, '-'), out = [], rest,
+        var named = /^\s*([A-Z]\d*'*)\s*=\s*(?=\()/.exec(text), s = String(text).trim().replace(/[−–]/g, '-'), out = [], rest,
             num = '\\s*([-+]?(?:\\d+' + (comma ? ',' : '\\.') + '?\\d*|' + (comma ? ',' : '\\.') + '\\d+)(?:[eE][-+]?\\d+)?)\\s*',
             pair = new RegExp('\\(' + num + (comma ? ';' : '[,;]') + num + '\\)', 'g');
+        if (named) {
+            out = points(String(text).slice(named[0].length), comma, vars, defs);
+            if (!out || out.length !== 1) return null;
+            out.name = named[1];
+            (out[0].at || []).forEach(function (span) {
+                span[0] += named[0].length;
+                span[1] += named[0].length;
+            });
+            return out;
+        }
         if (s.length > MAX_PASTE * 20) return null;
         rest = s.replace(pair, function (all, x, y) {
             out.push({ x: +x.replace(',', '.'), y: +y.replace(',', '.') });
@@ -3149,10 +3173,11 @@
     // meet the x axis (xint) and the y axis (yint), where they cross a curve or each other
     // (cross), each of two inequalities where the other holds, with k the one. planes: the
     // curves of a parameter that plane gives: where they meet the axes and cross a curve or an
-    // equation, u being the parameter there. view.logx: x on a log scale, looked at evenly along it
+    // equation, u being the parameter there. view.logx: x on a log scale, looked at evenly along it.
+    // view.until: as trace has it, the list then rough where the time ran out
     function keyPoints(curves, view, deg, rels, planes) {
-        var n = 400, at = sampleX(view, n), xs = at.xs, step = at.step, jump = (view.y1 - view.y0) / 2, ys = [], found = [], k,
-            stop = Date.now() + TRACE_TIME; // past it no more are looked for, as of a sum of thousands of terms
+        var n = 400, at = sampleX(view, n), xs = at.xs, step = at.step, jump = (view.y1 - view.y0) / 2, ys = [], found = [], k, out,
+            start = Date.now(), stop = Math.min(start + TRACE_TIME, view.until || Infinity); // past it no more are looked for, as of a sum of thousands of terms
 
         function tol(x) {
             return step(x) * 1e-6;
@@ -3362,7 +3387,7 @@
         found = found.filter(function (p) {
             return isFinite(p.y) && p.y >= view.y0 && p.y <= view.y1 && p.x >= view.x0 && p.x <= view.x1;
         }).sort(function (p, q) { return p.x - q.x; });
-        return found.filter(function (p, at) {
+        out = found.filter(function (p, at) {
             var same = found.slice(0, at).filter(function (q) {
                 return q.i === p.i && Math.abs(q.x - p.x) < step(p.x) / 2 && Math.abs(q.y - p.y) <= 1e-9 * Math.max(1, Math.abs(p.y));
             })[0];
@@ -3373,6 +3398,8 @@
             }
             return !same;
         });
+        out.rough = Date.now() > stop && stop < start + TRACE_TIME;
+        return out;
     }
 
     // The place on an equation of x and y nearest x, y, seen with pixels ux wide and uy high:

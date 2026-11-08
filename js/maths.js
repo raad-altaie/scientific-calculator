@@ -2069,6 +2069,10 @@
                     case 'sin': return csin([a[0] * k, a[1] * k]);
                     case 'cos': return ccos([a[0] * k, a[1] * k]);
                     case 'tan': return cdiv(csin([a[0] * k, a[1] * k]), ccos([a[0] * k, a[1] * k]));
+                    case 'sec': return cdiv([1, 0], ccos([a[0] * k, a[1] * k]));
+                    case 'csc': return cdiv([1, 0], csin([a[0] * k, a[1] * k]));
+                    case 'cot': return cdiv(ccos([a[0] * k, a[1] * k]), csin([a[0] * k, a[1] * k]));
+                    case 'sign': return real(function (x) { return Math.sign(x) + 0; });
                     case 'sin-1': b = casin(a); return [b[0] / toRad, b[1] / toRad];
                     case 'cos-1': b = cacos(a); return [b[0] / toRad, b[1] / toRad];
                     case 'tan-1': b = catan(a); return [b[0] / toRad, b[1] / toRad];
@@ -2101,6 +2105,8 @@
                     case 'mod': return both(function (x, y) { return x - y * Math.floor(x / y); });
                     case 'gcd': return both(function (x, y) { x = Math.abs(x); y = Math.abs(y); while (y) { var t = y; y = x % y; x = t; } return x; });
                     case 'lcm': return both(function (x, y) { var g = x, h = y; while (h) { var t = h; h = g % h; g = t; } return Math.abs(x * y / g); });
+                    case 'min': return both(Math.min);
+                    case 'max': return both(Math.max);
                     case 'nCr':
                     case 'nPr': return both(function (x, y) {
                         return n.op === 'nCr' ? gammaOf(x + 1) / (gammaOf(y + 1) * gammaOf(x - y + 1)) : gammaOf(x + 1) / gammaOf(x - y + 1);

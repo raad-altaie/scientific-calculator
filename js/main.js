@@ -132,6 +132,7 @@
         graphFits = graph.querySelector('.calc-graph-fits'), // below them, of each model fitted, y ~ a x² + b: its values and r²
         graphInputs = graphRows.map(function (row) { return row.querySelector('input'); }),
         graphNote = graph.querySelector('.calc-graph-note'),
+        graphSay = graph.querySelector('.calc-graph-say'), // the point traced, for a screen reader to say
         graphPlot = graph.querySelector('.calc-graph-plot'),
         graphCanvas = graphPlot.querySelector('canvas'),
         graphTable = graph.querySelector('.calc-graph-table'), // the table of the curves' values, in place of the plot
@@ -149,6 +150,7 @@
         graphEdge = null, // with ∫ pressed, where an area would start from the pointer: { x, i, j: its curves }
         graphStep = null, // the way the arrow keys last moved a point along an equation: { p: the point, x, y in pixels, dir }
         graphPinned = null, // the point clicked, which has the popup
+        graphUsed = false, // the graph pressed last, not the calculator: Ctrl+Z its undo
         tools = Calc.querySelector('.calc-tools'), // the buttons at the top left of the display
         pressedKey,
         sliding, // long line being slid: its element and where the slide started
@@ -388,7 +390,7 @@
             }
             return;
         }
-        if ((e.ctrlKey || e.metaKey) && graph.classList.contains('calc-open') && graphKeyUndo(e)) return; // the graph's, while it is open
+        if ((e.ctrlKey || e.metaKey) && graph.classList.contains('calc-open') && (graphUsed || graphAlone) && graphKeyUndo(e)) return; // the graph's, while it was used last
         if ((e.ctrlKey || e.metaKey) && (e.which === 90 || (noLatin && e.code === 'KeyZ'))) { // Ctrl+Z undoes, Ctrl+Shift+Z redoes
             undo(e.shiftKey);
             e.preventDefault();
@@ -402,8 +404,16 @@
             e.preventDefault();
             return;
         }
-        if (onKeyDown(e.which, e.shiftKey)) e.preventDefault();
+        if (onKeyDown(e.which, e.shiftKey)) {
+            if (e.which < 37 || e.which > 40) graphUsed = false; // typed into the calculator, not a point traced
+            e.preventDefault();
+        }
     }, false);
+
+    // what was pressed last, the graph or the calculator, for Ctrl+Z to undo
+    document.addEventListener('pointerdown', function (e) {
+        graphUsed = graph.contains(e.target);
+    }, true);
 
     // Ctrl+Z (⌘Z) undoes a change of the graph, Ctrl+Shift+Z or Ctrl+Y redoes it; true if it was one of them
     function graphKeyUndo(e) {
@@ -2374,6 +2384,9 @@
     // be put into the calculation, as Ans is
     var GRAPH_WIDTH = 20, // the x the plot starts with: -10 to 10, or a full turn either way in degrees
         GRAPH_DECADES = 4, // on a log scale, the powers of ten across it at the start: 0.01 to 100
+        GRAPH_LOG_SPAN = 600, // and the most across it, as numbers go from 10^-307 to 10^308
+        GRAPH_DRAW_TIME = 300, // milliseconds all the curves of a drawing are traced in, as it is dragged
+        GRAPH_STILL = 250, // and how long it is still before those traced roughly are traced in full
         GRAPH_INK = { grid: 'rgba(51, 68, 59, 0.16)', minor: 'rgba(51, 68, 59, 0.07)', axis: '#33443b', text: '#33443b', paper: '#b6d1c2' },
         // the colors of the curves, one for each box, each as far from the others as the green lets them be: navy, red,
         // green, purple, orange, teal, plum, gold, fuchsia, olive brown, azure, rust, lime, scarlet, blue, sea green, moss,
@@ -2421,6 +2434,7 @@
         graphTwice = '', // a name two boxes give their functions, f of f(x) = …: the second is none
         graphCells = graph.querySelector('.calc-graph-cells'), // the points of a box as a table of x and y, to type in
         graphCellsRow = -1, // the box that table is of
+        graphCellsName = '', // and the name of its point, A of A = (2, 4), kept while it is one
         graphExamples = graph.querySelector('.calc-graph-examples'), // the Examples tab: a search, and examples to draw by group
         graphSearch = graphExamples.querySelector('.calc-graph-search'),
         graphExList = graphExamples.querySelector('.calc-graph-ex-list'),
@@ -2437,6 +2451,9 @@
         graphShared = graphPlot.querySelector('.calc-graph-shared'), // a graph opened from a link: keep it, or back to one's own
         GRAPH_SITE = 'https://raad.dev/calculator/', // where a link of the graph opens, from the extension too
         graphDrawTo = null, // the SVG the graph is drawn into in place of its canvas, while it is saved as one
+        graphUntil = 0, // when the time of this drawing is up, its curves after it traced roughly; 0 for none, as once it is still
+        graphRough = false, // a curve or its marks traced roughly, out of time: all traced again once the view is still
+        graphFine = 0, // the timer of that
         GRAPH_POP_WAIT = 3500, // the popup opened with the mouse goes this many ms after the mouse is off it
         graphHiding, // that wait
         graphPopFrom = null, // where the mouse was as it opened the popup: the wait starts once it is moved off there
@@ -2581,6 +2598,8 @@
         function set(c, done) {
             st.c = c === GRAPH_CURVES[graphHue[i]] ? null : c; // its own color: as none chosen
             graphRows[i].querySelector('.calc-graph-swatch').style.setProperty('--c', curveColor(i));
+            if (graphCellsRow === i) graphCells.style.setProperty('--c', curveColor(i)); // its table and its model in it too
+            if (graphModels[i]) showFits();
             show();
             graphRender();
             if (done) saveState();
@@ -2600,7 +2619,8 @@
                 part.onpointermove = move;
                 part.onpointerup = part.onpointercancel = function (e) {
                     part.onpointermove = part.onpointerup = part.onpointercancel = null;
-                    move(e);
+                    if (e.type === 'pointerup') move(e);
+                    else set(hsvHex(hsv), true); // cut off: kept where it was last
                 };
             }, false);
         }
@@ -2663,6 +2683,7 @@
     function showCells(i) {
         var pts = i > -1 && CalcEngine.points(graphInputs[i].value.trim(), engine.comma) || [];
         graphCellsRow = i;
+        graphCellsName = pts.name || '';
         graphRows.forEach(function (row, k) { row.querySelector('.calc-graph-points').classList.toggle('calc-on', k === i); });
         graphCells.hidden = i < 0;
         if (i < 0) return;
@@ -2688,13 +2709,14 @@
     // a number typed in the table: the box is written again with the rows of two numbers, and
     // the last row typed in has an empty one after it
     graphCells.addEventListener('input', function (e) {
-        var rows = [].slice.call(graphCells.querySelectorAll('.calc-graph-pair')), box = graphInputs[graphCellsRow];
+        var rows = [].slice.call(graphCells.querySelectorAll('.calc-graph-pair')), box = graphInputs[graphCellsRow], pts;
         if (e.target.tagName !== 'INPUT' || !box) return;
         onlyNumber(e.target);
-        box.value = pairsText(rows.map(function (row) {
+        pts = rows.map(function (row) {
             var x = boxNumber(row.children[0]), y = boxNumber(row.children[1]);
             return row.children[0].value.trim() && row.children[1].value.trim() && isFinite(x) && isFinite(y) ? { x: x, y: y } : null;
-        }).filter(Boolean));
+        }).filter(Boolean);
+        box.value = (graphCellsName && pts.length === 1 ? graphCellsName + ' = ' : '') + pairsText(pts);
         if (rows[rows.length - 1].children[0].value || rows[rows.length - 1].children[1].value) addCell('', '');
         readGraph(true);
         saveState();
@@ -3088,7 +3110,8 @@
     }
 
     // A slider for each letter: ▶ to play it, its value, to type as well, then where it goes
-    // from, the slider and where it goes to. A value typed beyond the ends takes the end there
+    // from, the slider and where it goes to, and in the big window Animate and its letter on its
+    // border. A value typed beyond the ends takes the end there
     function showSliders(letters) {
         if (letters.join() !== graphLetters.join()) {
             graphLetters = letters;
@@ -3105,6 +3128,7 @@
                     '<input class="calc-graph-end"' + box + ' data-end="0" aria-label="' + k + ' from">' +
                     '<input class="calc-graph-range" type="range" aria-label="' + k + '">' +
                     '<input class="calc-graph-end"' + box + ' data-end="1" aria-label="' + k + ' to">' +
+                    '<span class="calc-graph-legend" aria-hidden="true">Animate <b>' + k + '</b></span>' +
                     '</div>';
             }).join('');
             graphSliders.hidden = !letters.length;
@@ -3410,7 +3434,17 @@
             v = graphView || { x: 0, y: 0, ux: graphAngles() && deg ? u * (deg === 2 ? 40 : 36) : u, uy: u };
         if (!graphView && graphLook.logx) v = { x: 0, y: v.y, ux: GRAPH_DECADES / plotWidth(), uy: v.uy };
         if (!graphView && graphLook.logy) v = { x: v.x, y: 0, ux: v.ux, uy: GRAPH_DECADES / plotWidth() };
+        if (graphLook.logx) v = { x: logWithin(v.x, graphPlot.clientWidth / 2 * v.ux), y: v.y, ux: v.ux, uy: v.uy };
+        if (graphLook.logy) v = { x: v.x, y: logWithin(v.y, graphPlot.clientHeight / 2 * v.uy), ux: v.ux, uy: v.uy };
         return squareOn() && v.uy !== v.ux / squareRatio() ? { x: v.x, y: v.y, ux: v.ux, uy: v.ux / squareRatio() } : v;
+    }
+
+    // the middle of a log scale, its power of ten, moved so the view half either way of it stays
+    // where numbers reach, 10^-307 to 10^308: past them they are 0 or Infinity, and what is drawn
+    // of them leaps to an edge
+    function logWithin(s, half) {
+        var lo = Math.log10(2.2250738585072014e-308) + half, hi = Math.log10(Number.MAX_VALUE) - half;
+        return lo > hi ? (lo + hi) / 2 : Math.min(hi, Math.max(lo, s));
     }
 
     // same scale, unless an axis is on a log scale
@@ -3508,10 +3542,14 @@
     // The lines of an axis on a log scale, n pixels long: { major, minor, labels: the values of each, and even: of
     // less than a power of ten, the step of it as a straight scale has it from a pixel half way, else 0 }. Each
     // power of ten, or every 2nd, 3rd, 5th, 10th… to be 40 pixels apart or more (28 up y), the others minor; with
-    // room, 2 to 9 times each minor too, and 2 and 5 named
+    // room, 2 to 9 times each minor too, and 2 and 5 named. Kept for each axis while its view stays, as the
+    // grid and the axes are drawn apart; none past the powers of ten numbers reach, 10^-323 to 10^308
+    var logKept = [];
     function logTicks(v, y, n) {
-        var u = y ? v.uy : v.ux, c = y ? v.y : v.x, s0 = c - n / 2 * u, s1 = c + n / 2 * u, d = 1 / u,
+        var u = y ? v.uy : v.ux, c = y ? v.y : v.x, s0 = c - n / 2 * u, s1 = c + n / 2 * u, d = 1 / u, key = [c, u, n].join(),
             lo = Math.pow(10, s0), hi = Math.pow(10, s1), out = { major: [], minor: [], labels: [], even: 0 }, every, e, m, at, step, fine, k;
+        if (logKept[+y] && logKept[+y].key === key) return logKept[+y].out;
+        logKept[+y] = { key: key, out: out };
         if (s1 - s0 < 1) {
             step = out.even = gridStep((hi - lo) / n, false);
             fine = minorStep(step, false);
@@ -3522,7 +3560,7 @@
             return out;
         }
         for (every = 1; every * d < (y ? 28 : 40); every = every < 3 ? every + 1 : every < 5 ? 5 : every * 2);
-        for (e = Math.floor(s0); e <= Math.ceil(s1); e++) {
+        for (e = Math.max(-323, Math.floor(s0)); e <= Math.min(308, Math.ceil(s1)); e++) {
             at = Math.pow(10, e);
             if (at >= lo && at <= hi) out[e % every ? 'minor' : 'major'].push(at);
             for (m = 2; every === 1 && d >= 45 && m <= 9; m++) {
@@ -3610,6 +3648,9 @@
         if (!graph.classList.contains('calc-open') || !w || !h) return;
         graphWidth = w;
         v = viewNow();
+        clearTimeout(graphFine);
+        graphUntil = graphDrawTo || graphRough === 'fine' ? 0 : Date.now() + GRAPH_DRAW_TIME; // saved as a picture, all of it in full
+        graphRough = false;
         livePoints();
         if (!graphDrawTo && (graphCanvas.width !== Math.round(w * r) || graphCanvas.height !== Math.round(h * r))) {
             graphCanvas.width = Math.round(w * r); // as sharp as the screen, however the page scales the calculator
@@ -3633,12 +3674,16 @@
         if (Object.keys(graphPlay).length) { // while sliders play the marks wait, found again as they stop: finding them each frame is too slow
             graphMarks = dataMarks();
         } else {
-            if (!graphMarksKept || graphMarksKept.key !== key) {
-                graphMarksKept = { key: key, marks: graphLayers().reduce(function (all, fns, f) { // of a list, of each of its curves, f its place
-                    return all.concat(CalcEngine.keyPoints(fns, { x0: graphX(v, 0), x1: graphX(v, w), y0: graphY(v, h), y1: graphY(v, 0), logx: graphLook.logx },
-                        deg, f ? [] : graphRels, f ? [] : graphPlanes).map(function (m) { if (f) m.f = f; return m; }));
-                }, []) };
+            if (!graphMarksKept || graphMarksKept.key !== key || graphMarksKept.rough && !graphUntil) {
+                graphMarksKept = { key: key, rough: false };
+                graphMarksKept.marks = graphLayers().reduce(function (all, fns, f) { // of a list, of each of its curves, f its place
+                    var found = CalcEngine.keyPoints(fns, { x0: graphX(v, 0), x1: graphX(v, w), y0: graphY(v, h), y1: graphY(v, 0), logx: graphLook.logx, until: graphUntil },
+                        deg, f ? [] : graphRels, f ? [] : graphPlanes);
+                    if (found.rough) graphMarksKept.rough = true;
+                    return all.concat(found.map(function (m) { if (f) m.f = f; return m; }));
+                }, []);
             }
+            if (graphMarksKept.rough) graphRough = true;
             graphMarks = graphBusy(graphMarksKept.marks).concat(dataMarks());
         }
         graphMarks.forEach(function (p) {
@@ -3661,24 +3706,34 @@
         graphShown();
         placePop(v);
         fillWindow(v, w, h);
+        if (graphRough && graphUntil) graphFine = setTimeout(function () { // still a moment: all of it in full
+            graphRough = 'fine';
+            drawGraph();
+        }, GRAPH_STILL);
     }
 
     // Of a box of points whose menu labels them, each point's x and y beside it, up and to the right,
-    // in its color on a rim of the paper, as the numbers of the axes are
+    // in its color on a rim of the paper, as the numbers of the axes are; a point named, its name, before them
     function pointLabels(ctx, v) {
         var f = root.classList.contains('calc-big') ? popZoom : 1;
-        ctx.font = 11 * f + 'px Play, sans-serif';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'bottom';
         ctx.lineWidth = 3;
         ctx.lineJoin = 'round';
         ctx.strokeStyle = GRAPH_INK.paper;
         graphData.forEach(function (list, i) {
-            if (!list || !graphStyle[i].l) return;
+            if (!list || !graphStyle[i].l && !list.name) return;
             ctx.fillStyle = curveColor(i);
             list.filter(finitePoint).forEach(function (q) {
-                var text = '(' + local(String(+q.x.toPrecision(6))) + (engine.comma ? '; ' : ', ') + local(String(+q.y.toPrecision(6))) + ')',
+                var text = graphStyle[i].l ? '(' + local(String(+q.x.toPrecision(6))) + (engine.comma ? '; ' : ', ') + local(String(+q.y.toPrecision(6))) + ')' : '',
                     x = plotX(v, q.x) + 5 * f, y = plotY(v, q.y) - 4 * f;
+                if (list.name) { // a little bigger
+                    ctx.font = 13 * f + 'px Play, sans-serif';
+                    ctx.strokeText(list.name, x, y);
+                    ctx.fillText(list.name, x, y);
+                    x += ctx.measureText(list.name + ' ').width;
+                }
+                ctx.font = 11 * f + 'px Play, sans-serif';
                 ctx.strokeText(text, x, y);
                 ctx.fillText(text, x, y);
             });
@@ -3789,7 +3844,7 @@
     // on a log scale their powers of ten, and the curves as the engine sees them there (logCurve, logPlane, logRelation)
     function drawBox(v, w, h) {
         return { x0: v.x - graphPlot.clientWidth / 2 * v.ux, x1: v.x + (w - graphPlot.clientWidth / 2) * v.ux,
-            y0: v.y - (h - graphPlot.clientHeight / 2) * v.uy, y1: v.y + graphPlot.clientHeight / 2 * v.uy, w: w, h: h };
+            y0: v.y - (h - graphPlot.clientHeight / 2) * v.uy, y1: v.y + graphPlot.clientHeight / 2 * v.uy, w: w, h: h, until: graphUntil };
     }
 
     function logOn() {
@@ -3804,13 +3859,32 @@
         return [r[0] > 0 ? Math.log10(r[0]) : -Infinity, Math.log10(r[1]), r[2]];
     }
 
-    // a curve of x on log scales: of x's power of ten, its value's
+    // an x of its power of ten, none past what numbers reach: above 10^308 it is Infinity and below
+    // 10^-323 it is 0, so log x there would leap to the top or the bottom
+    function logX(s) {
+        var x = valueX(s);
+        return !graphLook.logx || x > 0 && x < Infinity ? x : NaN;
+    }
+
+    function logY(t) {
+        var y = valueY(t);
+        return !graphLook.logy || y > 0 && y < Infinity ? y : NaN;
+    }
+
+    // a curve of x on log scales: of x's power of ten, its value's; nothing past what numbers reach
     function logCurve(c) {
         if (!logOn()) return c;
         return {
-            at: function (s, d, exact) { return scaleY(c.at(valueX(s), d, exact)); },
-            reach: c.reach && function (a, b, d) { return logReach(c.reach(valueX(a), valueX(b), d), graphLook.logy); },
-            piece: c.piece && function (s, d) { return c.piece(valueX(s), d); }
+            at: function (s, d, exact) { return scaleY(c.at(logX(s), d, exact)); },
+            reach: c.reach && function (a, b, d) {
+                var x0 = valueX(a), x1 = valueX(b), r;
+                if (!graphLook.logx) return logReach(c.reach(x0, x1, d), graphLook.logy);
+                if (!(x1 > 0 && x0 < Infinity)) return [NaN, NaN, false];
+                r = c.reach(Math.max(x0, Number.MIN_VALUE), Math.min(x1, Number.MAX_VALUE), d);
+                if (r && (x0 === 0 || x1 === Infinity)) r = [r[0], r[1], false]; // not all of it a number
+                return logReach(r, graphLook.logy);
+            },
+            piece: c.piece && function (s, d) { return c.piece(logX(s), d); }
         };
     }
 
@@ -3831,7 +3905,7 @@
         function part(p) {
             return {
                 op: p.op,
-                at: function (s, t, d) { return p.at(valueX(s), valueY(t), d); },
+                at: function (s, t, d) { return p.at(logX(s), logY(t), d); },
                 reach: p.reach && function (s0, s1, t0, t1, d) { return p.reach(valueX(s0), valueX(s1), valueY(t0), valueY(t1), d); }
             };
         }
@@ -3966,11 +4040,12 @@
     // within 20 heights of the view: kept while the view, the unit and the sliders stay
     function fieldSolutions(c, v, w, h) {
         var key = [v.x, v.y, v.ux, v.uy, w, h, deg, graphLook.logx, graphLook.logy].concat(c.letters.map(function (k) { return graphVars[k]; })).join(),
-            top = graphY(v, 0), bottom = graphY(v, h), big = Math.max(Math.abs(top), Math.abs(bottom)) + 20 * (top - bottom);
+            top = graphY(v, 0), bottom = graphY(v, h), big = Math.max(Math.abs(top), Math.abs(bottom)) + 20 * (top - bottom),
+            left = graphX(v, -40), hx = graphLook.logx ? function (x) { return pixelX(v, Math.max(x, left)); } : v.ux, // a pixel where it is, on a log scale
+            dy = graphLook.logy ? function (y) { return 4 * pixelY(v, Math.max(Math.abs(y), bottom)); } : 4 * v.uy;
         if (c.kept && c.kept.key === key) return c.kept.sols;
         c.kept = { key: key, sols: c.starts(deg).map(function (q) {
-            var r = q.every(isFinite) ? CalcEngine.solveField(c, q[0], q[1], graphX(v, -40), graphX(v, w + 40), deg, pixelX(v, graphX(v, w / 2)), // on a log scale, a pixel half way
-                4 * pixelY(v, top), big) :
+            var r = q.every(isFinite) ? CalcEngine.solveField(c, q[0], q[1], left, graphX(v, w + 40), deg, hx, dy, big) :
                 { pts: [], back: null, ahead: null };
             r.x0 = q[0];
             r.y0 = q[1];
@@ -4134,7 +4209,7 @@
         }
         if (p.sKey !== key) p.s = NaN;
         if (x1 <= x0) return;
-        key = [v.x, v.y, v.ux, v.uy, w, h, x0, x1, key].join();
+        key = [v.x, v.y, v.ux, v.uy, w, h, x0, x1, graphLook.logx, graphLook.logy, key].join();
         if (!p.cols || p.cols.key !== key) {
             p.cols = { key: key, at: [] };
             for (px = Math.floor(x0); px < Math.ceil(x1); px++) p.cols.at.push({ px: px, s: CalcEngine.spans(into, graphX(v, px + 0.5), p.lo, p.hi) });
@@ -4244,10 +4319,24 @@
     // The point clicked on a curve, traced by the arrow keys: ← and → move it along the curve,
     // stopping at a dot on the way, a root or a crossing; ↑ and ↓ take it to the curve above or
     // below at its x. The view moves to keep it in, and its popup shows. False where there is
-    // no such point, for the keys to do what they do in the calculator
+    // no such point, for the keys to do what they do in the calculator. The plot tabbed to with
+    // none clicked, the first press puts one on the first curve at the middle of the view, or its dot there
     function graphTrace(key, shift) {
         var p = graphPinned, v = viewNow(), w = graphPlot.clientWidth, h = graphPlot.clientHeight,
             dir = key === 39 || key === 38 ? 1 : -1, i, x, next = null, px, py, dx = 0, dy = 0;
+        if (!p && document.activeElement === graphPlot && graphPlot.offsetWidth) {
+            x = graphX(v, w / 2);
+            i = graphFns.findIndex(function (fn) { return fn && isFinite(fn.at(x, deg, true)); });
+            if (i < 0) return false;
+            graphPinned = graphAt = graphMarks.filter(function (m) { return m.i === i && !m.f && Math.abs(plotX(v, m.x) - w / 2) < 6; })[0] || // a dot there, as it is named
+                { i: i, x: x, y: graphFns[i].at(x, deg, true) };
+            graphTracing = i;
+            graphPopShut = false;
+            popLater(false);
+            drawGraph();
+            sayTraced();
+            return true;
+        }
         if (!p || p.spot || p.area || !graph.classList.contains('calc-open') || !graphPlot.offsetWidth) return false;
         i = p.j !== undefined && p.j === graphTracing ? p.j : p.i;
         if (!graphFns[i] && !graphRels[i] && !graphPlanes[i] && !graphData[i]) return false;
@@ -4300,7 +4389,15 @@
             graphSaving = setTimeout(saveState, 300);
         }
         drawGraph();
+        sayTraced();
         return true;
+    }
+
+    // the point traced, as the line above the plot shows it, and its curve: Root, x = 2, y = 0, x^2 - 4
+    function sayTraced() {
+        var box = graphInputs[graphTracing];
+        graphSay.textContent = [].map.call(graphNote.children, function (el) { return el.textContent; }).filter(Boolean)
+            .concat(box && box.value.trim() ? [box.value.trim()] : []).join(', ');
     }
 
     // The point after p along equation i, s pixels on, or the dot before that: → the way that
@@ -4487,6 +4584,46 @@
             ctx.stroke();
         }
 
+        // an axis and its arrows over the curves, a darker shade of each where it crosses them and not a gap; where
+        // they cover a quarter of it or more, as tan x from far away, in the paper's color, as dark would not show on
+        // them. Then in its ink under them
+        function axisLine(across) {
+            var c = ctx.canvas, r = c && c.width / w, d, n = 0, i, far;
+            function head(x, y, dx, dy) { // an arrow at x, y, pointing along dx, dy
+                ctx.moveTo(x, y);
+                ctx.lineTo(x - 8 * f * dx - 4 * f * dy, y - 8 * f * dy - 4 * f * dx);
+                ctx.lineTo(x - 8 * f * dx + 4 * f * dy, y - 8 * f * dy + 4 * f * dx);
+            }
+            function paint(ink) {
+                ctx.strokeStyle = ctx.fillStyle = ink;
+                ctx.beginPath();
+                ctx.moveTo(across ? 0 : ax, across ? ay : 0);
+                ctx.lineTo(across ? w : ax, across ? ay : h);
+                ctx.stroke();
+                if (!graphLook.arrows) return;
+                ctx.beginPath();
+                if (across) head(w, ay, 1, 0);
+                else head(ax, 0, 0, -1);
+                if (graphLook.arrows > 1) { // and at the other end
+                    if (across) head(0, ay, -1, 0);
+                    else head(ax, h, 0, 1);
+                }
+                ctx.fill();
+            }
+            if (ctx.getImageData && r) {
+                d = across ? ctx.getImageData(0, Math.floor(ay * r), c.width, 1).data : ctx.getImageData(Math.floor(ax * r), 0, 1, c.height).data;
+                for (i = 3; i < d.length; i += 4) if (d[i] > 128) n++; // a curve, and not the faint grid
+                far = n * 16 >= d.length;
+            }
+            ctx.globalCompositeOperation = 'source-atop';
+            ctx.globalAlpha = far ? 0.8 : 0.5;
+            paint(far ? GRAPH_INK.paper : GRAPH_INK.axis);
+            ctx.globalAlpha = 1;
+            ctx.globalCompositeOperation = 'destination-over';
+            paint(GRAPH_INK.axis);
+            ctx.globalCompositeOperation = 'source-over';
+        }
+
         ctx.lineWidth = 1;
         if (!over) {
             if (look.grid && look.polar && !lx && !ly) { // its circles as far apart as the lines of x would be, of a step typed for x too
@@ -4505,47 +4642,8 @@
         yIn = yIn && look.yaxis;
         if (!look.xaxis && !look.yaxis) return;
 
-        ctx.beginPath();
-        if (xIn) {
-            ctx.moveTo(0, ay);
-            ctx.lineTo(w, ay);
-        }
-        if (yIn) {
-            ctx.moveTo(ax, 0);
-            ctx.lineTo(ax, h);
-        }
-        ctx.globalCompositeOperation = 'source-atop'; // over the curves in the paper's color, so it shows through tan x filling the plot
-        ctx.strokeStyle = GRAPH_INK.paper;
-        ctx.stroke();
-        ctx.globalCompositeOperation = 'destination-over'; // then on the paper in its ink, under them
-        ctx.strokeStyle = GRAPH_INK.axis;
-        ctx.stroke();
-        ctx.globalCompositeOperation = 'source-over';
-        if (graphLook.arrows) {
-            ctx.fillStyle = GRAPH_INK.axis;
-            ctx.beginPath();
-            if (xIn) {
-                ctx.moveTo(w, ay);
-                ctx.lineTo(w - 8 * f, ay - 4 * f);
-                ctx.lineTo(w - 8 * f, ay + 4 * f);
-            }
-            if (yIn) {
-                ctx.moveTo(ax, 0);
-                ctx.lineTo(ax - 4 * f, 8 * f);
-                ctx.lineTo(ax + 4 * f, 8 * f);
-            }
-            if (xIn && graphLook.arrows > 1) { // and at the other ends
-                ctx.moveTo(0, ay);
-                ctx.lineTo(8 * f, ay - 4 * f);
-                ctx.lineTo(8 * f, ay + 4 * f);
-            }
-            if (yIn && graphLook.arrows > 1) {
-                ctx.moveTo(ax, h);
-                ctx.lineTo(ax - 4 * f, h - 8 * f);
-                ctx.lineTo(ax + 4 * f, h - 8 * f);
-            }
-            ctx.fill();
-        }
+        if (xIn) axisLine(true);
+        if (yIn) axisLine(false);
 
         ctx.font = 10 * f + 'px Play, sans-serif';
         ctx.fillStyle = GRAPH_INK.text;
@@ -4591,14 +4689,14 @@
         }
         if (look.xaxis && look.xnum && lx) lx.labels.forEach(function (at) { xLabel(at, lx.even ? gridLabel(at, lx.even) : logLabel(at)); });
         for (k = Math.ceil(graphX(v, 0) / sx); !lx && look.xaxis && look.xnum && k * sx <= graphX(v, w); k++) {
-            if (k) xLabel(k * sx, gridLabel(k * sx, sx));
+            if (k || ly) xLabel(k * sx, gridLabel(k * sx, sx)); // 0 where the y axis is not, on a log scale
         }
         ctx.textAlign = onLeft ? 'right' : 'left';
         ctx.textBaseline = 'middle';
         past = Infinity; // up from the bottom
         if (look.yaxis && look.ynum && ly) ly.labels.forEach(function (at) { yLabel(at, ly.even ? gridLabel(at, ly.even) : logLabel(at)); });
         for (k = Math.ceil(graphY(v, h) / sy); !ly && look.yaxis && look.ynum && k * sy <= graphY(v, 0); k++) {
-            if (k) yLabel(k * sy, gridLabel(k * sy, sy));
+            if (k || lx) yLabel(k * sy, gridLabel(k * sy, sy));
         }
     }
 
@@ -4837,12 +4935,14 @@
 
     // A curve, dashed for the slope of one, as the engine traces it: broken at its jumps, on to
     // the edge where it has no end, and a solid stroke where it goes up and down faster than a
-    // pixel shows, as tan x far out does. Its lines are kept while the view, the unit and its letters stay
+    // pixel shows, as tan x far out does. Its lines are kept while the view, the unit and its letters stay,
+    // unless they were traced roughly, out of the drawing's time, and it is now still
     function drawCurve(ctx, v, w, h, fn, color, dashed, style) {
         var key = [v.x, v.y, v.ux, v.uy, w, h, deg, graphLook.logx, graphLook.logy].concat((fn.letters || []).map(function (k) { return graphVars[k]; })).join();
-        if (!fn.traced || fn.traced.key !== key) {
+        if (!fn.traced || fn.traced.key !== key || fn.traced.lines.rough && !graphUntil) {
             fn.traced = { key: key, lines: CalcEngine.trace(logCurve(fn), drawBox(v, w, h), deg) };
         }
+        if (fn.traced.lines.rough) graphRough = true;
         ctx.beginPath();
         fn.traced.lines.forEach(function (line) {
             var k;
@@ -4935,7 +5035,7 @@
             // pixel, the first traced, as θ = π/6 of r = 2sin 3θ and not 7π/6, where it passes again
             pts.forEach(function (q, k) {
                 var d = dist(q), lo, hi, m1, m2, n;
-                if (d > reach * 2 || k && d > dist(pts[k - 1]) || k < pts.length - 1 && d >= dist(pts[k + 1])) return;
+                if (!(d <= reach * 2) || k && d > dist(pts[k - 1]) || k < pts.length - 1 && d >= dist(pts[k + 1])) return;
                 lo = pts[Math.max(0, k - 1)].u;
                 hi = pts[Math.min(pts.length - 1, k + 1)].u;
                 for (n = 0; n < 50; n++) {
@@ -4944,6 +5044,7 @@
                     if (off(m1) <= off(m2)) hi = m2; else lo = m1;
                 }
                 d = off((lo + hi) / 2);
+                if (isNaN(d)) return; // no value there
                 if (!close || d < close.d - 0.5) close = { d: d, k: k, u: (lo + hi) / 2 };
             });
             if (!close || !(close.d <= reach * 1.2) || best && close.d >= best.d) return;
@@ -5076,6 +5177,7 @@
         var fit = !p.spot && !p.area && !p.t && graphData[p.i] && graphFns[p.i] && graphFns[p.i].fit;
         if (fit) return 'Best fit, r² = ' + local(String(+fit.r2.toPrecision(4)));
         if (seqOf(p)) return 'Term';
+        if (p.data && graphData[p.i] && graphData[p.i].name) return graphData[p.i].name;
         if (!p.spot && !p.area && p.sol !== undefined && graphPlanes[p.i]) {
             return graphPlanes[p.i].kept && graphPlanes[p.i].kept.sols[p.sol] ? 'Solution through ' + startText(graphPlanes[p.i].kept.sols[p.sol]) : 'Solution';
         }
@@ -5302,6 +5404,7 @@
             ux = start.ux * k, uy = start.uy * k,
             v = { x: x - (p1.x - graphPlot.clientWidth / 2) * ux, y: y + (p1.y - graphPlot.clientHeight / 2) * uy, ux: ux, uy: uy };
         if (!(ux < 1e12 && uy < 1e12) || (k < 1 && !sharp(v))) return; // no closer or farther than numbers stay sharp
+        if (k > 1 && (graphLook.logx && ux * graphPlot.clientWidth > GRAPH_LOG_SPAN || graphLook.logy && uy * graphPlot.clientHeight > GRAPH_LOG_SPAN)) return; // nor than they reach on a log scale
         graphView = v;
         drawGraph();
     }
@@ -5366,7 +5469,7 @@
         graphData.forEach(function (list, i) {
             (list || []).forEach(function (q, j) {
                 var d = Math.hypot(plotX(v, q.x) - at.x, plotY(v, q.y) - at.y);
-                if (d <= reach && (!best || d < best.d) && (!q.letter || q.letter.join() === ',' || q.letter[0] || q.letter[1])) {
+                if (d <= reach && (!best || d < best.d) && (!q.letter || q.letter[0] || q.letter[1] || q.letter[0] === '' && q.letter[1] === '')) {
                     best = { d: d, i: i, j: j, dx: at.x - plotX(v, q.x), dy: at.y - plotY(v, q.y) };
                 }
             });
@@ -5385,7 +5488,7 @@
         if (!q.letter) {
             q.x = n[0];
             q.y = n[1];
-            text = pairsText(list);
+            text = (list.name ? list.name + ' = ' : '') + pairsText(list);
             row = graphCellsRow === d.i && graphCells.querySelectorAll('.calc-graph-pair')[d.j];
             if (row) {
                 row.children[0].value = local(String(n[0]));
@@ -5394,7 +5497,7 @@
         } else {
             [1, 0].forEach(function (c) { // the y first, so the place of the x before it stays
                 var k = q.letter[c], r = graphRange[k], slider = k && graphSliders.querySelector('[data-k="' + k + '"]');
-                if (q.letter.join() === ',') text = text.slice(0, q.at[c][0]) + local(String(n[c])) + text.slice(q.at[c][1]);
+                if (q.letter[0] === '' && q.letter[1] === '') text = text.slice(0, q.at[c][0]) + local(String(n[c])) + text.slice(q.at[c][1]);
                 if (!k || !r) return;
                 delete graphPlay[k];
                 graphVars[k] = n[c];
@@ -5514,13 +5617,16 @@
 
     // the wheel zooms about what it is pointed at, which stays where it is: a dot or a root, a top or
     // where curves cross, near it; else a curve, at the pointer's x; else an axis, or 0 near both; else
-    // the place under the pointer. The same however the turns are cut up
+    // the place under the pointer. The same however the turns are cut up: what it zooms about found
+    // as a turn begins, and kept while the turns go on with the pointer still, as it stays where it is
+    var graphWheel = null;
     graphCanvas.addEventListener('wheel', function (e) {
         var at = onPlot(e), v = viewNow(), dy = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1),
-            k = Math.pow(1.002, Math.max(-300, Math.min(300, dy))), p, x0 = plotX(v, 0), y0 = plotY(v, 0);
+            k = Math.pow(1.002, Math.max(-300, Math.min(300, dy))), p, x0 = plotX(v, 0), y0 = plotY(v, 0), w = graphWheel;
         e.preventDefault();
         if (graphLook.lock) return; // the view stays, and the page does not scroll under the plot
-        p = graphPoint(at, GRAPH_ZOOM_REACH);
+        p = w && e.timeStamp - w.t < 300 && Math.hypot(at.x - w.at.x, at.y - w.at.y) <= 2 ? w.p : graphPoint(at, GRAPH_ZOOM_REACH);
+        graphWheel = { t: e.timeStamp, at: at, p: p };
         popShut();
         if (!p.spot) {
             at = { x: plotX(v, p.x), y: plotY(v, p.y) };
@@ -5656,7 +5762,6 @@
     function logScale(k, on) {
         var v = viewNow(), x = k === 'logx', n = x ? plotWidth() : graphPlot.clientHeight || plotWidth(),
             lo = x ? graphX(v, 0) : graphY(v, n), hi = x ? graphX(v, n) : graphY(v, 0), c, u;
-        graphLook[k] = on;
         if (on && !(hi > 0)) {
             c = 0;
             u = GRAPH_DECADES / n;
@@ -5668,8 +5773,13 @@
             c = (lo + hi) / 2;
             u = (hi - lo) / n;
         }
-        if (!isFinite(c) || !(u > 0)) return;
+        if (!isFinite(c) || !(u > 0) || !isFinite(u)) { // past what numbers reach: that axis as it starts
+            c = 0;
+            u = on ? GRAPH_DECADES / n : GRAPH_WIDTH / plotWidth();
+        }
+        graphLook[k] = on;
         graphView = x ? { x: c, y: v.y, ux: u, uy: v.uy } : { x: v.x, y: c, ux: v.ux, uy: u };
+        if (on && graphPinned && !(x ? (graphPinned.area ? graphPinned.a : graphPinned.x) > 0 : graphPinned.area || graphPinned.y > 0)) graphAt = graphPinned = null; // a point the scale has not
     }
 
     // Reset: every setting as it starts, and the view, and the settings shut, back to the plot
@@ -6020,18 +6130,16 @@
     // The table as CSV, for a spreadsheet: x, or n of sequences, and each curve's y, as many rows as
     // the Table tab has, 60 at least; apart by commas, or semicolons where the decimal mark is a comma
     function tableCsv() {
-        var shown = tableCurves(), s = tableSteps(), mark = engine.comma ? ';' : ',', rows = [], k, x;
+        var shown = tableCurves(), s = tableSteps(), mark = engine.comma ? ';' : ',', rows = [], k;
         function cell(t) {
             if (/^[=+@\t\r]/.test(t) || /^-(?!\d)/.test(t)) t = "'" + t;
             return t.indexOf(mark) > -1 || /["\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
         }
         rows.push([tableSeqs() ? 'n' : 'x'].concat(shown.map(function (i) { return graphInputs[i].value.trim(); })));
         for (k = 0; k < Math.max(graphLines, 60); k++) {
-            x = +(s.from + k * s.by).toPrecision(12);
-            rows.push([local(String(x))].concat(shown.map(function (i) {
-                var y = graphFns[i] ? graphFns[i].at(x, deg, true) : graphPlanes[i].at(x, deg)[1];
-                return isFinite(y) ? local(String(+y.toPrecision(15))) : '';
-            })));
+            rows.push(tableRow(s, shown, k).map(function (y, c) {
+                return !c ? local(String(y)) : isFinite(y) ? local(String(+y.toPrecision(15))) : '';
+            }));
         }
         return '\ufeff' + rows.map(function (row) { return row.map(cell).join(mark); }).join('\r\n') + '\r\n';
     }
@@ -6161,6 +6269,7 @@
             t.classList.toggle('calc-on', t.dataset.tab === graphTab);
         });
         graph.classList.toggle('calc-graph-browse', graphTab === 'examples');
+        graph.classList.toggle('calc-graph-other-tab', graphTab !== 'graph'); // undo and redo only on the graph's tab (style.css)
         graphExamples.hidden = graphTab !== 'examples';
         if (graphTab === 'examples') renderExamples();
         graphPlot.hidden = graphTab === 'table';
@@ -6227,11 +6336,9 @@
 
     // the rows from..to of the table, as HTML; their values go into graphValues
     function tableRows(s, shown, from, to) {
-        var html = '', room = tableRoom(), k, x, row;
+        var html = '', room = tableRoom(), k, row;
         for (k = from; k < to; k++) {
-            x = +(s.from + k * s.by).toPrecision(12); // 0.3, not 0.30000000000000004
-            row = [x].concat(shown.map(function (i) { return graphFns[i] ? graphFns[i].at(x, deg, true) : graphPlanes[i].at(x, deg)[1]; }));
-            graphValues[k] = row;
+            row = graphValues[k] = tableRow(s, shown, k);
             html += '<div class="calc-graph-line">' + row.map(function (n, c) {
                 var text = !isFinite(n) ? '–' : c ? tableValue(n, room) : graphValue({ x: n }, 'x');
                 return '<span class="calc-graph-cell' + (isFinite(n) ? '' : ' calc-none') + '" data-r="' + k + '" data-c="' + c + '">' +
@@ -6239,6 +6346,12 @@
             }).join('') + '</div>';
         }
         return html;
+    }
+
+    // row k of the table, as the tab and its CSV have it: its x, then the value of each curve shown there
+    function tableRow(s, shown, k) {
+        var x = +(s.from + k * s.by).toPrecision(12); // 0.3, not 0.30000000000000004
+        return [x].concat(shown.map(function (i) { return graphFns[i] ? graphFns[i].at(x, deg, true) : graphPlanes[i].at(x, deg)[1]; }));
     }
 
     // the curves shown in the table, by their number: the functions, and the sequences, each a(n) at a whole x it has
@@ -19183,7 +19296,7 @@
     // its sliders at their values, its points with their fit, its colors, in Rad if it needs it, and the
     // view as it starts, or its own. Then the plot shows it, the sliders it plays playing
     function putExample(ex) {
-        var w, h, u, v = ex.v;
+        var w, h, u, fill, v = ex.v;
         stopSliders();
         graphInputs.forEach(function (box, i) { box.value = i < ex.f.length ? exampleText(ex.f[i]) : ''; });
         graphCount = ex.f.length;
@@ -19201,15 +19314,18 @@
         if (ex.rad && deg) setUnit(0);
         showCells(-1);
         graphView = null;
-        graphLook.logx = graphLook.logy = false; // drawn as it is made, on straight scales
+        graphLook.logx = !!ex.logx; // drawn as it is made, on straight scales unless it is for a log one
+        graphLook.logy = !!ex.logy;
         showLooks();
         showGraphTab('graph');
         readGraph();
-        if (v) { // all of its view shown, as much each way, or with stretch each filling the plot
+        if (v) { // all of its view shown, as much each way, or with stretch or a log scale each filling the plot
             w = graphPlot.clientWidth;
             h = graphPlot.clientHeight;
+            v = v.map(function (n, i) { return (i < 2 ? ex.logx : ex.logy) ? Math.log10(n) : n; });
             u = Math.max((v[1] - v[0]) / w, (v[3] - v[2]) / h);
-            graphView = { x: (v[0] + v[1]) / 2, y: (v[2] + v[3]) / 2, ux: ex.stretch ? (v[1] - v[0]) / w : u, uy: ex.stretch ? (v[3] - v[2]) / h : u };
+            fill = ex.stretch || ex.logx || ex.logy;
+            graphView = { x: (v[0] + v[1]) / 2, y: (v[2] + v[3]) / 2, ux: fill ? (v[1] - v[0]) / w : u, uy: fill ? (v[3] - v[2]) / h : u };
             if (ex.stretch) graphLook.square = false;
             if (ex.square) graphLook.square = true;
             showLooks();
@@ -20844,14 +20960,18 @@
     // Ctrl+Z, or its button: the graph as it was before the last change, or with redo as before the last
     // undo, the view staying as it is
     function undoGraph(redo) {
-        var from, to;
+        var from, to, state;
         clearTimeout(graphNext && graphNext.timer);
         keepGraph(); // a change waiting is the last one, and what was undone goes
         from = redo ? graphAhead : graphPast;
         to = redo ? graphPast : graphAhead;
         if (!from.length) return;
         to.push(graphKept);
-        loadGraph(Object.assign(graphObject(), JSON.parse(from.pop())));
+        state = JSON.parse(from.pop());
+        ['logx', 'logy'].forEach(function (k) { // a log scale undone, or redone: the view to it as its switch has it
+            if (state.look && !!state.look[k] !== !!graphLook[k]) logScale(k, !!state.look[k]);
+        });
+        loadGraph(Object.assign(graphObject(), state));
         readGraph();
         graphKept = graphState(); // as it reads again, no change of its own
         clearTimeout(graphNext && graphNext.timer);
