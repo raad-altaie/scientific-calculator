@@ -14,8 +14,8 @@
 (function (root) {
     'use strict';
 
-    var LANGS = { en: 'English' }, // the languages it has, each by its own name, in the order of the options' list
-        RTL = /^(ar|fa|he|ur)$/, // written right to left
+    var LANGS = { en: 'English', ar: 'العربية' }, // the languages it has, each by its own name, in the order of the options' list
+        RTL = /^(ar|fa|he|ur)$/, // written right to left: the class lang-rtl, the layout as it is
         tables = {}, // the words of each language loaded: English → its own
         chosen = 'auto', // as the options page keeps it, in localStorage.lang: a language, or auto for the browser's
         code = 'en',
@@ -158,7 +158,8 @@
             document.write('<script src="' + document.currentScript.src.replace(/lang\.js(\?.*)?$/, 'lang/' + code + '.js') + '"><\/script>');
         }
         document.documentElement.lang = code === PSEUDO ? 'en' : code;
-        if (RTL.test(code)) document.documentElement.dir = 'rtl';
+        // written right to left: the page laid out as it is, each text read from the right (style.css, options.css)
+        if (RTL.test(code)) document.documentElement.classList.add('lang-rtl');
     }
 
     root.CalcLang = {

@@ -1066,3 +1066,9 @@ html, body {
 .tabs + .options + .features > .title:first-child {
     margin-top: 0;
 }
+
+/* A language written right to left, as Arabic (lang.js): the page laid out as it is, each text read from the right as
+   its first letter says, a paragraph from its right edge */
+.lang-rtl body :not(svg, svg *, input, kbd, .trigo-keys, .trigo-keys *) {
+    unicode-bidi: plaintext;
+}

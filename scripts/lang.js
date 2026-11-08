@@ -4,6 +4,7 @@
 //   node scripts/lang.js update es Español  js/lang/es.js made, or brought up to date: every English text of the
 //                                           calculator in it, its words kept, a new one '' till it is translated;
 //                                           and the language put on the options' list by its own name
+//   node scripts/lang.js merge es words.json the words of a file, { "Clear": "Borrar", … }, put into es.js
 //   node scripts/lang.js missing es         the English that es has no words for yet
 //   node scripts/lang.js strings            every English text there is to translate
 //
@@ -373,6 +374,21 @@ if (command === 'strings') {
     writeLang(code, name, all, readLang(code) || {});
     listLang(code, name);
     console.log('js/lang/' + code + '.js and web/js/lang/' + code + '.js: ' + all.size + ' texts');
+} else if (command === 'merge' && code && name) { // the words of a file, { "Clear": "Borrar", … }, put into the language
+    const table = readLang(code);
+    if (!table) {
+        console.error('No js/lang/' + code + '.js: make it first with update');
+        process.exit(1);
+    }
+    const words = JSON.parse(fs.readFileSync(name, 'utf8'));
+    let taken = 0;
+    Object.keys(words).forEach((text) => {
+        if (!all.has(text)) return console.error('Not a text of the calculator: ' + text.slice(0, 80));
+        table[text] = words[text];
+        taken++;
+    });
+    writeLang(code, null, all, table);
+    console.log(taken + ' texts put into js/lang/' + code + '.js and web/js/lang/' + code + '.js');
 } else if (command === 'missing' && code) {
     const table = readLang(code);
     if (!table) {
@@ -390,6 +406,6 @@ if (command === 'strings') {
         console.log(c + ' ' + langs[c] + ': ' + have + ' of ' + all.size + ' (' + Math.floor(100 * have / all.size) + '%)');
     });
 } else {
-    console.error('node scripts/lang.js [update <code> [name] | missing <code> | strings]');
+    console.error('node scripts/lang.js [update <code> [name] | merge <code> <file.json> | missing <code> | strings]');
     process.exit(1);
 }
