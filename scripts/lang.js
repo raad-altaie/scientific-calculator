@@ -20,8 +20,9 @@ const vm = require('vm');
 const ROOT = path.join(__dirname, '..');
 const SCRIPTS = ['js/main.js', 'js/tips.js', 'js/formulas.js', 'js/units.js', 'js/chem.js', 'js/physics.js', 'js/biology.js', 'js/options.js', 'web/js/options.js', 'web/js/app.js'];
 const PAGES = ['popup.html', 'options.html', 'web/index.html'];
-const PROPS = new Set(['t', 'd', 'l', 'c', 'name', 'aria', 'head', 'note', 'title']); // of the data main.js translates as it shows it
-const CALLS = new Set(['tr', 'notify']); // of one text
+const PROPS = new Set(['t', 'd', 'l', 'c', 'name', 'aria', 'head', 'note', 'title', 'text', 'small']); // of the data main.js translates as it shows it
+// what main.js translates as it shows it, by the value of a call it is: notify(text), svgText(x, y, text) …
+const ARGS = { tr: 0, notify: 0, svgText: 2, svgOf: 3, planeSvg: 1, graphDrawing: 0, curveDrawing: 0, drawnTile: 1, textRow: 0, bioWarn: 1 };
 const WORDS = /[A-Za-z]{2}/; // a text to translate has a word: x, r and θ are maths
 
 // ---------------- the code ---------------- //
@@ -42,7 +43,7 @@ function tokens(src) {
     let i = 0;
     const valueNext = () => {
         const last = out[out.length - 1];
-        return !last || (last.p && !/[)\]}]/.test(last.p)) || (last.id && /^(return|typeof|case|in|of|delete|void|throw|new)$/.test(last.id));
+        return !last || (last.p && !/^([)\]}]|num|re|tpl)$/.test(last.p)) || (last.id && /^(return|typeof|case|in|of|delete|void|throw|new)$/.test(last.id));
     };
     while (i < src.length) {
         const c = src[i];
@@ -110,6 +111,40 @@ function literal(list, i) {
     return [text, i];
 }
 
+// The texts a value at token i can be, to where it ends: 'Loan', or each of a choice, x ? 'Yes' : 'No', as the value is
+// shown whole; not a text joined to more, nor one compared, nor what is in a call
+function leaves(list, i) {
+    const out = [];
+    for (let depth = 0, k = i; list[k]; k++) {
+        const t = list[k];
+        if (/^[([{]$/.test(t.p)) {
+            if (t.p !== '(' || (list[k - 1] && (list[k - 1].id || /^[)\]]$/.test(list[k - 1].p)))) { // a call, an array or an object: passed over
+                for (let d = 0; list[k]; k++) {
+                    if (/^[([{]$/.test(list[k].p)) d++;
+                    else if (/^[)\]}]$/.test(list[k].p) && --d === 0) break;
+                }
+                continue;
+            }
+            depth++;
+            continue;
+        }
+        if (/^[)\]}]$/.test(t.p)) {
+            if (--depth < 0) break;
+            continue;
+        }
+        if (!depth && (t.p === ',' || t.p === ';')) break;
+        if (t.s === undefined) continue;
+        const lit = literal(list, k), prev = list[k - 1], after = lit ? list[lit[1]] : null;
+        if (lit && !(prev && /^[+=!<>]$/.test(prev.p)) && !(after && /^[=!<>]$/.test(after.p))) out.push(lit[0]);
+        k = lit ? lit[1] - 1 : k;
+        while (list[k + 1] && list[k + 1].p === '+') { // the rest of a text joined to more: passed over
+            k += 2;
+            if (list[k] && /^[([{]$/.test(list[k].p)) k--;
+        }
+    }
+    return out;
+}
+
 // the strings of a list of them, [ 'a', 'b' ] at token i (the [), each alone
 function strings(list, i) {
     const out = [];
@@ -136,7 +171,7 @@ function scriptTexts(src) {
     list.forEach((tok, i) => {
         const next = list[i + 1], after = list[i + 2];
         let call = '';
-        if (tok.id && next && next.p === '(' && (CALLS.has(tok.id) || tok.id === 'trn') && !(list[i - 1] && list[i - 1].p === '.')) call = tok.id;
+        if (tok.id && next && next.p === '(' && (ARGS[tok.id] !== undefined || tok.id === 'trn') && !(list[i - 1] && list[i - 1].p === '.') && !(list[i - 1] && list[i - 1].id === 'function')) call = tok.id;
         if (tok.id === 'CalcLang' && next && next.p === '.' && after && /^(t|n)$/.test(after.id) && list[i + 3] && list[i + 3].p === '(') call = after.id === 't' ? 'tr' : 'trn';
         if (call) {
             let at = (tok.id === 'CalcLang' ? i + 3 : i + 1) + 1; // after the (
@@ -150,16 +185,24 @@ function scriptTexts(src) {
                 if (other) add(other[0], true, one[0]);
                 return;
             }
-            const lit = literal(list, at);
-            if (lit) add(lit[0], call === 'tr');
+            if (call === 'tr') {
+                const lit = literal(list, at);
+                if (lit) add(lit[0], true);
+                return;
+            }
+            for (let k = ARGS[call], depth = 0; k > 0 && list[at]; at++) { // to its value: past as many commas not in brackets
+                if (/^[([{]$/.test(list[at].p)) depth++;
+                else if (/^[)\]}]$/.test(list[at].p) && --depth < 0) return;
+                else if (!depth && list[at].p === ',') k--;
+            }
+            leaves(list, at).forEach((text) => add(text));
             return;
         }
         // a property of the data: t: 'Loan', choice: ['Monthly', 'Yearly'], and a formula's letters, v: [['r', 'r', 'radius']]
         if ((tok.id || tok.s !== undefined) && next && next.p === ':' && !(list[i - 1] && list[i - 1].p === '?')) {
             const key = tok.id || tok.s;
             if (PROPS.has(key)) {
-                const lit = literal(list, i + 2);
-                if (lit) add(lit[0]);
+                leaves(list, i + 2).forEach((text) => add(text));
             } else if (key === 'choice' && after && after.p === '[') {
                 strings(list, i + 2).forEach((text) => add(text));
             } else if (key === 'v' && after && after.p === '[' && list[i + 3] && list[i + 3].p === '[') {
