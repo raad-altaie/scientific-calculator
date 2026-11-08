@@ -1094,6 +1094,8 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+    max-height: calc(100% - 12px); /* a short plot scrolls it */
+    overflow-y: auto;
     padding: 5px;
     border: 1px solid #4d6b80;
     border-radius: 7px;
@@ -1141,34 +1143,113 @@
     background: #c9e0d3;
 }
 
-/* same scale and the grid, under the boxes: light while on */
+/* its title, quiet above the boxes */
+#calculator .calc-graph-set-head {
+    padding: 0 3px 1px;
+    color: #8fa7b6;
+    font: 11px/14px 'Play', 'Russo One', sans-serif;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+/* a switch for each way the graph is drawn, a row each: its name, and at the right a track
+   whose knob goes over and lights up while it is on */
 #calculator .calc-graph-looks {
     display: flex;
-    gap: 4px;
-    padding: 1px 3px;
+    flex-direction: column;
+    gap: 1px;
+    padding-top: 3px;
+    border-top: 1px solid #34505f;
 }
 
 #calculator .calc-graph-looks > span {
-    flex: 1;
-    padding: 2px 6px;
-    border: 1px solid #4d6b80;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 3px 4px 3px 3px;
     border-radius: 4px;
+    outline: none;
     color: #d3d9e2;
     font: 12px/15px 'Play', 'Russo One', sans-serif;
-    text-align: center;
     cursor: pointer;
     -webkit-user-select: none;
     user-select: none;
 }
 
-#calculator .calc-graph-looks > span:hover {
-    border-color: #a9c4b5;
+#calculator .calc-graph-looks > span:hover,
+#calculator .calc-graph-looks > span:focus-visible {
+    background: rgba(169, 196, 181, 0.14);
 }
 
-#calculator .calc-graph-looks > span.calc-on {
-    border-color: #a9c4b5;
+/* of no use as the others are: minor lines without the grid, numbers and arrows without the axes */
+#calculator .calc-graph-looks > span.calc-off {
+    opacity: 0.45;
+}
+
+/* at which ends the arrows are, quiet before the switch */
+#calculator .calc-graph-looks em {
+    margin-left: auto;
+    color: #8fa7b6;
+    font-size: 11px;
+    font-style: normal;
+}
+
+#calculator .calc-graph-looks b {
+    position: relative;
+    flex: none;
+    width: 26px;
+    height: 14px;
+    border-radius: 7px;
+    background: #4d6b80;
+    transition: background 0.15s;
+}
+
+#calculator .calc-graph-looks b::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #9fb0bd;
+    transition: transform 0.15s, background 0.15s;
+}
+
+#calculator .calc-graph-looks > span.calc-on b {
     background: #a9c4b5;
-    color: #000;
+}
+
+#calculator .calc-graph-looks > span.calc-on b::after {
+    background: #1f333c;
+    transform: translateX(12px);
+}
+
+/* the names of the axes, below them */
+#calculator .calc-graph-window .calc-graph-axisnames {
+    padding-top: 4px;
+    border-top: 1px solid #34505f;
+}
+
+#calculator .calc-graph-window .calc-graph-axisnames input {
+    width: 72px;
+    text-align: left;
+}
+
+#calculator .calc-graph-window .calc-graph-axisnames input::placeholder {
+    color: #5f7a6c;
+}
+
+/* the view locked: no buttons to move it, and no hand to drag it */
+#calculator .calc-graph-locked [data-zoom="in"],
+#calculator .calc-graph-locked [data-zoom="out"],
+#calculator .calc-graph-locked [data-zoom="home"] {
+    display: none;
+}
+
+#calculator .calc-graph-locked canvas:active {
+    cursor: crosshair;
 }
 
 /* the ∫ button pressed: a drag shades an area, it does not move the view */

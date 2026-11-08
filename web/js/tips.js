@@ -872,29 +872,46 @@
             k: ''
         },
         'graph window': {
-            t: 'Set the view',
-            d: 'Type where x goes from and to across the graph, and y up it. Enter or Esc goes back to the graph.',
+            t: 'Graph settings',
+            d: 'Type where x goes from and to across the graph, and y up it; below, switch the same scale, the grid, minor lines, the axes, ' +
+                'their numbers and arrows, and lock the view; and name the axes. Enter or Esc goes back to the graph.',
             k: ''
         },
-        'graph square on': {
+        'graph look square': {
             t: 'Same scale',
             d: 'A unit of x as long as one of y, however the graph is zoomed: a circle is round, and a slope of 1 at 45°. ' +
                 'For a curve of an angle in Deg, a radian of x as long as 1 of y.',
             k: ''
         },
-        'graph square off': {
-            t: 'Same scale off',
-            d: 'x and y each a scale of its own again, as typing the view sets them.',
+        'graph look grid': {
+            t: 'Grid',
+            d: 'The lines of the grid. Off, the axes keep a mark at each of their numbers.',
             k: ''
         },
-        'graph grid on': {
-            t: 'Show the grid',
-            d: 'Draws the lines of the grid again.',
+        'graph look minor': {
+            t: 'Minor grid',
+            d: 'Fainter lines between those of the grid, four or five to each square.',
             k: ''
         },
-        'graph grid off': {
-            t: 'Hide the grid',
-            d: 'Leaves the axes and their numbers, with a mark at each number, and none of the lines between.',
+        'graph look axes': {
+            t: 'Axes',
+            d: 'The x and y axes, with their numbers and names. Off, only the curves and the grid.',
+            k: ''
+        },
+        'graph look numbers': {
+            t: 'Axis numbers',
+            d: 'The numbers along the axes.',
+            k: ''
+        },
+        'graph look arrows': {
+            t: 'Arrows',
+            d: 'Arrows on the axes: a click puts one at the end of each axis the way it goes up, then at both ends, then none.',
+            k: ''
+        },
+        'graph look lock': {
+            t: 'Lock view',
+            d: 'Dragging, the wheel and a pinch no longer move the view, and the zoom buttons go: to point at and click the curves without moving them. ' +
+                'Points and areas are still dragged, and the view can still be typed.',
             k: ''
         },
         'graph area': {

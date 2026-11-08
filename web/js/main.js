@@ -1154,7 +1154,7 @@
                 value = graphRows.indexOf(el.parentNode);
                 return graphInputs[value].value.trim() ? CalcTips[graphOff[value] ? 'graph show' : 'graph hide'] : null;
             }
-            if (el.dataset.look) return CalcTips['graph ' + el.dataset.look + ((el.dataset.look === 'square' ? graphSquare : graphGridOn) ? ' off' : ' on')];
+            if (el.dataset.look) return CalcTips['graph look ' + el.dataset.look];
             return CalcTips['graph ' + el.dataset.zoom];
         }
         if (el === pastButton) return CalcTips[past.classList.contains('calc-open') ? 'history close' : 'history'];
@@ -2336,7 +2336,7 @@
     // dot; a click keeps it there, with the tangent of the curve, and its x, y or slope can
     // be put into the calculation, as Ans is
     var GRAPH_WIDTH = 20, // the x the plot starts with: -10 to 10, or a full turn either way in degrees
-        GRAPH_INK = { grid: 'rgba(51, 68, 59, 0.16)', axis: '#33443b', text: '#33443b', paper: '#b6d1c2' },
+        GRAPH_INK = { grid: 'rgba(51, 68, 59, 0.16)', minor: 'rgba(51, 68, 59, 0.07)', axis: '#33443b', text: '#33443b', paper: '#b6d1c2' },
         // the colors of the curves, one for each box, each as far from the others as the green lets them be: navy, red,
         // green, purple, orange, teal, plum, gold, fuchsia, olive brown, azure, rust, lime, scarlet, blue, sea green, moss,
         // ochre, ultramarine, cerulean, pine, crimson, violet, steel and olive; none near black, as the axes are, and one pink
@@ -2398,13 +2398,20 @@
         FIELD_STARTS = 20, // solutions of a slope field a click adds, the first going past them
         graphTracing = -1, // the curve traced last: of the two at a crossing, the one to go on along
         graphDragging = null, // a point typed, as it is dragged: its box i and place j, and how far from it it was taken
+        graphShutting = false, // the press on the plot closed the settings: as a click it does nothing more
         GRAPH_DRAG_REACH = 8, // a press this near a point typed drags it, a finger twice as far
         graphWindow = graphPlot.querySelector('.calc-graph-window'), // the view typed: x from and to, y from and to
-        graphEnds = [].slice.call(graphWindow.querySelectorAll('input')),
+        graphEnds = [].slice.call(graphWindow.querySelectorAll('.calc-graph-x0, .calc-graph-x1, .calc-graph-y0, .calc-graph-y1')),
         graphWindowButton = graphPlot.querySelector('[data-zoom="window"]'),
-        graphLooks = [].slice.call(graphWindow.querySelectorAll('[data-look]')), // under them, same scale and the grid, each on or off
-        graphSquare = false, // a unit of x as long as one of y, however the view is zoomed
-        graphGridOn = true, // the lines of the grid drawn; off, a short mark on each axis where its numbers are
+        graphLooks = [].slice.call(graphWindow.querySelectorAll('[data-look]')), // under them, a switch for each way the graph is drawn
+        graphNames = [].slice.call(graphWindow.querySelectorAll('.calc-graph-xname, .calc-graph-yname')), // and the names of the axes
+        // How the graph is drawn, as its settings have it. square: a unit of x as long as one of y, however
+        // the view is zoomed; grid: its lines, else a short mark on each axis where its numbers are; minor:
+        // fainter lines between them; axes: the lines of x and y, with their numbers and names; numbers:
+        // those numbers; arrows: 1 a head at the end of each axis that goes up, 2 at both ends; lock: no drag, wheel or pinch
+        // moves the view, nor the buttons, which go; xname and yname: the names, at the ends of the axes
+        GRAPH_LOOK = { square: false, grid: true, minor: false, axes: true, numbers: true, arrows: 0, lock: false, xname: '', yname: '' },
+        graphLook = Object.assign({}, GRAPH_LOOK),
         graphShading = false, // the ∫ button pressed: a drag along a curve shades its area, and does not move the view
         graphAreaButton = graphPlot.querySelector('[data-zoom="area"]'),
         graphSize = graph.querySelector('.calc-graph-size'), // the graph as big as the page, and back
@@ -2740,8 +2747,15 @@
             graphHue = c.concat(graphHue.filter(function (h) { return c.indexOf(h) < 0; }));
         }
         graphView = v && [v.x, v.y, v.ux, v.uy].every(isFinite) && v.ux > 0 && v.uy > 0 ? { x: v.x, y: v.y, ux: v.ux, uy: v.uy } : null;
-        graphSquare = !!(saved && saved.sq === true);
-        graphGridOn = !(saved && saved.grid === false);
+        graphLook = Object.keys(GRAPH_LOOK).reduce(function (o, k) {
+            var was = saved && saved.look && saved.look[k];
+            o[k] = typeof was !== typeof GRAPH_LOOK[k] ? GRAPH_LOOK[k] : typeof was === 'string' ? was.slice(0, 16) : was;
+            return o;
+        }, {});
+        if (saved && saved.sq === true) graphLook.square = true; // as they were kept before the settings
+        if (saved && saved.grid === false) graphLook.grid = false;
+        if (saved && saved.look && saved.look.arrows === true) graphLook.arrows = 1; // one end, as arrows were first
+        if ([0, 1, 2].indexOf(graphLook.arrows) < 0) graphLook.arrows = 0;
         showLooks();
         setSide(saved && typeof saved.side === 'number' && saved.side >= GRAPH_SIDE_MIN && saved.side < 10000 ? Math.round(saved.side) : 0);
         graphOff = graphOff.map(function (off, i) { return !!(saved && Array.isArray(saved.off) && saved.off[i] === true); });
@@ -3130,7 +3144,7 @@
     function viewNow() {
         var u = GRAPH_WIDTH / plotWidth(),
             v = graphView || { x: 0, y: 0, ux: graphAngles() && deg ? u * (deg === 2 ? 40 : 36) : u, uy: u };
-        return graphSquare && v.uy !== v.ux / squareRatio() ? { x: v.x, y: v.y, ux: v.ux, uy: v.ux / squareRatio() } : v;
+        return graphLook.square && v.uy !== v.ux / squareRatio() ? { x: v.x, y: v.y, ux: v.ux, uy: v.ux / squareRatio() } : v;
     }
 
     // how many units of x are as long as one of y with same scale: one, or of a curve of an angle in Deg
@@ -3184,13 +3198,20 @@
     function gridLabel(n, step) {
         var a = Math.abs(n), q, g;
         if (a < step / 2) return '0';
-        if (Math.abs(step / Math.PI * 4 - Math.round(step / Math.PI * 4)) < 1e-9) {
+        if (piStep(step)) {
             q = Math.round(n / Math.PI * 4);
             g = q % 4 === 0 ? 4 : q % 2 === 0 ? 2 : 1;
             return (q < 0 ? '-' : '') + (Math.abs(q) === g ? '' : Math.abs(q) / g) + 'π' + (g === 4 ? '' : '/' + 4 / g);
         }
         if (a >= 1e6 || a < 1e-4) return local(n.toExponential(Math.min(14, Math.max(2, Math.ceil(Math.log10(a / step))))).replace(/\.?0+e/, 'e'));
         return local(String(+n.toFixed(Math.max(0, 1 - Math.floor(Math.log10(step))))));
+    }
+
+    // true if a step of the grid is of π: a quarter of it or more, as many as are whole, and not
+    // 10^-10, which is as near a whole number of quarters, none, as that tells
+    function piStep(step) {
+        var q = step / Math.PI * 4;
+        return Math.round(q) >= 1 && Math.abs(q - Math.round(q)) < 1e-9;
     }
 
     // an x of the pointer, rounded to what a pixel tells apart: 1.53, not 1.5327869
@@ -3939,57 +3960,54 @@
         ctx.stroke();
     }
 
-    // the lines of the grid, or with it off a mark at each number; over: the axes and the numbers along them instead, drawn over the
-    // curves, so they show however much of the plot a curve fills, as tan x does from far away.
-    // An axis out of the view leaves its numbers at the nearest edge. Big, the numbers as big as
-    // the words beside the plot (popScale)
+    // The lines of the grid, the minor ones between them, or with it off a mark on each axis at each
+    // number; over: the axes, their arrows, the numbers along them and their names instead, drawn
+    // over the curves, so they show however much of the plot a curve fills, as tan x does from far
+    // away. Each as the settings have it. An axis out of the view leaves its numbers and its name at
+    // the nearest edge. Big, the numbers as big as the words beside the plot (popScale)
     function drawGrid(ctx, v, w, h, over) {
-        var f = root.classList.contains('calc-big') ? popZoom : 1,
-            sx = gridStep(v.ux, gridAngles()), sy = gridStep(v.uy, false),
+        var f = root.classList.contains('calc-big') ? popZoom : 1, angles = gridAngles(),
+            sx = gridStep(v.ux, angles), sy = gridStep(v.uy, false), mx = minorStep(sx, angles), my = minorStep(sy, false),
             ax = Math.max(1, Math.min(w - 1, Math.round(plotX(v, 0)))) + 0.5, // where the axes are drawn, on whole pixels
             ay = Math.max(1, Math.min(h - 1, Math.round(plotY(v, 0)))) + 0.5,
-            labelY = Math.min(h - 4 * f, ay + 13 * f), onLeft = ax > w - 40 * f, past = -Infinity, k, p, text;
+            xIn = plotY(v, 0) >= 0 && plotY(v, 0) <= h, yIn = plotX(v, 0) >= 0 && plotX(v, 0) <= w, // the x axis in view, the y axis
+            labelY = Math.min(h - 4 * f, ay + 13 * f), onLeft = ax > w - 40 * f, past = -Infinity, k, p, text, end;
+
+        // a line across the plot at each step of x, and of y, from what is put at each place
+        function lines(ink, stepX, stepY, x, y) {
+            ctx.strokeStyle = ink;
+            ctx.beginPath();
+            for (k = Math.ceil(graphX(v, 0) / stepX); stepX && k * stepX <= graphX(v, w); k++) {
+                p = Math.round(plotX(v, k * stepX)) + 0.5;
+                ctx.moveTo(p, x ? ay - x : 0);
+                ctx.lineTo(p, x ? ay + x : h);
+            }
+            for (k = Math.ceil(graphY(v, h) / stepY); stepY && k * stepY <= graphY(v, 0); k++) {
+                p = Math.round(plotY(v, k * stepY)) + 0.5;
+                ctx.moveTo(y ? ax - y : 0, p);
+                ctx.lineTo(y ? ax + y : w, p);
+            }
+            ctx.stroke();
+        }
 
         ctx.lineWidth = 1;
-        if (!over && !graphGridOn) { // no grid: a mark on each axis in view at each of its numbers
-            ctx.strokeStyle = GRAPH_INK.axis;
-            ctx.beginPath();
-            for (k = Math.ceil(graphX(v, 0) / sx); plotY(v, 0) >= 0 && plotY(v, 0) <= h && k * sx <= graphX(v, w); k++) {
-                p = Math.round(plotX(v, k * sx)) + 0.5;
-                ctx.moveTo(p, ay - 3 * f);
-                ctx.lineTo(p, ay + 3 * f);
-            }
-            for (k = Math.ceil(graphY(v, h) / sy); plotX(v, 0) >= 0 && plotX(v, 0) <= w && k * sy <= graphY(v, 0); k++) {
-                p = Math.round(plotY(v, k * sy)) + 0.5;
-                ctx.moveTo(ax - 3 * f, p);
-                ctx.lineTo(ax + 3 * f, p);
-            }
-            ctx.stroke();
-            return;
-        }
         if (!over) {
-            ctx.strokeStyle = GRAPH_INK.grid;
-            ctx.beginPath();
-            for (k = Math.ceil(graphX(v, 0) / sx); k * sx <= graphX(v, w); k++) {
-                p = Math.round(plotX(v, k * sx)) + 0.5;
-                ctx.moveTo(p, 0);
-                ctx.lineTo(p, h);
+            if (graphLook.grid) {
+                if (graphLook.minor) lines(GRAPH_INK.minor, mx / v.ux >= 6 && mx, my / v.uy >= 6 && my); // none closer than 6 pixels
+                lines(GRAPH_INK.grid, sx, sy);
+            } else if (graphLook.axes) {
+                lines(GRAPH_INK.axis, xIn && sx, yIn && sy, 3 * f, 3 * f);
             }
-            for (k = Math.ceil(graphY(v, h) / sy); k * sy <= graphY(v, 0); k++) {
-                p = Math.round(plotY(v, k * sy)) + 0.5;
-                ctx.moveTo(0, p);
-                ctx.lineTo(w, p);
-            }
-            ctx.stroke();
             return;
         }
+        if (!graphLook.axes) return;
 
         ctx.beginPath();
-        if (plotY(v, 0) >= 0 && plotY(v, 0) <= h) {
+        if (xIn) {
             ctx.moveTo(0, ay);
             ctx.lineTo(w, ay);
         }
-        if (plotX(v, 0) >= 0 && plotX(v, 0) <= w) {
+        if (yIn) {
             ctx.moveTo(ax, 0);
             ctx.lineTo(ax, h);
         }
@@ -4000,19 +4018,65 @@
         ctx.strokeStyle = GRAPH_INK.axis;
         ctx.stroke();
         ctx.globalCompositeOperation = 'source-over';
+        if (graphLook.arrows) {
+            ctx.fillStyle = GRAPH_INK.axis;
+            ctx.beginPath();
+            if (xIn) {
+                ctx.moveTo(w, ay);
+                ctx.lineTo(w - 8 * f, ay - 4 * f);
+                ctx.lineTo(w - 8 * f, ay + 4 * f);
+            }
+            if (yIn) {
+                ctx.moveTo(ax, 0);
+                ctx.lineTo(ax - 4 * f, 8 * f);
+                ctx.lineTo(ax + 4 * f, 8 * f);
+            }
+            if (xIn && graphLook.arrows > 1) { // and at the other ends
+                ctx.moveTo(0, ay);
+                ctx.lineTo(8 * f, ay - 4 * f);
+                ctx.lineTo(8 * f, ay + 4 * f);
+            }
+            if (yIn && graphLook.arrows > 1) {
+                ctx.moveTo(ax, h);
+                ctx.lineTo(ax - 4 * f, h - 8 * f);
+                ctx.lineTo(ax + 4 * f, h - 8 * f);
+            }
+            ctx.fill();
+        }
 
         ctx.font = 10 * f + 'px Play, sans-serif';
         ctx.fillStyle = GRAPH_INK.text;
         ctx.strokeStyle = GRAPH_INK.paper; // a rim of the paper, so a number reads over a line
         ctx.lineWidth = 3;
         ctx.lineJoin = 'round';
+        end = (graphLook.arrows ? 12 : 4) * f; // the names short of the arrows
+        if (graphLook.xname) { // the name of x at its right end, above the axis, below it at the top
+            ctx.font = 'italic ' + 12 * f + 'px Play, sans-serif';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = ay < 18 * f ? 'top' : 'bottom';
+            ctx.strokeText(graphLook.xname, w - end, ay < 18 * f ? ay + 6 * f : ay - 5 * f);
+            ctx.fillText(graphLook.xname, w - end, ay < 18 * f ? ay + 6 * f : ay - 5 * f);
+            past = w - end - ctx.measureText(graphLook.xname).width; // no number under it
+        }
+        if (graphLook.yname) { // and of y at its top, beside the axis, as its numbers are
+            ctx.font = 'italic ' + 12 * f + 'px Play, sans-serif';
+            ctx.textAlign = onLeft ? 'right' : 'left';
+            ctx.textBaseline = 'top';
+            ctx.strokeText(graphLook.yname, onLeft ? ax - 6 * f : ax + 6 * f, end - 2 * f);
+            ctx.fillText(graphLook.yname, onLeft ? ax - 6 * f : ax + 6 * f, end - 2 * f);
+        }
+        if (!graphLook.numbers) return;
+        ctx.font = 10 * f + 'px Play, sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'alphabetic';
+        end = past;
+        past = -Infinity;
         for (k = Math.ceil(graphX(v, 0) / sx); k * sx <= graphX(v, w); k++) {
             p = plotX(v, k * sx);
             if (!k || p < 10 * f || p > w - 10 * f) continue;
             text = gridLabel(k * sx, sx);
             if (p - ctx.measureText(text).width / 2 < past + 6 * f) continue; // too long to fit beside the last, as far out
+            if (graphLook.xname && (ay < 18 * f || labelY < ay + 13 * f) && p + ctx.measureText(text).width / 2 > end - 4 * f) continue; // the name on their side of the axis
             past = p + ctx.measureText(text).width / 2;
             ctx.strokeText(text, p, labelY);
             ctx.fillText(text, p, labelY);
@@ -4021,11 +4085,20 @@
         ctx.textBaseline = 'middle';
         for (k = Math.ceil(graphY(v, h) / sy); k * sy <= graphY(v, 0); k++) {
             p = plotY(v, k * sy);
-            if (!k || p < 8 * f || p > h - 8 * f) continue;
+            if (!k || p < 8 * f || p > h - 8 * f || graphLook.yname && p < 24 * f) continue; // not over the name of y
             text = gridLabel(k * sy, sy);
             ctx.strokeText(text, onLeft ? ax - 4 * f : ax + 4 * f, p);
             ctx.fillText(text, onLeft ? ax - 4 * f : ax + 4 * f, p);
         }
+    }
+
+    // the step of the minor lines of the grid between those step apart: a fifth of 1 or 5 times a power of
+    // ten, a quarter of 2; a third of 15° to 180°, and a quarter of a step of π
+    function minorStep(step, angles) {
+        var lead = Math.round(step / Math.pow(10, Math.floor(Math.log10(step))));
+        if (angles === 'deg' && [15, 30, 45, 90, 180].indexOf(step) > -1) return step / 3;
+        if (angles === 'rad' && piStep(step)) return step / 4;
+        return step / (lead === 2 ? 4 : 5);
     }
 
     // An equation of x and y, drawn where its two sides are equal, as the engine's contour finds
@@ -4760,6 +4833,8 @@
         if (e.button) return;
         graphCanvas.setPointerCapture(e.pointerId);
         if (!graphPointers().length) graphMoved = false;
+        graphShutting = !graphWindow.hidden; // the settings close, as a press anywhere on the plot closes them
+        if (graphShutting) showWindow(false);
         graphTouch[e.pointerId] = onPlot(e);
         graphDragging = graphPointers().length === 1 && !graphShading ? pointToDrag(graphTouch[e.pointerId], GRAPH_DRAG_REACH * (e.pointerType === 'mouse' ? 1 : 2)) : null; // a second finger pinches instead
         graphBegin();
@@ -4845,7 +4920,7 @@
             } else if (graphShading && s.p.length === 1) { // with ∫ pressed, the view only as the area reaches a side
                 graphAreaTo(s, at);
                 areaSlide();
-            } else {
+            } else if (!graphLook.lock) {
                 graphMove(s.view, s.p[0], at, 1);
             }
         } else if (p.length === 2 && s.p.length === 2) {
@@ -4853,7 +4928,7 @@
             popShut();
             d0 = Math.hypot(s.p[0].x - s.p[1].x, s.p[0].y - s.p[1].y);
             d1 = Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y);
-            if (d0 > 10 && d1 > 10) {
+            if (d0 > 10 && d1 > 10 && !graphLook.lock) {
                 graphMove(s.view, { x: (s.p[0].x + s.p[1].x) / 2, y: (s.p[0].y + s.p[1].y) / 2 },
                     { x: (p[0].x + p[1].x) / 2, y: (p[0].y + p[1].y) / 2 }, d0 / d1);
             }
@@ -4875,7 +4950,7 @@
             graphPopShut = false;
             popWhenMoved(mouse && at);
             drawGraph();
-        } else if (e.type === 'pointerup' && !graphMoved && !graphPointers().length) {
+        } else if (e.type === 'pointerup' && !graphMoved && !graphPointers().length && !graphShutting) {
             // a double click puts back what was before its first click, however long the system lets it take
             graphClickWas = graphClickLast;
             graphClickLast = { pinned: p, shut: graphPopShut };
@@ -4923,8 +4998,10 @@
     // the place under the pointer. The same however the turns are cut up
     graphCanvas.addEventListener('wheel', function (e) {
         var at = onPlot(e), v = viewNow(), dy = e.deltaY * (e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1),
-            k = Math.pow(1.002, Math.max(-300, Math.min(300, dy))), p = graphPoint(at, GRAPH_ZOOM_REACH), x0 = plotX(v, 0), y0 = plotY(v, 0);
+            k = Math.pow(1.002, Math.max(-300, Math.min(300, dy))), p, x0 = plotX(v, 0), y0 = plotY(v, 0);
         e.preventDefault();
+        if (graphLook.lock) return; // the view stays, and the page does not scroll under the plot
+        p = graphPoint(at, GRAPH_ZOOM_REACH);
         popShut();
         if (!p.spot) {
             at = { x: plotX(v, p.x), y: plotY(v, p.y) };
@@ -4985,7 +5062,7 @@
     // the boxes as the view is, unless one is being typed in; with same scale the other two are, as they follow it
     function fillWindow(v, w, h) {
         var typing = graphEnds.indexOf(document.activeElement);
-        if (graphWindow.hidden || typing > -1 && !graphSquare) return;
+        if (graphWindow.hidden || typing > -1 && !graphLook.square) return;
         [graphX(v, 0), graphX(v, w), graphY(v, h), graphY(v, 0)].forEach(function (n, k) {
             if (typing > -1 && (k < 2) === (typing < 2)) return;
             graphEnds[k].value = local(String(graphRound(n, k < 2 ? v.ux : v.uy)));
@@ -5002,7 +5079,7 @@
             y = n[2] < n[3] && (n[3] - n[2]) / h > Math.max(1e-12, Math.max(Math.abs(n[2]), Math.abs(n[3])) * 1e-11) && (n[3] - n[2]) / h < 1e12;
             graphEnds[0].parentNode.classList.toggle('calc-bad', !x);
             graphEnds[2].parentNode.classList.toggle('calc-bad', !y);
-            if (graphSquare) { // the pair typed in, the other as long a unit
+            if (graphLook.square) { // the pair typed in, the other as long a unit
                 if (graphEnds.indexOf(box) < 2) y = false;
                 else x = false;
             }
@@ -5010,7 +5087,7 @@
             graphView = {
                 x: x ? (n[0] + n[1]) / 2 : v.x,
                 y: y ? (n[2] + n[3]) / 2 : v.y,
-                ux: x ? (n[1] - n[0]) / w : graphSquare ? (n[3] - n[2]) / h * squareRatio() : v.ux,
+                ux: x ? (n[1] - n[0]) / w : graphLook.square ? (n[3] - n[2]) / h * squareRatio() : v.ux,
                 uy: y ? (n[3] - n[2]) / h : v.uy
             };
             drawGraph();
@@ -5024,26 +5101,54 @@
         }, false);
     });
 
-    // Same scale and the grid, under the boxes: a click turns each on or off, the boxes keeping the focus
+    // The switches of the settings, under the view's boxes: a click, Space or Enter turns each on or
+    // off, a click leaving the focus where it was. The names of the axes drawn as they are typed
     graphLooks.forEach(function (b) {
-        b.addEventListener('mousedown', function (e) { e.preventDefault(); }, false);
-        b.addEventListener('click', function () {
-            if (b.dataset.look === 'square') graphSquare = !graphSquare;
-            else graphGridOn = !graphGridOn;
+        function flip() {
+            var k = b.dataset.look;
+            graphLook[k] = k === 'arrows' ? (graphLook[k] + 1) % 3 : !graphLook[k]; // arrows: none, at one end, at both
             showLooks();
             popShut();
             drawGraph();
             saveState();
+        }
+        b.addEventListener('mousedown', function (e) { e.preventDefault(); }, false);
+        b.addEventListener('click', flip, false);
+        b.addEventListener('keydown', function (e) {
+            if (e.which !== 13 && e.which !== 32) return;
+            e.preventDefault();
+            flip();
         }, false);
     });
 
-    // the two as they are
+    graphNames.forEach(function (box, i) {
+        box.addEventListener('input', function () {
+            graphLook[i ? 'yname' : 'xname'] = box.value.trim();
+            drawGraph();
+            clearTimeout(graphSaving);
+            graphSaving = setTimeout(saveState, 300);
+        }, false);
+        box.addEventListener('keydown', function (e) {
+            if (e.which !== 13) return;
+            e.preventDefault();
+            showWindow(false);
+        }, false);
+    });
+
+    // the switches and names as they are: minor lines only with the grid, numbers and arrows only with
+    // the axes, the arrows saying at which ends; locked, the plot has no buttons to move the view
     function showLooks() {
         graphLooks.forEach(function (b) {
-            var on = b.dataset.look === 'square' ? graphSquare : graphGridOn;
+            var on = !!graphLook[b.dataset.look];
+            if (b.dataset.look === 'arrows') b.querySelector('em').textContent = ['', 'one end', 'both ends'][graphLook.arrows];
             b.classList.toggle('calc-on', on);
-            b.setAttribute('aria-pressed', String(on));
+            b.classList.toggle('calc-off', b.dataset.look === 'minor' && !graphLook.grid || /^(numbers|arrows)$/.test(b.dataset.look) && !graphLook.axes);
+            b.setAttribute('aria-checked', String(on));
         });
+        graphNames.forEach(function (box, i) {
+            if (document.activeElement !== box) box.value = graphLook[i ? 'yname' : 'xname'];
+        });
+        graphPlot.classList.toggle('calc-graph-locked', graphLook.lock);
     }
 
     // the boxes left: as the view is again, a pair that was not one too
@@ -18230,7 +18335,7 @@
             h = graphPlot.clientHeight;
             u = Math.max((v[1] - v[0]) / w, (v[3] - v[2]) / h);
             graphView = { x: (v[0] + v[1]) / 2, y: (v[2] + v[3]) / 2, ux: ex.stretch ? (v[1] - v[0]) / w : u, uy: ex.stretch ? (v[3] - v[2]) / h : u };
-            if (ex.stretch) graphSquare = false;
+            if (ex.stretch) graphLook.square = false;
             showLooks();
             graphRender();
         }
@@ -19800,7 +19905,7 @@
     function saveState() {
         if (!chemAlone && !panelAlone) store('graph', {
             f: graphInputs.slice(0, graphCount).map(function (box) { return box.value; }), c: graphHue.slice(0, graphCount),
-            view: graphView, sq: graphSquare, grid: graphGridOn, tab: graphTab, side: graphSide, from: graphFrom.value, by: graphBy.value, off: graphOff.slice(0, graphCount), d: graphDiff.slice(0, graphCount),
+            view: graphView, look: graphLook, tab: graphTab, side: graphSide, from: graphFrom.value, by: graphBy.value, off: graphOff.slice(0, graphCount), d: graphDiff.slice(0, graphCount),
             p: graphLetters.reduce(function (p, k) {
                 if (graphRange[k]) p[k] = [graphVars[k], graphRange[k][0], graphRange[k][1]];
                 return p;

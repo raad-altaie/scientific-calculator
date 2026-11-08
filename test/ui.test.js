@@ -750,7 +750,7 @@ async function graphPanel(page, at) {
     check(await page.calc('JSON.parse(localStorage.getItem("graph")).view') === null, t + 'home goes back to the start');
 
     // the view typed: its boxes show the view, and set it as they are typed in; a pair the wrong way is marked
-    var ends = 'Array.prototype.map.call(document.querySelectorAll(".calc-graph-window input"), function (b) { return b.value; }).join(" ")';
+    var ends = 'Array.prototype.map.call(document.querySelectorAll(".calc-graph-x0, .calc-graph-x1, .calc-graph-y0, .calc-graph-y1"), function (b) { return b.value; }).join(" ")';
     await page.click('.calc-graph-zoom [data-zoom="window"]');
     check(await page.calc('!document.querySelector(".calc-graph-window").hidden') && /^-10 10 -\d+(\.\d+)? \d+(\.\d+)?$/.test(await page.calc(ends)) &&
         await page.calc('document.activeElement.className') === 'calc-graph-x0', t + 'the frame opens the view typed, as it is, x from -10 to 10', await page.calc(ends));
@@ -2355,26 +2355,31 @@ async function graphList(page, at) {
     check(/Slope = 3$/.test(await page.calc(pop)), t + '→ goes along it', await page.calc(pop));
 }
 
-// same scale and the grid, under the view's boxes: a stretched view squared, the boxes following; the grid's
-// lines gone, a mark on each axis left; both kept
+// the settings, the gear's: same scale, a stretched view squared, the boxes following; the grid's lines gone, a
+// mark on each axis left; the axes gone; the view locked; the names of the axes; all kept, and as kept before them
 async function graphLooks(page, at) {
-    var t = at + ': same scale and grid: ',
-        ends = 'Array.prototype.map.call(document.querySelectorAll(".calc-graph-window input"), function (b) { return +b.value; })',
+    var t = at + ': settings: ',
+        ends = 'Array.prototype.map.call(document.querySelectorAll(".calc-graph-x0, .calc-graph-x1, .calc-graph-y0, .calc-graph-y1"), function (b) { return +b.value; })',
         square = '(function (n, p) { return Math.abs((n[1] - n[0]) / p.clientWidth / ((n[3] - n[2]) / p.clientHeight) - 1) < 0.02; })(' + ends +
             ', document.querySelector(".calc-graph-plot"))',
-        // the paper at x = 5, on a line of the grid, and y = -3.7, off the axes and the curve
-        bare = '(function (c) { var k = c.width / c.clientWidth, u = 20 / c.clientWidth, d = c.getContext("2d").getImageData(' +
-            'Math.round((c.clientWidth / 2 + 5 / u) * k), Math.round((c.clientHeight / 2 + 3.7 / u) * k), 1, 1).data;' +
-            ' return d[0] === 0xb6 && d[1] === 0xd1 && d[2] === 0xc2 || d[3] === 0; })(document.querySelector(".calc-graph-plot canvas"))',
-        saved = 'JSON.stringify((function (g) { return [g.sq, g.grid]; })(JSON.parse(localStorage.getItem("graph"))))';
+        // the color at x and y of the plot as it starts: of the paper, or not
+        paper = function (x, y) {
+            return '(function (c) { var k = c.width / c.clientWidth, u = 20 / c.clientWidth, d = c.getContext("2d").getImageData(' +
+                'Math.round((c.clientWidth / 2 + ' + x + ' / u) * k), Math.round((c.clientHeight / 2 - ' + y + ' / u) * k), 1, 1).data;' +
+                ' return d[0] === 0xb6 && d[1] === 0xd1 && d[2] === 0xc2 || d[3] === 0; })(document.querySelector(".calc-graph-plot canvas"))';
+        },
+        on = function (k) { return 'document.querySelector("[data-look=' + k + ']").getAttribute("aria-checked") === "true"'; },
+        look = 'JSON.stringify(JSON.parse(localStorage.getItem("graph")).look)',
+        view = 'JSON.stringify(JSON.parse(localStorage.getItem("graph")).view)';
 
     await page.fresh(at, { graph: { f: ['x^2-3'], view: { x: 0, y: 0, ux: 0.1, uy: 0.02 } } });
     await page.click('.calc-graph-btn');
     await page.click('.calc-graph-zoom [data-zoom="window"]');
-    check(!await page.calc(square) && await page.calc('document.querySelector("[data-look=grid]").classList.contains("calc-on")') &&
-        !await page.calc('document.querySelector("[data-look=square]").classList.contains("calc-on")'), t + 'off at the start, the grid on');
+    check(!await page.calc(square) && await page.calc(on('grid')) && await page.calc(on('axes')) && !await page.calc(on('square')) &&
+        await page.calc('document.querySelector(".calc-graph-set-head").textContent') === 'Graph settings', t + 'the gear opens them; the grid and axes on, same scale off');
     await page.click('[data-look="square"]');
-    check(await page.calc(square) && await page.calc('document.activeElement.className') === 'calc-graph-x0', t + 'same scale squares the view, the box keeping the focus', await page.calc(ends));
+    check(await page.calc(square) && await page.calc(on('square')) && await page.calc('document.activeElement.className') === 'calc-graph-x0',
+        t + 'same scale squares the view, the box keeping the focus', await page.calc(ends));
     await page.click('.calc-graph-zoom [data-zoom="in"]');
     check(await page.calc(square), t + 'zoomed, still the same', await page.calc(ends));
     await page.click('.calc-graph-y1');
@@ -2383,17 +2388,56 @@ async function graphLooks(page, at) {
     await sleep(300);
     check(await page.calc(square) && await page.calc(ends + '[3]') === 20, t + 'y typed, x follows it', await page.calc(ends));
     await page.click('.calc-graph-zoom [data-zoom="home"]');
-    check(await page.calc('JSON.parse(localStorage.getItem("graph")).view') === null, t + 'home goes back to the start');
+    check(await page.calc(view) === 'null', t + 'home goes back to the start');
 
-    check(!await page.calc(bare), t + 'the grid is drawn');
+    check(!await page.calc(paper(5, -3.7)) && !await page.calc(paper(5, 0.1)), t + 'the grid is drawn, and the x axis at 5');
     await page.click('[data-look="grid"]');
-    check(await page.calc(bare) && !await page.calc('document.querySelector("[data-look=grid]").classList.contains("calc-on")'), t + 'Grid hides its lines');
-    check(await page.calc(saved) === '[true,false]', t + 'both kept', await page.calc(saved));
+    check(await page.calc(paper(5, -3.7)) && !await page.calc(paper(5, 0.1)) && !await page.calc(on('grid')), t + 'Grid hides its lines, a mark on the axis left');
+    await page.click('[data-look="minor"]');
+    check(await page.calc(paper(5, -3.7)) && await page.calc('document.querySelector("[data-look=minor]").classList.contains("calc-off")'), t + 'minor lines need the grid');
+    await page.click('[data-look="axes"]');
+    check(await page.calc(paper(5, 0.1)) && await page.calc(paper(-3.7, 0)) && await page.calc('document.querySelector("[data-look=numbers]").classList.contains("calc-off")'),
+        t + 'Axes hides them, and their marks');
+    await page.click('[data-look="axes"]');
+    await page.click('[data-look="grid"]');
+    var arrows = 'document.querySelector("[data-look=arrows]").textContent + " " + JSON.parse(localStorage.getItem("graph")).look.arrows';
+    await page.click('[data-look="arrows"]');
+    check(await page.calc(arrows) === 'Arrowsone end 1' && !await page.calc(paper(9.6, 0.09)) && await page.calc(paper(-9.6, 0.09)), t + 'arrows at one end', await page.calc(arrows));
+    await page.click('[data-look="arrows"]');
+    check(await page.calc(arrows) === 'Arrowsboth ends 2' && !await page.calc(paper(-9.6, 0.09)), t + 'then both', await page.calc(arrows));
+    await page.click('[data-look="arrows"]');
+    check(await page.calc(arrows) === 'Arrows 0' && await page.calc(paper(9.6, 0.09)), t + 'then none', await page.calc(arrows));
+
+    await page.click('[data-look="lock"]');
+    check(await page.calc('getComputedStyle(document.querySelector("[data-zoom=in]")).display') === 'none', t + 'locked, no zoom buttons');
+    await page.key('Escape', 27);
+    await page.dragAt('.calc-graph-plot', 5, 5, 7, 6);
+    await page.send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: (await page.at('.calc-graph-plot'))[0], y: (await page.at('.calc-graph-plot'))[1], deltaX: 0, deltaY: 300 });
+    await sleep(400);
+    check(await page.calc(view) === 'null', t + 'nor a drag or the wheel moves it', await page.calc(view));
+    await page.click('.calc-graph-zoom [data-zoom="window"]');
+    await page.clickAt('.calc-graph-plot', 8, -8); // beside them
+    check(await page.calc('document.querySelector(".calc-graph-window").hidden') && await page.calc('document.querySelector(".calc-graph-pop").hidden'),
+        t + 'a click on the plot closes them, and does nothing more');
+    await page.clickAt('.calc-graph-plot', 8, -8);
+    check(!await page.calc('document.querySelector(".calc-graph-pop").hidden'), t + 'the next click is a click');
+    await page.click('.calc-graph-zoom [data-zoom="window"]');
+    await page.click('.calc-graph-xname');
+    await page.type('t');
+    await sleep(400);
+    check(await page.calc(look) === '{"square":true,"grid":true,"minor":true,"axes":true,"numbers":true,"arrows":0,"lock":true,"xname":"t","yname":""}',
+        t + 'all kept, with the name of x', await page.calc(look));
+
     await page.fresh(at, { graph: { f: ['x^2-3'], view: { x: 0, y: 0, ux: 0.1, uy: 0.02 }, sq: true, grid: false } });
     await page.click('.calc-graph-btn');
     await page.click('.calc-graph-zoom [data-zoom="window"]');
-    check(await page.calc(square) && await page.calc('document.querySelector("[data-look=square]").classList.contains("calc-on")') &&
-        !await page.calc('document.querySelector("[data-look=grid]").classList.contains("calc-on")'), t + 'as they were, opened again', await page.calc(ends));
+    check(await page.calc(square) && await page.calc(on('square')) && !await page.calc(on('grid')), t + 'as kept before the settings', await page.calc(ends));
+
+    // zoomed in as far as it goes, numbers, and not 0π: a step of 10^-10 is no whole number of quarters of π
+    await page.fresh(at, { graph: { f: ['sin(x)'], view: { x: 0, y: 0, ux: 2e-12, uy: 2e-12 } } });
+    await page.calc('(function (w) { var o = CanvasRenderingContext2D.prototype.fillText; window.seen = w; CanvasRenderingContext2D.prototype.fillText = function (s) { w.push(s); return o.apply(this, arguments); }; })([])');
+    await page.click('.calc-graph-btn');
+    check(/^-?\de-10$/.test(await page.calc('window.seen[0]')) && !/π/.test(await page.calc('window.seen.join()')), t + 'zoomed far in, numbers of the grid and not of π', await page.calc('window.seen.join(" ")'));
 }
 
 // points dragged: their numbers written again in the box, round; one of sliders sets them, a letter
