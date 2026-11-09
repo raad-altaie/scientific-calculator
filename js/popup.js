@@ -361,6 +361,7 @@ const showOptionsTab = () => {
     if (!shown) return;
     shown.click(); // on that tab, at its top
     optionsFrame.contentWindow.scrollTo(0, 0);
+    optionsFrame.contentDocument.body.scrollTop = 0; // right to left the body scrolls, its bar at the left (options.css)
 };
 
 const openOptionsOver = (tab) => {

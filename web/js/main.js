@@ -20429,6 +20429,20 @@
             ['numbers', numbersButton, 'Numbers'], ['solve', solveButton, 'Solve'], ['chem', chemButton, 'Chemistry'],
             ['phys', physButton, 'Physics'], ['bio', bioButton, 'Biology'], ['stats', statsButton, 'Statistics']];
 
+    // The names under the icons of the rail: a short one where a language's own is too long for its room, as
+    // Calculatrice, Calcul; the full name its title still. Where a language has none, its full name
+    var RAIL = {
+        Calculator: trc('rail', 'Calculator'), Search: trc('rail', 'Search'), Formulas: trc('rail', 'Formulas'),
+        Converter: trc('rail', 'Converter'), Graph: trc('rail', 'Graph'), Numbers: trc('rail', 'Numbers'),
+        Solve: trc('rail', 'Solve'), Chemistry: trc('rail', 'Chemistry'), Physics: trc('rail', 'Physics'),
+        Biology: trc('rail', 'Biology'), Statistics: trc('rail', 'Statistics'), Options: trc('rail', 'Options'),
+        Guide: trc('rail', 'Guide')
+    };
+
+    function railName(text) {
+        return RAIL[text] && RAIL[text] !== text ? RAIL[text] : tr(text);
+    }
+
     GO.forEach(function (g) {
         var item = document.createElement('span'), name = document.createElement('span');
         item.className = 'calc-go-item';
@@ -20437,11 +20451,29 @@
         item.setAttribute('aria-label', tr(g[2]));
         item.title = tr(g[2]); // its name, on a narrow page where the rail has its icon alone
         item.tabIndex = 0;
-        name.textContent = tr(g[2]);
+        name.textContent = railName(g[2]);
         item.appendChild(g[1].querySelector('svg').cloneNode(true));
         item.appendChild(name);
         goBar.insertBefore(item, goOpt);
     });
+    [['[data-go="calc"]', 'Calculator'], ['.calc-go-find', 'Search'], ['[data-tab="options"]', 'Options'],
+        ['[data-tab="guide"]', 'Guide']].forEach(function (g) {
+        var name = goBar.querySelector(g[0] + ' > span');
+        if (name) name.textContent = railName(g[1]);
+    });
+
+    // a name too long for the rail, as الرسم البياني, made a little smaller till it fits, not cut short; as small as
+    // 7px, and cut short with … past that (style.css). Again as the rail is shown or changes size
+    function fitRail() {
+        goBar.querySelectorAll('.calc-go-item > span').forEach(function (name) {
+            var size;
+            name.style.fontSize = '';
+            if (!name.clientWidth || name.scrollWidth <= name.clientWidth) return;
+            size = parseFloat(getComputedStyle(name).fontSize) * name.clientWidth / name.scrollWidth;
+            name.style.fontSize = Math.max(7, Math.floor(size * 4) / 4) + 'px';
+        });
+    }
+    if (window.ResizeObserver) new ResizeObserver(fitRail).observe(goBar);
 
     // what is popped out: the graph, the periodic table, another panel, or nothing; or the calculator, on its
     // Calculator tab beside the rail

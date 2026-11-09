@@ -112,9 +112,10 @@ html:has(.options-open),
     pointer-events: none;
 }
 
-/* right to left, at the left of the options, as the page reads */
-.lang-rtl .options-bar {
-    justify-content: flex-start;
+/* right to left, the options' scrollbar at their left, as the page reads; the × at their left too, the end of its
+   bar right to left */
+.lang-rtl .options-pane {
+    direction: rtl;
 }
 
 .close-options {

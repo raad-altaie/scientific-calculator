@@ -6,6 +6,7 @@
 //                                            in each language till translated; one that changed a little keeps its
 //                                            name and words, put on the language's list to check
 //   node scripts/lang.js add es Español      js/lang/es.js made, every name in it '', and es put on the options' list
+//                                            at its end; with --after de, after German, as the list is by how many speak each
 //   node scripts/lang.js missing es          what es has no words for yet, and what it has to check: name: English
 //   node scripts/lang.js merge es words.json the words of a file put into es.js, by name { "clear": "Borrar" } or by
 //                                            the English { "Clear": "Borrar" }; one to check taken off the list
@@ -437,12 +438,19 @@ function langList() {
     return vm.runInNewContext('(' + /var LANGS = (\{[^}]*\})/.exec(src)[1] + ')');
 }
 
-// a language put on the list by its own name, in both copies of lang.js
-function listLang(code, name) {
-    const langs = langList();
-    if (langs[code] === name || !name) return;
-    langs[code] = name;
-    const text = '{ ' + Object.keys(langs).map((c) => (/^\w+$/.test(c) ? c : q(c)) + ': ' + q(langs[c]).replace(/^"|"$/g, '\'')).join(', ') + ' }';
+// a language put on the list by its own name, in both copies of lang.js: after the language of the code after, as
+// the list is by how many speak each, or at its end
+function listLang(code, name, after) {
+    const old = langList();
+    if (old[code] === name || !name) return;
+    const langs = {};
+    Object.keys(old).forEach((c) => {
+        if (c !== code) langs[c] = old[c];
+        if (c === after) langs[code] = name;
+    });
+    if (!langs[code]) langs[code] = name;
+    // one to a line, so a name written right to left is not mixed up with the code beside it in an editor
+    const text = '{\n' + Object.keys(langs).map((c) => '            ' + (/^\w+$/.test(c) ? c : q(c)) + ': ' + q(langs[c]).replace(/^"|"$/g, '\'')).join(',\n') + '\n        }';
     ['js/lang.js', 'web/js/lang.js'].forEach((file) => {
         const at = path.join(ROOT, file);
         fs.writeFileSync(at, fs.readFileSync(at, 'utf8').replace(/var LANGS = \{[^}]*\}/, 'var LANGS = ' + text));
@@ -551,8 +559,11 @@ function problems(code, en, words) {
     return out;
 }
 
-const [command, code, name] = process.argv.slice(2);
-const usage = 'node scripts/lang.js [update | add <code> <name> | missing <code> | merge <code> <file.json> | export <code> | check | strings]';
+const argv = process.argv.slice(2);
+const afterAt = argv.indexOf('--after');
+const after = afterAt < 0 ? null : argv.splice(afterAt, 2)[1]; // add's --after de: the code it goes after on the options' list
+const [command, code, name] = argv;
+const usage = 'node scripts/lang.js [update | add <code> <name> [--after <code>] | missing <code> | merge <code> <file.json> | export <code> | check | strings]';
 const isCode = (c) => /^[a-z]{2,3}(-[A-Z]{2})?$/.test(c || '');
 
 if (command === 'strings') {
@@ -566,7 +577,11 @@ if (command === 'strings') {
         console.error(code + ' is already on the list: node scripts/lang.js update brings it up to date');
         process.exit(1);
     }
-    listLang(code, name);
+    if (after !== null && !langList()[after]) {
+        console.error((after || 'Nothing') + ' is not on the list: --after takes the code of a language on it, as de');
+        process.exit(1);
+    }
+    listLang(code, name, after);
     update(allTexts());
     console.log('js/lang/' + code + '.js and its copy in web/: every text, \'\' till it is translated');
 } else if (command === 'merge' && isCode(code) && name) { // { "clear": "Borrar", … }, or by the English, { "Clear": "Borrar", … }

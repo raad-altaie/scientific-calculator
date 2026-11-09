@@ -1095,6 +1095,20 @@ html, body {
     text-align: right;
 }
 
+/* the page's scrollbar at its left, as it reads: the body scrolls, not the window, whose bar Chrome keeps at the
+   right; options.html only, as on the website the options pane scrolls (site.css) */
+html.lang-rtl:has(> body.page) {
+    height: 100%;
+    overflow: hidden;
+}
+
+.lang-rtl body.page {
+    box-sizing: border-box;
+    height: 100%;
+    overflow-y: auto;
+    direction: rtl;
+}
+
 .lang-rtl .wrapper :is(.keys, .trigo-keys, .k, kbd, .page-maths, input) {
     direction: ltr;
 }

@@ -7473,8 +7473,8 @@
     }
 
     .calc-go .calc-go-item {
-        margin: 0 3px;
-        padding: 7px 3px 5px; /* a little room round the name */
+        margin: 0;
+        padding: 7px 0 5px; /* all of the rail's width for the name */
     }
 
     .calc-go .calc-go-find {
@@ -7486,8 +7486,13 @@
         left: 8px;
     }
 
+    /* a little smaller, and cut short with … where a name is still too long for the rail; its title has it whole */
     .calc-go .calc-go-item span {
         display: block;
+        max-width: 100%;
+        overflow: hidden;
+        font-size: 9.5px;
+        text-overflow: ellipsis;
     }
 }
 
@@ -9224,6 +9229,18 @@
     margin-left: -6px;
     padding-right: 0;
     padding-left: 6px;
+}
+
+/* the note at the top of the Variables tab from the right, though it starts with a key, ⌥ Option + حرف: … ;
+   the key a word of its own in it */
+.lang-rtl #calculator .calc-var-head > span {
+    unicode-bidi: isolate;
+    direction: rtl;
+}
+
+.lang-rtl #calculator .calc-var-head kbd {
+    unicode-bidi: isolate;
+    direction: ltr;
 }
 
 /* the strip above the display mirrored: the name at the right, the ? and open big at the left */

@@ -17,7 +17,24 @@
 (function (root) {
     'use strict';
 
-    var LANGS = { en: 'English', es: 'Español', "zh-CN": '简体中文', hi: 'हिन्दी', ar: 'العربية', fr: 'Français', bn: 'বাংলা', pt: 'Português', ru: 'Русский', id: 'Bahasa Indonesia', ur: 'اردو', ja: '日本語', tr: 'Türkçe', fa: 'فارسی' }, // the languages it has, each by its own name, in the order of the options' list: by how many speak it, most first, Spanish second
+    // the languages it has, each by its own name, in the order of the options' list: by how many speak it, most first, Spanish second
+    var LANGS = {
+            en: 'English',
+            es: 'Español',
+            "zh-CN": '简体中文',
+            hi: 'हिन्दी',
+            ar: 'العربية',
+            fr: 'Français',
+            bn: 'বাংলা',
+            pt: 'Português',
+            ru: 'Русский',
+            id: 'Bahasa Indonesia',
+            ur: 'اردو',
+            de: 'Deutsch',
+            ja: '日本語',
+            tr: 'Türkçe',
+            fa: 'فارسی'
+        },
         RTL = /^(ar|fa|he|ur)$/, // written right to left: the class lang-rtl, the layout as it is
         tables = {}, // the words of each language loaded, by name; en's the English of each
         names = null, // the English → its name, made from en's words as first asked

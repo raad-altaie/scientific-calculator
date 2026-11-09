@@ -61,20 +61,27 @@ async function main() {
             const one = await call(vars, 'GET', addon + '?lang=' + code + '&wrap_outgoing_links=false');
             const d = one.description;
             const text = d && typeof d === 'object' ? d[code] || Object.values(d)[0] : d;
-            seen.push(code + ' ' + (text ? [...text].length : 0));
+            const pick = (v) => (v && typeof v === 'object' ? v[code] || Object.values(v)[0] : v) || '';
+            seen.push(code + ' ' + (text ? [...text].length : 0) + ' | ' + pick(one.name) + ' | ' + pick(one.summary).slice(0, 40));
         }
-        console.log('Its description now, in characters:', seen.join(', '));
+        console.log('Language, description characters, name, summary:\n' + seen.join('\n'));
         return;
     }
     if (what !== 'send') return console.log('node scripts/amo-listing.js check | send [languages]');
     const files = fs.readdirSync(path.join(ROOT, 'listing')).filter((f) => f.endsWith('.txt')).map((f) => f.slice(0, -4));
-    const description = {};
+    const description = {}, name = {}, summary = {};
     for (const lang of files.filter((l) => !only.length || only.includes(l))) {
         const code = AMO[lang] || lang;
         if (!TAKEN.has(code)) console.log('–', code, 'not a language of AMO, left out');
-        else description[code] = fs.readFileSync(path.join(ROOT, 'listing', lang + '.txt'), 'utf8').trim();
+        else {
+            description[code] = fs.readFileSync(path.join(ROOT, 'listing', lang + '.txt'), 'utf8').trim();
+            // the name and the summary are the extension's own, from _locales; the listing takes them by language too
+            const messages = JSON.parse(fs.readFileSync(path.join(ROOT, '_locales', lang, 'messages.json'), 'utf8'));
+            name[code] = messages.name.message;
+            summary[code] = messages.description.message;
+        }
     }
-    await call(vars, 'PATCH', addon, { description });
+    await call(vars, 'PATCH', addon, { name, summary, description });
     console.log('✓', Object.keys(description).join(', '));
 }
 
