@@ -115,8 +115,10 @@
         try {
             if (localStorage.getItem('optionsHidden') === 'true') document.documentElement.classList.add('options-hidden');
         } catch (e) { }
-        // and Advanced mode, the calculator beside the rail of the tools (app.js): from the first, without the options flashing
+        // and Advanced mode, the calculator beside the rail of the tools (app.js): from the first, without the options flashing.
+        // A link of a graph opens in it, and it is kept (main.js takeLink)
         try {
+            if (/^#g=/.test(location.hash)) localStorage.setItem('openMode', 'advanced');
             if (localStorage.getItem('openMode') === 'advanced') document.documentElement.classList.add('home');
         } catch (e) { }
     </script>

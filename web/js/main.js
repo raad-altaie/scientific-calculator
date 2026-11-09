@@ -6329,7 +6329,9 @@
 
     // A page opened from a link of a graph shows that graph, with one's own kept aside and the line over
     // the plot to keep the one shown or go back to one's own, until one of them is picked, through a
-    // reload too. The link goes from the address, so a reload does not open it again
+    // reload too. The link goes from the address, so a reload does not open it again. The website opens
+    // it in Advanced mode (index.html), the graph popped out beside the rail once the page has said so
+    // (app.js), and not as a panel over keys that are not there
     function takeLink() {
         var g = linkedGraph(location.hash);
         if (g) {
@@ -6341,7 +6343,9 @@
             setUnit(g.u);
             readGraph(); // its letters known, for their sliders to be kept
             saveState();
-            showGraph(true);
+            setTimeout(function () {
+                if (home) goTo('graph'); else showGraph(true);
+            }, 0);
         }
         graphShared.hidden = !stored('graphMine');
     }
