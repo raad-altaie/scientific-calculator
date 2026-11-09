@@ -18562,7 +18562,7 @@
         if (el.dataset.lines) return { t: name, d: '<div class="calc-tip-value">' + el.dataset.lines + '</div>' + tr(info.d) }; // the spectrum: its lines
         if (el.classList.contains('calc-pt-text') || /^–?$/.test(shown)) return { t: name, d: info.d };
         // not a name in place of a unit; the mass in full, whatever its places
-        u = unit && [tr('mass number'), tr('Pauling'), 'K L M …'].indexOf(unit.textContent) < 0 ? ' ' + (unit.dataset.unit === 'm' ? tr('g/mol') : unit.textContent) : '';
+        u = unit && el.dataset.fact !== 'shells' && [tr('mass number'), tr('Pauling')].indexOf(unit.textContent) < 0 ? ' ' + (unit.dataset.unit === 'm' ? tr('g/mol') : unit.textContent) : '';
         return { t: name, d: info.d, html: (drawn ? shown : value.innerHTML) + u, text: el.hasAttribute('data-v') ? local(statsValue(+el.dataset.v).text) : shown, put: el.hasAttribute('data-v') };
     }
 
@@ -18681,7 +18681,7 @@
             ['Boiling point', chemIn('t', e.bp), chemUnitName('t'), false, 't'],
             ['Density', chemIn('d', e.density), (e.state === 'gas' ? tr('{unit} at 0 °C', { unit: chemUnitName('d') }) : chemUnitName('d')), false, 'd'], ['Group', e.group], ['Period', e.period],
             ['Protons', e.z], ['Electrons', e.z], ['Neutrons', Math.round(e.mass) - e.z],
-            ['Electron configuration', e.config, '', true], ['Shells', e.shells.join(', '), 'K L M …', true], cell ? crystal : null, ['Block', e.block],
+            ['Electron configuration', e.config, '', true], ['Shells', e.shells.join(', '), 'KLMNOPQ'.slice(0, e.shells.length).split('').join(' '), true], cell ? crystal : null, ['Block', e.block],
             ['Outer-shell electrons', e.shells[e.shells.length - 1]], ['Unpaired electrons', chemUnpaired(e.config)],
             // the small tiles in threes, so each row is full before a wide one
             ['Atomic radius', e.radius, 'pm'], ['Covalent radius', e.covalent, 'pm'], ['Electron affinity', chemIn('e', e.affinity), chemUnitName('e'), false, 'e'],
