@@ -280,6 +280,57 @@
         return range.getBoundingClientRect().width / scale() > el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
     }
 
+    // No room left empty at the end of a row of results, nor a number squeezed: the tiles in rows of as many as fit, up to the
+    // grid's columns, each row's tiles sharing its width alike: of three to a row, the last two half and half, one alone the
+    // whole width; a number too long for its tile on a row of fewer, or alone, before it is made smaller. A wide one, as a
+    // matrix, a row of its own as ever. Its columns as set (grid.base) are the most a row has; its numbers back to their size
+    function fillRows(grid) {
+        var tiles, cols, width, gap, rows = [], row = [], most = 1;
+        if (!grid) return;
+        if (grid.base === undefined) grid.base = grid.style.gridTemplateColumns;
+        grid.style.gridTemplateColumns = grid.base;
+        [].forEach.call(grid.children, function (t) {
+            t.style.gridColumn = '';
+            [].forEach.call(t.querySelectorAll(':scope > :is(.calc-sv-value, .calc-stats-value)'), function (v) { v.style.fontSize = ''; });
+        });
+        grid.fitW = grid.clientWidth;
+        if (!grid.offsetWidth) return; // in a panel still hidden: laid out once it is seen
+        tiles = [].filter.call(grid.children, function (t) { return t.offsetParent; });
+        cols = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length;
+        if (cols < 2) return;
+        gap = parseFloat(getComputedStyle(grid).columnGap) || 0;
+        width = function (k) { return (grid.clientWidth - (k - 1) * gap) / k; };
+        function close() {
+            if (row.length) rows.push(row);
+            row = [];
+        }
+        tiles.forEach(function (t) {
+            var v = t.querySelector(':scope > :is(.calc-sv-value, .calc-stats-value)'), range, style, next;
+            if (getComputedStyle(t).gridColumnEnd === '-1') return close(); // a row of its own
+            t.need = 0;
+            if (v && v.clientWidth) { // the tile's width less its value's room, and the value's text
+                range = document.createRange();
+                range.selectNodeContents(v);
+                style = getComputedStyle(v);
+                t.need = t.offsetWidth - (v.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)) + range.getBoundingClientRect().width / scale();
+            }
+            next = row.concat(t);
+            if (next.length > cols || next.some(function (x) { return x.need > width(next.length) + 0.5; })) {
+                close();
+                row = [t];
+            } else row = next;
+        });
+        close();
+        if (rows.every(function (r) { return r.length === cols; })) return; // every row full as it is
+        rows.forEach(function (r) { // the fewest columns each row's tiles share alike in
+            most = most * r.length / CalcMaths.gcd(most, r.length);
+        });
+        grid.style.gridTemplateColumns = 'repeat(' + most + ', minmax(0, 1fr))';
+        rows.forEach(function (r) {
+            r.forEach(function (t) { t.style.gridColumn = 'span ' + most / r.length; });
+        });
+    }
+
     // a place on the screen, a box or a point of the pointer, as the calculator counts it:
     // in its own pixels, from inside its border, where left and top count from
     function inside(box) {
@@ -2239,6 +2290,20 @@
         }
     }
 
+    // the tiles of statistics laid out, each row of them full (fillRows); a number still too long then made smaller, as on the display
+    function fitStats() {
+        fillRows(statsGrid);
+        [].forEach.call(statsGrid.children, function (tile) {
+            var shown = tile.lastChild, size = 17;
+            while (size > 11 && tooWide(shown)) shown.style.fontSize = --size + 'px';
+        });
+    }
+
+    // popped out or in, or the window narrower: laid out again for their new width
+    if (window.ResizeObserver) new ResizeObserver(function () {
+        if (statsGrid.offsetWidth && statsGrid.clientWidth !== statsGrid.fitW) fitStats();
+    }).observe(statsGrid);
+
     // the results as the display shows numbers: in the number format, and as
     // fractions in fraction mode; the chart of them, and a note of how many there are.
     // Of the pairs, the curve chosen fitted to them, its numbers and its equation
@@ -2263,14 +2328,11 @@
             statsEq.classList.toggle('calc-stats-warn', !!s.n && (statsFit === 'lin' ? !isFinite(s.b) : !fit));
         }
         [].forEach.call(statsGrid.children, function (tile) {
-            var value = s[tile.dataset.k], known = s.n > 0 && isFinite(value), shown = tile.lastChild, size = 17;
+            var value = s[tile.dataset.k], known = s.n > 0 && isFinite(value);
             tile.classList.toggle('calc-none', !known);
-            shown.innerHTML = known ? statsValue(value).html : '–';
-            shown.style.fontSize = '';
-            while (size > 11 && tooWide(shown)) { // a long one gets smaller, as on the display
-                shown.style.fontSize = --size + 'px';
-            }
+            tile.lastChild.innerHTML = known ? statsValue(value).html : '–';
         });
+        fitStats();
         statsChart.innerHTML = !s.n ? '' : pairs ? scatterChart(s) : histogramChart(s);
         if (pairs) {
             statsNote.textContent = !s.n && !s.bad.length ? (statsBy.at > 1 ? tr('Only {by} are between x and y; a pair on each line.', { by: tr(BY[statsBy.at][2]) }) :
@@ -6942,13 +7004,17 @@
         return '<span class="calc-f-copy" role="button" aria-label="' + tr('Copy') + '">' + PILL_COPY + PILL_COPIED + '</span>'; // both in one place, the tick shown once copied
     }
 
-    // the formula before the button copied as text, as Copy of the formulas' menu does: a tick for a moment, for it is done, in
-    // place of the icon, of its size, so nothing moves
-    function copyFormula(button) {
-        copy(formulaText(button.previousElementSibling.innerHTML));
+    // text copied by a button: a tick for a moment, for it is done, in place of its icon or word, of its size, so nothing moves
+    function copied(button, text) {
+        copy(text);
         button.classList.add('calc-done');
         clearTimeout(button.done);
         button.done = setTimeout(function () { button.classList.remove('calc-done'); }, 1000);
+    }
+
+    // the formula before the button copied as text, as Copy of the formulas' menu does
+    function copyFormula(button) {
+        copied(button, formulaText(button.previousElementSibling.innerHTML));
     }
 
     function pills(items, copies) {
@@ -6982,9 +7048,6 @@
             { id: 'inequality', t: 'Inequality', f: 'x<sup>2</sup> – 4 &gt; 0', d: 'Every x where it holds, as x &lt; –2 or x &gt; 2 and in intervals: with &lt;, &gt;, &lt;= or &gt;=, or two the same way, 1 &lt; x^2 &lt; 4. From and to where to look, if you like.',
                 fields: [{ k: 'eq', l: 'Inequality', ph: 'x^2 - 4 > 0', fn: true }, { k: 'from', l: 'From', ph: 'optional' }, { k: 'to', l: 'To', ph: 'optional' }], cols: 2,
                 run: runInequality, example: { eq: 'x^2 - 4 > 0' } },
-            { id: 'extrema', t: 'Turning points', f: 'max and min of f(x)', d: 'Where a function is highest or lowest near by, x^3 – 3x at –1 and 1: each x and its value. With From and To, its highest and lowest between them as well, the ends among them.',
-                fields: [{ k: 'f', l: 'f(x)', ph: 'x^3 - 3x', fn: true }, { k: 'from', l: 'From', ph: 'optional' }, { k: 'to', l: 'To', ph: 'optional' }], cols: 2,
-                run: runExtrema, example: { f: 'x^3 - 3x' } },
             { id: 'quadratic', waits: true, t: 'Quadratic', f: 'ax<sup>2</sup> + bx + c = 0', d: 'Its two roots, real or a ± bi, the discriminant b² – 4ac and the vertex of its parabola.',
                 fields: coefficients('abc'), cols: 3, run: function (n) { return runPoly([n.a, n.b, n.c]); }, example: { a: '1', b: '-2', c: '-3' } },
             { id: 'cubic', waits: true, t: 'Cubic', f: 'ax<sup>3</sup> + bx<sup>2</sup> + cx + d = 0', d: 'Its three roots, real or a ± bi.',
@@ -7001,11 +7064,17 @@
                 fields: [{ k: 'e1', l: 'Curve 1', ph: 'x^2 + y^2 = 25', fn: true, aria: 'First equation' }, { k: 'e2', l: 'Curve 2', ph: 'x + y = 7', fn: true, aria: 'Second equation' }], run: runCurves, example: { e1: 'x^2 + y^2 = 25', e2: 'x + y = 7' } }
         ],
         calculus: [
+            { id: 'derivative', t: 'Derivative', f: ['f′(x)', 'f″(x)'], d: 'The derivative of a function written out, x^3 sin(x) as 3x² sin(x) + x³ cos(x), and the derivative of that; at x its value, its slope there and the slope of that, and the line that touches it there.',
+                fields: [{ k: 'f', l: 'f(x)', ph: 'x^3', fn: true }, { k: 'x', l: 'x', ph: '2' }], cols: 1, run: runDerivative, example: { f: 'x^3', x: '2' } },
+            { id: 'extrema', t: 'Turning points', f: 'max and min of f(x)', d: 'Where a function is highest or lowest near by, x^3 – 3x at –1 and 1: each x and its value. With From and To, its highest and lowest between them as well, the ends among them.',
+                fields: [{ k: 'f', l: 'f(x)', ph: 'x^3 - 3x', fn: true }, { k: 'from', l: 'From', ph: 'optional' }, { k: 'to', l: 'To', ph: 'optional' }], cols: 2,
+                run: runExtrema, example: { f: 'x^3 - 3x' } },
+            { id: 'concavity', t: 'Curve shape', f: ['f′(x) &gt; 0', 'f″(x) &gt; 0'], d: 'Where a function rises and falls, where it bends up and down, and its inflection points, where the bend changes: x^4 – 4x^3 falls until 3 and bends down from 0 to 2. From and To, where to look, if you like.',
+                fields: [{ k: 'f', l: 'f(x)', ph: 'x^4 - 4x^3', fn: true }, { k: 'from', l: 'From', ph: 'optional' }, { k: 'to', l: 'To', ph: 'optional' }], cols: 2,
+                run: runShape, example: { f: 'x^4 - 4x^3' } },
             { id: 'integral', t: 'Integral', f: '∫<sub>a</sub><sup>b</sup> f(x) dx', d: 'The integral of a function from a to b, the area under it, its exact form where it has one, √π or 1/3, and the average value of the function there; an end may be ∞, typed inf.',
                 fields: [{ k: 'f', l: 'f(x)', ph: 'x^2', fn: true }, { k: 'a', l: 'From', ph: '0', def: 0, inf: true }, { k: 'b', l: 'To', ph: '1', def: 1, inf: true }], cols: 2,
                 run: runIntegral, example: { f: 'x^2', a: '0', b: '3' } },
-            { id: 'derivative', t: 'Derivative', f: ['f′(x)', 'f″(x)'], d: 'The value of a function at x, its slope there and the slope of that, and the line that touches it there.',
-                fields: [{ k: 'f', l: 'f(x)', ph: 'x^3', fn: true }, { k: 'x', l: 'x', ph: '2' }], cols: 1, run: runDerivative, example: { f: 'x^3', x: '2' } },
             { id: 'sum', t: 'Sum', f: 'Σ f(n)', d: 'The sum of a function of n, k, i or j, or of x, for each whole number from a to b. b may be ∞, typed inf: 1/n^2 from 1 on is π²/6.',
                 fields: [{ k: 'f', l: 'f(n)', ph: 'n^2', fn: true }, { k: 'a', l: 'From', ph: '1', def: 1 }, { k: 'b', l: 'To', ph: '10', def: 10, inf: true }], cols: 2,
                 run: function (n, raw) { return runSeries(n, raw, false); }, example: { f: '1/n^2', a: '1', b: 'inf' } },
@@ -7666,7 +7735,7 @@
     // Where an inequality holds: x < –2 or x > 2, and as intervals, (–∞, –2) ∪ (2, ∞); its ends to put in
     function runInequality(n, raw) {
         var none = [{ l: 'x', v: NaN, wide: true }], found = lookFor(n, raw, CalcMaths.inequality, none, 'Not an inequality of x yet: x^2 - 4 > 0, with <, >, <= or >=.'),
-            r = found.r, ends = found.ends, words, sets, gap = engine.comma ? '; ' : ', ', all, far;
+            r = found.r, ends = found.ends, words, all, far;
         if (found.out) return found.out;
         all = r.parts.length === 1 && r.parts[0].from === -Infinity && r.parts[0].to === Infinity;
         far = local(String(r.within).replace(/^1(0+)$/, function (m, z) { return '1e' + z.length; })); // 1e15
@@ -7678,12 +7747,9 @@
             if (p.to === Infinity) return 'x ' + (p.fromIn ? '≥' : '&gt;') + ' ' + shown(p.from);
             return shown(p.from) + ' ' + (p.fromIn ? '≤' : '&lt;') + ' x ' + (p.toIn ? '≤' : '&lt;') + ' ' + shown(p.to);
         });
-        sets = r.parts.map(function (p) {
-            return p.from === p.to ? '{' + shown(p.from) + '}' : (p.fromIn ? '[' : '(') + shown(p.from) + gap + shown(p.to) + (p.toIn ? ']' : ')');
-        });
         return {
             rows: [{ l: 'x', text: words.length ? words.join(' or ') : 'none', wide: true, wrap: true },
-                { l: 'Intervals', text: sets.length ? sets.join(' ∪ ') : '∅', wide: true, wrap: true }]
+                { l: 'Intervals', text: intervalsText(r.parts), wide: true, wrap: true }]
                 .concat(r.ends.map(function (x, i) { return { l: tr('End {i}', { i: (i + 1) }), v: x }; }), drawnTile(inequalityDrawing(raw.eq, r, n.from, n.to))),
             note: !r.parts.length ? tr('It holds for no x{v}.{far}', { v: (ends ? tr(' between {from} and {to}', { from: shown(n.from), to: shown(n.to) }) : ''), far: far }) :
                 r.more ? tr('Of its many ends, the {ends} nearest 0: give From and To for others.', { ends: r.ends.length }) : far.trim()
@@ -7843,11 +7909,49 @@
         return 'y = ' + (m < 0 ? '–' : '') + (Math.abs(m) === 1 ? '' : num(m)) + 'x' + (b ? (b < 0 ? ' – ' : ' + ') + num(b) : '');
     }
 
+    // The derivative written out and the derivative of that; at x the value of the function, its
+    // slope there and the slope of that, of those formulas where it has them, else by steps, and the
+    // line that touches it there
     function runDerivative(n, raw) {
-        var f = toolFunction(raw), s = f.c && isFinite(n.x) ? CalcMaths.slopes(f.c, n.x, deg) : [NaN, NaN], y = f.c && isFinite(n.x) ? f.c.at(n.x, deg, true) : NaN;
-        return { rows: [{ l: 'f(x)', v: y }, { l: 'f′(x)', v: s[0] }, { l: 'f″(x)', v: s[1] },
+        var f = toolFunction(raw), d = f.c ? CalcMaths.derivatives(raw.f, engine.comma, deg, local) : null, forms = d && d.forms,
+            y = f.c && isFinite(n.x) ? f.c.at(n.x, deg, true) : NaN, s = [NaN, NaN], none = d && d.error === 'none';
+        if (isFinite(y)) s = forms ? d.at(n.x) : CalcMaths.slopes(f.c, n.x, deg); // none at a corner or a jump, as |x| at 0
+        return { rows: [{ l: 'Derivative', text: forms ? 'f′(x) = ' + forms[0].html : '–', wide: true, wrap: true },
+                { l: 'Second derivative', text: forms ? 'f″(x) = ' + forms[1].html : '–', wide: true, wrap: true },
+                { l: 'f(x)', v: y }, { l: 'f′(x)', v: s[0] }, { l: 'f″(x)', v: s[1] },
                 { l: 'Tangent', text: isFinite(y) && isFinite(s[0]) ? lineText(s[0], y - s[0] * n.x) : '–', wide: true }].concat(isFinite(y) && isFinite(s[0]) ? drawnTile(tangentDrawing(f.c, n.x, y, s[0])) : []),
-            bad: f.bad, note: f.note, warn: !!f.note };
+            bad: f.bad, note: f.note || (none ? 'No formula of its slope: it has x!, mod or the like, whose slopes are not written out here.' : ''), warn: !!f.note };
+    }
+
+    // parts of x as intervals, (–∞, –2) ∪ (2, ∞); ∅ of none
+    function intervalsText(parts) {
+        var gap = engine.comma ? '; ' : ', ';
+        return parts.length ? parts.map(function (p) {
+            return p.from === p.to ? '{' + shown(p.from) + '}' : (p.fromIn ? '[' : '(') + shown(p.from) + gap + shown(p.to) + (p.toIn ? ']' : ')');
+        }).join(' ∪ ') : '∅';
+    }
+
+    // where a function rises and falls and bends up and down, as intervals, and its inflection points, an x and its value side by side
+    function runShape(n, raw) {
+        var none = [{ l: 'Increasing', text: '–', wide: true }, { l: 'Decreasing', text: '–', wide: true }, { l: 'Concave up', text: '–', wide: true }, { l: 'Concave down', text: '–', wide: true }],
+            ends = isFinite(n.from) && isFinite(n.to), r, rows;
+        if (!raw.f) return { rows: none, cols: 2 };
+        if (ends && n.from >= n.to) return { rows: none, cols: 2, note: 'From is less than To.', warn: true };
+        r = CalcMaths.shape(raw.f, engine.comma, deg, ends ? n.from : NaN, ends ? n.to : NaN);
+        if (r.error) {
+            return { rows: none, cols: 2, bad: r.error === 'none' ? [] : ['f'], warn: true,
+                note: r.error === 'letters' ? 'Only x has a value here: write the other letters as numbers.' : r.error === 'none' ? 'No formula of its slope: it has x!, mod or the like, whose slopes are not written out here.' :
+                    'Not a function of x yet: x^3 - 3x, x e^(-x).' };
+        }
+        rows = [{ l: 'Increasing', text: intervalsText(r.rising), wide: true, wrap: true }, { l: 'Decreasing', text: intervalsText(r.falling), wide: true, wrap: true },
+            { l: 'Concave up', text: intervalsText(r.up), wide: true, wrap: true }, { l: 'Concave down', text: intervalsText(r.down), wide: true, wrap: true }];
+        r.points.forEach(function (p) {
+            rows.push({ l: 'Inflection x', v: p.x }, { l: 'Inflection y', v: p.y });
+        });
+        return {
+            rows: rows.concat(drawnTile(shapeDrawing(raw.f, r, n.from, n.to))), cols: 2,
+            note: r.more ? 'It changes too often to list each time: give From and To for the rest.' : r.flat ? 'It is flat: its slope is 0 everywhere.' : !r.rising.length && !r.falling.length ? 'It goes up or down only in jumps: its slope is 0 between them.' : ''
+        };
     }
 
     // a Taylor series written out: x – x³/6 + x⁵/120, of (x – a) about a, each coefficient a
@@ -7988,6 +8092,16 @@
         var fs = sidesOf(text, /<=|>=|=<|=>|[<>≤≥]/), x = rangeAround(r.ends, from, to);
         if (!fs) return '';
         return graphDrawing('Its sides, shaded where it holds', x[0], x[1], { fs: fs, bands: r.parts.map(function (p) { return [p.from, p.to]; }) });
+    }
+
+    // the curve, shaded where it bends up, its inflection points dots
+    function shapeDrawing(text, r, from, to) {
+        var fs = sidesOf(text), xs = r.points.map(function (p) { return p.x; }), x;
+        ['rising', 'falling', 'up', 'down'].forEach(function (k) { r[k].forEach(function (p) { xs.push(p.from, p.to); }); });
+        x = rangeAround(xs, from, to);
+        if (!fs) return '';
+        return graphDrawing('The curve, shaded where it bends up, and its inflection points', x[0], x[1], { fs: fs, fit: 1,
+            bands: r.up.map(function (p) { return [p.from, p.to]; }), dots: r.points.map(function (p) { return [p.x, p.y]; }) });
     }
 
     function extremaDrawing(text, r, from, to) {
@@ -10231,10 +10345,50 @@
             });
         }
 
+        // The results of a card laid out, each row of them full (fillRows); then a number still too long made smaller,
+        // as on the display, a little: to 13px, a matrix's to 12, of more than 5 columns kept at 10px; a table all one
+        // size, as small as its longest number of each column needs
+        function fitTiles(item) {
+            var grid = item.querySelector('.calc-sv-grid'); // the results', not what to pick from, which fillRows lays out alone
+            fillRows(grid);
+            [].forEach.call(grid.querySelectorAll('.calc-sv-cell'), function (cell) { cell.style.fontSize = ''; });
+            [].forEach.call(grid.querySelectorAll(':scope > .calc-sv-tile > .calc-sv-value, .calc-sv-tile:not(.calc-sv-table) .calc-sv-cell'), function (shown) {
+                var value = !shown.classList.contains('calc-sv-cell'), size = value ? 17 : shown.parentNode.classList.contains('calc-sv-many') ? 10 : 15;
+                while (size > (value ? 13 : 12) && tooWide(shown)) shown.style.fontSize = --size + 'px';
+            });
+            [].forEach.call(grid.querySelectorAll('.calc-sv-table .calc-sv-cells'), function (table) {
+                var cells = [].slice.call(table.querySelectorAll('.calc-sv-cell')), longest = {}, size = 12;
+                cells.forEach(function (cell) {
+                    var b = cell.dataset.b;
+                    if (!longest[b] || cell.textContent.length > longest[b].textContent.length) longest[b] = cell;
+                });
+                longest = Object.keys(longest).map(function (b) { return longest[b]; });
+                while (size > 11 && longest.some(tooWide)) {
+                    size--;
+                    longest.forEach(function (cell) { cell.style.fontSize = size + 'px'; });
+                }
+                if (size < 12) cells.forEach(function (cell) { cell.style.fontSize = size + 'px'; });
+            });
+        }
+
+        // popped out or in, or the window narrower: a card's results laid out again for their new width
+        var widths = window.ResizeObserver && new ResizeObserver(function (seen) {
+            seen.forEach(function (e) {
+                var grid = e.target, item = grid.closest('.calc-sv-item');
+                if (!grid.offsetWidth || grid.clientWidth === grid.fitW) return;
+                if (grid.parentNode.classList.contains('calc-sv-pickfrom')) fillRows(grid);
+                else if (item) fitTiles(item);
+            });
+        });
+
+        function watchWidth(item) {
+            if (widths) [].forEach.call(item.querySelectorAll('.calc-sv-grid'), function (grid) { widths.observe(grid); }); // once each: observed again, nothing new
+        }
+
         // What the open tool gives from its boxes now: each number read, or its default while
         // empty, a box that is not one marked and named in the note; then its tiles, and its note
         function run() {
-            var item = list.querySelector('.calc-sv-item.calc-on'), tool, raw, n = {}, out, inputs, fields, bad = [], mine, note, boxes;
+            var item = list.querySelector('.calc-sv-item.calc-on'), tool, raw, n = {}, out, inputs, fields, bad = [], mine, note, boxes, grid;
             if (!item) return;
             tool = tools[tab][+item.dataset.i];
             raw = rawOf(tool);
@@ -10275,8 +10429,8 @@
             });
             // a drawing first, above the numbers it draws, of every card; last, below its numbers, of a card whose drawing is only
             // its curve over time or a length, as of Radioactive decay, and of the IP subnet, Spring, Pendulum and spring (drawnLast),
-            // and of every card of finance
-            out.rows = tool.drawnLast || tab === 'finance' ? out.rows.filter(function (r) { return !drawnRow(r); }).concat(out.rows.filter(drawnRow)) :
+            // and of every card of finance and of the solver, all its tabs
+            out.rows = tool.drawnLast || key === 'solve' ? out.rows.filter(function (r) { return !drawnRow(r); }).concat(out.rows.filter(drawnRow)) :
                 out.rows.filter(drawnRow).concat(out.rows.filter(function (r) { return !drawnRow(r); }));
             // nothing typed or picked in its boxes yet: no results that have no value, only what it shows of itself, as a
             // worksheet of the ways chosen
@@ -10286,35 +10440,23 @@
             });
             rows = out.rows;
             item.querySelector('.calc-sv-results').hidden = !out.rows.length;
-            item.querySelector('.calc-sv-grid').style.gridTemplateColumns = out.cols ? 'repeat(' + out.cols + ', 1fr)' : ''; // two, for an x and a y side by side
-            item.querySelector('.calc-sv-grid').innerHTML = out.rows.map(tile).join('');
+            grid = item.querySelector('.calc-sv-grid');
+            grid.base = out.cols ? 'repeat(' + out.cols + ', 1fr)' : ''; // two, for an x and a y side by side
+            grid.innerHTML = out.rows.map(tile).join('');
             [].forEach.call(item.querySelectorAll('.calc-sv-tile'), function (el) {
                 el.row = out.rows[+el.dataset.r]; // for its tip
             });
-            [].forEach.call(item.querySelectorAll('.calc-sv-value, .calc-sv-tile:not(.calc-sv-table) .calc-sv-cell'), function (shown) { // of a matrix of more than 5 columns, kept at 10px
-                var value = !shown.classList.contains('calc-sv-cell'), size = value ? 17 : shown.parentNode.classList.contains('calc-sv-many') ? 10 : 15;
-                while (size > (value ? 13 : 12) && tooWide(shown)) shown.style.fontSize = --size + 'px'; // a long one gets smaller, as on the display, a little: to 13px, a cell to 12
-            });
-            [].forEach.call(item.querySelectorAll('.calc-sv-table .calc-sv-cells'), function (table) { // a table all one size, as small as its longest number of each column needs
-                var cells = [].slice.call(table.querySelectorAll('.calc-sv-cell')), longest = {}, size = 12;
-                cells.forEach(function (cell) {
-                    var b = cell.dataset.b;
-                    if (!longest[b] || cell.textContent.length > longest[b].textContent.length) longest[b] = cell;
-                });
-                longest = Object.keys(longest).map(function (b) { return longest[b]; });
-                while (size > 11 && longest.some(tooWide)) {
-                    size--;
-                    longest.forEach(function (cell) { cell.style.fontSize = size + 'px'; });
-                }
-                if (size < 12) cells.forEach(function (cell) { cell.style.fontSize = size + 'px'; });
-            });
+            fitTiles(item);
             // what to pick from, as the ions or the solubility table, in a section of its own under the results: its own
             // heading, a click on one typing it in the box (data-fill); no row of the results, so no tip of one, nor put in
             item.querySelector('.calc-sv-pickfrom').hidden = !out.pick;
+            if (widths && item.querySelector('.calc-sv-pickfrom .calc-sv-grid')) widths.unobserve(item.querySelector('.calc-sv-pickfrom .calc-sv-grid')); // made anew
             item.querySelector('.calc-sv-pickfrom').innerHTML = !out.pick ? '' : '<div class="calc-sv-results">' + tr(out.pick.t) + '</div><div class="calc-sv-grid"' +
                 (out.pick.cols ? ' style="grid-template-columns: repeat(' + out.pick.cols + ', 1fr)"' : '') + '>' + out.pick.rows.map(function (r) {
                     return '<div class="calc-sv-tile' + (r.small ? '' : ' calc-sv-wide') + (drawnRow(r) ? ' calc-sv-drawn' : '') + '"><span class="calc-sv-label">' + tr(r.l) + '</span><span class="calc-sv-value">' + shownText(r) + '</span></div>';
                 }).join('') + '</div>';
+            fillRows(item.querySelector('.calc-sv-pickfrom .calc-sv-grid'));
+            watchWidth(item);
             note = item.querySelector('.calc-sv-note');
             note.textContent = pasted || tr(out.note) || '';
             note.classList.toggle('calc-sv-warn', !!(pasted || out.warn));
@@ -10429,8 +10571,7 @@
             }
             if (e.target.closest('.calc-sv-opt')) return choose(e.target.closest('.calc-sv-opt'));
             r = t && rows[+t.dataset.r];
-            if (e.target.closest('.calc-sv-copy') && r && r.m) return copy(tableText(r));
-            if (e.target.closest('.calc-sv-copy') && r && r.copy) return copy(r.copy);
+            if (e.target.closest('.calc-sv-copy') && r && (r.m || r.copy)) return copied(e.target.closest('.calc-sv-copy'), r.m ? tableText(r) : r.copy);
             if (bit && r && r.flip) return flip(t, r.flip, +bit.dataset.b);
             v = !r ? NaN : r.m ? (cell ? r.m[+cell.dataset.a][+cell.dataset.b] : NaN) : r.text === undefined ? r.v : NaN;
             if (!isFinite(v) || !engine.put(v)) return;
@@ -18687,8 +18828,8 @@
         chemAt = z;
         [].forEach.call(chemGrid.querySelectorAll('.calc-pt-el.calc-on'), function (t) { t.classList.remove('calc-on'); });
         if (chemGrid.querySelector('.calc-pt-el[data-z="' + z + '"]')) chemGrid.querySelector('.calc-pt-el[data-z="' + z + '"]').classList.add('calc-on');
-        // its crystal, drawn, beneath the shells, after the atom and its spectrum; with none drawn, among the words.
-        // Each unit in the language in use already, as it is shown
+        // its shells above its configuration; its crystal, drawn, beneath them, after the atom and its spectrum; with
+        // none drawn, among the words. Each unit in the language in use already, as it is shown
         cell = chemCrystal(e);
         crystal = ['Crystal structure', e.crystal && tr(e.crystal), '', true, '', false, false, cell];
         tiles = [
@@ -18697,7 +18838,7 @@
             ['Boiling point', chemIn('t', e.bp), chemUnitName('t'), false, 't'],
             ['Density', chemIn('d', e.density), (e.state === 'gas' ? tr('{unit} at 0 °C', { unit: chemUnitName('d') }) : chemUnitName('d')), false, 'd'], ['Group', e.group], ['Period', e.period],
             ['Protons', e.z], ['Electrons', e.z], ['Neutrons', Math.round(e.mass) - e.z],
-            ['Electron configuration', e.config, '', true], ['Shells', e.shells.join(', '), 'KLMNOPQ'.slice(0, e.shells.length).split('').join(' '), true], cell ? crystal : null, ['Block', e.block],
+            ['Shells', e.shells.join(', '), 'KLMNOPQ'.slice(0, e.shells.length).split('').join(' '), true], ['Electron configuration', e.config, '', true], cell ? crystal : null, ['Block', e.block],
             ['Outer-shell electrons', e.shells[e.shells.length - 1]], ['Unpaired electrons', chemUnpaired(e.config)],
             // the small tiles in threes, so each row is full before a wide one
             ['Atomic radius', e.radius, 'pm'], ['Covalent radius', e.covalent, 'pm'], ['Electron affinity', chemIn('e', e.affinity), chemUnitName('e'), false, 'e'],
@@ -18706,8 +18847,8 @@
             ['Heat of fusion', e.fusion, 'kJ/mol'], ['Heat of vaporization', e.vaporization, 'kJ/mol'], ['Thermal conductivity', e.conductivity, 'W/(m·K)'],
             ['Electrical resistivity', e.resistivity, tr('Ω·m at 20 °C'), false, '', false, true], ['Abundance in the crust', e.abundance, typeof e.abundance === 'number' ? 'mg/kg' : '', false, '', false, true], ['CAS number', e.cas],
             ['Magnetism', e.magnetic && tr(e.magnetic), '', true], cell ? null : crystal, ['Appearance', e.appearance && tr(e.appearance), '', true],
-            // in words, each on its own line: when and by whom it was found, its isotopes, its name, its uses
-            ['Discovered', (e.year === 0 ? tr('In ancient times') : e.year) + (e.foundBy ? tr(', by {foundBy}', { foundBy: tr(e.foundBy) }) : '') + (e.isolatedBy ? tr('; isolated by {isolatedBy}', { isolatedBy: tr(e.isolatedBy) }) : ''), '', true, '', true],
+            // in words, each on its own line: when and by whom it was found (where, as the Middle East, where that is a place), its isotopes, its name, its uses
+            ['Discovered', (e.year === 0 ? tr('In ancient times') : e.year) + (e.foundBy === 'Middle East' ? tr(', in the Middle East') : e.foundBy === 'Asia Minor' ? tr(', in Asia Minor') : e.foundBy ? tr(', by {foundBy}', { foundBy: tr(e.foundBy) }) : '') + (e.isolatedBy ? tr('; isolated by {isolatedBy}', { isolatedBy: tr(e.isolatedBy) }) : ''), '', true, '', true],
             ['Isotopes', chemIsotopes(e.isotopes) || '–', '', true, '', true],
             [/^The name/.test(e.story || '') ? 'Name' : 'History', e.story ? tr(e.story) : '–', '', true, '', true], ['Uses', e.uses ? tr(e.uses) : '–', '', true, '', true]
         ].filter(Boolean);
@@ -18786,8 +18927,13 @@
     // an element's isotopes in words, as chem.js has them: '2 stable: ¹H, ²H'; 'None stable; longest-lived ⁹⁷Tc,
     // half-life 4.21×10⁶ years', or no half-life known; 'None stable; found in nature as ²⁰⁹Bi'
     function chemIsotopes(text) {
-        var m;
+        var m, also;
         if (!text) return text;
+        // '5 stable: ⁴⁰Ca, …; in nature also radioactive ⁴⁸Ca': the stable ones, then the radioactive found in nature
+        if ((also = /^(.*); in nature also radioactive (.*)$/.exec(text))) {
+            return trn(also[2].split(', ').length, '{stable}; in nature also radioactive {list}', '{stable}; in nature also radioactive {list}',
+                { stable: chemIsotopes(also[1]), list: also[2] });
+        }
         if ((m = /^(\d+) stable: (.*)$/.exec(text))) return trn(+m[1], '{n} stable: {list}', '{n} stable: {list}', { list: m[2] });
         if ((m = /^None stable; longest-lived (\S+), half-life (\S+) (\S+)$/.exec(text))) {
             return tr('None stable; longest-lived {isotope}, half-life {time}', { isotope: m[1], time: { years: tr('{t} years', { t: m[2] }), days: tr('{t} days', { t: m[2] }),
@@ -19736,16 +19882,38 @@
     // An open list in the room it has: under its box, or over it where there is more room there, as at the foot of
     // the cards; no taller than that room, so none of it is cut off by what scrolls round it
     function placeMenu(el, menu) {
-        var room = el.parentNode, at = el.getBoundingClientRect(), edge, below, above;
+        var room = el.parentNode, at = el.getBoundingClientRect(), edge, below, above, k = scale();
         menu.classList.remove('calc-up');
         menu.style.maxHeight = '';
+        sideMenu(el, menu);
         while (room && room !== document.body && !/(auto|scroll|hidden)/.test(getComputedStyle(room).overflowY)) room = room.parentNode;
         edge = room && room !== document.body ? room.getBoundingClientRect() : { top: 0, bottom: window.innerHeight };
-        below = Math.min(edge.bottom, window.innerHeight) - at.bottom - 8;
-        above = at.top - Math.max(edge.top, 0) - 8;
+        below = (Math.min(edge.bottom, window.innerHeight) - at.bottom) / k - 8; // the screen's pixels as the calculator's, scaled or not
+        above = (at.top - Math.max(edge.top, 0)) / k - 8;
         if (menu.offsetHeight <= below) return;
         if (above > below) menu.classList.add('calc-up');
         menu.style.maxHeight = Math.max(60, Math.min(parseFloat(getComputedStyle(menu).maxHeight) || 250, Math.max(above, below))) + 'px'; // no taller than it would be
+    }
+
+    // a list wider than the room at the right of its box, as in the popped-in panel, moved back in from the side it
+    // would go past, so nothing scrolls sideways for it; no wider than the room, though narrower than its box then.
+    // What the screen measures in its own pixels, as the calculator's: scaled, on the website, they differ
+    function sideMenu(el, menu) {
+        var room = el.parentNode, edge, at, shift = 0, k = scale(), wide;
+        menu.style.transform = '';
+        menu.style.maxWidth = '';
+        menu.style.minWidth = '';
+        while (room && room !== document.body && !/(auto|scroll|hidden)/.test(getComputedStyle(room).overflowX)) room = room.parentNode;
+        edge = room && room !== document.body ? room.getBoundingClientRect() : { left: 0, right: document.documentElement.clientWidth };
+        edge = { left: Math.max(edge.left, 0) + 8 * k, right: Math.min(edge.right, document.documentElement.clientWidth) - 8 * k };
+        wide = (edge.right - edge.left) / k;
+        if (wide < menu.offsetWidth) {
+            menu.style.maxWidth = menu.style.minWidth = Math.max(60, wide) + 'px'; // min-width too, which is its box's
+        }
+        at = menu.getBoundingClientRect();
+        if (at.right > edge.right) shift = edge.right - at.right;
+        if (at.left + shift < edge.left) shift = edge.left - at.left;
+        if (shift) menu.style.transform = 'translateX(' + Math.round(shift / k) + 'px)';
     }
 
     // the choice the arrow keys or the pointer are on; scroll: kept in sight
@@ -21200,7 +21368,13 @@
         if (e.key === 'popIn') return takePopIn(); // the detached window, open as a panel's own window pops in
         if (e.key === 'found') return takeFound(); // this window, open already, gone to from the search of another
         if (e.key === 'findOpen') return takeFindOpen(); // and on its Calculator tab, from the search popped out
-        if (e.key === 'lang') return location.reload(); // another language chosen on the options page: drawn again in it
+        if (e.key === 'lang') { // another language chosen on the options page: drawn again in it, the options left open
+            const over = document.querySelector('.options-over');
+            try {
+                if (over && !over.hidden) sessionStorage.setItem('optionsOpen', document.querySelector('.calc-opt-on')?.dataset.tab || 'options');
+            } catch (err) { }
+            return location.reload();
+        }
         if (e.newValue !== null && e.newValue === ownSaves[e.key]) return;
         if (e.key === 'graph') {
             ownSaves.graph = e.newValue;

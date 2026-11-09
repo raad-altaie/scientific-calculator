@@ -57,7 +57,7 @@ async function main() {
         const listing = await call(vars, 'GET', addon + '?lang=en-US&wrap_outgoing_links=false');
         console.log('The key is of', me.name || me.username + ';', 'the add-on', listing.slug);
         const seen = [];
-        for (const code of ['en-US', 'es-ES', 'fa', 'fr', 'ja', 'pt-BR', 'ru', 'tr', 'zh-CN']) {
+        for (const code of ['de', 'en-US', 'es-ES', 'fa', 'fr', 'ja', 'pt-BR', 'ru', 'tr', 'zh-CN']) {
             const one = await call(vars, 'GET', addon + '?lang=' + code + '&wrap_outgoing_links=false');
             const d = one.description;
             const text = d && typeof d === 'object' ? d[code] || Object.values(d)[0] : d;

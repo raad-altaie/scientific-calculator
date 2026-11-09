@@ -3556,10 +3556,10 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    margin: 8px 0 6px;
+    margin: 12px 0;
     color: #33443b;
-    font-size: 11px;
-    line-height: 13px;
+    font-size: 12.5px;
+    line-height: 15px;
     -webkit-user-select: none;
     user-select: none;
 }
@@ -3568,8 +3568,8 @@
 #calculator .calc-sv-results::after {
     content: '';
     flex: 1;
-    height: 1px;
-    background: #8eab9b;
+    height: 1.5px;
+    background: #4d5368; /* the dark purple of the calculator's frame, apart from the green of the card */
 }
 
 #calculator .calc-sv-results[hidden] {
@@ -3953,6 +3953,29 @@
     background: #46677f;
 }
 
+/* copied: a tick for a moment in place of its word, the formulas' tick; the word kept but unseen, so its size stays */
+#calculator .calc-sv-copy {
+    position: relative;
+}
+
+#calculator .calc-sv-copy.calc-done {
+    color: transparent;
+}
+
+#calculator .calc-sv-copy.calc-done::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: #fff;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 8.5l3 3 7-7'/%3E%3C/svg%3E") center / 14px no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 8.5l3 3 7-7'/%3E%3C/svg%3E") center / 14px no-repeat;
+}
+
+#calculator .calc-sv-copy-m.calc-done::after {
+    -webkit-mask-size: 12px;
+    mask-size: 12px;
+}
+
 /* Copy of a matrix of results, or of a text as a UUID, at the top right of its tile, smaller, over the line of its name */
 #calculator .calc-sv-matrix,
 #calculator .calc-sv-copies {
@@ -4067,7 +4090,7 @@
 
 /* Example: in the middle between the boxes over it and the line of Results under it */
 #calculator .calc-sv-example {
-    margin-top: 14.5px; /* as far as the line under it: Results' 8px, and half its 13px */
+    margin-top: 18.5px; /* as far as the line under it: Results' 12px, and half its 13px */
 }
 
 /* Reset: at the top of a card, at the right, small, once something is typed */
@@ -7472,9 +7495,10 @@
         padding-bottom: calc(10px + env(safe-area-inset-bottom));
     }
 
+    /* the box of the one chosen a little in from the rail's sides, as before */
     .calc-go .calc-go-item {
-        margin: 0;
-        padding: 7px 0 5px; /* all of the rail's width for the name */
+        margin: 0 3px;
+        padding: 7px 0 5px;
     }
 
     .calc-go .calc-go-find {
@@ -7489,7 +7513,8 @@
     /* a little smaller, and cut short with … where a name is still too long for the rail; its title has it whole */
     .calc-go .calc-go-item span {
         display: block;
-        max-width: 100%;
+        max-width: calc(100% + 6px); /* all of the rail's width for the name, past the box's 3px each side */
+        margin: 0 -3px;
         overflow: hidden;
         font-size: 9.5px;
         text-overflow: ellipsis;
@@ -8231,6 +8256,12 @@
     margin: 0.3cqw 0 0.25cqw;
 }
 
+/* each element's symbol in the table 1px lower, its number, name and mass where they are */
+#calculator.calc-chem-big .calc-pt-grid > .calc-pt-el[data-z] b {
+    position: relative;
+    top: 1px;
+}
+
 #calculator.calc-chem-big .calc-pt-el .calc-pt-z {
     display: block;
     position: absolute;
@@ -8248,6 +8279,11 @@
     line-height: 1.25;
     white-space: nowrap;
     text-overflow: ellipsis;
+}
+
+/* the name a little bigger than the mass, in every language: read at a glance */
+#calculator.calc-chem-big .calc-pt-el .calc-pt-name {
+    font-size: 0.8cqw;
 }
 
 #calculator.calc-chem-big .calc-pt-series b {
@@ -8295,6 +8331,8 @@
 }
 
 #calculator.calc-chem-big .calc-pt-gap .calc-pt-big b {
+    position: relative;
+    top: -3px; /* 3px higher, what is above and below it where it is */
     margin: 0.6cqw 0 0.2cqw;
 }
 
@@ -9622,6 +9660,12 @@
 
 .lang-rtl #calculator .calc-pt :is(.calc-pt-grid, .calc-pt-el, svg) {
     direction: ltr;
+}
+
+/* popped in, the colours' key in Arabic a line shorter than in English, on two lines, not three: a line's room more
+   under it, for the table to be where it is in English, as much of the details below it showing */
+.lang-rtl #calculator:not(.calc-chem-big) .calc-pt-legend {
+    margin-bottom: 19px;
 }
 
 .lang-rtl #calculator.calc-chem-big .calc-pt-head .calc-pt-big {

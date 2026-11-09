@@ -1074,7 +1074,7 @@ async function solver(page, at) {
     await page.fresh(at, {});
     await page.click('.calc-solve-btn');
     check(await open(page, '.calc-solve') && await page.calc('[].map.call(document.querySelectorAll(".calc-solve .calc-solve-tab"), function (t) { return t.dataset.tab; }).join()') === 'solve,calculus,geometry,chance,finance' &&
-        await page.calc('document.querySelectorAll(".calc-solve .calc-sv-item").length') === 10, t + 'its button opens it: five tabs, Finance after Probability, Geometry last, ten cards on the first');
+        await page.calc('document.querySelectorAll(".calc-solve .calc-sv-item").length') === 9, t + 'its button opens it: five tabs, Finance after Probability, Geometry last, nine cards on the first');
     await page.click('.calc-sv-item:nth-child(1) .calc-sv-row');
     check(await page.calc('document.activeElement === document.querySelector("' + on + ' input")'), t + 'a card opens its boxes, the first to type in');
     await page.type('x^2=2x+3');
@@ -1114,11 +1114,19 @@ async function solver(page, at) {
     await set(0, '(x-1)(x^2-x-1)');
     got = await page.calc(tiles);
     check(got.indexOf('Multiplied out=x3 – 2x2 + 1 | ') === 0 && got.indexOf('Exact=x1 = (1 – √5)/2, x3 = (1 + √5)/2') > 0, t + 'a polynomial typed, multiplied out and solved', got);
+
+    await page.click('.calc-solve .calc-solve-tab[data-tab="calculus"]');
+    await card('Derivative');
+    await set(0, 'x^3 sin(x)');
+    got = await page.calc(tiles);
+    check(got.indexOf('Derivative=f′(x) = 3x2 sin(x) + x3 cos(x) | Second derivative=f″(x) = 6x sin(x) + 6x2 cos(x) – x3 sin(x) | ') === 0, t + 'the derivative of x³ sin x written out, and the derivative of that', got);
     await card('Turning points');
     await set(0, 'x^3-3x');
     check(await page.calc(tiles) === 'Max x=-1 | Max y=2 | Min x=1 | Min y=-2', t + 'the turning points of x³ – 3x', await page.calc(tiles));
-
-    await page.click('.calc-solve .calc-solve-tab[data-tab="calculus"]');
+    await card('Curve shape');
+    await set(0, 'x^4-4x^3');
+    check(await page.calc(tiles) === 'Increasing=(3, ∞) | Decreasing=(–∞, 3) | Concave up=(–∞, 0) ∪ (2, ∞) | Concave down=(0, 2) | Inflection x=0 | Inflection y=0 | Inflection x=2 | Inflection y=-16',
+        t + 'where x⁴ – 4x³ rises, falls and bends, and its inflection points', await page.calc(tiles));
     await card('Integral');
     await set(0, 'x^2');
     await set(2, '3');
@@ -3887,7 +3895,7 @@ async function statsMore(page, at) {
     check(await page.until('!document.querySelector(".calc-peek").hidden && /^First quartile/.test(document.querySelector(".calc-peek").textContent)', 2500) &&
         await page.calc('document.querySelector(".calc-peek .calc-peek-value").textContent') === '4' &&
         await page.calc('document.querySelectorAll(".calc-peek .calc-peek-act").length') === 2, t + 'Q1 has its tip: what it is, its value, Insert and Copy');
-    await page.hover('.calc-stats-tile[data-k="q3"]'); // passed over on the way to the tip's buttons
+    await page.hover('.calc-stats-tile[data-k="max"]'); // beside Q1, passed over on the way to the tip's buttons
     await page.hover('.calc-peek .calc-peek-value');
     await sleep(500);
     check(!await page.calc('document.querySelector(".calc-peek").hidden') && /^First quartile/.test(await page.calc('document.querySelector(".calc-peek").textContent')),

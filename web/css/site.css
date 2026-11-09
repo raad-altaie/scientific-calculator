@@ -340,7 +340,7 @@ html:has(.options-open),
 }
 
 .home .options-pane .wrapper {
-    max-width: 800px;
+    max-width: 960px;
     padding: 2em 36px 0;
 }
 
