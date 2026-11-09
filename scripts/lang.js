@@ -26,13 +26,21 @@ const vm = require('vm');
 const ROOT = path.join(__dirname, '..');
 const SCRIPTS = ['js/main.js', 'js/tips.js', 'js/formulas.js', 'js/units.js', 'js/chem.js', 'js/physics.js', 'js/biology.js', 'js/options.js', 'js/popup.js', 'web/js/options.js', 'web/js/app.js'];
 const PAGES = ['popup.html', 'options.html', 'web/index.html'];
-const PROPS = new Set(['t', 'd', 'l', 'c', 'name', 'aria', 'head', 'note', 'title', 'text', 'small']); // of the data main.js translates as it shows it
+const PROPS = new Set(['t', 'd', 'l', 'c', 'name', 'aria', 'head', 'note', 'title', 'text', 'small', 'tip']); // of the data main.js translates as it shows it
 // what main.js translates as it shows it, by the value of a call it is: notify(text), svgText(x, y, text) …
 const ARGS = { tr: 0, setTitle: 0, notify: 0, svgText: 2, svgOf: 3, planeSvg: 1, graphDrawing: 0, curveDrawing: 0, drawnTile: 1, textRow: 0, bioWarn: 1 };
 const WORDS = /[A-Za-z]{2}/; // a text to translate has a word: x, r and θ are maths
 // lists of main.js and popup.js whose words they show with tr(): of each of their entries, these places, [id, 'Shown',
 // 'in a note']; values, of an object of them { root: 'Root' }
 const LISTS = { BY: [1, 2], STATS_FITS: [1], ZONE_CHOICES: [0], GRAPH_NAMES: 'values', PANELS: [0] };
+// the cities main.js adds to ZONE_CHOICES from the browser's zones, Kinshasa of Africa/Kinshasa, and shows as here's,
+// Here, Edmonton: of each zone node has, and the newer names some browsers have, Asia/Ho_Chi_Minh of Asia/Saigon
+const NEWER_ZONES = ['Ho Chi Minh', 'Nuuk', 'Asmara', 'Faroe', 'Kanton', 'Pohnpei', 'Chuuk', 'Atikokan'];
+const fold = (t) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); // A to Z as main.js sorts them
+function zoneCities() {
+    const ids = Intl.supportedValuesOf('timeZone').filter((id) => id.indexOf('/') >= 0 && !/^Etc\//.test(id));
+    return ids.map((id) => id.split('/').pop().replace(/_/g, ' ')).concat(NEWER_ZONES);
+}
 
 // ---------------- the code ---------------- //
 
@@ -216,7 +224,13 @@ function scriptTexts(src) {
         // a property of the data: t: 'Loan', choice: ['Monthly', 'Yearly'], and a formula's letters, v: [['r', 'r', 'radius']]
         if ((tok.id || tok.s !== undefined) && next && next.p === ':' && !(list[i - 1] && list[i - 1].p === '?')) {
             const key = tok.id || tok.s;
-            if (PROPS.has(key)) {
+            if (PROPS.has(key) && after && after.p === '[') { // a list of them, a table's heads: ['Year', by ? 'No.' : …]
+                for (let j = i + 3, depth = 0; list[j] && depth >= 0; j++) {
+                    if (j === i + 3 || (!depth && list[j - 1].p === ',')) leaves(list, j).forEach((text) => add(text));
+                    if (/^[([{]$/.test(list[j].p)) depth++;
+                    else if (/^[)\]}]$/.test(list[j].p)) depth--;
+                }
+            } else if (PROPS.has(key)) {
                 leaves(list, i + 2).forEach((text) => add(text));
             } else if (key === 'ph') { // what a box holds, its hint, a word of small letters as well: volts
                 leaves(list, i + 2).forEach((text) => add(text, WORDS.test(text)));
@@ -234,14 +248,19 @@ function scriptTexts(src) {
         }
         // a list of LISTS: BY = [['auto', 'Auto'], …], GRAPH_NAMES = { root: 'Root', … }
         if (tok.id && LISTS[tok.id] && next && next.p === '=' && after && /^[[{]$/.test(after.p)) {
-            const at = LISTS[tok.id];
+            const at = LISTS[tok.id], found = [];
             for (let j = i + 3, depth = 1, place = 0; list[j] && depth; j++) {
                 const t = list[j];
                 if (/^[[{]$/.test(t.p)) depth++, place = 0;
                 else if (/^[\]}]$/.test(t.p)) depth--;
                 else if (t.p === ',') place++;
-                else if (t.s !== undefined && (at === 'values' ? list[j - 1].p === ':' : depth === 2 && at.includes(place))) add(t.s, true);
+                else if (t.s !== undefined && (at === 'values' ? list[j - 1].p === ':' : depth === 2 && at.includes(place))) found.push(t.s);
             }
+            if (tok.id === 'ZONE_CHOICES') { // here and UTC, then its cities and the browser's, A to Z as one list
+                const cities = [...new Set(found.slice(2).concat(zoneCities()))].sort((a, b) => (fold(a) < fold(b) ? -1 : fold(a) > fold(b) ? 1 : 0));
+                found.splice(2, found.length, ...cities);
+            }
+            found.forEach((text) => add(text, true));
         }
         // a line of a menu: ['Copy', function () { … }]
         if (tok.p === '[' && next && next.s !== undefined && after && after.p === ',' && list[i + 3] && list[i + 3].id === 'function') add(next.s, true);

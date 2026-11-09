@@ -1,0 +1,50 @@
+{
+    "name": {
+        "message": "वैज्ञानिक कॅल्क्युलेटर",
+        "description": "The extension's name, in the browser and the store"
+    },
+    "description": {
+        "message": "संपूर्ण वैज्ञानिक कॅल्क्युलेटर: आलेख, समीकरणे, कॅल्क्युलस, सांख्यिकी, आव्यूह, एकके, वित्त, रसायनशास्त्र, भौतिकशास्त्र, जीवशास्त्र.",
+        "description": "What the extension is, in the browser and the store: up to 132 characters"
+    },
+    "actionTitle": {
+        "message": "कॅल्क्युलेटर",
+        "description": "The tip of the toolbar icon"
+    },
+    "openPopup": {
+        "message": "वैज्ञानिक कॅल्क्युलेटर उघडा",
+        "description": "The keyboard shortcut's name, on the browser's page of shortcuts"
+    },
+    "menuCalculate": {
+        "message": "“%s” ची गणना करा",
+        "description": "Right-click menu on selected text; %s is the selection"
+    },
+    "menuSite": {
+        "message": "या साइटवरील तात्काळ उत्तरे",
+        "description": "Right-click menu checkbox: the instant answers on this website"
+    },
+    "menuFixed": {
+        "message": "स्थिर मोड",
+        "description": "Menu item: opens the calculator in Fixed Mode"
+    },
+    "menuDetached": {
+        "message": "स्वतंत्र विंडो मोड",
+        "description": "Menu item: opens the calculator in Detached Mode"
+    },
+    "menuAdvanced": {
+        "message": "प्रगत मोड",
+        "description": "Menu item: opens the calculator in Advanced Mode"
+    },
+    "menuEnable": {
+        "message": "या साइटवर तात्काळ उत्तरे चालू करा",
+        "description": "Toolbar icon menu: turns the instant answers on for this website"
+    },
+    "menuDisable": {
+        "message": "या साइटवर तात्काळ उत्तरे बंद करा",
+        "description": "Toolbar icon menu: turns the instant answers off for this website"
+    },
+    "menuOptions": {
+        "message": "पर्याय",
+        "description": "Right-click menu: opens the options page"
+    }
+}

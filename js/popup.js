@@ -381,6 +381,14 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !optionsOver.hidden) showOptionsOver(false);
 });
 
+// the page drawn again after another language was chosen: the options it was left on are shown again
+try {
+    const reopen = sessionStorage.getItem('optionsOpen');
+
+    sessionStorage.removeItem('optionsOpen');
+    if (reopen && toolWindow) openOptionsOver(reopen);
+} catch (e) { }
+
 // the ? and the FIX mark of the calculator open the options page; Options and Guide of the rail of a tool
 // popped out open it on that tab, its mark after the # (options.js), open already or as it opens; over the
 // window, in a tool's own window. On its Calculator tab, the ? and the FIX mark as well, as the website's

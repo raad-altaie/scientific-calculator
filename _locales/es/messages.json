@@ -14,5 +14,37 @@
     "openPopup": {
         "message": "Abrir Calculadora científica",
         "description": "The keyboard shortcut's name, on the browser's page of shortcuts"
+    },
+    "menuCalculate": {
+        "message": "Calcular «%s»",
+        "description": "Right-click menu on selected text; %s is the selection"
+    },
+    "menuSite": {
+        "message": "Respuestas instantáneas en este sitio",
+        "description": "Right-click menu checkbox: the instant answers on this website"
+    },
+    "menuFixed": {
+        "message": "Modo fijo",
+        "description": "Menu item: opens the calculator in Fixed Mode"
+    },
+    "menuDetached": {
+        "message": "Modo independiente",
+        "description": "Menu item: opens the calculator in Detached Mode"
+    },
+    "menuAdvanced": {
+        "message": "Modo avanzado",
+        "description": "Menu item: opens the calculator in Advanced Mode"
+    },
+    "menuEnable": {
+        "message": "Activar las respuestas instantáneas en este sitio",
+        "description": "Toolbar icon menu: turns the instant answers on for this website"
+    },
+    "menuDisable": {
+        "message": "Desactivar las respuestas instantáneas en este sitio",
+        "description": "Toolbar icon menu: turns the instant answers off for this website"
+    },
+    "menuOptions": {
+        "message": "Opciones",
+        "description": "Right-click menu: opens the options page"
     }
 }

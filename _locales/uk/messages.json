@@ -1,0 +1,50 @@
+{
+    "name": {
+        "message": "Науковий калькулятор",
+        "description": "The extension's name, in the browser and the store"
+    },
+    "description": {
+        "message": "Повноцінний науковий калькулятор: графіки, рівняння, матаналіз, статистика, матриці, одиниці, фінанси, хімія, фізика, біологія.",
+        "description": "What the extension is, in the browser and the store: up to 132 characters"
+    },
+    "actionTitle": {
+        "message": "Калькулятор",
+        "description": "The tip of the toolbar icon"
+    },
+    "openPopup": {
+        "message": "Відкрити науковий калькулятор",
+        "description": "The keyboard shortcut's name, on the browser's page of shortcuts"
+    },
+    "menuCalculate": {
+        "message": "Обчислити «%s»",
+        "description": "Right-click menu on selected text; %s is the selection"
+    },
+    "menuSite": {
+        "message": "Миттєві відповіді на цьому сайті",
+        "description": "Right-click menu checkbox: the instant answers on this website"
+    },
+    "menuFixed": {
+        "message": "Фіксований режим",
+        "description": "Menu item: opens the calculator in Fixed Mode"
+    },
+    "menuDetached": {
+        "message": "Окреме вікно",
+        "description": "Menu item: opens the calculator in Detached Mode"
+    },
+    "menuAdvanced": {
+        "message": "Розширений режим",
+        "description": "Menu item: opens the calculator in Advanced Mode"
+    },
+    "menuEnable": {
+        "message": "Увімкнути миттєві відповіді на цьому сайті",
+        "description": "Toolbar icon menu: turns the instant answers on for this website"
+    },
+    "menuDisable": {
+        "message": "Вимкнути миттєві відповіді на цьому сайті",
+        "description": "Toolbar icon menu: turns the instant answers off for this website"
+    },
+    "menuOptions": {
+        "message": "Параметри",
+        "description": "Right-click menu: opens the options page"
+    }
+}

@@ -1,0 +1,50 @@
+{
+    "name": {
+        "message": "سائنسی کیلکولیٹر",
+        "description": "The extension's name, in the browser and the store"
+    },
+    "description": {
+        "message": "ایک مکمل سائنسی کیلکولیٹر: گراف، مساوات حل کرنے والا، کیلکولس، شماریات، میٹرکس، اکائیاں، مالیات، کیمیا، طبیعیات، حیاتیات۔",
+        "description": "What the extension is, in the browser and the store: up to 132 characters"
+    },
+    "actionTitle": {
+        "message": "کیلکولیٹر",
+        "description": "The tip of the toolbar icon"
+    },
+    "openPopup": {
+        "message": "سائنسی کیلکولیٹر کھولیں",
+        "description": "The keyboard shortcut's name, on the browser's page of shortcuts"
+    },
+    "menuCalculate": {
+        "message": "“%s” کا حساب لگائیں",
+        "description": "Right-click menu on selected text; %s is the selection"
+    },
+    "menuSite": {
+        "message": "اس سائٹ پر فوری جوابات",
+        "description": "Right-click menu checkbox: the instant answers on this website"
+    },
+    "menuFixed": {
+        "message": "مقررہ موڈ",
+        "description": "Menu item: opens the calculator in Fixed Mode"
+    },
+    "menuDetached": {
+        "message": "الگ ونڈو موڈ",
+        "description": "Menu item: opens the calculator in Detached Mode"
+    },
+    "menuAdvanced": {
+        "message": "ایڈوانسڈ موڈ",
+        "description": "Menu item: opens the calculator in Advanced Mode"
+    },
+    "menuEnable": {
+        "message": "اس سائٹ پر فوری جوابات آن کریں",
+        "description": "Toolbar icon menu: turns the instant answers on for this website"
+    },
+    "menuDisable": {
+        "message": "اس سائٹ پر فوری جوابات بند کریں",
+        "description": "Toolbar icon menu: turns the instant answers off for this website"
+    },
+    "menuOptions": {
+        "message": "اختیارات",
+        "description": "Right-click menu: opens the options page"
+    }
+}

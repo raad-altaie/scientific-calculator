@@ -17,7 +17,7 @@
 (function (root) {
     'use strict';
 
-    var LANGS = { en: 'English', ar: 'العربية' }, // the languages it has, each by its own name, in the order of the options' list
+    var LANGS = { en: 'English', ar: 'العربية', "zh-CN": '简体中文', hi: 'हिन्दी', es: 'Español', fr: 'Français', bn: 'বাংলা', pt: 'Português', ru: 'Русский', ur: 'اردو', id: 'Bahasa Indonesia', ja: '日本語' }, // the languages it has, each by its own name, in the order of the options' list
         RTL = /^(ar|fa|he|ur)$/, // written right to left: the class lang-rtl, the layout as it is
         tables = {}, // the words of each language loaded, by name; en's the English of each
         names = null, // the English → its name, made from en's words as first asked

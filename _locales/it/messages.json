@@ -1,0 +1,50 @@
+{
+    "name": {
+        "message": "Calcolatrice scientifica",
+        "description": "The extension's name, in the browser and the store"
+    },
+    "description": {
+        "message": "Una calcolatrice scientifica completa: grafici, risolutore, analisi, statistica, matrici, unità, finanza, chimica, fisica, biologia.",
+        "description": "What the extension is, in the browser and the store: up to 132 characters"
+    },
+    "actionTitle": {
+        "message": "Calcolatrice",
+        "description": "The tip of the toolbar icon"
+    },
+    "openPopup": {
+        "message": "Apri Calcolatrice scientifica",
+        "description": "The keyboard shortcut's name, on the browser's page of shortcuts"
+    },
+    "menuCalculate": {
+        "message": "Calcola “%s”",
+        "description": "Right-click menu on selected text; %s is the selection"
+    },
+    "menuSite": {
+        "message": "Risposte istantanee su questo sito",
+        "description": "Right-click menu checkbox: the instant answers on this website"
+    },
+    "menuFixed": {
+        "message": "Modalità fissa",
+        "description": "Menu item: opens the calculator in Fixed Mode"
+    },
+    "menuDetached": {
+        "message": "Modalità separata",
+        "description": "Menu item: opens the calculator in Detached Mode"
+    },
+    "menuAdvanced": {
+        "message": "Modalità avanzata",
+        "description": "Menu item: opens the calculator in Advanced Mode"
+    },
+    "menuEnable": {
+        "message": "Attiva le risposte istantanee su questo sito",
+        "description": "Toolbar icon menu: turns the instant answers on for this website"
+    },
+    "menuDisable": {
+        "message": "Disattiva le risposte istantanee su questo sito",
+        "description": "Toolbar icon menu: turns the instant answers off for this website"
+    },
+    "menuOptions": {
+        "message": "Opzioni",
+        "description": "Right-click menu: opens the options page"
+    }
+}

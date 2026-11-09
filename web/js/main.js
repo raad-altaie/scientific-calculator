@@ -3705,7 +3705,7 @@
 
     function drawGraph() {
         var w = graphPlot.clientWidth, h = graphPlot.clientHeight, r = Math.max(graphSharp, (window.devicePixelRatio || 1) * scale()),
-            ctx = graphDrawTo || graphCanvas.getContext('2d'), v, key;
+            ctx = graphDrawTo || graphCanvas.getContext('2d', { willReadFrequently: true }), v, key;
         if (!graph.classList.contains('calc-open') || !w || !h) return;
         graphWidth = w;
         v = viewNow();
@@ -6387,7 +6387,7 @@
 
     // how many characters a column of values has room for, measured in the font of the table
     function tableRoom() {
-        var cell = graphList.querySelector('.calc-graph-names > span:nth-child(2)'), ctx = graphCanvas.getContext('2d'), wide;
+        var cell = graphList.querySelector('.calc-graph-names > span:nth-child(2)'), ctx = graphCanvas.getContext('2d', { willReadFrequently: true }), wide;
         if (!cell) return 13;
         ctx.font = '13px Play, sans-serif';
         wide = ctx.measureText('-0.123456789').width / 12;
@@ -6898,11 +6898,11 @@
         if (fxTab === 'constants') return null;
         return {
             t: it.t,
-            d: it.d + '<div class="calc-tip-more">' + it.v.map(function (v) {
-                return '<i>' + v[1] + '</i> ' + v[2];
-            }).join(', ') + '<br>For example ' + it.v.map(function (v, i) {
+            d: tr(it.d) + '<div class="calc-tip-more">' + it.v.map(function (v) {
+                return '<i>' + v[1] + '</i> ' + tr(v[2]);
+            }).join(tr(', ')) + '<br>' + tr('For example {values} gives {r}.', { values: it.v.map(function (v, i) {
                 return '<i>' + v[1] + '</i> = ' + it.ex[0][i] + (it.deg && /angle/.test(v[2]) ? '°' : '');
-            }).join(', ') + ' gives ' + +it.ex[1].toPrecision(10) + '.</div>',
+            }).join(tr(', ')), r: +it.ex[1].toPrecision(10) }) + '</div>',
             k: ''
         };
     }
@@ -7692,7 +7692,7 @@
 
     function runOde(n, raw) {
         var r = raw.f ? CalcMaths.ode(raw.f, engine.comma, deg, n.x0, n.y0, n.x) : { y: NaN, slope: NaN },
-            why = { 'function': 'Not a function of x and y yet: x + y, x y, y^2.', letters: 'Only x and y have values here: write the other letters as numbers.' }[r.error];
+            why = { 'function': 'Not a function of x and y yet: x + y, x y, y^2.', letters: tr('Only x and y have values here: write the other letters as numbers.') }[r.error];
         return {
             rows: [{ l: 'y(x)', v: r.error ? NaN : r.y }, { l: 'y′(x)', v: r.error ? NaN : r.slope }].concat(r.path && isFinite(r.y) ? drawnTile(odeDrawing(r.path)) : []),
             bad: why ? ['f'] : [], warn: !!why || (raw.f && !r.error && isNaN(r.y) && [n.x0, n.y0, n.x].every(isFinite)),
@@ -7732,9 +7732,9 @@
         var none = [{ l: 'x', v: NaN }], r = raw.p ? CalcMaths.polynomial(raw.p, engine.comma, deg) : null, out, why;
         if (!r) return { rows: none };
         why = {
-            polynomial: 'Not a polynomial of x yet: x^5 - 3x + 1, (x - 1)(x + 2)^2, or its coefficients from the highest power, 1, 0, -2, 1.',
-            letters: 'Only x has a value here: write the other letters as numbers.',
-            power: 'Up to the power 30.'
+            polynomial: tr('Not a polynomial of x yet: x^5 - 3x + 1, (x - 1)(x + 2)^2, or its coefficients from the highest power, 1, 0, -2, 1.'),
+            letters: tr('Only x has a value here: write the other letters as numbers.'),
+            power: tr('Up to the power 30.')
         }[r.error];
         if (why) return { rows: none, bad: ['p'], warn: true, note: why };
         if (r.c.length < 2) return { rows: none, note: 'No x left: its coefficients of x are all 0.', warn: true };
@@ -7852,8 +7852,8 @@
         r = CalcMaths.taylor(raw.f, engine.comma, deg, n.a, n.n);
         why = {
             'function': 'Not a function of x yet: sin(x), e^x, 1/(1 - x).',
-            letters: 'Only x has a value here: write the other letters as numbers.',
-            none: 'No series about a: it is not smooth there, as sqrt(x) at 0, or has no complex values, as abs(x) or floor(x).'
+            letters: tr('Only x has a value here: write the other letters as numbers.'),
+            none: tr('No series about a: it is not smooth there, as sqrt(x) at 0, or has no complex values, as abs(x) or floor(x).')
         }[r.error];
         if (why) return { rows: none, bad: r.error === 'none' ? [] : ['f'], warn: true, note: why };
         if (!r.coefs) return { rows: none, note: isFinite(n.a) ? 'The power is a whole number from 0 to 12.' : '', warn: isFinite(n.a) };
@@ -7881,7 +7881,7 @@
     function runArc(n, raw) {
         var r = raw.f ? CalcMaths.arcLength(raw.f, engine.comma, deg, n.a, n.b) : { length: NaN }, why = {
             'function': 'Not a function of x yet: x^2, sin(x).',
-            letters: 'Only x has a value here: write the other letters as numbers.'
+            letters: tr('Only x has a value here: write the other letters as numbers.')
         }[r.error];
         if (why) return { rows: [{ l: 'Length', v: NaN }], bad: ['f'], warn: true, note: why };
         return { rows: [{ l: 'Length', v: r.length }].concat(isFinite(r.length) ? drawnTile(arcDrawing(raw.f, n.a, n.b)) : []), warn: raw.f && isNaN(r.length) && isFinite(n.a) && isFinite(n.b),
@@ -7928,9 +7928,9 @@
     function runSeries(n, raw, product) {
         var r = raw.f ? CalcMaths.series(raw.f, engine.comma, deg, n.a, n.b, product) : { value: NaN }, name = product ? 'Π' : 'Σ', why = {
             'function': 'Not a function yet: write n^2 for n², 1/k! for 1 ÷ k!.',
-            letters: 'Of one letter: n, k, i or j, or x.',
-            ends: 'From and To are whole numbers, From the smaller; To may be inf.',
-            many: 'Up to a million terms, or To inf.'
+            letters: tr('Of one letter: n, k, i or j, or x.'),
+            ends: tr('From and To are whole numbers, From the smaller; To may be inf.'),
+            many: tr('Up to a million terms, or To inf.')
         }[r.error], endless = n.b === Infinity && raw.f && !r.error;
         if (endless && !isFinite(r.value)) {
             why = isNaN(r.value) ? 'No value: it does not settle, as its terms go on back and forth or shrink too slowly to tell.' : 'It grows without end.';
@@ -8165,12 +8165,12 @@
             b = start ? (b + t.pmt) * (1 + i) : b * (1 + i) + t.pmt;
             pts.push([k, b]);
         }
-        return yearsDrawing('The balance, period by period', pts);
+        return yearsDrawing(tr('The balance, period by period'), pts);
     }
 
     // ---------------- money ---------------- //
 
-    var SIGNS = 'Money received is above 0, money paid below 0: a loan of 200000 is PV = 200000, its PMT below 0.';
+    function signs() { return tr('Money received is above 0, money paid below 0: a loan of 200000 is PV = 200000, its PMT below 0.'); }
 
     // Time value of money: the one of N, I/Y, PV, PMT and FV left empty, its tile first, then all
     // the money paid and the interest, paid or earned; or what is wrong, said
@@ -8180,15 +8180,15 @@
         if (keys.some(function (k) { return raw[k] && isNaN(n[k]); }) || (raw.py && isNaN(n.py))) return { rows: none }; // its box is marked
         if (empty.length !== 1) {
             return { rows: none, warn: !empty.length,
-                note: (empty.length ? 'Leave only one of N, I/Y, PV, PMT and FV empty, the one to work out. ' : 'Leave one of N, I/Y, PV, PMT and FV empty, the one to work out. ') + SIGNS };
+                note: (empty.length ? tr('Leave only one of N, I/Y, PV, PMT and FV empty, the one to work out. ') : tr('Leave one of N, I/Y, PV, PMT and FV empty, the one to work out. ')) + signs() };
         }
         r = CalcMaths.tvm({ n: n.n, iy: n.iy, pv: n.pv, pmt: n.pmt, fv: n.fv, py: n.py, start: raw.due === '1' });
         why = {
-            py: 'P/Y, the payments a year, is above 0.',
-            rate: 'The rate a period, I/Y ÷ P/Y, is above –100%.',
-            n: 'N, the payments, is above 0.',
-            none: (empty[0] === 'n' ? tr('No {names} makes the money balance: the payments never bring PV to FV at this rate. {signs}', { names: names[empty[0]], signs: SIGNS }) : tr('No {names} makes the money balance: money received and money paid need opposite signs. {signs}', { names: names[empty[0]], signs: SIGNS })),
-            large: 'Too large a number to show.'
+            py: tr('P/Y, the payments a year, is above 0.'),
+            rate: tr('The rate a period, I/Y ÷ P/Y, is above –100%.'),
+            n: tr('N, the payments, is above 0.'),
+            none: (empty[0] === 'n' ? tr('No {names} makes the money balance: the payments never bring PV to FV at this rate. {signs}', { names: names[empty[0]], signs: signs() }) : tr('No {names} makes the money balance: money received and money paid need opposite signs. {signs}', { names: names[empty[0]], signs: signs() })),
+            large: tr('Too large a number to show.')
         }[r.error];
         if (why) return { rows: none, warn: true, note: why };
         part = (empty[0] === 'n' ? r.n : n.n) % 1;
@@ -8196,7 +8196,7 @@
             rows: [{ l: names[r.find], v: r.value, places: /^(pv|pmt|fv)$/.test(r.find) ? 2 : undefined, dp: 2 }, { l: 'Total paid', v: r.paid, places: 2 },
                 { l: r.net < 0 ? 'Interest paid' : r.net > 0 ? 'Interest earned' : 'Interest', v: CalcMaths.round(Math.abs(r.net)), places: 2 }]
                 .concat(drawnTile(tvmDrawing(n, r.find, r.value, raw.due === '1'))),
-            note: SIGNS + (part > 1e-9 && part < 1 - 1e-9 ? ' N is not a whole number of payments: a last, smaller one makes up the part.' : '')
+            note: signs() + (part > 1e-9 && part < 1 - 1e-9 ? tr(' N is not a whole number of payments: a last, smaller one makes up the part.') : '')
         };
     }
 
@@ -8209,11 +8209,11 @@
         if (flows.length > 1000) return { rows: none, bad: ['cf'], warn: true, note: 'Up to 1000 cash flows.' };
         r = CalcMaths.irr(flows);
         back = CalcMaths.payback(flows);
-        if (isFinite(n.r) && !(n.r > -100)) notes.push('The rate is above –100%.');
-        if (!r.changes) notes.push('No IRR: the flows never change sign, so no rate makes their NPV 0.');
-        else if (isNaN(r.irr)) notes.push('No IRR found from –99.99% to 1000000%.');
+        if (isFinite(n.r) && !(n.r > -100)) notes.push(tr('The rate is above –100%.'));
+        if (!r.changes) notes.push(tr('No IRR: the flows never change sign, so no rate makes their NPV 0.'));
+        else if (isNaN(r.irr)) notes.push(tr('No IRR found from –99.99% to 1000000%.'));
         else if (r.changes > 1) notes.push(tr('The flows change sign {changes} times, so there may be more than one IRR{v}', { changes: r.changes, v: (r.others.length ? (r.others.length > 1 ? tr(': this one is the nearest 10%, and {others} are others.', { others: r.others.map(function (x) { return local(String(x)) + '%'; }).join(', ') }) : tr(': this one is the nearest 10%, and {others} is another.', { others: r.others.map(function (x) { return local(String(x)) + '%'; }).join(', ') })) : tr('; this one is the nearest 10%.')) }));
-        if (isNaN(back) && flows[0] < 0) notes.push('They never pay back what went out.');
+        if (isNaN(back) && flows[0] < 0) notes.push(tr('They never pay back what went out.'));
         return {
             rows: [{ l: 'NPV', v: CalcMaths.npv(n.r, flows), places: 2 }, { l: 'IRR %', v: r.irr, dp: 2 }, { l: 'Payback', v: back, dp: 2 }].concat(flows.length <= 200 ? drawnTile(graphDrawing('Each cash flow, what went out red',
                 -0.7, flows.length - 0.3, { bars: flows.map(function (v, t) { return [t, v, v < 0]; }) })) : []),
@@ -8231,12 +8231,12 @@
         }
         r = CalcMaths.amortize(n.loan, n.rate, n.years, n.py, SCHEDULE_ROWS);
         why = {
-            loan: 'The loan is above 0.',
-            years: 'Years are above 0.',
-            py: 'Payments a year are above 0.',
-            rate: 'The rate a period, the rate a year ÷ payments a year, is above –100%.',
-            whole: 'Years × payments a year is a whole number of payments.',
-            long: 'Up to 100000 payments.'
+            loan: tr('The loan is above 0.'),
+            years: tr('Years are above 0.'),
+            py: tr('Payments a year are above 0.'),
+            rate: tr('The rate a period, the rate a year ÷ payments a year, is above –100%.'),
+            whole: tr('Years × payments a year is a whole number of payments.'),
+            long: tr('Up to 100000 payments.')
         }[r.error];
         if (why) return { rows: none, warn: true, note: why };
         return {
@@ -8252,13 +8252,13 @@
         if (!raw.start || !raw.rate || !raw.years || [n.start, n.rate, n.years, n.m, n.add].some(isNaN)) return { rows: none };
         r = CalcMaths.savings(n.start, n.rate, n.years, n.m, n.add, raw.due === '1', SCHEDULE_ROWS);
         why = {
-            money: 'Start and Add are 0 or more.',
-            years: 'Years are above 0.',
-            m: 'm, the periods a year, is above 0.',
-            add: 'Nothing is added with interest all the time: m is a number for that.',
-            rate: 'The rate a period, the rate a year ÷ m, is above –100%.',
-            whole: 'Years × m is a whole number of periods.',
-            long: 'Up to 100000 periods.'
+            money: tr('Start and Add are 0 or more.'),
+            years: tr('Years are above 0.'),
+            m: tr('m, the periods a year, is above 0.'),
+            add: tr('Nothing is added with interest all the time: m is a number for that.'),
+            rate: tr('The rate a period, the rate a year ÷ m, is above –100%.'),
+            whole: tr('Years × m is a whole number of periods.'),
+            long: tr('Up to 100000 periods.')
         }[r.error];
         if (why) return { rows: none, warn: true, note: why };
         return {
@@ -8280,13 +8280,13 @@
         if (!raw.price || !raw.rate || [n.price, n.down, n.rate, n.years, n.tax, n.ins, n.pmi, n.hoa].some(isNaN)) return { rows: none };
         r = CalcMaths.mortgage(n.price, n.down, n.rate, n.years, n.tax, n.ins, n.pmi, n.hoa, SCHEDULE_ROWS);
         why = {
-            price: 'The price is above 0.',
-            down: 'Down is 0% or more, and below 100%, so there is a loan.',
-            costs: 'Tax, insurance, PMI and HOA are 0 or more.',
-            years: 'Years are above 0.',
-            rate: 'The rate a month, the rate a year ÷ 12, is above –100%.',
-            whole: 'Years × 12 is a whole number of payments.',
-            long: 'Up to 100000 payments.'
+            price: tr('The price is above 0.'),
+            down: tr('Down is 0% or more, and below 100%, so there is a loan.'),
+            costs: tr('Tax, insurance, PMI and HOA are 0 or more.'),
+            years: tr('Years are above 0.'),
+            rate: tr('The rate a month, the rate a year ÷ 12, is above –100%.'),
+            whole: tr('Years × 12 is a whole number of payments.'),
+            long: tr('Up to 100000 payments.')
         }[r.error];
         if (why) return { rows: none, warn: true, note: why };
         return {
@@ -8306,19 +8306,19 @@
         if (!raw.balance || !raw.apr || (!raw.pay && !raw.months) || isNaN(n.balance) || isNaN(n.apr) || (raw.pay && isNaN(n.pay)) || (raw.months && isNaN(n.months))) return { rows: none };
         r = CalcMaths.cardPayoff(n.balance, n.apr, raw.pay ? n.pay : NaN, raw.months ? n.months : NaN, SCHEDULE_ROWS);
         why = {
-            balance: 'The balance is above 0.',
-            rate: 'APR is 0% or more.',
-            payment: 'The payment is above 0.',
-            months: 'Months are a whole number above 0.',
+            balance: tr('The balance is above 0.'),
+            rate: tr('APR is 0% or more.'),
+            payment: tr('The payment is above 0.'),
+            months: tr('Months are a whole number above 0.'),
             small: tr('The payment never pays it off: it is no more than the first month\'s interest, {balance}.', { balance: cents(n.balance * n.apr / 1200) }),
-            long: 'Up to 12000 months.'
+            long: tr('Up to 12000 months.')
         }[r.error];
         if (why) return { rows: none, warn: true, note: why };
         y = Math.floor(r.months / 12);
         return {
             rows: (find === 'months' ? [{ l: 'Months', v: r.months }] : [{ l: 'Payment', v: r.payment, places: 2 }]).concat([{ l: 'Total interest', v: r.interest, places: 2 },
                 { l: 'Total paid', v: r.paid, places: 2 }, { l: 'Last payment', v: r.last, places: 2 }, { l: 'Each year', m: r.byYear, head: ['Year', 'Interest', 'Principal', 'Balance'], places: 2 }]),
-            note: tr('Paid off in {v}{v2}, with nothing more spent on it; interest each month of APR ÷ 12.{v3}', { v: (y ? y + (y === 1 ? tr(' year') : tr(' years')) + (r.months % 12 ? tr(' and ') : '') : ''), v2: (r.months % 12 ? r.months % 12 + (r.months % 12 === 1 ? tr(' month') : tr(' months')) : ''), v3: (r.more ? tr(' The table has the first {rows} years.', { rows: SCHEDULE_ROWS }) : '') })
+            note: tr('Paid off in {v}{v2}, with nothing more spent on it; interest each month of APR ÷ 12.{v3}', { v: (y ? trn(y, '{n} year', '{n} years') + (r.months % 12 ? tr(' and ') : '') : ''), v2: (r.months % 12 ? trn(r.months % 12, '{n} month', '{n} months') : ''), v3: (r.more ? tr(' The table has the first {rows} years.', { rows: SCHEDULE_ROWS }) : '') })
         };
     }
 
@@ -8328,9 +8328,9 @@
         if (!raw.age || !raw.ret || [n.age, n.retire, n.until, n.saved, n.add, n.ret, n.infl].some(isNaN) || (drawn && isNaN(n.draw))) return { rows: none };
         r = CalcMaths.retirement(n.age, n.retire, n.until, n.saved, n.add, n.ret, n.infl, drawn ? n.draw : NaN);
         why = {
-            age: 'The ages in order: Age, then Retire at, then To age above it, up to 150.',
-            money: 'Saved, Add and Draw are 0 or more.',
-            rate: 'Return and inflation are above –100%.'
+            age: tr('The ages in order: Age, then Retire at, then To age above it, up to 150.'),
+            money: tr('Saved, Add and Draw are 0 or more.'),
+            rate: tr('Return and inflation are above –100%.')
         }[r.error];
         if (why) return { rows: none, warn: true, note: why };
         f = through(r.path);
@@ -8340,7 +8340,7 @@
                 { l: 'Can draw a month', v: r.can, places: 2 }].concat(drawn ? [r.lasts === Infinity ? { l: 'Lasts to age', text: '∞' } : r.lasts === 150 ? { l: 'Lasts to age', text: '150+' } : { l: 'Lasts to age', v: r.lasts, dp: 1 },
                     { l: tr('Left at {until}', { until: local(String(n.until)) }), v: r.left, places: 2 }] : [],
                 r.real > 0 && end > n.age ? drawnTile(graphDrawing('The savings at each age, in money of today', n.age, end, { fs: [f], fill: [f, null, n.age, end],
-                    marks: n.retire > n.age ? [[n.retire, 'Retire']] : [] })) : []),
+                    marks: n.retire > n.age ? [[n.retire, tr('Retire')]] : [] })) : []),
             note: tr('Add goes in at the end of each month until retiring; then a draw at the start of each month, growing with prices. Can draw a month is the most, in money of today, for it to last to {until}.{v}', { until: local(String(n.until)), v: (!drawn ? '' : r.lasts === Infinity ? tr(' A draw of {draw} never uses it up: what it earns over prices is more.', { draw: cents(n.draw) }) :
                     r.lasts < n.until ? tr(' A draw of {draw} uses it up before {until}.', { draw: cents(n.draw), until: local(String(n.until)) }) : '') })
         };
@@ -8352,15 +8352,15 @@
         if (!raw.pay || [n.pay, n.hours, n.days, n.weeks, n.ot, n.otx].some(isNaN)) return { rows: none };
         r = CalcMaths.salary(n.pay, +raw.per, n.hours, n.days, n.weeks, n.ot, n.otx);
         why = {
-            pay: 'The pay is 0 or more.',
-            ot: 'Overtime and its times are 0 or more.',
-            hours: 'Hours a week are above 0, and no more than 168 with the overtime.',
-            days: 'Days a week are above 0, and no more than 7.',
-            weeks: 'Weeks a year are above 0, and no more than 53.'
+            pay: tr('The pay is 0 or more.'),
+            ot: tr('Overtime and its times are 0 or more.'),
+            hours: tr('Hours a week are above 0, and no more than 168 with the overtime.'),
+            days: tr('Days a week are above 0, and no more than 7.'),
+            weeks: tr('Weeks a year are above 0, and no more than 53.')
         }[r.error];
         if (why) return { rows: none, warn: true, note: why };
         return {
-            rows: [['Hourly', r.hourly], ['Daily', r.daily], ['Weekly', r.weekly], ['Every 2 weeks', r.fortnight], ['Twice a month', r.half], ['Monthly', r.monthly], ['Yearly', r.yearly]]
+            rows: [[tr('Hourly'), r.hourly], [tr('Daily'), r.daily], [tr('Weekly'), r.weekly], [tr('Every 2 weeks'), r.fortnight], [tr('Twice a month'), r.half], ['Monthly', r.monthly], ['Yearly', r.yearly]]
                 .map(function (p) { return { l: p[0], v: p[1], places: 2 }; }),
             note: tr('{hours} hours over {days} days a week, {weeks} weeks a year{v}', { hours: local(String(n.hours)), days: local(String(n.days)), weeks: local(String(n.weeks)), v: (n.ot ? tr('; each but Hourly with {ot} hours of overtime a week, at {otx} × the hourly.', { ot: local(String(n.ot)), otx: local(String(n.otx)) }) : '.') })
         };
@@ -8371,7 +8371,7 @@
         var none = [{ l: 'Tip', v: NaN }, { l: 'Total', v: NaN }, { l: 'Each', v: NaN }], r, why, way = +raw.round;
         if (!raw.bill || [n.bill, n.pct, n.people].some(isNaN)) return { rows: none };
         r = CalcMaths.tip(n.bill, n.pct, n.people, way);
-        why = { bill: 'The bill is 0 or more.', tip: 'The tip is 0% or more.', people: 'People are a whole number from 1 to 10000.' }[r.error];
+        why = { bill: tr('The bill is 0 or more.'), tip: tr('The tip is 0% or more.'), people: tr('People are a whole number from 1 to 10000.') }[r.error];
         if (why) return { rows: none, warn: true, note: why };
         return {
             rows: [{ l: 'Tip', v: r.tip, places: 2 }, { l: 'Total', v: r.total, places: 2 }].concat(n.people > 1 ? [{ l: 'Each', v: r.each, places: 2 }, { l: 'Tip each', v: r.tipEach, places: 2 }] : [],
@@ -8397,12 +8397,12 @@
         var unit = +raw.unit, mi = unit > 1, none = [{ l: 'Fuel', v: NaN }, { l: 'Cost', v: NaN }, { l: 'Each', v: NaN }], r, why;
         if (!raw.d || !raw.e || !raw.p || [n.d, n.e, n.p, n.people].some(isNaN)) return { rows: none };
         r = CalcMaths.fuel(n.d, n.e, n.p, unit, n.people);
-        why = { distance: 'The distance is 0 or more.', economy: 'The economy is above 0.', price: 'The price is 0 or more.', people: 'People are a whole number from 1 to 10000.' }[r.error];
+        why = { distance: tr('The distance is 0 or more.'), economy: tr('The economy is above 0.'), price: tr('The price is 0 or more.'), people: tr('People are a whole number from 1 to 10000.') }[r.error];
         if (why) return { rows: none, warn: true, note: why };
         return {
             rows: [{ l: unit === 2 ? 'Fuel, gal' : 'Fuel, L', v: r.fuel, dp: 2 }, { l: 'Cost', v: r.cost, places: 2 }, { l: mi ? 'A mile' : 'A km', v: r.per, places: 3 }, { l: 'There and back', v: CalcMaths.round(2 * r.cost), places: 2 }]
                 .concat(n.people > 1 ? [{ l: 'Each', v: r.each, places: 2 }] : [], unit ? [{ l: 'L/100 km', v: r.l100, dp: 1 }] : [{ l: 'MPG US', v: r.mpg, dp: 1 }]),
-            note: unit === 3 ? 'A UK gallon is ' + local('4.54609') + ' L; the price a litre, as it is sold.' : unit === 2 ? 'A US gallon is ' + local('3.785411784') + ' L.' : ''
+            note: unit === 3 ? tr('A UK gallon is {l} L; the price a litre, as it is sold.', { l: local('4.54609') }) : unit === 2 ? tr('A US gallon is {l} L.', { l: local('3.785411784') }) : ''
         };
     }
 
@@ -8415,13 +8415,13 @@
         }
         r = CalcMaths.bond(n.face, n.coupon, n.years, n.freq, raw.price ? n.price : NaN, raw.yld ? n.yld : NaN);
         why = {
-            face: 'The face value is above 0.',
-            coupon: 'The coupon is 0% or more.',
-            years: 'Years are above 0.',
-            freq: 'Coupons a year are a whole number from 1 to 12.',
-            yield: 'The yield a period, the yield a year ÷ coupons a year, is above –100%.',
-            price: 'The price is above 0, of a yield a period above –99.99%.',
-            long: 'Up to 100000 coupons.'
+            face: tr('The face value is above 0.'),
+            coupon: tr('The coupon is 0% or more.'),
+            years: tr('Years are above 0.'),
+            freq: tr('Coupons a year are a whole number from 1 to 12.'),
+            yield: tr('The yield a period, the yield a year ÷ coupons a year, is above –100%.'),
+            price: tr('The price is above 0, of a yield a period above –99.99%.'),
+            long: tr('Up to 100000 coupons.')
         }[r.error];
         if (why) return { rows: none, warn: true, note: why };
         return {
@@ -8429,27 +8429,27 @@
                 .concat([{ l: 'Current yield %', v: r.current, dp: 2 }, { l: 'Duration', v: r.duration, dp: 2 }, { l: 'Modified duration', v: r.modified, dp: 2 }],
                     r.accrued ? [{ l: 'Accrued', v: r.accrued, places: 2 }, { l: 'Dirty price', v: r.dirty, places: 2 }] : [],
                     n.years * n.freq <= 2000 && r.yld > -50 ? drawnTile(graphDrawing('Its price at each yield', r.yld < 0 ? 2 * r.yld : 0, Math.max(2 * r.yld, r.yld + 4, 2 * n.coupon), {
-                        fs: [function (y) { return CalcMaths.bond(n.face, n.coupon, n.years, n.freq, NaN, y).price; }], dots: [[r.yld, r.price]], marks: [[n.coupon, 'Coupon']] })) : []),
+                        fs: [function (y) { return CalcMaths.bond(n.face, n.coupon, n.years, n.freq, NaN, y).price; }], dots: [[r.yld, r.price]], marks: [[n.coupon, tr('Coupon')]] })) : []),
             note: tr('Duration in years, Macaulay\'s; the modified one is how much the price falls, as a percentage, for each 1% more yield.{v}', { v: (r.accrued ? tr(' The next coupon is nearer than a whole period: the price is without the interest earned since the last one, the dirty price with it.') : '') })
         };
     }
 
     // what an asset loses each year, by the straight line or the declining balance
     function runDepreciation(n, raw) {
-        var none = [{ l: 'First year', v: NaN }, { l: 'A year %', v: NaN }, { l: 'In all', v: NaN }], r, why;
+        var none = [{ l: tr('First year'), v: NaN }, { l: tr('A year %'), v: NaN }, { l: tr('In all'), v: NaN }], r, why;
         if (!raw.cost || !raw.life || [n.cost, n.salvage, n.life].some(isNaN)) return { rows: none };
         r = CalcMaths.depreciation(n.cost, n.salvage, n.life, raw.way === '1');
         why = {
-            cost: 'The cost is above 0.',
-            salvage: 'The salvage value is 0 or more, and no more than the cost.',
-            life: 'Years are a whole number from 1 to 1000.'
+            cost: tr('The cost is above 0.'),
+            salvage: tr('The salvage value is 0 or more, and no more than the cost.'),
+            life: tr('Years are a whole number from 1 to 1000.')
         }[r.error];
         if (why) return { rows: none, warn: true, note: why };
         return {
-            rows: [{ l: 'First year', v: r.first, places: 2 }, { l: 'A year %', v: r.rate, dp: 2 }, { l: 'In all', v: CalcMaths.round(n.cost - n.salvage), places: 2 },
-                { l: 'Each year', m: r.byYear, head: ['Year', 'Depreciation', 'So far', 'Book value'], places: 2 }],
+            rows: [{ l: tr('First year'), v: r.first, places: 2 }, { l: tr('A year %'), v: r.rate, dp: 2 }, { l: tr('In all'), v: CalcMaths.round(n.cost - n.salvage), places: 2 },
+                { l: tr('Each year'), m: r.byYear, head: [tr('Year'), tr('Depreciation'), tr('So far'), tr('Book value')], places: 2 }],
             note: raw.way === '1' ? tr('Each year {rate}% of what is left, until the straight line over the years left loses more; never below the salvage value.', { rate: local(String(r.rate)) }) :
-                'The same each year: the cost less the salvage value, over the years.'
+                tr('The same each year: the cost less the salvage value, over the years.')
         };
     }
 
@@ -8698,9 +8698,10 @@
     // above 0 is of a coil, the current behind the voltage; below 0, of a capacitor, ahead of it
     function runImpedance(n, raw) {
         var v = { r: siValue(raw.r, 'Ω|ohms?'), l: siValue(raw.l, 'h'), c: siValue(raw.c, 'f'), f: raw.f ? siValue(raw.f, 'hz') : 50 },
-            bad = Object.keys(v).filter(function (k) { return v[k] !== null && isNaN(v[k]); }), none = [{ l: 'Z', v: NaN, wide: true }], r, p;
-        if (bad.length) return { rows: none, bad: bad, warn: true, note: tr('{bad} not a value: 100, 4.7k, 10m, 100µ or 1e-6.', { bad: bad.map(function (k) { return k === 'r' ? 'R' : k === 'l' ? 'L' : k === 'c' ? 'C' : 'f'; }).join(' and ') +
-            (bad.length > 1 ? tr(' are') : tr(' is')) }) };
+            bad = Object.keys(v).filter(function (k) { return v[k] !== null && isNaN(v[k]); }), none = [{ l: 'Z', v: NaN, wide: true }], r, p,
+            letter = function (k) { return k === 'r' ? 'R' : k === 'l' ? 'L' : k === 'c' ? 'C' : 'f'; };
+        if (bad.length) return { rows: none, bad: bad, warn: true, note: bad.length > 1 ? tr('{bad} and {last} are not values: 100, 4.7k, 10m, 100µ or 1e-6.', { bad: bad.slice(0, -1).map(letter).join(tr(', ')), last: letter(bad[bad.length - 1]) }) :
+            tr('{bad} is not a value: 100, 4.7k, 10m, 100µ or 1e-6.', { bad: letter(bad[0]) }) };
         r = CalcMaths.impedance(v.r, v.l, v.c, v.f, raw.circuit === '1');
         if (r.error === 'none') return { rows: none };
         if (r.error) return { rows: none, warn: true, note: v.c === 0 ? 'C is above 0: a capacitor of 0 F is none.' : 'R, L, C and f are 0 or above.' };
@@ -9196,8 +9197,8 @@
         if (!r) return { rows: none };
         why = {
             polynomial: (engine.comma ? tr('Not a polynomial of x yet: x^2 + (1 + i)x + 2i, or its coefficients from the highest power, 1; 1 + i; 2i.') : tr('Not a polynomial of x yet: x^2 + (1 + i)x + 2i, or its coefficients from the highest power, 1, 1 + i, 2i.')),
-            letters: 'Only x and i have values here: write the other letters as numbers.',
-            power: 'Up to the power 30.'
+            letters: tr('Only x and i have values here: write the other letters as numbers.'),
+            power: tr('Up to the power 30.')
         }[r.error];
         if (why) return { rows: none, bad: ['p'], warn: true, note: why };
         z = CalcMaths.cpoly(r.c);
@@ -9649,12 +9650,12 @@
     // a place's tile: its time, big, its offset beside it, and of another place how far ahead of the first it is, then its date under it
     function zoneRow(zone, ms, off, first) {
         var at = new Date(ms + off * 60000), gap = first === null ? 0 : off - first, a = Math.abs(gap),
+            hm = (Math.floor(a / 60) ? Math.floor(a / 60) + 'h' : '') + (a % 60 ? (a >= 60 ? ' ' : '') + a % 60 + 'min' : ''),
             clock = at.toLocaleString(DATE_LANG, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC' }),
             day = at.toLocaleString(DATE_LANG, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
         return { l: zone.here ? (zone.id || '').split('/').pop().replace(/_/g, ' ') : zone.name, wide: true, copy: day + ', ' + clock + ' ' + CalcMaths.offsetText(off), // here, by its city
             text: '<span class="calc-sv-clock">' + clock + '<span class="calc-sv-off">' + CalcMaths.offsetText(off) +
-                (first === null ? '' : ' (' + (!gap ? 'the same time' : (Math.floor(a / 60) ? Math.floor(a / 60) + 'h' : '') +
-                    (a % 60 ? (a >= 60 ? ' ' : '') + a % 60 + 'min' : '') + (gap > 0 ? ' ahead' : ' behind')) + ')') + '</span></span><span class="calc-sv-day">' + day + '</span>' };
+                (first === null ? '' : ' (' + (!gap ? tr('the same time') : (gap > 0 ? tr('{gap} ahead', { gap: hm }) : tr('{gap} behind', { gap: hm }))) + ')') + '</span></span><span class="calc-sv-day">' + day + '</span>' };
     }
 
     // The date and time of a Unix timestamp, or the timestamp of a date and time: the timestamp in
@@ -10673,7 +10674,7 @@
                 if (!el.classList.contains('calc-sv-row')) return null;
                 tool = tools[tab][+el.parentNode.dataset.i];
                 open = el.parentNode.classList.contains('calc-on');
-                return { t: tool.t, d: tool.d + (open && now.side && now.side() ? '' : open ? ' Click to close it.' : ' Click to open it.'), k: '' };
+                return { t: tool.t, d: tr(tool.d) + (open && now.side && now.side() ? '' : open ? tr(' Click to close it.') : tr(' Click to open it.')), k: '' };
             }
         };
     }
@@ -17466,7 +17467,8 @@
     function oneEmpty(raw, keys, names) {
         var empty = keys.filter(function (k) { return !raw[k]; });
         if (empty.length === 1) return { k: empty[0] };
-        return { note: tr('{v} and {names} empty, the one to work out.', { v: (empty.length ? tr('Leave only one of ') : tr('Leave one of ')) + names.slice(0, -1).join(', '), names: names[names.length - 1] }), warn: !empty.length };
+        return { note: (empty.length ? tr('Leave only one of {names} and {last} empty, the one to work out.', { names: names.slice(0, -1).join(tr(', ')), last: names[names.length - 1] }) :
+            tr('Leave one of {names} and {last} empty, the one to work out.', { names: names.slice(0, -1).join(tr(', ')), last: names[names.length - 1] })), warn: !empty.length };
     }
 
     function runHeat(n, raw) {
@@ -18033,7 +18035,7 @@
             mass: { of: function (e) { return e.mass; }, lo: 1, hi: 294, label: 'g/mol', ends: [1.008, 294],
                 colours: [[35, 93, 89], [31, 94, 73], [5, 81, 73]] },
             year: { of: function (e) { return e.year === null ? null : Math.max(e.year, 1600); }, lo: 1600, hi: 2010, ends: [1600, 2010], fixed: 0,
-                show: function (v) { return v <= 1600 ? 'Ancient' : String(Math.round(v)); },
+                show: function (v) { return v <= 1600 ? tr('Ancient') : String(Math.round(v)); },
                 colours: [[42, 69, 80], [165, 59, 78], [285, 69, 83]] }
         },
         // the units the numbers of an element are shown in, each changed with a click on it: of temperature,
@@ -18125,7 +18127,7 @@
 
     // the unit of a number's scale: the one chosen for its kind, or its own
     function chemHeatUnit(h) {
-        return h.unit ? chemUnitName(h.unit) : h.label || '';
+        return h.unit ? chemUnitName(h.unit) : h.label ? tr(h.label) : '';
     }
 
     // an element dimmed by the slider: outside its ends, or its number not known
@@ -18140,7 +18142,7 @@
     // colours with a knob at each end, the number of each end beside it, the colours outside them shaded.
     // Not the browser's, which has one knob only, and is not where it is drawn when the page is zoomed
     function chemSliderHtml() {
-        var places = chemSliderPlaces(), heat = chemBy !== 'state', names = heat ? ['From', 'To'] : ['Temperature'];
+        var places = chemSliderPlaces(), heat = chemBy !== 'state', names = heat ? [tr('From'), tr('To')] : [tr('Temperature')];
         // the first number before the line, against it: of the temperature its only one. Each as wide as the
         // longest it can say, three figures and a sign with the unit, for the line not to move and no more room
         var unit = heat ? chemHeatUnit(CHEM_HEAT[chemBy]) : chemUnitName('t'),
@@ -18257,7 +18259,8 @@
     // each shell, its electrons spaced round it
     function chemAtom(e) {
         var size = 150, mid = size / 2, rings = e.shells.length, gap = (mid - 20) / Math.max(rings, 1), svg, n = Math.round(e.mass) - e.z;
-        svg = '<svg class="calc-pt-atom" data-pt="atom" data-full="' + e.z + ' protons, ' + n + ' neutrons; electrons ' + e.shells.join(', ') + '" viewBox="0 0 ' + size + ' ' + size + '" role="img" aria-label="' + e.name + ': ' + e.z + ' protons, ' + n + ' neutrons, electrons in shells of ' + e.shells.join(', ') + '">';
+        svg = '<svg class="calc-pt-atom" data-pt="atom" data-full="' + tr('{z} protons, {n} neutrons; electrons {list}', { z: e.z, n: n, list: e.shells.join(', ') }) + '" viewBox="0 0 ' + size + ' ' + size + '" role="img" aria-label="' +
+            tr('{name}: {z} protons, {n} neutrons, electrons in shells of {list}', { name: tr(e.name), z: e.z, n: n, list: e.shells.join(', ') }) + '">';
         e.shells.forEach(function (count, i) { // each shell with its electrons, which come in one after the other from the middle, then go round
             var r = 18 + gap * (i + 0.75), j, a;
             svg += '<g class="calc-pt-shell" style="--i: ' + i + '"><circle class="calc-pt-ring" cx="' + mid + '" cy="' + mid + '" r="' + r.toFixed(1) + '"/><g class="calc-pt-spin">';
@@ -18545,7 +18548,7 @@
         var k = el.dataset.pt, info = CalcTips[k === 'kind' ? 'chem kind ' + el.dataset.kind : 'chem fact ' + k],
             v = el.hasAttribute('data-full') ? el.dataset.full : el.textContent.trim();
         if (!info) return null;
-        return { t: info.t, d: (v && k !== 'kind' ? '<div class="calc-tip-value">' + v + '</div>' : '') + info.d };
+        return { t: info.t, d: (v && k !== 'kind' ? '<div class="calc-tip-value">' + v + '</div>' : '') + tr(info.d) }; // translated before its value is put above it
     }
 
     // The tip of a tile of the details, as a result's: what it is, and its value in full with its unit, to copy, a
@@ -18556,7 +18559,7 @@
             drawn = value.querySelector('.calc-pt-cells'), unit = label.querySelector('i:not(.calc-pt-guess)'), name = label.firstChild.data.trim(),
             shown = [].filter.call(value.childNodes, function (n) { return n !== drawn; }).map(function (n) { return n.textContent; }).join('').trim(), u;
         if (!info) return null;
-        if (el.dataset.lines) return { t: name, d: '<div class="calc-tip-value">' + el.dataset.lines + '</div>' + info.d }; // the spectrum: its lines
+        if (el.dataset.lines) return { t: name, d: '<div class="calc-tip-value">' + el.dataset.lines + '</div>' + tr(info.d) }; // the spectrum: its lines
         if (el.classList.contains('calc-pt-text') || /^–?$/.test(shown)) return { t: name, d: info.d };
         // not a name in place of a unit; the mass in full, whatever its places
         u = unit && [tr('mass number'), tr('Pauling'), 'K L M …'].indexOf(unit.textContent) < 0 ? ' ' + (unit.dataset.unit === 'm' ? tr('g/mol') : unit.textContent) : '';
@@ -19548,6 +19551,7 @@
             row.classList.remove('calc-lit');
             item.hidden = row.hidden && !(side && item.classList.contains('calc-on'));
         });
+        convUnits.dataset.none = tr('No group or unit found.'); // the words of its ::before (style.css)
         convUnits.classList.toggle('calc-none-found', !convShown().length);
         if (q && convShown().length) convShown()[0].classList.add('calc-lit');
         unitCards.fit(); // the names of the units found, in their badges
@@ -20592,6 +20596,20 @@
         FIND_PANELS = { fx: fx, conv: conv, graph: graph, numbers: numbersPanel, solve: solvePanel, chem: chemPanel, phys: physPanel, bio: bioPanel, stats: stats },
         FIND_SHOW = { fx: showFx, conv: showConv, graph: showGraph, numbers: showNumbers, solve: showSolve, chem: showChem, phys: showPhys, bio: showBio, stats: showStats };
 
+    // The other names an element is known by in the language in use, so Search finds it by them as well: its symbol
+    // and the names, Zn زنك, apart by ; where there are several elements. The English has only the names themselves
+    var chemAlso = null;
+    function chemAlsoCalled(sym) {
+        if (!chemAlso) {
+            chemAlso = {};
+            tr('Zn Zinc').split(';').forEach(function (part) {
+                var words = part.trim().split(/\s+/);
+                if (words.length > 1) chemAlso[words[0]] = words.slice(1).join(' ');
+            });
+        }
+        return chemAlso[sym] || '';
+    }
+
     function findIndex() {
         var all = [], names = {};
         GO.forEach(function (g) { names[g[0]] = tr(g[2]); });
@@ -20661,7 +20679,7 @@
                 w: tr('Graph') + ' · ' + tr(entry.c) }, [entry.words]);
         });
         CalcChem.elements.forEach(function (e) {
-            add({ go: 'chem', kind: 'element', id: e.z, sym: e.s.toLowerCase(), t: e.name, s: e.z + ' · ' + e.s, w: tr('Periodic table') }, [e.s]);
+            add({ go: 'chem', kind: 'element', id: e.z, sym: e.s.toLowerCase(), t: e.name, s: e.z + ' · ' + e.s, w: tr('Periodic table') }, [e.s, chemAlsoCalled(e.s)]);
         });
         CalcUnits.units.forEach(function (group, i) {
             add({ go: 'conv', kind: 'units', id: i, units: group.list.map(function (u) { return u.s.toLowerCase(); }).concat(group.list.map(function (u) { return u.t.toLowerCase(); })), t: group.c, s: group.list.slice(0, 6).map(function (u) { return u.s; }).join(', ') + (group.list.length > 6 ? ', …' : ''), w: 'Converter · Units' },

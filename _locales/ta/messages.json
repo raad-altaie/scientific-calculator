@@ -1,0 +1,50 @@
+{
+    "name": {
+        "message": "அறிவியல் கணிப்பான்",
+        "description": "The extension's name, in the browser and the store"
+    },
+    "description": {
+        "message": "முழுமையான அறிவியல் கணிப்பான்: வரைபடம், சமன்பாடுகள், நுண்கணிதம், புள்ளியியல், அணிகள், அலகுகள், நிதி, வேதியியல், இயற்பியல், உயிரியல்.",
+        "description": "What the extension is, in the browser and the store: up to 132 characters"
+    },
+    "actionTitle": {
+        "message": "கணிப்பான்",
+        "description": "The tip of the toolbar icon"
+    },
+    "openPopup": {
+        "message": "அறிவியல் கணிப்பானைத் திற",
+        "description": "The keyboard shortcut's name, on the browser's page of shortcuts"
+    },
+    "menuCalculate": {
+        "message": "“%s” ஐக் கணக்கிடு",
+        "description": "Right-click menu on selected text; %s is the selection"
+    },
+    "menuSite": {
+        "message": "இந்தத் தளத்தில் உடனடி பதில்கள்",
+        "description": "Right-click menu checkbox: the instant answers on this website"
+    },
+    "menuFixed": {
+        "message": "நிலையான பயன்முறை",
+        "description": "Menu item: opens the calculator in Fixed Mode"
+    },
+    "menuDetached": {
+        "message": "தனி சாளர பயன்முறை",
+        "description": "Menu item: opens the calculator in Detached Mode"
+    },
+    "menuAdvanced": {
+        "message": "மேம்பட்ட பயன்முறை",
+        "description": "Menu item: opens the calculator in Advanced Mode"
+    },
+    "menuEnable": {
+        "message": "இந்தத் தளத்தில் உடனடி பதில்களை இயக்கு",
+        "description": "Toolbar icon menu: turns the instant answers on for this website"
+    },
+    "menuDisable": {
+        "message": "இந்தத் தளத்தில் உடனடி பதில்களை முடக்கு",
+        "description": "Toolbar icon menu: turns the instant answers off for this website"
+    },
+    "menuOptions": {
+        "message": "விருப்பங்கள்",
+        "description": "Right-click menu: opens the options page"
+    }
+}

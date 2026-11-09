@@ -1,0 +1,50 @@
+{
+    "name": {
+        "message": "เครื่องคิดเลขวิทยาศาสตร์",
+        "description": "The extension's name, in the browser and the store"
+    },
+    "description": {
+        "message": "เครื่องคิดเลขวิทยาศาสตร์ครบวงจร: กราฟ ตัวแก้สมการ แคลคูลัส สถิติ เมทริกซ์ หน่วย การเงิน เคมี ฟิสิกส์ ชีววิทยา",
+        "description": "What the extension is, in the browser and the store: up to 132 characters"
+    },
+    "actionTitle": {
+        "message": "เครื่องคิดเลข",
+        "description": "The tip of the toolbar icon"
+    },
+    "openPopup": {
+        "message": "เปิดเครื่องคิดเลขวิทยาศาสตร์",
+        "description": "The keyboard shortcut's name, on the browser's page of shortcuts"
+    },
+    "menuCalculate": {
+        "message": "คำนวณ “%s”",
+        "description": "Right-click menu on selected text; %s is the selection"
+    },
+    "menuSite": {
+        "message": "คำตอบทันทีในเว็บไซต์นี้",
+        "description": "Right-click menu checkbox: the instant answers on this website"
+    },
+    "menuFixed": {
+        "message": "โหมดคงที่",
+        "description": "Menu item: opens the calculator in Fixed Mode"
+    },
+    "menuDetached": {
+        "message": "โหมดแยกหน้าต่าง",
+        "description": "Menu item: opens the calculator in Detached Mode"
+    },
+    "menuAdvanced": {
+        "message": "โหมดขั้นสูง",
+        "description": "Menu item: opens the calculator in Advanced Mode"
+    },
+    "menuEnable": {
+        "message": "เปิดคำตอบทันทีในเว็บไซต์นี้",
+        "description": "Toolbar icon menu: turns the instant answers on for this website"
+    },
+    "menuDisable": {
+        "message": "ปิดคำตอบทันทีในเว็บไซต์นี้",
+        "description": "Toolbar icon menu: turns the instant answers off for this website"
+    },
+    "menuOptions": {
+        "message": "ตัวเลือก",
+        "description": "Right-click menu: opens the options page"
+    }
+}

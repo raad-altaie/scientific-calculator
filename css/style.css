@@ -68,6 +68,7 @@
     font-weight: 700;
     font-family: 'Play', 'Russo One', sans-serif;
     font-size: 1.4em;
+    line-height: 1.152; /* Play's own, so a taller font of another language does not stretch the strip */
     color: #acb4c1;
     -webkit-user-select: none;
     user-select: none;
@@ -4128,9 +4129,9 @@
     background: #a3bdaf;
 }
 
-/* nothing found */
+/* nothing found: its words from the data-none of the list, in the language in use */
 #calculator .calc-conv-units.calc-none-found::before {
-    content: 'No group or unit found.';
+    content: attr(data-none);
     display: block;
     padding: 6px 4px;
     color: #acb4c1;
@@ -9690,6 +9691,17 @@
 .lang-rtl #calculator .calc-pt-search {
     padding-right: 8px;
     padding-left: 28px;
+}
+
+/* popped out, the searches of a panel and of the table: the room of their × at the left there as well */
+.lang-rtl #calculator.calc-panel-big .calc-big-on .calc-fx-search {
+    padding-right: 11px;
+    padding-left: 34px;
+}
+
+.lang-rtl #calculator.calc-chem-big .calc-pt-search {
+    padding-right: 12px;
+    padding-left: 36px;
 }
 
 .lang-rtl #calculator .calc-search-clear {

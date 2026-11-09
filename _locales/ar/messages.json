@@ -14,5 +14,37 @@
     "openPopup": {
         "message": "فتح الحاسبة العلمية",
         "description": "The keyboard shortcut's name, on the browser's page of shortcuts"
+    },
+    "menuCalculate": {
+        "message": "احسب «%s»",
+        "description": "Right-click menu on selected text; %s is the selection"
+    },
+    "menuSite": {
+        "message": "الإجابات الفورية في هذا الموقع",
+        "description": "Right-click menu checkbox: the instant answers on this website"
+    },
+    "menuFixed": {
+        "message": "الوضع الثابت",
+        "description": "Menu item: opens the calculator in Fixed Mode"
+    },
+    "menuDetached": {
+        "message": "الوضع المنفصل",
+        "description": "Menu item: opens the calculator in Detached Mode"
+    },
+    "menuAdvanced": {
+        "message": "الوضع المتقدم",
+        "description": "Menu item: opens the calculator in Advanced Mode"
+    },
+    "menuEnable": {
+        "message": "تفعيل الإجابات الفورية في هذا الموقع",
+        "description": "Toolbar icon menu: turns the instant answers on for this website"
+    },
+    "menuDisable": {
+        "message": "تعطيل الإجابات الفورية في هذا الموقع",
+        "description": "Toolbar icon menu: turns the instant answers off for this website"
+    },
+    "menuOptions": {
+        "message": "الخيارات",
+        "description": "Right-click menu: opens the options page"
     }
 }

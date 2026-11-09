@@ -366,6 +366,8 @@ function openCalculatorInDetachedMode() {
 // Which is on is kept by options.js: pageButtonOn, on unless false, as the button was on while
 // the access alone said so, before the icons came; and pageMathsOn, off unless true
 const pageSites = ["http://*/*", "https://*/*"];
+// the websites of the calculator's own, never given the instant answers
+const pageNever = ["*://raad.dev/*", "*://*.raad.dev/*"];
 const pageAccess = { permissions: ["scripting"], origins: pageSites };
 const pageOptions = {
     pageButton: {
@@ -374,7 +376,7 @@ const pageOptions = {
         on: (kept) => kept.pageButtonOn !== false,
     },
     pageMaths: {
-        script: { id: "page-maths", js: [], matches: pageSites },
+        script: { id: "page-maths", js: [], matches: pageSites, excludeMatches: pageNever },
         files: pageMathsFiles,
         off: "remove-page-maths",
         on: (kept) => kept.pageMathsOn === true,
@@ -487,7 +489,7 @@ chrome.permissions.onRemoved.addListener(forgetSites);
 function siteOf(url) {
     try {
         const page = new URL(url);
-        return /^https?:$/.test(page.protocol) ? page.hostname.toLowerCase().replace(/^www\./, "") : "";
+        return /^https?:$/.test(page.protocol) && !/(^|\.)raad\.dev$/i.test(page.hostname) ? page.hostname.toLowerCase().replace(/^www\./, "") : "";
     } catch (e) {
         return ""; // no address: the access to the website was not given
     }
@@ -531,7 +533,7 @@ async function followSite(tab) {
     ["icon-sep", "icon-site"].forEach((item) => chrome.contextMenus.update(item, { visible: shown }, () => chrome.runtime.lastError));
     if (!site) return;
     chrome.contextMenus.update("calc-site", { checked: !off }, () => chrome.runtime.lastError);
-    chrome.contextMenus.update("icon-site", { title: (off ? "Enable" : "Disable") + " instant answers on this site" }, () => chrome.runtime.lastError);
+    chrome.contextMenus.update("icon-site", { title: chrome.i18n.getMessage(off ? "menuEnable" : "menuDisable") }, () => chrome.runtime.lastError);
 }
 
 function followFrontTab() {
@@ -692,14 +694,14 @@ chrome.runtime.onInstalled.addListener((details) => {
         // text selected on a page, into the calculator: shown while the instant answers are on
         chrome.contextMenus.create({
             id: "calc-selection",
-            title: "Calculate \u201c%s\u201d",
+            title: chrome.i18n.getMessage("menuCalculate"),
             contexts: ["selection"],
             documentUrlPatterns: pageSites,
             visible: false
         }, followPageOptions);
         chrome.contextMenus.create({
             id: "calc-site",
-            title: "Instant answers on this site",
+            title: chrome.i18n.getMessage("menuSite"),
             type: "checkbox",
             checked: true,
             contexts: ["page"],
@@ -717,18 +719,18 @@ chrome.runtime.onInstalled.addListener((details) => {
         // the popup under the icon, whatever the open mode is: in the menu of a right click on a page and of the toolbar icon
         chrome.contextMenus.create({
             id: "open-fixed",
-            title: "Fixed Mode",
+            title: chrome.i18n.getMessage("menuFixed"),
             contexts: ["action", "page"]
         });
         chrome.contextMenus.create({
             id: "open-popup",
-            title: "Detached Mode",
+            title: chrome.i18n.getMessage("menuDetached"),
             contexts: ["action", "page"] // the menu of the toolbar icon, and of a right click on a page
         }, followPolicy);
         // the Advanced mode, which follows Detached Mode: its window is the big one
         chrome.contextMenus.create({
             id: "open-advanced",
-            title: "Advanced Mode",
+            title: chrome.i18n.getMessage("menuAdvanced"),
             contexts: ["action", "page"]
         }, followPolicy);
         // the instant answers of the website in front, in the menu of the toolbar icon, under the modes
@@ -740,7 +742,7 @@ chrome.runtime.onInstalled.addListener((details) => {
         });
         chrome.contextMenus.create({
             id: "icon-site",
-            title: "Disable instant answers on this site",
+            title: chrome.i18n.getMessage("menuDisable"),
             contexts: ["action"],
             visible: false
         }, followFrontTab);
@@ -752,7 +754,7 @@ chrome.runtime.onInstalled.addListener((details) => {
         });
         chrome.contextMenus.create({
             id: "open-options",
-            title: "Options",
+            title: chrome.i18n.getMessage("menuOptions"),
             contexts: ["page"]
         });
     });

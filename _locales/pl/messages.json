@@ -1,0 +1,50 @@
+{
+    "name": {
+        "message": "Kalkulator naukowy",
+        "description": "The extension's name, in the browser and the store"
+    },
+    "description": {
+        "message": "Pełny kalkulator naukowy: wykresy, równania, analiza, statystyka, macierze, jednostki, finanse, chemia, fizyka, biologia.",
+        "description": "What the extension is, in the browser and the store: up to 132 characters"
+    },
+    "actionTitle": {
+        "message": "Kalkulator",
+        "description": "The tip of the toolbar icon"
+    },
+    "openPopup": {
+        "message": "Otwórz Kalkulator naukowy",
+        "description": "The keyboard shortcut's name, on the browser's page of shortcuts"
+    },
+    "menuCalculate": {
+        "message": "Oblicz „%s”",
+        "description": "Right-click menu on selected text; %s is the selection"
+    },
+    "menuSite": {
+        "message": "Natychmiastowe odpowiedzi na tej stronie",
+        "description": "Right-click menu checkbox: the instant answers on this website"
+    },
+    "menuFixed": {
+        "message": "Tryb stały",
+        "description": "Menu item: opens the calculator in Fixed Mode"
+    },
+    "menuDetached": {
+        "message": "Tryb odłączony",
+        "description": "Menu item: opens the calculator in Detached Mode"
+    },
+    "menuAdvanced": {
+        "message": "Tryb zaawansowany",
+        "description": "Menu item: opens the calculator in Advanced Mode"
+    },
+    "menuEnable": {
+        "message": "Włącz natychmiastowe odpowiedzi na tej stronie",
+        "description": "Toolbar icon menu: turns the instant answers on for this website"
+    },
+    "menuDisable": {
+        "message": "Wyłącz natychmiastowe odpowiedzi na tej stronie",
+        "description": "Toolbar icon menu: turns the instant answers off for this website"
+    },
+    "menuOptions": {
+        "message": "Opcje",
+        "description": "Right-click menu: opens the options page"
+    }
+}

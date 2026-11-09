@@ -1,0 +1,50 @@
+{
+    "name": {
+        "message": "ماشین‌حساب علمی",
+        "description": "The extension's name, in the browser and the store"
+    },
+    "description": {
+        "message": "یک ماشین‌حساب علمی کامل: نمودار، حل معادله، حساب دیفرانسیل و انتگرال، آمار، ماتریس، یکاها، مالی، شیمی، فیزیک، زیست‌شناسی.",
+        "description": "What the extension is, in the browser and the store: up to 132 characters"
+    },
+    "actionTitle": {
+        "message": "ماشین‌حساب",
+        "description": "The tip of the toolbar icon"
+    },
+    "openPopup": {
+        "message": "باز کردن ماشین‌حساب علمی",
+        "description": "The keyboard shortcut's name, on the browser's page of shortcuts"
+    },
+    "menuCalculate": {
+        "message": "محاسبهٔ «%s»",
+        "description": "Right-click menu on selected text; %s is the selection"
+    },
+    "menuSite": {
+        "message": "پاسخ‌های فوری در این وب‌سایت",
+        "description": "Right-click menu checkbox: the instant answers on this website"
+    },
+    "menuFixed": {
+        "message": "حالت ثابت",
+        "description": "Menu item: opens the calculator in Fixed Mode"
+    },
+    "menuDetached": {
+        "message": "حالت جدا",
+        "description": "Menu item: opens the calculator in Detached Mode"
+    },
+    "menuAdvanced": {
+        "message": "حالت پیشرفته",
+        "description": "Menu item: opens the calculator in Advanced Mode"
+    },
+    "menuEnable": {
+        "message": "روشن کردن پاسخ‌های فوری در این وب‌سایت",
+        "description": "Toolbar icon menu: turns the instant answers on for this website"
+    },
+    "menuDisable": {
+        "message": "خاموش کردن پاسخ‌های فوری در این وب‌سایت",
+        "description": "Toolbar icon menu: turns the instant answers off for this website"
+    },
+    "menuOptions": {
+        "message": "گزینه‌ها",
+        "description": "Right-click menu: opens the options page"
+    }
+}

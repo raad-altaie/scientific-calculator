@@ -1,0 +1,50 @@
+{
+    "name": {
+        "message": "సైంటిఫిక్ కాలిక్యులేటర్",
+        "description": "The extension's name, in the browser and the store"
+    },
+    "description": {
+        "message": "సైంటిఫిక్ కాలిక్యులేటర్: గ్రాఫ్, సమీకరణాలు, కాలిక్యులస్, గణాంకాలు, మాత్రికలు, యూనిట్లు, ఆర్థికం, రసాయన, భౌతిక, జీవ శాస్త్రాలు.",
+        "description": "What the extension is, in the browser and the store: up to 132 characters"
+    },
+    "actionTitle": {
+        "message": "కాలిక్యులేటర్",
+        "description": "The tip of the toolbar icon"
+    },
+    "openPopup": {
+        "message": "సైంటిఫిక్ కాలిక్యులేటర్‌ను తెరవండి",
+        "description": "The keyboard shortcut's name, on the browser's page of shortcuts"
+    },
+    "menuCalculate": {
+        "message": "“%s” ను లెక్కించండి",
+        "description": "Right-click menu on selected text; %s is the selection"
+    },
+    "menuSite": {
+        "message": "ఈ సైట్‌లో తక్షణ సమాధానాలు",
+        "description": "Right-click menu checkbox: the instant answers on this website"
+    },
+    "menuFixed": {
+        "message": "స్థిర మోడ్",
+        "description": "Menu item: opens the calculator in Fixed Mode"
+    },
+    "menuDetached": {
+        "message": "వేరు విండో మోడ్",
+        "description": "Menu item: opens the calculator in Detached Mode"
+    },
+    "menuAdvanced": {
+        "message": "అధునాతన మోడ్",
+        "description": "Menu item: opens the calculator in Advanced Mode"
+    },
+    "menuEnable": {
+        "message": "ఈ సైట్‌లో తక్షణ సమాధానాలను ఆన్ చేయండి",
+        "description": "Toolbar icon menu: turns the instant answers on for this website"
+    },
+    "menuDisable": {
+        "message": "ఈ సైట్‌లో తక్షణ సమాధానాలను ఆఫ్ చేయండి",
+        "description": "Toolbar icon menu: turns the instant answers off for this website"
+    },
+    "menuOptions": {
+        "message": "ఎంపికలు",
+        "description": "Right-click menu: opens the options page"
+    }
+}

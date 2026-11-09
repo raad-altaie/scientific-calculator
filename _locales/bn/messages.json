@@ -1,0 +1,50 @@
+{
+    "name": {
+        "message": "বৈজ্ঞানিক ক্যালকুলেটর",
+        "description": "The extension's name, in the browser and the store"
+    },
+    "description": {
+        "message": "বৈজ্ঞানিক ক্যালকুলেটর: গ্রাফ, সমীকরণ সমাধান, ক্যালকুলাস, পরিসংখ্যান, ম্যাট্রিক্স, একক, ফিন্যান্স, রসায়ন, পদার্থবিদ্যা, জীববিজ্ঞান।",
+        "description": "What the extension is, in the browser and the store: up to 132 characters"
+    },
+    "actionTitle": {
+        "message": "ক্যালকুলেটর",
+        "description": "The tip of the toolbar icon"
+    },
+    "openPopup": {
+        "message": "বৈজ্ঞানিক ক্যালকুলেটর খুলুন",
+        "description": "The keyboard shortcut's name, on the browser's page of shortcuts"
+    },
+    "menuCalculate": {
+        "message": "“%s” গণনা করুন",
+        "description": "Right-click menu on selected text; %s is the selection"
+    },
+    "menuSite": {
+        "message": "এই সাইটে তাৎক্ষণিক উত্তর",
+        "description": "Right-click menu checkbox: the instant answers on this website"
+    },
+    "menuFixed": {
+        "message": "স্থির মোড",
+        "description": "Menu item: opens the calculator in Fixed Mode"
+    },
+    "menuDetached": {
+        "message": "আলাদা উইন্ডো মোড",
+        "description": "Menu item: opens the calculator in Detached Mode"
+    },
+    "menuAdvanced": {
+        "message": "উন্নত মোড",
+        "description": "Menu item: opens the calculator in Advanced Mode"
+    },
+    "menuEnable": {
+        "message": "এই সাইটে তাৎক্ষণিক উত্তর চালু করুন",
+        "description": "Toolbar icon menu: turns the instant answers on for this website"
+    },
+    "menuDisable": {
+        "message": "এই সাইটে তাৎক্ষণিক উত্তর বন্ধ করুন",
+        "description": "Toolbar icon menu: turns the instant answers off for this website"
+    },
+    "menuOptions": {
+        "message": "বিকল্প",
+        "description": "Right-click menu: opens the options page"
+    }
+}

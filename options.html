@@ -3,6 +3,7 @@
 
 <head>
     <meta charset="utf-8">
+    <meta name="google" content="notranslate">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <link rel="stylesheet" type="text/css" href="css/options.css">
     <link rel="icon" href="imgs/icon.png" type="image/png">
@@ -42,6 +43,21 @@
                     </div>
                 </div>
                 <button type="button" id="launch-detached" class="launch" title="Open the chosen mode">Launch</button>
+            </div>
+            <div class="option format-option" id="lang-option">
+                <span class="option-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="9"></circle>
+                        <path d="M3 12h18M12 3c2.4 2.6 3.6 5.6 3.6 9s-1.2 6.4-3.6 9c-2.4-2.6-3.6-5.6-3.6-9s1.2-6.4 3.6-9z"></path>
+                    </svg>
+                </span>
+                <div class="option-text">
+                    <h3>Language</h3>
+                    <p>The language of the calculator's words: its menus, tips, cards and results. Auto follows the browser's language. Numbers, and the names on the keys, stay as they are.</p>
+                    <div class="format-row">
+                        <select id="lang" title="Language"></select>
+                    </div>
+                </div>
             </div>
             <div class="option">
                 <span class="option-icon page-button"><img src="imgs/icon128.png" alt=""></span>
@@ -89,21 +105,6 @@
                     <input type="checkbox" id="page-maths">
                     <span></span>
                 </label>
-            </div>
-            <div class="option format-option" id="lang-option" hidden>
-                <span class="option-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24">
-                        <circle cx="12" cy="12" r="9"></circle>
-                        <path d="M3 12h18M12 3c2.4 2.6 3.6 5.6 3.6 9s-1.2 6.4-3.6 9c-2.4-2.6-3.6-5.6-3.6-9s1.2-6.4 3.6-9z"></path>
-                    </svg>
-                </span>
-                <div class="option-text">
-                    <h3>Language</h3>
-                    <p>The language of the calculator's words: its menus, tips, cards and results. Auto follows the browser's language. Numbers, and the names on the keys, stay as they are.</p>
-                    <div class="format-row">
-                        <select id="lang" title="Language"></select>
-                    </div>
-                </div>
             </div>
             <div class="option format-option">
                 <span class="option-icon format-icon" id="format-icon" aria-hidden="true">1500</span>
