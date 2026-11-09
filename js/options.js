@@ -146,7 +146,7 @@ function showKinds() {
 
             label.hidden = panelOff(box.value);
             label.dataset.about = label.dataset.about || label.title;
-            label.title = label.dataset.about + (off ? '. Turned off by your administrator.' : '');
+            label.title = label.dataset.about + (off ? '. ' + CalcLang.t('Turned off by your administrator.') : '');
             box.disabled = off;
             box.checked = !off && chosen[box.value] !== false;
         });
@@ -181,8 +181,8 @@ function showSites() {
 
             name.textContent = site;
             on.type = 'button';
-            on.textContent = 'Turn on';
-            on.title = 'Instant answers on ' + site;
+            on.textContent = CalcLang.t('Turn on');
+            on.title = CalcLang.t('Instant answers on {site}', { site });
             on.addEventListener('click', () => chrome.storage.local.set({ pageMathsOff: sites.filter((other) => other !== site) }));
             item.append(name, on);
             return item;
@@ -353,7 +353,7 @@ const showPolicy = () => {
             const note = option.querySelector('.option-text').appendChild(document.createElement('p'));
 
             note.className = 'option-note managed-note';
-            note.textContent = 'Turned off by your administrator.';
+            note.textContent = CalcLang.t('Turned off by your administrator.');
         } else {
             option.querySelector('.managed-note').remove();
         }

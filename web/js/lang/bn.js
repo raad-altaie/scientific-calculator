@@ -5881,6 +5881,9 @@ CalcLang.add("bn", {
     "hydrogen": "হাইড্রোজেন",
 
     // js/options.js
+    "turned_off_by_your": "",
+    "turn_on": "",
+    "instant_answers_on_site": "",
     "auto_lang": "স্বয়ংক্রিয়: {lang}",
 
     // js/popup.js

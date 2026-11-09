@@ -5880,6 +5880,9 @@ CalcLang.add("en", {
     "hydrogen": "Hydrogen",
 
     // js/options.js
+    "turned_off_by_your": "Turned off by your administrator.",
+    "turn_on": "Turn on",
+    "instant_answers_on_site": "Instant answers on {site}",
     "auto_lang": "Auto: {lang}",
 
     // js/popup.js

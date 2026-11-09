@@ -5881,6 +5881,9 @@ CalcLang.add("hi", {
     "hydrogen": "हाइड्रोजन",
 
     // js/options.js
+    "turned_off_by_your": "",
+    "turn_on": "",
+    "instant_answers_on_site": "",
     "auto_lang": "स्वतः: {lang}",
 
     // js/popup.js

@@ -5881,6 +5881,9 @@ CalcLang.add("ar", {
     "hydrogen": "هيدروجين",
 
     // js/options.js
+    "turned_off_by_your": "",
+    "turn_on": "",
+    "instant_answers_on_site": "",
     "auto_lang": "تلقائي: {lang}",
 
     // js/popup.js

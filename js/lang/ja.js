@@ -5881,6 +5881,9 @@ CalcLang.add("ja", {
     "hydrogen": "水素",
 
     // js/options.js
+    "turned_off_by_your": "",
+    "turn_on": "",
+    "instant_answers_on_site": "",
     "auto_lang": "自動: {lang}",
 
     // js/popup.js

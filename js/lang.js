@@ -139,6 +139,8 @@
             form = forms[plural ? plural.select(count) : 'other'] || forms.other;
             if (form) return fill(form, all);
         }
+        // a language of one form may give it as a text
+        if (typeof forms === 'string') return fill(forms, all);
         if (debug && code !== 'en' && !forms) missing[other] = true;
         return fill(count === 1 ? one : other, all);
     }

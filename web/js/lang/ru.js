@@ -5881,6 +5881,9 @@ CalcLang.add("ru", {
     "hydrogen": "Водород",
 
     // js/options.js
+    "turned_off_by_your": "",
+    "turn_on": "",
+    "instant_answers_on_site": "",
     "auto_lang": "Авто: {lang}",
 
     // js/popup.js

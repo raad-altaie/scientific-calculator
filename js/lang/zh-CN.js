@@ -5881,6 +5881,9 @@ CalcLang.add("zh-CN", {
     "hydrogen": "氢",
 
     // js/options.js
+    "turned_off_by_your": "",
+    "turn_on": "",
+    "instant_answers_on_site": "",
     "auto_lang": "自动：{lang}",
 
     // js/popup.js

@@ -2003,7 +2003,7 @@ async function graphSlopeField(page, at) {
         await page.calc('document.querySelector(".calc-graph-fn").classList.contains("calc-graph-rel")'), t + 'dy/dx = x – y is read, not as an equation of d, with no y′ of its own');
     check(await page.calc(inked(2, 1 + 2 * Math.exp(-2))) > 0 && await page.calc(inked(0, 1)) > 0 && await page.calc(inked(-4, 4)) === 0,
         t + 'its solution through (0, 1) is drawn, x – 1 + 2e^(–x), and nothing of its color off it');
-    check(await page.calc(lines(-6, -6)) > 4 && await page.calc(lines(6, 6)) > 4, t + 'and a line of the field at each place', await page.calc(lines(-6, -6)));
+    check(await page.calc(lines(-6, -4)) > 4 && await page.calc(lines(6, 4)) > 4, t + 'and a line of the field at each place', await page.calc(lines(-6, -4)));
     check(await page.calc(note) === 'Point for values; click off the curves for a solution there.', t + 'the note says what a click does', await page.calc(note));
     await page.hoverAt('.calc-graph-plot', 2, 1.3);
     check(/^Solution through \(0, 1\)\s*x = 2\s*y = 1\.27067/.test((await page.calc(note)).trim()), t + 'pointed at, a solution: where it starts, x and y', await page.calc(note));
@@ -2032,7 +2032,7 @@ async function graphSlopeField(page, at) {
     check(await page.calc(note) === 'The solution through (1, 0) stops at x = 0: its slope has no value there.', t + 'one of no slope past 0 stops, said', await page.calc(note));
     await type('dy/dx = sqrt(-1 - x^2)');
     await sleep(100);
-    check(await page.calc(note) === 'The slope has no value anywhere in the view.' && await page.calc(lines(-6, -6)) === 0, t + 'a field of no value anywhere, said', await page.calc(note));
+    check(await page.calc(note) === 'The slope has no value anywhere in the view.' && await page.calc(lines(-6, -4)) === 0, t + 'a field of no value anywhere, said', await page.calc(note));
 
     // with the decimal comma: ; between the starts
     await page.fresh(at, { format: { notation: 'norm', places: 'auto', group: 'dot' }, graph: { f: ['dy/dx = x - y {y(0) = 0,5}', ''], view: null } });
