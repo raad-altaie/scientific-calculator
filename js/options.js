@@ -11,6 +11,9 @@ if (window.top !== window) {
     guideBox.append(...guideParts);
 }
 
+// the words of the page in the language in use (lang.js), before anything here reads them
+CalcLang.dom(document.body);
+
 // the copyright line always shows the current year
 document.querySelectorAll('.year').forEach((el) => {
     el.textContent = new Date().getFullYear();
@@ -143,7 +146,7 @@ function showKinds() {
 
             label.hidden = panelOff(box.value);
             label.dataset.about = label.dataset.about || label.title;
-            label.title = label.dataset.about + (off ? '. Turned off by your administrator.' : '');
+            label.title = label.dataset.about + (off ? '. ' + CalcLang.t('Turned off by your administrator.') : '');
             box.disabled = off;
             box.checked = !off && chosen[box.value] !== false;
         });
@@ -178,8 +181,8 @@ function showSites() {
 
             name.textContent = site;
             on.type = 'button';
-            on.textContent = 'Turn on';
-            on.title = 'Instant answers on ' + site;
+            on.textContent = CalcLang.t('Turn on');
+            on.title = CalcLang.t('Instant answers on {site}', { site });
             on.addEventListener('click', () => chrome.storage.local.set({ pageMathsOff: sites.filter((other) => other !== site) }));
             item.append(name, on);
             return item;
@@ -216,6 +219,25 @@ chrome.storage.onChanged.addListener((changes, area) => {
 });
 showPageOptions();
 
+// The language of the calculator's words (lang.js): Auto, the browser's own while there is one, or one chosen,
+// kept in localStorage.lang. The page drawn again in it; an open calculator draws itself again as well (main.js).
+// Shown once there is more than English to choose from
+const langPick = document.getElementById('lang');
+
+if (Object.keys(CalcLang.names).length > 1) {
+    langPick.add(new Option(CalcLang.t('Auto: {lang}', { lang: CalcLang.names[CalcLang.browser()] }), 'auto'));
+    Object.keys(CalcLang.names).forEach((code) => langPick.add(new Option(CalcLang.names[code], code)));
+    langPick.value = CalcLang.chosen();
+    langPick.addEventListener('change', () => {
+        try {
+            if (langPick.value === 'auto') localStorage.removeItem('lang');
+            else localStorage.setItem('lang', JSON.stringify(langPick.value));
+        } catch (e) { }
+        location.reload();
+    });
+    document.getElementById('lang-option').hidden = false;
+}
+
 // The number format of the results. It is kept where the calculator reads it
 // when it opens; an open calculator gets the change as a storage event
 const notation = document.getElementById('format-notation');
@@ -224,9 +246,9 @@ const group = document.getElementById('format-group');
 const icon = document.getElementById('format-icon');
 
 // Auto: as many digits as each result needs, as a TI's Float
-places.add(new Option('Auto', 'auto'));
+places.add(new Option(CalcLang.t('Auto'), 'auto'));
 for (let n = 0; n <= 9; n++) {
-    places.add(new Option(n + (n === 1 ? ' decimal place' : ' decimal places'), n));
+    places.add(new Option(CalcLang.n(n, '{n} decimal place', '{n} decimal places'), n));
 }
 
 // kept as the calculator reads it: true for commas, as it was while they were the only ones
@@ -331,7 +353,7 @@ const showPolicy = () => {
             const note = option.querySelector('.option-text').appendChild(document.createElement('p'));
 
             note.className = 'option-note managed-note';
-            note.textContent = 'Turned off by your administrator.';
+            note.textContent = CalcLang.t('Turned off by your administrator.');
         } else {
             option.querySelector('.managed-note').remove();
         }

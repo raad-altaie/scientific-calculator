@@ -251,6 +251,7 @@ Storage.prototype.setItem = function (key, value) {
 };
 
 // ---- offline: the service worker keeps the calculator for use without a connection ----
+// and the words of the language in use, which it is told of: another language chosen, it is kept again with that one's
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => { }));
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js' + (CalcLang.locale !== 'en' ? '?lang=' + CalcLang.locale : '')).catch(() => { }));
 }

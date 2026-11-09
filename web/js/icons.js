@@ -64,6 +64,7 @@
         inequality: '<path d="M2 5l5 6M7 5l-5 6M14 3.5L9.5 7l4.5 3.5M9.5 12.5h4.5"/>',
         extrema: '<path d="M1.5 12Q4.75 -1 8 8T14.5 4"/><circle cx="5.34" cy="4.32" r="1.3" fill="currentColor" stroke="none"/>' +
             '<circle cx="10.65" cy="11.68" r="1.3" fill="currentColor" stroke="none"/>',
+        concavity: '<path d="M1.5 13C3 4 6 4 8 8S13 12 14.5 3"/><circle cx="8" cy="8" r="1.3" fill="currentColor" stroke="none"/>',
         parabola: '<path d="M2 2.5Q8 20 14 2.5"/>',
         cubic: '<path d="M1.5 14C5 -4 11 20 14.5 2"/>',
         quartic: '<path d="M1.5 3C2.5 14 6 14 8 7C10 14 13.5 14 14.5 3"/>',
@@ -227,9 +228,8 @@
         dial: '<circle cx="8" cy="8" r="6.5"/><path d="M8 1.5v2M14.5 8h-2M8 14.5v-2M1.5 8h2M8 8l2.5-2.5"/>',
         half: '<circle cx="8" cy="8" r="6.5"/><path fill="currentColor" stroke="none" d="M8 1.5a6.5 6.5 0 0 1 0 13z"/>',
         approx: '<path d="M2.5 6.5c2-2 4-2 5.5 0s3.5 2 5.5 0M2.5 10.5c2-2 4-2 5.5 0s3.5 2 5.5 0"/>',
-        colourbands: '<path d="' +
-            'M2.5 6a2 2 0 0 1 2-2h1.2c.6 0 .8.8 1.4.8h1.8c.6 0 .8-.8 1.4-.8h1.2a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-1.2c-.6 0-.8-.8-1.4-.8H7.1c-.6 0-.8.8-1.4.8H4.5a2 2 0 0 1-2-2z"/>' +
-            '<path d="M1 8h1.5M13.5 8H15"/><path stroke-width="1.2" d="M4.6 4.2v7.6M6.8 4.9v6.2M8.6 4.9v6.2M11.4 4.2v7.6"/>',
+        colourbands: '<g stroke-width="1" transform="rotate(-45 8 8)"><rect x="2.5" y="5.75" width="11" height="4.5" rx="1.5"/>' +
+            '<path d="M-2.5 8h5M13.5 8h5M5.5 5.75v4.5M8 5.75v4.5M10.5 5.75v4.5"/></g>', // a resistor corner to corner, slim, its bands
         smd: '<rect x="2" y="5" width="12" height="6" rx=".5"/><path d="M4.5 5v6M11.5 5v6"/>',
         parallel: '<path d="M1 8h2M13 8h2M3 4.5v7M13 4.5v7M3 4.5h2.5M10.5 4.5H13M3 11.5h2.5M10.5 11.5H13"/>' +
             '<rect x="5.5" y="3.25" width="5" height="2.5" rx=".5"/><rect x="5.5" y="10.25" width="5" height="2.5" rx=".5"/>',
@@ -589,7 +589,7 @@
         solve: {
             equation: 'equation', inequality: 'inequality', extrema: 'extrema', quadratic: 'parabola', cubic: 'cubic',
             quartic: 'quartic', polynomial: 'roots', system2: 'lines2', system3: 'lines3', curves: 'meet', integral: 'integral',
-            derivative: 'tangent', sum: 'sigma', product: 'pi', limit: 'limit', between: 'between', arc: 'arc', ode: 'field',
+            derivative: 'tangent', concavity: 'concavity', sum: 'sigma', product: 'pi', limit: 'limit', between: 'between', arc: 'arc', ode: 'field',
             taylor: 'taylor', triangle: 'triangle', shape: 'shapes', solid: 'cone', points: 'points', circle3: 'circle3',
             polygon: 'polygon', normal: 'bellmid', density: 'bellat', inverse: 'belltail', student: 'student', chi: 'chi',
             fisher: 'fdist', binomial: 'binomial', poisson: 'poisson', geometric: 'geometric', hypergeometric: 'urn',

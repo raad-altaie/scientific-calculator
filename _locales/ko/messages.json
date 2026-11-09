@@ -1,0 +1,50 @@
+{
+    "name": {
+        "message": "공학용 계산기",
+        "description": "The extension's name, in the browser and the store"
+    },
+    "description": {
+        "message": "완전한 공학용 계산기: 그래프, 방정식, 미적분, 통계, 행렬, 단위 변환, 금융, 화학, 물리, 생물.",
+        "description": "What the extension is, in the browser and the store: up to 132 characters"
+    },
+    "actionTitle": {
+        "message": "계산기",
+        "description": "The tip of the toolbar icon"
+    },
+    "openPopup": {
+        "message": "공학용 계산기 열기",
+        "description": "The keyboard shortcut's name, on the browser's page of shortcuts"
+    },
+    "menuCalculate": {
+        "message": "“%s” 계산",
+        "description": "Right-click menu on selected text; %s is the selection"
+    },
+    "menuSite": {
+        "message": "이 사이트의 즉시 답변",
+        "description": "Right-click menu checkbox: the instant answers on this website"
+    },
+    "menuFixed": {
+        "message": "고정 모드",
+        "description": "Menu item: opens the calculator in Fixed Mode"
+    },
+    "menuDetached": {
+        "message": "분리 모드",
+        "description": "Menu item: opens the calculator in Detached Mode"
+    },
+    "menuAdvanced": {
+        "message": "고급 모드",
+        "description": "Menu item: opens the calculator in Advanced Mode"
+    },
+    "menuEnable": {
+        "message": "이 사이트에서 즉시 답변 사용",
+        "description": "Toolbar icon menu: turns the instant answers on for this website"
+    },
+    "menuDisable": {
+        "message": "이 사이트에서 즉시 답변 사용 안 함",
+        "description": "Toolbar icon menu: turns the instant answers off for this website"
+    },
+    "menuOptions": {
+        "message": "옵션",
+        "description": "Right-click menu: opens the options page"
+    }
+}

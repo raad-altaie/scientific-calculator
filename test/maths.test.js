@@ -151,6 +151,64 @@ function points(a, b) {
 check(JSON.stringify(M.system2(['y = x^2', 'x + y = 1'], false, 0, true).points.map(function (p) { return p.exact; })) ===
     '[["(-1 - √5)/2","(3 + √5)/2"],["(-1 + √5)/2","(3 - √5)/2"]]', 'system2: exact forms of each');
 
+// derivatives written out, the first and the second, as HTML; and the engine reads each back to the same slope
+function derivs(text, deg) {
+    var r = M.derivatives(text, false, deg || 0);
+    return r.error || r.forms.map(function (f) { return f.html; }).join(' ; ');
+}
+[
+    ['x^3', '3x<sup>2</sup> ; 6x'],
+    ['x^3 sin(x)', '3x<sup>2</sup> sin(x) + x<sup>3</sup> cos(x) ; 6x sin(x) + 6x<sup>2</sup> cos(x) – x<sup>3</sup> sin(x)'],
+    ['e^(-x^2)', '–2x e<sup>–x<sup>2</sup></sup> ; 4x<sup>2</sup> e<sup>–x<sup>2</sup></sup> – 2 e<sup>–x<sup>2</sup></sup>'],
+    ['ln(x)', '1/x ; –1/x<sup>2</sup>'],
+    ['sqrt(x^2+1)', 'x/√(x<sup>2</sup> + 1) ; 1/√(x<sup>2</sup> + 1) – x<sup>2</sup>/(x<sup>2</sup> + 1)<sup>3/2</sup>'],
+    ['tan(x)', 'sec<sup>2</sup>(x) ; 2 tan(x) sec<sup>2</sup>(x)'],
+    ['x^x', 'x<sup>x</sup>(ln(x) + 1) ; x<sup>x</sup>(ln(x) + 1)<sup>2</sup> + x<sup>x – 1</sup>'],
+    ['sin(x)/x', 'cos(x)/x – sin(x)/x<sup>2</sup> ; 2 sin(x)/x<sup>3</sup> – 2 cos(x)/x<sup>2</sup> – sin(x)/x'],
+    ['(x^2+1)^3', '6x(x<sup>2</sup> + 1)<sup>2</sup> ; 6(x<sup>2</sup> + 1)<sup>2</sup> + 24x<sup>2</sup>(x<sup>2</sup> + 1)'],
+    ['2^x', '2<sup>x</sup> ln(2) ; 2<sup>x</sup> ln<sup>2</sup>(2)'],
+    ['asin(x)', '1/√(1 – x<sup>2</sup>) ; x/(1 – x<sup>2</sup>)<sup>3/2</sup>'],
+    ['abs(x)', 'sign(x) ; 0'],
+    ['x^2 - 4x + 4', '2x – 4 ; 2'],
+    ['0.5x^2.5', '5x<sup>3/2</sup>/4 ; 15√x/8'],
+    ['5! x', '120 ; 0'],
+    ['x mod 3', 'none'],
+    ['a x', 'letters']
+].forEach(function (c) {
+    check(derivs(c[0]) === c[1], 'derivatives: ' + c[0], derivs(c[0]));
+});
+check(derivs('sin(x)', 1) === 'π cos(x)/180 ; –π<sup>2</sup> sin(x)/32400', 'derivatives: of sin x in Deg, π/180 in each', derivs('sin(x)', 1));
+['x^3 sin(x)', 'e^(-x^2)', 'x^(1/3)', 'atan(x^2)', 'x/(x^2+1)', 'log_5(x)', 'cos(2x)'].forEach(function (f) {
+    var r = M.derivatives(f, false, 0), c = M.fn(f, false), d = require('../js/engine.js').graph(r.forms[0].plain, false, {}), ok = !!d;
+    [-2.3, 0.4, 1.7, 3.1].forEach(function (x) {
+        var s = M.slopes(c, x, 0)[0];
+        if (ok && isFinite(s)) ok = Math.abs(d.at(x, 0) - s) <= 1e-6 * Math.max(1, Math.abs(s));
+    });
+    check(ok, 'derivatives: ' + f + ' read back, its slope as the steps find it', r.forms[0].plain);
+});
+
+// where a function rises, falls and bends, and its inflection points
+function bends(text, from, to) {
+    var r = M.shape(text, false, 0, from, to), iv = function (ps) {
+        return ps.map(function (p) { return (p.fromIn ? '[' : '(') + p.from + ',' + p.to + (p.toIn ? ']' : ')'); }).join(' ') || '-';
+    };
+    return r.error || [iv(r.rising), iv(r.falling), iv(r.up), iv(r.down), r.points.map(function (p) { return p.x + ',' + p.y; }).join(' ')].join(' | ');
+}
+[
+    ['x^4 - 4x^3', '(3,Infinity) | (-Infinity,3) | (-Infinity,0) (2,Infinity) | (0,2) | 0,0 2,-16', 'falling on through 0, where its slope is only 0'],
+    ['x^3', '(-Infinity,Infinity) | - | (0,Infinity) | (-Infinity,0) | 0,0', 'rising through 0'],
+    ['1/x', '- | (-Infinity,0) (0,Infinity) | (0,Infinity) | (-Infinity,0) | ', 'no inflection point where it has no value'],
+    ['ln(x)', '(0,Infinity) | - | - | (0,Infinity) | ', 'only where it has values'],
+    ['e^(-x^2)', '(-Infinity,0) | (0,Infinity) | (-Infinity,-0.70710678118655) (0.70710678118655,Infinity) | (-0.70710678118655,0.70710678118655) | -0.70710678118655,0.606530659713 0.70710678118655,0.606530659713',
+        'on to ∞, where its slope is too small to tell'],
+    ['x^(1/3)', '(-Infinity,Infinity) | - | (-Infinity,0) | (0,Infinity) | 0,0', 'through 0, where its slope has no value'],
+    ['abs(x)', '(0,Infinity) | (-Infinity,0) | - | - | ', 'straight on each side'],
+    ['x mod 3', 'none', 'no formula of its slope']
+].forEach(function (c) {
+    check(bends(c[0]) === c[1], 'shape: ' + c[0] + ': ' + c[2], bends(c[0]));
+});
+check(/^\(-1\.5707963\d*,1\.5707963\d*\)$/.test(bends('tan(x)', -2, 2).split(' | ')[0].split(' ')[1]), 'shape: tan x rising, in a part each side of π/2', bends('tan(x)', -2, 2));
+
 // turning points
 function turns(text, from, to) {
     var r = M.extrema(text, false, 0, from, to);

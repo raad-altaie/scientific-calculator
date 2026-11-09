@@ -1,0 +1,50 @@
+{
+    "name": {
+        "message": "科学计算器",
+        "description": "The extension's name, in the browser and the store"
+    },
+    "description": {
+        "message": "功能齐全的科学计算器：函数图像、解方程、微积分、统计、矩阵、单位换算、金融、化学、物理、生物。",
+        "description": "What the extension is, in the browser and the store: up to 132 characters"
+    },
+    "actionTitle": {
+        "message": "计算器",
+        "description": "The tip of the toolbar icon"
+    },
+    "openPopup": {
+        "message": "打开科学计算器",
+        "description": "The keyboard shortcut's name, on the browser's page of shortcuts"
+    },
+    "menuCalculate": {
+        "message": "计算“%s”",
+        "description": "Right-click menu on selected text; %s is the selection"
+    },
+    "menuSite": {
+        "message": "此网站的即时答案",
+        "description": "Right-click menu checkbox: the instant answers on this website"
+    },
+    "menuFixed": {
+        "message": "固定模式",
+        "description": "Menu item: opens the calculator in Fixed Mode"
+    },
+    "menuDetached": {
+        "message": "分离模式",
+        "description": "Menu item: opens the calculator in Detached Mode"
+    },
+    "menuAdvanced": {
+        "message": "高级模式",
+        "description": "Menu item: opens the calculator in Advanced Mode"
+    },
+    "menuEnable": {
+        "message": "在此网站启用即时答案",
+        "description": "Toolbar icon menu: turns the instant answers on for this website"
+    },
+    "menuDisable": {
+        "message": "在此网站停用即时答案",
+        "description": "Toolbar icon menu: turns the instant answers off for this website"
+    },
+    "menuOptions": {
+        "message": "选项",
+        "description": "Right-click menu: opens the options page"
+    }
+}

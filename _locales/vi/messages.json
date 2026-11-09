@@ -1,0 +1,50 @@
+{
+    "name": {
+        "message": "Máy tính khoa học",
+        "description": "The extension's name, in the browser and the store"
+    },
+    "description": {
+        "message": "Máy tính khoa học đầy đủ: vẽ đồ thị, giải phương trình, giải tích, thống kê, ma trận, đơn vị, tài chính, hóa học, vật lý, sinh học.",
+        "description": "What the extension is, in the browser and the store: up to 132 characters"
+    },
+    "actionTitle": {
+        "message": "Máy tính",
+        "description": "The tip of the toolbar icon"
+    },
+    "openPopup": {
+        "message": "Mở Máy tính khoa học",
+        "description": "The keyboard shortcut's name, on the browser's page of shortcuts"
+    },
+    "menuCalculate": {
+        "message": "Tính “%s”",
+        "description": "Right-click menu on selected text; %s is the selection"
+    },
+    "menuSite": {
+        "message": "Câu trả lời tức thì trên trang này",
+        "description": "Right-click menu checkbox: the instant answers on this website"
+    },
+    "menuFixed": {
+        "message": "Chế độ cố định",
+        "description": "Menu item: opens the calculator in Fixed Mode"
+    },
+    "menuDetached": {
+        "message": "Chế độ tách rời",
+        "description": "Menu item: opens the calculator in Detached Mode"
+    },
+    "menuAdvanced": {
+        "message": "Chế độ nâng cao",
+        "description": "Menu item: opens the calculator in Advanced Mode"
+    },
+    "menuEnable": {
+        "message": "Bật câu trả lời tức thì trên trang này",
+        "description": "Toolbar icon menu: turns the instant answers on for this website"
+    },
+    "menuDisable": {
+        "message": "Tắt câu trả lời tức thì trên trang này",
+        "description": "Toolbar icon menu: turns the instant answers off for this website"
+    },
+    "menuOptions": {
+        "message": "Tùy chọn",
+        "description": "Right-click menu: opens the options page"
+    }
+}

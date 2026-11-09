@@ -1,0 +1,50 @@
+{
+    "name": {
+        "message": "Wetenschappelijke rekenmachine",
+        "description": "The extension's name, in the browser and the store"
+    },
+    "description": {
+        "message": "Wetenschappelijke rekenmachine: grafieken, oplosser, analyse, statistiek, matrices, eenheden, financiën, chemie, fysica, biologie.",
+        "description": "What the extension is, in the browser and the store: up to 132 characters"
+    },
+    "actionTitle": {
+        "message": "Rekenmachine",
+        "description": "The tip of the toolbar icon"
+    },
+    "openPopup": {
+        "message": "Wetenschappelijke rekenmachine openen",
+        "description": "The keyboard shortcut's name, on the browser's page of shortcuts"
+    },
+    "menuCalculate": {
+        "message": "“%s” berekenen",
+        "description": "Right-click menu on selected text; %s is the selection"
+    },
+    "menuSite": {
+        "message": "Directe antwoorden op deze site",
+        "description": "Right-click menu checkbox: the instant answers on this website"
+    },
+    "menuFixed": {
+        "message": "Vaste modus",
+        "description": "Menu item: opens the calculator in Fixed Mode"
+    },
+    "menuDetached": {
+        "message": "Los venster",
+        "description": "Menu item: opens the calculator in Detached Mode"
+    },
+    "menuAdvanced": {
+        "message": "Geavanceerde modus",
+        "description": "Menu item: opens the calculator in Advanced Mode"
+    },
+    "menuEnable": {
+        "message": "Directe antwoorden op deze site inschakelen",
+        "description": "Toolbar icon menu: turns the instant answers on for this website"
+    },
+    "menuDisable": {
+        "message": "Directe antwoorden op deze site uitschakelen",
+        "description": "Toolbar icon menu: turns the instant answers off for this website"
+    },
+    "menuOptions": {
+        "message": "Opties",
+        "description": "Right-click menu: opens the options page"
+    }
+}

@@ -1,0 +1,50 @@
+{
+    "name": {
+        "message": "Научный калькулятор",
+        "description": "The extension's name, in the browser and the store"
+    },
+    "description": {
+        "message": "Полный научный калькулятор: графики, уравнения, матанализ, статистика, матрицы, единицы, финансы, химия, физика, биология.",
+        "description": "What the extension is, in the browser and the store: up to 132 characters"
+    },
+    "actionTitle": {
+        "message": "Калькулятор",
+        "description": "The tip of the toolbar icon"
+    },
+    "openPopup": {
+        "message": "Открыть научный калькулятор",
+        "description": "The keyboard shortcut's name, on the browser's page of shortcuts"
+    },
+    "menuCalculate": {
+        "message": "Вычислить «%s»",
+        "description": "Right-click menu on selected text; %s is the selection"
+    },
+    "menuSite": {
+        "message": "Мгновенные ответы на этом сайте",
+        "description": "Right-click menu checkbox: the instant answers on this website"
+    },
+    "menuFixed": {
+        "message": "Фиксированный режим",
+        "description": "Menu item: opens the calculator in Fixed Mode"
+    },
+    "menuDetached": {
+        "message": "Отдельное окно",
+        "description": "Menu item: opens the calculator in Detached Mode"
+    },
+    "menuAdvanced": {
+        "message": "Расширенный режим",
+        "description": "Menu item: opens the calculator in Advanced Mode"
+    },
+    "menuEnable": {
+        "message": "Включить мгновенные ответы на этом сайте",
+        "description": "Toolbar icon menu: turns the instant answers on for this website"
+    },
+    "menuDisable": {
+        "message": "Отключить мгновенные ответы на этом сайте",
+        "description": "Toolbar icon menu: turns the instant answers off for this website"
+    },
+    "menuOptions": {
+        "message": "Параметры",
+        "description": "Right-click menu: opens the options page"
+    }
+}

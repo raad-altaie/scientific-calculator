@@ -1,11 +1,12 @@
 {
     "manifest_version": 3,
-    "name": "Scientific Calculator",
-    "version": "2.5.35",
+    "name": "__MSG_name__",
+    "default_locale": "en",
+    "version": "2.5.40",
     "author": "Raad Altaie",
-    "description": "A complete scientific calculator: graphing, solver, calculus, statistics, matrices, units, finance, chemistry, physics, biology.",
+    "description": "__MSG_description__",
     "action": {
-        "default_title": "Calculator",
+        "default_title": "__MSG_actionTitle__",
         "default_popup": "popup.html",
         "default_icon": "imgs/icon.png"
     },
@@ -57,7 +58,7 @@
                 "chromeos": "Alt+S",
                 "linux": "Alt+S"
             },
-            "description": "Open Scientific Calculator"
+            "description": "__MSG_openPopup__"
         }
     },
     "content_security_policy": {

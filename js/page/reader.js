@@ -687,7 +687,8 @@
     // pageMathsOff. Each by its name without www.: www.example.com is example.com, but en.wikipedia.org
     // is not de.wikipedia.org
     const siteOf = (host) => String(host || '').toLowerCase().replace(/^www\./, '');
-    const offOn = (list, host) => Array.isArray(list) && list.includes(siteOf(host));
+    // raad.dev, the calculator's own website, is always off
+    const offOn = (list, host) => /(^|\.)raad\.dev$/i.test(host) || (Array.isArray(list) && list.includes(siteOf(host)));
 
     // ---------------- for the tips ---------------- //
 

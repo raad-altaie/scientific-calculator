@@ -161,12 +161,12 @@
         },
         'solve tab solve': {
             t: 'Solve',
-            d: 'Equations and inequalities of x, turning points, polynomials, linear equations and two curves.',
+            d: 'Equations and inequalities of x, polynomials, linear equations and two curves.',
             k: ''
         },
         'solve tab calculus': {
             t: 'Calculus',
-            d: 'Integrals, slopes, sums and products, limits, Taylor series, areas between curves, arc lengths and differential equations.',
+            d: 'Derivatives written out, turning points, where a curve rises and bends, integrals, sums and products, limits, Taylor series, areas between curves, arc lengths and differential equations.',
             k: ''
         },
         'solve tab finance': {

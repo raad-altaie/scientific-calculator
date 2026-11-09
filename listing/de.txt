@@ -1,0 +1,119 @@
+Ein schneller, leistungsfähiger wissenschaftlicher Rechner, direkt im Browser. Brüche, Graphen, Gleichungen, Matrizen, ein Periodensystem, Werkzeuge für Physik und Biologie, über 100 Formeln und mehr. Er funktioniert offline, ist kostenlos, zeigt keine Werbung und hält Ihre Daten privat.
+
+SO ÖFFNEN SIE IHN
+• Popup: auf das Symbol in der Symbolleiste klicken oder Alt+S drücken.
+• Eigenes Fenster: den Rechner neben der Arbeit offen halten, in jeder Größe.
+• Erweiterter Modus: der Rechner in einem großen Fenster mit allen Werkzeugen an der Seite. Graph, Periodensystem und jedes andere Werkzeug lassen sich ebenfalls in ein eigenes Fenster herauslösen.
+• Auf jeder Seite (optional): ein kleiner Rechnerknopf am Rand jeder Website. An die Seite ziehen, die Ihnen gefällt.
+• Sofortantworten auf jeder Seite (optional): siehe unten.
+
+RECHNER
+• Die ganze Gleichung beim Tippen sehen und jeden Teil davon mit den Pfeiltasten oder einem Klick korrigieren.
+• Echte Rechnerlogik: 1 + 2 × 3 = 7, mit Klammern bis zu 29 Ebenen tief.
+• Einen Teil einer Gleichung auswählen und eine Funktionstaste drücken, um ihn einzuschließen: sin über 30 ergibt sin(30).
+• Trigonometrie, Umkehr- und Hyperbelfunktionen, in Grad, Bogenmaß oder Gon (Deg, Rad, Grad).
+• Logarithmen, Potenzen und Wurzeln, Fakultät, nCr, nPr, mod, ggT, kgV und Rand.
+• Grad, Minuten und Sekunden: 12°30′15″.
+• Speichertasten, Ans, und Rückgängig und Wiederherstellen mit Strg+Z.
+• Zahlenformat: Fix, Sci oder Eng, 0 bis 9 Nachkommastellen, und Tausendertrennzeichen wie 1,234.5 oder 1.234,5.
+
+BRÜCHE
+• a/b einschalten, und jede Division wird beim Tippen als echter Bruch dargestellt.
+• Ergebnisse erscheinen als exakte Brüche: 0.75 ist 3/4.
+
+VERLAUF UND VARIABLEN
+• Ihre letzten 50 Rechnungen werden gespeichert. Eine Gleichung oder ein Ergebnis wieder einfügen oder kopieren.
+• Den Verlauf als Text oder als CSV für eine Tabellenkalkulation exportieren.
+• Zehn Variablen, A bis J: ein Ergebnis speichern und in jeder Gleichung verwenden, etwa 2A + B.
+
+GRAPH
+• Bis zu sieben Funktionen gleichzeitig zeichnen, jede in ihrer eigenen Farbe.
+• Nullstellen, Maxima und Minima sowie Schnittpunkte sind markiert. Auf einen Punkt klicken für sein x, y und seine Steigung, mit der Tangente.
+• Abspielbare Regler, die Fläche unter einer Kurve, Ableitungen, Gleichungen in x und y, Ungleichungen, Polar- und Parameterkurven, Folgen, Richtungsfelder und Ausgleichsgeraden.
+• Eine Wertetabelle, sechzig Beispiele zum Ausprobieren und eine große Ansicht.
+
+LÖSEN
+• Jede Nullstelle einer Gleichung, auch in exakter Form: √2, (1 + √5)/2, π/6.
+• Ungleichungen, Extrempunkte und Polynome bis zum Grad 30, mit komplexen Lösungen.
+• Zwei oder drei lineare Gleichungen zugleich, und wo sich zwei Kurven treffen.
+• Analysis: Integrale, Ableitungen, Grenzwerte, Summen und Produkte bis unendlich, Taylorreihen, Bogenlänge und Differentialgleichungen.
+• Geometrie: Dreiecke aus drei beliebigen Angaben, Flächen und Volumina von Formen, der Kreis durch drei Punkte, alles gezeichnet.
+• Die meisten Antworten kommen mit einem Graphen, und jede Karte hat ein Beispiel als Ausgangspunkt.
+
+PERIODENSYSTEM UND CHEMIE
+• Alle 118 Elemente, gefärbt nach Art, Zustand, Block oder Elektronegativität, mit einer Suche.
+• Auf ein Element klicken für seine Masse, Elektronenkonfiguration, Schalen, Schmelz- und Siedepunkte, Dichte, Oxidationsstufen, Härte, Magnetismus, Leitfähigkeit, Häufigkeit und mehr.
+• Sein Atom gezeichnet, wie Bohr es zeichnete, mit den umlaufenden Elektronen.
+• Sein Spektrum, mit dunklen Absorptions- oder hellen Emissionslinien.
+• Seine Kristallstruktur: die Elementarzelle dreidimensional gezeichnet, mit gezählten Atomen.
+• Molare Masse einer Formel, Gramm ↔ Mol ↔ Teilchen, und Verhältnisformeln.
+• Jede Gleichung ausgleichen, auch Redox, mit limitierendem Reaktanten und prozentualer Ausbeute.
+• Molarität, Verdünnung, pH, Puffer, Lösungen, Löslichkeit, und Namen ⇄ Formeln.
+• Gasgesetze, Partialdrücke, Gasvolumina, Effusion und die Luft mit der Höhe.
+
+PHYSIK
+• Elektronik: Widerstands-Farbcodes und SMD-Codes in beide Richtungen, gezeichnet; Widerstände, Kondensatoren und Spulen in Reihe und parallel (100 + 220 || 330); das Ohmsche Gesetz, Spannungsteiler, Filter, Dioden, Transistoren, OPVs, der 555 und Dezibel.
+• Bewegung: gleichmäßige Beschleunigung, Würfe, Umlaufbahnen, Pendel und Federn, Rotation.
+• Kräfte: Reibung, Rollen, Stöße, Energie, Drehmoment, Gravitation, das Coulombsche Gesetz und Magnetfelder.
+• Wellen: stehende Wellen, Linsen und Spiegel mit Strahlengängen, Interferenz, der Doppler-Effekt.
+• Materie: Wärme, Gase, Carnot-Maschinen, Druck, Auftrieb und Strömung.
+• Moderne Physik: Relativitätstheorie, Kernbindungsenergie, photoelektrischer Effekt, Tunneleffekt, das Spektrum des Wasserstoffs und radioaktiver Zerfall.
+• Die meisten Ergebnisse kommen mit einer Zeichnung.
+
+BIOLOGIE
+• Genetik: Punnett-Quadrate mit bis zu sechs Genen, X-chromosomale Erbgänge, Hardy-Weinberg, Genkarten und Stammbäume.
+• DNA: Sequenzen, Translation, Primer, Restriktionsverdau auf einem virtuellen Gel, PCR, Alignment und CRISPR-Guides.
+• Protein: Masse, pI und Ladung, Enzymkinetik und Dosis-Wirkungs-Kurven.
+• Labor: Verdünnungen, Zellzählungen, Wachstum, OD600, KBE, Zentrifugeneinstellungen.
+• Zellen, Gesundheit und Ökologie: für jedes weitere Werkzeuge.
+
+FINANZEN
+• Kreditrechner mit einer Tabelle für jedes Jahr oder jede Rate.
+• Sparplanwachstum, Zeitwert des Geldes (N, I/Y, PV, PMT, FV), Kapitalwert, IZF und Amortisation.
+• APR und APY, Anleihen, Abschreibung, Gewinnschwelle, Inflation, Aufschlag und Marge.
+
+WAHRSCHEINLICHKEIT UND STATISTIK
+• Eine Liste von Zahlen eingeben oder einfügen, auch eine Tabellenspalte: Mittelwert, Median, Standardabweichung, Quartile, Modus und mehr, mit Histogramm und Boxplot.
+• Paare aus x und y: Korrelation und die Ausgleichskurve (linear, quadratisch, exponentiell, Potenz, logarithmisch oder logistisch).
+• Hypothesentests wie auf einem TI-84: t, z, Anteile, χ², ANOVA, mit p-Werten.
+• Normal-, t-, χ²-, F-, Binomial-, Poisson-Verteilung und mehr, mit p-Werten und Konfidenzintervallen.
+
+FORMELN UND KONSTANTEN
+• Über 100 Formeln aus Algebra, Geometrie, Physik, Elektrizität, Chemie, Finanzen und Alltag. Die Buchstaben ausfüllen und die Antwort erhalten.
+• 59 Konstanten aus Mathematik und Wissenschaft, mit einem Klick einzusetzen.
+
+MATRIZEN UND ZAHLEN
+• Matrizen bis 10 × 10: Determinante, Inverse, Eigenwerte, A x = b, LU und QR.
+• Vektoren und komplexe Zahlen wie (2+3i)(1−i), in der Ebene gezeichnet.
+• Primfaktoren, exakte große Zahlen wie 100! und 2^200, und periodische Dezimalzahlen als Brüche.
+• Für Programmierer: hexadezimal, binär und jede Basis, Bitoperationen, Gray-Code, Wahrheitstabellen mit KV-Diagrammen, Base64, Hashes (MD5, SHA-256), UUIDs, IEEE 754 und IPv4- und IPv6-Subnetze.
+
+UMRECHNER UND DATEN
+• Einheiten für Länge, Fläche, Volumen, Masse, Temperatur, Geschwindigkeit, Zeit, Daten, Druck, Energie, Leistung, Winkel, Verbrauch, Kraft, Drehmoment, Dichte, Frequenz, Spannung, Widerstand und mehr.
+• Tage zwischen zwei Daten, Tage, Monate oder Jahre zu einem Datum addieren, und Unix-Zeitstempel.
+• Zeitzonen: 9:00 in New York sind 22:00 in Tokio.
+
+SOFORTANTWORTEN AUF JEDER WEBSITE (OPTIONAL, STANDARDMÄSSIG AUS)
+• Ein kleines Symbol erscheint hinter der Mathematik auf den Seiten, die Sie lesen: einer Rechnung, einer Gleichung, einer Matrix, einem Integral, einer Formel, einer Umrechnung, einem Kredit, einer chemischen Reaktion, einer DNA-Sequenz oder den Farbringen eines Widerstands.
+• Darauf zeigen für die Antwort. Darauf klicken, um sie im Rechner zu öffnen.
+• Beliebigen Text auswählen und im Rechtsklickmenü Berechnen wählen.
+• Auf einer einzelnen Website über das Menü des Symbols in der Symbolleiste ausschalten.
+
+TASTATUR, KOPIEREN UND EINFÜGEN
+• Jeder Knopf hat eine Taste, auf jedem Tastaturlayout, auch arabisch, hebräisch, russisch und griechisch.
+• Eine ganze Gleichung wie 2 + 3 × sin(30) einfügen.
+• Auf ein Ergebnis klicken, um es in Ihrer Rechnung zu verwenden.
+
+FÜR SCHULEN UND ORGANISATIONEN
+Administratoren können Funktionen für alle von ihnen verwalteten Nutzer abschalten, zum Beispiel während einer Prüfung. Jede dieser Funktionen lässt sich per Richtlinie abschalten, in der Google Admin-Konsole, über Windows-Gruppenrichtlinien oder in der policies.json von Firefox: Formeln, Umrechner, Graph, Lösen, Statistik, Zahlen, Chemie, Physik, Biologie, das eigene Fenster, der Knopf auf jeder Seite und die Sofortantworten auf jeder Seite. Eine abgeschaltete Funktion verschwindet sofort aus dem Rechner und ist in den Einstellungen gesperrt.
+Anleitung für Administratoren: raad.dev/calculator/admin
+
+PRIVAT UND KOSTENLOS
+• Funktioniert offline. Nichts, was Sie eingeben, verlässt Ihren Browser.
+• Fragt nur dann nach Zugriff auf Websites, wenn Sie den Knopf oder die Sofortantworten auf jeder Seite einschalten. Beide sind standardmäßig aus.
+• Der Knopf liest nichts von den Seiten. Die Sofortantworten betrachten den Text einer Seite, nur auf Ihrem Gerät, um Mathematik zu finden, und es wird nichts irgendwohin gesendet.
+• Behält Ihre Arbeit, wenn Sie ihn schließen.
+• Probieren Sie die Web-Version: raad.dev/calculator
+• Kostenlos und Open Source: github.com/raad-altaie/scientific-calculator
+
+Viel Freude damit!

@@ -1074,7 +1074,7 @@ async function solver(page, at) {
     await page.fresh(at, {});
     await page.click('.calc-solve-btn');
     check(await open(page, '.calc-solve') && await page.calc('[].map.call(document.querySelectorAll(".calc-solve .calc-solve-tab"), function (t) { return t.dataset.tab; }).join()') === 'solve,calculus,geometry,chance,finance' &&
-        await page.calc('document.querySelectorAll(".calc-solve .calc-sv-item").length') === 10, t + 'its button opens it: five tabs, Finance after Probability, Geometry last, ten cards on the first');
+        await page.calc('document.querySelectorAll(".calc-solve .calc-sv-item").length') === 9, t + 'its button opens it: five tabs, Finance after Probability, Geometry last, nine cards on the first');
     await page.click('.calc-sv-item:nth-child(1) .calc-sv-row');
     check(await page.calc('document.activeElement === document.querySelector("' + on + ' input")'), t + 'a card opens its boxes, the first to type in');
     await page.type('x^2=2x+3');
@@ -1114,11 +1114,19 @@ async function solver(page, at) {
     await set(0, '(x-1)(x^2-x-1)');
     got = await page.calc(tiles);
     check(got.indexOf('Multiplied out=x3 – 2x2 + 1 | ') === 0 && got.indexOf('Exact=x1 = (1 – √5)/2, x3 = (1 + √5)/2') > 0, t + 'a polynomial typed, multiplied out and solved', got);
+
+    await page.click('.calc-solve .calc-solve-tab[data-tab="calculus"]');
+    await card('Derivative');
+    await set(0, 'x^3 sin(x)');
+    got = await page.calc(tiles);
+    check(got.indexOf('Derivative=f′(x) = 3x2 sin(x) + x3 cos(x) | Second derivative=f″(x) = 6x sin(x) + 6x2 cos(x) – x3 sin(x) | ') === 0, t + 'the derivative of x³ sin x written out, and the derivative of that', got);
     await card('Turning points');
     await set(0, 'x^3-3x');
     check(await page.calc(tiles) === 'Max x=-1 | Max y=2 | Min x=1 | Min y=-2', t + 'the turning points of x³ – 3x', await page.calc(tiles));
-
-    await page.click('.calc-solve .calc-solve-tab[data-tab="calculus"]');
+    await card('Curve shape');
+    await set(0, 'x^4-4x^3');
+    check(await page.calc(tiles) === 'Increasing=(3, ∞) | Decreasing=(–∞, 3) | Concave up=(–∞, 0) ∪ (2, ∞) | Concave down=(0, 2) | Inflection x=0 | Inflection y=0 | Inflection x=2 | Inflection y=-16',
+        t + 'where x⁴ – 4x³ rises, falls and bends, and its inflection points', await page.calc(tiles));
     await card('Integral');
     await set(0, 'x^2');
     await set(2, '3');
@@ -2003,7 +2011,7 @@ async function graphSlopeField(page, at) {
         await page.calc('document.querySelector(".calc-graph-fn").classList.contains("calc-graph-rel")'), t + 'dy/dx = x – y is read, not as an equation of d, with no y′ of its own');
     check(await page.calc(inked(2, 1 + 2 * Math.exp(-2))) > 0 && await page.calc(inked(0, 1)) > 0 && await page.calc(inked(-4, 4)) === 0,
         t + 'its solution through (0, 1) is drawn, x – 1 + 2e^(–x), and nothing of its color off it');
-    check(await page.calc(lines(-6, -6)) > 4 && await page.calc(lines(6, 6)) > 4, t + 'and a line of the field at each place', await page.calc(lines(-6, -6)));
+    check(await page.calc(lines(-6, -4)) > 4 && await page.calc(lines(6, 4)) > 4, t + 'and a line of the field at each place', await page.calc(lines(-6, -4)));
     check(await page.calc(note) === 'Point for values; click off the curves for a solution there.', t + 'the note says what a click does', await page.calc(note));
     await page.hoverAt('.calc-graph-plot', 2, 1.3);
     check(/^Solution through \(0, 1\)\s*x = 2\s*y = 1\.27067/.test((await page.calc(note)).trim()), t + 'pointed at, a solution: where it starts, x and y', await page.calc(note));
@@ -2032,7 +2040,7 @@ async function graphSlopeField(page, at) {
     check(await page.calc(note) === 'The solution through (1, 0) stops at x = 0: its slope has no value there.', t + 'one of no slope past 0 stops, said', await page.calc(note));
     await type('dy/dx = sqrt(-1 - x^2)');
     await sleep(100);
-    check(await page.calc(note) === 'The slope has no value anywhere in the view.' && await page.calc(lines(-6, -6)) === 0, t + 'a field of no value anywhere, said', await page.calc(note));
+    check(await page.calc(note) === 'The slope has no value anywhere in the view.' && await page.calc(lines(-6, -4)) === 0, t + 'a field of no value anywhere, said', await page.calc(note));
 
     // with the decimal comma: ; between the starts
     await page.fresh(at, { format: { notation: 'norm', places: 'auto', group: 'dot' }, graph: { f: ['dy/dx = x - y {y(0) = 0,5}', ''], view: null } });
@@ -3887,7 +3895,7 @@ async function statsMore(page, at) {
     check(await page.until('!document.querySelector(".calc-peek").hidden && /^First quartile/.test(document.querySelector(".calc-peek").textContent)', 2500) &&
         await page.calc('document.querySelector(".calc-peek .calc-peek-value").textContent') === '4' &&
         await page.calc('document.querySelectorAll(".calc-peek .calc-peek-act").length') === 2, t + 'Q1 has its tip: what it is, its value, Insert and Copy');
-    await page.hover('.calc-stats-tile[data-k="q3"]'); // passed over on the way to the tip's buttons
+    await page.hover('.calc-stats-tile[data-k="max"]'); // beside Q1, passed over on the way to the tip's buttons
     await page.hover('.calc-peek .calc-peek-value');
     await sleep(500);
     check(!await page.calc('document.querySelector(".calc-peek").hidden') && /^First quartile/.test(await page.calc('document.querySelector(".calc-peek").textContent')),

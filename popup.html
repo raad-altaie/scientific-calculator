@@ -3,10 +3,12 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="google" content="notranslate">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <link rel="icon" href="imgs/icon.png" type="image/png">
     <link rel="stylesheet" type="text/css" href="css/style.css">
     <script src="js/opening.js"></script>
+    <script src="js/lang.js"></script>
     <title>Scientific Calculator </title>
     <style>
         html,
@@ -114,6 +116,24 @@
             }
         }
 
+        /* right to left, the rail down the right (style.css): beside it at its left */
+        .lang-rtl .options-over {
+            right: calc(37px * var(--calc-pop, 1));
+            left: 0;
+        }
+
+        @media (min-width: 760px) {
+            .lang-rtl .options-over {
+                right: calc(58px * var(--calc-pop, 1));
+            }
+        }
+
+        @media (max-width: 743px) {
+            .lang-rtl .options-over {
+                right: 0;
+            }
+        }
+
         /* while they are open, Options or Guide is the one marked on the rail, not the tool under them */
         .options-shown .calc-go .calc-go-item.calc-on {
             opacity: 0.6;
@@ -162,7 +182,7 @@
             <div class="calc-main">
                 <div id="display-box" class="calc-display">
                     <span id="box">0</span>
-                    <div class="calc-rad">Rad<span class="sign">2<span class="sign-pi">π</span></span></div>
+                    <div class="calc-rad" translate="no">Rad<span class="sign">2<span class="sign-pi">π</span></span></div>
                     <div class="calc-mem"></div>
                     <div class="notification"></div>
                     <div class="calc-log"></div>
@@ -266,7 +286,7 @@
                 </div>
 
 
-                <div class="calc-left calc-top">
+                <div class="calc-left calc-top" translate="no">
                     <!-- modes, the display of results, and brackets -->
                     <div class="trigo-keys">
                         <div>2nd</div>
@@ -382,7 +402,7 @@
                         <div>mr</div>
                     </div>
                 </div>
-                <div class="calc-right ">
+                <div class="calc-right " translate="no">
 
                     <div class="calc-black keys ">
                         <div>7</div>

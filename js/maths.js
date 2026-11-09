@@ -1234,6 +1234,736 @@
         return { coefs: out };
     }
 
+    // ---------- derivatives as formulas ---------- //
+
+    // A function's derivative written out, 3x² sin(x) + x³ cos(x), by the rules of the sum, the
+    // product and the chain, and tidied as it is made: like terms and like factors gathered, numbers
+    // kept as fractions. Its own pieces: { k: 'n', p, q } the fraction p/q, or of q 0 the number p,
+    // which is no short fraction; { k: 's', v } x, π, e or a letter A to J; { k: '+', a: its terms },
+    // { k: '*', a: its factors, the number first }, { k: '^', b, e }; { k: 'f', f: its name, a: what
+    // it is of, u: the unit of angles of sin, cos and the rest, 0 Rad, 1 Deg, 2 Grad }
+    var NOPE = {}, // thrown for what has no derivative written out here: x!, mod, min
+        SX = { k: 's', v: 'x' }, SE = { k: 's', v: 'e' }, SPI = { k: 's', v: 'π' },
+        ANGLED = /^(a?(sin|cos|tan)|sec|csc|cot)$/;
+
+    // p/q at its lowest; a number of no fraction where they are too large to be exact
+    function fr(p, q) {
+        var g;
+        if (q === undefined) q = 1;
+        if (q && (!Number.isSafeInteger(p) || !Number.isSafeInteger(q))) {
+            p /= q;
+            q = 0;
+        }
+        if (!q) return { k: 'n', p: p, q: 0 };
+        if (q < 0) {
+            p = -p;
+            q = -q;
+        }
+        g = gcd(p, q) || 1;
+        return { k: 'n', p: p / g + 0, q: q / g };
+    }
+
+    function valOf(n) {
+        return n.q ? n.p / n.q : n.p;
+    }
+
+    function isZero(n) {
+        return n.k === 'n' && (n.q ? n.p === 0 : Math.abs(n.p) < 1e-13);
+    }
+
+    function isOne(n) {
+        return n.k === 'n' && valOf(n) === 1;
+    }
+
+    // a number as a fraction where it is a decimal of up to 12 places, 0.25 as 1/4
+    function fracOf(x) {
+        var q, p;
+        if (Number.isSafeInteger(x)) return fr(x, 1);
+        for (q = 10; q <= 1e12; q *= 10) {
+            p = Math.round(x * q);
+            if (p / q === x && Number.isSafeInteger(p)) return fr(p, q);
+        }
+        return fr(x, 0);
+    }
+
+    function fadd(a, b) {
+        return a.q && b.q ? fr(a.p * b.q + b.p * a.q, a.q * b.q) : fr(valOf(a) + valOf(b), 0);
+    }
+
+    function fmul(a, b) {
+        return a.q && b.q ? fr(a.p * b.p, a.q * b.q) : fr(valOf(a) * valOf(b), 0);
+    }
+
+    // a number to a number, where it is one: 2³ is 8, 4^(1/2) is 2; null where it stays a power, √2
+    function fpow(b, e) {
+        var n, top, bottom, root;
+        if (!e.q) return null;
+        if (!b.q) return e.q === 1 ? fr(Math.pow(b.p, e.p), 0) : null;
+        if (e.q === 1) {
+            n = Math.abs(e.p);
+            if (n > 1000) return null;
+            top = Math.pow(b.p, n);
+            bottom = Math.pow(b.q, n);
+            if (!Number.isSafeInteger(top) || !Number.isSafeInteger(bottom)) return null;
+            return e.p < 0 ? (top ? fr(bottom, top) : null) : fr(top, bottom);
+        }
+        root = function (v) { // the whole qth root of v, where it has one
+            var r = Math.round(Math.pow(Math.abs(v), 1 / e.q));
+            return Math.pow(r, e.q) === Math.abs(v) && (v >= 0 || e.q % 2) ? (v < 0 ? -r : r) : null;
+        };
+        top = root(b.p);
+        bottom = root(b.q);
+        if (top === null || bottom === null) return null;
+        return fpow(fr(top, bottom), fr(e.p, 1));
+    }
+
+    // a piece as a text of its own, the same for the same piece whatever the order of its terms and factors
+    function keyOf(n) {
+        switch (n.k) {
+            case 'n': return n.q ? n.p + '/' + n.q : 'f' + n.p;
+            case 's': return n.v;
+            case '+': return '(' + n.a.map(keyOf).sort().join('+') + ')';
+            case '*': return '[' + n.a.map(keyOf).sort().join('*') + ']';
+            case '^': return '{' + keyOf(n.b) + '^' + keyOf(n.e) + '}';
+        }
+        return n.f + (n.u || '') + '(' + keyOf(n.a) + ')';
+    }
+
+    function withX(n) {
+        switch (n.k) {
+            case 'n': return false;
+            case 's': return n.v === 'x';
+            case '+':
+            case '*': return n.a.some(withX);
+            case '^': return withX(n.b) || withX(n.e);
+        }
+        return withX(n.a);
+    }
+
+    // a term as its number and the rest: 3x² as 3 and x²; the rest null of a number
+    function coefOf(t) {
+        if (t.k === 'n') return { c: t, rest: null };
+        if (t.k === '*' && t.a[0].k === 'n') return { c: t.a[0], rest: t.a.length === 2 ? t.a[1] : { k: '*', a: t.a.slice(1) } };
+        return { c: fr(1), rest: t };
+    }
+
+    // the power of x of a term c xⁿ, n a number; null of any other
+    function powerOfX(t) {
+        var r = coefOf(t).rest;
+        if (!r) return null;
+        if (r.k === 's' && r.v === 'x') return 1;
+        return r.k === '^' && r.b.k === 's' && r.b.v === 'x' && r.e.k === 'n' ? valOf(r.e) : null;
+    }
+
+    function addAll(list) {
+        var terms = [], c = fr(0), byKey = {}, out = [], powers, j = 0;
+        (function flat(l) {
+            l.forEach(function (t) {
+                if (t.k === '+') flat(t.a);
+                else terms.push(t);
+            });
+        })(list);
+        terms.forEach(function (t) {
+            var s = coefOf(t), k;
+            if (!s.rest) {
+                c = fadd(c, s.c);
+                return;
+            }
+            k = keyOf(s.rest);
+            if (byKey[k]) {
+                byKey[k].c = fadd(byKey[k].c, s.c);
+            } else {
+                byKey[k] = { c: s.c, rest: s.rest };
+                out.push(byKey[k]);
+            }
+        });
+        out = out.filter(function (t) { return !isZero(t.c); }).map(function (t) {
+            return isOne(t.c) ? t.rest : { k: '*', a: [t.c].concat(t.rest.k === '*' ? t.rest.a : [t.rest]) };
+        });
+        // the terms of x to a power by their powers, the highest first, in the places they have; the others as they come
+        powers = out.filter(function (t) { return powerOfX(t) !== null; }).sort(function (a, b) { return powerOfX(b) - powerOfX(a); });
+        out = out.map(function (t) { return powerOfX(t) !== null ? powers[j++] : t; });
+        if (!isZero(c)) out.push(c);
+        return !out.length ? fr(0) : out.length === 1 ? out[0] : { k: '+', a: out };
+    }
+
+    // where a factor goes in a product: numbers, π and letters first, then x and its powers,
+    // what x is a power of, eˣ, a sum to a power, a function, and a sum last: 2πx eˣ sin(x)(x + 1)
+    function placeOf(f) {
+        if (f.k === 's') return f.v === 'x' ? 1 : 0;
+        if (f.k === '^') {
+            if (f.b.k === 's' && f.b.v === 'x') return 1;
+            if (withX(f.e)) return 2;
+            if (f.b.k === '+') return 3;
+            if (f.b.k === 'f') return 4;
+            return withX(f.b) ? 3 : 0;
+        }
+        return f.k === 'f' ? 4 : 5;
+    }
+
+    function mulAll(list) {
+        var c = fr(1), groups = [], byKey = {}, out = [], again = false;
+        (function flat(l) {
+            l.forEach(function (f) {
+                var b, k;
+                if (f.k === '*') return flat(f.a);
+                if (f.k === 'n') {
+                    c = fmul(c, f);
+                    return;
+                }
+                b = f.k === '^' ? f.b : f;
+                k = keyOf(b);
+                if (byKey[k]) {
+                    byKey[k].e.push(f.k === '^' ? f.e : fr(1));
+                } else {
+                    byKey[k] = { b: b, e: [f.k === '^' ? f.e : fr(1)] };
+                    groups.push(byKey[k]);
+                }
+            });
+        })(list);
+        if (isZero(c)) return fr(0);
+        groups.forEach(function (g) {
+            var p = raise(g.b, g.e.length === 1 ? g.e[0] : addAll(g.e));
+            if (p.k === 'n') {
+                c = fmul(c, p);
+            } else if (p.k === '*') { // a product to a power, each of its factors to it: their bases may be among the others
+                again = true;
+                out = out.concat(p.a);
+            } else {
+                out.push(p);
+            }
+        });
+        if (again) return mulAll([c].concat(out));
+        if (isZero(c)) return fr(0);
+        out.sort(function (a, b) {
+            var ka = keyOf(a), kb = keyOf(b);
+            return placeOf(a) - placeOf(b) || (ka < kb ? -1 : ka > kb ? 1 : 0);
+        });
+        if (!out.length) return c;
+        if (isOne(c) && out.length === 1) return out[0];
+        return { k: '*', a: (isOne(c) ? [] : [c]).concat(out) };
+    }
+
+    function raise(b, e) {
+        var r;
+        if (isZero(e)) return fr(1);
+        if (isOne(e)) return b;
+        if (b.k === 'n') {
+            if (isOne(b)) return fr(1);
+            if (isZero(b) && e.k === 'n' && valOf(e) > 0) return fr(0);
+            if (e.k === 'n' && (r = fpow(b, e))) return r;
+        }
+        if (b.k === 's' && b.v === 'e' && e.k === 'f' && e.f === 'ln') return e.a; // e^ln(u) is u
+        if (e.k === 'n' && e.q === 1) { // to a whole power: (x²)³ is x⁶, (2x)² is 4x²
+            if (b.k === '^') return raise(b.b, mulAll([b.e, e]));
+            if (b.k === '*') return mulAll(b.a.map(function (f) { return raise(f, e); }));
+        }
+        return { k: '^', b: b, e: e };
+    }
+
+    function func(f, a, u) {
+        var v;
+        if (a.k === 'n') {
+            v = valOf(a);
+            if (/^(ln|log|log2)$/.test(f) && v === 1) return fr(0);
+            if (/^(a?(sin|tan)h?|sign)$/.test(f) && v === 0) return fr(0);
+            if (/^(cos|cosh|sec)$/.test(f) && v === 0) return fr(1);
+            if (f === 'abs') return v < 0 ? fmul(a, fr(-1)) : a;
+        }
+        if (f === 'ln' && a.k === 's' && a.v === 'e') return fr(1);
+        if (f === 'ln' && a.k === '^' && a.b.k === 's' && a.b.v === 'e') return a.e; // ln(e^u) is u
+        return ANGLED.test(f) ? { k: 'f', f: f, a: a, u: u } : { k: 'f', f: f, a: a };
+    }
+
+    // a number in a unit of angles as radians: 1 of Rad, π/180 of Deg, π/200 of Grad
+    function radiansIn(u) {
+        return u === 1 ? mulAll([SPI, fr(1, 180)]) : u === 2 ? mulAll([SPI, fr(1, 200)]) : fr(1);
+    }
+
+    // the derivative of a function of u at u, before the chain rule: cos u of sin u
+    function outer(n) {
+        var a = n.a, u = n.u, k = radiansIn(u), back = raise(k, fr(-1)), sq = raise(a, fr(2)), one = fr(1), minus = fr(-1),
+            oneLess = addAll([one, mulAll([minus, sq])]);
+        switch (n.f) {
+            case 'sin': return mulAll([k, func('cos', a, u)]);
+            case 'cos': return mulAll([minus, k, func('sin', a, u)]);
+            case 'tan': return mulAll([k, raise(func('sec', a, u), fr(2))]);
+            case 'sec': return mulAll([k, func('sec', a, u), func('tan', a, u)]);
+            case 'csc': return mulAll([minus, k, func('csc', a, u), func('cot', a, u)]);
+            case 'cot': return mulAll([minus, k, raise(func('csc', a, u), fr(2))]);
+            case 'asin': return mulAll([back, raise(oneLess, fr(-1, 2))]);
+            case 'acos': return mulAll([minus, back, raise(oneLess, fr(-1, 2))]);
+            case 'atan': return mulAll([back, raise(addAll([one, sq]), minus)]);
+            case 'sinh': return func('cosh', a);
+            case 'cosh': return func('sinh', a);
+            case 'tanh': return raise(func('cosh', a), fr(-2));
+            case 'asinh': return raise(addAll([sq, one]), fr(-1, 2));
+            case 'acosh': return raise(addAll([sq, minus]), fr(-1, 2));
+            case 'atanh': return raise(oneLess, minus);
+            case 'ln': return raise(a, minus);
+            case 'log': return raise(mulAll([a, func('ln', fr(10))]), minus);
+            case 'log2': return raise(mulAll([a, func('ln', fr(2))]), minus);
+            case 'abs': return func('sign', a); // x/|x|, as sign(x), so its own slope is 0, not 1/|x| – x²/|x|³
+            case 'sign':
+            case 'floor':
+            case 'ceil':
+            case 'round':
+            case 'trunc': return fr(0); // flat but where it jumps
+        }
+        throw NOPE;
+    }
+
+    // the derivative of a piece, by x
+    function slopeOf(n) {
+        if (!withX(n)) return fr(0);
+        switch (n.k) {
+            case 's': return fr(1);
+            case '+': return addAll(n.a.map(slopeOf));
+            case '*': return addAll(n.a.map(function (f, i) {
+                return mulAll(n.a.map(function (g, j) { return i === j ? slopeOf(g) : g; }));
+            }));
+            case '^':
+                if (!withX(n.e)) return mulAll([n.e, raise(n.b, addAll([n.e, fr(-1)])), slopeOf(n.b)]);
+                if (!withX(n.b)) return mulAll([n, func('ln', n.b), slopeOf(n.e)]);
+                return mulAll([n, addAll([mulAll([slopeOf(n.e), func('ln', n.b)]), mulAll([n.e, slopeOf(n.b), raise(n.b, fr(-1))])])]);
+        }
+        return mulAll([outer(n), slopeOf(n.a)]);
+    }
+
+    // true if the engine's piece has x in it
+    function treeHasX(n) {
+        return !!n && ((n.t === 'const' && n.v === 'x') || treeHasX(n.arg) || treeHasX(n.l) || treeHasX(n.r));
+    }
+
+    // the engine's tree as pieces of these; what has no x and no piece of its own, 5! or sin(30°)
+    // in Rad, as its value
+    function piecesOf(n, deg) {
+        var a, key, u;
+        function of(m) {
+            return piecesOf(m, deg);
+        }
+        function value() {
+            var z = cvalue(n, deg);
+            if (!isFinite(z[0]) || Math.abs(z[1]) > 1e-12 * Math.max(1, Math.abs(z[0]))) throw NOPE;
+            return fracOf(z[0]);
+        }
+        switch (n.t) {
+            case 'num': return fracOf(+n.v);
+            case 'const':
+                if (n.v === 'x') return SX;
+                if (n.v === 'π') return SPI;
+                if (n.v === 'e') return SE;
+                if (n.p || n.v === 'y') throw NOPE;
+                return { k: 's', v: n.v };
+            case 'group': return of(n.arg);
+            case 'neg': return mulAll([fr(-1), of(n.arg)]);
+            case 'fn':
+            case 'post':
+                key = n.key;
+                u = n.deg === undefined ? deg : n.deg;
+                if (ANGLED.test(key.replace(/-1$/, '')) && u !== deg && !treeHasX(n)) return value();
+                a = of(n.arg);
+                switch (key) {
+                    case '1/x': return raise(a, fr(-1));
+                    case 'x2': return raise(a, fr(2));
+                    case 'x3': return raise(a, fr(3));
+                    case '%': return mulAll([a, fr(1, 100)]);
+                    case 'ex': return raise(SE, a);
+                    case '2x': return raise(fr(2), a);
+                    case '10x': return raise(fr(10), a);
+                    case '√': return raise(a, fr(1, 2));
+                    case '∛': return raise(a, fr(1, 3));
+                }
+                if (/-1$/.test(key)) return func('a' + key.slice(0, -2), a, u); // sin-1 is asin, sinh-1 asinh
+                if (/^(sin|cos|tan|sec|csc|cot|sinh|cosh|tanh|ln|log|log2|abs|sign|floor|ceil|round|trunc)$/.test(key)) return func(key, a, u);
+                if (!treeHasX(n)) return value();
+                throw NOPE;
+            case 'bin':
+                switch (n.op) {
+                    case '+': return addAll([of(n.l), of(n.r)]);
+                    case '–': return addAll([of(n.l), mulAll([fr(-1), of(n.r)])]);
+                    case '×': return mulAll([of(n.l), of(n.r)]);
+                    case '÷': return mulAll([of(n.l), raise(of(n.r), fr(-1))]);
+                    case 'yx': return raise(of(n.l), of(n.r));
+                    case 'EE': return mulAll([of(n.l), raise(fr(10), of(n.r))]);
+                    case 'x√y': return raise(of(n.l), raise(of(n.r), fr(-1)));
+                    case 'logy': return mulAll([func('ln', of(n.l)), raise(func('ln', of(n.r)), fr(-1))]);
+                }
+        }
+        if (!treeHasX(n)) return value();
+        throw NOPE;
+    }
+
+    // ----- the pieces written ----- //
+
+    // a unit of angles as 0 Rad, 1 Deg or 2 Grad, true as Deg
+    function unitOf(u) {
+        return u === 2 ? 2 : u ? 1 : 0;
+    }
+
+    // a function f of the text a, as the engine reads it in the unit of angles deg: one of an angle
+    // in a unit of its own, u, turned into deg's, so sin(x + 30°) in Rad is sin((x + 30)·π/180) and
+    // sin⁻¹ in Deg of Rad is sin⁻¹ × π/180
+    function fnText(f, a, u, deg) {
+        var name = ({ log2: 'log_2' }[f] || f) + '(', k;
+        if (!ANGLED.test(f) || unitOf(u) === unitOf(deg)) return name + a + ')';
+        k = plainOf(mulAll([radiansIn(unitOf(u)), raise(radiansIn(unitOf(deg)), fr(-1))]), deg); // one of u in deg's
+        return /^a/.test(f) ? '(' + name + a + ')/' + k + ')' : name + a + '*' + k + ')';
+    }
+
+    // as the engine reads it back in the unit of angles deg: brackets round all that may need
+    // them, * between factors
+    function plainOf(n, deg) {
+        function of(m) {
+            return plainOf(m, deg);
+        }
+        switch (n.k) {
+            case 'n': return '(' + (n.q ? n.p + (n.q === 1 ? '' : '/' + n.q) : String(n.p)) + ')';
+            case 's': return n.v === 'π' ? 'pi' : n.v;
+            case '+': return '(' + n.a.map(of).join(' + ') + ')';
+            case '*': return '(' + n.a.map(of).join('*') + ')';
+            case '^': // of an odd root, the engine's own, so ∛x has a value below 0 too
+                if (n.e.k === 'n' && n.e.q > 1 && n.e.q % 2) return '((' + of(n.b) + ')^(' + n.e.p + '))^(1/' + n.e.q + ')';
+                return '(' + of(n.b) + ')^(' + of(n.e) + ')';
+        }
+        return fnText(n.f, of(n.a), n.u, deg);
+    }
+
+    // The engine's tree as it reads it back in the unit of angles deg, as it is, nothing taken
+    // out: so it has a value only where the function typed has one, as e^ln(x) only above 0,
+    // which as pieces is x. What has no x, as its pieces
+    function plainTree(n, deg) {
+        var a, key;
+        function of(m) {
+            return plainTree(m, deg);
+        }
+        if (!treeHasX(n)) return plainOf(piecesOf(n, deg), deg);
+        switch (n.t) {
+            case 'const': return 'x';
+            case 'group': return of(n.arg);
+            case 'neg': return '(-' + of(n.arg) + ')';
+            case 'fn':
+            case 'post':
+                key = n.key;
+                a = of(n.arg);
+                switch (key) {
+                    case '1/x': return '(1/' + a + ')';
+                    case 'x2': return '(' + a + ')^(2)';
+                    case 'x3': return '(' + a + ')^(3)';
+                    case '%': return a;
+                    case 'ex': return 'e^(' + a + ')';
+                    case '2x': return '2^(' + a + ')';
+                    case '10x': return '10^(' + a + ')';
+                    case '√': return '(' + a + ')^(1/2)';
+                    case '∛': return '((' + a + ')^(1))^(1/3)';
+                }
+                return fnText(/-1$/.test(key) ? 'a' + key.slice(0, -2) : key, a, n.deg === undefined ? deg : n.deg, deg);
+            case 'bin':
+                switch (n.op) {
+                    case '+': return '(' + of(n.l) + ' + ' + of(n.r) + ')';
+                    case '–': return '(' + of(n.l) + ' - ' + of(n.r) + ')';
+                    case '×': return '(' + of(n.l) + '*' + of(n.r) + ')';
+                    case '÷': return '(' + of(n.l) + '/' + of(n.r) + ')';
+                    case 'yx': return '(' + of(n.l) + ')^(' + of(n.r) + ')';
+                    case 'EE': return '(' + of(n.l) + '*10^(' + of(n.r) + '))';
+                    case 'x√y': return '(' + of(n.l) + ')^(1/' + of(n.r) + ')';
+                    case 'logy': return '(ln(' + of(n.l) + ')/ln(' + of(n.r) + '))';
+                }
+        }
+        return '(1)';
+    }
+
+    function isNegative(t) {
+        return (t.k === 'n' && valOf(t) < 0) || (t.k === '*' && t.a[0].k === 'n' && valOf(t.a[0]) < 0);
+    }
+
+    function negated(t) {
+        var c;
+        if (t.k === 'n') return fmul(t, fr(-1));
+        c = fmul(t.a[0], fr(-1));
+        return isOne(c) ? (t.a.length === 2 ? t.a[1] : { k: '*', a: t.a.slice(1) }) : { k: '*', a: [c].concat(t.a.slice(1)) };
+    }
+
+    // as it is shown, HTML: 3x<sup>2</sup> sin(x) + x<sup>3</sup> cos(x); num(text) a number as it
+    // is shown, with its decimal mark; deg the unit of angles in use, as a function of an angle in
+    // another shows its own: cos((x + 30)°) in Rad
+    function htmlOf(n, num, deg) {
+        var NAMES = { asin: 'sin⁻¹', acos: 'cos⁻¹', atan: 'tan⁻¹', asinh: 'sinh⁻¹', acosh: 'cosh⁻¹', atanh: 'tanh⁻¹', log2: 'log₂' },
+            MARKS = [' rad', '°', 'ᵍ'];
+
+        function number(v) {
+            return num(String(+Math.abs(v).toPrecision(10)));
+        }
+
+        function fn(f, sup) {
+            var mark = ANGLED.test(f.f) && unitOf(f.u) !== unitOf(deg) ? MARKS[unitOf(f.u)] : '', a = show(f.a);
+            if (f.f === 'abs' && !sup) return '|' + a + '|';
+            if (mark && /^a/.test(f.f)) return (NAMES[f.f] || f.f) + '(' + a + ')' + mark; // an angle in its unit
+            if (mark) a = (f.a.k === 's' || (f.a.k === 'n' && f.a.q === 1 && f.a.p > 0) ? a : '(' + a + ')') + mark;
+            return (NAMES[f.f] || f.f) + (sup ? '<sup>' + sup + '</sup>' : '') + '(' + a + ')';
+        }
+
+        // of a root, what it is of: √x, √(x + 1)
+        function under(b) {
+            return b.k === 's' || (b.k === 'n' && b.q === 1 && b.p > 0) ? show(b) : '(' + show(b) + ')';
+        }
+
+        function pow(f) {
+            var b = f.b, e = f.e, base;
+            if (e.k === 'n' && e.p === 1 && e.q === 2) return '√' + under(b);
+            if (e.k === 'n' && e.p === 1 && e.q === 3) return '∛' + under(b);
+            if (b.k === 'f' && b.f !== 'abs' && e.k === 'n' && e.q === 1 && e.p > 0) return fn(b, number(e.p)); // sin²(x)
+            base = b.k === 's' || (b.k === 'n' && b.q === 1 && b.p > 0) || b.k === 'f' ? show(b) : '(' + show(b) + ')';
+            return base + '<sup>' + show(e) + '</sup>';
+        }
+
+        // one factor of a product
+        function factor(f) {
+            return f.k === '+' ? '(' + show(f) + ')' : f.k === '^' ? pow(f) : show(f);
+        }
+
+        // factors side by side: a space before a function and eˣ, a dot between two numbers, 2·3ˣ
+        function side(list, lead) {
+            var out = lead;
+            list.forEach(function (f) {
+                var s = factor(f);
+                if (out && /^\d/.test(s) && /[\d>]$/.test(out)) out += '·';
+                else if (out && (f.k === 'f' || (f.k === '^' && (f.b.k === 'f' || withX(f.e))))) out += ' ';
+                out += s;
+            });
+            return out;
+        }
+
+        function times(n) {
+            var c = n.a[0].k === 'n' ? n.a[0] : fr(1), rest = n.a[0].k === 'n' ? n.a.slice(1) : n.a, top = [], bottom = [], up, down, cp, cq;
+            rest.forEach(function (f) {
+                if (f.k === '^' && f.e.k === 'n' && valOf(f.e) < 0) bottom.push(raise(f.b, fmul(f.e, fr(-1))));
+                else top.push(f);
+            });
+            cp = Math.abs(c.p);
+            cq = c.q || 1;
+            up = side(top, cp === 1 && top.length ? '' : number(cp)) || '1';
+            if (!bottom.length && cq === 1) return (valOf(c) < 0 ? '–' : '') + up;
+            down = side(bottom, cq === 1 ? '' : String(cq));
+            if (bottom.length + (cq === 1 ? 0 : 1) > 1) down = '(' + down + ')';
+            return (valOf(c) < 0 ? '–' : '') + up + '/' + down;
+        }
+
+        // a sum, a term of it that adds first: 1 – x², not –x² + 1
+        function plus(n) {
+            var terms = n.a.slice(), lead = -1, k, out = '';
+            for (k = 0; k < terms.length && lead < 0; k++) if (!isNegative(terms[k])) lead = k;
+            if (lead > 0) terms.unshift(terms.splice(lead, 1)[0]);
+            terms.forEach(function (t, i) {
+                var minus = isNegative(t), s = show(minus ? negated(t) : t);
+                out += i ? (minus ? ' – ' : ' + ') + s : (minus ? '–' : '') + s;
+            });
+            return out;
+        }
+
+        function show(n) {
+            switch (n.k) {
+                case 'n':
+                    if (!n.q) return (n.p < 0 ? '–' : '') + number(n.p);
+                    return (n.p < 0 ? '–' : '') + number(n.p) + (n.q === 1 ? '' : '/' + n.q);
+                case 's': return n.v;
+                case '+': return plus(n);
+                case '*': return times(n);
+                case '^': return n.e.k === 'n' && valOf(n.e) < 0 ? times({ k: '*', a: [n] }) : pow(n);
+            }
+            return fn(n);
+        }
+
+        return show(n);
+    }
+
+    // A function of x typed, as the graph reads it, as pieces and its first and second derivatives:
+    // { f, d: [f′, f″] } or { error: 'function' | 'letters' | 'none': it has what has no derivative
+    // written out here, x! or mod }
+    function derived(text, comma, deg) {
+        var t = treeOf(text, comma), f, d1;
+        if (t.error) return t;
+        try {
+            f = piecesOf(t.tree, deg);
+            d1 = slopeOf(f);
+            return { f: f, d: [d1, slopeOf(d1)], c: t.c, tree: t.tree };
+        } catch (err) {
+            if (err !== NOPE) throw err;
+            return { error: 'none' };
+        }
+    }
+
+    // the pieces of n that have a corner or a jump, abs, sign, floor and the like, as { f, c: the
+    // curve of what each is of }
+    function kinksOf(n, deg, list) {
+        list = list || [];
+        if (n.k === 'f' && /^(abs|sign|floor|ceil|round|trunc)$/.test(n.f)) list.push({ f: n.f, c: Engine.graph(plainOf(n.a, deg), false, {}) });
+        if (n.a) [].concat(n.a).forEach(function (m) { kinksOf(m, deg, list); });
+        if (n.b) kinksOf(n.b, deg, list);
+        if (n.e) kinksOf(n.e, deg, list);
+        return list;
+    }
+
+    // The derivative of a function typed and the derivative of that, written out: [{ html, plain }]
+    // of f′ and f″, html as it is shown, its numbers by num(text), plain as the engine reads it;
+    // at(x): their values at x, [f′(x), f″(x)], NaN where f has none, as |x| at 0, whose formula,
+    // sign(x), is 0 there; or { error: 'function' | 'letters' | 'none' }
+    function derivatives(text, comma, deg, num) {
+        var r = derived(text, comma, deg), curves, kinks;
+        if (r.error) return r;
+        curves = r.d.map(function (d) { return Engine.graph(plainOf(d, deg), false, {}); });
+        kinks = kinksOf(r.f, deg);
+        // true where a piece of f is at its corner or jump, as abs(u) where u is 0, floor(u) where
+        // it is whole, round(u) where it is a half
+        function onKink(x) {
+            return kinks.some(function (q) {
+                var v = q.c ? q.c.at(x, deg) : NaN, tol = 1e-12 * Math.max(1, Math.abs(v));
+                if (!isFinite(v)) return false;
+                if (q.f === 'abs' || q.f === 'sign') return Math.abs(v) <= tol;
+                return Math.abs(v - (q.f === 'round' ? Math.floor(v) + 0.5 : Math.round(v))) <= tol;
+            });
+        }
+        function at(x) {
+            var kink = onKink(x), h = 1e-7 * Math.max(1, Math.abs(x)), out = [], before = r.c, was = r.c.at(x, deg, true);
+            curves.forEach(function (c, k) {
+                var v = c ? c.at(x, deg, true) : NaN, lo, hi, gap; // as the display works it out
+                if (kink && isFinite(was)) {
+                    // at a corner or a jump: a slope only where the one before goes on through x, and
+                    // this one is the same on both sides, as x|x| at 0 has f′ but no f″
+                    lo = c ? c.at(x - h, deg) : NaN;
+                    hi = c ? c.at(x + h, deg) : NaN;
+                    gap = h * (2 * Math.max(Math.abs(lo), Math.abs(hi)) + 1) + 1e-12 * Math.max(1, Math.abs(was));
+                    if (!(Math.abs(lo - hi) <= 1e-6 * Math.max(1, Math.abs(lo), Math.abs(hi))) ||
+                            !(Math.abs(before.at(x - h, deg) - was) <= gap && Math.abs(before.at(x + h, deg) - was) <= gap)) v = NaN;
+                    else if (!(Math.abs(v - (lo + hi) / 2) <= 1e-6 * Math.max(1, Math.abs(v)))) v = (lo + hi) / 2;
+                }
+                if (!isFinite(was) || !isFinite(v)) v = NaN;
+                out[k] = isNaN(v) ? NaN : round(v);
+                before = c || { at: function () { return NaN; } };
+                was = v;
+            });
+            return out;
+        }
+        return { forms: r.d.map(function (d) { return { html: htmlOf(d, num || String, deg), plain: plainOf(d, deg) }; }), at: at };
+    }
+
+    // Where a function rises and falls, where it bends up and down, and where the bend changes: its
+    // inflection points. Each where f′ or f″ is above 0 or below it, as inequality finds it, of x only
+    // where f has a value too; two parts of one way with only a point between them, where f has a
+    // value, one, as x³ rises through 0. { rising, falling, up, down: their parts, as inequality's,
+    // points: [{ x, y }] the inflection points, more: an inequality had more ends than it gave,
+    // within: FAR where it looked only so far, flat: of no part rising or falling, true where f
+    // has one value all along, not of steps, as floor(x) } or { error: 'function' | 'letters' | 'none' }
+    function shape(text, comma, deg, from, to) {
+        var r = derived(text, comma, deg), out = { points: [], more: false }, many = {}, guard, ways = { rising: [0, '>'], falling: [0, '<'], up: [1, '>'], down: [1, '<'] },
+            bounded = isFinite(from) && isFinite(to) && from < to, key;
+        if (r.error) return r;
+        function f(x) {
+            return r.c.at(x, deg);
+        }
+        // true where f has a value at x and goes on through it, not where it jumps, as tan x at π/2
+        function through(x) {
+            var y = f(x), h = 1e-9 * Math.max(1, Math.abs(x)), near = 1e-2 * Math.max(1, Math.abs(y));
+            return isFinite(x) && isFinite(y) && Math.abs(f(x - h) - y) <= near && Math.abs(f(x + h) - y) <= near;
+        }
+        guard = ' + 0*' + plainTree(r.tree, deg); // as typed, so it has a value only where f has one
+        for (key in ways) {
+            if (!ways.hasOwnProperty(key)) continue;
+            out[key] = (function (d, op) {
+                var q, merged = [];
+                if (!withX(r.f)) return [];
+                q = inequality(plainOf(d, deg) + guard + ' ' + op + ' 0', false, deg, from, to);
+                if (q.error) return [];
+                out.more = out.more || !!q.more;
+                many[key] = !!q.more;
+                if (q.within) out.within = q.within;
+                q.parts.forEach(function (p) {
+                    var last = merged[merged.length - 1];
+                    if (last && last.to === p.from && through(p.from)) {
+                        last.to = p.to;
+                        last.toIn = p.toIn;
+                    } else {
+                        merged.push({ from: p.from, to: p.to, fromIn: p.fromIn, toIn: p.toIn });
+                    }
+                });
+                return merged;
+            })(r.d[ways[key][0]], ways[key][1]);
+        }
+        // Out past the last part of either way, where f has values still, f′ or f″ may be only 0
+        // as it is too small to tell, as of e^(-x^2) past 27: that part goes on to ∞, where f′
+        // or f″ just inside its end is that small too, not where f is flat, as x + |x| below 0.
+        // fades(i, x, way): d[i] just inside the end x, on the side way, is too small to tell
+        function fades(i, x, way) {
+            var c = Engine.graph(plainOf(r.d[i], deg), false, {}), v = c && c.at(x + way * 1e-6 * Math.max(1, Math.abs(x)), deg);
+            return isFinite(v) && Math.abs(v) < 1e-250;
+        }
+        [['rising', 'falling'], ['up', 'down']].forEach(function (pair, i) {
+            var all = out[pair[0]].concat(out[pair[1]]), first, last;
+            if (!all.length || bounded || many[pair[0]] || many[pair[1]]) return;
+            all.forEach(function (p) {
+                if (!first || p.from < first.from) first = p;
+                if (!last || p.to > last.to) last = p;
+            });
+            if (isFinite(first.from) && isFinite(f(first.from - Math.max(1, Math.abs(first.from)))) && fades(i, first.from, 1)) {
+                first.from = -Infinity;
+                first.fromIn = false;
+            }
+            if (isFinite(last.to) && isFinite(f(last.to + Math.max(1, Math.abs(last.to)))) && fades(i, last.to, -1)) {
+                last.to = Infinity;
+                last.toIn = false;
+            }
+        });
+        // no part rising or falling: f is flat only where it has one value all along, not where
+        // it jumps between flat steps, as floor(x)
+        if (!out.rising.length && !out.falling.length) {
+            out.flat = (function () {
+                var lo = bounded ? from : -50, hi = bounded ? to : 50, y0 = NaN, k, y;
+                for (k = 0; k <= 400; k++) {
+                    y = f(lo + (hi - lo) * (k + 0.5 * Math.SQRT1_2) / 401); // off whole and half numbers, where steps are
+                    if (!isFinite(y)) continue;
+                    if (isNaN(y0)) y0 = y;
+                    else if (Math.abs(y - y0) > 1e-9 * Math.max(1, Math.abs(y0))) return false;
+                }
+                return true;
+            })();
+        }
+        // where f jumps at an end of the other kind, as tan x at π/2, where its slope stays above 0
+        // on both sides: a part of one kind is two there
+        [['rising', 'falling', 'up', 'down'], ['up', 'down', 'rising', 'falling']].forEach(function (k) {
+            var jumps = [];
+            out[k[2]].concat(out[k[3]]).forEach(function (p) {
+                [p.from, p.to].forEach(function (x) {
+                    if (isFinite(x) && jumps.indexOf(x) < 0 && !through(x)) jumps.push(x);
+                });
+            });
+            [k[0], k[1]].forEach(function (way) {
+                jumps.forEach(function (x) {
+                    out[way] = out[way].reduce(function (list, p) {
+                        if (p.from < x && x < p.to) list.push({ from: p.from, to: x, fromIn: p.fromIn, toIn: false }, { from: x, to: p.to, fromIn: false, toIn: p.toIn });
+                        else list.push(p);
+                        return list;
+                    }, []);
+                });
+            });
+        });
+        // an inflection point: where a part bending up meets one bending down, and f goes on through it
+        out.up.forEach(function (p) {
+            [p.from, p.to].forEach(function (x) {
+                var tol = 1e-9 * Math.max(1, Math.abs(x)), y;
+                if (!through(x) || out.points.some(function (o) { return o.x === x; })) return;
+                if (!out.down.some(function (q) { return Math.abs(q.from - x) <= tol || Math.abs(q.to - x) <= tol; })) return;
+                y = f(x);
+                out.points.push({ x: x, y: Math.abs(y) < 1e-12 ? 0 : round(y) });
+            });
+        });
+        if (out.points.length > ROOTS_MAX) {
+            out.more = true;
+            out.points = out.points.sort(function (a, b) { return Math.abs(a.x) - Math.abs(b.x); }).slice(0, ROOTS_MAX);
+        }
+        out.points.sort(function (a, b) { return a.x - b.x; });
+        return out;
+    }
+
     // Between two functions f and g from a to b: { net: ∫(f – g), area: ∫|f – g|, each from the
     // places between where they cross, crossings: those places } or { error: 'function' |
     // 'letters', which: 0 for f, 1 for g }
@@ -5313,6 +6043,8 @@
         exactRoots: exactRoots,
         exactOf: exactOf,
         taylor: taylor,
+        derivatives: derivatives,
+        shape: shape,
         between: between,
         arcLength: arcLength,
         tDist: tDist,
@@ -5342,6 +6074,7 @@
         polygon: polygon,
         integral: integral,
         slopes: slopes,
+        gcd: gcd,
         series: series,
         limit: limit,
         ode: ode,

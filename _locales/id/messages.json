@@ -1,0 +1,50 @@
+{
+    "name": {
+        "message": "Kalkulator Ilmiah",
+        "description": "The extension's name, in the browser and the store"
+    },
+    "description": {
+        "message": "Kalkulator ilmiah lengkap: grafik, persamaan, kalkulus, statistik, matriks, satuan, keuangan, kimia, fisika, biologi.",
+        "description": "What the extension is, in the browser and the store: up to 132 characters"
+    },
+    "actionTitle": {
+        "message": "Kalkulator",
+        "description": "The tip of the toolbar icon"
+    },
+    "openPopup": {
+        "message": "Buka Kalkulator Ilmiah",
+        "description": "The keyboard shortcut's name, on the browser's page of shortcuts"
+    },
+    "menuCalculate": {
+        "message": "Hitung “%s”",
+        "description": "Right-click menu on selected text; %s is the selection"
+    },
+    "menuSite": {
+        "message": "Jawaban instan di situs ini",
+        "description": "Right-click menu checkbox: the instant answers on this website"
+    },
+    "menuFixed": {
+        "message": "Mode tetap",
+        "description": "Menu item: opens the calculator in Fixed Mode"
+    },
+    "menuDetached": {
+        "message": "Mode terpisah",
+        "description": "Menu item: opens the calculator in Detached Mode"
+    },
+    "menuAdvanced": {
+        "message": "Mode lanjutan",
+        "description": "Menu item: opens the calculator in Advanced Mode"
+    },
+    "menuEnable": {
+        "message": "Aktifkan jawaban instan di situs ini",
+        "description": "Toolbar icon menu: turns the instant answers on for this website"
+    },
+    "menuDisable": {
+        "message": "Nonaktifkan jawaban instan di situs ini",
+        "description": "Toolbar icon menu: turns the instant answers off for this website"
+    },
+    "menuOptions": {
+        "message": "Opsi",
+        "description": "Right-click menu: opens the options page"
+    }
+}

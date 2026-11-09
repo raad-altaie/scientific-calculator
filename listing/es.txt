@@ -1,0 +1,119 @@
+Una calculadora científica rápida y potente, en tu navegador: fracciones, gráficas, ecuaciones, matrices, una tabla periódica, herramientas de física y biología, más de 100 fórmulas y mucho más. Funciona sin conexión, es gratis, no tiene anuncios y mantiene tus datos en privado.
+
+ÁBRELA COMO QUIERAS
+• Ventana emergente: haz clic en el icono de la barra de herramientas o pulsa Alt+S.
+• Su propia ventana: deja la calculadora abierta mientras trabajas, del tamaño que quieras.
+• Modo avanzado: la calculadora en una ventana grande con todas las herramientas a un lado. La gráfica, la tabla periódica y cualquier otra herramienta también se pueden abrir en una ventana propia.
+• En todas las páginas (opcional): un pequeño botón de calculadora al lado de cualquier sitio web. Arrástralo al lado que prefieras.
+• Respuestas al instante en todas las páginas (opcional): ver más abajo.
+
+CALCULADORA
+• Ve la expresión completa mientras escribes y corrige cualquier parte con las flechas o con un clic.
+• Cálculo de calculadora de verdad: 1 + 2 × 3 = 7, con paréntesis anidados hasta 29 niveles.
+• Selecciona parte de una expresión y pulsa una función para envolverla: selecciona 30, pulsa sin y queda sin(30).
+• Funciones trigonométricas, inversas e hiperbólicas, en grados, radianes o gradianes.
+• Logaritmos, potencias y raíces, factorial, nCr, nPr, mod, mcd, mcm y Rand.
+• Grados, minutos y segundos: 12°30′15″.
+• Teclas de memoria, Ans, y deshacer y rehacer con Ctrl+Z.
+• Formato de número: Fix, Sci o Eng, de 0 a 9 decimales, y separadores de miles como 1,234.5 o 1.234,5.
+
+FRACCIONES
+• Activa a/b y cada división se dibuja como una fracción de verdad mientras escribes.
+• Los resultados se muestran como fracciones exactas: 0.75 es 3/4.
+
+HISTORIAL Y VARIABLES
+• Se guardan tus últimos 50 cálculos. Vuelve a insertar una expresión o un resultado, o cópialo.
+• Exporta el historial como texto o como CSV para una hoja de cálculo.
+• Diez variables, de A a J: guarda un resultado y úsalo en cualquier expresión, como 2A + B.
+
+GRÁFICA
+• Dibuja hasta siete funciones a la vez, cada una de su color.
+• Se marcan las raíces, los máximos y mínimos y los cortes. Haz clic en cualquier punto para ver su x, su y y su pendiente, con la recta tangente.
+• Deslizadores para jugar, el área bajo una curva, derivadas, ecuaciones en x e y, inecuaciones, curvas polares y paramétricas, sucesiones, campos de pendientes y rectas de ajuste.
+• Una tabla de valores, sesenta ejemplos para probar y una vista grande.
+
+RESOLVER
+• Todas las raíces de una ecuación, también en forma exacta: √2, (1 + √5)/2, π/6.
+• Inecuaciones, puntos de inflexión y polinomios hasta grado 30, con raíces complejas.
+• Sistemas de dos o tres ecuaciones lineales, y dónde se cortan dos curvas.
+• Cálculo: integrales, derivadas, límites, sumas y productos hasta el infinito, series de Taylor, longitud de arco y ecuaciones diferenciales.
+• Geometría: triángulos a partir de tres datos cualesquiera, áreas y volúmenes de figuras, la circunferencia que pasa por tres puntos, todo dibujado.
+• La mayoría de las respuestas vienen con una gráfica, y cada tarjeta tiene un ejemplo para empezar.
+
+TABLA PERIÓDICA Y QUÍMICA
+• Los 118 elementos, coloreados por tipo, estado, bloque o electronegatividad, con buscador.
+• Haz clic en un elemento para ver su masa, configuración electrónica, capas, puntos de fusión y ebullición, densidad, estados de oxidación, dureza, magnetismo, conductividad, abundancia y más.
+• Su átomo dibujado como lo dibujó Bohr, con los electrones girando.
+• Su espectro, con líneas oscuras de absorción o líneas brillantes de emisión.
+• Su estructura cristalina: la celda unidad en 3D, con sus átomos contados.
+• Masa molar de una fórmula, gramos ↔ moles ↔ partículas, y fórmulas empíricas.
+• Ajusta cualquier ecuación, también redox, con el reactivo limitante y el rendimiento.
+• Molaridad, dilución, pH, disoluciones amortiguadoras, disoluciones, solubilidad, y nombres ⇄ fórmulas.
+• Leyes de los gases, presiones parciales, volúmenes de gases, efusión y el aire según la altura.
+
+FÍSICA
+• Electrónica: código de colores de resistencias y códigos SMD en ambos sentidos, dibujados; resistencias, condensadores y bobinas en serie y en paralelo (100 + 220 || 330); ley de Ohm, divisores, filtros, diodos, transistores, amplificadores operacionales, el 555 y decibelios.
+• Movimiento: aceleración constante, proyectiles, órbitas, péndulos y muelles, rotación.
+• Fuerzas: rozamiento, poleas, choques, energía, momento de fuerza, gravitación, ley de Coulomb y campos magnéticos.
+• Ondas: ondas estacionarias, lentes y espejos con diagramas de rayos, interferencias, efecto Doppler.
+• Materia: calor, gases, máquinas de Carnot, presión, flotación y flujo.
+• Moderna: relatividad, energía de enlace nuclear, efecto fotoeléctrico, efecto túnel, espectro del hidrógeno y desintegración radiactiva.
+• La mayoría de los resultados vienen con un dibujo.
+
+BIOLOGÍA
+• Genética: cuadros de Punnett de hasta seis genes, cruces ligados al X, Hardy–Weinberg, mapas genéticos y árboles genealógicos.
+• ADN: secuencias, traducción, cebadores, digestiones de restricción en un gel virtual, PCR, alineamientos y guías CRISPR.
+• Proteínas: masa, pI y carga, cinética enzimática y curvas dosis–respuesta.
+• Laboratorio: diluciones, recuento de células, crecimiento, OD600, UFC, ajustes de centrífuga.
+• Células, salud y ecología: más herramientas de cada una.
+
+FINANZAS
+• Calculadora de préstamos con una tabla por año o por cuota.
+• Crecimiento del ahorro, valor del dinero en el tiempo (N, I/Y, PV, PMT, FV), VAN, TIR y plazo de recuperación.
+• TAE y TIN, bonos, amortización, punto de equilibrio, inflación, margen y recargo.
+
+PROBABILIDAD Y ESTADÍSTICA
+• Escribe o pega una lista de números, incluso una columna de una hoja de cálculo: media, mediana, desviación típica, cuartiles, moda y más, con un histograma y un diagrama de caja.
+• Pares de x e y: correlación y la curva de mejor ajuste (lineal, cuadrática, exponencial, potencial, logarítmica o logística).
+• Contrastes de hipótesis como en una TI-84: t, z, proporciones, χ², ANOVA, con valores p.
+• Normal, t, χ², F, binomial, Poisson y más, con valores p e intervalos de confianza.
+
+FÓRMULAS Y CONSTANTES
+• Más de 100 fórmulas de álgebra, geometría, física, electricidad, química, dinero y la vida diaria. Rellena las letras y obtén la respuesta.
+• 59 constantes de matemáticas y ciencias, que se insertan con un clic.
+
+MATRICES Y NÚMEROS
+• Matrices de hasta 10 × 10: determinante, inversa, valores propios, A x = b, LU y QR.
+• Vectores, y números complejos como (2+3i)(1−i), dibujados en el plano.
+• Factores primos, números grandes exactos como 100! y 2^200, y decimales periódicos como fracciones.
+• Para programadores: hexadecimal, binario y cualquier base, operaciones con bits, código Gray, tablas de verdad con mapas de Karnaugh, Base64, hashes (MD5, SHA-256), UUID, IEEE 754 y subredes IPv4 e IPv6.
+
+CONVERSOR Y FECHAS
+• Unidades de longitud, área, volumen, masa, temperatura, velocidad, tiempo, datos, presión, energía, potencia, ángulo, consumo de combustible, fuerza, par, densidad, frecuencia, tensión, resistencia y más.
+• Días entre dos fechas, sumar días, meses o años a una fecha, y marcas de tiempo Unix.
+• Zonas horarias: las 9:00 en Nueva York son las 22:00 en Tokio.
+
+RESPUESTAS AL INSTANTE EN CUALQUIER SITIO WEB (OPCIONAL, DESACTIVADO DE SERIE)
+• Aparece un pequeño icono después de las matemáticas de las páginas que lees: una suma, una ecuación, una matriz, una integral, una fórmula, una conversión, un préstamo, una reacción química, una secuencia de ADN o los colores de una resistencia.
+• Pasa el ratón por encima para ver la respuesta. Haz clic para abrirla en la calculadora.
+• Selecciona cualquier texto y elige Calcular en el menú del botón derecho.
+• Desactívalo en un sitio concreto desde el menú del icono de la barra de herramientas.
+
+TECLADO, COPIAR Y PEGAR
+• Cada botón tiene su tecla, con cualquier distribución de teclado, también árabe, hebrea, rusa y griega.
+• Pega una expresión entera, como 2 + 3 × sin(30).
+• Haz clic en cualquier resultado para usarlo en tu cálculo.
+
+PARA CENTROS EDUCATIVOS Y ORGANIZACIONES
+Los administradores pueden desactivar funciones para todas las personas que gestionan, por ejemplo durante un examen. Cada una de estas se puede desactivar por directiva, en la Consola de administración de Google, con las directivas de grupo de Windows o en el policies.json de Firefox: fórmulas, conversor, gráfica, resolver, estadística, números, química, física, biología, la ventana aparte, el botón en todas las páginas y las respuestas al instante en todas las páginas. Una función desactivada desaparece de la calculadora al momento y queda bloqueada en las opciones.
+Guía de configuración para administradores: raad.dev/calculator/admin
+
+PRIVADA Y GRATIS
+• Funciona sin conexión. Nada de lo que escribes sale de tu navegador.
+• Solo pide acceso a los sitios web si activas el botón o las respuestas al instante en todas las páginas. Ambos están desactivados de serie.
+• El botón no lee nada de las páginas. Las respuestas al instante miran el texto de la página, solo en tu dispositivo, para encontrar las matemáticas, y no se envía nada a ninguna parte.
+• Recuerda tu trabajo cuando la cierras.
+• Prueba la versión web: raad.dev/calculator
+• Gratis y de código abierto: github.com/raad-altaie/scientific-calculator
+
+¡Un saludo!

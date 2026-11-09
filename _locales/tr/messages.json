@@ -1,0 +1,50 @@
+{
+    "name": {
+        "message": "Bilimsel Hesap Makinesi",
+        "description": "The extension's name, in the browser and the store"
+    },
+    "description": {
+        "message": "Eksiksiz bir bilimsel hesap makinesi: grafik, denklemler, kalkülüs, istatistik, matrisler, birimler, finans, kimya, fizik, biyoloji.",
+        "description": "What the extension is, in the browser and the store: up to 132 characters"
+    },
+    "actionTitle": {
+        "message": "Hesap makinesi",
+        "description": "The tip of the toolbar icon"
+    },
+    "openPopup": {
+        "message": "Bilimsel Hesap Makinesini aç",
+        "description": "The keyboard shortcut's name, on the browser's page of shortcuts"
+    },
+    "menuCalculate": {
+        "message": "“%s” hesapla",
+        "description": "Right-click menu on selected text; %s is the selection"
+    },
+    "menuSite": {
+        "message": "Bu sitedeki anlık yanıtlar",
+        "description": "Right-click menu checkbox: the instant answers on this website"
+    },
+    "menuFixed": {
+        "message": "Sabit mod",
+        "description": "Menu item: opens the calculator in Fixed Mode"
+    },
+    "menuDetached": {
+        "message": "Ayrı pencere modu",
+        "description": "Menu item: opens the calculator in Detached Mode"
+    },
+    "menuAdvanced": {
+        "message": "Gelişmiş mod",
+        "description": "Menu item: opens the calculator in Advanced Mode"
+    },
+    "menuEnable": {
+        "message": "Bu sitede anlık yanıtları etkinleştir",
+        "description": "Toolbar icon menu: turns the instant answers on for this website"
+    },
+    "menuDisable": {
+        "message": "Bu sitede anlık yanıtları devre dışı bırak",
+        "description": "Toolbar icon menu: turns the instant answers off for this website"
+    },
+    "menuOptions": {
+        "message": "Seçenekler",
+        "description": "Right-click menu: opens the options page"
+    }
+}

@@ -1,0 +1,50 @@
+{
+    "name": {
+        "message": "Wissenschaftlicher Taschenrechner",
+        "description": "The extension's name, in the browser and the store"
+    },
+    "description": {
+        "message": "Wissenschaftlicher Rechner: Graphen, Gleichungen, Analysis, Statistik, Matrizen, Einheiten, Finanzen, Chemie, Physik, Biologie.",
+        "description": "What the extension is, in the browser and the store: up to 132 characters"
+    },
+    "actionTitle": {
+        "message": "Rechner",
+        "description": "The tip of the toolbar icon"
+    },
+    "openPopup": {
+        "message": "Wissenschaftlichen Taschenrechner öffnen",
+        "description": "The keyboard shortcut's name, on the browser's page of shortcuts"
+    },
+    "menuCalculate": {
+        "message": "„%s“ berechnen",
+        "description": "Right-click menu on selected text; %s is the selection"
+    },
+    "menuSite": {
+        "message": "Sofortantworten auf dieser Website",
+        "description": "Right-click menu checkbox: the instant answers on this website"
+    },
+    "menuFixed": {
+        "message": "Fester Modus",
+        "description": "Menu item: opens the calculator in Fixed Mode"
+    },
+    "menuDetached": {
+        "message": "Eigenes Fenster",
+        "description": "Menu item: opens the calculator in Detached Mode"
+    },
+    "menuAdvanced": {
+        "message": "Erweiterter Modus",
+        "description": "Menu item: opens the calculator in Advanced Mode"
+    },
+    "menuEnable": {
+        "message": "Sofortantworten auf dieser Website aktivieren",
+        "description": "Toolbar icon menu: turns the instant answers on for this website"
+    },
+    "menuDisable": {
+        "message": "Sofortantworten auf dieser Website deaktivieren",
+        "description": "Toolbar icon menu: turns the instant answers off for this website"
+    },
+    "menuOptions": {
+        "message": "Optionen",
+        "description": "Right-click menu: opens the options page"
+    }
+}

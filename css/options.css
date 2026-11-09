@@ -3,6 +3,17 @@
     src: url('../fonts/Play-Regular.ttf');
 }
 
+/* Arabic in Noto Kufi Arabic, its letters alone, as in the calculator (style.css) */
+@font-face {
+    font-family: Play;
+    src: url('../fonts/NotoKufiArabic-Regular.ttf');
+    size-adjust: 90%; /* a little smaller: wider and taller than Play beside it */
+    ascent-override: 105%; /* its lines as close as Play's, not its own 1.9 */
+    descent-override: 35%;
+    line-gap-override: 0%;
+    unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+
 html, body {
     background: #39576f;
     margin: 0;
@@ -600,6 +611,11 @@ html, body {
     margin: 0.6em 0 0.6em;
 }
 
+/* the language: shown once there is more than English to choose from (options.js) */
+.option[hidden] {
+    display: none;
+}
+
 /* the icon shows 1,500 as the chosen format writes it */
 .format-icon {
     box-sizing: border-box;
@@ -784,6 +800,47 @@ html, body {
     vertical-align: middle;
 }
 
+/* the ← → that start the cursor's description: two keys of a keyboard, light, with an edge below */
+:where(.wrapper) .arrow-keys {
+    display: inline-flex;
+    gap: 3px;
+    margin: 3px;
+    justify-content: center;
+    align-items: flex-start;
+    vertical-align: middle;
+    position: relative;
+    top: 2px; /* as a key with its label, a bit down */
+    flex-shrink: 0;
+}
+
+:where(.wrapper) .arrow-keys kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 26px;
+    height: 26px; /* square, as a key of a keyboard */
+    color: #3d4350;
+    background: linear-gradient(#f4f5f7, #dcdfe5);
+    border: 1px solid #a9afba;
+    border-bottom-width: 3px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: transform 0.04s;
+}
+
+:where(.wrapper) .arrow-keys kbd:active {
+    transform: translateY(1px);
+    border-bottom-width: 2px;
+    background: linear-gradient(#e6e8ec, #cfd3da);
+}
+
+:where(.wrapper) .arrow-keys svg {
+    width: 11px;
+    height: 11px;
+    fill: currentColor;
+}
+
 /* a key named in the text looks like the key on the calculator */
 .k {
     display: inline-block;
@@ -840,6 +897,7 @@ html, body {
    the keys named inside the text can, except the < > arrows */
 :where(.wrapper) .keys,
 :where(.wrapper) .trigo-keys,
+:where(.wrapper) .arrow-keys,
 :where(.wrapper) .calc-down,
 .k-arrow {
     -webkit-user-select: none;
@@ -886,8 +944,13 @@ html, body {
     color: #fff;
 }
 
-.embedded :is(.title, .option .option-note, .footer) {
+.embedded :is(.title, .option .option-note) {
     color: #eef1f5;
+}
+
+/* the copyright greyer, so raad.dev, white, stands out of it as on the options page alone */
+.embedded .footer {
+    color: #cdd4dd;
 }
 
 .embedded :is(.features a, .option-text a) {
@@ -956,7 +1019,7 @@ html, body {
 }
 
 .embedded .page .wrapper {
-    max-width: 800px;
+    max-width: 960px; /* Advanced mode: a little wider than the options page alone */
     margin-top: 0;
     padding: 2em 36px 0;
 }
@@ -1060,4 +1123,85 @@ html, body {
 /* the guide starts under the tabs, as the options do */
 .tabs + .options + .features > .title:first-child {
     margin-top: 0;
+}
+
+/* A language written right to left, as Arabic (lang.js): the page laid out as it is, each text read from the right as
+   its first letter says, a paragraph from its right edge; a sub, a sup, italic or bold with the word it is of (style.css) */
+.lang-rtl body :not(svg, svg *, input, kbd, .trigo-keys, .trigo-keys *, .arrow-keys, sub, sup, i, b, em, strong) {
+    unicode-bidi: plaintext;
+}
+
+/* The options and the guide right to left, as the panels of the calculator: each option's icon at the right, its
+   choices and switch at the left, the tabs and the guide's lists from the right, a key of the guide at the right of
+   what it does, the copyright from the right. What stays left to right: a key, a sum of a page, what is typed */
+.lang-rtl :is(.wrapper, .footer) {
+    direction: rtl;
+}
+
+.lang-rtl :is(.features, .info, .options) {
+    text-align: right;
+}
+
+/* the page's scrollbar at its left, as it reads: the body scrolls, not the window, whose bar Chrome keeps at the
+   right; options.html only, as on the website the options pane scrolls (site.css) */
+html.lang-rtl:has(> body.page) {
+    height: 100%;
+    overflow: hidden;
+}
+
+.lang-rtl body.page {
+    box-sizing: border-box;
+    height: 100%;
+    overflow-y: auto;
+    direction: rtl;
+}
+
+.lang-rtl .wrapper :is(.keys, .trigo-keys, .arrow-keys, .k, kbd, .page-maths, input) {
+    direction: ltr;
+}
+
+/* each paragraph read from the right as a whole, not from its first letter: [Backspace] at the start of its Arabic,
+   and the copyright, © 2026 raad.dev, at the right of its Arabic. A word or a sum inside one as its letters say */
+.lang-rtl :is(.wrapper, .footer) :is(p, li, h1, h2, h3, .des, .title, .logo) {
+    unicode-bidi: isolate;
+}
+
+:where(.lang-rtl .wrapper) .logo {
+    margin-right: 15px;
+    margin-left: 0;
+}
+
+/* a switch on at the left, the way it goes */
+.lang-rtl .switch span::after {
+    left: auto;
+    right: 3px;
+    transition: right 0.2s, background 0.2s;
+}
+
+.lang-rtl .switch input:checked + span::after {
+    right: 21px;
+}
+
+/* a list's arrow at the left of its box */
+.lang-rtl .format-row select {
+    padding: 0.45em 0.6em 0.45em 1.9em;
+    background-position: left 0.7em center;
+}
+
+@media (max-width: 600px) {
+    :where(.lang-rtl .wrapper) .logo {
+        margin-right: 0;
+    }
+
+    .lang-rtl .features ul {
+        padding: 0 1.2em 1em 0;
+    }
+
+    .lang-rtl .launch {
+        margin: 0 calc(50% - 4.5em + (40px + 0.9em) / 2) 0 calc(50% - 4.5em - (40px + 0.9em) / 2);
+    }
+
+    .lang-rtl .des {
+        padding: 0 10px 0 0;
+    }
 }

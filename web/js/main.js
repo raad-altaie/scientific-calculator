@@ -1,5 +1,9 @@
 (function (window) {
     'use strict';
+    // the words of the calculator in the language in use (lang.js): tr('Clear'), tr('{n} of {all}', { n: 3, all: 10 }),
+    // trn(n, '{n} day', '{n} days'). The words of the page translated first, before anything here reads them
+    var tr = CalcLang.t, trn = CalcLang.n, trc = CalcLang.c;
+    CalcLang.dom(document.body);
     let root = document.getElementById('calculator'), // the calculator: the page can hold more than it, as the website does
         Calc = root.querySelector('.calc-main'),
         display = Calc.querySelector('.calc-display span'),
@@ -111,7 +115,7 @@
             while (rows.length < 25) {
                 row = first.cloneNode(true);
                 row.querySelector('input').placeholder = 'another curve';
-                row.querySelector('input').setAttribute('aria-label', 'y = , curve ' + (rows.length + 1));
+                row.querySelector('input').setAttribute('aria-label', tr('y = , curve {n}', { n: rows.length + 1 }));
                 first.parentNode.appendChild(row);
                 rows.push(row);
             }
@@ -274,6 +278,57 @@
         if (!el.clientWidth) return false;
         range.selectNodeContents(el);
         return range.getBoundingClientRect().width / scale() > el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    }
+
+    // No room left empty at the end of a row of results, nor a number squeezed: the tiles in rows of as many as fit, up to the
+    // grid's columns, each row's tiles sharing its width alike: of three to a row, the last two half and half, one alone the
+    // whole width; a number too long for its tile on a row of fewer, or alone, before it is made smaller. A wide one, as a
+    // matrix, a row of its own as ever. Its columns as set (grid.base) are the most a row has; its numbers back to their size
+    function fillRows(grid) {
+        var tiles, cols, width, gap, rows = [], row = [], most = 1;
+        if (!grid) return;
+        if (grid.base === undefined) grid.base = grid.style.gridTemplateColumns;
+        grid.style.gridTemplateColumns = grid.base;
+        [].forEach.call(grid.children, function (t) {
+            t.style.gridColumn = '';
+            [].forEach.call(t.querySelectorAll(':scope > :is(.calc-sv-value, .calc-stats-value)'), function (v) { v.style.fontSize = ''; });
+        });
+        grid.fitW = grid.clientWidth;
+        if (!grid.offsetWidth) return; // in a panel still hidden: laid out once it is seen
+        tiles = [].filter.call(grid.children, function (t) { return t.offsetParent; });
+        cols = getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length;
+        if (cols < 2) return;
+        gap = parseFloat(getComputedStyle(grid).columnGap) || 0;
+        width = function (k) { return (grid.clientWidth - (k - 1) * gap) / k; };
+        function close() {
+            if (row.length) rows.push(row);
+            row = [];
+        }
+        tiles.forEach(function (t) {
+            var v = t.querySelector(':scope > :is(.calc-sv-value, .calc-stats-value)'), range, style, next;
+            if (getComputedStyle(t).gridColumnEnd === '-1') return close(); // a row of its own
+            t.need = 0;
+            if (v && v.clientWidth) { // the tile's width less its value's room, and the value's text
+                range = document.createRange();
+                range.selectNodeContents(v);
+                style = getComputedStyle(v);
+                t.need = t.offsetWidth - (v.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)) + range.getBoundingClientRect().width / scale();
+            }
+            next = row.concat(t);
+            if (next.length > cols || next.some(function (x) { return x.need > width(next.length) + 0.5; })) {
+                close();
+                row = [t];
+            } else row = next;
+        });
+        close();
+        if (rows.every(function (r) { return r.length === cols; })) return; // every row full as it is
+        rows.forEach(function (r) { // the fewest columns each row's tiles share alike in
+            most = most * r.length / CalcMaths.gcd(most, r.length);
+        });
+        grid.style.gridTemplateColumns = 'repeat(' + most + ', minmax(0, 1fr))';
+        rows.forEach(function (r) {
+            r.forEach(function (t) { t.style.gridColumn = 'span ' + most / r.length; });
+        });
     }
 
     // a place on the screen, a box or a point of the pointer, as the calculator counts it:
@@ -929,12 +984,69 @@
         }, true);
     });
 
+    // Written right to left, as Arabic (lang.js): a text with Arabic in it read from the right (.calc-rtl), each run
+    // of it with none, maths, a name or a key, kept together left to right inside it (.calc-ltr), the spaces and stops
+    // at its ends with the Arabic: 2 x³ = 8 as it is, not 8 = x³ 2. Its blocks, and a part of a line with Arabic in
+    // it, done the same; a text with no Arabic in it is left as it is
+    var RTL_TEXT = /[֐-ࣿיִ-﷿ﹰ-﻿]/,
+        LTR_TEXT = /[0-9A-Za-zÀ-ɏͰ-Ͽ⁰-₟∀-⋿]/;
+
+    function ltrRuns(el) {
+        var out = [], run = [];
+
+        function textOf(t) {
+            return typeof t === 'string' ? t : t.textContent;
+        }
+
+        function flush() {
+            var lead, trail, span;
+            if (!run.length) return;
+            // not the point of .5 nor the ! of !A, before what they are of; nor the ! of n!, after
+            lead = typeof run[0] === 'string' ? /^[\s.,:;!?]*?(?=[.!]?[^\s.,:;!?]|$)/.exec(run[0])[0] : '';
+            if (lead) run[0] = run[0].slice(lead.length);
+            trail = typeof run[run.length - 1] === 'string' ? /(?:[\s.,:;?]|(?<=[\s.,:;?])!)*$/.exec(run[run.length - 1])[0] : '';
+            if (trail) run[run.length - 1] = run[run.length - 1].slice(0, -trail.length);
+            if (lead) out.push(lead);
+            if (LTR_TEXT.test(run.map(textOf).join(''))) {
+                span = document.createElement('span');
+                span.className = 'calc-ltr';
+                span.append.apply(span, run);
+                out.push(span);
+            } else out.push.apply(out, run);
+            if (trail) out.push(trail);
+            run = [];
+        }
+
+        // the tip and its peek kept and filled again: of English after Arabic, read from the left again
+        if (!el.classList.toggle('calc-rtl', RTL_TEXT.test(el.textContent))) return;
+        [].slice.call(el.childNodes).forEach(function (n) {
+            if (n.nodeType === 3) {
+                n.data.split(/([֐-ࣿיִ-﷿ﹰ-﻿]+)/).forEach(function (s, i) {
+                    if (!s) return;
+                    if (i % 2) {
+                        flush();
+                        out.push(s);
+                    } else run.push(s);
+                });
+            } else if (n.nodeType === 1 && /^inline/.test(getComputedStyle(n).display) && !RTL_TEXT.test(n.textContent)) {
+                run.push(n);
+            } else if (n.nodeType === 1) {
+                flush();
+                out.push(n);
+                ltrRuns(n);
+            }
+        });
+        flush();
+        el.replaceChildren.apply(el, out.filter(function (t) { return t !== ''; }));
+    }
+
     // A tip above its key, or below it where there is no room above; too long for the room on either
     // side, it goes where there is more, and what is under its name scrolls (.calc-tip-body), no higher
     // than the CSS lets it be as well. One that scrolls takes the pointer, to scroll it
     function placeTip(box, at, gap) {
         var calc = tip.parentNode, body = box.querySelector('.calc-tip-body'),
             above = at.top - gap - 4, below = calc.clientHeight - at.bottom - gap - 4, under, left;
+        if (CalcLang.rtl) ltrRuns(box);
         box.style.removeProperty('--room');
         under = box.offsetHeight > above && (box.offsetHeight <= below || below > above);
         if (body && box.offsetHeight > (under ? below : above)) {
@@ -964,10 +1076,10 @@
             tipEmpty = true;
             return;
         }
-        tip.innerHTML = '<div class="calc-tip-head"><b>' + info.t + '</b>' +
+        tip.innerHTML = '<div class="calc-tip-head"><b>' + tr(info.t) + '</b>' +
             (secondKey(name) ? '<span class="calc-tip-2nd">2nd</span>' : '') +
-            (info.k ? '<kbd>' + info.k + '</kbd>' : '') + '</div><div class="calc-tip-body"><div>' + info.d + '</div>' +
-            (info.second && !secondActive ? '<div class="calc-tip-more">With 2nd: ' + info.second + '</div>' : '') + '</div>';
+            (info.k ? '<kbd>' + info.k + '</kbd>' : '') + '</div><div class="calc-tip-body"><div>' + tr(info.d) + '</div>' +
+            (info.second && !secondActive ? '<div class="calc-tip-more">' + tr('With 2nd: {f}', { f: info.second }) + '</div>' : '') + '</div>';
         tip.hidden = false;
         placeTip(tip, at, gap); // above the key, in the middle of it
     }
@@ -1027,10 +1139,10 @@
         if (!info) return;
         hideTip();
         // what is under its name scrolls, too long; its buttons stay in sight under it
-        peek.innerHTML = '<div class="calc-tip-head"><b>' + info.t + '</b></div><div class="calc-tip-body">' + (info.d ? '<div>' + info.d + '</div>' : '') +
+        peek.innerHTML = '<div class="calc-tip-head"><b>' + tr(info.t) + '</b></div><div class="calc-tip-body">' + (info.d ? '<div>' + tr(info.d) + '</div>' : '') +
             (info.html === undefined ? '</div>' : '<div class="calc-peek-value">' + info.html + '</div></div><div class="calc-peek-acts">' +
-                (info.put ? '<span class="calc-peek-act" data-act="insert">Insert' + insertIcon() + '</span>' : '') +
-                '<span class="calc-peek-act" data-act="copy">Copy</span></div>');
+                (info.put ? '<span class="calc-peek-act" data-act="insert">' + tr('Insert') + insertIcon() + '</span>' : '') +
+                '<span class="calc-peek-act" data-act="copy">' + tr('Copy') + '</span></div>');
         peek.text = info.text;
         peek.hidden = false;
         placeTip(peek, inside(peekTile.getBoundingClientRect()), 8); // above the result, in the middle of it, as a key's tip
@@ -1124,12 +1236,12 @@
 
     // the memory and the number format say what they hold now
     function tipFor(el, name) {
-        var places = fmt.places === 'auto' ? 'as many digits as each one needs' :
-            fmt.places + (fmt.places === 1 ? ' decimal place' : ' decimal places'), info, value;
+        var places = fmt.places === 'auto' ? tr('as many digits as each one needs') :
+            trn(fmt.places, '{n} decimal place', '{n} decimal places'), info, value;
         if (el.classList.contains('calc-search-clear')) return CalcTips[el.closest('.calc-pt-find') ? 'chem search clear' : 'search clear']; // the table's empties with Esc as well
         if (el.hasAttribute('data-e')) { // a letter of the equation: what it holds now
             value = el.textContent.trim();
-            return { t: 'Variable ' + value, d: value + ' = ' + letterValue(value), k: 'Shift+' + value };
+            return { t: tr('Variable {value}', { value: value }), d: value + ' = ' + letterValue(value), k: tr('Shift+{value}', { value: value }) };
         }
         if (/^(INPUT|TEXTAREA)$/.test(el.tagName) && (info = lettersTip(el))) return info; // a box with letters in it; any other has the tip of its own below
         if (el.classList.contains('calc-help')) return CalcTips['help'];
@@ -1215,19 +1327,16 @@
         if (el === mem) {
             return {
                 t: 'Memory',
-                d: 'The memory holds ' + local(+(+engine.memory).toPrecision(13)) +
-                    '. Click to put it into the equation, as mr does. mc empties it.',
+                d: tr('The memory holds {v}. Click to put it into the equation, as mr does. mc empties it.', { v: local(+(+engine.memory).toPrecision(13)) }),
                 k: 'm'
             };
         }
         if (el === fmtMark) {
             return {
                 t: 'Number format',
-                d: (fmt.notation === 'fix' ? (fmt.places === 'auto' ? 'Results are shown as usual, with ' + places + '.' :
-                    'Results are rounded to ' + places + '.') :
-                    'Results are shown in ' + (fmt.notation === 'sci' ? 'scientific notation, 1.23e+4,' :
-                        'engineering notation, powers of ten in steps of three, 12.3e+3,') + ' with ' + places + '.') +
-                    ' MODE goes on to the next; click here to change it on the options page.',
+                d: tr('{v} MODE goes on to the next; click here to change it on the options page.', { v: (fmt.notation === 'fix' ? (fmt.places === 'auto' ? tr('Results are shown as usual, with {places}.', { places: places }) :
+                    tr('Results are rounded to {places}.', { places: places })) :
+                    (fmt.notation === 'sci' ? tr('Results are shown in scientific notation, 1.23e+4, with {places}.', { places: places }) : tr('Results are shown in engineering notation, powers of ten in steps of three, 12.3e+3, with {places}.', { places: places }))) }),
                 k: ''
             };
         }
@@ -1265,6 +1374,7 @@
         var items, at;
         if (!root.contains(e.target)) return; // the rest of the page has the menu of the browser
         at = menu.at = inside({ left: e.clientX, top: e.clientY }); // where Store in Var opens the letters
+        at.alignRight = CalcLang.rtl; // right to left, at the left of the pointer, its lines from the right
         items = menuItems(e.target); // taken now, while what is selected is still selected
         menu.had = !!items; // for a hold, which opened it: let go, it presses nothing
         e.preventDefault(); // in the calculator the menu of the browser is never shown
@@ -1418,7 +1528,8 @@
         menu.className = 'calc-menu-box' + (kind ? ' ' + kind : '');
         menu.innerHTML = items.map(function (item, i) {
             if (!item) return '<hr>';
-            // a part of its own, as the colors of a curve, with nothing to do on a click: item[3] sets it up
+            // a part of its own, as the colors of a curve, with nothing to do on a click: item[3] sets it up. Each
+            // in the language in use already, as it is shown: tr('Copy'), its tick or its value with it
             return '<div data-i="' + i + '"' + (item[2] === false ? ' class="calc-off"' : !item[1] ? ' class="calc-menu-part"' : '') + '>' + item[0] + '</div>';
         }).join('');
         items.forEach(function (item, i) {
@@ -1464,17 +1575,17 @@
         if (el.closest('.calc-display')) {
             text = selectedText(); // taken now, as it is selected
             span = selectedSpan();
-            paste = ['Paste', function () { askPaste(null); }];
+            paste = [tr('Paste'), function () { askPaste(null); }];
             paste.clip = true;
             return [
-                !empty() && ['Cut', function () { copy(text || copyText()); cutOut(span); }],
-                !empty() && ['Copy', function () { copy(text || copyText()); }],
+                !empty() && [tr('Cut'), function () { copy(text || copyText()); cutOut(span); }],
+                !empty() && [tr('Copy'), function () { copy(text || copyText()); }],
                 paste,
                 null,
                 insertItem(),
                 !empty() && !engine.error && storeItem(storeIn),
                 null,
-                ['Reset all', resetAll]
+                [tr('Reset all'), resetAll]
             ].filter(function (item) { return item !== false; });
         }
         if (!panel) return null; // the keys
@@ -1484,9 +1595,9 @@
         if ((row = el.closest('.calc-sv-tile')) && row.row && (part = peekOf(row)) && part.put) {
             k = row.row.v;
             return [
-                ['Copy', function () { copy(part.text); }],
-                row.row.unit && ['Copy with unit', function () { copy(part.text + (row.row.dms ? '' : ' ' + row.row.unit)); }],
-                ['Insert', function () { row.click(); }],
+                [tr('Copy'), function () { copy(part.text); }],
+                row.row.unit && [tr('Copy with unit'), function () { copy(part.text + (row.row.dms ? '' : ' ' + row.row.unit)); }],
+                [tr('Insert'), function () { row.click(); }],
                 null,
                 storeItem(function (letter) { setLetter(letter, k); })
             ].filter(function (item) { return item !== undefined; });
@@ -1495,8 +1606,8 @@
             text = local(statsValue(statsNow[row.dataset.k]).text);
             k = statsNow[row.dataset.k];
             return [
-                ['Copy', function () { copy(text); }],
-                ['Insert', function () { row.click(); }],
+                [tr('Copy'), function () { copy(text); }],
+                [tr('Insert'), function () { row.click(); }],
                 null,
                 storeItem(function (letter) { setLetter(letter, k); })
             ];
@@ -1504,45 +1615,45 @@
         if (panel === past && (row = el.closest('.calc-var'))) {
             k = row.dataset.k;
             return [
-                ['Insert', function () { putLetter(k); }],
-                ['Copy', function () { copy(letterText(k)); }],
-                ['Store result', function () { storeIn(k); }, !engine.error],
-                ['Clear', function () { setLetter(k, 0); }, !!engine.vars[k]]
+                [tr('Insert'), function () { putLetter(k); }],
+                [tr('Copy'), function () { copy(letterText(k)); }],
+                [tr('Store result'), function () { storeIn(k); }, !engine.error],
+                [tr('Clear'), function () { setLetter(k, 0); }, !!engine.vars[k]]
             ];
         }
         if (panel === fx && (row = el.closest('.calc-fx-item'))) {
             k = fxItems[fxTab][+row.dataset.i].item;
             if (fxTab === 'constants') {
                 return [
-                    ['Copy', function () { copy(local(k.v)); }],
-                    ['Copy with unit', function () { copy(local(k.v) + ' ' + plain(k.u)); }, !!k.u],
-                    ['Insert', function () { putConstant(k); }],
+                    [tr('Copy'), function () { copy(local(k.v)); }],
+                    [tr('Copy with unit'), function () { copy(local(k.v) + ' ' + plain(k.u)); }, !!k.u],
+                    [tr('Insert'), function () { putConstant(k); }],
                     null,
                     storeItem(function (letter) { setLetter(letter, k.v); })
                 ];
             }
             return [
-                ['Copy', function () { copy(formulaText(k.f)); }],
-                row.classList.contains('calc-on') ? ['Insert', function () { insertFormula(row); }] :
-                    ['Open', function () { openFormula(row); }]
+                [tr('Copy'), function () { copy(formulaText(k.f)); }],
+                row.classList.contains('calc-on') ? [tr('Insert'), function () { insertFormula(row); }] :
+                    [tr('Open'), function () { openFormula(row); }]
             ];
         }
         if (panel === past) {
             row = el.closest('.calc-past-row');
-            if (!row) return [[pastTab === 'vars' ? 'Clear variables' : 'Clear history', function () { pastClear.click(); }, !pastClear.classList.contains('calc-off')]];
+            if (!row) return [[tr(pastTab === 'vars' ? 'Clear variables' : 'Clear history'), function () { pastClear.click(); }, !pastClear.classList.contains('calc-off')]];
             // on the equation, the equation; anywhere else on the line, its result
             part = el.closest('.calc-past-eq') || row.querySelector('.calc-past-res');
             k = engine.past[+row.dataset.i];
             return ['copy', 'insert'].map(function (act) {
-                return [act === 'copy' ? 'Copy' : 'Insert', function () { part.querySelector('[data-act="' + act + '"]').click(); }];
+                return [act === 'copy' ? tr('Copy') : tr('Insert'), function () { part.querySelector('[data-act="' + act + '"]').click(); }];
             }).concat([null, storeItem(function (letter) { setLetter(letter, +k.value); }), null,
-                ['Delete', function () { row.querySelector('.calc-past-del').click(); }]]);
+                [tr('Delete'), function () { row.querySelector('.calc-past-del').click(); }]]);
         }
         if (panel === graph && (row = el.closest('.calc-graph-cell')) && isFinite(k = graphValues[row.dataset.r][row.dataset.c])) {
             text = local(+row.dataset.c ? statsValue(k).text : String(k));
             return [
-                ['Copy', function () { copy(text); }],
-                ['Insert', function () { row.click(); }],
+                [tr('Copy'), function () { copy(text); }],
+                [tr('Insert'), function () { row.click(); }],
                 null,
                 storeItem(function (letter) { setLetter(letter, k); })
             ];
@@ -1554,8 +1665,8 @@
         if (panel === graph && (row = el.closest('.calc-graph-pop-row')) && graphPinned) {
             k = graphPinned[row.dataset.put];
             return [
-                ['Copy', function () { copy(local(graphPinned.spot ? k : statsValue(k).text)); }],
-                ['Insert', function () { row.click(); }],
+                [tr('Copy'), function () { copy(local(graphPinned.spot ? k : statsValue(k).text)); }],
+                [tr('Insert'), function () { row.click(); }],
                 null,
                 storeItem(function (letter) { setLetter(letter, +k); }, isFinite(+k))
             ];
@@ -1569,10 +1680,10 @@
     function boxItems(box) {
         var some = box.selectionStart !== box.selectionEnd;
         return [
-            ['Cut', function () { box.focus(); document.execCommand('cut'); }, some],
-            ['Copy', function () { box.focus(); document.execCommand('copy'); }, some],
-            ['Paste', function () { askPaste(box); }],
-            ['Select all', function () { box.focus(); box.select(); }, !!box.value]
+            [tr('Cut'), function () { box.focus(); document.execCommand('cut'); }, some],
+            [tr('Copy'), function () { box.focus(); document.execCommand('copy'); }, some],
+            [tr('Paste'), function () { askPaste(box); }],
+            [tr('Select all'), function () { box.focus(); box.select(); }, !!box.value]
         ];
     }
 
@@ -1721,13 +1832,13 @@
     // Store in Var: a menu of the letters, each with what it holds, in place of the menu it was chosen in
     function storeItem(store, can) {
         var at = menu.at;
-        return ['Store in Var' + MORE, function () { lettersMenu(store, at); }, can !== false];
+        return [tr('Store in Var') + MORE, function () { lettersMenu(store, at); }, can !== false];
     }
 
     // Insert Var: the same menu of the letters, the one chosen put in at the cursor, as Shift+A does
     function insertItem() {
         var at = menu.at;
-        return ['Insert Var' + MORE, function () { lettersMenu(putLetter, at); }];
+        return [tr('Insert Var') + MORE, function () { lettersMenu(putLetter, at); }];
     }
 
     function lettersMenu(pick, at) {
@@ -1744,7 +1855,7 @@
             CalcEngine.lettersOf(box.value) : [];
         if (!used.length) return null;
         return {
-            t: used.length > 1 ? 'Variables' : 'Variable ' + used[0],
+            t: used.length > 1 ? 'Variables' : tr('Variable {used}', { used: used[0] }),
             d: used.map(function (k) { return k + ' = ' + letterValue(k); }).join('<br>'),
             k: ''
         };
@@ -1765,7 +1876,7 @@
         var op = 1; // initial opacity
 
         clearInterval(noticeTimer);
-        notification.innerHTML = text;
+        notification.innerHTML = tr(text);
         notification.style.display = 'unset';
         noticeTimer = setInterval(function () {
             if (op <= 0.1) {
@@ -1845,9 +1956,9 @@
             return;
         }
         openMenu([
-            ['Copy as text', function () { copy(pastText()); }],
-            ['Save as CSV', function () { saveText(pastCsv(), 'text/csv', 'csv'); }],
-            ['Save as text', function () { saveText(pastText(), 'text/plain', 'txt'); }]
+            [tr('Copy as text'), function () { copy(pastText()); }],
+            [tr('Save as CSV'), function () { saveText(pastCsv(), 'text/csv', 'csv'); }],
+            [tr('Save as text'), function () { saveText(pastText(), 'text/plain', 'txt'); }]
         ], { left: at.right, top: at.bottom + 4, alignRight: true }, pastExport);
     }, false);
 
@@ -2070,14 +2181,14 @@
         });
         stats.classList.toggle('calc-stats-pairs', statsTab === 'pairs');
         stats.classList.toggle('calc-stats-testing', statsTab === 'tests');
-        statsInput.placeholder = statsTab === 'pairs' ? 'Type or paste pairs, x and y on each line:\n1 2\n2 4.1\n3 5.9' :
-            'Type or paste numbers: 4 8 15 16 23 42';
+        statsInput.placeholder = tr(statsTab === 'pairs' ? 'Type or paste pairs, x and y on each line:\n1 2\n2 4.1\n3 5.9' :
+            'Type or paste numbers: 4 8 15 16 23 42');
         if (statsTab === 'pairs' && statsFit !== 'lin') { // the line's three, in their place, for the curve's numbers
             at = list.map(function (s) { return s[0]; }).indexOf('b');
             list = list.slice(0, at).concat(fitTiles(statsFit), list.slice(at + 3));
         }
         statsGrid.innerHTML = list.map(function (s) {
-            return '<div class="calc-stats-tile" data-k="' + s[0] + '"><span class="calc-stats-label">' + s[1] +
+            return '<div class="calc-stats-tile" data-k="' + s[0] + '"><span class="calc-stats-label">' + tr(s[1]) +
                 '</span><span class="calc-stats-value"></span></div>';
         }).join('');
     }
@@ -2179,6 +2290,20 @@
         }
     }
 
+    // the tiles of statistics laid out, each row of them full (fillRows); a number still too long then made smaller, as on the display
+    function fitStats() {
+        fillRows(statsGrid);
+        [].forEach.call(statsGrid.children, function (tile) {
+            var shown = tile.lastChild, size = 17;
+            while (size > 11 && tooWide(shown)) shown.style.fontSize = --size + 'px';
+        });
+    }
+
+    // popped out or in, or the window narrower: laid out again for their new width
+    if (window.ResizeObserver) new ResizeObserver(function () {
+        if (statsGrid.offsetWidth && statsGrid.clientWidth !== statsGrid.fitW) fitStats();
+    }).observe(statsGrid);
+
     // the results as the display shows numbers: in the number format, and as
     // fractions in fraction mode; the chart of them, and a note of how many there are.
     // Of the pairs, the curve chosen fitted to them, its numbers and its equation
@@ -2199,30 +2324,27 @@
         }
         if (pairs) {
             statsEq.textContent = !s.n ? '' : statsFit === 'lin' ? (isFinite(s.b) ? 'y = ' + shortNumber(s.a) + (s.b < 0 ? ' − ' : ' + ') + shortNumber(Math.abs(s.b)) + 'x' : 'Needs two x or more') :
-                fit ? fitEquation(fit) : 'Needs ' + STATS_FIT_NEEDS[statsFit];
+                fit ? fitEquation(fit) : tr('Needs {needs}', { needs: STATS_FIT_NEEDS[statsFit] });
             statsEq.classList.toggle('calc-stats-warn', !!s.n && (statsFit === 'lin' ? !isFinite(s.b) : !fit));
         }
         [].forEach.call(statsGrid.children, function (tile) {
-            var value = s[tile.dataset.k], known = s.n > 0 && isFinite(value), shown = tile.lastChild, size = 17;
+            var value = s[tile.dataset.k], known = s.n > 0 && isFinite(value);
             tile.classList.toggle('calc-none', !known);
-            shown.innerHTML = known ? statsValue(value).html : '–';
-            shown.style.fontSize = '';
-            while (size > 11 && tooWide(shown)) { // a long one gets smaller, as on the display
-                shown.style.fontSize = --size + 'px';
-            }
+            tile.lastChild.innerHTML = known ? statsValue(value).html : '–';
         });
+        fitStats();
         statsChart.innerHTML = !s.n ? '' : pairs ? scatterChart(s) : histogramChart(s);
         if (pairs) {
-            statsNote.textContent = !s.n && !s.bad.length ? (statsBy.at > 1 ? 'Only ' + BY[statsBy.at][2] + ' are between x and y; a pair on each line.' :
-                'x and y on each line, apart by a space, ' + (engine.comma ? 'semicolon' : 'comma') + ' or tab.') :
-                s.n + (s.n === 1 ? ' pair' : ' pairs') +
-                (s.bad.length ? ' · left out: ' + s.bad.slice(0, 3).join(', ') + (s.bad.length > 3 ? ' …' : '') : '');
+            statsNote.textContent = !s.n && !s.bad.length ? (statsBy.at > 1 ? tr('Only {by} are between x and y; a pair on each line.', { by: tr(BY[statsBy.at][2]) }) :
+                (engine.comma ? tr('x and y on each line, apart by a space, semicolon or tab.') : tr('x and y on each line, apart by a space, comma or tab.'))) :
+                trn(s.n, '{n} pair', '{n} pairs') +
+                (s.bad.length ? tr(' · left out: {bad}{v}', { bad: s.bad.slice(0, 3).join(', '), v: (s.bad.length > 3 ? ' …' : '') }) : '');
             return;
         }
-        statsNote.textContent = !s.n && !s.bad.length ? (statsBy.at ? 'Only ' + BY[statsBy.at][2] + (statsBy.at > 1 ? ' and new lines' : '') + ' are between two numbers.' :
-            'Apart by spaces, ' + (engine.comma ? 'semicolons' : 'commas') + ' or new lines; a column from a spreadsheet works too.') :
-            s.n + (s.n === 1 ? ' number' : ' numbers') +
-            (s.bad.length ? ' · left out: ' + s.bad.slice(0, 3).join(', ') + (s.bad.length > 3 ? ' …' : '') : '');
+        statsNote.textContent = !s.n && !s.bad.length ? (statsBy.at ? tr('Only {by}{v} are between two numbers.', { by: tr(BY[statsBy.at][2]), v: (statsBy.at > 1 ? tr(' and new lines') : '') }) :
+            (engine.comma ? tr('Apart by spaces, semicolons or new lines; a column from a spreadsheet works too.') : tr('Apart by spaces, commas or new lines; a column from a spreadsheet works too.'))) :
+            trn(s.n, '{n} number', '{n} numbers') +
+            (s.bad.length ? tr(' · left out: {bad}{v}', { bad: s.bad.slice(0, 3).join(', '), v: (s.bad.length > 3 ? ' …' : '') }) : '');
     }
 
     // a number to 6 digits, with the decimal mark in use and − for its minus: for the note and the charts
@@ -2317,7 +2439,7 @@
         lMax = shortNumber(s.max);
         lMid = shortNumber(s.median);
         xm = x(s.median);
-        return '<svg viewBox="0 0 ' + chartW + ' ' + CHART_H + '" role="img" aria-label="Histogram and box plot">' + html +
+        return '<svg viewBox="0 0 ' + chartW + ' ' + CHART_H + '" role="img" aria-label="' + tr('Histogram and box plot') + '">' + html +
             chartText(10, 112, lMin, 'start') + (s.n > 1 && s.min !== s.max && xm - lMid.length * 3 > 14 + lMin.length * 6 &&
                 xm + lMid.length * 3 < chartW - 14 - lMax.length * 6 ? chartText(xm, 112, lMid) : '') +
             chartText(chartW - 10, 112, lMax, 'end') + '</svg>';
@@ -2353,7 +2475,7 @@
         s.xs.forEach(function (x, i) {
             html += '<circle class="calc-stats-dot" cx="' + px(x).toFixed(1) + '" cy="' + py(s.ys[i]).toFixed(1) + '" r="3"/>';
         });
-        return '<svg viewBox="0 0 ' + chartW + ' ' + CHART_H + '" role="img" aria-label="Scatter plot and line of best fit">' +
+        return '<svg viewBox="0 0 ' + chartW + ' ' + CHART_H + '" role="img" aria-label="' + tr('Scatter plot and line of best fit') + '">' +
             '<clipPath id="calc-stats-clip"><rect x="31" y="0" width="' + (chartW - 39) + '" height="102"/></clipPath><g clip-path="url(#calc-stats-clip)">' + html + '</g>' +
             chartText(34, 115, shortNumber(Math.min.apply(null, s.xs)), 'start') + chartText(chartW - 12, 115, shortNumber(Math.max.apply(null, s.xs)), 'end') +
             chartText(27, 12, shortNumber(Math.max.apply(null, s.ys)), 'end') + chartText(27, 99, shortNumber(Math.min.apply(null, s.ys)), 'end') + '</svg>';
@@ -2559,17 +2681,17 @@
         return [
             ['<div class="calc-menu-picker"></div>', null, true, function (el) { colorPart(el, i); }],
             null,
-            item('Solid', st.d === 0, function () { st.d = 0; }),
-            item('Dashed', st.d === 1, function () { st.d = 1; }),
-            item('Dotted', st.d === 2, function () { st.d = 2; }),
+            item(trc('line', 'Solid'), st.d === 0, function () { st.d = 0; }),
+            item(tr('Dashed'), st.d === 1, function () { st.d = 1; }),
+            item(tr('Dotted'), st.d === 2, function () { st.d = 2; }),
             null,
-            item('Thin', st.w === 0, function () { st.w = 0; }),
-            item('Normal', st.w === 1, function () { st.w = 1; }),
-            item('Thick', st.w === 2, function () { st.w = 2; }),
+            item(tr('Thin'), st.w === 0, function () { st.w = 0; }),
+            item(tr('Normal'), st.w === 1, function () { st.w = 1; }),
+            item(tr('Thick'), st.w === 2, function () { st.w = 2; }),
             null,
-            graphData[i] && item('Label points', st.l, function () { st.l = !st.l; }),
+            graphData[i] && item(tr('Label points'), st.l, function () { st.l = !st.l; }),
             graphData[i] && null,
-            !!graphInputs[i].value.trim() && [graphOff[i] ? 'Show' : 'Hide', function () { graphRows[i].querySelector('.calc-graph-swatch').click(); }]
+            !!graphInputs[i].value.trim() && [tr(graphOff[i] ? 'Show' : 'Hide'), function () { graphRows[i].querySelector('.calc-graph-swatch').click(); }]
         ].filter(function (x) { return x !== undefined && x !== false; });
     }
 
@@ -2578,8 +2700,8 @@
     function colorPart(el, i) {
         var st = graphStyle[i], hsv = hexHsv(curveColor(i)), shade, hue, hex, auto;
         el.querySelector('.calc-menu-picker').innerHTML = '<div class="calc-menu-shade"><i></i></div><div class="calc-menu-hue"><i></i></div>' +
-            '<div class="calc-menu-hexrow"><label class="calc-menu-hex">#<input type="text" maxlength="7" spellcheck="false" autocomplete="off" aria-label="Hex color"></label>' +
-            '<span class="calc-menu-auto" role="button" tabindex="0">Auto</span></div>';
+            '<div class="calc-menu-hexrow"><label class="calc-menu-hex">#<input type="text" maxlength="7" spellcheck="false" autocomplete="off" aria-label="' + tr('Hex color') + '"></label>' +
+            '<span class="calc-menu-auto" role="button" tabindex="0">' + tr('Auto') + '</span></div>';
         shade = el.querySelector('.calc-menu-shade');
         hue = el.querySelector('.calc-menu-hue');
         hex = el.querySelector('input');
@@ -2856,9 +2978,10 @@
 
     graphSplit.addEventListener('pointermove', function (e) {
         var cs = getComputedStyle(graph),
-            room = (graph.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - GRAPH_PLOT_MIN) * GRAPH_SIDE_MAX;
+            room = (graph.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - GRAPH_PLOT_MIN) * GRAPH_SIDE_MAX,
+            rtl = CalcLang.rtl; // right to left, the boxes at the right (style.css): dragged left, wider
         if (!graphSplitFrom || !graphSplit.hasPointerCapture(e.pointerId)) return;
-        setSide(Math.round(Math.max(GRAPH_SIDE_MIN * popZoom, Math.min(room, graphSplitFrom.w + e.clientX - graphSplitFrom.x))));
+        setSide(Math.round(Math.max(GRAPH_SIDE_MIN * popZoom, Math.min(room, graphSplitFrom.w + (e.clientX - graphSplitFrom.x) * (rtl ? -1 : 1)))));
         drawGraph();
     }, false);
 
@@ -3121,7 +3244,7 @@
             graphSliders.innerHTML = letters.map(function (k) {
                 var box = ' type="text" spellcheck="false" autocomplete="off" maxlength="16"';
                 return '<div class="calc-graph-slider" data-k="' + k + '">' +
-                    '<span class="calc-graph-play" role="button" aria-label="Play ' + k + '"><svg viewBox="0 0 16 16" width="11" height="11">' +
+                    '<span class="calc-graph-play" role="button" aria-label="' + tr('Play {k}', { k: k }) + '"><svg viewBox="0 0 16 16" width="11" height="11">' +
                     '<path class="calc-graph-go" d="M4.5 2.8v10.4L13 8z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" />' +
                     '<path class="calc-graph-stop" d="M5 3v10M11 3v10" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" /></svg></span>' +
                     '<label class="calc-graph-val"><i>' + k + '</i><span>=</span><input' + box + ' aria-label="' + k + ' ="></label>' +
@@ -3363,7 +3486,7 @@
         graphModels.forEach(function (m, i) {
             lines.push('<div class="calc-graph-fit" style="--c: ' + curveColor(i) + '">' + (!m.fit ?
                 '<span class="calc-graph-fit-none">' + (m.of < 0 ? 'No points to fit: type them in a box above it.' :
-                    'No fit: ' + (graphData[m.of].length < m.keys.length ? 'more points than letters are needed.' : 'it comes near none of them.')) + '</span>' :
+                    (graphData[m.of].length < m.keys.length ? tr('No fit: more points than letters are needed.') : tr('No fit: it comes near none of them.'))) + '</span>' :
                 m.keys.map(function (k) {
                     return '<span class="calc-graph-fit-val" data-k="' + k + '"><i>' + k + '</i> = ' + local(String(+m.fit.values[k].toPrecision(6))) + '</span>';
                 }).join('') + '<span class="calc-graph-fit-r2"><i>r</i>² = ' + local(String(+m.fit.r2.toPrecision(6))) + '</span>') + '</div>');
@@ -3644,7 +3767,7 @@
 
     function drawGraph() {
         var w = graphPlot.clientWidth, h = graphPlot.clientHeight, r = Math.max(graphSharp, (window.devicePixelRatio || 1) * scale()),
-            ctx = graphDrawTo || graphCanvas.getContext('2d'), v, key;
+            ctx = graphDrawTo || graphCanvas.getContext('2d', { willReadFrequently: true }), v, key;
         if (!graph.classList.contains('calc-open') || !w || !h) return;
         graphWidth = w;
         v = viewNow();
@@ -3976,9 +4099,9 @@
             var s = c && c.kind === 'seq' && c.terms(deg).stop, a = c && c.name;
             if (!s || (s.why === 'before') !== bad) return false;
             out = s.why === 'before' ? a + '(' + s.n + ') is of ' + a + '(' + s.need + '), before its first term: give that one too, {' + a + '(' + s.need + ') = …}.' :
-                s.why === 'large' ? a + '(' + s.n + ') is too large to draw: the sequence stops there.' :
-                    s.why === 'none' ? a + '(' + s.n + ') has no value, so the terms after it have none: the sequence stops there.' :
-                        'The first 10000 terms of ' + a + ': n up to ' + (s.n - 1) + '.';
+                s.why === 'large' ? tr('{a}({n}) is too large to draw: the sequence stops there.', { a: a, n: s.n }) :
+                    s.why === 'none' ? tr('{a}({n}) has no value, so the terms after it have none: the sequence stops there.', { a: a, n: s.n }) :
+                        tr('The first 10000 terms of {a}: n up to {n}.', { a: a, n: (s.n - 1) });
             return true;
         });
         return out;
@@ -4037,12 +4160,21 @@
 
     // The solutions of a slope field through its starts, across the view and 40 pixels past it
     // each way, a step a pixel and y to move no more than 4 pixels in one, as far as y stays
-    // within 20 heights of the view: kept while the view, the unit and the sliders stay
+    // within 20 heights of the view or comes back to it: kept while the view, the unit and the
+    // sliders stay. Out of the view the steps grow with how far out they are, so one that starts
+    // far from a view zoomed in comes to it in a few thousand steps, not millions
     function fieldSolutions(c, v, w, h) {
         var key = [v.x, v.y, v.ux, v.uy, w, h, deg, graphLook.logx, graphLook.logy].concat(c.letters.map(function (k) { return graphVars[k]; })).join(),
             top = graphY(v, 0), bottom = graphY(v, h), big = Math.max(Math.abs(top), Math.abs(bottom)) + 20 * (top - bottom),
-            left = graphX(v, -40), hx = graphLook.logx ? function (x) { return pixelX(v, Math.max(x, left)); } : v.ux, // a pixel where it is, on a log scale
-            dy = graphLook.logy ? function (y) { return 4 * pixelY(v, Math.max(Math.abs(y), bottom)); } : 4 * v.uy;
+            left = graphX(v, -40),
+            hx = function (x) { // a pixel where it is, on a log scale
+                var at = graphLook.logx ? Math.max(x, left) : x;
+                return pixelX(v, at) * far(plotX(v, at), w);
+            },
+            dy = function (y) {
+                var at = graphLook.logy ? Math.max(Math.abs(y), bottom) : y;
+                return 4 * pixelY(v, at) * far(plotY(v, at), h);
+            };
         if (c.kept && c.kept.key === key) return c.kept.sols;
         c.kept = { key: key, sols: c.starts(deg).map(function (q) {
             var r = q.every(isFinite) ? CalcEngine.solveField(c, q[0], q[1], left, graphX(v, w + 40), deg, hx, dy, big) :
@@ -4052,6 +4184,13 @@
             return r;
         }) };
         return c.kept.sols;
+
+        // how many times a step there is as long as one in the view: 1 within 40 pixels of it,
+        // and one more for each 200 pixels past that
+        function far(px, size) {
+            var d = Math.max(0, -px - 40, px - size - 40) / 200;
+            return isFinite(d) ? 1 + d : 1;
+        }
     }
 
     // y at x of the solution k of the slope field c, between the two steps about x; NaN out of it
@@ -4097,12 +4236,12 @@
             return (c.kept ? c.kept.sols : []).some(function (s) {
                 var stop = [s.back, s.ahead].filter(function (q) { return q && q.x >= from && q.x <= to && q.y >= bottom && q.y <= top; })[0];
                 if (!stop) return false;
-                out = 'The solution through ' + startText(s) + ' stops at x = ' + local(String(graphNice(stop.x, pixelX(v, stop.x)))) + ': ' + {
-                    none: 'its slope has no value there.',
-                    large: 'it grows too large to draw.',
-                    steep: 'it goes straight up or down there.',
-                    many: 'it takes too many steps.'
-                }[stop.why];
+                out = tr('The solution through {s} stops at x = {x}: {v}', { s: startText(s), x: local(String(graphNice(stop.x, pixelX(v, stop.x)))), v: {
+                    none: tr('its slope has no value there.'),
+                    large: tr('it grows too large to draw.'),
+                    steep: tr('it goes straight up or down there.'),
+                    many: tr('it takes too many steps.')
+                }[stop.why] });
                 return true;
             });
         });
@@ -5175,14 +5314,14 @@
     // what a point is, and its x and y, as the line above the plot and the popup show them
     function graphName(p) {
         var fit = !p.spot && !p.area && !p.t && graphData[p.i] && graphFns[p.i] && graphFns[p.i].fit;
-        if (fit) return 'Best fit, r² = ' + local(String(+fit.r2.toPrecision(4)));
-        if (seqOf(p)) return 'Term';
+        if (fit) return tr('Best fit, r² = {v}', { v: local(String(+fit.r2.toPrecision(4))) });
+        if (seqOf(p)) return tr('Term');
         if (p.data && graphData[p.i] && graphData[p.i].name) return graphData[p.i].name;
         if (!p.spot && !p.area && p.sol !== undefined && graphPlanes[p.i]) {
-            return graphPlanes[p.i].kept && graphPlanes[p.i].kept.sols[p.sol] ? 'Solution through ' + startText(graphPlanes[p.i].kept.sols[p.sol]) : 'Solution';
+            return graphPlanes[p.i].kept && graphPlanes[p.i].kept.sols[p.sol] ? tr('Solution through {graphPlanes}', { graphPlanes: startText(graphPlanes[p.i].kept.sols[p.sol]) }) : tr('Solution');
         }
-        return p.spot ? 'Point' : p.area ? (p.rel ? 'Area of the region' : p.j === undefined ? 'Area under the curve' : 'Area between the curves') :
-            p.t ? p.t.map(function (t) { return GRAPH_NAMES[t]; }).join(', ') : 'On the curve';
+        return tr(p.spot ? 'Point' : p.area ? (p.rel ? 'Area of the region' : p.j === undefined ? 'Area under the curve' : 'Area between the curves') :
+            p.t ? null : 'On the curve') || p.t.map(function (t) { return tr(GRAPH_NAMES[t]); }).join(tr(', '));
     }
 
     // to 13 digits, as the display shows a result: 1.732050807569; with u, a pixel, to what one tells
@@ -5213,7 +5352,7 @@
     function graphShown() {
         var unit = graphAngles() ? UNITS[deg] : '', p = graphAt, kind, seq = seqOf(p), v = viewNow(), near = p && !p.t && !seq; // a place along a curve, not a mark, to its pixel
         if (graphTwice) {
-            graphNote.textContent = graphTwice + '(x) is named twice: give each function its own letter.';
+            graphNote.textContent = tr('{graphTwice}(x) is named twice: give each function its own letter.', { graphTwice: graphTwice });
         } else if (graphRows.some(function (row) { return row.classList.contains('calc-bad'); })) {
             graphNote.textContent = 'Not a function of x yet: write x^2 for x², 2x for 2 × x.';
         } else if (sequenceNote(true)) {
@@ -5222,31 +5361,31 @@
             kind = fitKind(graphRows.findIndex(function (row, i) { return graphData[i] && graphDiff[i] && !graphFns[i]; }));
             graphNote.textContent = 'No ' + GRAPH_FIT_NAMES[kind] + ' fit: it needs ' + GRAPH_FIT_NEEDS[kind] + '.';
         } else if (!graphFns.concat(graphRels, graphPlanes, graphData).some(Boolean) && graphOff.some(Boolean)) {
-            graphNote.textContent = 'Every curve is hidden: click its dot to show it.';
+            graphNote.textContent = tr('Every curve is hidden: click its dot to show it.');
         } else if (graphTab === 'table') {
-            graphNote.textContent = !tableCurves().length ? 'Type a function of x for its values.' :
-                graphTable.querySelector('.calc-bad') ? 'Start and step are numbers, the step above 0.' :
-                    'Click a value to put it in the equation.' + (unit ? ' · ' + unit : '');
+            graphNote.textContent = !tableCurves().length ? tr('Type a function of x for its values.') :
+                graphTable.querySelector('.calc-bad') ? tr('Start and step are numbers, the step above 0.') :
+                    tr('Click a value to put it in the equation.{v}', { v: (unit ? ' · ' + unit : '') });
         } else if (graphShading && graphFns.concat(graphRels).some(Boolean) && graphStart && graphPinned && graphPinned.area) {
-            graphNote.innerHTML = graphSwatches(graphPinned) + '<span>From <i>x</i> = ' + graphValue(graphPinned, 'a') + '</span>' +
-                '<span>to <i>x</i> = ' + graphValue(graphPinned, 'b') + '</span>';
+            graphNote.innerHTML = graphSwatches(graphPinned) + '<span>' + tr('From <i>x</i> = {v}', { v: graphValue(graphPinned, 'a') }) + '</span>' +
+                '<span>' + tr('to <i>x</i> = {v}', { v: graphValue(graphPinned, 'b') }) + '</span>';
         } else if (graphShading && graphEdge) {
-            graphNote.innerHTML = graphSwatches(graphEdge) + '<span>From <i>x</i> = ' + graphValue(graphEdge, 'x') + '</span>' +
-                '<span>Drag to where it ends</span>';
+            graphNote.innerHTML = graphSwatches(graphEdge) + '<span>' + tr('From <i>x</i> = {v}', { v: graphValue(graphEdge, 'x') }) + '</span>' +
+                '<span>' + tr('Drag to where it ends') + '</span>';
         } else if (graphShading && graphFns.concat(graphRels).some(Boolean)) {
-            graphNote.textContent = 'Drag along a curve for the area under it, between two for the area between, in a region for its area.';
+            graphNote.textContent = tr('Drag along a curve for the area under it, between two for the area between, in a region for its area.');
         } else if (p) { // of a term of a sequence, its n and a(n)
             graphNote.innerHTML = graphSwatches(p) + '<em>' + graphName(p) + '</em>' +
                 '<span>' + (seq ? '<i>n</i>' : '<i>x</i>') + ' = ' + graphValue(p, 'x', near && pixelX(v, p.x)) + '</span>' +
                 '<span>' + (seq ? '<i>' + seq.name + '</i>(<i>n</i>)' : '<i>y</i>') + ' = ' + (isFinite(p.y) ? graphValue(p, 'y', near && pixelY(v, p.y)) : 'none') + '</span>';
         } else if (!graphInputs.some(function (box) { return box.value.trim(); })) {
-            graphNote.textContent = 'Type a function of x. Drag to move, scroll or pinch to zoom.';
+            graphNote.textContent = tr('Type a function of x. Drag to move, scroll or pinch to zoom.');
         } else if (sequenceNote(false)) {
             graphNote.textContent = sequenceNote(false);
         } else if (fieldNote()) {
             graphNote.textContent = fieldNote();
         } else {
-            graphNote.textContent = 'Point at the graph for values; click to insert.' + (unit ? ' · ' + unit : '');
+            graphNote.textContent = tr('Point at the graph for values; click to insert.{v}', { v: (unit ? ' · ' + unit : '') });
         }
     }
 
@@ -5896,8 +6035,8 @@
         var lines = [], wide;
         graphFns.forEach(function (fn, i) {
             if (graphData[i] && !graphOff[i]) {
-                lines.push({ i: i, text: graphData[i].length === 1 ? '1 point' : graphData[i].length + ' points' });
-                if (fn) lines.push({ i: i, text: 'Best fit ' + fitText(fn.fit) });
+                lines.push({ i: i, text: trn(graphData[i].length, '{n} point', '{n} points') });
+                if (fn) lines.push({ i: i, text: tr('Best fit {fit}', { fit: fitText(fn.fit) }) });
                 return;
             }
             if (fn && graphModels[i]) {
@@ -5915,8 +6054,7 @@
         if (pinned && pinned.area) {
             lines.push({
                 i: pinned.i,
-                text: 'Area from ' + local(String(pinned.a)) + ' to ' + local(String(pinned.b)) + ' = ' +
-                    (isFinite(pinned.s) ? statsValue(pinned.s).text : 'none')
+                text: tr('Area from {a} to {b} = {v}', { a: local(String(pinned.a)), b: local(String(pinned.b)), v: (isFinite(pinned.s) ? statsValue(pinned.s).text : tr('none')) })
             });
         }
         if (graphLetters.length) { // and the values of its letters, without a color
@@ -6191,7 +6329,9 @@
 
     // A page opened from a link of a graph shows that graph, with one's own kept aside and the line over
     // the plot to keep the one shown or go back to one's own, until one of them is picked, through a
-    // reload too. The link goes from the address, so a reload does not open it again
+    // reload too. The link goes from the address, so a reload does not open it again. The website opens
+    // it in Advanced mode (index.html), the graph popped out beside the rail once the page has said so
+    // (app.js), and not as a panel over keys that are not there
     function takeLink() {
         var g = linkedGraph(location.hash);
         if (g) {
@@ -6203,7 +6343,9 @@
             setUnit(g.u);
             readGraph(); // its letters known, for their sliders to be kept
             saveState();
-            showGraph(true);
+            setTimeout(function () {
+                if (home) goTo('graph'); else showGraph(true);
+            }, 0);
         }
         graphShared.hidden = !stored('graphMine');
     }
@@ -6234,16 +6376,16 @@
     // its menu: a link of it, the picture copied or saved as PNG, saved as SVG, and the table as CSV
     function exportItems() {
         return [
-            ['Copy link', function () {
+            [tr('Copy link'), function () {
                 copy(graphLink());
                 notify('Link copied');
             }],
             null,
-            ['Copy picture', copyGraph],
-            ['Save as PNG', saveGraph],
-            ['Save as SVG', saveSvg],
+            [tr('Copy picture'), copyGraph],
+            [tr('Save as PNG'), saveGraph],
+            [tr('Save as SVG'), saveSvg],
             null,
-            ['Save table as CSV', saveTable, tableCurves().length > 0]
+            [tr('Save table as CSV'), saveTable, tableCurves().length > 0]
         ];
     }
 
@@ -6327,7 +6469,7 @@
 
     // how many characters a column of values has room for, measured in the font of the table
     function tableRoom() {
-        var cell = graphList.querySelector('.calc-graph-names > span:nth-child(2)'), ctx = graphCanvas.getContext('2d'), wide;
+        var cell = graphList.querySelector('.calc-graph-names > span:nth-child(2)'), ctx = graphCanvas.getContext('2d', { willReadFrequently: true }), wide;
         if (!cell) return 13;
         ctx.font = '13px Play, sans-serif';
         wide = ctx.measureText('-0.123456789').width / 12;
@@ -6412,6 +6554,7 @@
                 var words = [group.c, item.t, item.d].concat(tab === 'formulas' ? [item.f].concat(item.v.map(function (v) {
                     return v[1] + ' ' + v[2];
                 })) : [item.s, item.u]);
+                if (CalcLang.code !== 'en') words = words.concat(tr(group.c), tr(item.t), tr(item.d)); // found in the language in use as well
                 fxItems[tab].push({ c: group.c, item: item, words: words.join(' ').replace(/<[^>]*>/g, '').toLowerCase() });
             });
         });
@@ -6505,7 +6648,7 @@
     function fxNote(note, html) {
         var form = note.closest('.calc-fx-form');
         note.classList.toggle('calc-fx-warn', html !== null);
-        note.innerHTML = html === null ? note.dataset.usual : html;
+        note.innerHTML = html === null ? note.dataset.usual : tr(html);
         if (html === null) form.querySelector('.calc-fx-actions').insertBefore(note, form.querySelector('.calc-fx-btns'));
         else form.insertBefore(note, form.querySelector('.calc-fx-fields'));
     }
@@ -6583,15 +6726,15 @@
             tab.classList.toggle('calc-on', tab.dataset.tab === fxTab);
         });
         fxList.classList.remove('calc-side');
-        fxSearch.placeholder = fxTab === 'formulas' ? 'Search formulas' : 'Search constants';
+        fxSearch.placeholder = tr(fxTab === 'formulas' ? 'Search formulas' : 'Search constants');
         fxItems[fxTab].forEach(function (entry, i) {
             var it = entry.item;
             if (!words.every(function (w) { return entry.words.indexOf(w) > -1; })) return;
-            if (entry.c !== group) html += '<div class="calc-fx-cat">' + entry.c + '</div>';
+            if (entry.c !== group) html += '<div class="calc-fx-cat">' + tr(entry.c) + '</div>';
             group = entry.c;
             // a constant is written as a formula is: its symbol = its value, a root drawn
             html += '<div class="calc-fx-item" data-i="' + i + '"><div class="calc-fx-row">' +
-                '<span class="calc-fx-col"><span class="calc-fx-name">' + fxIcon(it) + it.t + '</span>' +
+                '<span class="calc-fx-col"><span class="calc-fx-name">' + fxIcon(it) + tr(it.t) + '</span>' +
                 '<span class="calc-fx-f calc-fx-eq' + (fxTab === 'constants' ? ' calc-fx-val' : '') + '"><span>' +
                 (fxTab === 'constants' ? '<span class="calc-fx-sym">' +
                     it.s.replace(/√(\w+)/, '<span class="calc-root">$1</span>') + '</span> = ' + constantValue(it) : it.f) +
@@ -6603,7 +6746,7 @@
                 (fxTab === 'formulas' ? collapseButton() : '') +
                 '</div></div>';
         });
-        fxList.innerHTML = html || '<div class="calc-fx-none">Nothing found</div>';
+        fxList.innerHTML = html || '<div class="calc-fx-none">' + tr('Nothing found') + '</div>';
         fxList.scrollTop = 0;
         fxList.classList.toggle('calc-side', fxTab === 'formulas' && bigSide(fx));
         if (fxTab === 'formulas' && bigSide(fx)) { // beside the list, one is always open: the one open last, if found, else the first
@@ -6619,8 +6762,8 @@
         var typing = varList.contains(document.activeElement) ? document.activeElement : null;
         if (!varList.querySelector('.calc-var')) {
             varList.innerHTML = '<div class="calc-var-head"><span>' +
-                '<kbd>' + (mac ? '⌥ Option' : 'Alt') + '</kbd> + Letter stores var<span class="calc-var-sep"></span>' +
-                '<kbd>⇧ Shift</kbd> + Letter inserts var</span></div>' +
+                tr('{key} + Letter stores var', { key: '<kbd>' + (mac ? '⌥ Option' : 'Alt') + '</kbd>' }) + '<span class="calc-var-sep"></span>' +
+                tr('{key} + Letter inserts var', { key: '<kbd>⇧ Shift</kbd>' }) + '</span></div>' +
                 CalcEngine.LETTERS.split('').map(function (k) {
                     return '<div class="calc-fx-item calc-var" data-k="' + k + '"><div class="calc-fx-row calc-var-row">' +
                         '<span class="calc-var-k">' + k + '</span>' +
@@ -6654,12 +6797,12 @@
     function letterTip(el) {
         var k = el.closest('.calc-var').dataset.k;
         if (el.dataset.act === 'store') {
-            return { t: 'Store in ' + k, d: 'Works out the line in the display, as = does, and keeps its result in ' + k + ': 5 + 3 → ' + k + '. After a result, that result.', k: 'Alt+' + k };
+            return { t: tr('Store in {k}', { k: k }), d: tr('Works out the line in the display, as = does, and keeps its result in {k}: 5 + 3 → {k}. After a result, that result.', { k: k }), k: tr('Alt+{k}', { k: k }) };
         }
-        if (el.dataset.act === 'insert') return { t: 'Insert ' + k, d: 'Puts ' + k + ' in the equation: 2' + k + ' is 2 × ' + k + '.', k: 'Shift+' + k };
+        if (el.dataset.act === 'insert') return { t: tr('Insert {k}', { k: k }), d: tr('Puts {k} in the equation: 2{k} is 2 × {k}.', { k: k }), k: tr('Shift+{k}', { k: k }) };
         return {
-            t: 'Variable ' + k, k: 'Shift+' + k,
-            d: k + ' holds ' + letterValue(k) + '. Click to put ' + k + ' in the equation, where it stays ' + k + ' and is worked out with what it holds then. Type in the box to change it.'
+            t: tr('Variable {k}', { k: k }), k: tr('Shift+{k}', { k: k }),
+            d: tr('{k} holds {k2}. Click to put {k} in the equation, where it stays {k} and is worked out with what it holds then. Type in the box to change it.', { k: k, k2: letterValue(k) })
         };
     }
 
@@ -6713,19 +6856,19 @@
         f = fxItems.formulas[+item.dataset.i].item;
         form = item.appendChild(document.createElement('div'));
         form.className = 'calc-fx-form';
-        form.innerHTML = '<div class="calc-sv-side-head"><span class="calc-sv-side-name">' + fxIcon(f) + f.t + '</span>' + item.querySelector('.calc-fx-f').outerHTML + // beside the list, at its top
-            '<p class="calc-sv-side-d">' + f.d + '</p></div>' +
-            '<div class="calc-sv-top"><span class="calc-sv-reset" role="button" hidden>Reset' + RESET_ICON + '</span></div>' + // as the cards of the other panels have
+        form.innerHTML = '<div class="calc-sv-side-head"><span class="calc-sv-side-name">' + fxIcon(f) + tr(f.t) + '</span>' + item.querySelector('.calc-fx-f').outerHTML + // beside the list, at its top
+            '<p class="calc-sv-side-d">' + tr(f.d) + '</p></div>' +
+            '<div class="calc-sv-top"><span class="calc-sv-reset" role="button" hidden>' + tr('Reset') + RESET_ICON + '</span></div>' + // as the cards of the other panels have
             '<div class="calc-fx-fields">' + f.v.map(function (v) {
             return '<label class="calc-fx-var"><span class="calc-fx-sym">' + v[1] + '</span>' +
                 // a keyboard with letters, for A to J as well as numbers
                 '<input type="text" autocapitalize="characters" spellcheck="false" autocomplete="off" maxlength="40" placeholder="' +
-                v[2] + '"></label>';
+                tr(v[2]) + '"></label>';
         }).join('') + '</div><div class="calc-fx-actions"><span class="calc-fx-note">' +
-            (f.deg ? 'Angles in ' + ['radians', 'degrees', 'gradians'][deg] + ', the unit in use' : '') +
-            '</span><span class="calc-fx-btns">' + (f.p && !physButton.hidden ? '<span class="calc-fx-phys" role="button">In Physics</span>' : '') + (f.b && !bioButton.hidden ? '<span class="calc-fx-phys calc-fx-bio" role="button">In Biology</span>' : '') + // its card of the Physics panel, beside Insert
-            (f.fin && !solveButton.hidden ? '<span class="calc-fx-phys calc-fx-fin" role="button">In Finance</span>' : '') + // of money, its card of the solver's Finance tab
-            '<span class="calc-fx-insert">Insert' + insertIcon() + '</span></span></div>';
+            (f.deg ? tr(['Angles in radians, the unit in use', 'Angles in degrees, the unit in use', 'Angles in gradians, the unit in use'][deg]) : '') +
+            '</span><span class="calc-fx-btns">' + (f.p && !physButton.hidden ? '<span class="calc-fx-phys" role="button">' + tr('In Physics') + '</span>' : '') + (f.b && !bioButton.hidden ? '<span class="calc-fx-phys calc-fx-bio" role="button">' + tr('In Biology') + '</span>' : '') + // its card of the Physics panel, beside Insert
+            (f.fin && !solveButton.hidden ? '<span class="calc-fx-phys calc-fx-fin" role="button">' + tr('In Finance') + '</span>' : '') + // of money, its card of the solver's Finance tab
+            '<span class="calc-fx-insert">' + tr('Insert') + insertIcon() + '</span></span></div>';
         item.classList.add('calc-on');
         form.querySelector('.calc-fx-note').dataset.usual = form.querySelector('.calc-fx-note').innerHTML;
         first = form.querySelector('input');
@@ -6837,11 +6980,11 @@
         if (fxTab === 'constants') return null;
         return {
             t: it.t,
-            d: it.d + '<div class="calc-tip-more">' + it.v.map(function (v) {
-                return '<i>' + v[1] + '</i> ' + v[2];
-            }).join(', ') + '<br>For example ' + it.v.map(function (v, i) {
+            d: tr(it.d) + '<div class="calc-tip-more">' + it.v.map(function (v) {
+                return '<i>' + v[1] + '</i> ' + tr(v[2]);
+            }).join(tr(', ')) + '<br>' + tr('For example {values} gives {r}.', { values: it.v.map(function (v, i) {
                 return '<i>' + v[1] + '</i> = ' + it.ex[0][i] + (it.deg && /angle/.test(v[2]) ? '°' : '');
-            }).join(', ') + ' gives ' + +it.ex[1].toPrecision(10) + '.</div>',
+            }).join(tr(', ')), r: +it.ex[1].toPrecision(10) }) + '</div>',
             k: ''
         };
     }
@@ -6862,16 +7005,20 @@
     }
 
     function copyButton() {
-        return '<span class="calc-f-copy" role="button" aria-label="Copy">' + PILL_COPY + PILL_COPIED + '</span>'; // both in one place, the tick shown once copied
+        return '<span class="calc-f-copy" role="button" aria-label="' + tr('Copy') + '">' + PILL_COPY + PILL_COPIED + '</span>'; // both in one place, the tick shown once copied
     }
 
-    // the formula before the button copied as text, as Copy of the formulas' menu does: a tick for a moment, for it is done, in
-    // place of the icon, of its size, so nothing moves
-    function copyFormula(button) {
-        copy(formulaText(button.previousElementSibling.innerHTML));
+    // text copied by a button: a tick for a moment, for it is done, in place of its icon or word, of its size, so nothing moves
+    function copied(button, text) {
+        copy(text);
         button.classList.add('calc-done');
         clearTimeout(button.done);
         button.done = setTimeout(function () { button.classList.remove('calc-done'); }, 1000);
+    }
+
+    // the formula before the button copied as text, as Copy of the formulas' menu does
+    function copyFormula(button) {
+        copied(button, formulaText(button.previousElementSibling.innerHTML));
     }
 
     function pills(items, copies) {
@@ -6905,9 +7052,6 @@
             { id: 'inequality', t: 'Inequality', f: 'x<sup>2</sup> – 4 &gt; 0', d: 'Every x where it holds, as x &lt; –2 or x &gt; 2 and in intervals: with &lt;, &gt;, &lt;= or &gt;=, or two the same way, 1 &lt; x^2 &lt; 4. From and to where to look, if you like.',
                 fields: [{ k: 'eq', l: 'Inequality', ph: 'x^2 - 4 > 0', fn: true }, { k: 'from', l: 'From', ph: 'optional' }, { k: 'to', l: 'To', ph: 'optional' }], cols: 2,
                 run: runInequality, example: { eq: 'x^2 - 4 > 0' } },
-            { id: 'extrema', t: 'Turning points', f: 'max and min of f(x)', d: 'Where a function is highest or lowest near by, x^3 – 3x at –1 and 1: each x and its value. With From and To, its highest and lowest between them as well, the ends among them.',
-                fields: [{ k: 'f', l: 'f(x)', ph: 'x^3 - 3x', fn: true }, { k: 'from', l: 'From', ph: 'optional' }, { k: 'to', l: 'To', ph: 'optional' }], cols: 2,
-                run: runExtrema, example: { f: 'x^3 - 3x' } },
             { id: 'quadratic', waits: true, t: 'Quadratic', f: 'ax<sup>2</sup> + bx + c = 0', d: 'Its two roots, real or a ± bi, the discriminant b² – 4ac and the vertex of its parabola.',
                 fields: coefficients('abc'), cols: 3, run: function (n) { return runPoly([n.a, n.b, n.c]); }, example: { a: '1', b: '-2', c: '-3' } },
             { id: 'cubic', waits: true, t: 'Cubic', f: 'ax<sup>3</sup> + bx<sup>2</sup> + cx + d = 0', d: 'Its three roots, real or a ± bi.',
@@ -6924,11 +7068,17 @@
                 fields: [{ k: 'e1', l: 'Curve 1', ph: 'x^2 + y^2 = 25', fn: true, aria: 'First equation' }, { k: 'e2', l: 'Curve 2', ph: 'x + y = 7', fn: true, aria: 'Second equation' }], run: runCurves, example: { e1: 'x^2 + y^2 = 25', e2: 'x + y = 7' } }
         ],
         calculus: [
+            { id: 'derivative', t: 'Derivative', f: ['f′(x)', 'f″(x)'], d: 'The derivative of a function written out, x^3 sin(x) as 3x² sin(x) + x³ cos(x), and the derivative of that; at x its value, its slope there and the slope of that, and the line that touches it there.',
+                fields: [{ k: 'f', l: 'f(x)', ph: 'x^3', fn: true }, { k: 'x', l: 'x', ph: '2' }], cols: 1, run: runDerivative, example: { f: 'x^3', x: '2' } },
+            { id: 'extrema', t: 'Turning points', f: 'max and min of f(x)', d: 'Where a function is highest or lowest near by, x^3 – 3x at –1 and 1: each x and its value. With From and To, its highest and lowest between them as well, the ends among them.',
+                fields: [{ k: 'f', l: 'f(x)', ph: 'x^3 - 3x', fn: true }, { k: 'from', l: 'From', ph: 'optional' }, { k: 'to', l: 'To', ph: 'optional' }], cols: 2,
+                run: runExtrema, example: { f: 'x^3 - 3x' } },
+            { id: 'concavity', t: 'Curve shape', f: ['f′(x) &gt; 0', 'f″(x) &gt; 0'], d: 'Where a function rises and falls, where it bends up and down, and its inflection points, where the bend changes: x^4 – 4x^3 falls until 3 and bends down from 0 to 2. From and To, where to look, if you like.',
+                fields: [{ k: 'f', l: 'f(x)', ph: 'x^4 - 4x^3', fn: true }, { k: 'from', l: 'From', ph: 'optional' }, { k: 'to', l: 'To', ph: 'optional' }], cols: 2,
+                run: runShape, example: { f: 'x^4 - 4x^3' } },
             { id: 'integral', t: 'Integral', f: '∫<sub>a</sub><sup>b</sup> f(x) dx', d: 'The integral of a function from a to b, the area under it, its exact form where it has one, √π or 1/3, and the average value of the function there; an end may be ∞, typed inf.',
                 fields: [{ k: 'f', l: 'f(x)', ph: 'x^2', fn: true }, { k: 'a', l: 'From', ph: '0', def: 0, inf: true }, { k: 'b', l: 'To', ph: '1', def: 1, inf: true }], cols: 2,
                 run: runIntegral, example: { f: 'x^2', a: '0', b: '3' } },
-            { id: 'derivative', t: 'Derivative', f: ['f′(x)', 'f″(x)'], d: 'The value of a function at x, its slope there and the slope of that, and the line that touches it there.',
-                fields: [{ k: 'f', l: 'f(x)', ph: 'x^3', fn: true }, { k: 'x', l: 'x', ph: '2' }], cols: 1, run: runDerivative, example: { f: 'x^3', x: '2' } },
             { id: 'sum', t: 'Sum', f: 'Σ f(n)', d: 'The sum of a function of n, k, i or j, or of x, for each whole number from a to b. b may be ∞, typed inf: 1/n^2 from 1 on is π²/6.',
                 fields: [{ k: 'f', l: 'f(n)', ph: 'n^2', fn: true }, { k: 'a', l: 'From', ph: '1', def: 1 }, { k: 'b', l: 'To', ph: '10', def: 10, inf: true }], cols: 2,
                 run: function (n, raw) { return runSeries(n, raw, false); }, example: { f: '1/n^2', a: '1', b: 'inf' } },
@@ -7092,7 +7242,7 @@
             { id: 'random', t: 'Random whole numbers', f: 'from a to b', d: 'Five whole numbers at random, each from a to b, both in, as dice give them. Again for five more.',
                 fields: [{ k: 'a', l: 'From', ph: '1', def: 1 }, { k: 'b', l: 'To', ph: '6', def: 6 }], cols: 2, again: true, fills: true, run: function (n) {
                     var rows = [], k;
-                    for (k = 0; k < 5; k++) rows.push({ l: 'Number ' + (k + 1), v: CalcMaths.randomWhole(n.a, n.b, chance) });
+                    for (k = 0; k < 5; k++) rows.push({ l: tr('Number {k}', { k: (k + 1) }), v: CalcMaths.randomWhole(n.a, n.b, chance) });
                     return { rows: rows, note: isNaN(rows[0].v) && isFinite(n.a) && isFinite(n.b) ? 'Whole numbers, From the smaller.' : '', warn: isNaN(rows[0].v) };
                 } }
         ],
@@ -7209,7 +7359,7 @@
                 var dx = q[0] - cx, dy = q[1] - cy, d = Math.hypot(dx, dy) || 1;
                 return '<text x="' + (q[0] + dx / d * out).toFixed(1) + '" y="' + (q[1] + dy / d * out + 4).toFixed(1) + '" text-anchor="middle">' + text + '</text>';
             };
-        return '<svg class="calc-sv-shape" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="The triangle"><polygon points="' + p.map(function (q) { return q[0].toFixed(1) + ',' + q[1].toFixed(1); }).join(' ') + '"/>' +
+        return '<svg class="calc-sv-shape" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + tr('The triangle') + '"><polygon points="' + p.map(function (q) { return q[0].toFixed(1) + ',' + q[1].toFixed(1); }).join(' ') + '"/>' +
             label(p[0], 'A', 9) + label(p[1], 'B', 9) + label(p[2], 'C', 9) + label(mid(1, 2), '<tspan font-style="italic">a</tspan>', 9) +
             label(mid(0, 2), '<tspan font-style="italic">b</tspan>', 9) + label(mid(0, 1), '<tspan font-style="italic">c</tspan>', 9) + '</svg>';
     }
@@ -7227,7 +7377,7 @@
     // the svg of a drawing, and its x and y axes where they cross it, faint
     function planeSvg(f, label, body) {
         var ax = f.x(0), ay = f.y(0);
-        return '<svg class="calc-sv-shape" viewBox="0 0 ' + f.W + ' ' + f.H + '" role="img" aria-label="' + label + '">' +
+        return '<svg class="calc-sv-shape" viewBox="0 0 ' + f.W + ' ' + f.H + '" role="img" aria-label="' + tr(label) + '">' +
             (ax > 0 && ax < f.W ? '<path class="calc-sv-axis" d="M' + ax + ' 0V' + f.H + '"/>' : '') + (ay > 0 && ay < f.H ? '<path class="calc-sv-axis" d="M0 ' + ay + 'H' + f.W + '"/>' : '') +
             body + '</svg>';
     }
@@ -7275,7 +7425,7 @@
                 statsValue(fromRadians(other.t[0])).html + ', B ' + statsValue(fromRadians(other.t[1])).html + ', C ' + statsValue(fromRadians(other.t[2])).html, wrap: true });
         }
         rows.unshift({ l: 'Drawn', wide: true, text: triangleDrawing(t) });
-        return { rows: rows, cols: 3, note: (other ? 'Two triangles have these; the first is shown. ' : '') + 'Angles in ' + unitWord() + '.' };
+        return { rows: rows, cols: 3, note: tr('{v}Angles in {unitWord}.', { v: (other ? tr('Two triangles have these; the first is shown. ') : ''), unitWord: unitWord() }) };
     }
 
     function runShape(n, raw) {
@@ -7312,7 +7462,7 @@
         }
         rows.forEach(function (r) { r.v = CalcMaths.round(r.v); });
         rows.unshift({ l: 'Drawn', wide: true, text: shapeDrawing(shape, n) });
-        return { rows: rows, cols: 2, note: shape === 3 ? 'The perimeter by Ramanujan\'s second way: to some 10 digits for most.' : shape >= 4 ? 'Angles in ' + unitWord() + '.' : '' };
+        return { rows: rows, cols: 2, note: shape === 3 ? 'The perimeter by Ramanujan\'s second way: to some 10 digits for most.' : shape >= 4 ? tr('Angles in {unitWord}.', { unitWord: unitWord() }) : '' };
     }
 
     // A shape of its sizes, to scale, each named with its value: a circle and its radius, a rectangle, a trapezoid
@@ -7364,7 +7514,7 @@
                 '<polygon points="' + pts.map(function (q) { return f.x(q[0]) + ',' + f.y(q[1]); }).join(' ') + '"/>') +
                 planeLabel(f, f.x(0), f.y(pts[0][1]), sizeText('s', n.s), f.x(0), f.y(0), 8);
         }
-        return '<svg class="calc-sv-shape" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="The shape">' + body + '</svg>';
+        return '<svg class="calc-sv-shape" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + tr('The shape') + '">' + body + '</svg>';
     }
 
     function runSolid(n, raw) {
@@ -7428,7 +7578,7 @@
                 '<path class="calc-sv-guide" d="M' + at(dx, dy) + 'L' + at(0, 0) + 'M' + at(dx, dy) + 'L' + at(A + dx, dy) + 'M' + at(dx, dy) + 'L' + at(top[0], top[1]) +
                 'M' + at(c[0], c[1]) + 'L' + at(top[0], top[1]) + '"/>' + name(f.x(A / 2), f.y(0) + 13, 'a', A) + name(f.x(A + dx) + 6, (f.y(c[1]) + f.y(top[1])) / 2 + 4, 'h', h, 'start');
         }
-        return '<svg class="calc-sv-shape" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="The solid">' + body + '</svg>';
+        return '<svg class="calc-sv-shape" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + tr('The solid') + '">' + body + '</svg>';
     }
 
     // y = 1.33333x + 0.666667, a number to 6 digits, 0 left out; x = 3 of a line straight up
@@ -7446,7 +7596,7 @@
         b = dx ? CalcMaths.round(n.y1 - dy / dx * n.x1) : NaN;
         return { rows: [{ l: 'Drawn', wide: true, text: pointsDrawing(n) }, { l: 'Distance', v: CalcMaths.round(Math.hypot(dx, dy)) }, { l: 'Slope', v: m }, { l: 'Midpoint x', v: CalcMaths.round((n.x1 + n.x2) / 2) },
             { l: 'Midpoint y', v: CalcMaths.round((n.y1 + n.y2) / 2) }, { l: 'y-intercept', v: b }, { l: 'Angle', v: fromRadians(Math.atan2(dy, dx)) },
-            { l: 'Line', text: lineText(m, b, n.x1), wide: true }], cols: 2, note: (dx ? '' : 'Straight up: its slope has no value. ') + 'The angle from the x axis, in ' + unitWord() + '.' };
+            { l: 'Line', text: lineText(m, b, n.x1), wide: true }], cols: 2, note: tr('{v}The angle from the x axis, in {unitWord}.', { v: (dx ? '' : tr('Straight up: its slope has no value. ')), unitWord: unitWord() }) };
     }
 
     // two points, the line through them across the box, dashed, the segment between them and its midpoint
@@ -7495,7 +7645,7 @@
         if (!r) return { rows: none, cols: 2, warn: true, note: 'Three corners or more, x and y of each on its line, in order round the polygon.' };
         return { rows: [{ l: 'Drawn', wide: true, text: polygonDrawing(p.xs, p.ys, r) }, { l: 'Area', v: r.area }, { l: 'Perimeter', v: r.perimeter }, { l: 'Centroid x', v: r.x },
             { l: 'Centroid y', v: r.y }, { l: 'Corners', v: p.n }], cols: 2,
-            note: (p.bad.length ? 'Left out: ' + p.bad.slice(0, 3).join(', ') + '. ' : '') + 'Of corners in order; sides that cross make the area less.', warn: !!p.bad.length };
+            note: tr('{v}Of corners in order; sides that cross make the area less.', { v: (p.bad.length ? tr('Left out: {bad}. ', { bad: p.bad.slice(0, 3).join(', ') }) : '') }), warn: !!p.bad.length };
     }
 
     // a box for each coefficient, a of 1 and the others of 0 while they are empty
@@ -7573,11 +7723,11 @@
                 'Not an equation of x yet: x^2 = 2x + 3, or one side alone, which is 0.'),
             r = found.r, ends = found.ends;
         if (found.out) return found.out;
-        if (!r.roots.length) return { rows: none, note: ends ? 'No root between ' + local(String(n.from)) + ' and ' + local(String(n.to)) + '.' : 'No root found.' };
+        if (!r.roots.length) return { rows: none, note: ends ? tr('No root between {from} and {to}.', { from: local(String(n.from)), to: local(String(n.to)) }) : 'No root found.' };
         return {
             rows: r.roots.map(function (x, i) { return { l: rootName(i, r.roots.length), v: x }; })
                 .concat(exactTile(r.exact.map(function (e, i) { return [rootName(i, r.roots.length), e]; })), drawnTile(equationDrawing(raw.eq, r.roots, n.from, n.to))),
-            note: r.more ? 'Of its many roots, the ' + r.roots.length + ' nearest 0: give From and To for others.' : ''
+            note: r.more ? tr('Of its many roots, the {roots} nearest 0: give From and To for others.', { roots: r.roots.length }) : ''
         };
     }
 
@@ -7589,11 +7739,11 @@
     // Where an inequality holds: x < –2 or x > 2, and as intervals, (–∞, –2) ∪ (2, ∞); its ends to put in
     function runInequality(n, raw) {
         var none = [{ l: 'x', v: NaN, wide: true }], found = lookFor(n, raw, CalcMaths.inequality, none, 'Not an inequality of x yet: x^2 - 4 > 0, with <, >, <= or >=.'),
-            r = found.r, ends = found.ends, words, sets, gap = engine.comma ? '; ' : ', ', all, far;
+            r = found.r, ends = found.ends, words, all, far;
         if (found.out) return found.out;
         all = r.parts.length === 1 && r.parts[0].from === -Infinity && r.parts[0].to === Infinity;
         far = local(String(r.within).replace(/^1(0+)$/, function (m, z) { return '1e' + z.length; })); // 1e15
-        far = r.within && (!r.parts.length || all) ? ' Looked for from –' + far + ' to ' + far + ': give From and To to look farther.' : '';
+        far = r.within && (!r.parts.length || all) ? tr(' Looked for from –{far} to {far}: give From and To to look farther.', { far: far }) : '';
         words = r.parts.map(function (p) {
             if (p.from === p.to) return 'x = ' + shown(p.from);
             if (p.from === -Infinity && p.to === Infinity) return 'every x';
@@ -7601,15 +7751,12 @@
             if (p.to === Infinity) return 'x ' + (p.fromIn ? '≥' : '&gt;') + ' ' + shown(p.from);
             return shown(p.from) + ' ' + (p.fromIn ? '≤' : '&lt;') + ' x ' + (p.toIn ? '≤' : '&lt;') + ' ' + shown(p.to);
         });
-        sets = r.parts.map(function (p) {
-            return p.from === p.to ? '{' + shown(p.from) + '}' : (p.fromIn ? '[' : '(') + shown(p.from) + gap + shown(p.to) + (p.toIn ? ']' : ')');
-        });
         return {
             rows: [{ l: 'x', text: words.length ? words.join(' or ') : 'none', wide: true, wrap: true },
-                { l: 'Intervals', text: sets.length ? sets.join(' ∪ ') : '∅', wide: true, wrap: true }]
-                .concat(r.ends.map(function (x, i) { return { l: 'End ' + (i + 1), v: x }; }), drawnTile(inequalityDrawing(raw.eq, r, n.from, n.to))),
-            note: !r.parts.length ? 'It holds for no x' + (ends ? ' between ' + shown(n.from) + ' and ' + shown(n.to) : '') + '.' + far :
-                r.more ? 'Of its many ends, the ' + r.ends.length + ' nearest 0: give From and To for others.' : far.trim()
+                { l: 'Intervals', text: intervalsText(r.parts), wide: true, wrap: true }]
+                .concat(r.ends.map(function (x, i) { return { l: tr('End {i}', { i: (i + 1) }), v: x }; }), drawnTile(inequalityDrawing(raw.eq, r, n.from, n.to))),
+            note: !r.parts.length ? tr('It holds for no x{v}.{far}', { v: (ends ? tr(' between {from} and {to}', { from: shown(n.from), to: shown(n.to) }) : ''), far: far }) :
+                r.more ? tr('Of its many ends, the {ends} nearest 0: give From and To for others.', { ends: r.ends.length }) : far.trim()
         };
     }
 
@@ -7625,13 +7772,13 @@
                 f.c && isFinite(n.a) ? drawnTile(limitDrawing(f.c, n.a, r)) : []),
             bad: f.bad, warn: !!f.note,
             note: f.note || (!f.c || isNaN(n.a) || !isNaN(r.value) ? '' : !isNaN(r.left) && !isNaN(r.right) ? 'No limit: it comes to one value from below and another from above.' :
-                'No limit: it does not settle' + (endless ? '.' : ', or has no values, by a.'))
+                tr('No limit: it does not settle{v}', { v: (endless ? '.' : tr(', or has no values, by a.')) }))
         };
     }
 
     function runOde(n, raw) {
         var r = raw.f ? CalcMaths.ode(raw.f, engine.comma, deg, n.x0, n.y0, n.x) : { y: NaN, slope: NaN },
-            why = { 'function': 'Not a function of x and y yet: x + y, x y, y^2.', letters: 'Only x and y have values here: write the other letters as numbers.' }[r.error];
+            why = { 'function': 'Not a function of x and y yet: x + y, x y, y^2.', letters: tr('Only x and y have values here: write the other letters as numbers.') }[r.error];
         return {
             rows: [{ l: 'y(x)', v: r.error ? NaN : r.y }, { l: 'y′(x)', v: r.error ? NaN : r.slope }].concat(r.path && isFinite(r.y) ? drawnTile(odeDrawing(r.path)) : []),
             bad: why ? ['f'] : [], warn: !!why || (raw.f && !r.error && isNaN(r.y) && [n.x0, n.y0, n.x].every(isFinite)),
@@ -7671,9 +7818,9 @@
         var none = [{ l: 'x', v: NaN }], r = raw.p ? CalcMaths.polynomial(raw.p, engine.comma, deg) : null, out, why;
         if (!r) return { rows: none };
         why = {
-            polynomial: 'Not a polynomial of x yet: x^5 - 3x + 1, (x - 1)(x + 2)^2, or its coefficients from the highest power, 1, 0, -2, 1.',
-            letters: 'Only x has a value here: write the other letters as numbers.',
-            power: 'Up to the power 30.'
+            polynomial: tr('Not a polynomial of x yet: x^5 - 3x + 1, (x - 1)(x + 2)^2, or its coefficients from the highest power, 1, 0, -2, 1.'),
+            letters: tr('Only x has a value here: write the other letters as numbers.'),
+            power: tr('Up to the power 30.')
         }[r.error];
         if (why) return { rows: none, bad: ['p'], warn: true, note: why };
         if (r.c.length < 2) return { rows: none, note: 'No x left: its coefficients of x are all 0.', warn: true };
@@ -7699,7 +7846,7 @@
         });
         return {
             rows: rows.length ? rows.concat(exactTile(forms), drawnTile(curvesDrawing([raw.e1, raw.e2], r.points))) : none, cols: 2,
-            note: !rows.length ? 'No point found where both hold.' : r.more ? 'Of its many points, the ' + r.points.length + ' nearest 0.' : ''
+            note: !rows.length ? 'No point found where both hold.' : r.more ? tr('Of its many points, the {points} nearest 0.', { points: r.points.length }) : ''
         };
     }
 
@@ -7720,8 +7867,8 @@
         if (rows.length) rows = rows.concat(drawnTile(extremaDrawing(raw.f, r, n.from, n.to)));
         return {
             rows: rows.length ? rows : none, cols: 2,
-            note: !r.points.length ? 'No turning point ' + (ends ? 'between ' + shown(n.from) + ' and ' + shown(n.to) : 'found') + '.' :
-                r.more ? 'Of its many turning points, the ' + r.points.length + ' nearest 0: give From and To for others.' : ''
+            note: !r.points.length ? tr('No turning point {v}.', { v: (ends ? tr('between {from} and {to}', { from: shown(n.from), to: shown(n.to) }) : tr('found')) }) :
+                r.more ? tr('Of its many turning points, the {points} nearest 0: give From and To for others.', { points: r.points.length }) : ''
         };
     }
 
@@ -7766,11 +7913,49 @@
         return 'y = ' + (m < 0 ? '–' : '') + (Math.abs(m) === 1 ? '' : num(m)) + 'x' + (b ? (b < 0 ? ' – ' : ' + ') + num(b) : '');
     }
 
+    // The derivative written out and the derivative of that; at x the value of the function, its
+    // slope there and the slope of that, of those formulas where it has them, else by steps, and the
+    // line that touches it there
     function runDerivative(n, raw) {
-        var f = toolFunction(raw), s = f.c && isFinite(n.x) ? CalcMaths.slopes(f.c, n.x, deg) : [NaN, NaN], y = f.c && isFinite(n.x) ? f.c.at(n.x, deg, true) : NaN;
-        return { rows: [{ l: 'f(x)', v: y }, { l: 'f′(x)', v: s[0] }, { l: 'f″(x)', v: s[1] },
+        var f = toolFunction(raw), d = f.c ? CalcMaths.derivatives(raw.f, engine.comma, deg, local) : null, forms = d && d.forms,
+            y = f.c && isFinite(n.x) ? f.c.at(n.x, deg, true) : NaN, s = [NaN, NaN], none = d && d.error === 'none';
+        if (isFinite(y)) s = forms ? d.at(n.x) : CalcMaths.slopes(f.c, n.x, deg); // none at a corner or a jump, as |x| at 0
+        return { rows: [{ l: 'Derivative', text: forms ? 'f′(x) = ' + forms[0].html : '–', wide: true, wrap: true },
+                { l: 'Second derivative', text: forms ? 'f″(x) = ' + forms[1].html : '–', wide: true, wrap: true },
+                { l: 'f(x)', v: y }, { l: 'f′(x)', v: s[0] }, { l: 'f″(x)', v: s[1] },
                 { l: 'Tangent', text: isFinite(y) && isFinite(s[0]) ? lineText(s[0], y - s[0] * n.x) : '–', wide: true }].concat(isFinite(y) && isFinite(s[0]) ? drawnTile(tangentDrawing(f.c, n.x, y, s[0])) : []),
-            bad: f.bad, note: f.note, warn: !!f.note };
+            bad: f.bad, note: f.note || (none ? 'No formula of its slope: it has x!, mod or the like, whose slopes are not written out here.' : ''), warn: !!f.note };
+    }
+
+    // parts of x as intervals, (–∞, –2) ∪ (2, ∞); ∅ of none
+    function intervalsText(parts) {
+        var gap = engine.comma ? '; ' : ', ';
+        return parts.length ? parts.map(function (p) {
+            return p.from === p.to ? '{' + shown(p.from) + '}' : (p.fromIn ? '[' : '(') + shown(p.from) + gap + shown(p.to) + (p.toIn ? ']' : ')');
+        }).join(' ∪ ') : '∅';
+    }
+
+    // where a function rises and falls and bends up and down, as intervals, and its inflection points, an x and its value side by side
+    function runShape(n, raw) {
+        var none = [{ l: 'Increasing', text: '–', wide: true }, { l: 'Decreasing', text: '–', wide: true }, { l: 'Concave up', text: '–', wide: true }, { l: 'Concave down', text: '–', wide: true }],
+            ends = isFinite(n.from) && isFinite(n.to), r, rows;
+        if (!raw.f) return { rows: none, cols: 2 };
+        if (ends && n.from >= n.to) return { rows: none, cols: 2, note: 'From is less than To.', warn: true };
+        r = CalcMaths.shape(raw.f, engine.comma, deg, ends ? n.from : NaN, ends ? n.to : NaN);
+        if (r.error) {
+            return { rows: none, cols: 2, bad: r.error === 'none' ? [] : ['f'], warn: true,
+                note: r.error === 'letters' ? 'Only x has a value here: write the other letters as numbers.' : r.error === 'none' ? 'No formula of its slope: it has x!, mod or the like, whose slopes are not written out here.' :
+                    'Not a function of x yet: x^3 - 3x, x e^(-x).' };
+        }
+        rows = [{ l: 'Increasing', text: intervalsText(r.rising), wide: true, wrap: true }, { l: 'Decreasing', text: intervalsText(r.falling), wide: true, wrap: true },
+            { l: 'Concave up', text: intervalsText(r.up), wide: true, wrap: true }, { l: 'Concave down', text: intervalsText(r.down), wide: true, wrap: true }];
+        r.points.forEach(function (p) {
+            rows.push({ l: 'Inflection x', v: p.x }, { l: 'Inflection y', v: p.y });
+        });
+        return {
+            rows: rows.concat(drawnTile(shapeDrawing(raw.f, r, n.from, n.to))), cols: 2,
+            note: r.more ? 'It changes too often to list each time: give From and To for the rest.' : r.flat ? 'It is flat: its slope is 0 everywhere.' : !r.rising.length && !r.falling.length ? 'It goes up or down only in jumps: its slope is 0 between them.' : ''
+        };
     }
 
     // a Taylor series written out: x – x³/6 + x⁵/120, of (x – a) about a, each coefficient a
@@ -7791,8 +7976,8 @@
         r = CalcMaths.taylor(raw.f, engine.comma, deg, n.a, n.n);
         why = {
             'function': 'Not a function of x yet: sin(x), e^x, 1/(1 - x).',
-            letters: 'Only x has a value here: write the other letters as numbers.',
-            none: 'No series about a: it is not smooth there, as sqrt(x) at 0, or has no complex values, as abs(x) or floor(x).'
+            letters: tr('Only x has a value here: write the other letters as numbers.'),
+            none: tr('No series about a: it is not smooth there, as sqrt(x) at 0, or has no complex values, as abs(x) or floor(x).')
         }[r.error];
         if (why) return { rows: none, bad: r.error === 'none' ? [] : ['f'], warn: true, note: why };
         if (!r.coefs) return { rows: none, note: isFinite(n.a) ? 'The power is a whole number from 0 to 12.' : '', warn: isFinite(n.a) };
@@ -7810,7 +7995,7 @@
                 note: r.error === 'letters' ? 'Only x has a value here: write the other letters as numbers.' : 'Not a function of x yet: x^2, sin(x).' };
         }
         return {
-            rows: [{ l: 'Area', v: r.area }, { l: '∫(f – g)', v: r.net }].concat(r.crossings.map(function (x, i) { return { l: 'Crossing ' + (i + 1), v: x }; }),
+            rows: [{ l: 'Area', v: r.area }, { l: '∫(f – g)', v: r.net }].concat(r.crossings.map(function (x, i) { return { l: tr('Crossing {i}', { i: (i + 1) }), v: x }; }),
                 isFinite(r.area) ? drawnTile(betweenDrawing(raw.f, raw.g, n.a, n.b, r.crossings)) : []),
             warn: isNaN(r.area) && isFinite(n.a) && isFinite(n.b),
             note: isNaN(r.area) && isFinite(n.a) && isFinite(n.b) ? 'No value: a function has none on the way, or it does not settle.' : ''
@@ -7820,7 +8005,7 @@
     function runArc(n, raw) {
         var r = raw.f ? CalcMaths.arcLength(raw.f, engine.comma, deg, n.a, n.b) : { length: NaN }, why = {
             'function': 'Not a function of x yet: x^2, sin(x).',
-            letters: 'Only x has a value here: write the other letters as numbers.'
+            letters: tr('Only x has a value here: write the other letters as numbers.')
         }[r.error];
         if (why) return { rows: [{ l: 'Length', v: NaN }], bad: ['f'], warn: true, note: why };
         return { rows: [{ l: 'Length', v: r.length }].concat(isFinite(r.length) ? drawnTile(arcDrawing(raw.f, n.a, n.b)) : []), warn: raw.f && isNaN(r.length) && isFinite(n.a) && isFinite(n.b),
@@ -7867,9 +8052,9 @@
     function runSeries(n, raw, product) {
         var r = raw.f ? CalcMaths.series(raw.f, engine.comma, deg, n.a, n.b, product) : { value: NaN }, name = product ? 'Π' : 'Σ', why = {
             'function': 'Not a function yet: write n^2 for n², 1/k! for 1 ÷ k!.',
-            letters: 'Of one letter: n, k, i or j, or x.',
-            ends: 'From and To are whole numbers, From the smaller; To may be inf.',
-            many: 'Up to a million terms, or To inf.'
+            letters: tr('Of one letter: n, k, i or j, or x.'),
+            ends: tr('From and To are whole numbers, From the smaller; To may be inf.'),
+            many: tr('Up to a million terms, or To inf.')
         }[r.error], endless = n.b === Infinity && raw.f && !r.error;
         if (endless && !isFinite(r.value)) {
             why = isNaN(r.value) ? 'No value: it does not settle, as its terms go on back and forth or shrink too slowly to tell.' : 'It grows without end.';
@@ -7911,6 +8096,16 @@
         var fs = sidesOf(text, /<=|>=|=<|=>|[<>≤≥]/), x = rangeAround(r.ends, from, to);
         if (!fs) return '';
         return graphDrawing('Its sides, shaded where it holds', x[0], x[1], { fs: fs, bands: r.parts.map(function (p) { return [p.from, p.to]; }) });
+    }
+
+    // the curve, shaded where it bends up, its inflection points dots
+    function shapeDrawing(text, r, from, to) {
+        var fs = sidesOf(text), xs = r.points.map(function (p) { return p.x; }), x;
+        ['rising', 'falling', 'up', 'down'].forEach(function (k) { r[k].forEach(function (p) { xs.push(p.from, p.to); }); });
+        x = rangeAround(xs, from, to);
+        if (!fs) return '';
+        return graphDrawing('The curve, shaded where it bends up, and its inflection points', x[0], x[1], { fs: fs, fit: 1,
+            bands: r.up.map(function (p) { return [p.from, p.to]; }), dots: r.points.map(function (p) { return [p.x, p.y]; }) });
     }
 
     function extremaDrawing(text, r, from, to) {
@@ -8104,12 +8299,12 @@
             b = start ? (b + t.pmt) * (1 + i) : b * (1 + i) + t.pmt;
             pts.push([k, b]);
         }
-        return yearsDrawing('The balance, period by period', pts);
+        return yearsDrawing(tr('The balance, period by period'), pts);
     }
 
     // ---------------- money ---------------- //
 
-    var SIGNS = 'Money received is above 0, money paid below 0: a loan of 200000 is PV = 200000, its PMT below 0.';
+    function signs() { return tr('Money received is above 0, money paid below 0: a loan of 200000 is PV = 200000, its PMT below 0.'); }
 
     // Time value of money: the one of N, I/Y, PV, PMT and FV left empty, its tile first, then all
     // the money paid and the interest, paid or earned; or what is wrong, said
@@ -8119,15 +8314,15 @@
         if (keys.some(function (k) { return raw[k] && isNaN(n[k]); }) || (raw.py && isNaN(n.py))) return { rows: none }; // its box is marked
         if (empty.length !== 1) {
             return { rows: none, warn: !empty.length,
-                note: (empty.length ? 'Leave only one of N, I/Y, PV, PMT and FV empty, the one to work out. ' : 'Leave one of N, I/Y, PV, PMT and FV empty, the one to work out. ') + SIGNS };
+                note: (empty.length ? tr('Leave only one of N, I/Y, PV, PMT and FV empty, the one to work out. ') : tr('Leave one of N, I/Y, PV, PMT and FV empty, the one to work out. ')) + signs() };
         }
         r = CalcMaths.tvm({ n: n.n, iy: n.iy, pv: n.pv, pmt: n.pmt, fv: n.fv, py: n.py, start: raw.due === '1' });
         why = {
-            py: 'P/Y, the payments a year, is above 0.',
-            rate: 'The rate a period, I/Y ÷ P/Y, is above –100%.',
-            n: 'N, the payments, is above 0.',
-            none: 'No ' + names[empty[0]] + ' makes the money balance: ' + (empty[0] === 'n' ? 'the payments never bring PV to FV at this rate. ' : 'money received and money paid need opposite signs. ') + SIGNS,
-            large: 'Too large a number to show.'
+            py: tr('P/Y, the payments a year, is above 0.'),
+            rate: tr('The rate a period, I/Y ÷ P/Y, is above –100%.'),
+            n: tr('N, the payments, is above 0.'),
+            none: (empty[0] === 'n' ? tr('No {names} makes the money balance: the payments never bring PV to FV at this rate. {signs}', { names: names[empty[0]], signs: signs() }) : tr('No {names} makes the money balance: money received and money paid need opposite signs. {signs}', { names: names[empty[0]], signs: signs() })),
+            large: tr('Too large a number to show.')
         }[r.error];
         if (why) return { rows: none, warn: true, note: why };
         part = (empty[0] === 'n' ? r.n : n.n) % 1;
@@ -8135,7 +8330,7 @@
             rows: [{ l: names[r.find], v: r.value, places: /^(pv|pmt|fv)$/.test(r.find) ? 2 : undefined, dp: 2 }, { l: 'Total paid', v: r.paid, places: 2 },
                 { l: r.net < 0 ? 'Interest paid' : r.net > 0 ? 'Interest earned' : 'Interest', v: CalcMaths.round(Math.abs(r.net)), places: 2 }]
                 .concat(drawnTile(tvmDrawing(n, r.find, r.value, raw.due === '1'))),
-            note: SIGNS + (part > 1e-9 && part < 1 - 1e-9 ? ' N is not a whole number of payments: a last, smaller one makes up the part.' : '')
+            note: signs() + (part > 1e-9 && part < 1 - 1e-9 ? tr(' N is not a whole number of payments: a last, smaller one makes up the part.') : '')
         };
     }
 
@@ -8143,17 +8338,16 @@
     function runNpv(n, raw) {
         var read = raw.cf ? CalcEngine.numbers(raw.cf, engine.comma, 'auto') : { values: [], bad: [] }, flows = read.values,
             none = [{ l: 'NPV', v: NaN }, { l: 'IRR %', v: NaN }, { l: 'Payback', v: NaN }], r, back, notes = [];
-        if (read.bad.length) return { rows: none, bad: ['cf'], warn: true, note: read.bad[0] + ' is not a number: type the cash flows one to a line, or apart by spaces or ' + (engine.comma ? 'semicolons.' : 'commas.') };
+        if (read.bad.length) return { rows: none, bad: ['cf'], warn: true, note: (engine.comma ? tr('{bad} is not a number: type the cash flows one to a line, or apart by spaces or semicolons.', { bad: read.bad[0] }) : tr('{bad} is not a number: type the cash flows one to a line, or apart by spaces or commas.', { bad: read.bad[0] })) };
         if (flows.length < 2) return { rows: none, note: raw.cf ? 'Two cash flows or more: the first at the start, then one a period.' : '' };
         if (flows.length > 1000) return { rows: none, bad: ['cf'], warn: true, note: 'Up to 1000 cash flows.' };
         r = CalcMaths.irr(flows);
         back = CalcMaths.payback(flows);
-        if (isFinite(n.r) && !(n.r > -100)) notes.push('The rate is above –100%.');
-        if (!r.changes) notes.push('No IRR: the flows never change sign, so no rate makes their NPV 0.');
-        else if (isNaN(r.irr)) notes.push('No IRR found from –99.99% to 1000000%.');
-        else if (r.changes > 1) notes.push('The flows change sign ' + r.changes + ' times, so there may be more than one IRR' + (r.others.length ? ': this one is the nearest 10%, and ' +
-            r.others.map(function (x) { return local(String(x)) + '%'; }).join(', ') + (r.others.length > 1 ? ' are others.' : ' is another.') : '; this one is the nearest 10%.'));
-        if (isNaN(back) && flows[0] < 0) notes.push('They never pay back what went out.');
+        if (isFinite(n.r) && !(n.r > -100)) notes.push(tr('The rate is above –100%.'));
+        if (!r.changes) notes.push(tr('No IRR: the flows never change sign, so no rate makes their NPV 0.'));
+        else if (isNaN(r.irr)) notes.push(tr('No IRR found from –99.99% to 1000000%.'));
+        else if (r.changes > 1) notes.push(tr('The flows change sign {changes} times, so there may be more than one IRR{v}', { changes: r.changes, v: (r.others.length ? (r.others.length > 1 ? tr(': this one is the nearest 10%, and {others} are others.', { others: r.others.map(function (x) { return local(String(x)) + '%'; }).join(', ') }) : tr(': this one is the nearest 10%, and {others} is another.', { others: r.others.map(function (x) { return local(String(x)) + '%'; }).join(', ') })) : tr('; this one is the nearest 10%.')) }));
+        if (isNaN(back) && flows[0] < 0) notes.push(tr('They never pay back what went out.'));
         return {
             rows: [{ l: 'NPV', v: CalcMaths.npv(n.r, flows), places: 2 }, { l: 'IRR %', v: r.irr, dp: 2 }, { l: 'Payback', v: back, dp: 2 }].concat(flows.length <= 200 ? drawnTile(graphDrawing('Each cash flow, what went out red',
                 -0.7, flows.length - 0.3, { bars: flows.map(function (v, t) { return [t, v, v < 0]; }) })) : []),
@@ -8171,19 +8365,18 @@
         }
         r = CalcMaths.amortize(n.loan, n.rate, n.years, n.py, SCHEDULE_ROWS);
         why = {
-            loan: 'The loan is above 0.',
-            years: 'Years are above 0.',
-            py: 'Payments a year are above 0.',
-            rate: 'The rate a period, the rate a year ÷ payments a year, is above –100%.',
-            whole: 'Years × payments a year is a whole number of payments.',
-            long: 'Up to 100000 payments.'
+            loan: tr('The loan is above 0.'),
+            years: tr('Years are above 0.'),
+            py: tr('Payments a year are above 0.'),
+            rate: tr('The rate a period, the rate a year ÷ payments a year, is above –100%.'),
+            whole: tr('Years × payments a year is a whole number of payments.'),
+            long: tr('Up to 100000 payments.')
         }[r.error];
         if (why) return { rows: none, warn: true, note: why };
         return {
             rows: [{ l: 'Payment', v: r.payment, places: 2 }, { l: 'Total interest', v: r.interest, places: 2 }, { l: 'Total paid', v: CalcMaths.round(n.loan + r.interest), places: 2 },
                 { l: by ? 'Each payment' : 'Each year', m: by ? r.byPayment : r.byYear, head: [by ? 'No.' : 'Year', 'Interest', 'Principal', 'Balance'], places: 2 }],
-            note: (r.n === 1 ? '1 payment' : r.n + ' payments') + ', each at the end of its period.' +
-                (r.more ? ' The table has the first ' + SCHEDULE_ROWS + (by ? ' payments: By year has them all.' : ' years.') : '')
+            note: tr('{v}, each at the end of its period.{v2}', { v: (r.n === 1 ? tr('1 payment') : tr('{n} payments', { n: r.n })), v2: (r.more ? (by ? tr(' The table has the first {rows} payments: By year has them all.', { rows: SCHEDULE_ROWS }) : tr(' The table has the first {rows} years.', { rows: SCHEDULE_ROWS })) : '') })
         };
     }
 
@@ -8193,20 +8386,20 @@
         if (!raw.start || !raw.rate || !raw.years || [n.start, n.rate, n.years, n.m, n.add].some(isNaN)) return { rows: none };
         r = CalcMaths.savings(n.start, n.rate, n.years, n.m, n.add, raw.due === '1', SCHEDULE_ROWS);
         why = {
-            money: 'Start and Add are 0 or more.',
-            years: 'Years are above 0.',
-            m: 'm, the periods a year, is above 0.',
-            add: 'Nothing is added with interest all the time: m is a number for that.',
-            rate: 'The rate a period, the rate a year ÷ m, is above –100%.',
-            whole: 'Years × m is a whole number of periods.',
-            long: 'Up to 100000 periods.'
+            money: tr('Start and Add are 0 or more.'),
+            years: tr('Years are above 0.'),
+            m: tr('m, the periods a year, is above 0.'),
+            add: tr('Nothing is added with interest all the time: m is a number for that.'),
+            rate: tr('The rate a period, the rate a year ÷ m, is above –100%.'),
+            whole: tr('Years × m is a whole number of periods.'),
+            long: tr('Up to 100000 periods.')
         }[r.error];
         if (why) return { rows: none, warn: true, note: why };
         return {
             rows: [{ l: 'Balance', v: r.balance, places: 2 }, { l: 'Put in', v: r.added, places: 2 }, { l: 'Interest', v: r.interest, places: 2 }, { l: 'APY %', v: r.apy, dp: 2 },
                 { l: 'Each year', m: r.byYear, head: ['Year', 'Put in', 'Interest', 'Balance'], places: 2 }].concat(drawnTile(savingsDrawing(n.start, r.byYear))),
-            note: (n.m === Infinity ? 'Interest all the time.' : 'Interest ' + local(String(n.m)) + ' times a year' + (n.add ? ', ' + local(String(n.add)) + ' added at the ' + (raw.due === '1' ? 'start' : 'end') + ' of each period.' : '.')) +
-                (r.more ? ' The table has the first ' + SCHEDULE_ROWS + ' years.' : '')
+            note: (n.m === Infinity ? 'Interest all the time.' : tr('Interest {m} times a year{v}', { m: local(String(n.m)), v: (n.add ? (raw.due === '1' ? tr(', {add} added at the start of each period.', { add: local(String(n.add)) }) : tr(', {add} added at the end of each period.', { add: local(String(n.add)) })) : '.') })) +
+                (r.more ? tr(' The table has the first {rows} years.', { rows: SCHEDULE_ROWS }) : '')
         };
     }
 
@@ -8221,13 +8414,13 @@
         if (!raw.price || !raw.rate || [n.price, n.down, n.rate, n.years, n.tax, n.ins, n.pmi, n.hoa].some(isNaN)) return { rows: none };
         r = CalcMaths.mortgage(n.price, n.down, n.rate, n.years, n.tax, n.ins, n.pmi, n.hoa, SCHEDULE_ROWS);
         why = {
-            price: 'The price is above 0.',
-            down: 'Down is 0% or more, and below 100%, so there is a loan.',
-            costs: 'Tax, insurance, PMI and HOA are 0 or more.',
-            years: 'Years are above 0.',
-            rate: 'The rate a month, the rate a year ÷ 12, is above –100%.',
-            whole: 'Years × 12 is a whole number of payments.',
-            long: 'Up to 100000 payments.'
+            price: tr('The price is above 0.'),
+            down: tr('Down is 0% or more, and below 100%, so there is a loan.'),
+            costs: tr('Tax, insurance, PMI and HOA are 0 or more.'),
+            years: tr('Years are above 0.'),
+            rate: tr('The rate a month, the rate a year ÷ 12, is above –100%.'),
+            whole: tr('Years × 12 is a whole number of payments.'),
+            long: tr('Up to 100000 payments.')
         }[r.error];
         if (why) return { rows: none, warn: true, note: why };
         return {
@@ -8235,9 +8428,8 @@
                 .concat([['Tax', r.tax], ['Insurance', r.insurance], ['PMI', r.pmi], ['HOA', r.hoa]].filter(function (c) { return c[1]; }).map(function (c) { return { l: c[0], v: c[1], places: 2 }; }),
                     [{ l: 'Loan', v: r.loan, places: 2 }, { l: 'Down payment', v: r.down, places: 2 }, { l: 'Total interest', v: r.interest, places: 2 }, { l: 'Total paid', v: r.total, places: 2 },
                         { l: 'Each year', m: r.byYear, head: ['Year', 'Interest', 'Principal', 'Balance'], places: 2 }]),
-            note: r.n + ' payments, each at the end of its month; Total paid is all of them, with the tax, insurance, PMI and HOA, the down payment not in it.' +
-                (r.pmiMonths ? ' PMI for the first ' + (r.pmiMonths === 1 ? 'payment' : r.pmiMonths + ' payments') + ', until the loan is down to 78% of the price.' :
-                    n.pmi ? ' No PMI: 20% or more is put down.' : '') + (r.more ? ' The table has the first ' + SCHEDULE_ROWS + ' years.' : '')
+            note: tr('{n} payments, each at the end of its month; Total paid is all of them, with the tax, insurance, PMI and HOA, the down payment not in it.{v}{v2}', { n: r.n, v: (r.pmiMonths ? tr(' PMI for the first {v}, until the loan is down to 78% of the price.', { v: (r.pmiMonths === 1 ? tr('payment') : tr('{pmiMonths} payments', { pmiMonths: r.pmiMonths })) }) :
+                    n.pmi ? tr(' No PMI: 20% or more is put down.') : ''), v2: (r.more ? tr(' The table has the first {rows} years.', { rows: SCHEDULE_ROWS }) : '') })
         };
     }
 
@@ -8248,20 +8440,19 @@
         if (!raw.balance || !raw.apr || (!raw.pay && !raw.months) || isNaN(n.balance) || isNaN(n.apr) || (raw.pay && isNaN(n.pay)) || (raw.months && isNaN(n.months))) return { rows: none };
         r = CalcMaths.cardPayoff(n.balance, n.apr, raw.pay ? n.pay : NaN, raw.months ? n.months : NaN, SCHEDULE_ROWS);
         why = {
-            balance: 'The balance is above 0.',
-            rate: 'APR is 0% or more.',
-            payment: 'The payment is above 0.',
-            months: 'Months are a whole number above 0.',
-            small: 'The payment never pays it off: it is no more than the first month\'s interest, ' + cents(n.balance * n.apr / 1200) + '.',
-            long: 'Up to 12000 months.'
+            balance: tr('The balance is above 0.'),
+            rate: tr('APR is 0% or more.'),
+            payment: tr('The payment is above 0.'),
+            months: tr('Months are a whole number above 0.'),
+            small: tr('The payment never pays it off: it is no more than the first month\'s interest, {balance}.', { balance: cents(n.balance * n.apr / 1200) }),
+            long: tr('Up to 12000 months.')
         }[r.error];
         if (why) return { rows: none, warn: true, note: why };
         y = Math.floor(r.months / 12);
         return {
             rows: (find === 'months' ? [{ l: 'Months', v: r.months }] : [{ l: 'Payment', v: r.payment, places: 2 }]).concat([{ l: 'Total interest', v: r.interest, places: 2 },
                 { l: 'Total paid', v: r.paid, places: 2 }, { l: 'Last payment', v: r.last, places: 2 }, { l: 'Each year', m: r.byYear, head: ['Year', 'Interest', 'Principal', 'Balance'], places: 2 }]),
-            note: 'Paid off in ' + (y ? y + (y === 1 ? ' year' : ' years') + (r.months % 12 ? ' and ' : '') : '') + (r.months % 12 ? r.months % 12 + (r.months % 12 === 1 ? ' month' : ' months') : '') +
-                ', with nothing more spent on it; interest each month of APR ÷ 12.' + (r.more ? ' The table has the first ' + SCHEDULE_ROWS + ' years.' : '')
+            note: tr('Paid off in {v}{v2}, with nothing more spent on it; interest each month of APR ÷ 12.{v3}', { v: (y ? trn(y, '{n} year', '{n} years') + (r.months % 12 ? tr(' and ') : '') : ''), v2: (r.months % 12 ? trn(r.months % 12, '{n} month', '{n} months') : ''), v3: (r.more ? tr(' The table has the first {rows} years.', { rows: SCHEDULE_ROWS }) : '') })
         };
     }
 
@@ -8271,9 +8462,9 @@
         if (!raw.age || !raw.ret || [n.age, n.retire, n.until, n.saved, n.add, n.ret, n.infl].some(isNaN) || (drawn && isNaN(n.draw))) return { rows: none };
         r = CalcMaths.retirement(n.age, n.retire, n.until, n.saved, n.add, n.ret, n.infl, drawn ? n.draw : NaN);
         why = {
-            age: 'The ages in order: Age, then Retire at, then To age above it, up to 150.',
-            money: 'Saved, Add and Draw are 0 or more.',
-            rate: 'Return and inflation are above –100%.'
+            age: tr('The ages in order: Age, then Retire at, then To age above it, up to 150.'),
+            money: tr('Saved, Add and Draw are 0 or more.'),
+            rate: tr('Return and inflation are above –100%.')
         }[r.error];
         if (why) return { rows: none, warn: true, note: why };
         f = through(r.path);
@@ -8281,12 +8472,11 @@
         return {
             rows: [{ l: 'At retirement', v: r.atRetire, places: 2 }, { l: 'In money of today', v: r.real, places: 2 }, { l: 'Put in', v: r.putIn, places: 2 }, { l: 'Growth', v: r.growth, places: 2 },
                 { l: 'Can draw a month', v: r.can, places: 2 }].concat(drawn ? [r.lasts === Infinity ? { l: 'Lasts to age', text: '∞' } : r.lasts === 150 ? { l: 'Lasts to age', text: '150+' } : { l: 'Lasts to age', v: r.lasts, dp: 1 },
-                    { l: 'Left at ' + local(String(n.until)), v: r.left, places: 2 }] : [],
+                    { l: tr('Left at {until}', { until: local(String(n.until)) }), v: r.left, places: 2 }] : [],
                 r.real > 0 && end > n.age ? drawnTile(graphDrawing('The savings at each age, in money of today', n.age, end, { fs: [f], fill: [f, null, n.age, end],
-                    marks: n.retire > n.age ? [[n.retire, 'Retire']] : [] })) : []),
-            note: 'Add goes in at the end of each month until retiring; then a draw at the start of each month, growing with prices. Can draw a month is the most, in money of today, for it to last to ' +
-                local(String(n.until)) + '.' + (!drawn ? '' : r.lasts === Infinity ? ' A draw of ' + cents(n.draw) + ' never uses it up: what it earns over prices is more.' :
-                    r.lasts < n.until ? ' A draw of ' + cents(n.draw) + ' uses it up before ' + local(String(n.until)) + '.' : '')
+                    marks: n.retire > n.age ? [[n.retire, tr('Retire')]] : [] })) : []),
+            note: tr('Add goes in at the end of each month until retiring; then a draw at the start of each month, growing with prices. Can draw a month is the most, in money of today, for it to last to {until}.{v}', { until: local(String(n.until)), v: (!drawn ? '' : r.lasts === Infinity ? tr(' A draw of {draw} never uses it up: what it earns over prices is more.', { draw: cents(n.draw) }) :
+                    r.lasts < n.until ? tr(' A draw of {draw} uses it up before {until}.', { draw: cents(n.draw), until: local(String(n.until)) }) : '') })
         };
     }
 
@@ -8296,18 +8486,17 @@
         if (!raw.pay || [n.pay, n.hours, n.days, n.weeks, n.ot, n.otx].some(isNaN)) return { rows: none };
         r = CalcMaths.salary(n.pay, +raw.per, n.hours, n.days, n.weeks, n.ot, n.otx);
         why = {
-            pay: 'The pay is 0 or more.',
-            ot: 'Overtime and its times are 0 or more.',
-            hours: 'Hours a week are above 0, and no more than 168 with the overtime.',
-            days: 'Days a week are above 0, and no more than 7.',
-            weeks: 'Weeks a year are above 0, and no more than 53.'
+            pay: tr('The pay is 0 or more.'),
+            ot: tr('Overtime and its times are 0 or more.'),
+            hours: tr('Hours a week are above 0, and no more than 168 with the overtime.'),
+            days: tr('Days a week are above 0, and no more than 7.'),
+            weeks: tr('Weeks a year are above 0, and no more than 53.')
         }[r.error];
         if (why) return { rows: none, warn: true, note: why };
         return {
-            rows: [['Hourly', r.hourly], ['Daily', r.daily], ['Weekly', r.weekly], ['Every 2 weeks', r.fortnight], ['Twice a month', r.half], ['Monthly', r.monthly], ['Yearly', r.yearly]]
+            rows: [[tr('Hourly'), r.hourly], [tr('Daily'), r.daily], [tr('Weekly'), r.weekly], [tr('Every 2 weeks'), r.fortnight], [tr('Twice a month'), r.half], ['Monthly', r.monthly], ['Yearly', r.yearly]]
                 .map(function (p) { return { l: p[0], v: p[1], places: 2 }; }),
-            note: local(String(n.hours)) + ' hours over ' + local(String(n.days)) + ' days a week, ' + local(String(n.weeks)) + ' weeks a year' +
-                (n.ot ? '; each but Hourly with ' + local(String(n.ot)) + ' hours of overtime a week, at ' + local(String(n.otx)) + ' × the hourly.' : '.')
+            note: tr('{hours} hours over {days} days a week, {weeks} weeks a year{v}', { hours: local(String(n.hours)), days: local(String(n.days)), weeks: local(String(n.weeks)), v: (n.ot ? tr('; each but Hourly with {ot} hours of overtime a week, at {otx} × the hourly.', { ot: local(String(n.ot)), otx: local(String(n.otx)) }) : '.') })
         };
     }
 
@@ -8316,13 +8505,13 @@
         var none = [{ l: 'Tip', v: NaN }, { l: 'Total', v: NaN }, { l: 'Each', v: NaN }], r, why, way = +raw.round;
         if (!raw.bill || [n.bill, n.pct, n.people].some(isNaN)) return { rows: none };
         r = CalcMaths.tip(n.bill, n.pct, n.people, way);
-        why = { bill: 'The bill is 0 or more.', tip: 'The tip is 0% or more.', people: 'People are a whole number from 1 to 10000.' }[r.error];
+        why = { bill: tr('The bill is 0 or more.'), tip: tr('The tip is 0% or more.'), people: tr('People are a whole number from 1 to 10000.') }[r.error];
         if (why) return { rows: none, warn: true, note: why };
         return {
             rows: [{ l: 'Tip', v: r.tip, places: 2 }, { l: 'Total', v: r.total, places: 2 }].concat(n.people > 1 ? [{ l: 'Each', v: r.each, places: 2 }, { l: 'Tip each', v: r.tipEach, places: 2 }] : [],
                 way ? [{ l: 'Tip %', v: r.percent, dp: 2 }] : []),
-            note: r.more ? cents(r.cents) + ' each comes ' + (r.more === 1 ? 'a cent' : r.more + ' cents') + ' short: ' + (r.more === 1 ? 'one pays ' : r.more + ' pay ') + cents(r.cents + 0.01) + '.' :
-                way ? 'Rounded up so ' + (way === 1 ? 'each pays' : 'the total is') + ' a whole amount: Tip % is the tip then.' : ''
+            note: r.more ? trn(r.more, '{each} each comes a cent short: one pays {more}.', '{each} each comes {n} cents short: {n} pay {more}.', { each: cents(r.cents), more: cents(r.cents + 0.01) }) :
+                way ? (way === 1 ? tr('Rounded up so each pays a whole amount: Tip % is the tip then.') : tr('Rounded up so the total is a whole amount: Tip % is the tip then.')) : ''
         };
     }
 
@@ -8342,12 +8531,12 @@
         var unit = +raw.unit, mi = unit > 1, none = [{ l: 'Fuel', v: NaN }, { l: 'Cost', v: NaN }, { l: 'Each', v: NaN }], r, why;
         if (!raw.d || !raw.e || !raw.p || [n.d, n.e, n.p, n.people].some(isNaN)) return { rows: none };
         r = CalcMaths.fuel(n.d, n.e, n.p, unit, n.people);
-        why = { distance: 'The distance is 0 or more.', economy: 'The economy is above 0.', price: 'The price is 0 or more.', people: 'People are a whole number from 1 to 10000.' }[r.error];
+        why = { distance: tr('The distance is 0 or more.'), economy: tr('The economy is above 0.'), price: tr('The price is 0 or more.'), people: tr('People are a whole number from 1 to 10000.') }[r.error];
         if (why) return { rows: none, warn: true, note: why };
         return {
             rows: [{ l: unit === 2 ? 'Fuel, gal' : 'Fuel, L', v: r.fuel, dp: 2 }, { l: 'Cost', v: r.cost, places: 2 }, { l: mi ? 'A mile' : 'A km', v: r.per, places: 3 }, { l: 'There and back', v: CalcMaths.round(2 * r.cost), places: 2 }]
                 .concat(n.people > 1 ? [{ l: 'Each', v: r.each, places: 2 }] : [], unit ? [{ l: 'L/100 km', v: r.l100, dp: 1 }] : [{ l: 'MPG US', v: r.mpg, dp: 1 }]),
-            note: unit === 3 ? 'A UK gallon is ' + local('4.54609') + ' L; the price a litre, as it is sold.' : unit === 2 ? 'A US gallon is ' + local('3.785411784') + ' L.' : ''
+            note: unit === 3 ? tr('A UK gallon is {l} L; the price a litre, as it is sold.', { l: local('4.54609') }) : unit === 2 ? tr('A US gallon is {l} L.', { l: local('3.785411784') }) : ''
         };
     }
 
@@ -8360,13 +8549,13 @@
         }
         r = CalcMaths.bond(n.face, n.coupon, n.years, n.freq, raw.price ? n.price : NaN, raw.yld ? n.yld : NaN);
         why = {
-            face: 'The face value is above 0.',
-            coupon: 'The coupon is 0% or more.',
-            years: 'Years are above 0.',
-            freq: 'Coupons a year are a whole number from 1 to 12.',
-            yield: 'The yield a period, the yield a year ÷ coupons a year, is above –100%.',
-            price: 'The price is above 0, of a yield a period above –99.99%.',
-            long: 'Up to 100000 coupons.'
+            face: tr('The face value is above 0.'),
+            coupon: tr('The coupon is 0% or more.'),
+            years: tr('Years are above 0.'),
+            freq: tr('Coupons a year are a whole number from 1 to 12.'),
+            yield: tr('The yield a period, the yield a year ÷ coupons a year, is above –100%.'),
+            price: tr('The price is above 0, of a yield a period above –99.99%.'),
+            long: tr('Up to 100000 coupons.')
         }[r.error];
         if (why) return { rows: none, warn: true, note: why };
         return {
@@ -8374,28 +8563,27 @@
                 .concat([{ l: 'Current yield %', v: r.current, dp: 2 }, { l: 'Duration', v: r.duration, dp: 2 }, { l: 'Modified duration', v: r.modified, dp: 2 }],
                     r.accrued ? [{ l: 'Accrued', v: r.accrued, places: 2 }, { l: 'Dirty price', v: r.dirty, places: 2 }] : [],
                     n.years * n.freq <= 2000 && r.yld > -50 ? drawnTile(graphDrawing('Its price at each yield', r.yld < 0 ? 2 * r.yld : 0, Math.max(2 * r.yld, r.yld + 4, 2 * n.coupon), {
-                        fs: [function (y) { return CalcMaths.bond(n.face, n.coupon, n.years, n.freq, NaN, y).price; }], dots: [[r.yld, r.price]], marks: [[n.coupon, 'Coupon']] })) : []),
-            note: 'Duration in years, Macaulay\'s; the modified one is how much the price falls, as a percentage, for each 1% more yield.' +
-                (r.accrued ? ' The next coupon is nearer than a whole period: the price is without the interest earned since the last one, the dirty price with it.' : '')
+                        fs: [function (y) { return CalcMaths.bond(n.face, n.coupon, n.years, n.freq, NaN, y).price; }], dots: [[r.yld, r.price]], marks: [[n.coupon, tr('Coupon')]] })) : []),
+            note: tr('Duration in years, Macaulay\'s; the modified one is how much the price falls, as a percentage, for each 1% more yield.{v}', { v: (r.accrued ? tr(' The next coupon is nearer than a whole period: the price is without the interest earned since the last one, the dirty price with it.') : '') })
         };
     }
 
     // what an asset loses each year, by the straight line or the declining balance
     function runDepreciation(n, raw) {
-        var none = [{ l: 'First year', v: NaN }, { l: 'A year %', v: NaN }, { l: 'In all', v: NaN }], r, why;
+        var none = [{ l: tr('First year'), v: NaN }, { l: tr('A year %'), v: NaN }, { l: tr('In all'), v: NaN }], r, why;
         if (!raw.cost || !raw.life || [n.cost, n.salvage, n.life].some(isNaN)) return { rows: none };
         r = CalcMaths.depreciation(n.cost, n.salvage, n.life, raw.way === '1');
         why = {
-            cost: 'The cost is above 0.',
-            salvage: 'The salvage value is 0 or more, and no more than the cost.',
-            life: 'Years are a whole number from 1 to 1000.'
+            cost: tr('The cost is above 0.'),
+            salvage: tr('The salvage value is 0 or more, and no more than the cost.'),
+            life: tr('Years are a whole number from 1 to 1000.')
         }[r.error];
         if (why) return { rows: none, warn: true, note: why };
         return {
-            rows: [{ l: 'First year', v: r.first, places: 2 }, { l: 'A year %', v: r.rate, dp: 2 }, { l: 'In all', v: CalcMaths.round(n.cost - n.salvage), places: 2 },
-                { l: 'Each year', m: r.byYear, head: ['Year', 'Depreciation', 'So far', 'Book value'], places: 2 }],
-            note: raw.way === '1' ? 'Each year ' + local(String(r.rate)) + '% of what is left, until the straight line over the years left loses more; never below the salvage value.' :
-                'The same each year: the cost less the salvage value, over the years.'
+            rows: [{ l: tr('First year'), v: r.first, places: 2 }, { l: tr('A year %'), v: r.rate, dp: 2 }, { l: tr('In all'), v: CalcMaths.round(n.cost - n.salvage), places: 2 },
+                { l: tr('Each year'), m: r.byYear, head: [tr('Year'), tr('Depreciation'), tr('So far'), tr('Book value')], places: 2 }],
+            note: raw.way === '1' ? tr('Each year {rate}% of what is left, until the straight line over the years left loses more; never below the salvage value.', { rate: local(String(r.rate)) }) :
+                tr('The same each year: the cost less the salvage value, over the years.')
         };
     }
 
@@ -8409,7 +8597,7 @@
             rows: [{ l: 'Units', v: r.units, dp: 2 }, { l: 'Sales', v: r.sales, places: 2 }, { l: 'Margin each', v: r.margin, places: 2 }, { l: 'Margin %', v: r.percent, dp: 2 }]
                 .concat(r.units > 0 ? drawnTile(graphDrawing('What they sell for, and what they cost', 0, 2 * r.units, { fs: [function (q) { return n.price * q; }, function (q) { return n.fixed + n.cost * q; }],
                     dots: [[r.units, r.sales]] })) : []),
-            note: r.units > 0 && r.units % 1 ? local(String(Math.ceil(r.units - 1e-9))) + ' whole units cover them.' : ''
+            note: r.units > 0 && r.units % 1 ? tr('{units} whole units cover them.', { units: local(String(Math.ceil(r.units - 1e-9))) }) : ''
         };
     }
 
@@ -8452,7 +8640,7 @@
                 fs: [function (x) { return CalcMaths.effectiveRate(apr, Math.pow(10, x)); }, function () { return CalcMaths.effectiveRate(apr, Infinity); }],
                 y: CalcMaths.effectiveRate(apr, Infinity) > apr ? [apr - 0.15 * (CalcMaths.effectiveRate(apr, Infinity) - apr), CalcMaths.effectiveRate(apr, Infinity) + 0.6 * (CalcMaths.effectiveRate(apr, Infinity) - apr)] : undefined, marks: [[Math.log10(12), '12'], [Math.log10(365), '365']], dots: n.m === Infinity ? [] : [[Math.log10(Math.min(365, n.m)), apy]],
                 names: ['', 'APY %'] }) : '', 'APY and how often').concat([{ l: 'APR %', v: apr, dp: 2 }, { l: 'APY %', v: apy, dp: 2 }, { l: 'A period %', v: n.m === Infinity ? NaN : CalcMaths.round(apr / n.m), sig: 4 }]),
-            note: n.m === Infinity ? 'Interest all the time: APY is e to the APR, less 1.' : 'Interest ' + local(String(n.m)) + ' times a year, of APR ÷ m each time.'
+            note: n.m === Infinity ? 'Interest all the time: APY is e to the APR, less 1.' : tr('Interest {m} times a year, of APR ÷ m each time.', { m: local(String(n.m)) })
         };
     }
 
@@ -8485,7 +8673,7 @@
                     var size = sizeOf(raw.size) || [2, 2], out = [{ k: 'size', l: 'Size of A', ph: '2×2', text: true, shape: true }, { head: 'A | b', cols: size[1] + 1 }], i, j;
                     for (i = 1; i <= size[0]; i++) {
                         for (j = 1; j <= size[1]; j++) out.push({ k: 'a' + i + j, ph: '0', def: 0, aria: 'A row ' + i + ' column ' + j, cell: { g: 'ab', s: 'size', i: i, j: j, n: size } });
-                        out.push({ k: 'b' + i + '1', ph: '0', def: 0, aria: 'b row ' + i, cls: 'calc-sv-rhs', cell: { g: 'ab', s: 'size', i: i, j: j, n: size } });
+                        out.push({ k: 'b' + i + '1', ph: '0', def: 0, aria: tr('b row {i}', { i: i }), cls: 'calc-sv-rhs', cell: { g: 'ab', s: 'size', i: i, j: j, n: size } });
                     }
                     return out;
                 }, run: runAxb,
@@ -8585,7 +8773,7 @@
         var s = sizeOf(size) || [2, 2], out = [{ head: name, cols: s[1] }], i, j;
         for (i = 1; i <= s[0]; i++) {
             for (j = 1; j <= s[1]; j++) {
-                out.push({ k: letter + i + j, ph: '0', def: 0, aria: name + ' row ' + i + ' column ' + j, cell: { g: letter, s: key || 'size', i: i, j: j, n: s } });
+                out.push({ k: letter + i + j, ph: '0', def: 0, aria: tr('{name} row {i} column {j}', { name: name, i: i, j: j }), cell: { g: letter, s: key || 'size', i: i, j: j, n: s } });
             }
         }
         return out;
@@ -8613,7 +8801,7 @@
                 { l: 'Exponential', text: exponentialText(p), wide: true },
                 { l: 'Conjugate', text: complexText({ re: z.re, im: CalcMaths.round(0 - z.im) }) },
                 planeTile([z, { re: z.re, im: -z.im }], 0, 'z and its conjugate')],
-            note: 'Angles in ' + ['radians', 'degrees', 'gradians'][deg] + ', the unit in use.'
+            note: tr('Angles in {v}, the unit in use.', { v: [tr('radians'), tr('degrees'), tr('gradians')][deg] })
         };
     }
 
@@ -8644,9 +8832,10 @@
     // above 0 is of a coil, the current behind the voltage; below 0, of a capacitor, ahead of it
     function runImpedance(n, raw) {
         var v = { r: siValue(raw.r, 'Ω|ohms?'), l: siValue(raw.l, 'h'), c: siValue(raw.c, 'f'), f: raw.f ? siValue(raw.f, 'hz') : 50 },
-            bad = Object.keys(v).filter(function (k) { return v[k] !== null && isNaN(v[k]); }), none = [{ l: 'Z', v: NaN, wide: true }], r, p;
-        if (bad.length) return { rows: none, bad: bad, warn: true, note: bad.map(function (k) { return k === 'r' ? 'R' : k === 'l' ? 'L' : k === 'c' ? 'C' : 'f'; }).join(' and ') +
-            (bad.length > 1 ? ' are' : ' is') + ' not a value: 100, 4.7k, 10m, 100µ or 1e-6.' };
+            bad = Object.keys(v).filter(function (k) { return v[k] !== null && isNaN(v[k]); }), none = [{ l: 'Z', v: NaN, wide: true }], r, p,
+            letter = function (k) { return k === 'r' ? 'R' : k === 'l' ? 'L' : k === 'c' ? 'C' : 'f'; };
+        if (bad.length) return { rows: none, bad: bad, warn: true, note: bad.length > 1 ? tr('{bad} and {last} are not values: 100, 4.7k, 10m, 100µ or 1e-6.', { bad: bad.slice(0, -1).map(letter).join(tr(', ')), last: letter(bad[bad.length - 1]) }) :
+            tr('{bad} is not a value: 100, 4.7k, 10m, 100µ or 1e-6.', { bad: letter(bad[0]) }) };
         r = CalcMaths.impedance(v.r, v.l, v.c, v.f, raw.circuit === '1');
         if (r.error === 'none') return { rows: none };
         if (r.error) return { rows: none, warn: true, note: v.c === 0 ? 'C is above 0: a capacitor of 0 F is none.' : 'R, L, C and f are 0 or above.' };
@@ -8657,8 +8846,7 @@
                 { l: 'Reactance, Ω', v: r.z.im }, { l: 'X<sub>L</sub> = ωL', v: isFinite(r.xl) ? r.xl : NaN }, { l: 'X<sub>C</sub> = 1/ωC', v: isFinite(r.xc) ? r.xc : NaN },
                 { l: 'Resonance f<sub>0</sub>, Hz', v: r.resonance, wide: true },
                 planeTile([r.z], 0, 'Z on the plane')],
-            note: (!r.z.im ? 'In phase: as a resistor alone.' : r.z.im > 0 ? 'Of a coil: the current is behind the voltage by φ.' : 'Of a capacitor: the current is ahead of the voltage by |φ|.') +
-                ' Angles in ' + ['radians', 'degrees', 'gradians'][deg] + '.' + (raw.f ? '' : ' f is 50 Hz while it is empty.')
+            note: (!r.z.im ? tr('In phase: as a resistor alone. Angles in {v}.{v2}', { v: [tr('radians'), tr('degrees'), tr('gradians')][deg], v2: (raw.f ? '' : tr(' f is 50 Hz while it is empty.')) }) : r.z.im > 0 ? tr('Of a coil: the current is behind the voltage by φ. Angles in {v}.{v2}', { v: [tr('radians'), tr('degrees'), tr('gradians')][deg], v2: (raw.f ? '' : tr(' f is 50 Hz while it is empty.')) }) : tr('Of a capacitor: the current is ahead of the voltage by |φ|. Angles in {v}.{v2}', { v: [tr('radians'), tr('degrees'), tr('gradians')][deg], v2: (raw.f ? '' : tr(' f is 50 Hz while it is empty.')) }))
         };
     }
 
@@ -8732,8 +8920,7 @@
         if (!f) return { rows: none };
         if (f.error) {
             return { rows: none, bad: ['e'], warn: true, note: {
-                expression: (f.at < raw.e.length ? 'Not one at "' + raw.e.slice(f.at, f.at + 8) + '"' : 'It ends too soon') +
-                    ': variables as A, b or x1, with AND OR NOT XOR NAND NOR XNOR, + · \' and brackets; or Σm(1, 3) + d(7).',
+                expression: tr('{v}: variables as A, b or x1, with AND OR NOT XOR NAND NOR XNOR, + · \' and brackets; or Σm(1, 3) + d(7).', { v: (f.at < raw.e.length ? tr('Not one at "{at}"', { at: raw.e.slice(f.at, f.at + 8) }) : tr('It ends too soon')) }),
                 many: 'Up to 8 variables.', vars: 'F(A, B, C) = names each of its variables once, all that are in it.', range: 'A row\'s number beyond its variables: of 3, they are 0 to 7.'
             }[f.error] };
         }
@@ -8841,7 +9028,7 @@
         w = Math.max(4, Math.min(16, list[4].toString(2).length));
         cell = Math.min(26, Math.floor(220 / w));
         x0 = (300 - w * cell) / 2 + 24;
-        body += svgText(x0 - 14, 12, 'n', 'end') + svgText(x0 + w * cell / 2, 12, 'Gray code' + (w < bits ? ', its last ' + w + ' bits' : ''), 'middle');
+        body += svgText(x0 - 14, 12, 'n', 'end') + svgText(x0 + w * cell / 2, 12, tr('Gray code{v}', { v: (w < bits ? tr(', its last {w} bits', { w: w }) : '') }), 'middle');
         list.forEach(function (v, row) {
             var gv = CalcMaths.gray(v, bits), s = BigInt.asUintN(w, gv).toString(2).padStart(w, '0'), y = 20 + row * 21, changed = last === null ? -1 : CalcMaths.bitCount(gv ^ last, bits).low;
             body += svgText(x0 - 14, y + 13.5, String(v), 'end', v === num ? 'calc-sv-bold' : 'calc-sv-small');
@@ -8883,8 +9070,8 @@
         if (r.error) return { rows: none, bad: ['x'], warn: true, note: 'A number, 0.1, pi or 1e-7, inf or nan; or its bits, 0x3FB999999999999A for a double, 0x3DCCCCCD for a float.' };
         e = r.bits.split(' ');
         return {
-            rows: drawnTile(bitsDrawing('Its ' + (e.join('').length) + ' bits: the sign, the exponent and the fraction', e.join(''), [['Sign', 1, '#f0b3b3'], ['Exponent, ' + e[1].length, e[1].length, '#bcd0e6'],
-                ['Fraction, ' + e[2].length, e[2].length, '#d3e5da']]), 'Its bits').concat([{ l: 'Number', v: r.x, wide: true }, { l: 'Double, 64 bits', text: '0x' + r.hex64, wide: true },
+            rows: drawnTile(bitsDrawing('Its ' + (e.join('').length) + ' bits: the sign, the exponent and the fraction', e.join(''), [['Sign', 1, '#f0b3b3'], [tr('Exponent, {e}', { e: e[1].length }), e[1].length, '#bcd0e6'],
+                [tr('Fraction, {e}', { e: e[2].length }), e[2].length, '#d3e5da']]), 'Its bits').concat([{ l: 'Number', v: r.x, wide: true }, { l: 'Double, 64 bits', text: '0x' + r.hex64, wide: true },
                 { l: 'Kept as a double', text: local(r.exact), wide: true, wrap: true },
                 { l: 'Sign', text: r.sign < 0 ? '–' : '+' }, { l: 'Exponent', v: r.exponent }, { l: 'Kind', text: r.kind },
                 { l: 'Sign · exponent · fraction', text: r.bits, wide: true, wrap: true, bits: true },
@@ -8938,7 +9125,7 @@
     function runGcd(n, raw) {
         var r = raw.list ? CalcMaths.divisorsOf(raw.list, engine.comma, deg) : null, none = [{ l: 'GCD', v: NaN }, { l: 'LCM', v: NaN }];
         if (!r) return { rows: none };
-        if (r.error) return { rows: none, bad: ['list'], warn: true, note: (r.at ? r.at + ' is not' : 'Not') + ' a whole number: 12, 18, 30, ' + (engine.comma ? 'with ; or spaces' : 'with commas or spaces') + ' between them.' };
+        if (r.error) return { rows: none, bad: ['list'], warn: true, note: (engine.comma ? tr('{v} a whole number: 12, 18, 30, with ; or spaces between them.', { v: (r.at ? tr('{at} is not', { at: r.at }) : tr('Not')) }) : tr('{v} a whole number: 12, 18, 30, with commas or spaces between them.', { v: (r.at ? tr('{at} is not', { at: r.at }) : tr('Not')) })) };
         return {
             rows: [wholeTile('GCD', r.gcd), wholeTile('LCM', r.lcm), { l: 'Coprime', text: r.n > 1 ? (r.gcd === BigInt(1) ? 'Yes' : 'No') : '–' }],
             note: r.n < 2 ? 'Of two numbers or more.' : r.gcd === BigInt(1) ? 'They have no factor in common.' : ''
@@ -8987,7 +9174,7 @@
         return {
             rows: [{ l: 'Rounded', v: to('round') }, { l: 'Down ⌊x⌋', v: to('floor') }, { l: 'Up ⌈x⌉', v: to('ceil') }, { l: 'Toward 0', v: to('trunc') },
                 { l: 'Fraction part', v: ok ? CalcMaths.round(x - CalcMaths.roundTo(x, 0, 'trunc')) : NaN },
-                { l: 'To ' + (ok && d >= 1 && !bad ? d : 'd') + ' figures', v: ok && d >= 1 && !bad ? CalcMaths.significant(x, d) : NaN }].concat(ok && !bad ? drawnTile(roundDrawing(x, d, to('floor'), to('ceil'), to('round'))) : []),
+                { l: tr('To {v} figures', { v: (ok && d >= 1 && !bad ? d : 'd') }), v: ok && d >= 1 && !bad ? CalcMaths.significant(x, d) : NaN }].concat(ok && !bad ? drawnTile(roundDrawing(x, d, to('floor'), to('ceil'), to('round'))) : []),
             note: bad ? 'Places are a whole number from –15 to 15.' : '', warn: bad
         };
     }
@@ -8998,8 +9185,7 @@
         var k = a.every(function (r) { return r.every(isFinite); }) ? CalcMaths.condition(a) : NaN, right;
         if (!(k >= 1e6) || k === Infinity) return '';
         right = Math.max(0, Math.floor(16 - Math.log10(k)));
-        return 'Badly conditioned, κ ≈ ' + local(k.toPrecision(2).replace(/e\+?/, 'e')) + ': ' +
-            (right ? 'only about ' + right + (right === 1 ? ' digit' : ' digits') : 'none of the digits') + ' of what is worked out of it can be trusted.';
+        return tr('Badly conditioned, κ ≈ {k}: {v} of what is worked out of it can be trusted.', { k: local(k.toPrecision(2).replace(/e\+?/, 'e')), v: (right ? trn(right, 'only about {n} digit', 'only about {n} digits') : tr('none of the digits')) });
     }
 
     // a note, and another after it, either of which may be ''
@@ -9017,7 +9203,7 @@
                 { l: 'A<sup>' + (whole ? local(String(power)).replace('-', '–') : 'n') + '</sup>', m: square && whole ? CalcMaths.matrixPower(a, power) : null }],
             bad: bad, warn: !!bad.length || (square && !inv) || (isFinite(power) && !whole) || !!trust,
             note: bad.length ? 'A size of rows and columns, each 1 to 10: 3×3, 2 3, or up to 10×10.' : !square ? 'Not square: no determinant, inverse or power.' :
-                isFinite(power) && !whole ? 'n is a whole number from –1000 to 1000.' : !inv ? 'No inverse: its determinant is 0' + (power < 0 ? ', so no power below 0.' : '.') : trust
+                isFinite(power) && !whole ? 'n is a whole number from –1000 to 1000.' : !inv ? tr('No inverse: its determinant is 0{v}', { v: (power < 0 ? tr(', so no power below 0.') : '.') }) : trust
         };
     }
 
@@ -9069,7 +9255,7 @@
         return {
             rows: rows, bad: size ? [] : ['size'], warn: !size || !!trust,
             note: !size ? 'A size of rows and columns, each 1 to 10: 3×3, 3 2, or up to 10×10.' : !r ? '' :
-                r.none ? 'No answer: the equations cannot all hold. The x above is the nearest, by least squares' + (r.least && r.least.many ? ', one of many as near.' : '.') :
+                r.none ? tr('No answer: the equations cannot all hold. The x above is the nearest, by least squares{v}', { v: (r.least && r.least.many ? tr(', one of many as near.') : '.') }) :
                 r.many ? 'Many answers: x is p and any of the v, each times a number t; the x above is p, each t 0.' : trust
         };
     }
@@ -9079,7 +9265,7 @@
         if (!r) return { rows: [{ l: 'rref A', m: null }], bad: ['size'], warn: true, note: 'A size of rows and columns, each 1 to 10: 3×3, 2 3, or up to 10×10.' };
         rows = [{ l: 'rref A', m: r.m }, { l: 'Rank', v: r.rank }, { l: 'Nullity', v: r.kernel.length },
             { l: 'Columns of its first 1s', text: r.pivots.length ? r.pivots.map(function (c) { return c + 1; }).join(', ') : 'none', wide: true }];
-        r.kernel.forEach(function (v, i) { rows.push({ l: 'Null space <b>v</b><sub>' + (i + 1) + '</sub>', m: [v] }); });
+        r.kernel.forEach(function (v, i) { rows.push({ l: tr('Null space <b>v</b><sub>{i}</sub>', { i: (i + 1) }), m: [v] }); });
         trust = a.length === a[0].length && r.rank === a.length ? trustNote(a) : '';
         return { rows: rows, warn: !!trust, note: notes(r.kernel.length ? 'Its null space: each v, and each sum of them times numbers, A takes to 0.' : 'Only 0 does it take to 0.',
             trust && trust.replace('of what is worked out of it can be trusted.', 'can be trusted: its rank may be less.')) };
@@ -9107,8 +9293,7 @@
             rows: [{ l: '<b>u</b> · <b>v</b>', v: r.dot }, r.cross === null ? { l: '<b>u</b> × <b>v</b>', v: NaN } : typeof r.cross === 'number' ? { l: '<b>u</b> × <b>v</b>', v: r.cross } : { l: '<b>u</b> × <b>v</b>', m: [r.cross] },
                 { l: '|<b>u</b>|', v: r.lengths[0] }, { l: '|<b>v</b>|', v: r.lengths[1] }, { l: 'Angle', v: r.angle },
                 { l: '<b>u</b> on <b>v</b>', m: r.projection && [r.projection] }, { l: '<b>u</b> of length 1', m: r.unit && [r.unit] }].concat(drawnTile(vectorsDrawing(u, v))),
-            note: (u.length === 2 ? 'Of two of 2, the cross product is the one number of it, out of the plane. ' : u.length === 4 ? 'No cross product of 4. ' : '') +
-                'The angle in ' + ['radians', 'degrees', 'gradians'][deg] + ', the unit in use.'
+            note: tr('{v}The angle in {v2}, the unit in use.', { v: (u.length === 2 ? tr('Of two of 2, the cross product is the one number of it, out of the plane. ') : u.length === 4 ? tr('No cross product of 4. ') : ''), v2: [tr('radians'), tr('degrees'), tr('gradians')][deg] })
         };
     }
 
@@ -9145,9 +9330,9 @@
         var none = [{ l: 'z', v: NaN }], r = raw.p ? CalcMaths.cpolynomial(raw.p, engine.comma, deg) : null, z, why;
         if (!r) return { rows: none };
         why = {
-            polynomial: 'Not a polynomial of x yet: x^2 + (1 + i)x + 2i, or its coefficients from the highest power, ' + (engine.comma ? '1; 1 + i; 2i.' : '1, 1 + i, 2i.'),
-            letters: 'Only x and i have values here: write the other letters as numbers.',
-            power: 'Up to the power 30.'
+            polynomial: (engine.comma ? tr('Not a polynomial of x yet: x^2 + (1 + i)x + 2i, or its coefficients from the highest power, 1; 1 + i; 2i.') : tr('Not a polynomial of x yet: x^2 + (1 + i)x + 2i, or its coefficients from the highest power, 1, 1 + i, 2i.')),
+            letters: tr('Only x and i have values here: write the other letters as numbers.'),
+            power: tr('Up to the power 30.')
         }[r.error];
         if (why) return { rows: none, bad: ['p'], warn: true, note: why };
         z = CalcMaths.cpoly(r.c);
@@ -9165,15 +9350,15 @@
     }
 
     function runAnyBase(n, raw) {
-        var none = [{ l: 'In base ' + (isFinite(n.to) ? n.to : 'b'), text: '–', wide: true }], from = n.from, to = n.to, f, out, about, ok = function (b) { return b >= 2 && b <= 36 && b === Math.floor(b); };
+        var none = [{ l: tr('In base {v}', { v: (isFinite(n.to) ? n.to : 'b') }), text: '–', wide: true }], from = n.from, to = n.to, f, out, about, ok = function (b) { return b >= 2 && b <= 36 && b === Math.floor(b); };
         if (!raw.x) return { rows: none };
         if (!ok(from) || !ok(to)) return { rows: none, warn: true, note: 'Bases are whole numbers from 2 to 36.' };
         f = CalcMaths.fromBase(raw.x, from);
-        if (!f) return { rows: none, bad: ['x'], warn: true, note: 'Not a number of base ' + from + ': digits 0 to ' + '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'.charAt(from - 1) + ', a point, and a part in brackets that comes again, 0.(3).' };
+        if (!f) return { rows: none, bad: ['x'], warn: true, note: tr('Not a number of base {from}: digits 0 to {top}, a point, and a part in brackets that comes again, 0.(3).', { from: from, top: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ'.charAt(from - 1) }) };
         out = CalcMaths.toBase(f[0], f[1], to, 64);
         about = CalcMaths.about(f[0], f[1]);
         return {
-            rows: [{ l: 'In base ' + to, text: out, wide: true, wrap: true },
+            rows: [{ l: tr('In base {to}', { to: to }), text: out, wide: true, wrap: true },
                 { l: 'Decimal', v: typeof about === 'number' ? about : NaN },
                 { l: 'Fraction', text: f[1] === BigInt(1) ? '–' : String(f[0]).replace('-', '–') + '/' + f[1] }],
             note: /…/.test(out) ? 'It goes on past 64 digits before it comes round.' : ''
@@ -9223,7 +9408,7 @@
         encoded = raw.t ? how.to(bytes) : '';
         return {
             rows: raw.t ? [{ l: how.name, text: encoded || '–', wide: true, wrap: true }].concat(how.name === 'Base64' ? [{ l: 'For web addresses', text: CalcMaths.toBase64(bytes, true) || '–', wide: true, wrap: true }] : [],
-                [{ l: 'Bytes of UTF-8', text: hex || '–', wide: true, wrap: true }, { l: 'Bytes', v: bytes.length }, { l: 'Letters of ' + how.name, v: encoded.length }]) :
+                [{ l: 'Bytes of UTF-8', text: hex || '–', wide: true, wrap: true }, { l: 'Bytes', v: bytes.length }, { l: tr('Letters of {name}', { name: how.name }), v: encoded.length }]) :
                 [{ l: 'Text', text: text === null ? '–' : escaped(text) || '–', wide: true, wrap: true }, { l: 'Bytes', text: hex || '–', wide: true, wrap: true }, { l: 'Bytes', v: bytes.length }],
             note: raw.t && raw.b ? 'Of the text: the box of what is encoded is read while the text is empty.' : text === null && !raw.t ? 'Not text of UTF-8: its bytes alone.' : ''
         };
@@ -9249,7 +9434,7 @@
         rows.forEach(function (r) { delete r.b; });
         return {
             rows: rows, bad: raw.h && !match ? ['h'] : undefined, warn: !!(raw.h && !match),
-            note: !raw.h ? 'MD5 and SHA-1 are broken: for checking a download alone, never for passwords.' : match ? 'It matches the ' + match.l + '.' : 'It matches none of them.'
+            note: !raw.h ? 'MD5 and SHA-1 are broken: for checking a download alone, never for passwords.' : match ? tr('It matches the {l}.', { l: match.l }) : 'It matches none of them.'
         };
     }
 
@@ -9283,7 +9468,7 @@
         if (!v) return { rows: none, bad: ['u'], warn: true, note: 'A UUID is 32 hexadecimal digits, 8-4-4-4-12 with hyphens, or none: f81d4fae-7dec-11d0-a765-00a0c91e6bf6.' };
         hex = '0x' + v.text.replace(/-/g, '').toUpperCase();
         out.push({ l: 'UUID', text: v.text, copy: v.text, wide: true });
-        out.push({ l: 'Version', text: v.nil ? 'Nil, all 0' : v.max ? 'Max, all 1' : v.version === null ? 'None: not of RFC 9562' : UUID_VERSIONS[v.version] || v.version + ', of none yet', wide: true });
+        out.push({ l: 'Version', text: v.nil ? 'Nil, all 0' : v.max ? 'Max, all 1' : v.version === null ? 'None: not of RFC 9562' : UUID_VERSIONS[v.version] || tr('{version}, of none yet', { version: v.version }), wide: true });
         if (!v.nil && !v.max) out.push({ l: 'Variant', text: { NCS: 'NCS, of the 1980s', RFC: 'RFC 9562', Microsoft: 'Microsoft, of old', Future: 'Kept for the future' }[v.variant], wide: true });
         if (v.time !== null) {
             at = new Date(Math.floor(v.time));
@@ -9307,13 +9492,13 @@
         if (r.error) return { rows: none, bad: ['ip'], warn: true, note: {
             address: r.v6 ? 'An IPv6 address, up to eight groups of up to four hexadecimal digits with colons between them, :: for a run of 0s, and its prefix: 2001:db8::1/48.' :
                 'An IPv4 address, four numbers from 0 to 255 with dots between them, and its prefix or mask: 192.168.1.10/24, or 192.168.1.10 255.255.255.0; or an IPv6 address, 2001:db8::1/48.',
-            prefix: 'The prefix is from /0 to /' + (r.v6 ? 128 : 32) + ': how many bits, from the left, are of the network.',
+            prefix: tr('The prefix is from /0 to /{v}: how many bits, from the left, are of the network.', { v: (r.v6 ? 128 : 32) }),
             mask: 'Not a mask: its 1s are all on the left, 255.255.255.0, 255.255.240.0.'
         }[r.error] };
         if (r.v6) return runSubnet6(r);
         return {
-            rows: drawnTile(bitsDrawing('The address, its first ' + r.prefix + ' bits the network', CalcMaths.inBase(BigInt(r.address), 32, 2).replace(/ /g, ''),
-                [['Network, ' + r.prefix, r.prefix, '#bcd0e6'], ['Host, ' + (32 - r.prefix), 32 - r.prefix, '#d3e5da']], 8), 'Its bits').concat([{ l: 'Network', text: ip(r.network) + '/' + r.prefix, wide: true }, { l: 'Broadcast', text: ip(r.broadcast), wide: true },
+            rows: drawnTile(bitsDrawing(tr('The address, its first {prefix} bits the network', { prefix: r.prefix }), CalcMaths.inBase(BigInt(r.address), 32, 2).replace(/ /g, ''),
+                [[tr('Network, {prefix}', { prefix: r.prefix }), r.prefix, '#bcd0e6'], [tr('Host, {v}', { v: (32 - r.prefix) }), 32 - r.prefix, '#d3e5da']], 8), 'Its bits').concat([{ l: 'Network', text: ip(r.network) + '/' + r.prefix, wide: true }, { l: 'Broadcast', text: ip(r.broadcast), wide: true },
                 { l: 'Mask', text: ip(r.mask), wide: true }, { l: 'Wildcard', text: ip(r.wildcard), wide: true },
                 { l: 'First host', text: ip(r.first), wide: true }, { l: 'Last host', text: ip(r.last), wide: true },
                 { l: 'Hosts', v: r.hosts }, { l: 'Addresses', v: r.all }, { l: 'Kind', text: r.kind }, // the three on one line
@@ -9351,12 +9536,12 @@
         r = CalcMaths.modular([raw.a, raw.b || '1', raw.m], engine.comma, deg);
         if (r.error) {
             return { rows: none, bad: r.error === 'whole' ? [r.at] : ['m'], warn: true,
-                note: r.error === 'whole' ? r.at + ' is a whole number, of up to 200 digits.' : 'm is a whole number above 0.' };
+                note: r.error === 'whole' ? tr('{at} is a whole number, of up to 200 digits.', { at: r.at }) : 'm is a whole number above 0.' };
         }
         s = r.solve;
         return {
             rows: [wholeTile('a mod m', r.mod), raw.b ? wholeTile('a<sup>b</sup> mod m', r.power) : { l: 'a<sup>b</sup> mod m', v: NaN }, wholeTile('a<sup>–1</sup> mod m', r.inverse),
-                { l: 'a x ≡ b (mod m)', text: !raw.b ? '–' : s ? 'x ≡ ' + s.x + ' (mod ' + s.step + ')' + (s.count > BigInt(1) ? ', ' + s.count + ' of them below m' : '') : 'none', wide: true, wrap: true }],
+                { l: 'a x ≡ b (mod m)', text: !raw.b ? '–' : s ? tr('x ≡ {x} (mod {step}){v}', { x: s.x, step: s.step, v: (s.count > BigInt(1) ? tr(', {count} of them below m', { count: s.count }) : '') }) : 'none', wide: true, wrap: true }],
             note: r.inverse === null ? 'a and m have a factor in common: a has no inverse mod m' + (raw.b && r.power === null ? ', so no power below 0.' : '.') : ''
         };
     }
@@ -9364,9 +9549,9 @@
     function runChinese(n, raw) {
         var none = [{ l: 'x', v: NaN }], r = raw.list ? CalcMaths.chinese(raw.list, engine.comma, deg) : null;
         if (!r) return { rows: none };
-        if (r.error) return { rows: none, bad: ['list'], warn: true, note: (r.at ? r.at + ': not' : 'Not') + ' of the form 2 mod 3, ' + (engine.comma ? 'with ; between them.' : 'with commas between them.') };
+        if (r.error) return { rows: none, bad: ['list'], warn: true, note: (engine.comma ? tr('{v} of the form 2 mod 3, with ; between them.', { v: (r.at ? tr('{at}: not', { at: r.at }) : tr('Not')) }) : tr('{v} of the form 2 mod 3, with commas between them.', { v: (r.at ? tr('{at}: not', { at: r.at }) : tr('Not')) })) };
         if (r.none) return { rows: none, warn: true, note: 'None: they cannot all hold, their moduli having a factor in common.' };
-        return { rows: [wholeTile('x', r.x), wholeTile('Modulus', r.m), { l: 'All of them', text: 'x ≡ ' + r.x + ' (mod ' + r.m + ')', wide: true, wrap: true }] };
+        return { rows: [wholeTile('x', r.x), wholeTile('Modulus', r.m), { l: 'All of them', text: tr('x ≡ {x} (mod {m})', { x: r.x, m: r.m }), wide: true, wrap: true }] };
     }
 
     function runExact(n, raw) {
@@ -9374,7 +9559,7 @@
         if (!r) return { rows: none };
         if (r.error) {
             return { rows: none, bad: r.error === 'expression' ? ['e'] : [], warn: true, note: {
-                expression: 'Of whole numbers and fractions: + – × ÷, ^, n!, nCr, nPr, C(n' + (engine.comma ? ';' : ',') + ' k), P(n' + (engine.comma ? ';' : ',') + ' k), fib(n).',
+                expression: tr('Of whole numbers and fractions: + – × ÷, ^, n!, nCr, nPr, C(n{v} k), P(n{v} k), fib(n).', { v: (engine.comma ? ';' : ',') }),
                 large: 'More than 20000 digits.',
                 zero: 'Division by 0.',
                 whole: 'n! and a choice of whole numbers up to 5000, fib(n) of one, a power of a whole number.'
@@ -9429,7 +9614,7 @@
                 body += '<circle cx="' + fix(x) + '" cy="' + cy + '" r="' + R + '" fill="none" stroke="#b0414d" stroke-width="1.2"/>';
             }
         }
-        return svgOf('', W, 74, 'The fraction as pies, each whole one shaded', body + svgText(W / 2, 72, (many ? whole + ' whole, 5 drawn' : whole ? whole + ' whole' : '') +
+        return svgOf('', W, 74, 'The fraction as pies, each whole one shaded', body + svgText(W / 2, 72, (many ? tr('{whole} whole, 5 drawn', { whole: whole }) : whole ? tr('{whole} whole', { whole: whole }) : '') +
             (whole && rest ? ' and ' : '') + (rest ? rest + ' of ' + b : ''), 'middle'));
     }
 
@@ -9443,7 +9628,7 @@
             return {
                 rows: [{ l: 'Fraction', text: f ? String(f[0]).replace('-', '–') + '/' + f[1] : '–' }, { l: 'Value', v: r.value },
                     { l: 'Continued fraction', text: '[' + cf[0] + (cf.length > 1 ? '; ' + cf.slice(1).join(', ') : '') + ']', wide: true, wrap: true }],
-                note: 'Of a calculation: as near as its digits tell.' + (f ? '' : ' Not a fraction of up to 10 digits.')
+                note: tr('Of a calculation: as near as its digits tell.{v}', { v: (f ? '' : tr(' Not a fraction of up to 10 digits.')) })
             };
         }
         t = r.top;
@@ -9567,7 +9752,7 @@
             return isFinite(CalcMaths.zoneOffset(zoneOf(c[0]), ms)); // not a zone the browser does not have
         }).map(function (c) {
             var z = zoneOf(c[0]);
-            return [c[0], (z.here ? 'Here, ' + (z.id || '').split('/').pop().replace(/_/g, ' ') : c[0]) +
+            return [c[0], (z.here ? tr('Here, {v}', { v: tr((z.id || '').split('/').pop().replace(/_/g, ' ')) }) : tr(c[0])) +
                 ' <span class="calc-conv-of">(' + CalcMaths.offsetText(CalcMaths.zoneOffset(z, ms)) + ')</span>'];
         });
     }
@@ -9599,12 +9784,12 @@
     // a place's tile: its time, big, its offset beside it, and of another place how far ahead of the first it is, then its date under it
     function zoneRow(zone, ms, off, first) {
         var at = new Date(ms + off * 60000), gap = first === null ? 0 : off - first, a = Math.abs(gap),
+            hm = (Math.floor(a / 60) ? Math.floor(a / 60) + 'h' : '') + (a % 60 ? (a >= 60 ? ' ' : '') + a % 60 + 'min' : ''),
             clock = at.toLocaleString(DATE_LANG, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC' }),
             day = at.toLocaleString(DATE_LANG, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
         return { l: zone.here ? (zone.id || '').split('/').pop().replace(/_/g, ' ') : zone.name, wide: true, copy: day + ', ' + clock + ' ' + CalcMaths.offsetText(off), // here, by its city
             text: '<span class="calc-sv-clock">' + clock + '<span class="calc-sv-off">' + CalcMaths.offsetText(off) +
-                (first === null ? '' : ' (' + (!gap ? 'the same time' : (Math.floor(a / 60) ? Math.floor(a / 60) + 'h' : '') +
-                    (a % 60 ? (a >= 60 ? ' ' : '') + a % 60 + 'min' : '') + (gap > 0 ? ' ahead' : ' behind')) + ')') + '</span></span><span class="calc-sv-day">' + day + '</span>' };
+                (first === null ? '' : ' (' + (!gap ? tr('the same time') : (gap > 0 ? tr('{gap} ahead', { gap: hm }) : tr('{gap} behind', { gap: hm }))) + ')') + '</span></span><span class="calc-sv-day">' + day + '</span>' };
     }
 
     // The date and time of a Unix timestamp, or the timestamp of a date and time: the timestamp in
@@ -9637,7 +9822,7 @@
                 { l: 'UTC', text: dateText(day) + ', ' + two(Math.floor(at / 3600000)) + ':' + two(Math.floor(at / 60000) % 60) + ':' + two(Math.floor(at / 1000) % 60) + (at % 1000 ? '.' + String(at % 1000).padStart(3, '0') : ''), wide: true },
                 { l: 'Time here', text: new Date(ms).toLocaleString(DATE_LANG, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short' }), wide: true },
                 { l: 'ISO 8601', text: new Date(ms).toISOString().replace('.000Z', 'Z').replace(/^\+0*(?=\d{4}-)/, ''), wide: true }],
-            note: milli ? 'Of 13 digits: milliseconds.' : raw.convert !== '1' ? 'Seconds from 1 January 1970, in UTC.' : 'The date and time in ' + (raw.zone === '1' ? 'the time here.' : 'UTC.')
+            note: milli ? 'Of 13 digits: milliseconds.' : raw.convert !== '1' ? 'Seconds from 1 January 1970, in UTC.' : (raw.zone === '1' ? tr('The date and time in the time here.') : tr('The date and time in UTC.'))
         };
     }
 
@@ -9649,9 +9834,9 @@
 
     // A date is written in numbers as the browser's region writes it: 14/10/2026 in the UK and France,
     // 14.10.2026 in Germany, 10/14/2026 in the US, 2026-10-14 in Sweden; and read so as it is typed.
-    // Its words are English, as the calculator's, in the order of the US or the UK. The weeks of the
+    // Its words are in the language in use (lang.js); in English, in the order of the US or the UK. The weeks of the
     // calendar start on the region's first day: Monday, or Sunday in the US
-    var DATE_LANG = /^en\b/i.test(navigator.language || '') ? navigator.language : 'en-GB',
+    var DATE_LANG = CalcLang.locale !== 'en' ? CalcLang.locale : /^en\b/i.test(navigator.language || '') ? navigator.language : 'en-GB',
         DATE_NUMBERS = (function () {
             var how = { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC', numberingSystem: 'latn', calendar: 'gregory' };
             try {
@@ -9692,9 +9877,10 @@
     // 3 weeks, 1 day: each that is not 0, grouped as the display groups; 0 days for none
     function timeText(parts) {
         var text = parts.filter(function (p) { return p[0]; }).map(function (p) {
-            return CalcEngine.group(String(p[0]), fmt.group) + ' ' + p[1] + (p[0] === 1 ? '' : 's');
+            var v = { n: CalcEngine.group(String(p[0]), fmt.group) };
+            return p[1] === 'year' ? trn(p[0], '{n} year', '{n} years', v) : p[1] === 'month' ? trn(p[0], '{n} month', '{n} months', v) : trn(p[0], '{n} day', '{n} days', v);
         }).join(', ');
-        return text || '0 days';
+        return text || tr('0 days');
     }
 
     // the date of a box, today while it is empty or says so
@@ -9755,9 +9941,9 @@
             html += d < CAL_FIRST || d > CAL_LAST ? '<span></span>' : '<span class="calc-cal-day' + (CalcMaths.dateOf(d).m !== c.m ? ' calc-cal-out' : '') +
                 (d === now ? ' calc-cal-now' : '') + (d === chosen ? ' calc-on' : '') + (d === calLit ? ' calc-lit' : '') + '" data-d="' + d + '">' + CalcMaths.dateOf(d).d + '</span>';
         }
-        calendar.innerHTML = '<div class="calc-cal-head"><span class="calc-cal-go" data-go="-12" title="A year back">«</span>' +
-            '<span class="calc-cal-go" data-go="-1" title="A month back">‹</span><span class="calc-cal-title">' + dateText(calLit, { month: 'long', year: 'numeric' }) + '</span>' +
-            '<span class="calc-cal-go" data-go="1" title="A month on">›</span><span class="calc-cal-go" data-go="12" title="A year on">»</span></div>' +
+        calendar.innerHTML = '<div class="calc-cal-head"><span class="calc-cal-go" data-go="-12" title="' + tr('A year back') + '">«</span>' +
+            '<span class="calc-cal-go" data-go="-1" title="' + tr('A month back') + '">‹</span><span class="calc-cal-title">' + dateText(calLit, { month: 'long', year: 'numeric' }) + '</span>' +
+            '<span class="calc-cal-go" data-go="1" title="' + tr('A month on') + '">›</span><span class="calc-cal-go" data-go="12" title="' + tr('A year on') + '">»</span></div>' +
             '<div class="calc-cal-grid">' + html + '</div><div class="calc-cal-foot"><span class="calc-cal-today">Today</span></div>';
     }
 
@@ -9767,7 +9953,9 @@
             k = p.width / panel.offsetWidth || 1, h = calendar.offsetHeight, top = (b.bottom - p.top) / k + 4;
         if (top + h > panel.clientHeight - 4) top = Math.max((b.top - p.top) / k - h - 4, panel.clientHeight - 4 - h);
         calendar.style.top = Math.max(4, top) + 'px';
-        calendar.style.left = Math.max(6, (b.right - p.left) / k - calendar.offsetWidth) + 'px';
+        calendar.style.left = (CalcLang.rtl ? // under its button: at the left of the box, right to left
+            Math.max(6, Math.min((b.left - p.left) / k, panel.clientWidth - 6 - calendar.offsetWidth)) :
+            Math.max(6, (b.right - p.left) / k - calendar.offsetWidth)) + 'px';
     }
 
     // the day lit moved on by days, or by months, below 0 back; never past the year 1 or 9999
@@ -9986,7 +10174,7 @@
             list.innerHTML = tools[tab].map(function (tool, i) {
                 if (tool.id === openId) open = i;
                 return '<div class="calc-sv-item" data-i="' + i + '"><div class="calc-sv-row"><span class="calc-sv-col">' +
-                    '<span class="calc-sv-name">' + toolIcon(tool) + tool.t + '</span><span class="calc-sv-f calc-sv-eq calc-sv-val"><span>' +
+                    '<span class="calc-sv-name">' + toolIcon(tool) + tr(tool.t) + '</span><span class="calc-sv-f calc-sv-eq calc-sv-val"><span>' +
                     pills(tool.f, formulas) + '</span></span></span>' + collapseButton() + '</div></div>'; // each in a badge, one alone as well
             }).join('');
             list.scrollTop = 0;
@@ -10015,12 +10203,12 @@
             openId = tool.id;
             form = item.appendChild(document.createElement('div'));
             form.className = 'calc-sv-form';
-            form.innerHTML = (now.side && now.side() ? '<div class="calc-sv-side-head"><span class="calc-sv-side-name">' + toolIcon(tool) + tool.t + '</span><span class="calc-sv-f calc-sv-val">' + pills(tool.f, formulas) +
-                '</span><p class="calc-sv-side-d">' + tool.d + '</p></div>' : '') + // beside the list, its name, formula and what it does at its top
-                '<div class="calc-sv-top"><span class="calc-sv-reset" role="button" hidden>Reset' + RESET_ICON + '</span></div>' +
-                '<div class="calc-sv-boxes"></div><div class="calc-sv-note"></div>' + (tool.again ? '<span class="calc-sv-again">Again</span>' : '') +
-                (tool.example ? '<span class="calc-sv-again calc-sv-example" role="button">Example</span>' : '') +
-                '<div class="calc-sv-results">Results</div><div class="calc-sv-grid"></div><div class="calc-sv-pickfrom" hidden></div>';
+            form.innerHTML = (now.side && now.side() ? '<div class="calc-sv-side-head"><span class="calc-sv-side-name">' + toolIcon(tool) + tr(tool.t) + '</span><span class="calc-sv-f calc-sv-val">' + pills(tool.f, formulas) +
+                '</span><p class="calc-sv-side-d">' + tr(tool.d) + '</p></div>' : '') + // beside the list, its name, formula and what it does at its top
+                '<div class="calc-sv-top"><span class="calc-sv-reset" role="button" hidden>' + tr('Reset') + RESET_ICON + '</span></div>' +
+                '<div class="calc-sv-boxes"></div><div class="calc-sv-note"></div>' + (tool.again ? '<span class="calc-sv-again">' + tr('Again') + '</span>' : '') +
+                (tool.example ? '<span class="calc-sv-again calc-sv-example" role="button">' + tr('Example') + '</span>' : '') +
+                '<div class="calc-sv-results">' + tr('Results') + '</div><div class="calc-sv-grid"></div><div class="calc-sv-pickfrom" hidden></div>';
             item.classList.add('calc-on');
             fitPills(); // its badges with their Copy, cut to fit if need be
             if (tool.fills) fillEmpty(tool);
@@ -10043,7 +10231,7 @@
         function boxes(tool, item) {
             closeCalendar();
             var kept = values[tool.id] || {}, cols = tool.cols || 1, html = '<div class="calc-sv-fields" style="--cols: ' + cols + '">';
-            fieldsOf(tool, rawOf(tool)).forEach(function (f) {
+            fieldsOf(tool, rawOf(tool)).map(shownField).forEach(function (f) {
                 if (f.pick) { // a list to choose from, drawn as the converter's
                     html += '<div class="calc-sv-var' + (f.wide ? ' calc-sv-wide' : '') + '"><span class="calc-sv-sym">' + f.l + '</span><div class="calc-conv-pick calc-sv-pick" tabindex="0" role="combobox" ' +
                         'aria-haspopup="listbox" aria-expanded="false" aria-label="' + f.l + '" data-k="' + f.k + '"><span class="calc-conv-chosen"></span>' +
@@ -10054,13 +10242,13 @@
                     // while none is chosen; of a choice that makes anew (renew), an arrow going round on each, as a click on it, the one chosen too, makes more
                     html += '<div class="calc-sv-var calc-sv-wide"><span class="calc-sv-sym">' + f.l + '</span><span class="calc-sv-choice calc-sv-toggle" role="radiogroup" aria-label="' +
                         f.l + '" data-k="' + f.k + '">' + f.choice.map(function (c, i) {
-                            return '<span class="calc-sv-opt' + (chosen(f, kept[f.k]) === i ? ' calc-on' : '') + '" role="radio" tabindex="0" data-c="' + i + '">' + c + (f.renew ? AGAIN_ICON : '') + '</span>';
+                            return '<span class="calc-sv-opt' + (chosen(f, kept[f.k]) === i ? ' calc-on' : '') + '" role="radio" tabindex="0" data-c="' + i + '">' + tr(c) + (f.renew ? AGAIN_ICON : '') + '</span>';
                         }).join('') + '</span></div>';
                     return;
                 }
                 if (f.area) { // numbers of a list, on lines of their own as well, as a column of a spreadsheet is pasted
                     html += '<label class="calc-sv-var calc-sv-wide calc-sv-areas"><span class="calc-sv-sym">' + f.l + '</span><textarea class="calc-sv-area" rows="3" spellcheck="false" ' +
-                        'autocomplete="off" maxlength="20000" placeholder="' + f.ph + '" data-k="' + f.k + '" aria-label="' + f.l + '"></textarea></label>';
+                        'autocomplete="off" maxlength="20000" placeholder="' + tr(f.ph || '') + '" data-k="' + f.k + '" aria-label="' + f.l + '"></textarea></label>';
                     return;
                 }
                 if (f.head) { // a matrix: of more than 5 columns, smaller boxes, so up to 11 fit across the card
@@ -10071,8 +10259,8 @@
                 html += '<label class="calc-sv-var' + (f.fn ? ' calc-sv-wide' : '') + (f.date ? ' calc-sv-wide calc-sv-dated' : '') + (f.cls ? ' ' + f.cls : '') + '">' + (f.l ? '<span class="calc-sv-sym">' + f.l + '</span>' : '') +
                     (f.date ? '<span class="calc-sv-date">' : '') +
                     '<input type="text"' + ((f.fn || f.text || f.date) && !f.num ? '' : ' data-num="1"') + ' spellcheck="false" autocomplete="off" maxlength="' + (f.fn ? 200 : 40) +
-                    '" placeholder="' + (f.date ? 'Today' : f.ph) + '" data-k="' + f.k + '" aria-label="' + (f.aria || (f.fn ? tool.t : f.l.replace(/<[^>]*>/g, ''))) + '">' +
-                    (f.date ? '<span class="calc-sv-cal" title="Calendar">' + CALENDAR_ICON + '</span></span>' : '') + '</label>';
+                    '" placeholder="' + (f.date ? tr('Today') : tr(f.ph || '')) + '" data-k="' + f.k + '" aria-label="' + (f.aria || (f.fn ? tr(tool.t) : f.l.replace(/<[^>]*>/g, ''))) + '">' +
+                    (f.date ? '<span class="calc-sv-cal" title="' + tr('Calendar') + '">' + CALENDAR_ICON + '</span></span>' : '') + '</label>';
             });
             item.querySelector('.calc-sv-boxes').innerHTML = html + '</div>';
             [].forEach.call(item.querySelectorAll('.calc-sv-boxes input, .calc-sv-boxes textarea'), function (input) {
@@ -10133,7 +10321,7 @@
             probe.style.cssText = 'position: absolute; visibility: hidden; white-space: nowrap; width: max-content; min-width: 0';
             grid.appendChild(probe);
             Object.keys(names).forEach(function (l) {
-                probe.innerHTML = l;
+                probe.innerHTML = tr(l);
                 most = Math.max(most, probe.offsetWidth + 1); // a pixel over, as offsetWidth is rounded
             });
             most /= parseFloat(getComputedStyle(probe).fontSize) || 1;
@@ -10149,7 +10337,7 @@
             var list = f.pick(), at = list.map(function (c) { return c[0]; }).indexOf(kept);
             if (at < 0) at = Math.max(0, list.map(function (c) { return c[0]; }).indexOf(f.at));
             el.ids = list.map(function (c) { return c[0]; });
-            setPicker(el, list.map(function (c) { return c[1]; }), at);
+            setPicker(el, list.map(function (c) { return tr(c[1]); }), at);
         }
 
         // a box of now, while nothing is typed in it, shows it, to type over
@@ -10161,10 +10349,50 @@
             });
         }
 
+        // The results of a card laid out, each row of them full (fillRows); then a number still too long made smaller,
+        // as on the display, a little: to 13px, a matrix's to 12, of more than 5 columns kept at 10px; a table all one
+        // size, as small as its longest number of each column needs
+        function fitTiles(item) {
+            var grid = item.querySelector('.calc-sv-grid'); // the results', not what to pick from, which fillRows lays out alone
+            fillRows(grid);
+            [].forEach.call(grid.querySelectorAll('.calc-sv-cell'), function (cell) { cell.style.fontSize = ''; });
+            [].forEach.call(grid.querySelectorAll(':scope > .calc-sv-tile > .calc-sv-value, .calc-sv-tile:not(.calc-sv-table) .calc-sv-cell'), function (shown) {
+                var value = !shown.classList.contains('calc-sv-cell'), size = value ? 17 : shown.parentNode.classList.contains('calc-sv-many') ? 10 : 15;
+                while (size > (value ? 13 : 12) && tooWide(shown)) shown.style.fontSize = --size + 'px';
+            });
+            [].forEach.call(grid.querySelectorAll('.calc-sv-table .calc-sv-cells'), function (table) {
+                var cells = [].slice.call(table.querySelectorAll('.calc-sv-cell')), longest = {}, size = 12;
+                cells.forEach(function (cell) {
+                    var b = cell.dataset.b;
+                    if (!longest[b] || cell.textContent.length > longest[b].textContent.length) longest[b] = cell;
+                });
+                longest = Object.keys(longest).map(function (b) { return longest[b]; });
+                while (size > 11 && longest.some(tooWide)) {
+                    size--;
+                    longest.forEach(function (cell) { cell.style.fontSize = size + 'px'; });
+                }
+                if (size < 12) cells.forEach(function (cell) { cell.style.fontSize = size + 'px'; });
+            });
+        }
+
+        // popped out or in, or the window narrower: a card's results laid out again for their new width
+        var widths = window.ResizeObserver && new ResizeObserver(function (seen) {
+            seen.forEach(function (e) {
+                var grid = e.target, item = grid.closest('.calc-sv-item');
+                if (!grid.offsetWidth || grid.clientWidth === grid.fitW) return;
+                if (grid.parentNode.classList.contains('calc-sv-pickfrom')) fillRows(grid);
+                else if (item) fitTiles(item);
+            });
+        });
+
+        function watchWidth(item) {
+            if (widths) [].forEach.call(item.querySelectorAll('.calc-sv-grid'), function (grid) { widths.observe(grid); }); // once each: observed again, nothing new
+        }
+
         // What the open tool gives from its boxes now: each number read, or its default while
         // empty, a box that is not one marked and named in the note; then its tiles, and its note
         function run() {
-            var item = list.querySelector('.calc-sv-item.calc-on'), tool, raw, n = {}, out, inputs, fields, bad = [], mine, note, boxes;
+            var item = list.querySelector('.calc-sv-item.calc-on'), tool, raw, n = {}, out, inputs, fields, bad = [], mine, note, boxes, grid;
             if (!item) return;
             tool = tools[tab][+item.dataset.i];
             raw = rawOf(tool);
@@ -10182,7 +10410,7 @@
                 if (f.fn || f.text || f.date || f.area || f.pick) return;
                 v = text ? CalcMaths.number(text, engine.comma, deg, f.inf) : f.def !== undefined ? f.def : NaN;
                 if (box) box.classList.toggle('calc-bad', !!text && isNaN(v));
-                if (box && text && isNaN(v)) bad.push(f.name || f.aria || (f.l || '').replace(/<[^>]*>/g, '')); // name: for a label that does not read in a note
+                if (box && text && isNaN(v)) bad.push(tr(f.name || f.aria || (f.l || '').replace(/<[^>]*>/g, ''))); // name: for a label that does not read in a note
                 n[f.k] = v;
             });
             out = tool.run(n, raw);
@@ -10196,8 +10424,8 @@
                 out.note = '';
             }
             if (bad.length) { // what is wrong first: the box, or boxes, that are not numbers
-                out.note = bad.length > 2 ? bad.length + ' boxes are not numbers.' :
-                    bad.length === 2 ? bad[0] + ' and ' + bad[1] + ' are not numbers.' : bad[0] + ' is not a number.';
+                out.note = bad.length > 2 ? tr('{n} boxes are not numbers.', { n: bad.length }) :
+                    bad.length === 2 ? tr('{a} and {b} are not numbers.', { a: bad[0], b: bad[1] }) : tr('{a} is not a number.', { a: bad[0] });
                 out.warn = true;
             }
             inputs.forEach(function (box) {
@@ -10205,8 +10433,8 @@
             });
             // a drawing first, above the numbers it draws, of every card; last, below its numbers, of a card whose drawing is only
             // its curve over time or a length, as of Radioactive decay, and of the IP subnet, Spring, Pendulum and spring (drawnLast),
-            // and of every card of finance
-            out.rows = tool.drawnLast || tab === 'finance' ? out.rows.filter(function (r) { return !drawnRow(r); }).concat(out.rows.filter(drawnRow)) :
+            // and of every card of finance and of the solver, all its tabs
+            out.rows = tool.drawnLast || key === 'solve' ? out.rows.filter(function (r) { return !drawnRow(r); }).concat(out.rows.filter(drawnRow)) :
                 out.rows.filter(drawnRow).concat(out.rows.filter(function (r) { return !drawnRow(r); }));
             // nothing typed or picked in its boxes yet: no results that have no value, only what it shows of itself, as a
             // worksheet of the ways chosen
@@ -10216,37 +10444,25 @@
             });
             rows = out.rows;
             item.querySelector('.calc-sv-results').hidden = !out.rows.length;
-            item.querySelector('.calc-sv-grid').style.gridTemplateColumns = out.cols ? 'repeat(' + out.cols + ', 1fr)' : ''; // two, for an x and a y side by side
-            item.querySelector('.calc-sv-grid').innerHTML = out.rows.map(tile).join('');
+            grid = item.querySelector('.calc-sv-grid');
+            grid.base = out.cols ? 'repeat(' + out.cols + ', 1fr)' : ''; // two, for an x and a y side by side
+            grid.innerHTML = out.rows.map(tile).join('');
             [].forEach.call(item.querySelectorAll('.calc-sv-tile'), function (el) {
                 el.row = out.rows[+el.dataset.r]; // for its tip
             });
-            [].forEach.call(item.querySelectorAll('.calc-sv-value, .calc-sv-tile:not(.calc-sv-table) .calc-sv-cell'), function (shown) { // of a matrix of more than 5 columns, kept at 10px
-                var value = !shown.classList.contains('calc-sv-cell'), size = value ? 17 : shown.parentNode.classList.contains('calc-sv-many') ? 10 : 15;
-                while (size > (value ? 13 : 12) && tooWide(shown)) shown.style.fontSize = --size + 'px'; // a long one gets smaller, as on the display, a little: to 13px, a cell to 12
-            });
-            [].forEach.call(item.querySelectorAll('.calc-sv-table .calc-sv-cells'), function (table) { // a table all one size, as small as its longest number of each column needs
-                var cells = [].slice.call(table.querySelectorAll('.calc-sv-cell')), longest = {}, size = 12;
-                cells.forEach(function (cell) {
-                    var b = cell.dataset.b;
-                    if (!longest[b] || cell.textContent.length > longest[b].textContent.length) longest[b] = cell;
-                });
-                longest = Object.keys(longest).map(function (b) { return longest[b]; });
-                while (size > 11 && longest.some(tooWide)) {
-                    size--;
-                    longest.forEach(function (cell) { cell.style.fontSize = size + 'px'; });
-                }
-                if (size < 12) cells.forEach(function (cell) { cell.style.fontSize = size + 'px'; });
-            });
+            fitTiles(item);
             // what to pick from, as the ions or the solubility table, in a section of its own under the results: its own
             // heading, a click on one typing it in the box (data-fill); no row of the results, so no tip of one, nor put in
             item.querySelector('.calc-sv-pickfrom').hidden = !out.pick;
-            item.querySelector('.calc-sv-pickfrom').innerHTML = !out.pick ? '' : '<div class="calc-sv-results">' + out.pick.t + '</div><div class="calc-sv-grid"' +
+            if (widths && item.querySelector('.calc-sv-pickfrom .calc-sv-grid')) widths.unobserve(item.querySelector('.calc-sv-pickfrom .calc-sv-grid')); // made anew
+            item.querySelector('.calc-sv-pickfrom').innerHTML = !out.pick ? '' : '<div class="calc-sv-results">' + tr(out.pick.t) + '</div><div class="calc-sv-grid"' +
                 (out.pick.cols ? ' style="grid-template-columns: repeat(' + out.pick.cols + ', 1fr)"' : '') + '>' + out.pick.rows.map(function (r) {
-                    return '<div class="calc-sv-tile' + (r.small ? '' : ' calc-sv-wide') + (drawnRow(r) ? ' calc-sv-drawn' : '') + '"><span class="calc-sv-label">' + r.l + '</span><span class="calc-sv-value">' + r.text + '</span></div>';
+                    return '<div class="calc-sv-tile' + (r.small ? '' : ' calc-sv-wide') + (drawnRow(r) ? ' calc-sv-drawn' : '') + '"><span class="calc-sv-label">' + tr(r.l) + '</span><span class="calc-sv-value">' + shownText(r) + '</span></div>';
                 }).join('') + '</div>';
+            fillRows(item.querySelector('.calc-sv-pickfrom .calc-sv-grid'));
+            watchWidth(item);
             note = item.querySelector('.calc-sv-note');
-            note.textContent = pasted || out.note || '';
+            note.textContent = pasted || tr(out.note) || '';
             note.classList.toggle('calc-sv-warn', !!(pasted || out.warn));
             boxes = item.querySelector('.calc-sv-boxes');
             boxes.parentNode.insertBefore(note, pasted || out.warn ? boxes : boxes.nextSibling); // an error at the top, over the boxes; a note under them
@@ -10263,15 +10479,15 @@
                 for (b = r.flip.n - 1; b >= 0; b--) {
                     if (b % 16 === 15 || b === r.flip.n - 1) shown += (b < r.flip.n - 1 ? '</span>' : '') + '<span class="calc-sv-bitrow"><span class="calc-sv-bitat">' + b + '</span>';
                     shown += '<span class="calc-sv-bit' + (bits.charAt(r.flip.n - 1 - b) === '1' ? ' calc-on' : '') + (b % 4 === 3 && b % 16 !== 15 && b !== r.flip.n - 1 ? ' calc-sv-nib' : '') +
-                        '" data-b="' + b + '" title="Bit ' + b + '">' + bits.charAt(r.flip.n - 1 - b) + '</span>';
+                        '" data-b="' + b + '" title="' + tr('Bit {b}', { b: b }) + '">' + bits.charAt(r.flip.n - 1 - b) + '</span>';
                 }
                 shown += '</span></span>';
-                return '<div class="calc-sv-tile calc-sv-wide calc-sv-flip" data-r="' + i + '"><span class="calc-sv-label">' + r.l + '</span>' + shown + '</div>';
+                return '<div class="calc-sv-tile calc-sv-wide calc-sv-flip" data-r="' + i + '"><span class="calc-sv-label">' + tr(r.l) + '</span>' + shown + '</div>';
             }
             if (r.m !== undefined) { // of more than 5 columns, smaller, to fit the tile; a table under its heads, scrolling down
                 many = r.m && r.m[0].length > 5;
                 shown = r.m ? '<span class="calc-sv-cells' + (many ? ' calc-sv-many' : '') + '" style="--cols: ' + r.m[0].length + '">' + (r.head || []).map(function (h) {
-                    return '<span class="calc-sv-th">' + h + '</span>';
+                    return '<span class="calc-sv-th">' + tr(h) + '</span>';
                 }).join('') + r.m.map(function (row, a) {
                     return row.map(function (x, b) { // to 10 digits, so a row of them fits, of more than 5 columns to as many characters as its cell has room for, the whole number in its title; or to its places, as money to the cent, but a table's first column, its years; a click puts it in whole
                         return '<span class="calc-sv-cell" data-a="' + a + '" data-b="' + b + '"' + (many ? ' title="' + local(String(x)) + '"' : '') + '>' +
@@ -10280,14 +10496,30 @@
                     }).join('');
                 }).join('') + '</span>' : '<span class="calc-sv-value">–</span>';
             } else {
-                shown = '<span class="calc-sv-value">' + (r.text !== undefined ? r.text : !known ? '–' : r.html !== undefined ? r.html : // html: shown its own way, as a value of the converter
+                shown = '<span class="calc-sv-value">' + (r.text !== undefined ? shownText(r) : !known ? '–' : r.html !== undefined ? r.html : // html: shown its own way, as a value of the converter
                     (r.places !== undefined ? placesValue(r.v, r.places) : statsValue(r.dp !== undefined ? shortValue(r.v, r.dp, 0) : r.sig ? shortValue(r.v, 0, r.sig) : r.v)).html) + '</span>'; // dp: to so many places, sig: digits, as a ratio; never 0 for what is not, nor a whole part cut
             }
             return '<div class="calc-sv-tile' + (r.m !== undefined || r.wide ? ' calc-sv-wide' : '') + (r.m ? ' calc-sv-matrix' : r.copy ? ' calc-sv-copies' : '') + (r.bits ? ' calc-sv-bits' : '') + (r.wrap ? ' calc-sv-wrap' : '') +
                 (drawnRow(r) ? ' calc-sv-drawn' : '') +
-                (r.head ? ' calc-sv-table' : '') + (known && !r.m ? '' : ' calc-none') + '" data-r="' + i + '"><span class="calc-sv-label">' + r.l +
-                (r.m ? r.head ? '<span class="calc-sv-copy" role="button">Copy table</span>' : '</span><span class="calc-sv-copy calc-sv-copy-m" role="button">Copy' :
-                    r.copy ? '</span><span class="calc-sv-copy calc-sv-copy-m calc-sv-copy-t" role="button">Copy' : '') + '</span>' + shown + '</div>';
+                (r.head ? ' calc-sv-table' : '') + (known && !r.m ? '' : ' calc-none') + '" data-r="' + i + '"><span class="calc-sv-label">' + tr(r.l) +
+                (r.m ? r.head ? '<span class="calc-sv-copy" role="button">' + tr('Copy table') + '</span>' : '</span><span class="calc-sv-copy calc-sv-copy-m" role="button">' + tr('Copy') :
+                    r.copy ? '</span><span class="calc-sv-copy calc-sv-copy-m calc-sv-copy-t" role="button">' + tr('Copy') : '') + '</span>' + shown + '</div>';
+        }
+
+        // A box as it is shown, in the language in use: its name, what it stands for in a note and its heading, not the
+        // example in it, of maths; a copy, as the tool's own is read in English
+        function shownField(f) {
+            var g = Object.assign({}, f);
+            ['l', 'name', 'aria', 'head'].forEach(function (k) {
+                if (typeof g[k] === 'string') g[k] = tr(g[k]);
+            });
+            return g;
+        }
+
+        // the text of a result in the language in use where it is words, as Yes, Not prime or Active: it amplifies; a number,
+        // maths or a drawing as it is
+        function shownText(r) {
+            return typeof r.text === 'string' && /^[A-Z][a-z]+(?:[ ,:]|$)/.test(r.text) && !/<svg/.test(r.text) ? tr(r.text) : r.text;
         }
 
         // x to as many digits as fit in room characters, as few as one: 0.093, not 0.0928 cut off
@@ -10343,8 +10575,7 @@
             }
             if (e.target.closest('.calc-sv-opt')) return choose(e.target.closest('.calc-sv-opt'));
             r = t && rows[+t.dataset.r];
-            if (e.target.closest('.calc-sv-copy') && r && r.m) return copy(tableText(r));
-            if (e.target.closest('.calc-sv-copy') && r && r.copy) return copy(r.copy);
+            if (e.target.closest('.calc-sv-copy') && r && (r.m || r.copy)) return copied(e.target.closest('.calc-sv-copy'), r.m ? tableText(r) : r.copy);
             if (bit && r && r.flip) return flip(t, r.flip, +bit.dataset.b);
             v = !r ? NaN : r.m ? (cell ? r.m[+cell.dataset.a][+cell.dataset.b] : NaN) : r.text === undefined ? r.v : NaN;
             if (!isFinite(v) || !engine.put(v)) return;
@@ -10503,7 +10734,7 @@
                 pasted = 'b is one column: paste a column of numbers in it, or all of A | b in its first box.';
             } else if (rows > 10 || cols > 10) {
                 pasted = got.cells.length > 10 || got.cells[0].length > 10 + ab ? 'A matrix of up to 10×10: this one is ' + got.cells.length + '×' + got.cells[0].length + '.' :
-                    'Up to 10×10: from row ' + c.i + ', column ' + c.j + ' this one of ' + got.cells.length + '×' + got.cells[0].length + ' does not fit.';
+                    tr('Up to 10×10: from row {i}, column {j} this one of {cells}×{cells2} does not fit.', { i: c.i, j: c.j, cells: got.cells.length, cells2: got.cells[0].length });
             } else {
                 kept = values[tool.id] = values[tool.id] || {};
                 got.cells.forEach(function (row, a) {
@@ -10604,7 +10835,7 @@
                 if (!el.classList.contains('calc-sv-row')) return null;
                 tool = tools[tab][+el.parentNode.dataset.i];
                 open = el.parentNode.classList.contains('calc-on');
-                return { t: tool.t, d: tool.d + (open && now.side && now.side() ? '' : open ? ' Click to close it.' : ' Click to open it.'), k: '' };
+                return { t: tool.t, d: tr(tool.d) + (open && now.side && now.side() ? '' : open ? tr(' Click to close it.') : tr(' Click to open it.')), k: '' };
             }
         };
     }
@@ -10786,7 +11017,7 @@
     function testRows(name, r, n, more) {
         if (!r) return [{ l: name, v: NaN }, { l: 'p', v: NaN }];
         return [{ l: name, v: r.stat }, { l: 'p', v: r.p }].concat(decision(r.p, n.alpha), more || [],
-            isFinite(r.from) ? [{ l: local(String(CalcMaths.round(n.level * 100))) + '% interval from', v: r.from }, { l: 'to', v: r.to }] : []);
+            isFinite(r.from) ? [{ l: tr('{level}% interval from', { level: local(String(CalcMaths.round(n.level * 100))) }), v: r.from }, { l: 'to', v: r.to }] : []);
     }
 
     // the note of a test: of α, or what its numbers must be; and what a list left out
@@ -10794,8 +11025,8 @@
         if (!(n.alpha > 0 && n.alpha < 1)) return { note: 'α is a chance between 0 and 1, as 0.05.', warn: true };
         if (!(n.level > 0 && n.level < 1) && n.level !== undefined) return { note: 'The level is a chance between 0 and 1, as 0.95.', warn: true };
         if (!r) return { note: why, warn: true };
-        return { note: (left && left.length ? 'Left out: ' + left.slice(0, 3).join(', ') + (left.length > 3 ? ' …' : '') + '. ' : '') +
-            (r.p < n.alpha ? 'p < α: significant at ' + local(String(n.alpha)) + '.' : 'p ≥ α: not significant at ' + local(String(n.alpha)) + '.'), warn: !!(left && left.length) };
+        return { note: (left && left.length ? tr('Left out: {left}{v}. ', { left: left.slice(0, 3).join(', '), v: (left.length > 3 ? ' …' : '') }) : '') +
+            (r.p < n.alpha ? tr('p < α: significant at {alpha}.', { alpha: local(String(n.alpha)) }) : tr('p ≥ α: not significant at {alpha}.', { alpha: local(String(n.alpha)) })), warn: !!(left && left.length) };
     }
 
     // a list's numbers as a sample, or the mean, deviation and size typed: { m, s, n, bad, left }
@@ -10860,9 +11091,9 @@
         rows = testRows('χ<sup>2</sup>', r, n, r ? [{ l: 'df', v: r.df }].concat(drawnTile(testDrawing('chi', r, 2, r.df))) : []);
         if (r) rows.push({ l: 'Each kind', head: ['Kind', 'Observed', 'Expected', '(O – E)² ÷ E'], m: o.values.map(function (v, i) { return [i + 1, v, r.expected[i], r.parts[i]]; }) }); // four columns, a table's, the first its number
         if (!o.values.length && !o.bad.length) return { rows: rows, cols: 2 };
-        note = testNote(r, n, e.values.length && e.values.length !== o.values.length ? 'As many expected as observed: ' + o.values.length + '.' :
+        note = testNote(r, n, e.values.length && e.values.length !== o.values.length ? tr('As many expected as observed: {values}.', { values: o.values.length }) :
             'Two counts or more, 0 or more each, and each expected above 0.', o.bad.concat(e.bad));
-        if (r && r.small && !note.warn) note.note += ' ' + r.small + (r.small === 1 ? ' kind expects' : ' kinds expect') + ' fewer than 5: χ² is rough.';
+        if (r && r.small && !note.warn) note.note += ' ' + trn(r.small, '{n} kind expects fewer than 5: χ² is rough.', '{n} kinds expect fewer than 5: χ² is rough.');
         return Object.assign({ rows: rows, cols: 2 }, note);
     }
 
@@ -10878,7 +11109,7 @@
         if (r) rows.push({ l: 'Expected', m: r.expected });
         if (!lines.length) return { rows: rows, cols: 2 };
         note = testNote(r, n, 'Two rows or more, a row on each line, each of as many counts, two or more, 0 or more each; no row or column all 0.', bad);
-        if (r && r.small && !note.warn) note.note += ' ' + r.small + (r.small === 1 ? ' count expected is' : ' counts expected are') + ' below 5: χ² is rough.';
+        if (r && r.small && !note.warn) note.note += ' ' + trn(r.small, '{n} count expected is below 5: χ² is rough.', '{n} counts expected are below 5: χ² is rough.');
         return Object.assign({ rows: rows, cols: 2 }, note);
     }
 
@@ -10893,7 +11124,7 @@
         if (!lines.length) return { rows: testRows('F', r, n), cols: 2 };
         return Object.assign({ rows: testRows('F', r, n, r ? [{ l: 'df between', v: r.df1 }, { l: 'df within', v: r.df2 }, { l: 'SS between', v: r.ssb }, { l: 'SS within', v: r.ssw },
             { l: 'MS between', v: r.msb }, { l: 'MS within', v: r.msw }, { l: 'Grand mean', v: r.mean }].concat(groups.map(function (g, i) {
-                return { l: 'Mean ' + (i + 1), v: CalcMaths.round(sampleOf(g).m) };
+                return { l: tr('Mean {i}', { i: (i + 1) }), v: CalcMaths.round(sampleOf(g).m) };
             }), drawnTile(testDrawing('F', r, 2, r.df1, r.df2))) : []), cols: 2 }, testNote(r, n, 'Two groups or more, a group on each line, with more numbers in all than groups.', bad));
     }
 
@@ -10920,7 +11151,7 @@
             x0 = 0;
             x1 = Math.max(s * 1.3, kind === 'chi' ? df1 + 4 * Math.sqrt(2 * df1) : Math.min(CalcMaths.fInverse(0.99, df1, df2), 10) || 5);
         }
-        return graphDrawing('Its ' + name + ' on its distribution, the p-value shaded', x0, x1, { fs: [f], marks: [[s, name]],
+        return graphDrawing(tr('Its {name} on its distribution, the p-value shaded', { name: name }), x0, x1, { fs: [f], marks: [[s, name]],
             fills: ha === 1 ? [[f, null, x0, s]] : ha === 2 ? [[f, null, s, x1]] : [[f, null, x0, -Math.abs(s)], [f, null, Math.abs(s), x1]] });
     }
 
@@ -10957,7 +11188,7 @@
         swatches = function (kind) {
             return CalcPhysics.BAND_COLOURS[kind].map(function (c) {
                 var col = CalcPhysics.COLOURS[c];
-                return '<i class="calc-band' + (col[5] ? '' : ' calc-band-none') + '" style="--c: ' + (col[5] || 'transparent') + '" title="' + col[0] + '"></i>';
+                return '<i class="calc-band' + (col[5] ? '' : ' calc-band-none') + '" style="--c: ' + (col[5] || 'transparent') + '" title="' + tr(col[0]) + '"></i>';
             });
         },
         BAND_NAMES = { digit: ['1st digit', '2nd digit', '3rd digit'], mult: 'Multiplier', tol: 'Tolerance', temp: 'ppm/K' },
@@ -11550,11 +11781,11 @@
     }
 
     function svgOf(cls, W, H, label, body) {
-        return '<svg class="calc-sv-shape calc-sv-plot' + (cls ? ' ' + cls : '') + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + label + '">' + body + '</svg>';
+        return '<svg class="calc-sv-shape calc-sv-plot' + (cls ? ' ' + cls : '') + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + tr(label) + '">' + body + '</svg>';
     }
 
     function svgText(x, y, s, anchor, cls) {
-        return '<text class="' + (cls || 'calc-sv-small') + '" x="' + fix(x) + '" y="' + fix(y) + '"' + (anchor ? ' text-anchor="' + anchor + '"' : '') + '>' + s + '</text>';
+        return '<text class="' + (cls || 'calc-sv-small') + '" x="' + fix(x) + '" y="' + fix(y) + '"' + (anchor ? ' text-anchor="' + anchor + '"' : '') + '>' + tr(s) + '</text>';
     }
 
     // a line from one point to another, an arrowhead at its end
@@ -11881,7 +12112,7 @@
             y = Math.max(0, p.at(x));
             d += (i ? ' L' : 'M') + px(x).toFixed(1) + ' ' + py(y).toFixed(1);
         }
-        return '<svg class="calc-sv-shape calc-sv-path" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Its path"><path class="calc-sv-ground" d="M4 ' + py(0) + 'H' + (W - 4) + '"/>' +
+        return '<svg class="calc-sv-shape calc-sv-path" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + tr('Its path') + '"><path class="calc-sv-ground" d="M4 ' + py(0) + 'H' + (W - 4) + '"/>' +
             (h ? '<path class="calc-sv-ground" d="M' + px(0) + ' ' + py(0) + 'V' + py(h).toFixed(1) + '"/>' : '') + '<path class="calc-sv-curve" d="' + d + '"/></svg>';
     }
 
@@ -11890,13 +12121,13 @@
         if (!raw.v && !raw.a) return physNone(none);
         if (!p) return Object.assign(physNone(none), { warn: true, note: 'A speed of 0 or more, an angle from straight down to straight up, a height of 0 or more and g above 0.' });
         return { rows: physRows([['Time, s', p.time], ['Range, m', p.range], ['Highest, m', p.top], ['To the top, s', p.rise], ['Lands at, m/s', p.speed], ['Lands at, angle', fromRadians(p.angle)],
-            ['Across, m/s', p.vx], ['Up at first, m/s', p.vy]]).concat([{ l: 'Path', wide: true, text: pathDrawing(p, n.h) }]), cols: 2, note: 'No air. Angles in ' + unitWord() + '.' };
+            ['Across, m/s', p.vx], ['Up at first, m/s', p.vy]]).concat([{ l: 'Path', wide: true, text: pathDrawing(p, n.h) }]), cols: 2, note: tr('No air. Angles in {unitWord}.', { unitWord: unitWord() }) };
     }
 
     function runCircular(n, raw) {
         var by = +raw.given || 0, v, T, w, none = ['v, m/s', 'T, s', 'a, m/s²'];
         if (!raw.r && !raw.x) return physNone(none);
-        if (!(n.r > 0 && n.x > 0)) return Object.assign(physNone(none), { warn: true, note: 'The radius and the ' + ['speed', 'period', 'revolutions'][by] + ' are above 0.' });
+        if (!(n.r > 0 && n.x > 0)) return Object.assign(physNone(none), { warn: true, note: tr('The radius and the {v} are above 0.', { v: [tr('speed'), tr('period'), tr('revolutions')][by] }) });
         v = by === 0 ? n.x : by === 1 ? 2 * Math.PI * n.r / n.x : 2 * Math.PI * n.r * n.x / 60;
         T = 2 * Math.PI * n.r / v;
         w = v / n.r;
@@ -11941,8 +12172,7 @@
             rows = [['Time, s', t], ['Lands down, m', n.u * t], ['Over the ground, m/s', Math.hypot(n.v, n.u)], ['Off straight, angle', fromRadians(Math.atan2(n.u, n.v))]];
             if (n.v > n.u) rows.push(['Aim upstream, angle', fromRadians(Math.asin(n.u / n.v))], ['Straight across, s', n.d / Math.sqrt(n.v * n.v - n.u * n.u)]);
             return { rows: physRows(rows).concat(drawnTile(riverDrawing(n.d, n.u * t), 'Its path, aimed straight across')), cols: 2,
-                note: (n.v > n.u ? 'Aimed upstream by that angle from straight across, it goes straight over, more slowly.' : 'The current is as fast as the boat or faster: it cannot go straight across.') +
-                    ' Angles in ' + unitWord() + '.' };
+                note: (n.v > n.u ? tr('Aimed upstream by that angle from straight across, it goes straight over, more slowly. Angles in {unitWord}.', { unitWord: unitWord() }) : tr('The current is as fast as the boat or faster: it cannot go straight across. Angles in {unitWord}.', { unitWord: unitWord() })) };
         }
         none = ['Speed, m/s', 'Heading'];
         if (!raw.va && !raw.vb) return physNone(none);
@@ -11959,7 +12189,7 @@
         s = Math.hypot(x, y);
         return { rows: physRows([['A from B, m/s', s], ['Its heading', s ? fromRadians(h) : NaN], ['East, m/s', x], ['North, m/s', y], ['B from A, heading', s ? fromRadians((h + Math.PI) % (2 * Math.PI)) : NaN]])
             .concat(drawnTile(vectorsDrawing([ax, ay], [bx, by]), 'A, B, and A as B sees it')), cols: 2,
-            note: 'B sees A go so; A sees B go as fast the other way. Angles in ' + unitWord() + '.' };
+            note: tr('B sees A go so; A sees B go as fast the other way. Angles in {unitWord}.', { unitWord: unitWord() }) };
     }
 
     // an orbit of half its width a and eccentricity e round a body of radius R at a focus, to scale, it at its nearest
@@ -11993,7 +12223,7 @@
         if (!raw.ve && !raw.m0 && !raw.mf) return physNone(none);
         r = CalcPhysics.rocket(ve, n.m0, n.mf, timed ? n.t : NaN, n.g);
         if (!r || timed && !(n.t > 0) || !(n.g > 0)) {
-            return Object.assign(physNone(none), { warn: true, note: (isp ? 'Isp' : 'vₑ') + ' and both masses above 0, the full not below the empty' + (timed ? ', and t and g above 0.' : '.') });
+            return Object.assign(physNone(none), { warn: true, note: (isp ? tr('Isp and both masses above 0, the full not below the empty{v}', { v: (timed ? tr(', and t and g above 0.') : '.') }) : tr('vₑ and both masses above 0, the full not below the empty{v}', { v: (timed ? tr(', and t and g above 0.') : '.') })) });
         }
         rows = [['Δv, m/s', r.dv], ['Δv, km/h', r.dv * 3.6], ['m<sub>0</sub> ÷ m<sub>f</sub>', r.ratio], ['Fuel, kg', r.fuel], ['Fuel, % of m<sub>0</sub>', 100 * r.fuel / n.m0],
             isp ? ['v<sub>e</sub>, m/s', ve] : ['I<sub>sp</sub>, s', ve / CalcPhysics.g]];
@@ -12001,7 +12231,7 @@
         weak = timed && r.thrust < n.m0 * n.g;
         return { rows: physRows(rows).concat(drawnTile(graphDrawing('Its speed as it burns its fuel', 0, r.fuel, { fs: [function (x) { return ve * Math.log(n.m0 / (n.m0 - x)); }], names: ['kg burnt', 'v'] }),
             'Its speed as it burns its fuel')), cols: 2, warn: weak,
-            note: weak ? 'Its thrust is less than its weight: it cannot lift off straight up.' : 'Δv in space, with no air nor gravity' + (timed ? '; straight up, g takes g × t of it.' : '. With the time it burns, its thrust.') };
+            note: weak ? 'Its thrust is less than its weight: it cannot lift off straight up.' : (timed ? tr('Δv in space, with no air nor gravity; straight up, g takes g × t of it.') : tr('Δv in space, with no air nor gravity. With the time it burns, its thrust.')) };
     }
 
     // masses as dots as big as they are, named, and their centre of mass, red, a line to each
@@ -12052,10 +12282,10 @@
         T = 2 * Math.PI * Math.sqrt(spring ? n.m / n.k : n.L / n.g);
         w = 2 * Math.PI / T;
         return { rows: physRows([['T, s', T], ['f, Hz', 1 / T], ['ω, rad/s', w]].concat(raw.A && n.A > 0 ? [['Fastest, m/s', w * n.A], ['Most a, m/s²', w * w * n.A]]
-            .concat(spring ? [['Energy, J', n.k * n.A * n.A / 2]] : []) : [])).concat({ l: spring ? (raw.A && n.A > 0 ? 'At the end of a swing' : 'The mass on its spring') + '; where it is, over two swings' : 'Where it is, over two swings', wide: true,
+            .concat(spring ? [['Energy, J', n.k * n.A * n.A / 2]] : []) : [])).concat({ l: spring ? (raw.A && n.A > 0 ? tr('At the end of a swing; where it is, over two swings') : tr('The mass on its spring; where it is, over two swings')) : 'Where it is, over two swings', wide: true,
                 text: (spring ? springDrawing(raw.A && n.A > 0 ? 1 : 0, 'A', 'm') : '') + graphDrawing('Where it is as time goes', 0, 2 * T, {
                 fs: [function (t) { return (n.A > 0 ? n.A : 1) * Math.cos(w * t); }], marks: [[T, 'T'], [2 * T, '2T']] }) }), cols: 3, note: spring ? (raw.A ? 'Fastest through the middle, its acceleration most at the ends.' : 'With an amplitude A, its fastest too.') :
-            'For small swings, some 15° or less' + (raw.A ? ', A along its arc.' : '.') };
+            tr('For small swings, some 15° or less{v}', { v: (raw.A ? tr(', A along its arc.') : '.') }) };
     }
 
     // a mass on a slope at the angle t, an arrow down it if it slides
@@ -12138,15 +12368,14 @@
         var of = +raw.kind || 0, t = of === 0 ? Math.PI / 2 : of === 1 ? 0 : toRadians(n.a), r, a, rows, none = ['a, m/s²', 'T, N'], goes;
         if (!raw.m1 && !raw.m2) return physNone(none);
         r = CalcPhysics.atwood(n.m1, n.m2, t, of ? n.mu : 0, n.mp, n.g);
-        if (!r) return Object.assign(physNone(none), { warn: true, note: 'Both masses above 0' + (of === 2 ? ', θ from 0 to a right angle' : '') + (of ? ', μ of 0 or more' : '') + ', the pulley 0 or more and g above 0.' });
+        if (!r) return Object.assign(physNone(none), { warn: true, note: tr('Both masses above 0{v}{v2}, the pulley 0 or more and g above 0.', { v: (of === 2 ? tr(', θ from 0 to a right angle') : ''), v2: (of ? tr(', μ of 0 or more') : '') }) });
         a = Math.abs(r.a);
         rows = [['a, m/s²', a]].concat(n.mp > 0 ? [['T by m₁, N', r.t1], ['T by m₂, N', r.t2]] : [['T, N', r.t1]], of ? [['Friction, N', r.friction]] : []);
         if (raw.d && n.d > 0 && r.moves) rows.push(['v after d, m/s', Math.sqrt(2 * a * n.d)], ['Time for d, s', Math.sqrt(2 * n.d / a)]);
-        goes = !r.moves ? (of ? 'Held: friction holds them' : 'Balanced: they stay') : r.a > 0 ? 'm₁ falls, m₂ ' + (of === 0 ? 'rises' : of === 1 ? 'is pulled along' : 'is pulled up') :
-            'm₂ ' + (of === 0 ? 'falls' : 'slides down') + ', m₁ rises';
+        goes = !r.moves ? (of ? 'Held: friction holds them' : 'Balanced: they stay') : r.a > 0 ? (of === 0 ? tr('m₁ falls, m₂ rises') : of === 1 ? tr('m₁ falls, m₂ is pulled along') : tr('m₁ falls, m₂ is pulled up')) :
+            (of === 0 ? tr('m₂ falls, m₁ rises') : tr('m₂ slides down, m₁ rises'));
         return { rows: physRows(rows).concat([{ l: 'They', wide: true, text: goes }], drawnTile(atwoodDrawing(of, t, r.a > 0 ? 1 : r.a < 0 ? -1 : 0), 'The masses, and which way they go')), cols: 2,
-            note: (of && !r.moves ? 'Friction holds them, as much as it takes, up to μ times the normal force. ' : '') + 'The string not stretching, of no mass' +
-                (n.mp > 0 ? '; the pulley a disc, turning with it.' : ', nor the pulley.') + (of === 2 ? ' Angles in ' + unitWord() + '.' : '') };
+            note: (n.mp > 0 ? tr('{v}The string not stretching, of no mass; the pulley a disc, turning with it.{v2}', { v: (of && !r.moves ? tr('Friction holds them, as much as it takes, up to μ times the normal force. ') : ''), v2: (of === 2 ? tr(' Angles in {unitWord}.', { unitWord: unitWord() }) : '') }) : tr('{v}The string not stretching, of no mass, nor the pulley.{v2}', { v: (of && !r.moves ? tr('Friction holds them, as much as it takes, up to μ times the normal force. ') : ''), v2: (of === 2 ? tr(' Angles in {unitWord}.', { unitWord: unitWord() }) : '') })) };
     }
 
     // two masses before and after they meet, each as big as its mass, an arrow over each of its speed, to scale
@@ -12232,7 +12461,7 @@
         return { rows: drawnTile(springDrawing(Math.sign(n.x), 'x', raw.m && n.m > 0 ? 'm' : '') + (n.x ? graphDrawing('Its force against x, the area under it its energy', -1.4 * Math.abs(n.x), 1.4 * Math.abs(n.x), {
                 fs: [f], fill: [f, null, 0, n.x], dots: [[n.x, f(n.x)]], marks: [[n.x, 'x']], names: ['x, m', 'F, N'] }) : '') +
             (isFinite(T) && n.x ? graphDrawing('Where it is as time goes, let go at x', 0, 2 * T, { fs: [function (t) { return n.x * Math.cos(w * t); }], marks: [[T, 'T'], [2 * T, '2T']] }) : ''),
-            !n.x ? 'At rest' : (n.x < 0 ? 'Squeezed' : 'Stretched') + ' by x; F against x, its area E' + (isFinite(T) ? '; let go, over two swings' : ''))
+            !n.x ? 'At rest' : (n.x < 0 ? tr('Squeezed by x; F against x, its area E{v}', { v: (isFinite(T) ? tr('; let go, over two swings') : '') }) : tr('Stretched by x; F against x, its area E{v}', { v: (isFinite(T) ? tr('; let go, over two swings') : '') })))
             .concat(physRows([['F, N', n.k * n.x], ['E, J', n.k * n.x * n.x / 2]].concat(isFinite(T) ? [['T, s', T]] : []))), cols: 3 };
     }
 
@@ -12271,7 +12500,7 @@
         if (!raw.q1 && !raw.q2) return physNone(none);
         if (!(isFinite(v.q1) && isFinite(v.q2) && n.r > 0)) return Object.assign(physNone(none), { warn: true, note: 'Both charges, and r above 0.' });
         F = COULOMB * v.q1 * v.q2 / (n.r * n.r);
-        rows = F ? drawnTile(graphDrawing((F < 0 ? 'The pull' : 'The push') + ' against r, falling as its square', 0, 3 * n.r, { fs: [function (x) { return Math.abs(COULOMB * v.q1 * v.q2) / (x * x); }],
+        rows = F ? drawnTile(graphDrawing((F < 0 ? tr('The pull against r, falling as its square') : tr('The push against r, falling as its square')), 0, 3 * n.r, { fs: [function (x) { return Math.abs(COULOMB * v.q1 * v.q2) / (x * x); }],
             y: [0, 4 * Math.abs(F)], dots: [[n.r, Math.abs(F)]], names: ['r, m', 'F, N'] }), 'F and r') : [];
         rows = rows.concat(physRows([['F, N', Math.abs(F)]]));
         rows.push({ l: 'They', wide: true, text: F < 0 ? 'Pull together' : F > 0 ? 'Push apart' : 'Neither' });
@@ -12318,7 +12547,7 @@
         if (raw.w) rows.push(['ω, rad/s', w], ['rpm', w * 30 / Math.PI], ['E, J', I * w * w / 2], ['L, kg·m²/s', I * w]);
         if (raw.h && !rod) rows.push(['Rolls to, m/s', Math.sqrt(2 * CalcPhysics.g * n.h / (1 + k))], ['Slides to, m/s', Math.sqrt(2 * CalcPhysics.g * n.h)], ['Of its energy spinning, %', 100 * k / (1 + k)]);
         return { rows: physRows(rows), cols: 2,
-            note: rod ? 'Of a rod, its length' + (raw.h ? '; a rod does not roll.' : '.') : raw.h ? 'Rolling, some of its energy goes to its spin: it is slower than sliding with no friction.' : 'With a height, its speed rolled down a slope.' };
+            note: rod ? tr('Of a rod, its length{v}', { v: (raw.h ? tr('; a rod does not roll.') : '.') }) : raw.h ? 'Rolling, some of its energy goes to its spin: it is slower than sliding with no friction.' : 'With a height, its speed rolled down a slope.' };
     }
 
     function runImpulse(n, raw) {
@@ -12358,14 +12587,14 @@
             E = n.W * n.d1 / n.d2;
             return { rows: physRows([['Effort, N', E], ['Advantage', n.d1 ? n.d2 / n.d1 : NaN], ['Torque each way, N·m', n.W * n.d1], ['The pivot holds, N', n.W + E]])
                 .concat([{ l: 'The lever', wide: true, text: leverDrawing(n.d1, n.d2, n.W, E) }]), cols: 2,
-                note: 'The pivot between them; the bar\'s own weight left out. The effort moves ' + local(String(CalcMaths.round(n.d2 / n.d1))) + ' times as far as the load.' };
+                note: tr('The pivot between them; the bar\'s own weight left out. The effort moves {d2} times as far as the load.', { d2: local(String(CalcMaths.round(n.d2 / n.d1))) }) };
         }
         if (!raw.F && !raw.r) return physNone(none);
         if (!(isFinite(n.F) && n.r >= 0 && isFinite(t))) return Object.assign(physNone(none), { warn: true, note: 'F, and r of 0 or more.' });
         tau = n.F * n.r * Math.sin(t);
         return { rows: physRows([['τ, N·m', tau], ['Across the bar, N', n.F * Math.sin(t)], ['Along the bar, N', n.F * Math.cos(t)], ['τ, lbf·ft', tau / 1.3558179483314004]])
             .concat([{ l: 'The force', wide: true, text: torqueDrawing(t) }]), cols: 2,
-            note: 'Only the force across the bar turns it' + (tau ? ', ' + (tau > 0 ? 'anticlockwise' : 'clockwise') + ' as drawn.' : '.') };
+            note: tr('Only the force across the bar turns it{v}', { v: (tau ? (tau > 0 ? tr(', anticlockwise as drawn.') : tr(', clockwise as drawn.')) : '.') }) };
     }
 
     function runField(n, raw) {
@@ -12438,7 +12667,7 @@
             var col = CalcPhysics.COLOURS[c][5], x = i === n - 1 ? b - 16 - w : a + 16 + i * step;
             if (col) html += '<rect x="' + x.toFixed(1) + '" y="8" width="' + w + '" height="44" fill="' + col + '"/>';
         });
-        return '<svg class="calc-sv-shape calc-sv-resistor" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="The resistor">' +
+        return '<svg class="calc-sv-shape calc-sv-resistor" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + tr('The resistor') + '">' +
             '<defs><clipPath id="' + id + '"><path d="' + body + '"/></clipPath></defs>' +
             '<path class="calc-sv-lead" d="M10 30H' + a + 'M' + b + ' 30H' + (W - 10) + '"/><path class="calc-sv-body" d="' + body + '"/>' +
             '<g clip-path="url(#' + id + ')">' + html + '</g><path class="calc-sv-edge" d="' + body + '"/></svg>';
@@ -12452,14 +12681,14 @@
             got = CalcPhysics.toBands(read.v.ohms, raw.n5 === '1' ? 5 : 4, CalcPhysics.BAND_COLOURS.tol[+raw.tol]);
             if (!got) return { rows: [{ l: 'Bands', v: NaN }], bad: ['ohms'], warn: true, note: read.bad.length ? 'A resistance, as 4.7k, 4k7, 470R or 1M.' : 'From 0.1 Ω to 999 GΩ, as bands can say.' };
             return { rows: [{ l: 'Drawn', wide: true, text: resistorDrawing(got.bands) },
-                { l: 'Bands', wide: true, wrap: true, text: got.bands.map(function (c) { return CalcPhysics.COLOURS[c][0]; }).join(' · ') }, { l: 'As they say, Ω', v: got.ohms }],
-                note: got.ohms !== read.v.ohms ? 'Rounded to the ' + (raw.n5 === '1' ? 'three' : 'two') + ' digits its bands have: ' + CalcPhysics.si(got.ohms, 'Ω') + '.' : '' };
+                { l: 'Bands', wide: true, wrap: true, text: got.bands.map(function (c) { return tr(CalcPhysics.COLOURS[c][0]); }).join(' · ') }, { l: 'As they say, Ω', v: got.ohms }],
+                note: got.ohms !== read.v.ohms ? (raw.n5 === '1' ? tr('Rounded to the three digits its bands have: {ohms}.', { ohms: CalcPhysics.si(got.ohms, 'Ω') }) : tr('Rounded to the two digits its bands have: {ohms}.', { ohms: CalcPhysics.si(got.ohms, 'Ω') })) : '' };
         }
         count = [4, 5, 6][+raw.n || 0];
         kinds = CalcPhysics.bandKinds(count);
         bands = kinds.map(function (kind, i) { return CalcPhysics.BAND_COLOURS[kind][+raw['b' + count + i]]; }); // each choice's way, its first while none is chosen
         r = CalcPhysics.fromBands(bands);
-        text = CalcPhysics.si(r.ohms, 'Ω') + ' ± ' + r.tol + '%' + (r.temp !== null ? ', ' + r.temp + ' ppm/K' : '');
+        text = CalcPhysics.si(r.ohms, 'Ω') + ' ± ' + r.tol + '%' + (r.temp !== null ? tr(', {temp} ppm/K', { temp: r.temp }) : '');
         return { rows: [{ l: 'Drawn', wide: true, text: resistorDrawing(bands) }, { l: 'Resistance', wide: true, text: text, copy: text }, { l: 'Ω', v: r.ohms }, { l: 'From, Ω', v: r.min }, { l: 'To, Ω', v: r.max }],
             cols: 3, note: bands[0] === 0 ? 'A first band of black is not made: read it from the other end.' : '' };
     }
@@ -12489,8 +12718,7 @@
             rows = [['3 digits', got.three, 'Of 3, Ω'], ['4 digits', got.four, 'Of 4, Ω'], ['EIA-96', got.eia, 'Of EIA-96, Ω']];
             return { rows: drawnTile(smdDrawing(rows.filter(function (c) { return c[1]; }).map(function (c) { return [c[1].code, c[0]]; })), 'Its codes').concat(
                 rows.map(function (c) { return c[1] ? { l: c[0], text: c[1].code } : { l: c[0], v: NaN }; }), rows.map(function (c) { return { l: c[2], v: c[1] ? c[1].ohms : NaN }; })), cols: 3,
-                note: '3 digits are of parts of 5%, 4 and EIA-96 of 1%, E96' + (rows.some(function (c) { return c[1] && c[1].ohms !== r; }) ? ': each rounded to what its code can say.' : '.') +
-                    (!got.three ? ' Of 3 marks, from 0.1 Ω to 99 GΩ.' : '') };
+                note: tr('3 digits are of parts of 5%, 4 and EIA-96 of 1%, E96{v}{v2}', { v: (rows.some(function (c) { return c[1] && c[1].ohms !== r; }) ? tr(': each rounded to what its code can say.') : '.'), v2: (!got.three ? tr(' Of 3 marks, from 0.1 Ω to 99 GΩ.') : '') }) };
         }
         none = physNone(['Resistance', 'Ω']);
         if (!raw.code) return Object.assign(none, { cols: 2 });
@@ -12500,15 +12728,15 @@
         text = got.ohms ? CalcPhysics.si(got.ohms, 'Ω') + ' ± ' + got.tol + '%' : '0 Ω';
         return { rows: drawnTile(smdDrawing([[code, '']]), 'The resistor').concat([{ l: 'Resistance', text: text, copy: text, wide: true }, { l: 'Ω', v: got.ohms }, { l: 'Its code', text: got.kind }],
             got.tol ? physRows([['From, Ω', got.ohms * (1 - got.tol / 100)], ['To, Ω', got.ohms * (1 + got.tol / 100)]]) : []), cols: 2,
-            note: !got.ohms ? 'A jumper: a link of no resistance, 50 mΩ at most.' : got.also ? 'Of EIA-96 ' + code + ' would be ' + CalcPhysics.si(got.also.ohms, 'Ω') + ', but R for the point is far more usual.' :
-                'Usually made to ' + got.tol + '%' + (got.tol === 1 ? ', of E96.' : '.') };
+            note: !got.ohms ? 'A jumper: a link of no resistance, 50 mΩ at most.' : got.also ? tr('Of EIA-96 {code} would be {ohms}, but R for the point is far more usual.', { code: code, ohms: CalcPhysics.si(got.also.ohms, 'Ω') }) :
+                tr('Usually made to {tol}%{v}', { tol: got.tol, v: (got.tol === 1 ? tr(', of E96.') : '.') }) };
     }
 
     function runNetwork(n, raw) {
         var kind = ['R', 'C', 'L'][+raw.part || 0], unit = { R: 'Ω', C: 'F', L: 'H' }[kind], r;
         if (!raw.n) return { rows: [{ l: 'In all', v: NaN }] };
         r = CalcPhysics.network(raw.n, kind, engine.comma);
-        if (r.error) return { rows: [{ l: 'In all', v: NaN }], bad: ['n'], warn: true, note: r.error === 'bracket' ? 'A bracket is not closed.' : 'Values above 0, as 100, 4.7k or 4k7, with + and || between them; at "' + raw.n.slice(r.at, r.at + 8) + '".' };
+        if (r.error) return { rows: [{ l: 'In all', v: NaN }], bad: ['n'], warn: true, note: r.error === 'bracket' ? 'A bracket is not closed.' : tr('Values above 0, as 100, 4.7k or 4k7, with + and || between them; at "{at}".', { at: raw.n.slice(r.at, r.at + 8) }) };
         return { rows: [{ l: 'In all', wide: true, text: CalcPhysics.si(r.value, unit), copy: CalcPhysics.si(r.value, unit) }, { l: unit, v: r.value }, { l: 'Parts', v: r.parts }], cols: 2,
             note: kind === 'C' ? 'Capacitors in parallel add up; in series, their reciprocals do.' : 'In series they add up; in parallel, their reciprocals do.' };
     }
@@ -12549,7 +12777,7 @@
         }
         return { rows: drawnTile(graphDrawing('V out against the load, by its log, the line without one', lo, hi, {
             fs: [function (x) { var r = 1 / (1 / v.R2 + Math.pow(10, -x)); return v.V * r / (v.R1 + r); }, function () { return bare; }],
-            marks: [[Math.log10(th), 'Rth ' + CalcPhysics.si(th, 'Ω')]].concat(raw.RL && Math.abs(Math.log10(v.RL / th)) > 0.6 ? [[Math.log10(v.RL), 'load']] : []),
+            marks: [[Math.log10(th), tr('Rth {th}', { th: CalcPhysics.si(th, 'Ω') })]].concat(raw.RL && Math.abs(Math.log10(v.RL / th)) > 0.6 ? [[Math.log10(v.RL), 'load']] : []),
             dots: raw.RL ? [[Math.log10(v.RL), out]] : [], y: bare > 0 ? [0, 1.3 * bare] : bare < 0 ? [1.3 * bare, 0] : undefined, names: ['load', 'V out'] }), 'With a load').concat(physRows([['V out', out], ['I, A', v.V / (v.R1 + r2)], ['Ratio', r2 / (v.R1 + r2)]].concat(raw.RL ? [['Without the load', bare]] : [],
             [['R<sub>th</sub>, Ω', th], ['Most to a load, W', bare * bare / (4 * th)]]))), cols: 2,
             note: CalcPhysics.si(out, 'V') + (raw.RL ? ', the load across R₂' : '') + '. To a load it is ' + CalcPhysics.si(bare, 'V') + ' behind ' + CalcPhysics.si(th, 'Ω') + ', R₁ ∥ R₂; ' +
@@ -12568,7 +12796,7 @@
         if (isFinite(V)) rows.push(['I from V, A', V * (1 / (v.R1 + v.R2) + 1 / (v.R3 + rx))], ['V at the middles', V * v.R2 / (v.R1 + v.R2)]);
         return { rows: physRows(rows).concat(drawnTile(bridgeDrawing([v.R1, v.R2, v.R3, rx], find), 'The bridge')), cols: 2,
             note: find ? 'Balanced, R₁ ÷ R₂ = R₃ ÷ Rₓ: no voltage between its middles, whatever V is.' :
-                'Vout is the left middle less the right; R out is what a meter between them sees' + (isFinite(V) ? '.' : '; with V, in volts.') };
+                tr('Vout is the left middle less the right; R out is what a meter between them sees{v}', { v: (isFinite(V) ? '.' : tr('; with V, in volts.')) }) };
     }
 
     // A Wheatstone bridge, its values [R1, R2, R3, Rx]: R1 over R2 on the left, R3 over Rx on the right, a cell across its top
@@ -12598,7 +12826,7 @@
         rows = [['τ, s', tau], ['Cut-off f, Hz', 1 / (2 * Math.PI * tau)], ['To 99%, s', tau * Math.log(100)]];
         if (raw.t && v.t >= 0) rows.push(['Charged at t, %', 100 * -Math.expm1(-v.t / tau)], ['Left at t, %', 100 * Math.exp(-v.t / tau)]);
         return { rows: physRows(rows).concat([{ l: 'Charging', wide: true, text: riseDrawing(tau, raw.t && v.t >= 0 ? v.t : undefined, 'V') }]), cols: 2,
-            note: 'τ = ' + CalcPhysics.si(tau, 's') + ', cut-off at ' + CalcPhysics.si(1 / (2 * Math.PI * tau), 'Hz') + '.' };
+            note: tr('τ = {tau}, cut-off at {v}.', { tau: CalcPhysics.si(tau, 's'), v: CalcPhysics.si(1 / (2 * Math.PI * tau), 'Hz') }) };
     }
 
     // rising to its last value, 63% of it in a time τ: over 5τ, a dot at t
@@ -12617,7 +12845,7 @@
         rows = [['τ, s', tau], ['Cut-off f, Hz', 1 / (2 * Math.PI * tau)], ['To 99%, s', tau * Math.log(100)]];
         if (raw.t && v.t >= 0) rows.push(['Current at t, %', 100 * -Math.expm1(-v.t / tau)], ['Left at t, %', 100 * Math.exp(-v.t / tau)]);
         return { rows: physRows(rows).concat([{ l: 'The current rising', wide: true, text: riseDrawing(tau, raw.t && v.t >= 0 ? v.t : undefined, 'I') }]), cols: 2,
-            note: 'τ = ' + CalcPhysics.si(tau, 's') + ', cut-off at ' + CalcPhysics.si(1 / (2 * Math.PI * tau), 'Hz') + '.' };
+            note: tr('τ = {tau}, cut-off at {v}.', { tau: CalcPhysics.si(tau, 's'), v: CalcPhysics.si(1 / (2 * Math.PI * tau), 'Hz') }) };
     }
 
     // A filter's cut-off, Q and band, and its gain and phase at f; its gain drawn against f of a log scale, two decades either
@@ -12628,7 +12856,7 @@
         if (p.bad.length) return Object.assign(physNone(none), { cols: 2, bad: p.bad, warn: true, note: 'A value, as 10k, 100n or 4.7µ.' });
         if (!parts.some(function (q) { return raw[q]; })) return Object.assign(physNone(none), { cols: 2 });
         r = CalcPhysics.filter(of, pass, v.R, v.L, v.C);
-        if (!r || (raw.f && !(v.f > 0))) return Object.assign(physNone(none), { cols: 2, warn: true, note: parts.join(', ').replace(/, (\w)$/, ' and $1') + (raw.f ? ', and f,' : '') + ' above 0.' });
+        if (!r || (raw.f && !(v.f > 0))) return Object.assign(physNone(none), { cols: 2, warn: true, note: tr('{parts} above 0.', { parts: parts.join(', ').replace(/, (\w)$/, ' and $1') + (raw.f ? tr(', and f,') : '') }) });
         rows = band ? [['f₀, Hz', r.f0], ['Q', r.q], ['Bandwidth, Hz', r.bw], ['From, Hz', r.lo], ['To, Hz', r.hi]] :
             [['Cut-off f, Hz', r.fc]].concat(of === 2 ? [['f₀, Hz', r.f0], ['Q', r.q]] : [['τ, s', of ? v.L / v.R : v.R * v.C]], r.peak ? [['Peak at, Hz', r.peak[0]], ['Peak, dB', 20 * Math.log10(r.peak[1])]] : []);
         if (raw.f) {
@@ -12648,9 +12876,9 @@
             fs: [gain], y: [lo - 0.05 * (hi - lo), hi + 0.2 * (hi - lo)], marks: marks,
             dots: raw.f ? [[Math.log10(v.f), gain(Math.log10(v.f))]] : [], names: ['f', 'dB'] }), 'Gain against f, in dB')), cols: 2,
             note: (of < 2 ? 'Of the first order: 20 dB less each decade past its cut-off, where it is 3 dB down, half the power.' :
-                pass < 2 ? 'Of the second order: 40 dB less each decade past it' + (r.peak ? '; of Q above 0.707 it peaks first.' : '.') :
+                pass < 2 ? tr('Of the second order: 40 dB less each decade past it{v}', { v: (r.peak ? tr('; of Q above 0.707 it peaks first.') : '.') }) :
                     pass === 2 ? 'Its band between the two frequencies 3 dB down, 20 dB less each decade beyond.' : 'At f₀ nothing gets through; 3 dB down at the ends of its band.') +
-                (raw.f ? ' Phase in ' + unitWord() + '.' : '') };
+                (raw.f ? tr(' Phase in {unitWord}.', { unitWord: unitWord() }) : '') };
     }
 
     // where a level is among signals, in dBm: from as faint as a radio hears to a transmitter's kilowatt
@@ -12676,7 +12904,7 @@
             return { rows: physRows([['dB', r.db], ['Power ×', r.power], ['Voltage ×', r.voltage]]).concat(drawnTile(graphDrawing('dB of each ratio', 0, Math.max(2, r.power, r.voltage) * 1.15, {
                 fs: [function (x) { return 10 * Math.log10(x); }, function (x) { return 20 * Math.log10(x); }], y: [Math.min(r.db, 0) - 6, Math.max(r.db, 0) + 6],
                 dots: [[r.power, r.db], [r.voltage, r.db]], names: ['×', 'dB'] }), 'dB of power, red, and of voltage, blue')), cols: 3,
-                note: (r.db > 0 ? 'A gain' : r.db < 0 ? 'A loss' : 'Neither') + ': 3 dB is about twice the power, 6 dB twice the voltage, 10 dB ten times the power.' };
+                note: (r.db > 0 ? tr('A gain: 3 dB is about twice the power, 6 dB twice the voltage, 10 dB ten times the power.') : r.db < 0 ? tr('A loss: 3 dB is about twice the power, 6 dB twice the voltage, 10 dB ten times the power.') : tr('Neither: 3 dB is about twice the power, 6 dB twice the voltage, 10 dB ten times the power.')) };
         }
         none = physNone(['P, W', 'dBm']);
         p = partValues(raw, ['x', 'z']);
@@ -12684,10 +12912,10 @@
         if (p.bad.length) return Object.assign(none, { cols: 2, bad: p.bad, warn: true, note: 'A value, as 0, -30, 1m or 2.5.' });
         if (!raw.x) return Object.assign(none, { cols: 2 });
         r = CalcPhysics.level(p.v.x, +raw.unit || 0, z);
-        if (!r) return Object.assign(none, { cols: 2, warn: true, note: (raw.unit === '2' || raw.unit === '6' ? 'P or V above 0, and Z' : 'Z') + ' above 0.' });
+        if (!r) return Object.assign(none, { cols: 2, warn: true, note: (raw.unit === '2' || raw.unit === '6' ? tr('P or V above 0, and Z above 0.') : tr('Z above 0.')) });
         return { rows: drawnTile(levelDrawing(r.dbm), 'Among signals, in dBm').concat(physRows([['P, W', r.w], ['dBm', r.dbm], ['dBW', r.dbw], ['V RMS', r.v], ['V peak', r.vpeak],
             ['V peak to peak', r.vpp], ['dBV', r.dbv], ['dBmV', r.dbmv], ['dBµV', r.dbuv], ['I, A', r.i]])), cols: 2,
-            note: 'Across ' + CalcPhysics.si(z, 'Ω') + ', V and I as RMS of a sine wave; dBm of a milliwatt, dBµV of a microvolt.' };
+            note: tr('Across {z}, V and I as RMS of a sine wave; dBm of a milliwatt, dBµV of a microvolt.', { z: CalcPhysics.si(z, 'Ω') }) };
     }
 
     function runWire(n, raw) {
@@ -12720,13 +12948,13 @@
         if (!raw.V && !raw.Vf) return Object.assign(physNone(none), { cols: 2 });
         if (!(v.V > 0 && v.Vf > 0 && I > 0 && n.n >= 1 && n.n % 1 === 0)) return Object.assign(physNone(none), { cols: 2, warn: true, note: 'Vs, Vf and I above 0, and a whole number of LEDs.' });
         drop = v.V - n.n * v.Vf;
-        if (!(drop > 0)) return Object.assign(physNone(none), { cols: 2, warn: true, note: 'Vs must be above the LEDs\' ' + local(String(CalcMaths.round(n.n * v.Vf))) + ' V.' });
+        if (!(drop > 0)) return Object.assign(physNone(none), { cols: 2, warn: true, note: tr('Vs must be above the LEDs\' {n} V.', { n: local(String(CalcMaths.round(n.n * v.Vf))) }) });
         R = drop / I;
         buy = CalcPhysics.standard(R, 12, 1);
         got = drop / buy;
         return { rows: drawnTile(stackDrawing('V supplied, shared by the LEDs and the resistor', [[(n.n > 1 ? n.n + ' LEDs ' : 'LED ') + shortNum(n.n * v.Vf) + ' V', n.n * v.Vf, '#f0b3b3'],
             ['R ' + shortNum(drop) + ' V', drop, '#e3cf9c']]), 'Vs shared').concat(physRows([['R, Ω', R], ['Buy, E12, Ω', buy], ['I with it, A', got], ['P in R, W', drop * got], ['P of each LED, W', v.Vf * got]])), cols: 2,
-            note: CalcPhysics.si(buy, 'Ω') + ' gives ' + CalcPhysics.si(got, 'A') + '; a resistor of ' + wattage(drop * got) + ' is enough.' };
+            note: tr('{buy} gives {got}; a resistor of {drop} is enough.', { buy: CalcPhysics.si(buy, 'Ω'), got: CalcPhysics.si(got, 'A'), drop: wattage(drop * got) }) };
     }
 
     function runCapacitor(n, raw) {
@@ -12776,13 +13004,13 @@
             return { rows: physRows([['f, Hz', f], ['ω, rad/s', 2 * Math.PI * f], ['T, s', 1 / f], ['X<sub>L</sub> = X<sub>C</sub>, Ω', Math.sqrt(v.L / v.C)]]).concat(drawnTile(graphDrawing('XL rising, XC falling, meeting at f₀', 0, 3 * f, {
                 fs: [function (x) { return 2 * Math.PI * x * v.L; }, function (x) { return 1 / (2 * Math.PI * x * v.C); }], y: [0, 3 * Math.sqrt(v.L / v.C)],
                 marks: [[f, 'f₀']], dots: [[f, Math.sqrt(v.L / v.C)]], names: ['f', 'X, Ω'] }), 'X<sub>L</sub> and X<sub>C</sub>')), cols: 2,
-                note: 'It rings at ' + CalcPhysics.si(f, 'Hz') + '.' };
+                note: tr('It rings at {f}.', { f: CalcPhysics.si(f, 'Hz') }) };
         }
         if (!raw.Np && !raw.Ns && !raw.Vp) return Object.assign(physNone(none), { cols: 2 });
         if (!(v.Np > 0 && v.Ns > 0 && isFinite(v.Vp))) return Object.assign(physNone(none), { cols: 2, warn: true, note: 'Np and Ns above 0, and Vp.' });
         ratio = v.Ns / v.Np;
         return { rows: physRows([['V<sub>s</sub>', v.Vp * ratio], ['N<sub>p</sub> ÷ N<sub>s</sub>', v.Np / v.Ns]].concat(raw.Is && isFinite(v.Is) ? [['I<sub>p</sub>, A', v.Is * ratio], ['P, W', v.Vp * ratio * v.Is]] : [])),
-            cols: 2, note: (ratio > 1 ? 'Step up' : ratio < 1 ? 'Step down' : 'One to one') + '; ideal, no power lost.' };
+            cols: 2, note: (ratio > 1 ? tr('Step up; ideal, no power lost.') : ratio < 1 ? tr('Step down; ideal, no power lost.') : tr('One to one; ideal, no power lost.')) };
     }
 
     function runThreePhase(n, raw) {
@@ -12800,8 +13028,8 @@
         rows.push({ l: 'φ', v: fromRadians(Math.acos(n.pf)) });
         return { rows: rows.concat(drawnTile(graphDrawing('The three phases, a third of a turn apart', 0, 2000 / n.f, { fs: [0, 1, 2].map(function (k) {
             return function (t) { return peak * Math.sin(2 * Math.PI * (n.f * t / 1000 - k / 3)); };
-        }), names: ['t, ms', 'V'] }), 'Each phase\'s voltage, ' + (star ? 'to the neutral' : 'between lines'))), cols: 2,
-            note: 'Balanced, the phases alike: in star each has the line voltage ÷ √3 and the line current, in delta the line voltage and the line current ÷ √3. φ in ' + unitWord() + '.' };
+        }), names: ['t, ms', 'V'] }), (star ? tr('Each phase\'s voltage, to the neutral') : tr('Each phase\'s voltage, between lines')))), cols: 2,
+            note: tr('Balanced, the phases alike: in star each has the line voltage ÷ √3 and the line current, in delta the line voltage and the line current ÷ √3. φ in {unitWord}.', { unitWord: unitWord() }) };
     }
 
     function runRlc(n, raw) {
@@ -12823,7 +13051,7 @@
         }
         note = !isFinite(z.z) ? 'At resonance an ideal LC in parallel takes no current: its Z has no end.' : !z.z ? 'At resonance an ideal LC in series is a short: its Z is 0.' :
             z.phase > 1e-9 ? 'Inductive: the current lags the voltage.' : z.phase < -1e-9 ? 'Capacitive: the current leads the voltage.' :
-                'In phase, as a resistor alone' + (isFinite(z.f0) ? ': at resonance.' : '.');
+                tr('In phase, as a resistor alone{v}', { v: (isFinite(z.f0) ? tr(': at resonance.') : '.') });
         // |Z| from 0 to past f and f₀, as high as the parts' own impedances go twice over
         x1 = 2.5 * Math.max(f, isFinite(z.f0) ? z.f0 : 0);
         top = 2.2 * Math.max(isFinite(z.z) ? z.z : 0, R, L > 0 && C > 0 ? Math.sqrt(L / C) : 0);
@@ -12831,7 +13059,7 @@
             fs: [function (x) { var r = CalcPhysics.impedance(parallel, R, L, C, x); return r ? r.z : NaN; }], y: [0, top],
             marks: [[f, raw.f ? 'f' : 'f₀']].concat(raw.f && isFinite(z.f0) && Math.abs(z.f0 - f) > 0.06 * x1 ? [[z.f0, 'f₀']] : []),
             dots: isFinite(z.z) ? [[f, z.z]] : [], names: ['f', '|Z|'] }), '|Z| against f')), cols: 2,
-            note: (raw.f ? '' : 'At f₀. ') + note + ' V and I as RMS; angles in ' + unitWord() + '.' };
+            note: tr('{v} V and I as RMS; angles in {unitWord}.', { v: (raw.f ? '' : tr('At f₀. ')) + note, unitWord: unitWord() }) };
     }
 
     function runCost(n, raw) {
@@ -12861,7 +13089,7 @@
         if (p.bad.length) return Object.assign(physNone(none), { cols: 2, bad: p.bad, warn: true, note: 'A value, as 0.65, 10m or 2.5n.' });
         if (!raw.x) return Object.assign(physNone(none), { cols: 2 });
         d = CalcPhysics.diode(cur ? NaN : v.x, cur ? v.x : NaN, is, n.n, n.T);
-        if (!d) return Object.assign(physNone(none), { cols: 2, warn: true, note: 'IS and n above 0, T above –273.15 °C, and ' + (cur ? 'I above –IS.' : 'V not so high its current has no end.') });
+        if (!d) return Object.assign(physNone(none), { cols: 2, warn: true, note: (cur ? tr('IS and n above 0, T above –273.15 °C, and I above –IS.') : tr('IS and n above 0, T above –273.15 °C, and V not so high its current has no end.')) });
         nvt = n.n * d.vt;
         x1 = d.v * 1.15;
         return { rows: physRows([[cur ? 'V' : 'I, A', cur ? d.v : d.i], ['r<sub>d</sub>, Ω', d.rd], ['P, W', d.v * d.i], ['V<sub>T</sub>, V', d.vt], ['Each ×10 of I, V', nvt * Math.LN10]])
@@ -12910,7 +13138,7 @@
         buy = CalcPhysics.standard(R, 12, -1);
         got = (v.V - n.vbe) / buy;
         return { rows: physRows([['I<sub>B</sub> least, A', least], ['I<sub>B</sub>, A', ib], ['R<sub>B</sub>, Ω', R], ['Buy, E12, Ω', buy], ['I<sub>B</sub> with it, A', got], ['P in it, W', v.I * n.vce + got * n.vbe]]),
-            cols: 2, note: got > 0.02 ? 'More than most pins give, some 20 mA: a MOSFET, or a Darlington, instead.' : CalcPhysics.si(buy, 'Ω') + ' to the base; the pin gives ' + CalcPhysics.si(got, 'A') + '.' };
+            cols: 2, note: got > 0.02 ? 'More than most pins give, some 20 mA: a MOSFET, or a Darlington, instead.' : tr('{buy} to the base; the pin gives {got}.', { buy: CalcPhysics.si(buy, 'Ω'), got: CalcPhysics.si(got, 'A') }) };
     }
 
     function runBias(n, raw) {
@@ -12927,7 +13155,7 @@
             rows = drawnTile(graphDrawing('Its load line, the operating point on it', 0, v.V, { fs: [function (x) { return (v.V - x) * top / v.V; }], y: [0, 1.15 * top],
                 marks: r.region === 'active' ? [[v.V / 2, '½VCC']] : [], dots: [[r.vce, r.ic]], names: ['VCE', 'IC'] }), 'The load line').concat(rows);
         }
-        return { rows: rows, cols: 3, note: r.region === 'active' ? 'For the widest swing, VCE near half of VCC, ' + CalcPhysics.si(v.V / 2, 'V') + '.' : '' };
+        return { rows: rows, cols: 3, note: r.region === 'active' ? tr('For the widest swing, VCE near half of VCC, {v}.', { v: CalcPhysics.si(v.V / 2, 'V') }) : '' };
     }
 
     function runMosfet(n, raw) {
@@ -12955,7 +13183,7 @@
         return { rows: drawnTile(graphDrawing('V out against the load current' + (hi > v.V ? ', at the highest Vin thin' : ''), 0, Math.max(1.6 * most, 1.2 * IL), {
             fs: [function (x) { return Math.min(v.Vz, v.V - x * buy); }].concat(hi > v.V ? [function (x) { return Math.min(v.Vz, hi - x * buy); }] : []), y: [0, 1.25 * v.Vz],
             marks: [[most, 'most']], dots: [[IL, Math.min(v.Vz, v.V - IL * buy)]], names: ['IL, A', 'V out'] }), 'It holds till').concat(physRows([['R, Ω', R], ['Buy, E12, Ω', buy], ['P in the Zener, W', Pz], ['P in R, W', (hi - v.Vz) * (hi - v.Vz) / buy], ['I<sub>Z</sub> at the lowest, A', (v.V - v.Vz) / buy - IL]])),
-            cols: 2, note: 'The worst: at ' + CalcPhysics.si(hi, 'V') + ' with no load. A Zener of ' + (Pz * 2 <= 0.5 ? '½ W' : Pz * 2 <= 1.3 ? '1.3 W' : Pz * 2 <= 5 ? '5 W' : 'more than 5 W') + ' is enough.' };
+            cols: 2, note: (Pz * 2 <= 0.5 ? tr('The worst: at {hi} with no load. A Zener of ½ W is enough.', { hi: CalcPhysics.si(hi, 'V') }) : Pz * 2 <= 1.3 ? tr('The worst: at {hi} with no load. A Zener of 1.3 W is enough.', { hi: CalcPhysics.si(hi, 'V') }) : Pz * 2 <= 5 ? tr('The worst: at {hi} with no load. A Zener of 5 W is enough.', { hi: CalcPhysics.si(hi, 'V') }) : tr('The worst: at {hi} with no load. A Zener of more than 5 W is enough.', { hi: CalcPhysics.si(hi, 'V') })) };
     }
 
     function runLm317(n, raw) {
@@ -12970,8 +13198,7 @@
             got = 1.25 / buy;
             rows = physRows([['R, Ω', R], ['Buy, E12, Ω', buy], ['I with it, A', got], ['P in R, W', 1.25 * got]].concat(raw.Vin ? [['Load up to, V', vin - 4.25]] : []));
             return { rows: rows, cols: 2, warn: raw.Vin && vin <= 4.25,
-                note: raw.Vin && vin <= 4.25 ? 'Vin too low: 1.25 V across R and some 3 V across the LM317 leave nothing for the load.' : (v.I < 0.01 ? 'Below some 10 mA it may not hold steady. ' : '') +
-                    'R from OUT to ADJ, the load from ADJ on' + (raw.Vin ? '; the load may drop up to ' + CalcPhysics.si(vin - 4.25, 'V') + '.' : '.') };
+                note: raw.Vin && vin <= 4.25 ? 'Vin too low: 1.25 V across R and some 3 V across the LM317 leave nothing for the load.' : tr('{v}R from OUT to ADJ, the load from ADJ on{v2}', { v: (v.I < 0.01 ? tr('Below some 10 mA it may not hold steady. ') : ''), v2: (raw.Vin ? tr('; the load may drop up to {vin}.', { vin: CalcPhysics.si(vin - 4.25, 'V') }) : '.') }) };
         }
         if (of === 1) {
             if (!raw.R2) return Object.assign(physNone(none), { cols: 2 });
@@ -13089,7 +13316,7 @@
         var of = +raw.kind || 0, v = of === 0 ? Math.sqrt(n.T / n.mu) : n.v, r, rows, none = ['f, Hz', 'λ, m'];
         if (!raw.L) return physNone(none);
         r = CalcPhysics.standing(of, n.L, v, n.n);
-        if (!r) return Object.assign(physNone(none), { warn: true, note: (of === 0 ? 'L, T and μ' : 'L and v') + ' above 0, and n a whole number, 1 or more.' });
+        if (!r) return Object.assign(physNone(none), { warn: true, note: (of === 0 ? tr('L, T and μ above 0, and n a whole number, 1 or more.') : tr('L and v above 0, and n a whole number, 1 or more.')) });
         rows = physRows([['f, Hz', r.f], ['λ, m', r.l], ['Harmonic', r.h], ['The first, Hz', CalcPhysics.standing(of, n.L, v, 1).f], ['v, m/s', v], ['Nodes', r.nodes]]);
         rows.push({ l: 'Its shape', wide: true, text: standingDrawing(of, r.h) });
         return { rows: rows, cols: 2, note: (of === 2 ? 'Closed at one end, only the odd harmonics, 1, 3, 5 …' : 'Every harmonic, 1, 2, 3 …') +
@@ -13110,7 +13337,7 @@
         }
         return { rows: physRows([['Beats a second', fb], ['Between beats, s', 1 / fb], ['Heard, Hz', fm], ['Apart, cents', 1200 * Math.log2(Math.max(n.f1, n.f2) / Math.min(n.f1, n.f2))]])
             .concat(drawnTile(graphDrawing('The two together, loud and soft', 0, x1, { fs: [env, function (t) { return -env(t); }], fill: [env, function (t) { return -env(t); }, 0, x1], paths: wave.length ? [wave] : [],
-                marks: [[1 / fb, '1 beat'], [x1, '2']], names: ['t, s', ''] }), 'Two beats' + (wave.length ? '' : ', the wave too fast to draw'))), cols: 2,
+                marks: [[1 / fb, '1 beat'], [x1, '2']], names: ['t, s', ''] }), tr('Two beats{v}', { v: (wave.length ? '' : tr(', the wave too fast to draw')) }))), cols: 2,
             note: fb > 15 ? 'Some 15 or more a second, beats are heard as a rough sound, then as two notes.' : 'Loud where their waves meet in step, soft where they cancel.' };
     }
 
@@ -13204,7 +13431,7 @@
         if (n.n1 > n.n2) rows.push({ l: 'Critical angle', v: fromRadians(Math.asin(n.n2 / n.n1)) });
         rows = rows.concat(physRows([['Speed in 1, m/s', LIGHT / n.n1], ['Speed in 2, m/s', LIGHT / n.n2]]));
         rows.push({ l: 'The ray', wide: true, text: rayDrawing(t1, s > 1 ? NaN : Math.asin(s), n.n1, n.n2) });
-        return { rows: rows, cols: 2, note: (s > 1 ? 'Past the critical angle: total internal reflection. ' : '') + 'Angles from the normal, in ' + unitWord() + '.' };
+        return { rows: rows, cols: 2, note: tr('{v}Angles from the normal, in {unitWord}.', { v: (s > 1 ? tr('Past the critical angle: total internal reflection. ') : ''), unitWord: unitWord() }) };
     }
 
     // Light meeting a surface at t1 from the normal: bent to t2, or NaN all reflected; each medium shaded of its index, the
@@ -13249,15 +13476,14 @@
         var grating = raw.kind === '1', lam = n.w * 1e-9, d = grating ? 1e-3 / n.N : n.d, s = n.m * lam / d, top, rows, none = grating ? ['θ of order m', 'Orders'] : ['Δy, m', 'θ of order m'];
         if (!raw.w) return physNone(none);
         if (!(n.w > 0 && d > 0 && isFinite(d) && n.m >= 0 && n.m % 1 === 0 && (grating || n.L > 0))) {
-            return Object.assign(physNone(none), { warn: true, note: (grating ? 'λ and the lines above 0' : 'λ, d and L above 0') + ', and the order a whole number, 0 or more.' });
+            return Object.assign(physNone(none), { warn: true, note: (grating ? tr('λ and the lines above 0, and the order a whole number, 0 or more.') : tr('λ, d and L above 0, and the order a whole number, 0 or more.')) });
         }
         top = Math.floor(d / lam + 1e-9);
         rows = s <= 1 ? [{ l: 'θ of order m', v: fromRadians(Math.asin(s)) }] : [{ l: 'θ of order m', wide: true, text: 'None: past a right angle' }];
         if (grating) rows = rows.concat(physRows([['Orders each side', top], ['Spots in all', 2 * top + 1], ['d, m', d]]));
         else rows = rows.concat(physRows([['Δy, m', lam * n.L / d], ['Δy, mm', lam * n.L / d * 1e3]].concat(s < 1 ? [['y of order m, m', n.L * Math.tan(Math.asin(s))]] : [])));
         rows.push({ l: grating ? 'Its spots' : 'On the screen', wide: true, text: fringesDrawing(n.w, d, grating ? 0 : n.L) });
-        return { rows: rows, cols: 2, note: 'Angles in ' + unitWord() + (grating ? '; of each order the spots each side.' : '; Δy as the angles are small, d far below L.') +
-            (nmColour(n.w) ? '' : ' Light not seen: drawn white.') };
+        return { rows: rows, cols: 2, note: (grating ? tr('Angles in {unitWord}; of each order the spots each side.{v}', { unitWord: unitWord(), v: (nmColour(n.w) ? '' : tr(' Light not seen: drawn white.')) }) : tr('Angles in {unitWord}; Δy as the angles are small, d far below L.{v}', { unitWord: unitWord(), v: (nmColour(n.w) ? '' : tr(' Light not seen: drawn white.')) })) };
     }
 
     // light of a wavelength on a screen, as bright at each place across it as f gives it, from 0 at its left to 1 at its right;
@@ -13284,8 +13510,7 @@
             return { rows: rows.concat(drawnTile(graphDrawing('Two points just told apart, and the light of each', -2.5 * x1, 3.5 * x1, {
                 fs: [function (x) { return light(x) + light(x - x1); }, light, function (x) { return light(x - x1); }], y: [0, 1.15], marks: [[0, '0'], [x1, 'θ']], names: ['θ', 'I'] }), 'Two points, θ apart'),
             drawnTile(screenDrawing(n.w, function (u) { return (light((u * 6 - 2.5) * x1) + light((u * 6 - 3.5) * x1)) / 1.1; }, 'The two points on the screen'), 'Seen')), cols: 2,
-                note: 'By Rayleigh: one point\'s middle on the other\'s first dark ring, the light between them a quarter less. Angles in ' + unitWord() + '.' +
-                    (nmColour(n.w) ? '' : ' Light not seen: drawn white.') };
+                note: tr('By Rayleigh: one point\'s middle on the other\'s first dark ring, the light between them a quarter less. Angles in {unitWord}.{v}', { unitWord: unitWord(), v: (nmColour(n.w) ? '' : tr(' Light not seen: drawn white.')) }) };
         }
         if (!(n.w > 0 && n.a > 0 && n.m >= 1 && n.m % 1 === 0 && (!raw.L || n.L > 0))) {
             return Object.assign(physNone(none), { warn: true, note: 'λ and a above 0, the order a whole number from 1, and L above 0.' });
@@ -13303,7 +13528,7 @@
         }
         return { rows: rows.concat(drawnTile(graphDrawing('The light at each angle', -x1, x1, { fs: [light], y: [0, 1.1], marks: marks, names: ['θ', 'I'] }), 'Its light, dark at each order'),
             drawnTile(screenDrawing(n.w, function (u) { return light((2 * u - 1) * x1); }, 'The light on the screen'), 'On the screen')), cols: 2,
-            note: 'Dark where a sin θ = mλ; the middle twice as wide as the rest. Angles in ' + unitWord() + '.' + (nmColour(n.w) ? '' : ' Light not seen: drawn white.') };
+            note: tr('Dark where a sin θ = mλ; the middle twice as wide as the rest. Angles in {unitWord}.{v}', { unitWord: unitWord(), v: (nmColour(n.w) ? '' : tr(' Light not seen: drawn white.')) }) };
     }
 
     function runPolarise(n, raw) {
@@ -13314,7 +13539,7 @@
             .concat([{ l: 'Brewster\'s θ', v: fromRadians(b) }, { l: 'Refracted then at', v: fromRadians(Math.PI / 2 - b) }], drawnTile(curveDrawing('What goes through at each angle', fromRadians(Math.PI / 2), 0, 100, function (x) {
                 return 100 * Math.pow(Math.cos(toRadians(x)), 2);
             }, { under: true, at: Math.abs(n.a) <= fromRadians(Math.PI / 2) ? Math.abs(n.a) : undefined, names: ['θ', '%'] }), 'Through, % against θ')), cols: 2,
-            note: 'Angles in ' + unitWord() + '. At a right angle, crossed, none goes through.' };
+            note: tr('Angles in {unitWord}. At a right angle, crossed, none goes through.', { unitWord: unitWord() }) };
     }
 
     function runDoppler(n, raw) {
@@ -13342,7 +13567,7 @@
         if (nm < 0.01) return 'Gamma rays';
         if (nm < 10) return 'X-rays';
         if (nm < 380) return 'Ultraviolet';
-        if (nm <= 750) return 'Visible, ' + seen.filter(function (s, i) { return nm >= s[0] && nm < (seen[i + 1] || [Infinity])[0]; })[0][1];
+        if (nm <= 750) return tr('Visible, {seen}', { seen: seen.filter(function (s, i) { return nm >= s[0] && nm < (seen[i + 1] || [Infinity])[0]; })[0][1] });
         if (nm < 1e6) return 'Infrared';
         if (nm < 1e9) return 'Microwaves';
         return 'Radio waves';
@@ -13409,7 +13634,7 @@
     function runExpansion(n, raw) {
         var vol = raw.kind === '1', d = n.a * n.x * n.dT, none = vol ? ['ΔV, m³', 'V, m³'] : ['ΔL, m', 'L, m'];
         if (!raw.x && !raw.a) return physNone(none);
-        if (!(n.x > 0 && isFinite(n.a) && isFinite(n.dT))) return Object.assign(physNone(none), { warn: true, note: (vol ? 'V₀' : 'L₀') + ' above 0, ' + (vol ? 'β' : 'α') + ' and ΔT.' });
+        if (!(n.x > 0 && isFinite(n.a) && isFinite(n.dT))) return Object.assign(physNone(none), { warn: true, note: (vol ? tr('V₀ above 0, {v} and ΔT.', { v: (vol ? 'β' : 'α') }) : tr('L₀ above 0, {v} and ΔT.', { v: (vol ? 'β' : 'α') })) });
         return { rows: physRows([[none[0], d], [none[1], n.x + d], ['Change, %', 100 * n.a * n.dT]]), cols: 3,
             note: vol ? 'Of a solid, β is about 3α; water is about 2.1e-4 near 20 °C.' : 'The same ΔT in kelvin or °C.' };
     }
@@ -13455,7 +13680,7 @@
         return { rows: physRows(rows).concat(drawnTile(graphDrawing('Its temperature as time goes, nearing the air\'s', 0, end, {
             fs: [at, function () { return n.Ta; }], dots: dots, names: ['min', 'T'] }), 'Its temperature, nearing the air\'s')), cols: 2, warn: raw.T && isFinite(n.T) && !isFinite(when),
             note: raw.T && isFinite(n.T) && !isFinite(when) ? 'It never comes to that: it only nears the air\'s temperature, from the side it starts.' :
-                'It nears the air\'s temperature without end, the gap to it halving each ' + +(Math.LN2 / k).toPrecision(3) + ' minutes.' };
+                tr('It nears the air\'s temperature without end, the gap to it halving each {v} minutes.', { v: +(Math.LN2 / k).toPrecision(3) }) };
     }
 
     function runDew(n, raw) {
@@ -13500,7 +13725,7 @@
         var kind = +raw.kind || 0, gamma = [1.4, 5 / 3, 4 / 3][+raw.gas || 0], g, path, lo, hi, pad, none = ['P<sub>2</sub>, Pa', 'W, J'];
         if (!raw.V && !(kind === 2 ? raw.T2 : raw.V2)) return physNone(none);
         g = CalcPhysics.gasProcess(kind, gamma, n.P, n.V, n.T, kind === 2 ? n.T2 : n.V2);
-        if (!g) return Object.assign(physNone(none), { warn: true, note: 'P₁, V₁, T₁ and ' + (kind === 2 ? 'T₂' : 'V₂') + ' above 0, T in kelvin.' });
+        if (!g) return Object.assign(physNone(none), { warn: true, note: (kind === 2 ? tr('P₁, V₁, T₁ and T₂ above 0, T in kelvin.') : tr('P₁, V₁, T₁ and V₂ above 0, T in kelvin.')) });
         // its path on a PV diagram: a curve shaded under, its area the work; of a steady volume, a line straight up or down
         path = [function (x) { return n.P * n.V / x; }, function () { return n.P; }, null, function (x) { return n.P * Math.pow(n.V / x, gamma); }][kind];
         lo = Math.min(n.V, g.v);
@@ -13510,9 +13735,9 @@
             .concat(drawnTile(graphDrawing('Its path from P₁V₁ to P₂V₂, its area the work', lo - pad, hi + pad, kind === 2 ?
                 { lines: [[n.V, n.P, n.V, g.p]], dots: [[n.V, n.P], [g.v, g.p]], marks: [[n.V, 'V₁']], y: [0, Math.max(n.P, g.p) * 1.1], names: ['V', 'P'] } :
                 { fs: [function (x) { return x >= lo && x <= hi ? path(x) : NaN; }].concat(kind === 3 ? [function (x) { return n.P * n.V / x; }] : []), fit: 1, fill: [path, null, lo, hi],
-                    dots: [[n.V, n.P], [g.v, g.p]], marks: [[n.V, 'V₁'], [g.v, 'V₂']], names: ['V', 'P'] }), 'P against V' + (kind === 3 ? ', and an isotherm' : ''))), cols: 2,
-            note: ['Its energy stays the same: the heat put in is the work it does.', 'The heat put in warms it and does work: Q = n Cp ΔT.',
-                'It does no work: all the heat goes to its energy.', 'No heat in or out: the work it does comes from its energy, so it cools as it grows.'][kind] + ' W above 0: it pushes out.' };
+                    dots: [[n.V, n.P], [g.v, g.p]], marks: [[n.V, 'V₁'], [g.v, 'V₂']], names: ['V', 'P'] }), tr('P against V{v}', { v: (kind === 3 ? tr(', and an isotherm') : '') }))), cols: 2,
+            note: tr('{v} W above 0: it pushes out.', { v: [tr('Its energy stays the same: the heat put in is the work it does.'), tr('The heat put in warms it and does work: Q = n Cp ΔT.'),
+                tr('It does no work: all the heat goes to its energy.'), tr('No heat in or out: the work it does comes from its energy, so it cools as it grows.')][kind] }) };
     }
 
     function runEngine(n, raw) {
@@ -13531,10 +13756,10 @@
             } else if (raw.Q && n.Q > 0) rows.push(['Work at most, J', n.Q * eta], ['Heat out at least, J', n.Q * (1 - eta)]);
             note = warn ? 'More than Carnot\'s: no engine between these can do it.' : 'No engine between them does better: a hotter TH or a colder TC does.';
         }
-        return { rows: drawnTile(fridge ? stackDrawing('The heat into the warm, at best: the work and the heat from the cold', [['Work 1', 1, '#f0b3b3'], ['From the cold ' + shortNum(cop), cop, '#bcd0e6']]) :
-            raw.Q && raw.W && n.Q > 0 && n.W >= 0 && n.W <= n.Q ? stackDrawing('The heat in: the work, and the heat out; at best the work ' + shortNum(100 * eta) + '%', [['Work ' + shortNum(100 * n.W / n.Q) + '%', n.W, '#f0b3b3'],
-                ['Heat out ' + shortNum(100 - 100 * n.W / n.Q) + '%', n.Q - n.W, '#bcd0e6']]) :
-            stackDrawing('The heat in, at best: the work, and the heat out', [['Work ' + shortNum(100 * eta) + '%', eta, '#f0b3b3'], ['Heat out ' + shortNum(100 - 100 * eta) + '%', 1 - eta, '#bcd0e6']]),
+        return { rows: drawnTile(fridge ? stackDrawing('The heat into the warm, at best: the work and the heat from the cold', [['Work 1', 1, '#f0b3b3'], [tr('From the cold {cop}', { cop: shortNum(cop) }), cop, '#bcd0e6']]) :
+            raw.Q && raw.W && n.Q > 0 && n.W >= 0 && n.W <= n.Q ? stackDrawing(tr('The heat in: the work, and the heat out; at best the work {v}%', { v: shortNum(100 * eta) }), [[tr('Work {v}%', { v: shortNum(100 * n.W / n.Q) }), n.W, '#f0b3b3'],
+                [tr('Heat out {v}%', { v: shortNum(100 - 100 * n.W / n.Q) }), n.Q - n.W, '#bcd0e6']]) :
+            stackDrawing('The heat in, at best: the work, and the heat out', [[tr('Work {v}%', { v: shortNum(100 * eta) }), eta, '#f0b3b3'], [tr('Heat out {v}%', { v: shortNum(100 - 100 * eta) }), 1 - eta, '#bcd0e6']]),
             'Where the heat goes').concat(physRows(rows)), cols: 2, warn: warn, note: note };
     }
 
@@ -13602,7 +13827,7 @@
             '<rect x="' + x + '" y="' + fix(y) + '" width="' + s + '" height="' + s + '" fill="#d3bc8f" stroke="#8a7550" stroke-width="1.2"/>' +
             svgArrow(cx - 8, cy, cx - 8, cy + 6 + 34 * W0 / top, 'calc-sv-curve') + svgArrow(cx + 8, cy, cx + 8, cy - 6 - 34 * push / top, 'calc-sv-seg') +
             svgText(x - 6, cy + 4, 'Weight', 'end', 'calc-sv-small calc-sv-red') + svgText(x + s + 6, cy + 4, 'Push up') +
-            svgText(W - 10, surface - 6, under < 1 ? 'Floats, ' + shortNum(100 * under) + '% under' : under > 1 ? 'Sinks' : 'Stays where it is', 'end'));
+            svgText(W - 10, surface - 6, under < 1 ? tr('Floats, {v}% under', { v: shortNum(100 * under) }) : under > 1 ? 'Sinks' : 'Stays where it is', 'end'));
     }
 
     function runBuoyancy(n, raw) {
@@ -13668,7 +13893,7 @@
         return { rows: physRows([['v, m/s', s.v], ['v, mm/s', s.v * 1e3], ['Re', s.re], ['Weight, N', W], ['Buoyancy, N', B], ['Drag at v, N', Math.abs(W - B)], ['To 63%, s', s.tau]])
             .concat(drawnTile(stokesDrawing(W, B), 'Its forces at its last speed')), cols: 2, warn: s.re > 1,
             note: s.re > 1 ? 'Re above 1: too fast for Stokes\' law, its drag more than 6πμrv, so it goes slower than this.' :
-                (s.v < 0 ? 'Lighter than the fluid: it rises. ' : '') + 'Slow and smooth, Re below 1: the drag 6πμrv. At its last speed, drag and buoyancy hold its weight.' };
+                tr('{v}Slow and smooth, Re below 1: the drag 6πμrv. At its last speed, drag and buoyancy hold its weight.', { v: (s.v < 0 ? tr('Lighter than the fluid: it rises. ') : '') }) };
     }
 
     // A ball in a fluid, its weight down from its bottom, red, and the buoyancy and drag on it, of their sizes, the largest 40
@@ -13732,8 +13957,7 @@
         rows = physRows([['Q, MeV', Q], ['Δm, u', dm], ['Q, J', Q * 1e6 * CHARGE]]).concat([{ l: 'It', wide: true, text: Q > 0 ? 'Gives energy off, exothermic' : Q < 0 ? 'Takes energy in, endothermic' : 'Neither gives energy nor takes it' }]);
         if (two) rows = rows.concat(physRows([['The first, MeV', Q * b[1] / (b[0] + b[1])], ['The second, MeV', Q * b[0] / (b[0] + b[1])]]), drawnTile(decayDrawing(b, Q), 'Flying apart, at their speeds'));
         return { rows: rows, cols: 2, warn: a.length === 1 && Q < 0,
-            note: a.length === 1 && Q < 0 ? 'Below 0: it cannot decay so on its own.' : 'Of the atoms\' masses, the electrons cancel; of β⁺ decay, add two electrons\' mass after, 0.001097 u.' +
-                (two ? ' Shared as momentum is kept.' : '') };
+            note: a.length === 1 && Q < 0 ? 'Below 0: it cannot decay so on its own.' : tr('Of the atoms\' masses, the electrons cancel; of β⁺ decay, add two electrons\' mass after, 0.001097 u.{v}', { v: (two ? tr(' Shared as momentum is kept.') : '') }) };
     }
 
     // a nucleus decayed into two of the masses m, flying apart from where it was, each at a speed of 1 over its mass, the faster's
@@ -13940,7 +14164,7 @@
         rows = [];
         if (raw.t) rows.push(['Left, %', 100 * Math.pow(0.5, n.t / n.T)], ['Decayed, %', 100 * -Math.expm1(-lambda * n.t)]);
         if (raw.t && raw.N) rows.unshift(['Left', n.N * Math.pow(0.5, n.t / n.T)]);
-        rows.push(['λ, per ' + name, lambda], ['Mean life, ' + name, 1 / lambda]);
+        rows.push([tr('λ, per {name}', { name: name }), lambda], [tr('Mean life, {name}', { name: name }), 1 / lambda]);
         if (raw.pc) rows.push(['To ' + local(String(n.pc)) + '%, ' + name, n.T * Math.log2(100 / n.pc)]);
         if (raw.N) rows.push(['Of N₀ atoms, Bq', lambda / sec * n.N], ['Of N₀ atoms, Ci', lambda / sec * n.N / 3.7e10]);
         x1 = Math.max(4.4 * n.T, raw.t ? n.t * 1.1 : 0);
@@ -14092,9 +14316,7 @@
                     'of insert to vector, 3 : 1 unless typed, and the pmol of each; the plasmid they make drawn.',
                     fields: [{ k: 'vl', l: 'Vector, bp', ph: '3000', name: 'Vector bp' }, { k: 'vn', l: 'Vector, ng', ph: '50', name: 'Vector ng' }, { k: 'il', l: 'Insert, bp', ph: '1000', name: 'Insert bp' },
                         { k: 'r', l: 'Ratio', ph: '3', def: 3, name: 'Ratio' }], cols: 2, run: runLigation, example: { vl: '3000', vn: '50', il: '720' } },
-                { id: 'digest', t: 'Restriction digest', f: ['G^AATTC', 'fragments'], d: 'Where enzymes cut a sequence, linear or a circle, as a plasmid is, and the fragments they leave, run on a gel ' +
-                    'beside a ladder, drawn, with a map of the sites. Enzymes typed apart by commas, EcoRI, BamHI; none typed, which of ' + CalcBiology.enzymes.length +
-                    ' common ones cut it once, twice or not at all.',
+                { id: 'digest', t: 'Restriction digest', f: ['G^AATTC', 'fragments'], d: tr('Where enzymes cut a sequence, linear or a circle, as a plasmid is, and the fragments they leave, run on a gel beside a ladder, drawn, with a map of the sites. Enzymes typed apart by commas, EcoRI, BamHI; none typed, which of {enzymes} common ones cut it once, twice or not at all.', { enzymes: CalcBiology.enzymes.length }),
                     fields: [{ k: 's', l: 'Sequence', ph: 'GAATTC…', area: true }, { k: 'e', l: 'Enzymes', ph: 'EcoRI, BamHI', text: true, cls: 'calc-sv-wide' }, { k: 'top', l: 'It is', choice: ['Linear', 'Circular'] }],
                     cols: 1, spaces: ['e'], run: runDigest, example: function (raw) { return { s: GFP, e: 'NheI, HindIII, BamHI', top: raw.top || '0' }; } },
                 { id: 'pcr', t: 'PCR amplification', f: 'N = N<sub>0</sub>(1 + E)<sup>n</sup>', d: 'The copies after n cycles of PCR from N₀ at first, at an efficiency E, 100% doubling each cycle; ' +
@@ -14869,14 +15091,14 @@
     // a cell in a solution, its water potential and the solution's, and the water going in or out, as the arrows show
     function waterDrawing(inside, outside) {
         var body = '<rect class="calc-bio-sol" x="40" y="6" width="220" height="104" rx="4"/><rect class="calc-bio-cellr" x="100" y="32" width="100" height="52" rx="18"/>' +
-            svgText(150, 56, 'Cell', 'middle', 'calc-sv-small calc-sv-bold') + svgText(150, 70, 'Ψ ' + shortNum(inside), 'middle') + svgText(150, 22, 'Outside, Ψ ' + shortNum(outside), 'middle'),
+            svgText(150, 56, 'Cell', 'middle', 'calc-sv-small calc-sv-bold') + svgText(150, 70, 'Ψ ' + shortNum(inside), 'middle') + svgText(150, 22, tr('Outside, Ψ {outside}', { outside: shortNum(outside) }), 'middle'),
             into = outside > inside, i;
         if (outside !== inside) {
             for (i = 0; i < 2; i++) {
                 body += into ? svgArrow(60, 40 + 36 * i, 94, 40 + 36 * i, 'calc-sv-seg calc-sv-thin') + svgArrow(240, 40 + 36 * i, 206, 40 + 36 * i, 'calc-sv-seg calc-sv-thin') :
                     svgArrow(94, 40 + 36 * i, 60, 40 + 36 * i, 'calc-sv-seg calc-sv-thin') + svgArrow(206, 40 + 36 * i, 240, 40 + 36 * i, 'calc-sv-seg calc-sv-thin');
             }
-            body += svgText(150, 102, 'Water goes ' + (into ? 'in' : 'out'), 'middle', 'calc-sv-small calc-sv-red');
+            body += svgText(150, 102, (into ? tr('Water goes in') : tr('Water goes out')), 'middle', 'calc-sv-small calc-sv-red');
         }
         return svgOf('', 300, 116, 'The cell, the solution, and which way water goes', body);
     }
@@ -15016,14 +15238,14 @@
             body += '<path class="calc-sv-curve calc-bio-path" d="M' + pts.map(function (p) { return fix(x0 + p[0] * sc) + ' ' + fix(y0 + p[1] * sc); }).join('L') + '"/>';
         }
         return svgOf('', 300, y0 + h + 8, 'The dot plot, the alignment red', '<rect class="calc-bio-frame" x="' + fix(x0) + '" y="' + y0 + '" width="' + fix(w) + '" height="' + fix(h) + '"/>' + body +
-            svgText(x0, y0 - 5, 'Sequence 1, ' + a.length, 'start') + '<text class="calc-sv-small" transform="translate(' + fix(x0 - 5) + ' ' + y0 + ') rotate(-90)" text-anchor="end">Sequence 2, ' + b.length + '</text>');
+            svgText(x0, y0 - 5, tr('Sequence 1, {a}', { a: a.length }), 'start') + '<text class="calc-sv-small" transform="translate(' + fix(x0 - 5) + ' ' + y0 + ') rotate(-90)" text-anchor="end">Sequence 2, ' + b.length + '</text>');
     }
 
     // Marks along a sequence, of either strand: the top strand's above the line, the other's under it, each in the first lane free
     // of those before it; the first lit of them red. marks [{ from, to, strand, cut }]; at, a base marked by a dashed line
     function strandDrawing(label, L, marks, lit, at) {
         var a = 16, b = 286, x = function (p) { return a + (b - a) * (p - 1) / Math.max(1, L - 1); }, mid = 56, ends = [[], []], body = '', top = '';
-        if (at) body += '<path class="calc-sv-guide" d="M' + fix(x(at)) + ' 14V' + (mid * 2 - 14) + '"/>' + svgText(x(at), 10, 'base ' + at, 'middle');
+        if (at) body += '<path class="calc-sv-guide" d="M' + fix(x(at)) + ' 14V' + (mid * 2 - 14) + '"/>' + svgText(x(at), 10, tr('base {at}', { at: at }), 'middle');
         body += '<path class="calc-sv-ground" d="M' + a + ' ' + mid + 'H' + b + '"/>' + svgText(a - 4, mid - 6, '+', 'end', 'calc-sv-small calc-sv-bold') + svgText(a - 4, mid + 12, '−', 'end', 'calc-sv-small calc-sv-bold');
         marks.slice(0, 400).map(function (m, i) { return { m: m, lit: i < lit }; }).sort(function (p, q) { return p.m.from - q.m.from; }).forEach(function (o) { // in lanes along it, the lit over the rest
             var m = o.m, up = m.strand > 0, side = ends[up ? 0 : 1], x1 = x(m.from), x2 = Math.max(x(m.to), x1 + 3), lane = 0, y, mark;
@@ -15047,7 +15269,7 @@
         body = '<path class="calc-bio-line" d="M24 40H276M24 47H276"/>' + svgText(20, 43, '5′', 'end') + svgText(280, 43, '3′', 'start') + svgText(20, 51, '3′', 'end') + svgText(280, 51, '5′', 'start') +
             svgArrow(x(mu.from), 28, x(mu.from + len), 28, 'calc-sv-seg') + svgArrow(x(mu.from + len), 60, x(mu.from), 60, 'calc-sv-seg');
         [28, 60].forEach(function (y) { body += '<rect class="calc-sv-bar-lit" x="' + fix(x(pos)) + '" y="' + (y - 5) + '" width="' + fix(Math.max(3, x(pos + k) - x(pos))) + '" height="10"/>'; });
-        return svgOf('', 300, 86, 'The primers on the template, the change red', body + svgText(150, 16, 'Forward, ' + len + ' bases', 'middle') + svgText(150, 80, 'Reverse', 'middle'));
+        return svgOf('', 300, 86, 'The primers on the template, the change red', body + svgText(150, 16, tr('Forward, {len} bases', { len: len }), 'middle') + svgText(150, 80, 'Reverse', 'middle'));
     }
 
     // Two fragments joined by Gibson assembly: the end of the first and the start of the second, the overlap shaded, each primer an
@@ -15060,7 +15282,7 @@
             svgArrow(c - ovA * u, 30, c + k1 * u, 30, 'calc-sv-seg') + '<path class="calc-sv-curve" d="M' + fix(c - ovA * u) + ' 30H' + c + '"/>' +
             svgArrow(c + ovB * u, 66, c - k2 * u, 66, 'calc-sv-seg') + '<path class="calc-sv-curve" d="M' + c + ' 66H' + fix(c + ovB * u) + '"/>';
         return svgOf('', 300, 96, 'The two fragments, the primers and the overlap', body + svgText(c + k1 * u + 4, 33, 'Forward', 'start') + svgText(c - k2 * u - 4, 69, 'Reverse', 'end') +
-            svgText(c, 90, 'Overlap, ' + g.overlap.length + ' bp', 'middle'));
+            svgText(c, 90, tr('Overlap, {overlap} bp', { overlap: g.overlap.length }), 'middle'));
     }
 
     // bars across on a scale of logarithms, each named at its left, the lit red: items [[name, value, lit]]; tick(e) names 10^e
@@ -15181,7 +15403,7 @@
         for (a = 0; a < Math.min(k, 8); a++) {
             kx = L + (a % 4) * 72;
             ky = B + 18 + Math.floor(a / 4) * 15;
-            body += '<rect class="calc-bio-sq" x="' + kx + '" y="' + ky + '" width="10" height="10" fill="' + LIGHT_TINTS[a] + '"/>' + svgText(kx + 14, ky + 9, 'Age ' + a);
+            body += '<rect class="calc-bio-sq" x="' + kx + '" y="' + ky + '" width="10" height="10" fill="' + LIGHT_TINTS[a] + '"/>' + svgText(kx + 14, ky + 9, tr('Age {a}', { a: a }));
         }
         return svgOf('', 300, B + 24 + Math.ceil(Math.min(k, 8) / 4) * 15, 'Its numbers each step, by age', body + '<path class="calc-sv-ground" d="M' + L + ' ' + B + 'H' + R + '"/>');
     }
@@ -15300,8 +15522,8 @@
         if (r.error) return bioWarn(none, GENE_ERRORS[r.error], r.which !== undefined ? [r.which ? 'p2' : 'p1'] : ['p1', 'p2']);
         total = r.total;
         ratio = function (list) { return CalcBiology.ratio(list.map(function (p) { return p[1]; })).join(' : '); };
-        rows = [textRow('Phenotypes, ' + ratio(r.phenotypes), r.phenotypes.map(function (p) { return p[0]; }).join(' : ')),
-            textRow('Genotypes' + (r.genotypes.length <= 27 ? ', ' + ratio(r.genotypes) : ''), r.genotypes.length <= 27 ? r.genotypes.map(function (p) { return p[0]; }).join(' : ') : r.genotypes.length + ' kinds')];
+        rows = [textRow(tr('Phenotypes, {phenotypes}', { phenotypes: ratio(r.phenotypes) }), r.phenotypes.map(function (p) { return p[0]; }).join(' : ')),
+            textRow('Genotypes' + (r.genotypes.length <= 27 ? ', ' + ratio(r.genotypes) : ''), r.genotypes.length <= 27 ? r.genotypes.map(function (p) { return p[0]; }).join(' : ') : tr('{genotypes} kinds', { genotypes: r.genotypes.length }))];
         rows = rows.concat(physRows(r.phenotypes.slice(0, 8).map(function (p) { return [p[0] + ', %', 100 * p[1] / total]; })),
             [textRow('Gametes', r.gametes[0].map(function (g) { return g[0]; }).join(', ') + ' × ' + r.gametes[1].map(function (g) { return g[0]; }).join(', '))],
             drawnTile(punnettDrawing(r), 'The square'),
@@ -15366,12 +15588,12 @@
     function runChiCross(n, raw) {
         var none = ['χ²', 'P'], o = bioList(raw.o), ratio, r, crit, f, x1;
         if (!raw.o) return physNone(none);
-        if (o.bad.length) return bioWarn(none, escaped(o.bad[0]) + ' is not a count.', ['o']);
+        if (o.bad.length) return bioWarn(none, tr('{bad} is not a count.', { bad: escaped(o.bad[0]) }), ['o']);
         ratio = raw.r ? CalcEngine.numbers(raw.r.replace(/:/g, ' '), engine.comma) : { values: [], bad: [] };
         if (ratio.bad.length) return bioWarn(none, 'A ratio as 9:3:3:1.', ['r']);
         if (o.values.length < 2) return Object.assign(physNone(none), { note: 'Two counts or more.' });
         if (ratio.values.length && ratio.values.length !== o.values.length) {
-            return bioWarn(none, 'As many parts to the ratio as counts: ' + o.values.length + ' counts, ' + ratio.values.length + ' parts.', ['r']);
+            return bioWarn(none, tr('As many parts to the ratio as counts: {values} counts, {values2} parts.', { values: o.values.length, values2: ratio.values.length }), ['r']);
         }
         if (!(n.a > 0 && n.a < 1)) return bioWarn(none, 'α is between 0 and 1, as 0.05.');
         r = CalcMaths.chiFit(o.values, ratio.values);
@@ -15381,12 +15603,12 @@
         x1 = Math.max(r.stat * 1.25, crit * 1.6, r.df + 4 * Math.sqrt(2 * r.df));
         return {
             rows: drawnTile(labelBars('The counts seen, those expected outlined', o.values.map(function (x, i) { return [String(i + 1), x, false, r.expected[i]]; })), 'Seen and expected')
-                .concat(drawnTile(graphDrawing('χ² of ' + r.df + ' df, beyond the critical value shaded', 0, x1, { fs: [f], fill: [f, null, crit, x1], dots: [[Math.min(r.stat, x1), f(Math.min(r.stat, x1))]],
+                .concat(drawnTile(graphDrawing(tr('χ² of {df} df, beyond the critical value shaded', { df: r.df }), 0, x1, { fs: [f], fill: [f, null, crit, x1], dots: [[Math.min(r.stat, x1), f(Math.min(r.stat, x1))]],
                     marks: [[crit, 'critical']] }), 'Where χ² falls'),
                 physRows([['χ²', r.stat], ['df', r.df], ['P', r.p], ['Critical', crit]]), [textRow('At α = ' + local(String(n.a)), r.stat > crit ? 'Reject: they do not fit the ratio' :
                     'They fit the ratio: what differs may be chance')],
                 [{ l: 'Each class', head: ['Class', 'Seen', 'Expected', '(o – e)²/e'], m: o.values.map(function (x, i) { return [i + 1, x, r.expected[i], r.parts[i]]; }) }]),
-            cols: 2, note: r.small ? r.small + ' of the classes expect fewer than 5: χ² may be off.' : ''
+            cols: 2, note: r.small ? tr('{small} of the classes expect fewer than 5: χ² may be off.', { small: r.small }) : ''
         };
     }
 
@@ -15403,11 +15625,11 @@
             }
             var names = r.order.map(function (j) { return r.names[j]; });
             return {
-                rows: drawnTile(chromosomeDrawing([[names[0], 0], [names[1], r.d[0]], [names[2], r.d[0] + r.d[1]]]), 'The map').concat([textRow('Order', names.join(' – ') + ', ' + names[1] + ' in the middle')],
+                rows: drawnTile(chromosomeDrawing([[names[0], 0], [names[1], r.d[0]], [names[2], r.d[0] + r.d[1]]]), 'The map').concat([textRow('Order', tr('{v}, {names} in the middle', { v: names.join(' – '), names: names[1] }))],
                     physRows([[names[0] + ' to ' + names[1] + ', cM', r.d[0]], [names[1] + ' to ' + names[2] + ', cM', r.d[1]], [names[0] + ' to ' + names[2] + ', cM', r.d[0] + r.d[1]],
                         ['Coincidence', r.coc], ['Interference', r.interference], ['Total', r.total]]),
                     [textRow('Parental', r.parental.join(', ')), textRow('Double crossovers', r.double.join(', '))]),
-                cols: 2, note: 'The outer distance is the sum of the two: counted straight from the classes it is ' + local(String(+r.d[2].toFixed(2))) + ' cM, the double crossovers missed.'
+                cols: 2, note: tr('The outer distance is the sum of the two: counted straight from the classes it is {v} cM, the double crossovers missed.', { v: local(String(+r.d[2].toFixed(2))) })
             };
         }
         if (!raw.p1 && !raw.p2 && !raw.r1 && !raw.r2) return physNone(none);
@@ -15450,7 +15672,7 @@
         var L = s.length, w = Math.max(10, Math.round(L / 30)), pre = [0], i;
         if (L < 40) return '';
         for (i = 0; i < L; i++) pre.push(pre[i] + (/[GC]/.test(s.charAt(i)) ? 1 : 0));
-        return graphDrawing('Its GC content along it, a window of ' + w + ' bases', 1, L, {
+        return graphDrawing(tr('Its GC content along it, a window of {w} bases', { w: w }), 1, L, {
             fs: [function (x) {
                 var a = Math.max(0, Math.min(L - w, Math.round(x) - Math.floor(w / 2)));
                 return 100 * (pre[a + w] - pre[a]) / w;
@@ -15461,7 +15683,7 @@
     function runSequence(n, raw) {
         var none = ['Length', 'GC, %'], r = CalcBiology.readSeq(raw.s), s = r.seq, c, rows, rc, comp, t = r.rna ? 'U' : 'T', as = function (x) { return r.rna ? x.replace(/T/g, 'U') : x; };
         if (!s) return physNone(none);
-        if (r.bad.length) return bioWarn(none, 'Not a base: ' + escaped(r.bad.slice(0, 5).join(', ')) + '. A, C, G, T or U, and the codes of IUPAC, as N.', ['s']);
+        if (r.bad.length) return bioWarn(none, tr('Not a base: {bad}. A, C, G, T or U, and the codes of IUPAC, as N.', { bad: escaped(r.bad.slice(0, 5).join(', ')) }), ['s']);
         c = CalcBiology.composition(s);
         rc = as(CalcBiology.reverseComplement(s));
         comp = as(CalcBiology.complement(s));
@@ -15494,21 +15716,21 @@
     function runTranslate(n, raw) {
         var none = ['Amino acids'], r = CalcBiology.readSeq(raw.s), s = CalcBiology.dna(r.seq), f = +raw.f || 0, prot, list, rows, best, kda;
         if (!s) return physNone(none);
-        if (r.bad.length) return bioWarn(none, 'Not a base: ' + escaped(r.bad.slice(0, 5).join(', ')) + '. A, C, G, T or U, and the codes of IUPAC, as N.', ['s']);
+        if (r.bad.length) return bioWarn(none, tr('Not a base: {bad}. A, C, G, T or U, and the codes of IUPAC, as N.', { bad: escaped(r.bad.slice(0, 5).join(', ')) }), ['s']);
         if (s.length < 3) return Object.assign(physNone(none), { note: 'Three bases or more.' });
         if (!(n.min >= 1)) return bioWarn(none, 'ORFs of 1 amino acid or more.');
         prot = CalcBiology.translate(s, f % 3, f > 2);
         list = CalcBiology.orfs(s, n.min);
         best = list[0];
         rows = physRows([['Amino acids', prot.length], ['Stops', (prot.match(/\*/g) || []).length], ['ORFs', list.length]]);
-        rows = rows.concat([seqRow('Protein, frame ' + ['+1', '+2', '+3', '−1', '−2', '−3'][f], prot),
+        rows = rows.concat([seqRow(tr('Protein, frame {v}', { v: ['+1', '+2', '+3', '−1', '−2', '−3'][f] }), prot),
             { l: 'In three letters', wide: true, wrap: true, text: threeLetters(prot.slice(0, 60)) + (prot.length > 60 ? '…' : ''), copy: threeLetters(prot) }]);
         if (best) {
             kda = /X/.test(best.protein) ? NaN : CalcBiology.protein(best.protein).mass / 1000;
             rows = rows.concat(physRows([['Longest ORF, aa', best.aa], ['Its frame', best.frame], ['From', best.from], ['To', best.to], ['Its mass, kDa', kda]]), [seqRow('Its protein', best.protein)]);
         }
         return { rows: drawnTile(orfDrawing(s.length, list), 'The ORFs').concat(rows), cols: 3,
-            note: best ? '' : 'No ORF of ' + local(String(n.min)) + ' amino acids or more, ATG to a stop.' };
+            note: best ? '' : tr('No ORF of {n} amino acids or more, ATG to a stop.', { n: local(String(n.min)) }) };
     }
 
     function runCode(n, raw) {
@@ -15517,12 +15739,12 @@
             aa = CalcBiology.codon(up);
             lit = [up];
             a = CalcBiology.byOne[aa];
-            rows = [textRow('Codon', up + (up !== t.toUpperCase() ? ', ' + t.toUpperCase() + ' in DNA' : ', ' + up.replace(/U/g, 'T') + ' in DNA')),
+            rows = [textRow('Codon', up + (up !== t.toUpperCase() ? tr(', {t} in DNA', { t: t.toUpperCase() }) : tr(', {v} in DNA', { v: up.replace(/U/g, 'T') }))),
                 textRow('It codes', aa === '*' ? 'Stop: the protein ends' : a.name + ', ' + a.three + ', ' + a.one + (up === 'AUG' ? '; the start of most proteins' : '')),
                 textRow('All its codons', CalcBiology.codonsOf(aa).join(' '))];
         } else if (/^(stop|\*|end|ter)$/i.test(t)) {
             lit = CalcBiology.codonsOf('*');
-            rows = [textRow('Stop codons', lit.join(' ') + ': amber, ochre and opal')];
+            rows = [textRow('Stop codons', tr('{v}: amber, ochre and opal', { v: lit.join(' ') }))];
         } else if (t) {
             a = CalcBiology.amino(t);
             if (!a) return { rows: [], pick: { t: 'Code', rows: [{ l: 'The code', text: codonWheel('x', []) }] }, warn: true, bad: ['x'], note: 'A codon, as AUG, or an amino acid, as Leu, L or leucine.' };
@@ -15547,14 +15769,14 @@
         if (!(n.na >= 0 && n.mg >= 0 && n.na + n.mg > 0 && n.c > 0)) return bioWarn(none, 'Na⁺ and Mg²⁺ of 0 or more, not both 0, and the primer above 0.');
         prim.forEach(function (p) {
             var pre = prim.length > 1 ? p.name + ', ' : '', who = prim.length > 1 ? p.name + ': ' : '', tm = p.m.nn, dH = p.m.dH;
-            rows = rows.concat(physRows([[pre + 'T<sub>m</sub>, °C', tm], [pre + 'length', p.s.length], [pre + 'GC, %', 100 * p.m.gc], [pre + 'Wallace, °C', p.m.wallace],
-                [pre + 'with salt, °C', p.m.salt], [pre + 'ΔG, kcal/mol', p.m.dG]]));
-            if (p.s.length < 18 || p.s.length > 30) notes.push(who + p.s.length + ' bases; 18 to 30 work best.');
-            if (p.m.gc < 0.4 || p.m.gc > 0.6) notes.push(who + 'GC outside 40 to 60%.');
-            if (p.q.clamp > 3) notes.push(who + 'more than 3 G or C in its last 5 bases: it may prime where it should not.');
-            if (p.q.clamp === 0) notes.push(who + 'no G or C in its last 5 bases.');
+            rows = rows.concat(physRows([[pre + 'T<sub>m</sub>, °C', tm], [pre + 'length', p.s.length], [pre + 'GC, %', 100 * p.m.gc], [tr('{pre}Wallace, °C', { pre: pre }), p.m.wallace],
+                [tr('{pre}with salt, °C', { pre: pre }), p.m.salt], [tr('{pre}ΔG, kcal/mol', { pre: pre }), p.m.dG]]));
+            if (p.s.length < 18 || p.s.length > 30) notes.push(tr('{who} bases; 18 to 30 work best.', { who: who + p.s.length }));
+            if (p.m.gc < 0.4 || p.m.gc > 0.6) notes.push(tr('{who}GC outside 40 to 60%.', { who: who }));
+            if (p.q.clamp > 3) notes.push(tr('{who}more than 3 G or C in its last 5 bases: it may prime where it should not.', { who: who }));
+            if (p.q.clamp === 0) notes.push(tr('{who}no G or C in its last 5 bases.', { who: who }));
             if (p.q.run >= 4) notes.push(who + 'a run of ' + p.q.run + ' of one base.');
-            if (p.q.dimer >= 4) notes.push(who + 'its last ' + p.q.dimer + ' bases pair with itself, as a primer dimer.');
+            if (p.q.dimer >= 4) notes.push(tr('{who}its last {dimer} bases pair with itself, as a primer dimer.', { who: who, dimer: p.q.dimer }));
             if (isFinite(tm) && isFinite(dH)) {
                 curves.push(function (T) { return 1 / (1 + Math.exp(dH / 1.987e-3 * (1 / (T + 273.15) - 1 / (tm + 273.15)))); });
                 marks.push([tm, p.name.charAt(0)]);
@@ -15611,7 +15833,7 @@
         if (!raw.vl && !raw.vn && !raw.il) return physNone(none);
         if (!(n.vl > 0 && n.vn > 0 && n.il > 0 && n.r > 0)) return bioWarn(none, 'Lengths, the vector\'s mass and the ratio above 0.');
         ins = n.vn * n.il / n.vl * n.r;
-        return { rows: drawnTile(plasmidDrawing('The plasmid, its insert red', [['Vector, ' + shortNum(n.vl) + ' bp', n.vl], ['Insert, ' + shortNum(n.il) + ' bp', n.il, true]]), 'The plasmid')
+        return { rows: drawnTile(plasmidDrawing('The plasmid, its insert red', [[tr('Vector, {vl} bp', { vl: shortNum(n.vl) }), n.vl], [tr('Insert, {il} bp', { il: shortNum(n.il) }), n.il, true]]), 'The plasmid')
             .concat(physRows([['Insert, ng', ins], ['Vector, pmol', n.vn * 1000 / CalcBiology.lengthMass(0, n.vl)], ['Insert, pmol', ins * 1000 / CalcBiology.lengthMass(0, n.il)],
                 ['DNA in all, ng', n.vn + ins], ['Plasmid, bp', n.vl + n.il]])), cols: 2, note: 'Some 50 to 100 ng of vector in 10 to 20 µL; 1:1 to 10:1 to try, 3:1 most.' };
     }
@@ -15619,14 +15841,14 @@
     function runDigest(n, raw) {
         var none = ['Fragments'], r = CalcBiology.readSeq(raw.s), s = CalcBiology.dna(r.seq), circ = raw.top === '1', enz = [], unknown = [], d, sizes = {}, most = 0, bands, by;
         if (!s) return physNone(none);
-        if (r.bad.length) return bioWarn(none, 'Not a base: ' + escaped(r.bad.slice(0, 5).join(', ')) + '.', ['s']);
+        if (r.bad.length) return bioWarn(none, tr('Not a base: {bad}.', { bad: escaped(r.bad.slice(0, 5).join(', ')) }), ['s']);
         (raw.e || '').split(/[\s,;+]+/).filter(Boolean).forEach(function (t) {
             var e = CalcBiology.enzyme(t);
             if (!e) unknown.push(t);
             else if (enz.indexOf(e) < 0) enz.push(e);
         });
         if (unknown.length) {
-            return bioWarn(none, 'Not one of these: ' + escaped(unknown[0]) + '. ' + CalcBiology.enzymes.map(function (e) { return e[0]; }).join(', ') + '.', ['e']);
+            return bioWarn(none, tr('Not one of these: {unknown}. {enzymes}.', { unknown: escaped(unknown[0]), enzymes: CalcBiology.enzymes.map(function (e) { return e[0]; }).join(', ') }), ['e']);
         }
         if (!enz.length) { // which cut it, and how often
             d = CalcBiology.digest(s, CalcBiology.enzymes, circ);
@@ -15664,7 +15886,7 @@
     function runProtein(n, raw) {
         var none = ['Mass, Da', 'pI'], r = CalcBiology.readProtein(raw.s), s = r.seq, p, rows, h, most, drawn = [];
         if (!s) return physNone(none);
-        if (r.bad.length) return bioWarn(none, 'Not an amino acid: ' + escaped(r.bad.slice(0, 5).join(', ')) + '. One letter each, as MKV…', ['s']);
+        if (r.bad.length) return bioWarn(none, tr('Not an amino acid: {bad}. One letter each, as MKV…', { bad: escaped(r.bad.slice(0, 5).join(', ')) }), ['s']);
         p = CalcBiology.protein(s);
         most = Object.keys(p.counts).filter(function (a) { return p.counts[a]; }).sort(function (a, b) { return p.counts[b] - p.counts[a]; }).slice(0, 6);
         rows = physRows([['Length, aa', p.length], ['Mass, Da', p.mass], ['Mass, kDa', p.mass / 1000], ['pI', p.pI], ['Charge at pH 7', p.charge], ['ε<sub>280</sub>, free', p.eps[0]],
@@ -15709,7 +15931,7 @@
             line = bioFit(xy);
             if (!line || !line.m) return bioWarn(['Slope', 'R²'], 'Standards of different concentrations, their absorbance rising.');
             u = bioList(raw.u);
-            if (u.bad.length) return bioWarn(['Slope', 'R²'], escaped(u.bad[0]) + ' is not an absorbance.', ['u']);
+            if (u.bad.length) return bioWarn(['Slope', 'R²'], tr('{bad} is not an absorbance.', { bad: escaped(u.bad[0]) }), ['u']);
             if (!(n.dil > 0)) return bioWarn(['Slope', 'R²'], 'The dilution is above 0.');
             conc = u.values.slice(0, 12).map(function (a) { return (a - line.b) / line.m; });
             x1 = Math.max.apply(null, pts.map(function (p) { return p[0]; }).concat(conc)) * 1.1;
@@ -15719,7 +15941,7 @@
             rows = physRows([['Slope', line.m], ['Intercept', line.b], ['R²', rSquared(xy, line)]].concat(conc.map(function (c, i) { return ['Unknown ' + (i + 1), c * n.dil]; })));
             return { rows: drawnTile(graphDrawing('The standards and their line, the unknowns red', Math.min(0, Math.min.apply(null, conc.concat([0]))), x1 || 1, {
                 fs: [function (x) { return line.m * x + line.b; }], pts: pts, dots: conc.map(function (c, i) { return [c, u.values[i]]; }), names: ['conc', 'A'] }), 'The curve').concat(rows),
-                cols: 2, note: notes.concat(raw.u ? (n.dil !== 1 ? ['Times the dilution, ' + local(String(n.dil)) + '.'] : []) : ['With the unknowns\' absorbances, their concentrations.']).join(' ') };
+                cols: 2, note: notes.concat(raw.u ? (n.dil !== 1 ? [tr('Times the dilution, {dil}.', { dil: local(String(n.dil)) })] : []) : ['With the unknowns\' absorbances, their concentrations.']).join(' ') };
         }
         if (!raw.a) return physNone(none);
         if (!(n.a >= 0 && n.l > 0 && n.dil > 0) || (raw.eps && !(n.eps > 0)) || (raw.mw && !(n.mw > 0))) return bioWarn(none, 'A of 0 or more, and ε, MW, the path and the dilution above 0.');
@@ -15786,7 +16008,7 @@
         if (!raw.K) return physNone(none);
         if (!(n.K > 0 && n.n > 0) || (raw.L && !(n.L >= 0))) return bioWarn(none, 'K and n above 0, and [L] of 0 or more.');
         rows = (raw.L ? [['θ', theta(n.n)(n.L)], ['Bound, %', 100 * theta(n.n)(n.L)]] : []).concat([['[L] of 10%', at(0.1)], ['[L] of 50%', n.K], ['[L] of 90%', at(0.9)], ['90% ÷ 10%', Math.pow(81, 1 / n.n)]]);
-        return { rows: drawnTile(graphDrawing('Bound against [L]' + (n.n !== 1 ? ', n = 1 blue' : ''), 0, Math.max(4 * n.K, raw.L ? n.L * 1.3 : 0), { fs: [theta(n.n)].concat(n.n !== 1 ? [theta(1)] : []),
+        return { rows: drawnTile(graphDrawing(tr('Bound against [L]{v}', { v: (n.n !== 1 ? tr(', n = 1 blue') : '') }), 0, Math.max(4 * n.K, raw.L ? n.L * 1.3 : 0), { fs: [theta(n.n)].concat(n.n !== 1 ? [theta(1)] : []),
             y: [0, 1.05], marks: [[n.K, 'K']], dots: raw.L ? [[n.L, theta(n.n)(n.L)]] : [], names: ['[L]', 'θ'] }), 'Binding').concat(physRows(rows)), cols: 2,
             note: n.n > 1 ? 'Above 1, cooperative: one bound helps the next, an S of a curve.' : n.n < 1 ? 'Below 1: one bound hinders the next.' : '' };
     }
@@ -15818,7 +16040,7 @@
         }
         return { rows: drawnTile(tubesDrawing('Each tube, paler each step', tubes, true), 'The tubes').concat(physRows([['Move on, each', n.v / n.f], ['Diluent in each', n.v - n.v / n.f],
             ['Last', n.c / Math.pow(n.f, n.n)], ['Diluted, times', Math.pow(n.f, n.n)]]), [{ l: 'Each tube', head: ['Tube', 'Concentration', 'Diluted'], m: m }]),
-            cols: 2, note: 'Put the diluent in each tube first; move the volume on from each, mixed, to the next.' + (n.n > shown ? ' The first ' + shown + ' drawn.' : '') };
+            cols: 2, note: tr('Put the diluent in each tube first; move the volume on from each, mixed, to the next.{v}', { v: (n.n > shown ? tr(' The first {v} drawn.', { v: shown }) : '') }) };
     }
 
     // a balance with a weighing boat on it, its display reading g
@@ -15861,7 +16083,7 @@
     function runCells(n, raw) {
         var none = ['Live cells/mL'], c = bioList(raw.c), mean, per, dead, rows;
         if (!raw.c) return physNone(none);
-        if (c.bad.length) return bioWarn(none, escaped(c.bad[0]) + ' is not a count.', ['c']);
+        if (c.bad.length) return bioWarn(none, tr('{bad} is not a count.', { bad: escaped(c.bad[0]) }), ['c']);
         if (!c.values.length) return physNone(none);
         if (c.values.length > 9) return bioWarn(none, 'Up to 9 squares.', ['c']);
         if (!(n.dil > 0) || c.values.some(function (x) { return x < 0; }) || (raw.dead && !(n.dead >= 0))) return bioWarn(none, 'Counts of 0 or more, and the dilution above 0.');
@@ -15916,7 +16138,7 @@
     function runRcf(n, raw) {
         var none = ['g', 'RPM'], rpm, g;
         if (!raw.r && !raw.x) return physNone(none);
-        if (!(n.r > 0 && n.x > 0)) return bioWarn(none, 'r and the ' + (raw.by === '1' ? 'force' : 'speed') + ' above 0.');
+        if (!(n.r > 0 && n.x > 0)) return bioWarn(none, (raw.by === '1' ? tr('r and the force above 0.') : tr('r and the speed above 0.')));
         rpm = raw.by === '1' ? Math.sqrt(n.x / (1.118e-5 * n.r)) : n.x;
         g = 1.118e-5 * n.r * rpm * rpm;
         return { rows: drawnTile(rotorDrawing(n.r), 'The rotor').concat(physRows([['g', g], ['RPM', rpm], ['ω, rad/s', rpm * Math.PI / 30], ['The tube goes, m/s', rpm * Math.PI / 30 * n.r / 100]])),
@@ -15933,9 +16155,9 @@
         parts = [['Buffer', n.v / n.buf, '#f2e2b8'], ['dNTPs', n.v * n.dfin / (n.dntp * 1000), '#e1d6ef'], ['Forward primer', n.v * n.pfin / n.pr, '#cfdcf0'],
             ['Reverse primer', n.v * n.pfin / n.pr, '#cfdcf0'], ['Polymerase', n.pol, '#f3d3d7']];
         water = n.v - n.tmp - parts.reduce(function (s, p) { return s + p[1]; }, 0);
-        if (water < 0) return bioWarn(none, 'The parts add to more than the volume: ' + shortNum(n.v - water) + ' µL.');
+        if (water < 0) return bioWarn(none, tr('The parts add to more than the volume: {v} µL.', { v: shortNum(n.v - water) }));
         parts.unshift(['Water', water, '#cfe8ec']);
-        parts.forEach(function (p) { rows.push([p[0] + ', each', p[1]], [p[0] + ', mix', p[1] * k]); });
+        parts.forEach(function (p) { rows.push([tr('{p}, each', { p: p[0] }), p[1]], [tr('{p}, mix', { p: p[0] }), p[1] * k]); });
         rows.push(['Template, each', n.tmp], ['Mix in each tube', n.v - n.tmp], ['Mix made for', k]);
         return { rows: drawnTile(stackDrawing('A reaction, part by part', parts.concat([['Template', n.tmp, '#d3e5da']]).map(function (p) { return [p[0].replace(' primer', '') + ' ' + shortNum(p[1]), p[1], p[2]]; })),
             'A reaction').concat(physRows(rows)), cols: 2, note: 'All in µL. The template goes in each tube, not in the mix; the polymerase last, on ice.' };
@@ -15956,7 +16178,7 @@
             rows.push(['By Pfaffl', pf]);
         }
         return { rows: drawnTile(labelBars('The fold change, the control 1', [['Control', 1], ['Treated', fold, true]].concat(pf ? [['By Pfaffl', pf, true]] : [])), 'Fold change')
-            .concat(physRows(rows), [textRow('The gene', fold >= 1 ? 'Up ' + shortNum(fold) + ' times' : 'Down ' + shortNum(1 / fold) + ' times')]), cols: 2,
+            .concat(physRows(rows), [textRow('The gene', fold >= 1 ? tr('Up {fold} times', { fold: shortNum(fold) }) : tr('Down {v} times', { v: shortNum(1 / fold) }))]), cols: 2,
             note: raw.et && raw.er ? '' : 'Livak\'s 2^−ΔΔCt takes both genes as doubling each cycle: with their efficiencies, Pfaffl\'s too.' };
     }
 
@@ -15970,7 +16192,7 @@
         line = bioFit(xy);
         if (!line || !line.m) return bioWarn(none, 'Standards of different quantities.');
         u = bioList(raw.u);
-        if (u.bad.length) return bioWarn(none, escaped(u.bad[0]) + ' is not a Ct.', ['u']);
+        if (u.bad.length) return bioWarn(none, tr('{bad} is not a Ct.', { bad: escaped(u.bad[0]) }), ['u']);
         q = u.values.slice(0, 12).map(function (ct) { return Math.pow(10, (ct - line.b) / line.m); });
         eff = 100 * (Math.pow(10, -1 / line.m) - 1);
         r2 = rSquared(xy, line);
@@ -15989,33 +16211,33 @@
             if (!line.trim()) return;
             list = bioList(m ? m[2] : line);
             if (list.bad.length && !bad) bad = list.bad[0];
-            groups.push({ name: m ? m[1] : 'Group ' + (k + 1), x: list.values });
+            groups.push({ name: m ? m[1] : tr('Group {k}', { k: (k + 1) }), x: list.values });
         });
         if (!groups.length) return physNone(none);
-        if (bad) return bioWarn(none, escaped(bad) + ' is not a number. A group to a line, its name first if it has one: Light: 12 15 11.', ['g']);
+        if (bad) return bioWarn(none, tr('{bad} is not a number. A group to a line, its name first if it has one: Light: 12 15 11.', { bad: escaped(bad) }), ['g']);
         if (groups.length > 8) return bioWarn(none, 'Up to 8 groups.', ['g']);
         if (groups.some(function (g) { return g.x.length < 2; })) return bioWarn(none, 'Two numbers or more in each group.', ['g']);
         groups.forEach(function (g) {
             var k = g.x.length, mean = g.x.reduce(function (s, x) { return s + x; }, 0) / k, sd = Math.sqrt(g.x.reduce(function (s, x) { return s + (x - mean) * (x - mean); }, 0) / (k - 1));
             g.mean = mean;
             g.half = 2 * sd / Math.sqrt(k);
-            rows.push({ l: escaped(g.name) + ', mean', v: CalcMaths.round(mean) }, { l: '± 2 SE', v: CalcMaths.round(g.half) }, { l: 'SD', v: CalcMaths.round(sd) }, { l: 'n', v: k });
+            rows.push({ l: tr('{name}, mean', { name: escaped(g.name) }), v: CalcMaths.round(mean) }, { l: '± 2 SE', v: CalcMaths.round(g.half) }, { l: 'SD', v: CalcMaths.round(sd) }, { l: 'n', v: k });
         });
         for (i = 0; i < groups.length; i++) {
             for (j = i + 1; j < groups.length; j++) {
                 if (groups[i].mean + groups[i].half < groups[j].mean - groups[j].half || groups[j].mean + groups[j].half < groups[i].mean - groups[i].half) {
-                    notes.push(escaped(groups[i].name) + ' and ' + escaped(groups[j].name));
+                    notes.push(tr('{groups} and {groups2}', { groups: escaped(groups[i].name), groups2: escaped(groups[j].name) }));
                 }
             }
         }
         return { rows: drawnTile(errorDrawing(groups.map(function (g) { return [g.name, g.mean, g.half]; })), 'The means').concat(rows), cols: 4,
-            note: notes.length ? 'Not overlapping, likely a real difference: ' + notes.join('; ') + '.' : groups.length > 1 ? 'Every pair overlaps: no difference shown.' : '' };
+            note: notes.length ? tr('Not overlapping, likely a real difference: {v}.', { v: notes.join('; ') }) : groups.length > 1 ? 'Every pair overlaps: no difference shown.' : '' };
     }
 
     function runChromatography(n, raw) {
         var none = ['R<sub>f</sub>'], d = bioList(raw.d), names = ['carotene', 'xanthophyll', 'chlorophyll a', 'chlorophyll b'];
         if (!raw.s && !raw.d) return physNone(none);
-        if (d.bad.length) return bioWarn(none, escaped(d.bad[0]) + ' is not a distance.', ['d']);
+        if (d.bad.length) return bioWarn(none, tr('{bad} is not a distance.', { bad: escaped(d.bad[0]) }), ['d']);
         if (!(n.s > 0) || !d.values.length || d.values.some(function (x) { return !(x >= 0 && x <= n.s); })) return bioWarn(none, 'The solvent\'s distance above 0, and each spot from 0 to it.');
         return { rows: drawnTile(stripDrawing(n.s, d.values.slice(0, 10)), 'The strip').concat(physRows(d.values.slice(0, 10).map(function (x, i) { return ['Spot ' + (i + 1) + ', R<sub>f</sub>', x / n.s]; })),
             [textRow('Likely, in petroleum ether and acetone', d.values.slice(0, 10).map(function (x, i) {
@@ -16195,7 +16417,7 @@
     function runPopGrowth(n, raw) {
         var logistic = raw.by === '1', none = ['N at t'], N, Nt, rate, tf, x1;
         if (!raw.N0 && !raw.r) return physNone(none);
-        if (!(n.N0 > 0 && isFinite(n.r) && n.t >= 0) || (logistic && !(n.K > 0))) return bioWarn(none, 'N₀ above 0, a rate r, t of 0 or more' + (logistic ? ', and K above 0.' : '.'));
+        if (!(n.N0 > 0 && isFinite(n.r) && n.t >= 0) || (logistic && !(n.K > 0))) return bioWarn(none, tr('N₀ above 0, a rate r, t of 0 or more{v}', { v: (logistic ? tr(', and K above 0.') : '.') }));
         N = logistic ? function (t) { return n.K / (1 + (n.K - n.N0) / n.N0 * Math.exp(-n.r * t)); } : function (t) { return n.N0 * Math.exp(n.r * t); };
         Nt = N(n.t);
         if (!isFinite(Nt)) return bioWarn(none, 'Too many to show.');
@@ -16239,7 +16461,7 @@
     function runDiversity(n, raw) {
         var none = ['Simpson\'s D', 'Shannon\'s H'], c = bioList(raw.c), d, sorted;
         if (!raw.c) return physNone(none);
-        if (c.bad.length) return bioWarn(none, escaped(c.bad[0]) + ' is not a count.', ['c']);
+        if (c.bad.length) return bioWarn(none, tr('{bad} is not a count.', { bad: escaped(c.bad[0]) }), ['c']);
         if (c.values.some(function (x) { return x < 0; }) || !c.values.some(function (x) { return x > 0; })) return bioWarn(none, 'Counts of 0 or more, some above 0.');
         d = CalcBiology.diversity(c.values);
         sorted = c.values.filter(function (x) { return x > 0; }).sort(function (a, b) { return b - a; });
@@ -16251,7 +16473,7 @@
     function runLifeTable(n, raw) {
         var none = ['e<sub>0</sub>'], c = bioList(raw.n), nx = c.values, rows, pts, half, kind;
         if (!raw.n) return physNone(none);
-        if (c.bad.length) return bioWarn(none, escaped(c.bad[0]) + ' is not a count.', ['n']);
+        if (c.bad.length) return bioWarn(none, tr('{bad} is not a count.', { bad: escaped(c.bad[0]) }), ['n']);
         if (nx.length < 2) return Object.assign(physNone(none), { note: 'Two ages or more.' });
         if (nx.length > 60 || !(nx[0] > 0) || nx.some(function (x, i) { return x < 0 || (i && x > nx[i - 1]); })) return bioWarn(none, 'Up to 60 ages, the first above 0, none more than the one before.', ['n']);
         rows = CalcBiology.lifeTable(nx);
@@ -16320,7 +16542,7 @@
         rows = [textRow('Ratio', e[1].join(' : ') + ', ' + e[3].join(' : ')), textRow('As in', e[4])];
         drawn = drawnTile(punnettDrawing(r), 'The square');
         if (!raw.o) return { rows: drawn.concat(drawnTile(labelBars('Each phenotype, of 16', r.phenotypes), 'Phenotypes'), rows, physRows(r.phenotypes.map(function (p) { return [p[0] + ', %', 100 * p[1] / 16]; }))), cols: 2 };
-        if (o.bad.length) return { rows: drawn.concat(rows), cols: 2, warn: true, bad: ['o'], note: escaped(o.bad[0]) + ' is not a count.' };
+        if (o.bad.length) return { rows: drawn.concat(rows), cols: 2, warn: true, bad: ['o'], note: tr('{bad} is not a count.', { bad: escaped(o.bad[0]) }) };
         if (!o.values.every(function (x) { return x >= 0; }) || !o.values.some(function (x) { return x > 0; })) return { rows: drawn.concat(rows), cols: 2, warn: true, bad: ['o'], note: 'Counts of 0 or more, some above 0.' };
         CalcBiology.epistasis.forEach(function (x, i) {
             var f = x[1].length === o.values.length ? CalcMaths.chiFit(o.values, x[1]) : null;
@@ -16328,15 +16550,14 @@
         });
         fit = e[1].length === o.values.length ? CalcMaths.chiFit(o.values, e[1]) : null;
         if (!fit) {
-            return { rows: drawn.concat(rows), cols: 2, warn: true, bad: ['o'], note: 'As many counts as its ratio has parts, ' + e[1].length + '.' +
-                (best ? ' Of ' + o.values.length + ', ' + CalcBiology.epistasis[best.i][0].toLowerCase() + ', ' + CalcBiology.epistasis[best.i][1].join(':') + ', fits best.' : '') };
+            return { rows: drawn.concat(rows), cols: 2, warn: true, bad: ['o'], note: tr('As many counts as its ratio has parts, {e}.{v}', { e: e[1].length, v: (best ? tr(' Of {values}, {epistasis}, {epistasis2}, fits best.', { values: o.values.length, epistasis: CalcBiology.epistasis[best.i][0].toLowerCase(), epistasis2: CalcBiology.epistasis[best.i][1].join(':') }) : '') }) };
         }
         crit = CalcMaths.chiInverse(0.95, fit.df);
         return {
             rows: drawn.concat(drawnTile(labelBars('The counts seen, those expected outlined', o.values.map(function (x, i) { return [e[3][i], x, false, fit.expected[i]]; })), 'Seen and expected'), rows,
-                physRows([['χ²', fit.stat], ['df', fit.df], ['P', fit.p]]), [textRow('At α = ' + local('0.05'), fit.stat > crit ? 'Reject: they do not fit ' + e[1].join(':') : 'They fit ' + e[1].join(':') + ': what differs may be chance'),
+                physRows([['χ²', fit.stat], ['df', fit.df], ['P', fit.p]]), [textRow('At α = ' + local('0.05'), fit.stat > crit ? 'Reject: they do not fit ' + e[1].join(':') : tr('They fit {e}: what differs may be chance', { e: e[1].join(':') })),
                     textRow('Fits best', CalcBiology.epistasis[best.i][0] + ', ' + CalcBiology.epistasis[best.i][1].join(':') + ', χ² ' + shortNum(best.f.stat))]),
-            cols: 2, note: fit.small ? fit.small + ' of the classes expect fewer than 5: χ² may be off.' : ''
+            cols: 2, note: fit.small ? tr('{small} of the classes expect fewer than 5: χ² may be off.', { small: fit.small }) : ''
         };
     }
 
@@ -16355,7 +16576,7 @@
             kids.forEach(function (k, j) { people[k].x = 180 + (j - (kids.length - 1) / 2) * 34; });
             return { rows: drawnTile(pedigreeDrawing(people, [[0, 1], [3, 4]], [[0, [2, 3]], [1, kids]]), 'The family').concat(physRows([['Carrier, %', 100 * post], ['At first, %', 100 * n.prior],
                 ['Child has it, %', 25 * post], ['A son has it, %', 50 * post], ['A daughter carries it, %', 50 * post]])), cols: 2,
-                note: n.sons ? 'Each son free of it makes it less likely she carries it: by Bayes, ' + shortNum(n.prior) + ' × ½^' + n.sons + ' over that and the ' + shortNum(1 - n.prior) + ' she does not.' :
+                note: n.sons ? tr('Each son free of it makes it less likely she carries it: by Bayes, {prior} × ½^{sons} over that and the {v} she does not.', { prior: shortNum(n.prior), sons: n.sons, v: shortNum(1 - n.prior) }) :
                     'Her sons free of it, if she has any, lower the chance she carries it.' };
         }
         if (of === 2) {
@@ -16433,7 +16654,7 @@
         ra = prot ? CalcBiology.readProtein(raw.a) : CalcBiology.readSeq(raw.a);
         rb = prot ? CalcBiology.readProtein(raw.b) : CalcBiology.readSeq(raw.b);
         if (ra.bad.length || rb.bad.length) {
-            return bioWarn(none, 'Not ' + (prot ? 'an amino acid' : 'a base') + ': ' + escaped((ra.bad.length ? ra.bad : rb.bad).slice(0, 5).join(', ')) + (prot ? '. One letter each; or of DNA, choose DNA.' : '. Of a protein, choose Protein.'),
+            return bioWarn(none, (prot ? tr('Not an amino acid: {v}{v2}', { v: escaped((ra.bad.length ? ra.bad : rb.bad).slice(0, 5).join(', ')), v2: (prot ? tr('. One letter each; or of DNA, choose DNA.') : tr('. Of a protein, choose Protein.')) }) : tr('Not a base: {v}{v2}', { v: escaped((ra.bad.length ? ra.bad : rb.bad).slice(0, 5).join(', ')), v2: (prot ? tr('. One letter each; or of DNA, choose DNA.') : tr('. Of a protein, choose Protein.')) })),
                 [ra.bad.length ? 'a' : 'b']);
         }
         A = prot ? ra.seq : CalcBiology.dna(ra.seq);
@@ -16449,29 +16670,29 @@
             rows: drawnTile(dotPlotDrawing(A, B, al, k), 'Dot plot').concat(physRows([['Identity, %', 100 * al.same / al.length]].concat(prot ? [['Similarity, %', 100 * al.alike / al.length]] : [],
                 [['Gaps, %', 100 * al.gaps / al.length], ['Score', al.score], ['Length', al.length]], raw.how === '1' ? [['1, from', al.from[0]], ['1, to', al.to[0]], ['2, from', al.from[1]], ['2, to', al.to[1]]] : [])),
                 [{ l: 'The alignment', wide: true, text: '<span class="calc-bio-seq calc-bio-aln">' + escaped(text) + '</span>', copy: text }]),
-            cols: 3, note: 'Identity of all its length, gaps too, as EMBOSS counts it: | the same' + (prot ? ', : alike, . not' : ', . not') + '; a dot plot\'s word ' + k + ' letters.'
+            cols: 3, note: (prot ? tr('Identity of all its length, gaps too, as EMBOSS counts it: | the same, : alike, . not; a dot plot\'s word {k} letters.', { k: k }) : tr('Identity of all its length, gaps too, as EMBOSS counts it: | the same, . not; a dot plot\'s word {k} letters.', { k: k }))
         };
     }
 
     function runCrispr(n, raw) {
         var none = ['Guides'], r = CalcBiology.readSeq(raw.s), s = CalcBiology.dna(r.seq), nuc = CalcBiology.nucleases[+raw.nuc || 0], near = NaN, list;
         if (!s) return physNone(none);
-        if (r.bad.length) return bioWarn(none, 'Not a base: ' + escaped(r.bad.slice(0, 5).join(', ')) + '. A, C, G, T or U, and the codes of IUPAC, as N.', ['s']);
+        if (r.bad.length) return bioWarn(none, tr('Not a base: {bad}. A, C, G, T or U, and the codes of IUPAC, as N.', { bad: escaped(r.bad.slice(0, 5).join(', ')) }), ['s']);
         if (raw.near) {
             if (!(n.near >= 1 && n.near <= s.length && n.near % 1 === 0)) return bioWarn(none, 'A base from 1 to ' + s.length + '.', ['near']);
             near = n.near;
         }
         list = CalcBiology.guides(s, +raw.nuc || 0);
-        if (!list.length) return Object.assign(physNone(none), { note: 'No PAM, ' + nuc[1] + ', on either strand with room for a guide.' });
+        if (!list.length) return Object.assign(physNone(none), { note: tr('No PAM, {nuc}, on either strand with room for a guide.', { nuc: nuc[1] }) });
         if (isFinite(near)) list.sort(function (a, b) { return Math.abs(a.cut - near) - Math.abs(b.cut - near) || a.flags.length - b.flags.length; });
         return {
             rows: drawnTile(strandDrawing('Its guides along it, the first 5 red, each cut marked', s.length, list, 5, isFinite(near) ? near : 0), 'Its guides')
                 .concat(physRows([['Guides', list.length], ['On the + strand', list.filter(function (g) { return g.strand > 0; }).length], ['On the − strand', list.filter(function (g) { return g.strand < 0; }).length],
                     ['With no flag', list.filter(function (g) { return !g.flags.length; }).length]]), list.slice(0, 5).map(function (g, i) {
-                    return { l: (i + 1) + ', strand ' + (g.strand > 0 ? '+' : '−') + ', cut after ' + g.cut + ', GC ' + pcText(100 * g.gc) + (g.flags.length ? '; ' + g.flags.map(function (f) { return GUIDE_FLAGS[f]; }).join(', ') : ''),
+                    return { l: tr('{i}, strand {v}, cut after {cut}, GC {v2}{v3}', { i: (i + 1), v: (g.strand > 0 ? '+' : '−'), cut: g.cut, v2: pcText(100 * g.gc), v3: (g.flags.length ? '; ' + g.flags.map(function (f) { return GUIDE_FLAGS[f]; }).join(', ') : '') }),
                         wide: true, wrap: true, text: '<span class="calc-bio-seq">' + (nuc[3] ? g.guide + ' <b>' + g.pam + '</b>' : '<b>' + g.pam + '</b> ' + g.guide) + '</span>', copy: g.guide };
                 }), [{ l: 'Each guide', head: ['#', 'From', 'Strand', 'Cut after', 'GC, %', 'Flags'], m: list.slice(0, 60).map(function (g, i) { return [i + 1, g.from, g.strand, g.cut, 100 * g.gc, g.flags.length]; }) }]),
-            cols: 2, note: 'Each guide 5′ to 3′, its PAM in bold' + (nuc[3] ? ' after it' : ' before it') + '. Its seed is sought in this sequence alone: check the whole genome, as by BLAST, before ordering it.'
+            cols: 2, note: (nuc[3] ? tr('Each guide 5′ to 3′, its PAM in bold after it. Its seed is sought in this sequence alone: check the whole genome, as by BLAST, before ordering it.') : tr('Each guide 5′ to 3′, its PAM in bold before it. Its seed is sought in this sequence alone: check the whole genome, as by BLAST, before ordering it.'))
         };
     }
 
@@ -16484,14 +16705,14 @@
         }
         if (/[^ACGTRYSWKMBDHVN]/.test(m)) return bioWarn(none, 'A motif of A, C, G, T and IUPAC\'s codes, as R or N.', ['m']);
         if (!s) return Object.assign(physNone(none), { note: 'The sequence to search.' });
-        if (r.bad.length) return bioWarn(none, 'Not a base: ' + escaped(r.bad.slice(0, 5).join(', ')) + '.', ['s']);
+        if (r.bad.length) return bioWarn(none, tr('Not a base: {bad}.', { bad: escaped(r.bad.slice(0, 5).join(', ')) }), ['s']);
         hits = CalcBiology.motif(s, m);
         chance = m.split('').reduce(function (p, c) { return p * CalcBiology.iupac[c].length / 4; }, 1) * Math.max(0, s.length - m.length + 1) * (CalcBiology.reverseComplement(m) === m ? 1 : 2);
         return {
             rows: drawnTile(strandDrawing('Where it is, on either strand', s.length, hits.map(function (h) { return { from: h.at, to: h.at + m.length - 1, strand: h.strand }; }), 0, 0), 'Along it')
                 .concat(physRows([['Found', hits.length], ['On the + strand', hits.filter(function (h) { return h.strand > 0; }).length], ['On the − strand', hits.filter(function (h) { return h.strand < 0; }).length],
                     ['By chance, about', chance]]), hits.length ? [textRow('At, its first base', hits.slice(0, 80).map(function (h) { return h.at + (h.strand > 0 ? '+' : '−'); }).join(', ') + (hits.length > 80 ? '…' : ''))] : []),
-            cols: 2, note: (CalcBiology.reverseComplement(m) === m ? 'It reads the same on both strands: each place once. ' : '') + 'On the − strand, at the base its reverse complement starts on the + strand.'
+            cols: 2, note: tr('{v}On the − strand, at the base its reverse complement starts on the + strand.', { v: (CalcBiology.reverseComplement(m) === m ? tr('It reads the same on both strands: each place once. ') : '') })
         };
     }
 
@@ -16506,7 +16727,7 @@
             if (!raw.a && !raw.b) return physNone(none);
             A = CalcBiology.readSeq(raw.a);
             B = CalcBiology.readSeq(raw.b);
-            if (A.bad.length || B.bad.length) return bioWarn(none, 'Not a base: ' + escaped((A.bad.length ? A.bad : B.bad).slice(0, 5).join(', ')) + '.', [A.bad.length ? 'a' : 'b']);
+            if (A.bad.length || B.bad.length) return bioWarn(none, tr('Not a base: {v}.', { v: escaped((A.bad.length ? A.bad : B.bad).slice(0, 5).join(', ')) }), [A.bad.length ? 'a' : 'b']);
             if (!A.seq || !B.seq) return Object.assign(physNone(none), { note: 'Both fragments\' ends.' });
             if (!(n.ov >= 10 && n.ov <= 80 && n.ov % 1 === 0 && n.tm >= 40 && n.tm <= 80)) return bioWarn(none, 'An overlap of 10 to 80 bases, and a T_m from 40 to 80 °C.');
             g = CalcBiology.gibson(A.seq, B.seq, n.ov, n.tm);
@@ -16515,13 +16736,12 @@
             return { rows: drawnTile(gibsonDrawing(g), 'The join').concat([primerRow('Forward, of fragment 2', g.forward, 0, ovA), primerRow('Reverse, of fragment 1', g.reverse, 0, g.overlap.length - ovA)],
                 physRows([['Forward, bases', g.forward.length], ['Forward T<sub>m</sub>, °C', g.tms[0]], ['Reverse, bases', g.reverse.length], ['Reverse T<sub>m</sub>, °C', g.tms[1]], ['Overlap T<sub>m</sub>, °C', g.tms[2]]]),
                 [seqRow('Overlap', g.overlap)]), cols: 2,
-                note: 'Each 5′ to 3′, its tail in small letters, which makes the overlap; ' + (g.tms[2] < 48 ? 'the overlap\'s T_m is below 48 °C: make it longer.' : 'an overlap\'s T_m of 48 °C or more is good.') +
-                    (g.tms[0] < n.tm || g.tms[1] < n.tm ? ' A T_m not reached within 40 bases.' : '') };
+                note: (g.tms[2] < 48 ? tr('Each 5′ to 3′, its tail in small letters, which makes the overlap; the overlap\'s T_m is below 48 °C: make it longer.{v}', { v: (g.tms[0] < n.tm || g.tms[1] < n.tm ? tr(' A T_m not reached within 40 bases.') : '') }) : tr('Each 5′ to 3′, its tail in small letters, which makes the overlap; an overlap\'s T_m of 48 °C or more is good.{v}', { v: (g.tms[0] < n.tm || g.tms[1] < n.tm ? tr(' A T_m not reached within 40 bases.') : '') })) };
         }
         r = CalcBiology.readSeq(raw.s);
         s = CalcBiology.dna(r.seq);
         if (!s && !raw.mut) return physNone(none);
-        if (r.bad.length) return bioWarn(none, 'Not a base: ' + escaped(r.bad.slice(0, 5).join(', ')) + '.', ['s']);
+        if (r.bad.length) return bioWarn(none, tr('Not a base: {bad}.', { bad: escaped(r.bad.slice(0, 5).join(', ')) }), ['s']);
         if (!s) return Object.assign(physNone(none), { note: 'The sequence to change.' });
         if (!raw.mut) return Object.assign(physNone(none), { note: 'The change, as T196A: the base, its place and the new.' });
         m = /^\s*([ACGTU]*)\s*(\d+)\s*(?:>|→|to)?\s*([ACGTU]+)\s*$/i.exec(raw.mut);
@@ -16529,10 +16749,10 @@
         old = m[1].toUpperCase().replace(/U/g, 'T');
         pos = +m[2];
         nw = m[3].toUpperCase().replace(/U/g, 'T');
-        if (old && old.length !== nw.length) return bioWarn(none, 'As many new bases as old: ' + old.length + '.', ['mut']);
-        if (pos < 1 || pos + nw.length - 1 > s.length) return bioWarn(none, 'Its place within the sequence, 1 to ' + s.length + '.', ['mut']);
-        if (old && s.substr(pos - 1, old.length) !== old) return bioWarn(none, 'At ' + pos + ' it is ' + s.substr(pos - 1, old.length) + ', not ' + old + '.', ['mut']);
-        if (s.substr(pos - 1, nw.length) === nw) return bioWarn(none, 'It is ' + nw + ' already.', ['mut']);
+        if (old && old.length !== nw.length) return bioWarn(none, tr('As many new bases as old: {old}.', { old: old.length }), ['mut']);
+        if (pos < 1 || pos + nw.length - 1 > s.length) return bioWarn(none, tr('Its place within the sequence, 1 to {s}.', { s: s.length }), ['mut']);
+        if (old && s.substr(pos - 1, old.length) !== old) return bioWarn(none, tr('At {pos} it is {pos2}, not {old}.', { pos: pos, pos2: s.substr(pos - 1, old.length), old: old }), ['mut']);
+        if (s.substr(pos - 1, nw.length) === nw) return bioWarn(none, tr('It is {nw} already.', { nw: nw }), ['mut']);
         mu = CalcBiology.mutagenesis(s, pos, nw);
         c = Math.floor((pos - 1) / 3);
         end = Math.ceil((pos - 1 + nw.length) / 3) * 3;
@@ -16546,8 +16766,7 @@
                 primerRow('Reverse, 5′ → 3′', mu.reverse, mu.forward.length - (pos - mu.from) - nw.length, nw.length)],
                 physRows([['T<sub>m</sub>, °C', mu.tm], ['Length', mu.forward.length], ['GC, %', 100 * mu.gc], ['Mismatched', mu.mismatched]]),
                 end <= s.length ? [textRow('If it codes from base 1', changes.length ? changes.join(', ') : 'Silent: the same amino acid')] : []),
-            cols: 2, note: (mu.sure ? '' : 'Its T_m is ' + shortNum(mu.tm) + ' °C at 45 bases, short of 78: try a polymerase that works with less. ') +
-                'The bases changed in small letters; the two primers are each other\'s reverse complement.'
+            cols: 2, note: tr('{v}The bases changed in small letters; the two primers are each other\'s reverse complement.', { v: (mu.sure ? '' : tr('Its T_m is {tm} °C at 45 bases, short of 78: try a polymerase that works with less. ', { tm: shortNum(mu.tm) })) })
         };
     }
 
@@ -16570,7 +16789,7 @@
         if (!raw.pts) return physNone(none);
         if (!pts) return bioWarn(none, 'A concentration and its response on each line: 10 41.', ['pts']);
         fit = CalcBiology.doseFit(pts, held ? [0, 100] : null);
-        if (!fit) return bioWarn(none, (held ? 3 : 5) + ' points or more, at 2 or more concentrations above 0.');
+        if (!fit) return bioWarn(none, tr('{v} points or more, at 2 or more concentrations above 0.', { v: (held ? 3 : 5) }));
         used = pts.filter(function (q) { return q[0] > 0; });
         name = fit.hill < 0 ? 'IC' : 'EC';
         p = [fit.bottom, fit.top, fit.logc, fit.hill];
@@ -16579,12 +16798,12 @@
         lo = Math.min.apply(null, used.map(function (q) { return Math.log10(q[0]); }));
         hi = Math.max.apply(null, used.map(function (q) { return Math.log10(q[0]); }));
         if (used.length < pts.length) notes.push('A concentration of 0 left out: it has no logarithm.');
-        if (fit.logc < lo || fit.logc > hi) notes.push('The ' + name + '₅₀ is beyond the concentrations tested: test wider.');
+        if (fit.logc < lo || fit.logc > hi) notes.push(tr('The {name}₅₀ is beyond the concentrations tested: test wider.', { name: name }));
         if (fit.r2 < 0.9) notes.push('R² below 0.9: a poor fit.');
         return {
-            rows: drawnTile(graphDrawing('The response against log₁₀ of the concentration, the ' + name + '₅₀ marked', Math.min(lo, fit.logc) - 0.6, Math.max(hi, fit.logc) + 0.6, {
+            rows: drawnTile(graphDrawing(tr('The response against log₁₀ of the concentration, the {name}₅₀ marked', { name: name }), Math.min(lo, fit.logc) - 0.6, Math.max(hi, fit.logc) + 0.6, {
                 fs: [function (x) { return CalcBiology.logistic4(p, Math.pow(10, x)); }], pts: used.map(function (q) { return [Math.log10(q[0]), q[1]]; }), marks: [[fit.logc, name + '₅₀']],
-                dots: [[fit.logc, (fit.top + fit.bottom) / 2]], names: ['log₁₀ x', 'response'] }), 'The curve').concat(physRows([[name + '<sub>50</sub>', fit.ec50], ['log ' + name + '<sub>50</sub>', fit.logc],
+                dots: [[fit.logc, (fit.top + fit.bottom) / 2]], names: ['log₁₀ x', 'response'] }), 'The curve').concat(physRows([[name + '<sub>50</sub>', fit.ec50], [tr('log {name}<sub>50</sub>', { name: name }), fit.logc],
                 ['Hill slope', fit.hill], ['Top', fit.top], ['Bottom', fit.bottom], ['R²', fit.r2], [name + '<sub>10</sub>', Math.pow(10, x10)], [name + '<sub>90</sub>', Math.pow(10, x90)], ['Points', fit.n]])),
             cols: 2, note: notes.join(' ') || (name === 'IC' ? 'A response that falls: its IC₅₀, where half the effect is. The Hill slope below 0 as it falls.' : 'A response that rises: its EC₅₀, where half the effect is.')
         };
@@ -16601,7 +16820,7 @@
                 bad = bad || line.trim();
                 return;
             }
-            steps.push({ name: t.slice(0, -2).join(' ') || 'Step ' + (steps.length + 1), mg: a.values[0], u: b.values[0] });
+            steps.push({ name: t.slice(0, -2).join(' ') || tr('Step {steps}', { steps: (steps.length + 1) }), mg: a.values[0], u: b.values[0] });
         });
         if (!steps.length && !bad) return physNone(none);
         if (bad) return bioWarn(none, 'A step to a line, its protein in mg and its activity in units: Ion exchange 80 2800. Not ' + escaped(bad.slice(0, 30)) + '.', ['steps']);
@@ -16624,7 +16843,7 @@
     }
 
     function runGelSize(n, raw) {
-        var protein = raw.kind === '1', unit = protein ? 'kDa' : 'bp', none = ['Band 1, ' + unit], pts = bioPairs(raw.pts), xy, line, u, found, r2, ds, notes = [];
+        var protein = raw.kind === '1', unit = protein ? 'kDa' : 'bp', none = [tr('Band 1, {unit}', { unit: unit })], pts = bioPairs(raw.pts), xy, line, u, found, r2, ds, notes = [];
         if (!raw.pts) return physNone(none);
         if (!pts) return bioWarn(none, 'A size and how far it ran on each line: 1000 35.', ['pts']);
         if (pts.length < 2) return Object.assign(physNone(none), { note: 'Two bands of the ladder or more.' });
@@ -16633,7 +16852,7 @@
         line = bioFit(xy);
         if (!line || !(line.m < 0)) return bioWarn(none, 'The larger a band, the less far it runs: check the ladder.', ['pts']);
         u = bioList(raw.u);
-        if (u.bad.length) return bioWarn(none, escaped(u.bad[0]) + ' is not a distance.', ['u']);
+        if (u.bad.length) return bioWarn(none, tr('{bad} is not a distance.', { bad: escaped(u.bad[0]) }), ['u']);
         found = u.values.slice(0, 12).map(function (d) { return [d, Math.pow(10, line.m * d + line.b)]; });
         r2 = rSquared(xy, line);
         ds = pts.map(function (p) { return p[1]; });
@@ -16642,7 +16861,7 @@
         ds = ds.concat(found.map(function (f) { return f[0]; }));
         return {
             rows: drawnTile(measuredGel(pts, found, protein, unit), 'The gel').concat(drawnTile(graphDrawing('log₁₀ of the size against the distance, the unknowns red', Math.min.apply(null, ds) - 2, Math.max.apply(null, ds) + 2, {
-                fs: [function (x) { return line.m * x + line.b; }], pts: xy.map(function (p) { return [p.x, p.y]; }), dots: found.map(function (f) { return [f[0], Math.log10(f[1])]; }), names: ['distance', 'log₁₀ ' + unit] }), 'The line'),
+                fs: [function (x) { return line.m * x + line.b; }], pts: xy.map(function (p) { return [p.x, p.y]; }), dots: found.map(function (f) { return [f[0], Math.log10(f[1])]; }), names: ['distance', tr('log₁₀ {unit}', { unit: unit })] }), 'The line'),
                 physRows(found.map(function (f, i) { return ['Band ' + (i + 1) + ', ' + unit, f[1]]; }).concat([['Slope', line.m], ['R²', r2]]))),
             cols: 2, note: notes.join(' ') || (raw.u ? '' : 'With the unknowns\' distances, their sizes.')
         };
@@ -16672,7 +16891,7 @@
         if (vol > plate[3]) return bioWarn(none, 'More suspension than each holds, ' + shortNum(plate[3]) + ' mL: concentrate the cells.');
         return { rows: drawnTile(plateDrawing(plate, wells), 'The plate').concat(physRows([['Cells in each', each], ['Suspension in each, µL', vol * 1000], ['Medium in each, µL', med * 1000], ['Each holds, mL', plate[3]],
             ['Each one\'s area, cm²', plate[2]], ['Cells in all', each * all], ['Suspension in all, mL', vol * all], ['Medium in all, mL', med * all]])), cols: 2,
-            note: 'Mix the suspension and the medium for all, ' + shortNum(n.x) + '% more, and put ' + shortNum(plate[3]) + ' mL in each.' + (wells > plate[1] ? ' Of ' + Math.ceil(wells / plate[1]) + ' plates.' : '') };
+            note: tr('Mix the suspension and the medium for all, {x}% more, and put {plate} mL in each.{v}', { x: shortNum(n.x), plate: shortNum(plate[3]), v: (wells > plate[1] ? tr(' Of {wells} plates.', { wells: Math.ceil(wells / plate[1]) }) : '') }) };
     }
 
     function runMoi(n, raw) {
@@ -16696,14 +16915,14 @@
         if (!(half > 0 && n.A >= 0 && n.t >= 0) || (raw.want && !(n.want >= 0)) || (raw.v && !(n.v > 0))) return bioWarn(none, 'A half-life above 0, and an activity and a time of 0 or more.');
         left = Math.pow(0.5, n.t / half);
         A = n.A * left;
-        rows = [['Activity now', A], ['Left, %', 100 * left], ['Half-lives gone', n.t / half], ['Half-life, ' + (hours ? 'h' : 'days'), half], ['λ, a ' + (hours ? 'hour' : 'day'), Math.LN2 / half]];
+        rows = [['Activity now', A], ['Left, %', 100 * left], ['Half-lives gone', n.t / half], [(hours ? tr('Half-life, h') : tr('Half-life, days')), half], ['λ, a ' + (hours ? 'hour' : 'day'), Math.LN2 / half]];
         if (raw.v) rows.push(['Now, a µL', A / n.v]);
         if (raw.want) rows.push(raw.v ? ['Take, µL', A ? n.want * n.v / A : NaN] : ['Take, of it', A ? n.want / A : NaN]);
         x1 = Math.min(Math.max(n.t * 1.4, 2 * half), Math.max(n.t * 1.2, 5 * half));
         return { rows: drawnTile(graphDrawing('Its activity, each half-life marked', 0, x1, { fs: [function (t) { return n.A * Math.pow(0.5, t / half); }], dots: [[n.t, A]],
             marks: [1, 2, 3, 4].filter(function (k) { return k * half <= x1; }).map(function (k) { return [k * half, k + ' t½']; }), y: [0, n.A * 1.2 || 1], names: [hours ? 'h' : 'days', 'activity'] }), 'Its decay')
             .concat(physRows(rows), iso ? [textRow('Gives off', iso[2]), textRow('Shield', iso[3])] : []), cols: 2,
-            note: 'Each activity in one unit, as µCi or MBq.' + (raw.want && A < n.want ? ' Less is left than you want.' : '') };
+            note: tr('Each activity in one unit, as µCi or MBq.{v}', { v: (raw.want && A < n.want ? tr(' Less is left than you want.') : '') }) };
     }
 
     function runBioBuffer(n, raw) {
@@ -16719,8 +16938,8 @@
             if (B[3] === 2) rows.push([B[6] + ', g', (1 - fb) * mol * B[4]], [B[7] + ', g', fb * mol * B[5]]);
             else rows.push([B[3] ? 'Weigh its base, g' : 'Weigh its acid, g', mol * B[4]], [B[3] ? 'HCl, mmol' : 'NaOH, mmol', 1000 * mol * (B[3] ? 1 - fb : fb)], [B[3] ? 'Of 1 M HCl, mL' : 'Of 1 M NaOH, mL', 1000 * mol * (B[3] ? 1 - fb : fb)]);
         }
-        if (Math.abs(n.pH - pKa) > 1) notes.push('Beyond its pKa ± 1 it buffers poorly: choose one of a pKa nearer ' + shortNum(n.pH) + '.');
-        if (Math.abs(B[2]) > 0.02 && n.T === 25) notes.push('Its pKa falls ' + shortNum(-B[2]) + ' each °C warmer: type the temperature it is used at.');
+        if (Math.abs(n.pH - pKa) > 1) notes.push(tr('Beyond its pKa ± 1 it buffers poorly: choose one of a pKa nearer {pH}.', { pH: shortNum(n.pH) }));
+        if (Math.abs(B[2]) > 0.02 && n.T === 25) notes.push(tr('Its pKa falls {v} each °C warmer: type the temperature it is used at.', { v: shortNum(-B[2]) }));
         notes.push(B[3] === 2 ? 'Dissolve both, then check the pH with a meter.' : 'Dissolve it in some 80% of the volume, bring it to the pH with a meter, then make it up.');
         return { rows: drawnTile(graphDrawing('Its base red and its acid blue against the pH, pKa ± 1 shaded', Math.max(0, pKa - 3), Math.min(14, pKa + 3), {
             fs: [function (x) { return 100 / (1 + Math.pow(10, pKa - x)); }, function (x) { return 100 - 100 / (1 + Math.pow(10, pKa - x)); }], bands: [[pKa - 1, pKa + 1]], dots: [[n.pH, 100 * fb]],
@@ -16770,7 +16989,7 @@
         npv = tn + fn ? tn / (tn + fn) : NaN;
         return { rows: (part ? [] : drawnTile(peopleDrawing(thousand([tp, fn, fp, tn])), 'A thousand tested')).concat(physRows([['Sensitivity, %', 100 * se], ['Specificity, %', 100 * sp], ['PPV, %', 100 * ppv], ['NPV, %', 100 * npv],
             ['LR+', se / (1 - sp)], ['LR−', (1 - se) / sp], ['Accuracy, %', part ? NaN : 100 * (tp + tn) / N], ['Prevalence, %', part ? NaN : 100 * (tp + fn) / N]]), ci ? [textRow('95% intervals', ci)] : []), cols: 2,
-            note: part ? 'Some with the illness and some without, all four counts, for the rest.' : isFinite(ppv) ? 'Of those it flags, ' + pcText(100 * ppv) + ' have it: the rarer the illness, the more of its positives are false.' : '' };
+            note: part ? 'Some with the illness and some without, all four counts, for the rest.' : isFinite(ppv) ? tr('Of those it flags, {v} have it: the rarer the illness, the more of its positives are false.', { v: pcText(100 * ppv) }) : '' };
     }
 
     function runOdds(n, raw) {
@@ -16829,7 +17048,7 @@
         return { rows: drawnTile(graphDrawing('Its curve red, the usual adult\'s blue', 0, Math.max(120, n.po2 * 1.1), { fs: [sat, function (p) { return 100 * CalcBiology.saturation(p, 26.8); }],
             dots: [[n.po2, S]], marks: [[P50, 'P₅₀']], y: [0, 105], names: ['PO₂, mmHg', 'SO₂ %'] }), 'Its curve').concat(physRows(rows)), cols: 2,
             note: myo ? 'Myoglobin holds O₂ tight, giving it up only where little is left, as in working muscle.' : P50 > 27.3 ? 'Moved right: it gives O₂ up more readily, as in working muscle.' :
-                P50 < 26.3 ? 'Moved left: it holds O₂ tighter' + (of === 1 ? ', so a fetus takes it from its mother\'s blood.' : '.') : 'At the usual P₅₀, 26.8 mmHg.' };
+                P50 < 26.3 ? tr('Moved left: it holds O₂ tighter{v}', { v: (of === 1 ? tr(', so a fetus takes it from its mother\'s blood.') : '.') }) : 'At the usual P₅₀, 26.8 mmHg.' };
     }
 
     function runAction(n, raw) {
@@ -16849,7 +17068,7 @@
         }
         return { rows: drawnTile(graphDrawing('Its voltage, the current on shaded', 0, n.t, { fs: [at(1)], bands: [[2, 2 + n.dur]], y: [-90, 60], names: ['ms', 'mV'] }), 'Its voltage')
             .concat(drawnTile(graphDrawing('Its gates: m red, h blue, n dashed', 0, n.t, { fs: [at(2), at(3), at(4)], bands: [[2, 2 + n.dur]], y: [0, 1.05], names: ['ms', 'open'] }), 'Its gates'),
-                [textRow('It', spikes ? 'Fires' + (spikes > 1 ? ', ' + spikes + ' times' : '') : 'Does not fire: below its threshold')],
+                [textRow('It', spikes ? 'Fires' + (spikes > 1 ? tr(', {spikes} times', { spikes: spikes }) : '') : 'Does not fire: below its threshold')],
                 physRows([['Spikes', spikes], ['Peak, mV', peak], ['At rest, mV', -65]].concat(spikes > 1 ? [['Rate, Hz', 1000 * (spikes - 1) / (times[spikes - 1] - times[0])]] : []))), cols: 2,
             note: spikes ? 'Na⁺ rushes in as m opens, then h shuts its channels and n lets K⁺ out, below rest for a while.' : 'Too little to reach some −55 mV: more current, or for longer.' };
     }
@@ -16872,7 +17091,7 @@
             osm = 2 * n.na + n.glu + n.urea;
             return { rows: drawnTile(gaugeDrawing('Where it is, the usual darker', osm, 240, 340, [275, 295], [[240, '240'], [275, '275'], [295, '295'], [340, '340']]), 'Its osmolality')
                 .concat(physRows([['Osmolality, mOsm/kg', osm]].concat(raw.meas ? [['Gap', n.meas - osm]] : []))), cols: 2,
-                note: 'In mmol/L; of mg/dL, 2Na + glucose ÷ 18 + BUN ÷ 2.8.' + (raw.meas && n.meas - osm > 10 ? ' A gap above 10: something more in it, as ethanol or methanol.' : '') };
+                note: tr('In mmol/L; of mg/dL, 2Na + glucose ÷ 18 + BUN ÷ 2.8.{v}', { v: (raw.meas && n.meas - osm > 10 ? tr(' A gap above 10: something more in it, as ethanol or methanol.') : '') }) };
         }
         none = ['eGFR'];
         if (!raw.scr && !raw.age) return physNone(none);
@@ -16899,7 +17118,7 @@
         }
         return { rows: drawnTile(gaugeDrawing('Its BMI, the healthy darker', bmi, 15, 40, [18.5, 25], [[15, '15'], [18.5, shortNum(18.5)], [25, '25'], [30, '30'], [35, '35'], [40, '40']]), 'Its class')
             .concat(physRows(rows), [textRow('Class', bmi < 18.5 ? 'Underweight' : bmi < 25 ? 'Healthy' : bmi < 30 ? 'Overweight' : bmi < 35 ? 'Obese, class I' : bmi < 40 ? 'Obese, class II' : 'Obese, class III')]), cols: 2,
-            note: 'BMI does not tell muscle from fat, and its classes differ for children.' + (raw.age ? '' : ' With the age, the energy a day.') };
+            note: tr('BMI does not tell muscle from fat, and its classes differ for children.{v}', { v: (raw.age ? '' : tr(' With the age, the energy a day.')) }) };
     }
 
     function runDrug(n, raw) {
@@ -16931,13 +17150,13 @@
     function runLeslie(n, raw) {
         var none = ['λ'], f = bioList(raw.f), s = bioList(raw.s), n0, k, L, last, sum = function (v) { return v.reduce(function (t, x) { return t + x; }, 0); };
         if (!raw.f && !raw.s) return physNone(none);
-        if (f.bad.length || s.bad.length) return bioWarn(none, escaped((f.bad.length ? f.bad : s.bad)[0]) + ' is not a number.', [f.bad.length ? 'f' : 's']);
+        if (f.bad.length || s.bad.length) return bioWarn(none, tr('{v} is not a number.', { v: escaped((f.bad.length ? f.bad : s.bad)[0]) }), [f.bad.length ? 'f' : 's']);
         k = f.values.length;
         if (k < 2 || k > 12) return bioWarn(none, '2 to 12 ages, a birth rate for each.', ['f']);
         if (s.values.length !== k - 1) return bioWarn(none, 'A survival from each age to the next, ' + (k - 1) + ', one fewer than the ages.', ['s']);
         if (!f.values.every(function (x) { return x >= 0; }) || !s.values.every(function (x) { return x >= 0 && x <= 1; })) return bioWarn(none, 'Births of 0 or more, and survival from 0 to 1.');
         n0 = raw.n ? bioList(raw.n) : { values: f.values.map(function () { return 100; }), bad: [] };
-        if (n0.bad.length || n0.values.length !== k || !n0.values.every(function (x) { return x >= 0; })) return bioWarn(none, 'As many numbers at first as ages, ' + k + ', each 0 or more.', ['n']);
+        if (n0.bad.length || n0.values.length !== k || !n0.values.every(function (x) { return x >= 0; })) return bioWarn(none, tr('As many numbers at first as ages, {k}, each 0 or more.', { k: k }), ['n']);
         if (!(n.y >= 1 && n.y <= 60 && n.y % 1 === 0)) return bioWarn(none, '1 to 60 steps.');
         L = CalcBiology.leslie(f.values, s.values, n0.values, n.y);
         last = L.path[n.y];
@@ -16979,7 +17198,7 @@
             none = ['Chao1'];
             if (!raw.c) return physNone(none);
             cnt = bioList(raw.c);
-            if (cnt.bad.length) return bioWarn(none, escaped(cnt.bad[0]) + ' is not a count.', ['c']);
+            if (cnt.bad.length) return bioWarn(none, tr('{bad} is not a count.', { bad: escaped(cnt.bad[0]) }), ['c']);
             if (!cnt.values.length || cnt.values.some(function (x) { return x < 0 || x % 1; })) return bioWarn(none, 'Whole counts of 0 or more.', ['c']);
             N = cnt.values.reduce(function (s, x) { return s + x; }, 0);
             if (!(N > 0)) return bioWarn(none, 'Some counted.', ['c']);
@@ -17025,10 +17244,10 @@
                 if (k > tok.length) return false;
                 nums = tok.slice(tok.length - k).map(function (x) { var v = bioList(x); return v.bad.length || v.values.length !== 1 ? NaN : v.values[0]; });
                 if (!nums.every(isFinite)) return false;
-                row = { name: tok.slice(0, tok.length - k).join(' ').replace(/:$/, '') || 'Taxon ' + (i + 1), d: nums, full: k === N };
+                row = { name: tok.slice(0, tok.length - k).join(' ').replace(/:$/, '') || tr('Taxon {i}', { i: (i + 1) }), d: nums, full: k === N };
                 return true;
             });
-            if (!row) return { error: 'Line ' + (i + 1) + ': a name and its distances, to all ' + N + ' or to those before it.' };
+            if (!row) return { error: tr('Line {i}: a name and its distances, to all {n} or to those before it.', { i: (i + 1), n: N }) };
             names.push(row.name);
             got.push(row);
         }
@@ -17054,7 +17273,7 @@
         if (lines.length && lines[0].charAt(0) === '>') {
             lines.forEach(function (l) {
                 if (l.charAt(0) === '>') {
-                    names.push(l.slice(1).trim() || 'Seq ' + (names.length + 1));
+                    names.push(l.slice(1).trim() || tr('Seq {names}', { names: (names.length + 1) }));
                     seqs.push('');
                 } else seqs[seqs.length - 1] += l.replace(/\s+/g, '');
             });
@@ -17062,21 +17281,21 @@
             lines.forEach(function (l, k) {
                 var tok = l.split(/\s+/);
                 seqs.push(tok.pop());
-                names.push(tok.join(' ').replace(/:$/, '') || 'Seq ' + (k + 1));
+                names.push(tok.join(' ').replace(/:$/, '') || tr('Seq {k}', { k: (k + 1) }));
             });
         }
         seqs = seqs.map(function (s) { return s.toUpperCase().replace(/U/g, 'T'); });
         for (i = 0; i < seqs.length; i++) {
-            if (!seqs[i] || /[^ACGTRYSWKMBDHVN.?\-]/.test(seqs[i])) return { error: escaped(names[i]) + ': not a sequence of bases, its gaps as -.' };
-            if (seqs[i].length !== seqs[0].length) return { error: 'Aligned sequences are all of one length: ' + escaped(names[i]) + ' is ' + seqs[i].length + ', not ' + seqs[0].length + '.' };
+            if (!seqs[i] || /[^ACGTRYSWKMBDHVN.?\-]/.test(seqs[i])) return { error: tr('{names}: not a sequence of bases, its gaps as -.', { names: escaped(names[i]) }) };
+            if (seqs[i].length !== seqs[0].length) return { error: tr('Aligned sequences are all of one length: {names} is {seqs}, not {seqs2}.', { names: escaped(names[i]), seqs: seqs[i].length, seqs2: seqs[0].length }) };
         }
         D = names.map(function () { return names.map(function () { return 0; }); });
         for (i = 0; i < seqs.length; i++) {
             for (j = i + 1; j < seqs.length; j++) {
                 d = CalcBiology.distance(seqs[i], seqs[j]);
-                if (!d.sites) return { error: escaped(names[i]) + ' and ' + escaped(names[j]) + ' have no bases in common to compare: only gaps or N where both are read.' };
+                if (!d.sites) return { error: tr('{names} and {names2} have no bases in common to compare: only gaps or N where both are read.', { names: escaped(names[i]), names2: escaped(names[j]) }) };
                 D[i][j] = D[j][i] = d.jc;
-                if (!isFinite(D[i][j])) return { error: escaped(names[i]) + ' and ' + escaped(names[j]) + ' are too unlike to measure: as unlike as chance makes them.' };
+                if (!isFinite(D[i][j])) return { error: tr('{names} and {names2} are too unlike to measure: as unlike as chance makes them.', { names: escaped(names[i]), names2: escaped(names[j]) }) };
             }
         }
         return { names: names, D: D };
@@ -17109,7 +17328,7 @@
             A = clean(raw.a);
             B = clean(raw.b);
             if (/[^ACGTRYSWKMBDHVN.?\-]/.test(A + B)) return bioWarn(none, 'Sequences of bases, their gaps as -.', [/[^ACGTRYSWKMBDHVN.?\-]/.test(A) ? 'a' : 'b']);
-            if (A.length !== B.length) return bioWarn(none, 'Aligned, of one length: ' + A.length + ' and ' + B.length + '. Align them first, as in the DNA tab.');
+            if (A.length !== B.length) return bioWarn(none, tr('Aligned, of one length: {a} and {b}. Align them first, as in the DNA tab.', { a: A.length, b: B.length }));
             ds = CalcBiology.distance(A, B);
             if (!ds.sites) return bioWarn(none, 'No sites of A, C, G or T in both to compare.');
             p = ds.p;
@@ -17126,7 +17345,7 @@
             raw.r ? [['Time, years', d / (2 * n.r)], ['Million years', d / (2 * n.r) / 1e6]] : raw.T ? [['Rate, /site/year', d / (2 * n.T)]] : []);
         return { rows: drawnTile(graphDrawing('d against p: Jukes and Cantor red, p itself blue', 0, 0.74, { fs: [CalcBiology.jukesCantor, function (x) { return x; }], dots: [[p, d]], y: [0, Math.max(1.6, d * 1.2)],
             names: ['p', 'd'] }), 'd and p').concat(physRows(rows)), cols: 2,
-            note: 'T = d ÷ 2r, as both lineages change from the split.' + (raw.r || raw.T ? '' : ' With a rate, the time; or with the time, the rate.') };
+            note: tr('T = d ÷ 2r, as both lineages change from the split.{v}', { v: (raw.r || raw.T ? '' : tr(' With a rate, the time; or with the time, the rate.')) }) };
     }
 
     var bio = toolPanel(bioPanel, bioButton, BIO_TOOLS, 'bio', 'bio');
@@ -17260,9 +17479,9 @@
 
     // a formula in a box: what is wrong with it, to say in the note
     function formulaWhy(r, box) {
-        return r.error === 'element' ? r.symbol + ' is no element: symbols start with a capital, Co for cobalt, CO for carbon monoxide.' :
+        return r.error === 'element' ? tr('{symbol} is no element: symbols start with a capital, Co for cobalt, CO for carbon monoxide.', { symbol: r.symbol }) :
             r.error === 'brackets' ? 'A bracket is not closed, or closed by another kind.' :
-                r.error === 'empty' ? '' : (box || 'The formula') + ' is not a formula yet: CuSO4·5H2O, Ca(OH)2, Fe^3+.';
+                r.error === 'empty' ? '' : tr('{box} is not a formula yet: CuSO4·5H2O, Ca(OH)2, Fe^3+.', { box: (box || 'The formula') });
     }
 
     // the parts of a whole, [name, how much, its words] each, side by side in one bar, each named where it has room
@@ -17331,23 +17550,22 @@
         if (!raw.c) return { rows: none };
         r = CalcChem.empirical(raw.c, engine.comma, raw.M ? n.M : 0);
         if (r.error) {
-            return { rows: none, bad: ['c'], warn: true, note: r.error === 'element' ? r.at + ' is no element.' : r.error === 'zero' ? r.at + ' needs an amount above 0.' :
+            return { rows: none, bad: ['c'], warn: true, note: r.error === 'element' ? tr('{at} is no element.', { at: r.at }) : r.error === 'zero' ? tr('{at} needs an amount above 0.', { at: r.at }) :
                 'Each element and its percent or grams: C 40' + (engine.comma ? '; ' : ', ') + 'H 6.71' + (engine.comma ? '; ' : ', ') + 'O 53.29.' };
         }
         return {
             rows: [{ l: 'Empirical', text: r.html, copy: r.plain }, { l: 'Its g/mol', v: CalcMaths.round(r.M) }].concat(drawnTile(shareDrawing('Its atoms, element by element',
                 r.parts.map(function (p) { return [p.s, p.n, String(p.n)]; }))))
                 .concat(r.molecular ? [{ l: 'Molecular', text: r.molecularHtml, copy: r.molecularPlain }, { l: 'Its g/mol', v: CalcMaths.round(r.M * r.n) }, { l: 'Times', v: r.n }] : []),
-            note: r.off ? 'The molar mass is not a whole number of times the empirical formula\'s: the nearest is taken.' : 'Moles of each, divided by the least: ' +
-                r.parts.map(function (p, i) { return p.s + ' ' + local(String(+r.ratio[i].toFixed(2))); }).join(', ') + '.'
+            note: r.off ? 'The molar mass is not a whole number of times the empirical formula\'s: the nearest is taken.' : tr('Moles of each, divided by the least: {parts}.', { parts: r.parts.map(function (p, i) { return p.s + ' ' + local(String(+r.ratio[i].toFixed(2))); }).join(', ') })
         };
     }
 
     // what is wrong with an equation, for the note
     function equationWhy(r) {
         return r.error === 'arrow' ? 'Write = or → between its two sides.' : r.error === 'arrows' ? 'One = or → only, between its two sides.' :
-            r.error === 'side' ? 'A formula on each side.' : r.error === 'formula' ? (formulaWhy(r.why, r.formula) || r.formula + ' is not a formula.') :
-                r.error === 'one side' ? r.element + ' is on one side only: it cannot be balanced.' :
+            r.error === 'side' ? 'A formula on each side.' : r.error === 'formula' ? (formulaWhy(r.why, r.formula) || tr('{formula} is not a formula.', { formula: r.formula })) :
+                r.error === 'one side' ? tr('{element} is on one side only: it cannot be balanced.', { element: r.element }) :
                     r.error === 'many' ? 'It balances in more than one way: it is two reactions or more. Write each of them.' :
                         'It cannot be balanced as written: a formula may be on the wrong side, or one is missing.';
     }
@@ -17374,15 +17592,15 @@
     // a reaction's results for the rows: the limiting reactant and the % yield
     function yieldRows(r, rows) {
         if (r.limiting) rows.push({ l: 'Limiting reactant', text: CalcChem.html(r.limiting), wide: true });
-        if (r.percent !== undefined) rows.push({ l: '% yield of ' + CalcChem.html(r.yieldOf), v: +r.percent.toFixed(2), wide: true });
+        if (r.percent !== undefined) rows.push({ l: tr('% yield of {yieldOf}', { yieldOf: CalcChem.html(r.yieldOf) }), v: +r.percent.toFixed(2), wide: true });
     }
 
     // a row for each formula, its amount in the unit unitOf(x) gives ({ unit, per }: per mole) and in moles, and what is left of it
     function amountRows(r, rows, unitOf) {
         r.rows.forEach(function (x) {
             var u = unitOf(x), name = CalcChem.html(x.t);
-            rows.push({ l: name + ', ' + u.unit, v: CalcMaths.round(x.mol * u.per) }, { l: name + ', mol', v: CalcMaths.round(x.mol) });
-            if (x.left > 1e-12 * x.given) rows.push({ l: name + ' left, ' + u.unit, v: CalcMaths.round(x.left * u.per), wide: true });
+            rows.push({ l: name + ', ' + u.unit, v: CalcMaths.round(x.mol * u.per) }, { l: tr('{name}, mol', { name: name }), v: CalcMaths.round(x.mol) });
+            if (x.left > 1e-12 * x.given) rows.push({ l: tr('{name} left, {unit}', { name: name, unit: u.unit }), v: CalcMaths.round(x.left * u.per), wide: true });
         });
     }
 
@@ -17392,25 +17610,26 @@
         b = CalcChem.balance(raw.eq);
         if (b.error) return { rows: none, bad: ['eq'], warn: true, note: equationWhy(b) };
         rows = [{ l: 'Balanced', text: b.html, copy: b.text, wide: true }];
-        if (!raw.a) return { rows: rows, note: 'Type the amount of a formula, or of each reactant: ' + CalcChem.plain(b.left[0].t) + ' 10 g.' };
+        if (!raw.a) return { rows: rows, note: tr('Type the amount of a formula, or of each reactant: {left} 10 g.', { left: CalcChem.plain(b.left[0].t) }) };
         read = CalcChem.readAmounts(raw.a, engine.comma);
-        if (read.error) return { rows: rows, bad: ['a'], warn: true, note: read.error + ' is not a formula and an amount: Fe 10 g, or O2 0.5 mol.' };
+        if (read.error) return { rows: rows, bad: ['a'], warn: true, note: tr('{error} is not a formula and an amount: Fe 10 g, or O2 0.5 mol.', { error: read.error }) };
         r = CalcChem.amounts(raw.eq, read.list);
-        if (r.error === 'not in') return { rows: rows, bad: ['a'], warn: true, note: r.t + ' is not in the equation.' };
+        if (r.error === 'not in') return { rows: rows, bad: ['a'], warn: true, note: tr('{t} is not in the equation.', { t: r.t }) };
         if (r.error) return { rows: rows, note: 'Type the amount of a formula, or of each reactant.' };
         yieldRows(r, rows);
         if (r.rows.some(function (x) { return x.given > 0; })) rows = drawnTile(labelBars('Each in g, what it takes or makes beside what was typed, the limiting red', r.rows.map(function (x) {
             return [CalcChem.plain(x.t), x.g, x.t === r.limiting, x.given > 0 ? x.given * x.M : 0];
         })), 'Used and made').concat(rows);
         amountRows(r, rows, function (x) { return { unit: 'g', per: x.M }; });
-        return { rows: rows, cols: 2, note: r.limiting ? 'What it takes and makes, until ' + CalcChem.plain(r.limiting) + ' runs out.' : r.percent !== undefined ? 'What the reaction gives, against what was got.' : '' };
+        return { rows: rows, cols: 2, note: r.limiting ? tr('What it takes and makes, until {limiting} runs out.', { limiting: CalcChem.plain(r.limiting) }) : r.percent !== undefined ? 'What the reaction gives, against what was got.' : '' };
     }
 
     // the one box of a few that is empty, to work out; a note if not one alone is. names: what each is called
     function oneEmpty(raw, keys, names) {
         var empty = keys.filter(function (k) { return !raw[k]; });
         if (empty.length === 1) return { k: empty[0] };
-        return { note: (empty.length ? 'Leave only one of ' : 'Leave one of ') + names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1] + ' empty, the one to work out.', warn: !empty.length };
+        return { note: (empty.length ? tr('Leave only one of {names} and {last} empty, the one to work out.', { names: names.slice(0, -1).join(tr(', ')), last: names[names.length - 1] }) :
+            tr('Leave one of {names} and {last} empty, the one to work out.', { names: names.slice(0, -1).join(tr(', ')), last: names[names.length - 1] })), warn: !empty.length };
     }
 
     function runHeat(n, raw) {
@@ -17528,8 +17747,8 @@
         if (!fromMass && raw.kg && M.M) rows.push({ l: 'Solute, g', v: m * n.kg * M.M });
         if (!fromMass && raw.kg && raw.g && !raw.f) rows.push({ l: 'Solute, g/mol', v: n.g / (m * n.kg) }); // its molar mass, from how far the point moved
         return { rows: rows, cols: 2, warn: !isFinite(m),
-            note: !isFinite(m) ? 'None: a box it is divided by is 0.' : raw.f && !raw.i && made.i > 1 ? 'i = ' + made.i + ': ' + CalcChem.plain(raw.f) + ' gives ' + made.i + ' ions, ideally; the real i is a little less.' :
-                (other ? '' : sv[4] + ': ') + 'Kf ' + local(String(sv[0])) + ', Kb ' + local(String(sv[1])) + ' °C·kg/mol.' };
+            note: !isFinite(m) ? 'None: a box it is divided by is 0.' : raw.f && !raw.i && made.i > 1 ? tr('i = {i}: {f} gives {i} ions, ideally; the real i is a little less.', { i: made.i, f: CalcChem.plain(raw.f) }) :
+                tr('{v}Kf {sv}, Kb {sv2} °C·kg/mol.', { v: (other ? '' : sv[4] + ': '), sv: local(String(sv[0])), sv2: local(String(sv[1])) }) };
     }
 
     // The table of solubility, each cell its letter in its colour, the salt typed outlined; its key under it. A cell
@@ -17617,7 +17836,7 @@
         return {
             rows: [{ l: ['Balance each', 'Name the kind of each reaction', 'Balance each, and name its kind'][ex], text: ol(q, 0), copy: plainList(q), wide: true },
                 { l: 'Answer key', text: ol(a, 0), copy: plainList(a), wide: true }],
-            note: list.length < count ? 'Only ' + list.length + ' at this level have a kind to name.' : 'Again for new questions.'
+            note: list.length < count ? tr('Only {list} at this level have a kind to name.', { list: list.length }) : 'Again for new questions.'
         };
     }
 
@@ -17640,7 +17859,7 @@
         var r, M;
         if (!raw.f) return { rows: [], pick: ionList(), note: 'Pick an ion, or type it by its formula or its name.' };
         r = CalcChem.findIon(raw.f);
-        if (r.error === 'unknown') return { rows: [], pick: ionList(), warn: true, note: raw.f + ' is not one of the common ions below.' };
+        if (r.error === 'unknown') return { rows: [], pick: ionList(), warn: true, note: tr('{f} is not one of the common ions below.', { f: raw.f }) };
         if (r.error) return { rows: [], pick: ionList(), bad: ['f'], warn: true, note: formulaWhy(r) };
         M = CalcChem.molarMass(r.formula);
         return {
@@ -17658,8 +17877,7 @@
         if (!raw.f) return { rows: none, note: 'Type a formula for its name, Fe2(SO4)3, or a name for its formula, iron(III) sulfate.' };
         r = CalcChem.names(raw.f);
         if (r.error === 'numeral') {
-            return { rows: none, bad: ['f'], warn: true, note: r.element.name + ' has more than one charge: write it in Roman numerals, ' +
-                r.element.ox.split(' ').filter(function (x) { return x.charAt(0) === '+'; }).map(function (x) { return r.element.name.toLowerCase() + '(' + ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII'][+x.slice(1)] + ')'; }).join(' or ') + '.' };
+            return { rows: none, bad: ['f'], warn: true, note: tr('{name} has more than one charge: write it in Roman numerals, {ox}.', { name: r.element.name, ox: r.element.ox.split(' ').filter(function (x) { return x.charAt(0) === '+'; }).map(function (x) { return r.element.name.toLowerCase() + '(' + ['', 'I', tr('II'), tr('III'), tr('IV'), 'V', tr('VI'), tr('VII'), tr('VIII')][+x.slice(1)] + ')'; }).join(' or ') }) };
         }
         if (r.error === 'unknown') return { rows: none, warn: true, note: 'Not one it names: salts, acids, ions, two nonmetals, the elements and some common compounds are.' };
         if (r.error) return { rows: none, bad: ['f'], warn: r.error !== 'empty', note: formulaWhy(r) };
@@ -17670,7 +17888,7 @@
         rows.push({ l: 'g/mol', v: CalcMaths.round(CalcChem.molarMass(r.formula).mass) });
         return {
             rows: rows, cols: 2,
-            note: r.kind === 'Ionic' ? 'The cation, then the anion' + (/\([IVX]+\)/.test(s.cation.name) ? '; a metal of more than one charge has its charge in Roman numerals, as the anions balance it.' : '.') :
+            note: r.kind === 'Ionic' ? tr('The cation, then the anion{v}', { v: (/\([IVX]+\)/.test(s.cation.name) ? tr('; a metal of more than one charge has its charge in Roman numerals, as the anions balance it.') : '.') }) :
                 r.kind === 'Acid' ? (r.acid ? 'As a compound, hydrogen and the anion; in water -ide becomes hydro-…-ic acid.' : 'In water, -ate becomes -ic acid and -ite -ous acid.') :
                     r.kind === 'Molecular' ? 'Two nonmetals: a Greek prefix for how many atoms of each, mono- left off the first.' : r.kind === 'Common name' ? 'Known by a name of its own.' : ''
         };
@@ -17687,10 +17905,10 @@
         twice = r.rows.filter(function (x, i) { return r.rows.some(function (y, j) { return j < i && y.s === x.s; }); }).map(function (x) { return x.s; });
         return {
             rows: r.rows.map(function (x) { return { l: x.s + (x.in ? ' in ' + x.in : ''), text: x.text }; }), cols: 2,
-            note: r.parts ? 'Each ion on its own, as ' + twice[0] + ' is in both.' :
-                r.average.length ? r.average.join(' and ') + ': an average, as its atoms are not all in one state; Fe3O4 is FeO·Fe2O3.' :
+            note: r.parts ? tr('Each ion on its own, as {twice} is in both.', { twice: twice[0] }) :
+                r.average.length ? tr('{v}: an average, as its atoms are not all in one state; Fe3O4 is FeO·Fe2O3.', { v: r.average.join(' and ') }) :
                     r.guessed ? 'The rules leave more than one element: each is put in one of its usual states, so they add up to the charge.' :
-                        'By the rules; the sum is the charge, ' + (CalcChem.parse(raw.f).charge ? chargeText(CalcChem.parse(raw.f).charge) : '0') + '.'
+                        tr('By the rules; the sum is the charge, {v}.', { v: (CalcChem.parse(raw.f).charge ? chargeText(CalcChem.parse(raw.f).charge) : '0') })
         };
     }
 
@@ -17724,7 +17942,7 @@
             y: [0, 1.6 * Math.max(all.p1, all.p2)], lines: [[all.v1, all.p1, all.v2, all.p2]], dots: [[all.v1, all.p1]], pts: [[all.v2, all.p2]],
             marks: Math.abs(all.v1 - all.v2) > 0.12 * top ? [[all.v1, '1'], [all.v2, '2']] : [], names: ['V', 'P'] }), 'P and V') : [])
             .concat([{ l: { p1: 'P₁', v1: 'V₁', t1: 'T₁', p2: 'P₂', v2: 'V₂', t2: 'T₂' }[e.k], v: v }]), warn: !isFinite(v),
-            note: !isFinite(v) ? 'None: a box it is divided by is 0.' : 'The same units of P and of V on both sides' + (c ? '; T in °C, worked out in kelvin.' : '; T in kelvin.') };
+            note: !isFinite(v) ? 'None: a box it is divided by is 0.' : (c ? tr('The same units of P and of V on both sides; T in °C, worked out in kelvin.') : tr('The same units of P and of V on both sides; T in kelvin.')) };
     }
 
     // a gas as a box has it: its formula as chemists write it, else the text, for a tile or, plain, for a drawing
@@ -17744,12 +17962,12 @@
         if (!raw.g) return { rows: none };
         read = CalcChem.readGases(raw.g, engine.comma);
         if (read.error !== undefined) {
-            return { rows: none, bad: read.error ? ['g'] : [], warn: !!read.error, note: (read.error ? read.error + ' is not a gas and a number: ' : 'Each gas and a number: ') + local(listTyped(['N2 0.78', 'O2 0.21'])) + '.' };
+            return { rows: none, bad: read.error ? ['g'] : [], warn: !!read.error, note: (read.error ? tr('{error} is not a gas and a number: ', { error: read.error }) : 'Each gas and a number: ') + local(listTyped(['N2 0.78', 'O2 0.21'])) + '.' };
         }
         list = read.list.map(function (g) { return { t: g.t, v: g.v }; });
         for (i = 0; kind === 1 && i < list.length; i++) { // grams, as moles
             M = CalcChem.gasOf(list[i].t); // air too
-            if (M.error) return { rows: none, bad: ['g'], warn: true, note: formulaWhy(M, list[i].t) || list[i].t + ' is not a formula.' };
+            if (M.error) return { rows: none, bad: ['g'], warn: true, note: formulaWhy(M, list[i].t) || tr('{list} is not a formula.', { list: list[i].t }) };
             list[i].v /= M.M;
         }
         list.forEach(function (g) { sum += g.v; });
@@ -17759,7 +17977,7 @@
             P = sum;
             if (raw.p) {
                 rest = n.p - sum;
-                if (rest < -1e-9 * sum) return { rows: none, warn: true, note: 'P is less than the pressures of the gases add up to, ' + gasNum(sum) + ' ' + unit + '.' };
+                if (rest < -1e-9 * sum) return { rows: none, warn: true, note: tr('P is less than the pressures of the gases add up to, {sum} {unit}.', { sum: gasNum(sum), unit: unit }) };
                 if (rest > 1e-9 * sum) list.push({ v: rest, rest: true });
                 P = n.p;
             }
@@ -17785,18 +18003,18 @@
 
     // a gas collected over water: the vapour of the water at T, by Antoine's equation, taken from P
     function runWet(n, raw) {
-        var u = +raw.pu || 0, unit = GAS_PU[u], T = n.t + (raw.tu === '1' ? 273.15 : 0), none = [{ l: 'Dry gas, ' + unit, v: NaN }, { l: 'Water, ' + unit, v: NaN }],
+        var u = +raw.pu || 0, unit = GAS_PU[u], T = n.t + (raw.tu === '1' ? 273.15 : 0), none = [{ l: tr('Dry gas, {unit}', { unit: unit }), v: NaN }, { l: tr('Water, {unit}', { unit: unit }), v: NaN }],
             pw, pg, M = {}, mol, rows;
         if (!raw.p || !raw.t) return { rows: none, note: raw.p || raw.t ? 'Type P and T.' : '' };
         pw = CalcChem.waterVapour(T - 273.15) / 760 * GAS_P[u];
         if (!isFinite(pw)) return { rows: none, warn: true, note: 'T from 0 °C to 100 °C, where water is liquid.' };
         pg = n.p - pw;
-        if (!(pg > 0)) return { rows: none, warn: true, note: 'P is above the vapour of the water at this T, ' + gasNum(pw) + ' ' + unit + '.' };
+        if (!(pg > 0)) return { rows: none, warn: true, note: tr('P is above the vapour of the water at this T, {pw} {unit}.', { pw: gasNum(pw), unit: unit }) };
         if (raw.f) {
             M = massOf(raw, 'f');
             if (M.why) return { rows: none, bad: M.bad ? ['f'] : [], warn: true, note: M.why };
         }
-        rows = [{ l: 'Dry gas, ' + unit, v: CalcMaths.round(pg) }, { l: 'Water, ' + unit, v: CalcMaths.round(pw) }, { l: 'Dry gas, %', v: CalcMaths.round(100 * pg / n.p) }];
+        rows = [{ l: tr('Dry gas, {unit}', { unit: unit }), v: CalcMaths.round(pg) }, { l: tr('Water, {unit}', { unit: unit }), v: CalcMaths.round(pw) }, { l: 'Dry gas, %', v: CalcMaths.round(100 * pg / n.p) }];
         if (raw.v) {
             mol = pg / GAS_P[u] * n.v / (GAS_R[0] * T);
             rows.push({ l: 'n, mol', v: CalcMaths.round(mol) }, { l: 'Dry at STP, L', v: CalcMaths.round(mol * GAS_R[0] * 273.15) });
@@ -17805,8 +18023,8 @@
         return {
             rows: drawnTile(graphDrawing('The vapour of water as it warms, at T the dot', 0, Math.min(100, Math.max(40, (T - 273.15) * 1.6)), {
                 fs: [function (x) { return CalcChem.waterVapour(x) / 760 * GAS_P[u]; }], dots: [[T - 273.15, pw]], names: ['°C', 'P<tspan class="calc-sv-sub" dy="2">water</tspan>'] }),
-                'Water\'s vapour, ' + unit).concat(rows), cols: 2,
-            note: 'The vapour of water at ' + gasNum(T - 273.15) + ' °C, by Antoine\'s equation' + (raw.v ? '.' : '; with V, the moles of the gas' + (raw.f ? ' and its mass.' : '.'))
+                tr('Water\'s vapour, {unit}', { unit: unit })).concat(rows), cols: 2,
+            note: tr('The vapour of water at {t} °C, by Antoine\'s equation{v}', { t: gasNum(T - 273.15), v: (raw.v ? '.' : tr('; with V, the moles of the gas{v}', { v: (raw.f ? tr(' and its mass.') : '.') })) })
         };
     }
 
@@ -17819,18 +18037,18 @@
         if (b.error) return { rows: none, bad: ['eq'], warn: true, note: equationWhy(b) };
         rows = [{ l: 'Balanced', text: b.html, copy: b.text, wide: true }];
         if (!(P > 0 && T > 0)) return { rows: rows, warn: true, note: 'P above 0, and T above absolute zero.' };
-        if (!raw.a) return { rows: rows, note: 'Type the amount of a formula, in g, mol or L: ' + CalcChem.plain(b.left[0].t) + ' 10 g.' };
+        if (!raw.a) return { rows: rows, note: tr('Type the amount of a formula, in g, mol or L: {left} 10 g.', { left: CalcChem.plain(b.left[0].t) }) };
         read = CalcChem.readAmounts(raw.a, engine.comma, true);
-        if (read.error) return { rows: rows, bad: ['a'], warn: true, note: read.error + ' is not a formula and an amount: C3H8 10 L, or O2 0.5 mol.' };
+        if (read.error) return { rows: rows, bad: ['a'], warn: true, note: tr('{error} is not a formula and an amount: C3H8 10 L, or O2 0.5 mol.', { error: read.error }) };
         read.list.forEach(function (x) { // litres of a gas, as moles
             if (x.unit !== 'l' && x.unit !== 'ml') return;
             if (!CalcChem.isGas(x.t, T - 273.15)) bad = bad || x.t;
             x.v = (x.unit === 'ml' ? x.v / 1000 : x.v) / Vm;
             x.unit = 'mol';
         });
-        if (bad) return { rows: rows, bad: ['a'], warn: true, note: CalcChem.plain(bad) + ' is not a gas here: its amount in g or mol, or (g) after it.' };
+        if (bad) return { rows: rows, bad: ['a'], warn: true, note: tr('{bad} is not a gas here: its amount in g or mol, or (g) after it.', { bad: CalcChem.plain(bad) }) };
         r = CalcChem.amounts(raw.eq, read.list);
-        if (r.error === 'not in') return { rows: rows, bad: ['a'], warn: true, note: r.t + ' is not in the equation.' };
+        if (r.error === 'not in') return { rows: rows, bad: ['a'], warn: true, note: tr('{t} is not in the equation.', { t: r.t }) };
         if (r.error) return { rows: rows, note: 'Type the amount of a formula, or of each reactant.' };
         yieldRows(r, rows);
         rows.push({ l: 'A mole of gas, L', v: CalcMaths.round(Vm), wide: true });
@@ -17840,8 +18058,8 @@
             return gas ? { unit: 'L', per: Vm } : { unit: 'g', per: x.M };
         });
         return {
-            rows: drawnTile(labelBars('The litres of each gas' + (r.limiting ? ', the limiting one red' : ''), bars), 'Litres of each gas').concat(rows), cols: 2,
-            note: (raw.p || raw.t ? 'At ' + gasNum(T - 273.15) + ' °C and ' + gasNum(P) + ' atm' : 'At STP, 0 °C and 1 atm') + ': the gases in litres, the rest in grams.'
+            rows: drawnTile(labelBars(tr('The litres of each gas{v}', { v: (r.limiting ? tr(', the limiting one red') : '') }), bars), 'Litres of each gas').concat(rows), cols: 2,
+            note: tr('{v}: the gases in litres, the rest in grams.', { v: (raw.p || raw.t ? tr('At {t} °C and {p} atm', { t: gasNum(T - 273.15), p: gasNum(P) }) : tr('At STP, 0 °C and 1 atm')) })
         };
     }
 
@@ -17850,10 +18068,10 @@
         var s = raw[k], r;
         if (/^\d*[.,]?\d+(?:e[+-]?\d+)?$/i.test(s)) {
             r = +s.replace(',', '.');
-            return r > 0 ? { M: r, html: name, plain: name } : { why: name + ': a molar mass above 0.', bad: true };
+            return r > 0 ? { M: r, html: name, plain: name } : { why: tr('{name}: a molar mass above 0.', { name: name }), bad: true };
         }
         r = CalcChem.molarMass(s);
-        return r.error ? { why: formulaWhy(r, name) || name + ' is not a formula.', bad: true } : { M: r.mass, html: CalcChem.html(s), plain: CalcChem.plain(s) };
+        return r.error ? { why: formulaWhy(r, name) || tr('{name} is not a formula.', { name: name }), bad: true } : { M: r.mass, html: CalcChem.html(s), plain: CalcChem.plain(s) };
     }
 
     // Graham's law: two gases and the ratio of their rates, or of their times, from any two
@@ -17871,7 +18089,7 @@
             { l: 'M<sub>1</sub>, g/mol', v: CalcMaths.round(M1) }, { l: 'M<sub>2</sub>, g/mol', v: CalcMaths.round(M2) }];
         if (e.k !== 'r') {
             near = CalcChem.gasesNear(e.k === 'a' ? M1 : M2, 0.03).slice(0, 3);
-            rows.push({ l: 'Gas ' + (e.k === 'a' ? 1 : 2) + ' could be', text: near.length ? near.map(function (g) { return gasName(g.t) + ' ' + gasNum(g.M); }).join(', ') : 'None of the common gases', wide: true });
+            rows.push({ l: tr('Gas {v} could be', { v: (e.k === 'a' ? 1 : 2) }), text: near.length ? near.map(function (g) { return gasName(g.t) + ' ' + gasNum(g.M); }).join(', ') : 'None of the common gases', wide: true });
         }
         v1 = 1 / Math.sqrt(M1);
         v2 = 1 / Math.sqrt(M2);
@@ -17887,14 +18105,14 @@
     function runAir(n, raw) {
         var u = +raw.pu || 0, unit = GAS_PU[u], hu = +raw.hu || 0, per = [1, 1000, 0.3048][hu], hName = ['m', 'km', 'ft'][hu], toPa = 101325 / GAS_P[u],
             t0 = (raw.t0 ? n.t0 : 15) + 273.15, p0 = raw.p0 ? n.p0 * toPa : 101325, e = oneEmpty(raw, ['h', 'p'], ['the height', 'P']),
-            none = [{ l: 'P, ' + unit, v: NaN }, { l: 'Height, ' + hName, v: NaN }], h, a, rows, x0, x1, pAt;
+            none = [{ l: 'P, ' + unit, v: NaN }, { l: tr('Height, {hName}', { hName: hName }), v: NaN }], h, a, rows, x0, x1, pAt;
         if (!e.k) return { rows: none, warn: e.warn, note: e.note };
         if (!(t0 > 0 && p0 > 0)) return { rows: none, warn: true, note: 'Sea level above absolute zero, and its P above 0.' };
         h = e.k === 'h' ? CalcPhysics.altitude(n.p * toPa, t0, p0) : n.h * per;
         a = isFinite(h) ? CalcPhysics.atmosphere(h, t0, p0) : null;
         if (!a) return { rows: none, warn: true, note: e.k === 'h' ? 'No height from −5 km to 84.85 km has that P.' : 'A height from −5 km to 84.85 km.' };
         if (e.k === 'h') a.p = n.p * toPa; // as typed, not as the height found to the mm gives it
-        rows = [{ l: 'P, ' + unit, v: CalcMaths.round(a.p / toPa) }, { l: 'Height, ' + hName, v: CalcMaths.round(h / per) }];
+        rows = [{ l: 'P, ' + unit, v: CalcMaths.round(a.p / toPa) }, { l: tr('Height, {hName}', { hName: hName }), v: CalcMaths.round(h / per) }];
         if (e.k === 'h') rows.reverse();
         rows.push({ l: 'T, °C', v: CalcMaths.round(a.t - 273.15) }, { l: 'Density, kg/m³', v: CalcMaths.round(a.rho) }, { l: '% of sea level', v: CalcMaths.round(100 * a.p / p0) },
             { l: 'O<sub>2</sub>, ' + unit, v: CalcMaths.round(0.2095 * a.p / toPa) }, { l: 'Water boils, °C', v: CalcMaths.round(CalcChem.waterBoils(a.p / 101325 * 760)), wide: true });
@@ -17904,7 +18122,7 @@
         return {
             rows: drawnTile(graphDrawing('Its pressure with height', x0, x1, { fs: [pAt], dots: [[h / per, a.p / toPa]], y: [0, pAt(x0) * 1.2], names: [hName, 'P'] }),
                 'P against height').concat(rows), cols: 2,
-            note: 'By the standard atmosphere, ISA, ' + (raw.t0 || raw.p0 ? 'from sea level as typed' : 'from 15 °C and 1 atm at sea level') + '; the weather moves it a few percent.'
+            note: (raw.t0 || raw.p0 ? tr('By the standard atmosphere, ISA, from sea level as typed; the weather moves it a few percent.') : tr('By the standard atmosphere, ISA, from 15 °C and 1 atm at sea level; the weather moves it a few percent.'))
         };
     }
 
@@ -17923,7 +18141,7 @@
         return {
             rows: drawnTile(graphDrawing('Its speed with temperature', T * 0.4 - c, T * 1.6 - c, { fs: [function (x) { return CalcPhysics.sound(gamma, g.M, x + c); }], dots: [[n.t, v]],
                 names: ['T', 'v'] }), 'v against T').concat(rows), cols: 2,
-            note: g.guessed && !raw.gamma ? 'γ of ' + gasName(raw.g, true) + ' is not known here: ' + gasNum(gamma) + ', from its atoms. Type γ for a better one.' :
+            note: g.guessed && !raw.gamma ? tr('γ of {g} is not known here: {gamma}, from its atoms. Type γ for a better one.', { g: gasName(raw.g, true), gamma: gasNum(gamma) }) :
                 raw.u && n.u >= v ? 'Mach 1 or more: as fast as sound or faster.' : 'Of an ideal gas: faster as it is hotter, slower as it is heavier.'
         };
     }
@@ -17978,7 +18196,7 @@
             mass: { of: function (e) { return e.mass; }, lo: 1, hi: 294, label: 'g/mol', ends: [1.008, 294],
                 colours: [[35, 93, 89], [31, 94, 73], [5, 81, 73]] },
             year: { of: function (e) { return e.year === null ? null : Math.max(e.year, 1600); }, lo: 1600, hi: 2010, ends: [1600, 2010], fixed: 0,
-                show: function (v) { return v <= 1600 ? 'Ancient' : String(Math.round(v)); },
+                show: function (v) { return v <= 1600 ? tr('Ancient') : String(Math.round(v)); },
                 colours: [[42, 69, 80], [165, 59, 78], [285, 69, 83]] }
         },
         // the units the numbers of an element are shown in, each changed with a click on it: of temperature,
@@ -18070,7 +18288,7 @@
 
     // the unit of a number's scale: the one chosen for its kind, or its own
     function chemHeatUnit(h) {
-        return h.unit ? chemUnitName(h.unit) : h.label || '';
+        return h.unit ? chemUnitName(h.unit) : h.label ? tr(h.label) : '';
     }
 
     // an element dimmed by the slider: outside its ends, or its number not known
@@ -18085,7 +18303,7 @@
     // colours with a knob at each end, the number of each end beside it, the colours outside them shaded.
     // Not the browser's, which has one knob only, and is not where it is drawn when the page is zoomed
     function chemSliderHtml() {
-        var places = chemSliderPlaces(), heat = chemBy !== 'state', names = heat ? ['From', 'To'] : ['Temperature'];
+        var places = chemSliderPlaces(), heat = chemBy !== 'state', names = heat ? [tr('From'), tr('To')] : [tr('Temperature')];
         // the first number before the line, against it: of the temperature its only one. Each as wide as the
         // longest it can say, three figures and a sign with the unit, for the line not to move and no more room
         var unit = heat ? chemHeatUnit(CHEM_HEAT[chemBy]) : chemUnitName('t'),
@@ -18152,7 +18370,7 @@
     }
 
     function chemUnitName(kind) {
-        return CHEM_UNITS[kind][chemUnit[kind]][0];
+        return tr(CHEM_UNITS[kind][chemUnit[kind]][0]);
     }
 
     // coloured by a number: from pale yellow at its least to red at its most
@@ -18179,10 +18397,10 @@
     function chemSpectrum(e) {
         var lines = CalcChem.spectrum(e.s) || [], W = 300, L = 8, R = W - 8, T = 6, B = 28, id = 'calc-plot-' + (++plotIds), abs = chemSpec === 'abs', body,
             px = function (nm) { return L + (R - L) * (nm - 380) / 370; },
-            none = !lines.length && (lines.unseen ? 'None in visible light' : 'None measured'),
-            said = !none ? (lines.ion ? 'Of its ion, ' + e.s + '⁺: ' : '') + lines.map(function (l) { return local(l.nm.toFixed(2)); }).join(', ') + ' nm' :
-                lines.unseen ? 'None in visible light: its strongest are ultraviolet, ' + lines.unseen.map(function (nm) { return local(String(nm)); }).join(' and ') + ' nm' :
-                'None measured: NIST has no lines of it, as too few of its atoms have ever been made to see their light';
+            none = !lines.length && (lines.unseen ? tr('None in visible light') : tr('None measured')),
+            said = !none ? (lines.ion ? tr('Of its ion, {s}⁺: ', { s: e.s }) : '') + lines.map(function (l) { return local(l.nm.toFixed(2)); }).join(', ') + ' nm' :
+                lines.unseen ? tr('None in visible light: its strongest are ultraviolet, {unseen} nm', { unseen: lines.unseen.map(function (nm) { return local(String(nm)); }).join(' and ') }) :
+                tr('None measured: NIST has no lines of it, as too few of its atoms have ever been made to see their light');
         body = (abs ? rainbow(id) : '') + '<rect x="' + L + '" y="' + T + '" width="' + (R - L) + '" height="' + (B - T) + '" fill="' + (abs ? 'url(#' + id + ')' : '#07090c') + '"' + (none ? ' opacity="0.3"' : '') + '/>';
         if (none) body += svgText(W / 2, (T + B) / 2 + 3.5, none, 'middle', 'calc-sv-small calc-sv-bold');
         lines.forEach(function (l) {
@@ -18193,8 +18411,8 @@
             body += '<path class="calc-sv-ground" d="M' + fix(px(nm)) + ' ' + B + 'v3"/>' + svgText(px(nm), B + 12, nm, 'middle');
         });
         return '<div class="calc-sv-tile calc-sv-wide calc-pt-spec" style="--i: 0" data-fact="spectrum" data-lines="' + said + '">' +
-            '<span class="calc-sv-label">Spectrum <i class="calc-pt-unit" role="button">' + (abs ? 'absorption' : 'emission') + '</i></span><span class="calc-sv-value">' +
-            svgOf('', W, B + 14, e.name + '\'s ' + (abs ? 'absorption' : 'emission') + ' spectrum: ' + said,
+            '<span class="calc-sv-label">' + tr('Spectrum') + ' <i class="calc-pt-unit" role="button">' + tr(abs ? 'absorption' : 'emission') + '</i></span><span class="calc-sv-value">' +
+            svgOf('', W, B + 14, tr(abs ? '{name}\'s absorption spectrum: {lines}' : '{name}\'s emission spectrum: {lines}', { name: tr(e.name), lines: said }),
                 body + '<path class="calc-sv-ground" d="M' + L + ' ' + T + 'h' + (R - L) + 'v' + (B - T) + 'H' + L + 'Z"/>') + '</span></div>';
     }
 
@@ -18202,7 +18420,8 @@
     // each shell, its electrons spaced round it
     function chemAtom(e) {
         var size = 150, mid = size / 2, rings = e.shells.length, gap = (mid - 20) / Math.max(rings, 1), svg, n = Math.round(e.mass) - e.z;
-        svg = '<svg class="calc-pt-atom" data-pt="atom" data-full="' + e.z + ' protons, ' + n + ' neutrons; electrons ' + e.shells.join(', ') + '" viewBox="0 0 ' + size + ' ' + size + '" role="img" aria-label="' + e.name + ': ' + e.z + ' protons, ' + n + ' neutrons, electrons in shells of ' + e.shells.join(', ') + '">';
+        svg = '<svg class="calc-pt-atom" data-pt="atom" data-full="' + tr('{z} protons, {n} neutrons; electrons {list}', { z: e.z, n: n, list: e.shells.join(', ') }) + '" viewBox="0 0 ' + size + ' ' + size + '" role="img" aria-label="' +
+            tr('{name}: {z} protons, {n} neutrons, electrons in shells of {list}', { name: tr(e.name), z: e.z, n: n, list: e.shells.join(', ') }) + '">';
         e.shells.forEach(function (count, i) { // each shell with its electrons, which come in one after the other from the middle, then go round
             var r = 18 + gap * (i + 0.75), j, a;
             svg += '<g class="calc-pt-shell" style="--i: ' + i + '"><circle class="calc-pt-ring" cx="' + mid + '" cy="' + mid + '" r="' + r.toFixed(1) + '"/><g class="calc-pt-spin">';
@@ -18375,8 +18594,8 @@
         if (o.each) c.atoms.forEach(function (p) { p[3] = 2; }); // only its lattice: each point grey
         // what is counted, and in how many cells of the prism; of a lattice only, what is at each point
         c.noun = function (n) {
-            return (o.each ? (n === 1 ? 'point' : 'points') : o.mol ? o.mol + (n === 1 ? ' molecule' : ' molecules') : n === 1 ? 'atom' : 'atoms') +
-                (c.cells ? ' in ' + c.cells + ' cells' : '') + (o.each ? ', ' + o.each : '');
+            return (o.each ? trn(n, 'point', 'points') : o.mol ? trn(n, '{mol} molecule', '{mol} molecules', { mol: o.mol }) : trn(n, 'atom', 'atoms')) +
+                (c.cells ? tr(' in {cells} cells', { cells: c.cells }) : '') + (o.each ? ', ' + o.each : '');
         };
         return c;
     }
@@ -18459,7 +18678,7 @@
             var far = d1 > d0 ? (a.p.d - d0) / (d1 - d0) : 0;
             return '<circle class="calc-pt-ball" cx="' + fix(pad + s * (a.p.x - x0)) + '" cy="' + fix(pad + s * (a.p.y - y0)) + '" r="' + fix(s * c.r) + '" fill="url(#calc-plot-' + ids[a.k] + ')" opacity="' + (1 - 0.35 * far).toFixed(2) + '"/>';
         }).join('');
-        return '<svg class="calc-pt-cell" style="--w: ' + W + '; --h: ' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + label + '">' + body + '</svg>';
+        return '<svg class="calc-pt-cell" style="--w: ' + W + '; --h: ' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + tr(label) + '">' + body + '</svg>';
     }
 
     // Under its crystal structure, its unit cell drawn and its atoms counted; of one with two forms, each, named
@@ -18468,7 +18687,7 @@
             // its name with a capital, but α-Fe as it is: a Greek letter's capital is another letter
             var m = part.match(/^([^:]+):\s*(.+)$/), name = m ? (/^[a-z]/.test(m[1]) ? m[1].charAt(0).toUpperCase() + m[1].slice(1) : m[1]) : '', words = m ? m[2] : part,
                 c = crystalOf(e, words, name);
-            return c && '<span class="calc-pt-form">' + crystalSvg(c, e.name + (name ? ', ' + name : '') + ': ' + words.toLowerCase() + (c.label ? ', ' + c.label : c.cells ? ', a hexagonal prism of ' + c.cells + ' unit cells' : ' unit cell')) +
+            return c && '<span class="calc-pt-form">' + crystalSvg(c, tr(e.name) + (name ? ', ' + name : '') + ': ' + words.toLowerCase() + (c.label ? ', ' + c.label : c.cells ? tr(', a hexagonal prism of {cells} unit cells', { cells: c.cells }) : ' unit cell')) +
                 (parts.length > 1 ? '<b>' + name + '</b>' : '') + '<span class="calc-pt-count">' + (c.note || crystalCount(c)) + '</span></span>';
         }).filter(Boolean);
         return cells.length ? '<span class="calc-pt-cells">' + cells.join('') + '</span>' : '';
@@ -18481,7 +18700,7 @@
 
     // and on a big tile, with its tip: the mass in full, whatever its places
     function chemMassHtml(e) {
-        return '<span class="calc-pt-mass" data-pt="mass" data-full="' + (e.unstable ? '[' + e.mass + ']' : local(String(e.mass)) + ' g/mol') + '">' + chemMass(e) + '</span>';
+        return '<span class="calc-pt-mass" data-pt="mass" data-full="' + (e.unstable ? '[' + e.mass + ']' : tr('{mass} g/mol', { mass: local(String(e.mass)) })) + '">' + chemMass(e) + '</span>';
     }
 
     // The tip of a part of an element, its data-pt: what it is, its value in full above, as its tile may cut it
@@ -18490,7 +18709,7 @@
         var k = el.dataset.pt, info = CalcTips[k === 'kind' ? 'chem kind ' + el.dataset.kind : 'chem fact ' + k],
             v = el.hasAttribute('data-full') ? el.dataset.full : el.textContent.trim();
         if (!info) return null;
-        return { t: info.t, d: (v && k !== 'kind' ? '<div class="calc-tip-value">' + v + '</div>' : '') + info.d };
+        return { t: info.t, d: (v && k !== 'kind' ? '<div class="calc-tip-value">' + v + '</div>' : '') + tr(info.d) }; // translated before its value is put above it
     }
 
     // The tip of a tile of the details, as a result's: what it is, and its value in full with its unit, to copy, a
@@ -18498,12 +18717,13 @@
     function chemFactPeek(el) {
         var info = CalcTips['chem fact ' + el.dataset.fact], label = el.querySelector('.calc-sv-label'), value = el.querySelector('.calc-sv-value'),
             // the crystal structure's drawing left out: its words alone
-            drawn = value.querySelector('.calc-pt-cells'), unit = label.querySelector('i'), name = label.firstChild.data.trim(),
+            drawn = value.querySelector('.calc-pt-cells'), unit = label.querySelector('i:not(.calc-pt-guess)'), name = label.firstChild.data.trim(),
             shown = [].filter.call(value.childNodes, function (n) { return n !== drawn; }).map(function (n) { return n.textContent; }).join('').trim(), u;
         if (!info) return null;
-        if (el.dataset.lines) return { t: name, d: '<div class="calc-tip-value">' + el.dataset.lines + '</div>' + info.d }; // the spectrum: its lines
+        if (el.dataset.lines) return { t: name, d: '<div class="calc-tip-value">' + el.dataset.lines + '</div>' + tr(info.d) }; // the spectrum: its lines
         if (el.classList.contains('calc-pt-text') || /^–?$/.test(shown)) return { t: name, d: info.d };
-        u = unit && !/^(K L M …|Pauling|mass number)$/.test(unit.textContent) ? ' ' + unit.textContent.replace(', 3 places', '') : '';
+        // not a name in place of a unit; the mass in full, whatever its places
+        u = unit && el.dataset.fact !== 'shells' && [tr('mass number'), tr('Pauling')].indexOf(unit.textContent) < 0 ? ' ' + (unit.dataset.unit === 'm' ? tr('g/mol') : unit.textContent) : '';
         return { t: name, d: info.d, html: (drawn ? shown : value.innerHTML) + u, text: el.hasAttribute('data-v') ? local(statsValue(+el.dataset.v).text) : shown, put: el.hasAttribute('data-v') };
     }
 
@@ -18518,11 +18738,11 @@
             chemBy = 'cat';
         }
         chemGrid.innerHTML = '<div class="calc-pt-gap" aria-live="polite"></div>' +
-            '<div class="calc-pt-el calc-pt-series calc-pt-' + (chemBy === 'cat' ? 'lanthanide' : chemBy === 'block' ? 'fb' : 'solid') + '" style="grid-area: 6 / 3" data-from="57" role="button" aria-label="Lanthanides, 57 to 71"><b><span>La–</span><span>Lu</span></b><span class="calc-pt-mass">57–71</span></div>' +
-            '<div class="calc-pt-el calc-pt-series calc-pt-' + (chemBy === 'cat' ? 'actinide' : chemBy === 'block' ? 'fb' : 'solid') + '" style="grid-area: 7 / 3" data-from="89" role="button" aria-label="Actinides, 89 to 103"><b><span>Ac–</span><span>Lr</span></b><span class="calc-pt-mass">89–103</span></div>' +
+            '<div class="calc-pt-el calc-pt-series calc-pt-' + (chemBy === 'cat' ? 'lanthanide' : chemBy === 'block' ? 'fb' : 'solid') + '" style="grid-area: 6 / 3" data-from="57" role="button" aria-label="' + tr('Lanthanides, 57 to 71') + '"><b><span>La–</span><span>Lu</span></b><span class="calc-pt-mass">57–71</span></div>' +
+            '<div class="calc-pt-el calc-pt-series calc-pt-' + (chemBy === 'cat' ? 'actinide' : chemBy === 'block' ? 'fb' : 'solid') + '" style="grid-area: 7 / 3" data-from="89" role="button" aria-label="' + tr('Actinides, 89 to 103') + '"><b><span>Ac–</span><span>Lr</span></b><span class="calc-pt-mass">89–103</span></div>' +
             CalcChem.elements.map(function (e) {
                 return '<div class="calc-pt-el ' + chemClass(e) + '" data-z="' + e.z + '" style="' + chemHeat(e) + 'grid-area: ' + e.row + ' / ' + e.col + '"' +
-                    ' role="button" aria-label="' + e.name + ', ' + e.z + '"><span class="calc-pt-z">' + e.z + '</span><b>' + e.s + '</b><span class="calc-pt-name">' + e.name +
+                    ' role="button" aria-label="' + tr(e.name) + ', ' + e.z + '"><span class="calc-pt-z">' + e.z + '</span><b>' + e.s + '</b><span class="calc-pt-name">' + tr(e.name) +
                     '</span><span class="calc-pt-mass">' + chemMass(e) + '</span></div>';
             }).join('');
         [].forEach.call(chemModes.children, function (m) {
@@ -18530,9 +18750,9 @@
             m.setAttribute('aria-checked', m.dataset.by === chemBy);
         });
         chemModeSeen();
-        chemLegend.innerHTML = CHEM_HEAT[chemBy] ? chemSliderHtml() + '<span class="calc-pt-key calc-pt-unknown"><i></i>Not known</span>' :
+        chemLegend.innerHTML = CHEM_HEAT[chemBy] ? chemSliderHtml() + '<span class="calc-pt-key calc-pt-unknown"><i></i>' + tr('Not known') + '</span>' :
             (chemBy === 'cat' ? CalcChem.categories : chemBy === 'state' ? CHEM_STATES : CHEM_BLOCKS).map(function (c) {
-                return '<span class="calc-pt-key calc-pt-' + (chemBy === 'block' ? c[0] + 'b' : c[0]) + (chemHot === c[0] ? ' calc-on' : '') + '" data-g="' + c[0] + '" role="button"><i></i>' + c[1] + '</span>';
+                return '<span class="calc-pt-key calc-pt-' + (chemBy === 'block' ? c[0] + 'b' : c[0]) + (chemHot === c[0] ? ' calc-on' : '') + '" data-g="' + c[0] + '" role="button"><i></i>' + (chemBy === 'state' ? chemStateName(c[0]) : tr(c[1])) + '</span>';
             }).join('') + (chemBy === 'state' ? '<span class="calc-pt-break"></span>' + chemSliderHtml() : '');
         if (chemBy === 'state' || CHEM_HEAT[chemBy]) chemSliderDraw(chemSliderPlaces());
         chemDim();
@@ -18543,7 +18763,7 @@
     // an element of the search, of the legend clicked, or both: the others dimmed
     function chemMatches(e, q) {
         q = q.toLowerCase();
-        return !q || e.s.toLowerCase() === q || String(e.z) === q || e.name.toLowerCase().indexOf(q) > -1 || (q.length < 3 && e.s.toLowerCase().indexOf(q) === 0);
+        return !q || e.s.toLowerCase() === q || String(e.z) === q || e.name.toLowerCase().indexOf(q) > -1 || tr(e.name).toLowerCase().indexOf(q) > -1 || (q.length < 3 && e.s.toLowerCase().indexOf(q) === 0);
     }
 
     // An element faint: not of what is searched, not of the colour lit, or cut out by the slider
@@ -18585,64 +18805,66 @@
     // The element in the space above the transition metals: the one pointed at, or the one chosen. With
     // all, the tiles of what is known of it under the table too, each number to put in
     function chemShow(z, all) {
-        var e = CalcChem.elements[z - 1], gap = chemGrid.querySelector('.calc-pt-gap'), cat = CalcChem.categories.filter(function (c) { return c[0] === e.cat; })[0][1], tiles, cell, crystal;
+        var e = CalcChem.elements[z - 1], gap = chemGrid.querySelector('.calc-pt-gap'), cat = tr(CalcChem.categories.filter(function (c) { return c[0] === e.cat; })[0][1]), tiles, cell, crystal;
         // each part with data-pt, the tip of what it is (chemPartTip), its value in full under it
-        gap.innerHTML = '<div class="calc-pt-big calc-pt-el ' + chemClass(e) + '" data-show="' + e.z + '" style="' + chemHeat(e) + '" role="button" aria-label="All of ' + e.name + '"><span class="calc-pt-z" data-pt="z">' + e.z + '</span>' +
+        gap.innerHTML = '<div class="calc-pt-big calc-pt-el ' + chemClass(e) + '" data-show="' + e.z + '" style="' + chemHeat(e) + '" role="button" aria-label="' + tr('All of {name}', { name: tr(e.name) }) + '"><span class="calc-pt-z" data-pt="z">' + e.z + '</span>' +
             // popped out, the tile has room for more, as on a printed table: the electronegativity and the oxidation
             // states at the top right, the name under the symbol, the configuration at the foot
             '<span class="calc-pt-more calc-pt-en" data-pt="en">' + (e.en === null ? '' : (e.predicted.en ? '≈' : '') + local(String(e.en))) + '</span>' +
             '<span class="calc-pt-more calc-pt-ox" data-pt="ox" data-full="' + (e.ox || '').split(' ').join(', ') + '">' + (e.ox || '').split(' ').join('<br>') + '</span>' +
-            '<b data-pt="symbol">' + e.s + '</b><span class="calc-pt-more calc-pt-full" data-pt="name">' + e.name + '</span>' + chemMassHtml(e) +
+            '<b data-pt="symbol">' + e.s + '</b><span class="calc-pt-more calc-pt-full" data-pt="name">' + tr(e.name) + '</span>' + chemMassHtml(e) +
             '<span class="calc-pt-more calc-pt-conf" data-pt="config">' + e.config + '</span></div>' +
-            '<div class="calc-pt-about"><span class="calc-pt-title" data-pt="name">' + e.name + '</span><span data-pt="kind" data-kind="' + e.cat + '">' + cat + '</span>' + chemLine(e) +
+            '<div class="calc-pt-about"><span class="calc-pt-title" data-pt="name">' + tr(e.name) + '</span><span data-pt="kind" data-kind="' + e.cat + '">' + cat + '</span>' + chemLine(e) +
             // and beside it, what the tile has no room for, a label over each value
             '<dl class="calc-pt-facts">' + [
-                ['Mass', e.unstable ? e.mass : chemIn('m', e.mass), e.unstable ? 'mass number' : 'g/mol', 'mass'], ['Group', e.group, '', 'group'], ['Period', e.period, '', 'period'], ['Block', e.block, '', 'block'],
-                ['Melts', chemIn('t', e.mp), chemUnitName('t'), 'mp'], ['Boils', chemIn('t', e.bp), chemUnitName('t'), 'bp'],
-                ['Density', chemIn('d', e.density), chemUnitName('d'), 'density'], ['Ionization', chemIn('e', e.ie), chemUnitName('e'), 'ie'],
-                ['State', e.state ? e.state.charAt(0).toUpperCase() + e.state.slice(1) : null, '', 'state'], ['Radius', e.radius, 'pm', 'radius'],
-                ['Affinity', chemIn('e', e.affinity), chemUnitName('e'), 'affinity'], ['Ions', e.ions, '', 'ions']
+                // each label and unit in the language in use, as it is shown
+                [tr('Mass'), e.unstable ? e.mass : chemIn('m', e.mass), e.unstable ? tr('mass number') : tr('g/mol'), 'mass'], [tr('Group'), e.group, '', 'group'], [tr('Period'), e.period, '', 'period'],
+                [tr('Block'), e.block, '', 'block'], [tr('Melts'), chemIn('t', e.mp), chemUnitName('t'), 'mp'], [tr('Boils'), chemIn('t', e.bp), chemUnitName('t'), 'bp'],
+                [tr('Density'), chemIn('d', e.density), chemUnitName('d'), 'density'], [tr('Ionization'), chemIn('e', e.ie), chemUnitName('e'), 'ie'],
+                [tr('State'), e.state ? chemStateName(e.state) : null, '', 'state'], [tr('Radius'), e.radius, 'pm', 'radius'],
+                [tr('Affinity'), chemIn('e', e.affinity), chemUnitName('e'), 'affinity'], [tr('Ions'), e.ions, '', 'ions']
             ].map(function (f) {
                 var v = f[1] === null || f[1] === undefined ? '–' : (e.predicted[f[3]] ? '≈' : '') + (typeof f[1] === 'number' ? local(String(f[1])) : f[1]);
-                return '<div data-pt="' + f[3] + '" data-full="' + (v === '–' ? '' : v + (f[2] && f[2] !== 'mass number' ? ' ' + f[2] : '')) + '"><dt>' + f[0] + (f[2] ? ' <i>' + f[2] + '</i>' : '') + '</dt><dd>' + v + '</dd></div>';
+                return '<div data-pt="' + f[3] + '" data-full="' + (v === '–' ? '' : v + (f[2] && !(f[3] === 'mass' && e.unstable) ? ' ' + f[2] : '')) + '"><dt>' + f[0] + (f[2] ? ' <i>' + f[2] + '</i>' : '') + '</dt><dd>' + v + '</dd></div>';
             }).join('') + '</dl></div>';
         chemDimBig();
         if (!all) return;
         chemAt = z;
         [].forEach.call(chemGrid.querySelectorAll('.calc-pt-el.calc-on'), function (t) { t.classList.remove('calc-on'); });
         if (chemGrid.querySelector('.calc-pt-el[data-z="' + z + '"]')) chemGrid.querySelector('.calc-pt-el[data-z="' + z + '"]').classList.add('calc-on');
-        // its crystal, drawn, beneath the shells, after the atom and its spectrum; with none drawn, among the words
+        // its shells above its configuration; its crystal, drawn, beneath them, after the atom and its spectrum; with
+        // none drawn, among the words. Each unit in the language in use already, as it is shown
         cell = chemCrystal(e);
-        crystal = ['Crystal structure', e.crystal, '', true, '', false, false, cell];
+        crystal = ['Crystal structure', e.crystal && tr(e.crystal), '', true, '', false, false, cell];
         tiles = [
-            ['Atomic number', e.z], e.unstable ? ['Atomic mass', e.mass, 'mass number'] : ['Atomic mass', chemIn('m', e.mass), chemUnitName('m'), false, 'm'], ['Electronegativity', e.en, 'Pauling'],
+            ['Atomic number', e.z], e.unstable ? ['Atomic mass', e.mass, tr('mass number')] : ['Atomic mass', chemIn('m', e.mass), chemUnitName('m'), false, 'm'], ['Electronegativity', e.en, tr('Pauling')],
             ['Ionization energy', chemIn('e', e.ie), chemUnitName('e'), false, 'e'], ['Melting point', chemIn('t', e.mp), chemUnitName('t'), false, 't'],
             ['Boiling point', chemIn('t', e.bp), chemUnitName('t'), false, 't'],
-            ['Density', chemIn('d', e.density), chemUnitName('d') + (e.state === 'gas' ? ' at 0 °C' : ''), false, 'd'], ['Group', e.group], ['Period', e.period],
+            ['Density', chemIn('d', e.density), (e.state === 'gas' ? tr('{unit} at 0 °C', { unit: chemUnitName('d') }) : chemUnitName('d')), false, 'd'], ['Group', e.group], ['Period', e.period],
             ['Protons', e.z], ['Electrons', e.z], ['Neutrons', Math.round(e.mass) - e.z],
-            ['Electron configuration', e.config, '', true], ['Shells', e.shells.join(', '), 'K L M …', true], cell ? crystal : null, ['Block', e.block],
+            ['Shells', e.shells.join(', '), 'KLMNOPQ'.slice(0, e.shells.length).split('').join(' '), true], ['Electron configuration', e.config, '', true], cell ? crystal : null, ['Block', e.block],
             ['Outer-shell electrons', e.shells[e.shells.length - 1]], ['Unpaired electrons', chemUnpaired(e.config)],
             // the small tiles in threes, so each row is full before a wide one
             ['Atomic radius', e.radius, 'pm'], ['Covalent radius', e.covalent, 'pm'], ['Electron affinity', chemIn('e', e.affinity), chemUnitName('e'), false, 'e'],
-            ['State at 20 °C', e.state ? e.state.charAt(0).toUpperCase() + e.state.slice(1) : 'Not known'], ['Specific heat', e.heat, 'J/(g·K)'], ['Mohs hardness', e.mohs],
+            ['State at 20 °C', e.state ? chemStateName(e.state) : tr('Not known')], ['Specific heat', e.heat, 'J/(g·K)'], ['Mohs hardness', e.mohs],
             ['Common ions', e.ions || '–', '', true], ['Oxidation states', e.ox || '–', '', true],
             ['Heat of fusion', e.fusion, 'kJ/mol'], ['Heat of vaporization', e.vaporization, 'kJ/mol'], ['Thermal conductivity', e.conductivity, 'W/(m·K)'],
-            ['Electrical resistivity', e.resistivity, 'Ω·m at 20 °C', false, '', false, true], ['Abundance in the crust', e.abundance, typeof e.abundance === 'number' ? 'mg/kg' : '', false, '', false, true], ['CAS number', e.cas],
-            ['Magnetism', e.magnetic, '', true], cell ? null : crystal, ['Appearance', e.appearance, '', true],
-            // in words, each on its own line: when and by whom it was found, its isotopes, its name, its uses
-            ['Discovered', (e.year === 0 ? 'In ancient times' : e.year) + (e.foundBy ? ', by ' + e.foundBy : '') + (e.isolatedBy ? '; isolated by ' + e.isolatedBy : ''), '', true, '', true],
-            ['Isotopes', e.isotopes || '–', '', true, '', true],
-            [/^The name/.test(e.story || '') ? 'Name' : 'History', e.story || '–', '', true, '', true], ['Uses', e.uses || '–', '', true, '', true]
+            ['Electrical resistivity', e.resistivity, tr('Ω·m at 20 °C'), false, '', false, true], ['Abundance in the crust', e.abundance, typeof e.abundance === 'number' ? 'mg/kg' : '', false, '', false, true], ['CAS number', e.cas],
+            ['Magnetism', e.magnetic && tr(e.magnetic), '', true], cell ? null : crystal, ['Appearance', e.appearance && tr(e.appearance), '', true],
+            // in words, each on its own line: when and by whom it was found (where, as the Middle East, where that is a place), its isotopes, its name, its uses
+            ['Discovered', (e.year === 0 ? tr('In ancient times') : e.year) + (e.foundBy === 'Middle East' ? tr(', in the Middle East') : e.foundBy === 'Asia Minor' ? tr(', in Asia Minor') : e.foundBy ? tr(', by {foundBy}', { foundBy: tr(e.foundBy) }) : '') + (e.isolatedBy ? tr('; isolated by {isolatedBy}', { isolatedBy: tr(e.isolatedBy) }) : ''), '', true, '', true],
+            ['Isotopes', chemIsotopes(e.isotopes) || '–', '', true, '', true],
+            [/^The name/.test(e.story || '') ? 'Name' : 'History', e.story ? tr(e.story) : '–', '', true, '', true], ['Uses', e.uses ? tr(e.uses) : '–', '', true, '', true]
         ].filter(Boolean);
         chemInfo.classList.toggle('calc-pt-new', String(z) !== chemInfo.dataset.z); // its details come in with a move, once for each element
         chemInfo.dataset.z = z;
-        chemInfo.innerHTML = '<span class="calc-pt-hide" role="button" aria-label="Close the card"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span><div class="calc-pt-head"><div class="calc-pt-big calc-pt-el ' + chemClass(e) + '" style="' + chemHeat(e) + '"><span class="calc-pt-z" data-pt="z">' + e.z + '</span><b data-pt="symbol">' + e.s +
-            '</b>' + chemMassHtml(e) + '</div><div class="calc-pt-about"><span class="calc-pt-title" data-pt="name">' + e.name + '</span><span data-pt="kind" data-kind="' + e.cat + '">' + cat +
-            '</span><span data-pt="shells" data-full="' + e.shells.join(', ') + '">Shells ' + e.shells.join(', ') + '</span></div></div><div class="calc-pt-body">' + chemAtom(e) + '<div class="calc-sv-grid calc-pt-tiles">' + chemSpectrum(e) + tiles.map(function (t, i) {
+        chemInfo.innerHTML = '<span class="calc-pt-hide" role="button" aria-label="' + tr('Close the card') + '"><svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg></span><div class="calc-pt-head"><div class="calc-pt-big calc-pt-el ' + chemClass(e) + '" style="' + chemHeat(e) + '"><span class="calc-pt-z" data-pt="z">' + e.z + '</span><b data-pt="symbol">' + e.s +
+            '</b>' + chemMassHtml(e) + '</div><div class="calc-pt-about"><span class="calc-pt-title" data-pt="name">' + tr(e.name) + '</span><span data-pt="kind" data-kind="' + e.cat + '">' + cat +
+            '</span><span data-pt="shells" data-full="' + e.shells.join(', ') + '">' + tr('Shells {list}', { list: '<span>' + e.shells.join(', ') + '</span>' }) + '</span></div></div><div class="calc-pt-body">' + chemAtom(e) + '<div class="calc-sv-grid calc-pt-tiles">' + chemSpectrum(e) + tiles.map(function (t, i) {
             var num = typeof t[1] === 'number' && !(t[0] === 'Found'), known = t[1] !== null && t[1] !== undefined, guess = known && e.predicted[CHEM_FACTS[t[0]]];
             return '<div class="calc-sv-tile' + (num && known ? '' : ' calc-none') + (t[3] ? ' calc-sv-wide' : '') + (t[5] ? ' calc-pt-text' : '') + (known && !num && !t[3] && String(t[1]).length > 9 ? ' calc-pt-wrap' : '') +
-                '" style="--i: ' + i + '" data-fact="' + CHEM_FACTS[t[0]] + '"' + (num && known ? ' data-v="' + t[1] + '"' : '') + '><span class="calc-sv-label">' + t[0] +
-                (t[2] ? ' <i' + (t[4] ? ' class="calc-pt-unit" data-unit="' + t[4] + '" role="button"' : '') + '>' + t[2] + '</i>' : '') + (guess ? ' <i class="calc-pt-guess">predicted</i>' : '') + '</span><span class="calc-sv-value">' + (!known ? '–' : num ? (t[6] ? chemSci(t[1]) : statsValue(t[1]).html) : t[1]) +
+                '" style="--i: ' + i + '" data-fact="' + CHEM_FACTS[t[0]] + '"' + (num && known ? ' data-v="' + t[1] + '"' : '') + '><span class="calc-sv-label">' + tr(t[0]) +
+                (t[2] ? ' <i' + (t[4] ? ' class="calc-pt-unit" data-unit="' + t[4] + '" role="button"' : '') + '>' + t[2] + '</i>' : '') + (guess ? ' <i class="calc-pt-guess">' + tr('predicted') + '</i>' : '') + '</span><span class="calc-sv-value">' + (!known ? '–' : num ? (t[6] ? chemSci(t[1]) : statsValue(t[1]).html) : t[1]) +
                 (t[7] || '') + '</span></div>';
         }).join('') + '</div></div>';
         chemRows();
@@ -18687,18 +18909,49 @@
         var by = chemBy, h = CHEM_HEAT[by], v, text, state, NAMES = { en: 'Electronegativity', ie: 'Ionization energy', mp: 'Melts at', bp: 'Boils at',
             density: 'Density', radius: 'Atomic radius', affinity: 'Electron affinity', mass: 'Mass', year: 'Discovered' };
         if (h) {
-            v = by === 'year' ? (e.year === 0 ? 'in ancient times' : e.year) : by === 'mass' ? (e.unstable ? e.mass + ' (mass number)' : local(String(chemIn('m', e.mass))) + ' g/mol') :
-                e[by] === null ? 'not known' : (e.predicted[by] ? '≈' : '') + local(String(h.unit ? chemIn(h.unit, e[by]) : e[by])).replace('-', '−') + ' ' + (h.unit ? chemUnitName(h.unit) : h.label);
-            text = NAMES[by] + ' ' + v;
+            v = by === 'year' ? (e.year === 0 ? tr('in ancient times') : e.year) : by === 'mass' ? (e.unstable ? tr('{mass} (mass number)', { mass: e.mass }) : tr('{v} g/mol', { v: local(String(chemIn('m', e.mass))) })) :
+                e[by] === null ? tr('not known') : (e.predicted[by] ? '≈' : '') + local(String(h.unit ? chemIn(h.unit, e[by]) : e[by])).replace('-', '−') + ' ' + (h.unit ? chemUnitName(h.unit) : h.label);
+            text = tr(NAMES[by]) + ' ' + v;
         } else {
             state = chemBy === 'state' ? chemStateOf(e) : e.state; // coloured by state, at the temperature of its slider
             by = state === 'solid' && e.mp !== null ? 'mp' : 'bp';
-            text = !state ? 'State not known' : state.charAt(0).toUpperCase() + state.slice(1) +
-                (chemBy === 'state' && chemTemp !== 20 ? ' at ' + chemTempText() : '') + (e[by] === null ? '' : (by === 'mp' ? ' · melts at ' : ' · boils at ') +
-                (e.predicted[by] ? '≈' : '') + local(String(chemIn('t', e[by]))).replace('-', '−') + ' ' + chemUnitName('t'));
+            text = !state ? tr('State not known') : chemStateName(state) +
+                (chemBy === 'state' && chemTemp !== 20 ? ' ' + tr('at {t}', { t: chemTempText() }) : '') + (e[by] === null ? '' : ' · ' + (by === 'mp' ? tr('melts at {t}', { t: chemTempOf(e, by) }) : tr('boils at {t}', { t: chemTempOf(e, by) })));
             by = 'state';
         }
         return '<span class="calc-pt-line" data-pt="' + by + '">' + text + '</span>';
+    }
+
+    // where it melts or boils, in the unit in use, ≈ where only predicted; its own run, 1538 °C as it is in a language
+    // written right to left
+    function chemTempOf(e, by) {
+        return '<span>' + (e.predicted[by] ? '≈' : '') + local(String(chemIn('t', e[by]))).replace('-', '−') + ' ' + chemUnitName('t') + '</span>';
+    }
+
+    // an element's isotopes in words, as chem.js has them: '2 stable: ¹H, ²H'; 'None stable; longest-lived ⁹⁷Tc,
+    // half-life 4.21×10⁶ years', or no half-life known; 'None stable; found in nature as ²⁰⁹Bi'
+    function chemIsotopes(text) {
+        var m, also;
+        if (!text) return text;
+        // '5 stable: ⁴⁰Ca, …; in nature also radioactive ⁴⁸Ca': the stable ones, then the radioactive found in nature
+        if ((also = /^(.*); in nature also radioactive (.*)$/.exec(text))) {
+            return trn(also[2].split(', ').length, '{stable}; in nature also radioactive {list}', '{stable}; in nature also radioactive {list}',
+                { stable: chemIsotopes(also[1]), list: also[2] });
+        }
+        if ((m = /^(\d+) stable: (.*)$/.exec(text))) return trn(+m[1], '{n} stable: {list}', '{n} stable: {list}', { list: m[2] });
+        if ((m = /^None stable; longest-lived (\S+), half-life (\S+) (\S+)$/.exec(text))) {
+            return tr('None stable; longest-lived {isotope}, half-life {time}', { isotope: m[1], time: { years: tr('{t} years', { t: m[2] }), days: tr('{t} days', { t: m[2] }),
+                hours: tr('{t} hours', { t: m[2] }), minutes: tr('{t} minutes', { t: m[2] }), s: tr('{t} s', { t: m[2] }), ms: tr('{t} ms', { t: m[2] }),
+                'μs': tr('{t} μs', { t: m[2] }) }[m[3]] || m[2] + ' ' + m[3] });
+        }
+        if ((m = /^None stable; longest-lived (\S+)$/.exec(text))) return tr('None stable; longest-lived {isotope}', { isotope: m[1] });
+        if ((m = /^None stable; found in nature as (.*)$/.exec(text))) return tr('None stable; found in nature as {isotope}', { isotope: m[1] });
+        return text;
+    }
+
+    // a state of matter by its name: Solid not as a solid of geometry, nor a line
+    function chemStateName(s) {
+        return { solid: trc('state', 'Solid'), liquid: trc('state', 'Liquid'), gas: trc('state', 'Gas'), unknown: trc('state', 'Unknown') }[s];
     }
 
     // a number very big or very small as a × 10ⁿ, as the converter writes it: a resistivity, an abundance
@@ -19052,7 +19305,7 @@
 
     chemSearch.addEventListener('input', function () {
         var q = chemSearch.value.trim().toLowerCase(), exact = CalcChem.elements.filter(function (e) {
-            return q && (e.s.toLowerCase() === q || String(e.z) === q || e.name.toLowerCase() === q);
+            return q && (e.s.toLowerCase() === q || String(e.z) === q || e.name.toLowerCase() === q || tr(e.name).toLowerCase() === q);
         })[0];
         chemDim();
         if (exact) {
@@ -19249,7 +19502,7 @@
     // each example, with the words it is found by: its group, its name, what it types and what it is
     CalcFormulas.graphs.forEach(function (group) {
         group.list.forEach(function (ex) {
-            graphExItems.push({ c: group.c, ex: ex, words: [group.c, ex.t, ex.f.join(' '), ex.d].join(' ').toLowerCase() });
+            graphExItems.push({ c: group.c, ex: ex, words: [group.c, ex.t, ex.f.join(' '), ex.d, tr(group.c), tr(ex.t), tr(ex.d)].join(' ').toLowerCase() }); // in English and the language in use
         });
     });
 
@@ -19279,15 +19532,15 @@
         var words = graphSearch.value.trim().toLowerCase().split(/\s+/).filter(Boolean), group = null, html = '';
         graphExItems.forEach(function (entry, i) {
             if (!words.every(function (w) { return entry.words.indexOf(w) > -1; })) return;
-            if (entry.c !== group) html += '<div class="calc-gx-cat">' + entry.c + '</div>';
+            if (entry.c !== group) html += '<div class="calc-gx-cat">' + tr(entry.c) + '</div>';
             group = entry.c;
             html += '<div class="calc-gx-item" data-i="' + i + '"><div class="calc-gx-row">' +
-                '<span class="calc-gx-col"><span class="calc-gx-name">' + entry.ex.t + '</span>' +
+                '<span class="calc-gx-col"><span class="calc-gx-name">' + tr(entry.ex.t) + '</span>' +
                 '<span class="calc-gx-f calc-gx-eq calc-gx-val"><span>' + entry.ex.f.map(function (text) {
                     return exampleText(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                 }).join('<span class="calc-graph-ex-gap"></span>') + '</span></span></span></div></div>';
         });
-        graphExList.innerHTML = html || '<div class="calc-gx-none">Nothing found</div>';
+        graphExList.innerHTML = html || '<div class="calc-gx-none">' + tr('Nothing found') + '</div>';
         graphExList.scrollTop = 0;
         hideTip();
     }
@@ -19338,7 +19591,7 @@
     // the tip of an example: what it is, and that a click draws it
     function exampleTip(el) {
         var ex = graphExItems[+el.parentNode.dataset.i].ex;
-        return { t: ex.t, d: ex.d + (ex.rad && deg ? ' It is drawn in Rad.' : '') + ' Click to draw it in place of the curves there are.', k: '' };
+        return { t: ex.t, d: tr('{d} Click to draw it in place of the curves there are.', { d: tr(ex.d) + (ex.rad && deg ? tr(' It is drawn in Rad.') : '') }), k: '' };
     }
 
     // ---------------- converter ---------------- //
@@ -19354,13 +19607,13 @@
                 id: 'units-' + g.c.toLowerCase().replace(/[^a-z]+/g, '-'),
                 t: g.c,
                 f: g.list.slice(0, 3).map(function (u) { return u.s; }),
-                d: 'A value in one of its ' + names.length + ' units in all the others: ' + names.slice(0, 4).join(', ') +
-                    (names.length > 4 ? ' and more' : '') + '. An empty value is 1.',
+                d: tr('A value in one of its {units} in all the others: {names}{more}. An empty value is 1.', { units: trn(names.length, '{n} unit', '{n} units'),
+                    names: names.slice(0, 4).map(function (t) { return tr(t); }).join(tr(', ')), more: names.length > 4 ? tr(' and more') : '' }),
                 fills: true,
                 fields: [
                     { k: 'v', l: 'Value', ph: '1', text: true, num: true },
                     { k: 'u', l: 'From', at: g.list[0].t, pick: function () {
-                        return g.list.map(function (u) { return [u.t, u.t + ' <span class="calc-conv-of">(' + u.s + ')</span>']; });
+                        return g.list.map(function (u) { return [u.t, tr(u.t) + ' <span class="calc-conv-of">(' + u.s + ')</span>']; });
                     } }
                 ],
                 cols: 2,
@@ -19384,9 +19637,9 @@
         }
         return {
             rows: group.list.map(function (u, i) {
-                var v = isFinite(x) ? CalcUnits.convert(gi, from, i, x) : NaN, dms = u.dms && isFinite(v) && local(CalcEngine.dms(v) || '');
+                var v = isFinite(x) ? CalcUnits.convert(gi, from, i, x) : NaN, dms = u.dms && isFinite(v) && local(CalcEngine.dms(v) || ''), name = tr(u.t);
                 return i === from ? null : {
-                    l: u.t.charAt(0).toUpperCase() + u.t.slice(1) + ' (' + u.s + ')', v: isFinite(v) ? +v.toPrecision(15) : NaN,
+                    l: name.charAt(0).toUpperCase() + name.slice(1) + ' (' + u.s + ')', v: isFinite(v) ? +v.toPrecision(15) : NaN,
                     html: isFinite(v) ? dms || convValue(v) : undefined, say: isFinite(v) ? dms || local(+v.toPrecision(15)) : '',
                     unit: plain(u.s), dms: !!u.dms
                 };
@@ -19464,6 +19717,7 @@
             row.classList.remove('calc-lit');
             item.hidden = row.hidden && !(side && item.classList.contains('calc-on'));
         });
+        convUnits.dataset.none = tr('No group or unit found.'); // the words of its ::before (style.css)
         convUnits.classList.toggle('calc-none-found', !convShown().length);
         if (q && convShown().length) convShown()[0].classList.add('calc-lit');
         unitCards.fit(); // the names of the units found, in their badges
@@ -19600,6 +19854,7 @@
 
     // its choices, as HTML, and the one chosen
     function setPicker(el, choices, at) {
+        choices = choices.map(function (c) { return tr(c); }); // in the language in use
         el.choices = choices;
         el.at = at;
         el.querySelector('.calc-conv-chosen').innerHTML = choices[at];
@@ -19631,16 +19886,38 @@
     // An open list in the room it has: under its box, or over it where there is more room there, as at the foot of
     // the cards; no taller than that room, so none of it is cut off by what scrolls round it
     function placeMenu(el, menu) {
-        var room = el.parentNode, at = el.getBoundingClientRect(), edge, below, above;
+        var room = el.parentNode, at = el.getBoundingClientRect(), edge, below, above, k = scale();
         menu.classList.remove('calc-up');
         menu.style.maxHeight = '';
+        sideMenu(el, menu);
         while (room && room !== document.body && !/(auto|scroll|hidden)/.test(getComputedStyle(room).overflowY)) room = room.parentNode;
         edge = room && room !== document.body ? room.getBoundingClientRect() : { top: 0, bottom: window.innerHeight };
-        below = Math.min(edge.bottom, window.innerHeight) - at.bottom - 8;
-        above = at.top - Math.max(edge.top, 0) - 8;
+        below = (Math.min(edge.bottom, window.innerHeight) - at.bottom) / k - 8; // the screen's pixels as the calculator's, scaled or not
+        above = (at.top - Math.max(edge.top, 0)) / k - 8;
         if (menu.offsetHeight <= below) return;
         if (above > below) menu.classList.add('calc-up');
         menu.style.maxHeight = Math.max(60, Math.min(parseFloat(getComputedStyle(menu).maxHeight) || 250, Math.max(above, below))) + 'px'; // no taller than it would be
+    }
+
+    // a list wider than the room at the right of its box, as in the popped-in panel, moved back in from the side it
+    // would go past, so nothing scrolls sideways for it; no wider than the room, though narrower than its box then.
+    // What the screen measures in its own pixels, as the calculator's: scaled, on the website, they differ
+    function sideMenu(el, menu) {
+        var room = el.parentNode, edge, at, shift = 0, k = scale(), wide;
+        menu.style.transform = '';
+        menu.style.maxWidth = '';
+        menu.style.minWidth = '';
+        while (room && room !== document.body && !/(auto|scroll|hidden)/.test(getComputedStyle(room).overflowX)) room = room.parentNode;
+        edge = room && room !== document.body ? room.getBoundingClientRect() : { left: 0, right: document.documentElement.clientWidth };
+        edge = { left: Math.max(edge.left, 0) + 8 * k, right: Math.min(edge.right, document.documentElement.clientWidth) - 8 * k };
+        wide = (edge.right - edge.left) / k;
+        if (wide < menu.offsetWidth) {
+            menu.style.maxWidth = menu.style.minWidth = Math.max(60, wide) + 'px'; // min-width too, which is its box's
+        }
+        at = menu.getBoundingClientRect();
+        if (at.right > edge.right) shift = edge.right - at.right;
+        if (at.left + shift < edge.left) shift = edge.left - at.left;
+        if (shift) menu.style.transform = 'translateX(' + Math.round(shift / k) + 'px)';
     }
 
     // the choice the arrow keys or the pointer are on; scroll: kept in sight
@@ -19774,7 +20051,7 @@
                 'stroke-width="2" stroke-linecap="round"><path d="M3 3l10 10M13 3L3 13" /></svg>';
             pastList.appendChild(row);
         }
-        if (!n) pastList.innerHTML = '<div class="calc-fx-none">No calculations yet</div>'; // the letters are on the other tab
+        if (!n) pastList.innerHTML = '<div class="calc-fx-none">' + tr('No calculations yet') + '</div>'; // the letters are on the other tab
     }
 
     // A result in the history: as a fraction if it was done in fraction mode,
@@ -20262,9 +20539,10 @@
             from = { x: e.clientX, w: list.offsetWidth };
         }, false);
         split.addEventListener('pointermove', function (e) {
-            var room = panel.clientWidth / popZoom;
+            var room = panel.clientWidth / popZoom,
+                rtl = CalcLang.rtl; // the list at the right (style.css)
             if (!from || !split.hasPointerCapture(e.pointerId)) return;
-            sideWidth(Math.round(Math.max(SIDE_MIN, Math.min(room - 36 - SIDE_CARD_MIN, room * SIDE_MAX, from.w + (e.clientX - from.x) / popZoom))));
+            sideWidth(Math.round(Math.max(SIDE_MIN, Math.min(room - 36 - SIDE_CARD_MIN, room * SIDE_MAX, from.w + (e.clientX - from.x) * (rtl ? -1 : 1) / popZoom))));
         }, false);
         split.addEventListener('lostpointercapture', function () {
             from = null;
@@ -20339,19 +20617,51 @@
             ['numbers', numbersButton, 'Numbers'], ['solve', solveButton, 'Solve'], ['chem', chemButton, 'Chemistry'],
             ['phys', physButton, 'Physics'], ['bio', bioButton, 'Biology'], ['stats', statsButton, 'Statistics']];
 
+    // The names under the icons of the rail: a short one where a language's own is too long for its room, as
+    // Calculatrice, Calcul; the full name its title still. Where a language has none, its full name
+    var RAIL = {
+        Calculator: trc('rail', 'Calculator'), Search: trc('rail', 'Search'), Formulas: trc('rail', 'Formulas'),
+        Converter: trc('rail', 'Converter'), Graph: trc('rail', 'Graph'), Numbers: trc('rail', 'Numbers'),
+        Solve: trc('rail', 'Solve'), Chemistry: trc('rail', 'Chemistry'), Physics: trc('rail', 'Physics'),
+        Biology: trc('rail', 'Biology'), Statistics: trc('rail', 'Statistics'), Options: trc('rail', 'Options'),
+        Guide: trc('rail', 'Guide')
+    };
+
+    function railName(text) {
+        return RAIL[text] && RAIL[text] !== text ? RAIL[text] : tr(text);
+    }
+
     GO.forEach(function (g) {
         var item = document.createElement('span'), name = document.createElement('span');
         item.className = 'calc-go-item';
         item.dataset.go = g[0];
         item.setAttribute('role', 'button');
-        item.setAttribute('aria-label', g[2]);
-        item.title = g[2]; // its name, on a narrow page where the rail has its icon alone
+        item.setAttribute('aria-label', tr(g[2]));
+        item.title = tr(g[2]); // its name, on a narrow page where the rail has its icon alone
         item.tabIndex = 0;
-        name.textContent = g[2];
+        name.textContent = railName(g[2]);
         item.appendChild(g[1].querySelector('svg').cloneNode(true));
         item.appendChild(name);
         goBar.insertBefore(item, goOpt);
     });
+    [['[data-go="calc"]', 'Calculator'], ['.calc-go-find', 'Search'], ['[data-tab="options"]', 'Options'],
+        ['[data-tab="guide"]', 'Guide']].forEach(function (g) {
+        var name = goBar.querySelector(g[0] + ' > span');
+        if (name) name.textContent = railName(g[1]);
+    });
+
+    // a name too long for the rail, as الرسم البياني, made a little smaller till it fits, not cut short; as small as
+    // 7px, and cut short with … past that (style.css). Again as the rail is shown or changes size
+    function fitRail() {
+        goBar.querySelectorAll('.calc-go-item > span').forEach(function (name) {
+            var size;
+            name.style.fontSize = '';
+            if (!name.clientWidth || name.scrollWidth <= name.clientWidth) return;
+            size = parseFloat(getComputedStyle(name).fontSize) * name.clientWidth / name.scrollWidth;
+            name.style.fontSize = Math.max(7, Math.floor(size * 4) / 4) + 'px';
+        });
+    }
+    if (window.ResizeObserver) new ResizeObserver(fitRail).observe(goBar);
 
     // what is popped out: the graph, the periodic table, another panel, or nothing; or the calculator, on its
     // Calculator tab beside the rail
@@ -20506,9 +20816,23 @@
         FIND_PANELS = { fx: fx, conv: conv, graph: graph, numbers: numbersPanel, solve: solvePanel, chem: chemPanel, phys: physPanel, bio: bioPanel, stats: stats },
         FIND_SHOW = { fx: showFx, conv: showConv, graph: showGraph, numbers: showNumbers, solve: showSolve, chem: showChem, phys: showPhys, bio: showBio, stats: showStats };
 
+    // The other names an element is known by in the language in use, so Search finds it by them as well: its symbol
+    // and the names, Zn زنك, apart by ; where there are several elements. The English has only the names themselves
+    var chemAlso = null;
+    function chemAlsoCalled(sym) {
+        if (!chemAlso) {
+            chemAlso = {};
+            tr('Zn Zinc').split(';').forEach(function (part) {
+                var words = part.trim().split(/\s+/);
+                if (words.length > 1) chemAlso[words[0]] = words.slice(1).join(' ');
+            });
+        }
+        return chemAlso[sym] || '';
+    }
+
     function findIndex() {
         var all = [], names = {};
-        GO.forEach(function (g) { names[g[0]] = g[2]; });
+        GO.forEach(function (g) { names[g[0]] = tr(g[2]); });
 
         // a tab's name as its panel shows it: the periodic table's in full
         function tabName(go, tab) {
@@ -20516,10 +20840,13 @@
             return t ? (t.querySelector('.calc-tab-long') || t).textContent.trim() : '';
         }
 
-        // its name without its tags, lowercase, to rank by; and every word it is found by
+        // its name in the language in use, without its tags, lowercase, to rank by; and every word it is found by, in that
+        // language and in English
         function add(entry, words) {
+            var english = entry.t;
+            entry.t = tr(entry.t);
             entry.name = entry.t.replace(/<[^>]*>/g, '').toLowerCase();
-            entry.words = [entry.name, entry.w].concat(words).join(' ').replace(/<[^>]*>/g, ' ').toLowerCase();
+            entry.words = [entry.name, english, entry.w].concat(words, CalcLang.code === 'en' ? [] : words.map(tr)).join(' ').replace(/<[^>]*>/g, ' ').toLowerCase();
             all.push(entry);
         }
 
@@ -20550,7 +20877,7 @@
         GO.forEach(function (g) {
             add({ go: g[0], kind: 'tool', t: g[2], s: '', w: '' }, []);
             [].forEach.call(FIND_PANELS[g[0]].querySelectorAll('.calc-past-head [data-tab]'), function (el) {
-                add({ go: g[0], kind: 'tab', tab: el.dataset.tab, t: tabName(g[0], el.dataset.tab), s: '', w: g[2] }, tipWords(CalcTips[g[0] + ' tab ' + el.dataset.tab]));
+                add({ go: g[0], kind: 'tab', tab: el.dataset.tab, t: tabName(g[0], el.dataset.tab), s: '', w: names[g[0]] }, tipWords(CalcTips[g[0] + ' tab ' + el.dataset.tab]));
             });
         });
         [['solve', SOLVE_TOOLS], ['numbers', NUMBER_TOOLS], ['phys', PHYS_TOOLS], ['bio', BIO_TOOLS], ['chem', CHEM_TOOLS], ['conv', DATE_TOOLS], ['stats', TEST_TOOLS]].forEach(function (p) {
@@ -20562,17 +20889,17 @@
             });
         });
         fxItems.formulas.forEach(function (entry) {
-            add({ go: 'fx', kind: 'formula', id: entry.item.t, t: entry.item.t, s: entry.item.f, w: 'Formulas · ' + entry.c }, [entry.words]);
+            add({ go: 'fx', kind: 'formula', id: entry.item.t, t: entry.item.t, s: entry.item.f, w: tr('Formulas') + ' · ' + tr(entry.c) }, [entry.words]);
         });
         fxItems.constants.forEach(function (entry) {
-            add({ go: 'fx', kind: 'constant', id: entry.item.t, t: entry.item.t, s: entry.item.s + ' = ' + constantValue(entry.item), w: 'Constants · ' + entry.c }, [entry.words]);
+            add({ go: 'fx', kind: 'constant', id: entry.item.t, t: entry.item.t, s: entry.item.s + ' = ' + constantValue(entry.item), w: tr('Constants') + ' · ' + tr(entry.c) }, [entry.words]);
         });
         graphExItems.forEach(function (entry, i) {
             add({ go: 'graph', kind: 'example', id: i, t: entry.ex.t, s: entry.ex.f.map(function (text) { return escaped(exampleText(text)); }).join('<i class="calc-find-gap">·</i>'),
-                w: 'Graph · ' + entry.c }, [entry.words]);
+                w: tr('Graph') + ' · ' + tr(entry.c) }, [entry.words]);
         });
         CalcChem.elements.forEach(function (e) {
-            add({ go: 'chem', kind: 'element', id: e.z, sym: e.s.toLowerCase(), t: e.name, s: e.z + ' · ' + e.s, w: 'Periodic table' }, [e.s]);
+            add({ go: 'chem', kind: 'element', id: e.z, sym: e.s.toLowerCase(), t: e.name, s: e.z + ' · ' + e.s, w: tr('Periodic table') }, [e.s, chemAlsoCalled(e.s)]);
         });
         CalcUnits.units.forEach(function (group, i) {
             add({ go: 'conv', kind: 'units', id: i, units: group.list.map(function (u) { return u.s.toLowerCase(); }).concat(group.list.map(function (u) { return u.t.toLowerCase(); })), t: group.c, s: group.list.slice(0, 6).map(function (u) { return u.s; }).join(', ') + (group.list.length > 6 ? ', …' : ''), w: 'Converter · Units' },
@@ -20606,11 +20933,11 @@
         }).filter(function (r) { return r.rank > -1; }).sort(function (a, b) {
             return a.rank - b.rank || a.i - b.i;
         }).slice(0, 60).map(function (r) { return r.entry; });
-        findList.innerHTML = (q ? '' : '<div class="calc-find-head">Go to</div>') + findShown.map(function (entry, i) {
+        findList.innerHTML = (q ? '' : '<div class="calc-find-head">' + tr('Go to') + '</div>') + findShown.map(function (entry, i) {
             return '<div class="calc-find-item" role="option" id="calc-find-' + i + '" data-i="' + i + '"><span class="calc-find-icon" aria-hidden="true">' + icons[entry.go] + '</span>' +
                 '<span class="calc-find-text"><span class="calc-find-top"><span class="calc-find-name">' + entry.t + '</span>' +
                 (entry.w ? '<span class="calc-find-where">' + entry.w + '</span>' : '') + '</span>' + (entry.s ? '<span class="calc-find-sub">' + entry.s + '</span>' : '') + '</span></div>';
-        }).join('') || '<div class="calc-find-none">Nothing found</div>';
+        }).join('') || '<div class="calc-find-none">' + tr('Nothing found') + '</div>';
         findList.scrollTop = 0;
         findLight(0);
     }
@@ -20650,7 +20977,7 @@
             }
             (small ? findPanel : findWide).appendChild(findBar);
             (small ? findPanel : findWide).appendChild(findList);
-            findInput.placeholder = small ? 'Search cards, formulas, units…' : findPh; // the panel's narrow
+            findInput.placeholder = small ? tr('Search cards, formulas, units…') : findPh; // the panel's narrow
         } else if (findBox.contains(document.activeElement) || findPanel.contains(document.activeElement)) {
             document.activeElement.blur(); // the keys are the calculator's again
         }
@@ -21045,6 +21372,13 @@
         if (e.key === 'popIn') return takePopIn(); // the detached window, open as a panel's own window pops in
         if (e.key === 'found') return takeFound(); // this window, open already, gone to from the search of another
         if (e.key === 'findOpen') return takeFindOpen(); // and on its Calculator tab, from the search popped out
+        if (e.key === 'lang') { // another language chosen on the options page: drawn again in it, the options left open
+            const over = document.querySelector('.options-over');
+            try {
+                if (over && !over.hidden) sessionStorage.setItem('optionsOpen', document.querySelector('.calc-opt-on')?.dataset.tab || 'options');
+            } catch (err) { }
+            return location.reload();
+        }
         if (e.newValue !== null && e.newValue === ownSaves[e.key]) return;
         if (e.key === 'graph') {
             ownSaves.graph = e.newValue;
