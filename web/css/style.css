@@ -9662,6 +9662,12 @@
     direction: ltr;
 }
 
+/* and the slider of a number or of the temperature as the table's colours go, the least at the left: From's number
+   at the left end of its line and To's at the right, against the knobs they are of */
+.lang-rtl #calculator .calc-pt-temp {
+    direction: ltr;
+}
+
 /* popped in, the colours' key in Arabic a line shorter than in English, on two lines, not three: a line's room more
    under it, for the table to be where it is in English, as much of the details below it showing */
 .lang-rtl #calculator:not(.calc-chem-big) .calc-pt-legend {
