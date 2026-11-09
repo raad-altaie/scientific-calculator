@@ -2521,7 +2521,8 @@
     // not jumping across; with dy, where it is drawn onto a curve faster than a step, by Euler's
     // way backward. { pts: [[x, y], …] by x, back and ahead: where
     // it stops each way and why, { x, y, why: 'none' of a slope of no value, 'large' of y past big,
-    // 'steep' of one steeper than its smallest step can follow, 'many' of more than 100000 steps },
+    // 'steep' of one steeper than its smallest step can follow, 'many' of more than 100000 steps;
+    // past big only as it goes further out, so one from far out on its way back in is followed },
     // or null where it goes as far as it was to go }. h and dy may be functions of x and of y, the
     // step there, as a pixel on a log scale is
     function solveField(field, x0, y0, from, to, deg, h, dy, big) {
@@ -2559,7 +2560,7 @@
                     }
                 }
                 if (!ok) stop = { x: x, y: y, why: up ? 'steep' : isNaN(next) ? 'none' : !isFinite(next) ? 'large' : 'steep' };
-                else if (Math.abs(ny) > (big || 1e12)) stop = { x: x, y: y, why: 'large' };
+                else if (Math.abs(ny) > (big || 1e12) && Math.abs(ny) >= Math.abs(y)) stop = { x: x, y: y, why: 'large' }; // past big and going further, not on its way back
                 else if (++n > 100000) stop = { x: x, y: y, why: 'many' };
                 else {
                     last = Math.max(Math.abs(nx - x), h / 1024);

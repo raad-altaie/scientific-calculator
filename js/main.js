@@ -4098,12 +4098,21 @@
 
     // The solutions of a slope field through its starts, across the view and 40 pixels past it
     // each way, a step a pixel and y to move no more than 4 pixels in one, as far as y stays
-    // within 20 heights of the view: kept while the view, the unit and the sliders stay
+    // within 20 heights of the view or comes back to it: kept while the view, the unit and the
+    // sliders stay. Out of the view the steps grow with how far out they are, so one that starts
+    // far from a view zoomed in comes to it in a few thousand steps, not millions
     function fieldSolutions(c, v, w, h) {
         var key = [v.x, v.y, v.ux, v.uy, w, h, deg, graphLook.logx, graphLook.logy].concat(c.letters.map(function (k) { return graphVars[k]; })).join(),
             top = graphY(v, 0), bottom = graphY(v, h), big = Math.max(Math.abs(top), Math.abs(bottom)) + 20 * (top - bottom),
-            left = graphX(v, -40), hx = graphLook.logx ? function (x) { return pixelX(v, Math.max(x, left)); } : v.ux, // a pixel where it is, on a log scale
-            dy = graphLook.logy ? function (y) { return 4 * pixelY(v, Math.max(Math.abs(y), bottom)); } : 4 * v.uy;
+            left = graphX(v, -40),
+            hx = function (x) { // a pixel where it is, on a log scale
+                var at = graphLook.logx ? Math.max(x, left) : x;
+                return pixelX(v, at) * far(plotX(v, at), w);
+            },
+            dy = function (y) {
+                var at = graphLook.logy ? Math.max(Math.abs(y), bottom) : y;
+                return 4 * pixelY(v, at) * far(plotY(v, at), h);
+            };
         if (c.kept && c.kept.key === key) return c.kept.sols;
         c.kept = { key: key, sols: c.starts(deg).map(function (q) {
             var r = q.every(isFinite) ? CalcEngine.solveField(c, q[0], q[1], left, graphX(v, w + 40), deg, hx, dy, big) :
@@ -4113,6 +4122,13 @@
             return r;
         }) };
         return c.kept.sols;
+
+        // how many times a step there is as long as one in the view: 1 within 40 pixels of it,
+        // and one more for each 200 pixels past that
+        function far(px, size) {
+            var d = Math.max(0, -px - 40, px - size - 40) / 200;
+            return isFinite(d) ? 1 + d : 1;
+        }
     }
 
     // y at x of the solution k of the slope field c, between the two steps about x; NaN out of it
