@@ -3671,7 +3671,7 @@
     border-radius: 3px;
     font-size: 15px;
     line-height: 22px;
-    text-align: right;
+    text-align: center;
     white-space: nowrap;
     text-overflow: ellipsis;
     cursor: pointer;
@@ -3705,7 +3705,6 @@
     padding: 0;
     font-size: 10px;
     line-height: 18px;
-    text-align: center;
 }
 
 /* one of two ways, each a button side by side, the one chosen lit as a tab is: payments at the
@@ -9395,6 +9394,12 @@
     transform: scaleX(-1);
 }
 
+/* undo and redo, pop out and pop in, mirrored: back is to the right, and a window opens out to the left */
+.lang-rtl #calculator :is(.calc-graph-undo, .calc-graph-redo, .calc-graph-size, .calc-panel-size, .calc-chem-size, .calc-open-big) svg,
+.lang-rtl .calc-home-in svg {
+    transform: scaleX(-1);
+}
+
 /* a table's lines between its columns on their right, as it reads: none after its first, the years, at the right */
 .lang-rtl #calculator :is(.calc-sv-list, .calc-fx-list) .calc-sv-table :is(.calc-sv-cell, .calc-sv-th) {
     border-right: 1px solid #8eab9b;
@@ -9439,7 +9444,7 @@
 
     .lang-rtl #calculator.calc-big :is(.calc-graph-plot, .calc-graph-table) {
         margin-right: 4px;
-        margin-left: 0;
+        margin-left: 8px; /* its own room from the edge, as at the right left to right */
     }
 
     .lang-rtl #calculator.calc-big .calc-graph-split {
