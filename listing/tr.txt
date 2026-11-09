@@ -1,0 +1,119 @@
+Hızlı ve güçlü bir bilimsel hesap makinesi, doğrudan tarayıcınızda: kesirler, grafikler, denklemler, matrisler, periyodik tablo, fizik ve biyoloji araçları, 100'den fazla formül ve daha fazlası. Çevrimdışı çalışır, ücretsizdir, reklam içermez ve verilerinizi gizli tutar.
+
+İSTEDİĞİNİZ GİBİ AÇIN
+• Açılır pencere: araç çubuğundaki simgeye tıklayın ya da Alt+S'ye basın.
+• Kendi penceresi: çalışırken hesap makinesini istediğiniz boyutta açık tutun.
+• Gelişmiş mod: hesap makinesi büyük bir pencerede, tüm araçlar yanında. Grafik, periyodik tablo ve diğer her araç kendi penceresinde de açılabilir.
+• Her sayfada (isteğe bağlı): her sitenin kenarında küçük bir hesap makinesi düğmesi. İstediğiniz kenara sürükleyin.
+• Her sayfada anında yanıtlar (isteğe bağlı): aşağıya bakın.
+
+HESAP MAKİNESİ
+• Yazarken ifadenin tamamını görün, herhangi bir kısmını ok tuşlarıyla ya da bir tıklamayla düzeltin.
+• Gerçek hesap makinesi işlemleri: 1 + 2 × 3 = 7, 29 düzeye kadar iç içe parantez.
+• İfadenin bir kısmını seçip bir fonksiyon tuşuna basarak onu içine alın: 30'u seçip sin'e basın, sin(30) olsun.
+• Trigonometrik, ters ve hiperbolik fonksiyonlar; derece, radyan ya da grad cinsinden.
+• Logaritmalar, üsler ve kökler, faktöriyel, nCr, nPr, mod, EBOB, EKOK ve Rand.
+• Derece, dakika ve saniye: 12°30′15″.
+• Bellek tuşları, Ans, Ctrl+Z ile geri alma ve yineleme.
+• Sayı biçimi: Fix, Sci ya da Eng, 0 ile 9 arası ondalık basamak, 1,234.5 ya da 1.234,5 gibi binlik ayırıcılar.
+
+KESİRLER
+• a/b'yi açın, yazarken her bölme gerçek bir kesir olarak gösterilsin.
+• Sonuçlar tam kesir olarak gösterilir: 0.75, 3/4'tür.
+
+GEÇMİŞ VE DEĞİŞKENLER
+• Son 50 hesaplamanız kaydedilir. Bir ifadeyi ya da sonucu yeniden ekleyin veya kopyalayın.
+• Geçmişi metin ya da elektronik tablo için CSV olarak dışa aktarın.
+• A'dan J'ye on değişken: bir sonucu saklayın ve 2A + B gibi her ifadede kullanın.
+
+GRAFİK
+• Aynı anda yedi fonksiyona kadar çizin, her biri kendi renginde.
+• Kökler, en yüksek ve en düşük noktalar ve kesişimler işaretlenir. Herhangi bir noktaya tıklayın, x, y ve eğimini teğet doğrusuyla birlikte görün.
+• Oynatabileceğiniz kaydırıcılar, eğri altındaki alan, türevler, x ve y denklemleri, eşitsizlikler, kutupsal ve parametrik eğriler, diziler, eğim alanları ve en uygun doğrular.
+• Değer tablosu, denemek için altmış örnek ve büyük görünüm.
+
+ÇÖZ
+• Bir denklemin tüm kökleri, tam biçimde de: √2, (1 + √5)/2, π/6.
+• Eşitsizlikler, dönüm noktaları ve 30. dereceye kadar polinomlar, karmaşık kökleriyle.
+• İki ya da üç doğrusal denklem birlikte, ve iki eğrinin kesiştiği yerler.
+• Kalkülüs: integraller, türevler, limitler, sonsuza kadar toplamlar ve çarpımlar, Taylor serileri, yay uzunluğu ve diferansiyel denklemler.
+• Geometri: herhangi üç öğesinden üçgenler, şekillerin alan ve hacimleri, üç noktadan geçen çember, hepsi çizimli.
+• Çoğu yanıt bir grafikle gelir ve her kartta başlamak için bir örnek vardır.
+
+PERİYODİK TABLO VE KİMYA
+• 118 elementin tamamı; türe, hâle, bloğa ya da elektronegatifliğe göre renklendirilmiş, arama özellikli.
+• Bir elemente tıklayın: kütlesi, elektron dizilimi, katmanları, erime ve kaynama noktaları, yoğunluğu, yükseltgenme basamakları, sertliği, manyetikliği, iletkenliği, bolluğu ve daha fazlası.
+• Atomu, Bohr'un çizdiği gibi, elektronları dönerken.
+• Spektrumu; koyu soğurma çizgileri ya da parlak salma çizgileriyle.
+• Kristal yapısı: birim hücre 3B çizilmiş, atomları sayılmış.
+• Bir formülün mol kütlesi, gram ↔ mol ↔ tanecik ve basit formüller.
+• Her denklemi denkleştirin, redoks da dahil, sınırlayıcı bileşen ve yüzde verimle.
+• Molarite, seyreltme, pH, tamponlar, çözeltiler, çözünürlük ve adlar ⇄ formüller.
+• Gaz yasaları, kısmi basınçlar, gaz hacimleri, efüzyon ve yükseklikle hava.
+
+FİZİK
+• Elektronik: direnç renk kodları ve SMD kodları iki yönlü, çizimli; seri ve paralel dirençler, kondansatörler ve bobinler (100 + 220 || 330); Ohm yasası, bölücüler, filtreler, diyotlar, transistörler, işlemsel yükselteçler, 555 ve desibel.
+• Hareket: sabit ivme, atışlar, yörüngeler, sarkaçlar ve yaylar, dönme.
+• Kuvvetler: sürtünme, makaralar, çarpışmalar, enerji, tork, kütle çekimi, Coulomb yasası ve manyetik alanlar.
+• Dalgalar: duran dalgalar, ışın diyagramlı mercekler ve aynalar, girişim, Doppler etkisi.
+• Madde: ısı, gazlar, Carnot makineleri, basınç, kaldırma kuvveti ve akış.
+• Modern: görelilik, çekirdek bağlanma enerjisi, fotoelektrik olay, kuantum tünelleme, hidrojen spektrumu ve radyoaktif bozunma.
+• Çoğu sonuç bir çizimle gelir.
+
+BİYOLOJİ
+• Genetik: altı gene kadar Punnett kareleri, X'e bağlı çaprazlamalar, Hardy–Weinberg, gen haritaları ve soyağaçları.
+• DNA: diziler, translasyon, primerler, sanal jelde kesim enzimleriyle kesim, PCR, hizalama ve CRISPR kılavuzları.
+• Protein: kütle, pI ve yük, enzim kinetiği ve doz–yanıt eğrileri.
+• Laboratuvar: seyreltmeler, hücre sayımı, büyüme, OD600, CFU, santrifüj ayarları.
+• Hücreler, sağlık ve ekoloji: her biri için daha fazla araç.
+
+FİNANS
+• Her yıl ya da her taksit için tablolu kredi hesaplayıcı.
+• Birikim büyümesi, paranın zaman değeri (N, I/Y, PV, PMT, FV), NBD, İVO ve geri ödeme süresi.
+• Nominal ve efektif faiz, tahviller, amortisman, başabaş noktası, enflasyon, kâr oranı ve kâr marjı.
+
+OLASILIK VE İSTATİSTİK
+• Bir sayı listesi yazın ya da yapıştırın, bir tablo sütunu bile olur: ortalama, medyan, standart sapma, çeyrekler, mod ve daha fazlası; histogram ve kutu grafiğiyle.
+• x ve y çiftleri: korelasyon ve en uygun eğri (doğrusal, ikinci dereceden, üstel, kuvvet, logaritmik ya da lojistik).
+• TI-84'teki gibi hipotez testleri: t, z, oranlar, χ², ANOVA; p değerleriyle.
+• Normal, t, χ², F, binom, Poisson ve daha fazlası; p değerleri ve güven aralıklarıyla.
+
+FORMÜLLER VE SABİTLER
+• Cebir, geometri, fizik, elektrik, kimya, para ve günlük yaşamdan 100'den fazla formül. Harfleri doldurun, yanıtı alın.
+• Matematik ve bilimden 59 sabit, tek tıkla eklenir.
+
+MATRİSLER VE SAYILAR
+• 10 × 10'a kadar matrisler: determinant, ters matris, özdeğerler, A x = b, LU ve QR.
+• Vektörler ve (2+3i)(1−i) gibi karmaşık sayılar, düzlemde çizilmiş.
+• Asal çarpanlar, 100! ve 2^200 gibi büyük sayılar tam olarak, devirli ondalıklar kesir olarak.
+• Programcılar için: onaltılık, ikilik ve her taban, bit işlemleri, Gray kodu, Karnaugh haritalı doğruluk tabloları, Base64, özetler (MD5, SHA-256), UUID'ler, IEEE 754, IPv4 ve IPv6 alt ağları.
+
+DÖNÜŞTÜRÜCÜ VE TARİHLER
+• Uzunluk, alan, hacim, kütle, sıcaklık, hız, zaman, veri, basınç, enerji, güç, açı, yakıt tüketimi, kuvvet, tork, yoğunluk, frekans, gerilim, direnç ve daha fazlası için birimler.
+• İki tarih arasındaki gün sayısı, bir tarihe gün, ay ya da yıl ekleme, Unix zaman damgaları.
+• Saat dilimleri: New York'ta 9:00, Tokyo'da 22:00'dir.
+
+HER SİTEDE ANINDA YANITLAR (İSTEĞE BAĞLI, VARSAYILAN OLARAK KAPALI)
+• Okuduğunuz sayfalardaki matematiğin ardından küçük bir simge belirir: bir toplam, bir denklem, bir matris, bir integral, bir formül, bir dönüşüm, bir kredi, bir kimyasal tepkime, bir DNA dizisi ya da bir direncin renkleri.
+• Yanıtı görmek için üzerine gelin. Hesap makinesinde açmak için tıklayın.
+• Herhangi bir metni seçin ve sağ tık menüsünden Hesapla'yı seçin.
+• Tek bir sitede, araç çubuğu simgesinin menüsünden kapatın.
+
+KLAVYE, KOPYALA VE YAPIŞTIR
+• Her düğmenin bir tuşu vardır, her klavye düzeninde; Arapça, İbranice, Rusça ve Yunanca da dahil.
+• 2 + 3 × sin(30) gibi bir ifadenin tamamını yapıştırın.
+• Herhangi bir sonuca tıklayıp hesaplamanızda kullanın.
+
+OKULLAR VE KURUMLAR İÇİN
+Yöneticiler, yönettikleri herkes için özellikleri kapatabilir, örneğin bir sınav sırasında. Bunların her biri bir politikayla kapatılabilir: Google Yönetici Konsolu'nda, Windows Grup İlkesi'yle ya da Firefox'un policies.json dosyasında: formüller, dönüştürücü, grafik, çöz, istatistik, sayılar, kimya, fizik, biyoloji, ayrı pencere, her sayfadaki düğme ve her sayfada anında yanıtlar. Kapatılan bir özellik hesap makinesinden hemen kaybolur ve seçeneklerde kilitlenir.
+Yönetici kurulum kılavuzu: raad.dev/calculator/admin
+
+GİZLİ VE ÜCRETSİZ
+• Çevrimdışı çalışır. Yazdığınız hiçbir şey tarayıcınızdan çıkmaz.
+• Yalnızca düğmeyi ya da her sayfada anında yanıtları açarsanız site erişimi ister. İkisi de varsayılan olarak kapalıdır.
+• Düğme sayfalardan hiçbir şey okumaz. Anında yanıtlar, matematiği bulmak için sayfanın metnine yalnızca cihazınızda bakar ve hiçbir yere bir şey gönderilmez.
+• Kapattığınızda çalışmanızı hatırlar.
+• Web sürümünü deneyin: raad.dev/calculator
+• Ücretsiz ve açık kaynak: github.com/raad-altaie/scientific-calculator
+
+Kolay gelsin!

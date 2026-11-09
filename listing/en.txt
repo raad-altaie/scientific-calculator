@@ -1,0 +1,119 @@
+A fast, powerful scientific calculator, right in your browser. fractions, graphs, equations, matrices, a periodic table, physics and biology tools, 100+ formulas and more. It works offline, is free, no ads, and keeps your data private.
+
+OPEN IT YOUR WAY
+• Popup: click the toolbar icon or press Alt+S.
+• Its own window: keep the calculator open while you work, at any size.
+• Advanced mode: the calculator in a big window with all the tools down its side. Graph, periodic table and every other tool can also pop out into a window of their own.
+• On every page (optional): a small calculator button on the side of any website. Drag it to the side you like.
+• Instant answers on every page (optional): see below.
+
+CALCULATOR
+• See the whole equation as you type, and fix any part of it with the arrow keys or a click.
+• Real calculator math: 1 + 2 × 3 = 7, with brackets nested up to 29 levels.
+• Select part of an equation and press a function key to wrap it: sin over 30 is sin(30).
+• Trigonometry, inverse and hyperbolic functions, in Deg, Rad or Grad.
+• Logarithms, powers and roots, factorial, nCr, nPr, mod, gcd, lcm and Rand.
+• Degrees, minutes and seconds: 12°30′15″.
+• Memory keys, Ans, and undo and redo with Ctrl+Z.
+• Number format: Fix, Sci or Eng, 0 to 9 decimal places, and thousands separators like 1,234.5 or 1.234,5.
+
+FRACTIONS
+• Turn on a/b and every division is drawn as a real fraction while you type.
+• Results show as exact fractions: 0.75 is 3/4.
+
+HISTORY AND VARIABLES
+• Your last 50 calculations are saved. Insert an equation or a result again, or copy it.
+• Export the history as text or as a CSV for a spreadsheet.
+• Ten variables, A to J: store a result and use it in any equation, like 2A + B.
+
+GRAPH
+• Draw up to seven functions at once, each in its own color.
+• Roots, highs and lows, and crossings are marked. Click any point for its x, y and slope, with the tangent line.
+• Sliders you can play, the area under a curve, derivatives, equations of x and y, inequalities, polar and parametric curves, sequences, slope fields and best-fit lines.
+• A table of values, sixty examples to try, and a big view.
+
+SOLVE
+• Every root of an equation, in exact form too: √2, (1 + √5)/2, π/6.
+• Inequalities, turning points, and polynomials up to the power 30, with complex roots.
+• Two or three linear equations at once, and where two curves meet.
+• Calculus: integrals, derivatives, limits, sums and products to infinity, Taylor series, arc length and differential equations.
+• Geometry: triangles from any three parts, areas and volumes of shapes, the circle through three points, all drawn.
+• Most answers come with a graph, and each card has an example to start from.
+
+PERIODIC TABLE AND CHEMISTRY
+• All 118 elements, coloured by kind, state, block or electronegativity, with a search.
+• Click an element for its mass, electron configuration, shells, melting and boiling points, density, oxidation states, hardness, magnetism, conductivity, abundance and more.
+• Its atom drawn as Bohr drew it, with the electrons going round.
+• Its spectrum, with dark absorption lines or bright emission lines.
+• Its crystal structure: the unit cell drawn in 3D, with its atoms counted.
+• Molar mass of a formula, grams ↔ moles ↔ particles, and empirical formulas.
+• Balance any equation, redox too, with the limiting reactant and percent yield.
+• Molarity, dilution, pH, buffers, solutions, solubility, and names ⇄ formulas.
+• Gas laws, partial pressures, gas volumes, effusion and the air with height.
+
+PHYSICS
+• Electronics: resistor color codes and SMD codes both ways, drawn; resistors, capacitors and coils in series and parallel (100 + 220 || 330); Ohm's law, dividers, filters, diodes, transistors, op-amps, the 555 and decibels.
+• Motion: steady acceleration, projectiles, orbits, pendulums and springs, rotation.
+• Forces: friction, pulleys, collisions, energy, torque, gravitation, Coulomb's law and magnetic fields.
+• Waves: standing waves, lenses and mirrors with ray diagrams, interference, the Doppler effect.
+• Matter: heat, gases, Carnot engines, pressure, buoyancy and flow.
+• Modern: relativity, nuclear binding energy, the photoelectric effect, quantum tunnelling, hydrogen's spectrum and radioactive decay.
+• Most results come with a drawing.
+
+BIOLOGY
+• Genetics: Punnett squares of up to six genes, crosses of the X, Hardy–Weinberg, gene maps and pedigrees.
+• DNA: sequences, translation, primers, restriction digests on a virtual gel, PCR, alignment and CRISPR guides.
+• Protein: mass, pI and charge, enzyme kinetics and dose–response curves.
+• Lab: dilutions, cell counts, growth, OD600, CFU, centrifuge settings.
+• Cells, health and ecology: more tools for each.
+
+FINANCE
+• Loan calculator with a table of every year or every payment.
+• Savings growth, time value of money (N, I/Y, PV, PMT, FV), NPV, IRR and payback.
+• APR and APY, bonds, depreciation, break-even, inflation, markup and margin.
+
+PROBABILITY AND STATISTICS
+• Type or paste a list of numbers, even a spreadsheet column: mean, median, standard deviation, quartiles, mode and more, with a histogram and a box plot.
+• Pairs of x and y: correlation and the best-fit curve (linear, quadratic, exponential, power, logarithmic or logistic).
+• Tests of hypotheses as on a TI-84: t, z, proportions, χ², ANOVA, with p-values.
+• Normal, t, χ², F, binomial, Poisson and more, with p-values and confidence intervals.
+
+FORMULAS AND CONSTANTS
+• 100+ formulas of algebra, geometry, physics, electricity, chemistry, money and everyday life. Fill in the letters and get the answer.
+• 59 constants of math and science, one click to insert.
+
+MATRICES AND NUMBERS
+• Matrices up to 10 × 10: determinant, inverse, eigenvalues, A x = b, LU and QR.
+• Vectors, and complex numbers like (2+3i)(1−i), drawn on the plane.
+• Prime factors, exact big numbers like 100! and 2^200, and repeating decimals as fractions.
+• For programmers: hex, binary and any base, bit operations, Gray code, truth tables with Karnaugh maps, Base64, hashes (MD5, SHA-256), UUIDs, IEEE 754 and IPv4 and IPv6 subnets.
+
+CONVERTER AND DATES
+• Units of length, area, volume, mass, temperature, speed, time, data, pressure, energy, power, angle, fuel economy, force, torque, density, frequency, voltage, resistance and more.
+• Days between two dates, add days, months or years to a date, and Unix timestamps.
+• Time zones: 9:00 in New York is 22:00 in Tokyo.
+
+INSTANT ANSWERS ON ANY WEBSITE (OPTIONAL, OFF BY DEFAULT)
+• A small icon appears after maths on the pages you read: a sum, an equation, a matrix, an integral, a formula, a conversion, a loan, a chemical reaction, a DNA sequence or a resistor's colours.
+• Hover for the answer. Click to open it in the calculator.
+• Select any text and choose Calculate from the right-click menu.
+• Turn it off on one website from the toolbar icon's menu.
+
+KEYBOARD, COPY AND PASTE
+• Every button has a key, on any keyboard layout, Arabic, Hebrew, Russian and Greek too.
+• Paste a whole equation such as 2 + 3 × sin(30).
+• Click any result to use it in your calculation.
+
+FOR SCHOOLS AND ORGANIZATIONS
+Administrators can turn features off for everyone they manage, for example during a test. Each of these can be turned off by policy, in the Google Admin Console, by Windows Group Policy or in Firefox's policies.json: formulas, converter, graph, solve, statistics, numbers, chemistry, physics, biology, the separate window, the button on every page, and instant answers on every page. A feature turned off disappears from the calculator right away and is locked in the options.
+Admin setup guide: raad.dev/calculator/admin
+
+PRIVATE AND FREE
+• Works offline. Nothing you type leaves your browser.
+• Asks for website access only if you turn on the button or the instant answers on every page. Both are off by default.
+• The button reads nothing from the pages. The instant answers look at the text of a page, on your device only, to find maths, and nothing is sent anywhere.
+• Remembers your work when you close it.
+• Try the web version: raad.dev/calculator
+• Free and open source: github.com/raad-altaie/scientific-calculator
+
+Cheers!

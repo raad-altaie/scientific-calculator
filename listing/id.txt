@@ -1,0 +1,119 @@
+Kalkulator ilmiah yang cepat dan andal, langsung di browser Anda: pecahan, grafik, persamaan, matriks, tabel periodik, alat fisika dan biologi, 100+ rumus, dan banyak lagi. Bisa dipakai offline, gratis, tanpa iklan, dan data Anda tetap privat.
+
+BUKA SESUAI KEINGINAN
+• Popup: klik ikon di toolbar atau tekan Alt+S.
+• Jendela sendiri: biarkan kalkulator terbuka selama Anda bekerja, dengan ukuran berapa pun.
+• Mode lanjutan: kalkulator di jendela besar dengan semua alat di sampingnya. Grafik, tabel periodik, dan alat lainnya juga bisa dibuka di jendelanya sendiri.
+• Di setiap halaman (opsional): tombol kalkulator kecil di sisi situs mana pun. Seret ke sisi yang Anda suka.
+• Jawaban instan di setiap halaman (opsional): lihat di bawah.
+
+KALKULATOR
+• Lihat seluruh ekspresi saat mengetik, dan perbaiki bagian mana pun dengan tombol panah atau sekali klik.
+• Hitungan kalkulator sungguhan: 1 + 2 × 3 = 7, dengan tanda kurung bersarang hingga 29 tingkat.
+• Pilih sebagian ekspresi lalu tekan tombol fungsi untuk membungkusnya: pilih 30, tekan sin, jadilah sin(30).
+• Fungsi trigonometri, invers, dan hiperbolik, dalam derajat, radian, atau grad.
+• Logaritma, pangkat dan akar, faktorial, nCr, nPr, mod, FPB, KPK, dan Rand.
+• Derajat, menit, dan detik: 12°30′15″.
+• Tombol memori, Ans, serta urungkan dan ulangi dengan Ctrl+Z.
+• Format bilangan: Fix, Sci, atau Eng, 0 sampai 9 angka desimal, dan pemisah ribuan seperti 1,234.5 atau 1.234,5.
+
+PECAHAN
+• Aktifkan a/b dan setiap pembagian tampil sebagai pecahan sungguhan saat Anda mengetik.
+• Hasil tampil sebagai pecahan eksak: 0.75 adalah 3/4.
+
+RIWAYAT DAN VARIABEL
+• 50 perhitungan terakhir Anda tersimpan. Sisipkan lagi sebuah ekspresi atau hasil, atau salin.
+• Ekspor riwayat sebagai teks atau CSV untuk spreadsheet.
+• Sepuluh variabel, A sampai J: simpan hasil dan gunakan di ekspresi mana pun, seperti 2A + B.
+
+GRAFIK
+• Gambar hingga tujuh fungsi sekaligus, masing-masing dengan warnanya sendiri.
+• Akar, titik tertinggi dan terendah, serta titik potong ditandai. Klik titik mana pun untuk melihat x, y, dan kemiringannya, beserta garis singgungnya.
+• Slider yang bisa digeser, luas di bawah kurva, turunan, persamaan x dan y, pertidaksamaan, kurva polar dan parametrik, barisan, medan arah, dan garis regresi.
+• Tabel nilai, enam puluh contoh untuk dicoba, dan tampilan besar.
+
+SELESAIKAN
+• Semua akar persamaan, juga dalam bentuk eksak: √2, (1 + √5)/2, π/6.
+• Pertidaksamaan, titik balik, dan polinomial hingga pangkat 30, dengan akar kompleks.
+• Dua atau tiga persamaan linear sekaligus, dan titik potong dua kurva.
+• Kalkulus: integral, turunan, limit, jumlah dan hasil kali hingga tak hingga, deret Taylor, panjang busur, dan persamaan diferensial.
+• Geometri: segitiga dari tiga unsur mana pun, luas dan volume bangun, lingkaran melalui tiga titik, semuanya digambar.
+• Sebagian besar jawaban disertai grafik, dan setiap kartu punya contoh untuk memulai.
+
+TABEL PERIODIK DAN KIMIA
+• Ke-118 unsur, diwarnai menurut jenis, wujud, blok, atau keelektronegatifan, dengan pencarian.
+• Klik sebuah unsur untuk melihat massa, konfigurasi elektron, kulit, titik leleh dan titik didih, massa jenis, bilangan oksidasi, kekerasan, kemagnetan, konduktivitas, kelimpahan, dan lainnya.
+• Atomnya digambar seperti gambaran Bohr, dengan elektron yang berputar.
+• Spektrumnya, dengan garis serapan gelap atau garis emisi terang.
+• Struktur kristalnya: sel satuan digambar 3D, dengan jumlah atomnya.
+• Massa molar sebuah rumus, gram ↔ mol ↔ partikel, dan rumus empiris.
+• Setarakan persamaan apa pun, redoks juga, dengan pereaksi pembatas dan persen hasil.
+• Molaritas, pengenceran, pH, larutan penyangga, larutan, kelarutan, dan nama ⇄ rumus.
+• Hukum gas, tekanan parsial, volume gas, efusi, dan udara menurut ketinggian.
+
+FISIKA
+• Elektronika: kode warna resistor dan kode SMD dua arah, digambar; resistor, kapasitor, dan induktor seri dan paralel (100 + 220 || 330); hukum Ohm, pembagi tegangan, filter, dioda, transistor, op-amp, IC 555, dan desibel.
+• Gerak: percepatan tetap, gerak parabola, orbit, bandul dan pegas, rotasi.
+• Gaya: gesekan, katrol, tumbukan, energi, torsi, gravitasi, hukum Coulomb, dan medan magnet.
+• Gelombang: gelombang stasioner, lensa dan cermin dengan diagram sinar, interferensi, efek Doppler.
+• Zat: kalor, gas, mesin Carnot, tekanan, gaya apung, dan aliran.
+• Modern: relativitas, energi ikat inti, efek fotolistrik, penerowongan kuantum, spektrum hidrogen, dan peluruhan radioaktif.
+• Sebagian besar hasil disertai gambar.
+
+BIOLOGI
+• Genetika: diagram Punnett hingga enam gen, persilangan terpaut X, Hardy–Weinberg, peta gen, dan silsilah.
+• DNA: sekuens, translasi, primer, pemotongan enzim restriksi pada gel virtual, PCR, penjajaran, dan pemandu CRISPR.
+• Protein: massa, pI dan muatan, kinetika enzim, dan kurva dosis–respons.
+• Lab: pengenceran, hitung sel, pertumbuhan, OD600, CFU, pengaturan sentrifus.
+• Sel, kesehatan, dan ekologi: alat lainnya untuk masing-masing.
+
+KEUANGAN
+• Kalkulator pinjaman dengan tabel per tahun atau per angsuran.
+• Pertumbuhan tabungan, nilai waktu uang (N, I/Y, PV, PMT, FV), NPV, IRR, dan periode pengembalian.
+• Bunga nominal dan efektif, obligasi, penyusutan, titik impas, inflasi, markup, dan margin.
+
+PELUANG DAN STATISTIK
+• Ketik atau tempel daftar bilangan, bahkan satu kolom spreadsheet: rata-rata, median, simpangan baku, kuartil, modus, dan lainnya, dengan histogram dan diagram kotak.
+• Pasangan x dan y: korelasi dan kurva paling cocok (linear, kuadrat, eksponensial, pangkat, logaritmik, atau logistik).
+• Uji hipotesis seperti di TI-84: t, z, proporsi, χ², ANOVA, dengan nilai p.
+• Normal, t, χ², F, binomial, Poisson, dan lainnya, dengan nilai p dan selang kepercayaan.
+
+RUMUS DAN KONSTANTA
+• 100+ rumus aljabar, geometri, fisika, listrik, kimia, keuangan, dan kehidupan sehari-hari. Isi hurufnya dan dapatkan jawabannya.
+• 59 konstanta matematika dan sains, disisipkan dengan sekali klik.
+
+MATRIKS DAN BILANGAN
+• Matriks hingga 10 × 10: determinan, invers, nilai eigen, A x = b, LU, dan QR.
+• Vektor, dan bilangan kompleks seperti (2+3i)(1−i), digambar pada bidang.
+• Faktor prima, bilangan besar yang eksak seperti 100! dan 2^200, dan desimal berulang sebagai pecahan.
+• Untuk programmer: heksadesimal, biner, dan basis apa pun, operasi bit, kode Gray, tabel kebenaran dengan peta Karnaugh, Base64, hash (MD5, SHA-256), UUID, IEEE 754, serta subnet IPv4 dan IPv6.
+
+KONVERTER DAN TANGGAL
+• Satuan panjang, luas, volume, massa, suhu, kecepatan, waktu, data, tekanan, energi, daya, sudut, konsumsi bahan bakar, gaya, torsi, massa jenis, frekuensi, tegangan, hambatan, dan lainnya.
+• Jumlah hari antara dua tanggal, menambah hari, bulan, atau tahun ke sebuah tanggal, dan timestamp Unix.
+• Zona waktu: pukul 9:00 di New York adalah 22:00 di Tokyo.
+
+JAWABAN INSTAN DI SITUS MANA PUN (OPSIONAL, NONAKTIF SECARA BAWAAN)
+• Ikon kecil muncul setelah matematika di halaman yang Anda baca: penjumlahan, persamaan, matriks, integral, rumus, konversi, pinjaman, reaksi kimia, sekuens DNA, atau warna resistor.
+• Arahkan kursor untuk melihat jawabannya. Klik untuk membukanya di kalkulator.
+• Pilih teks apa pun lalu pilih Hitung dari menu klik kanan.
+• Nonaktifkan di satu situs dari menu ikon toolbar.
+
+KEYBOARD, SALIN, DAN TEMPEL
+• Setiap tombol punya tuts, di tata letak keyboard apa pun, termasuk Arab, Ibrani, Rusia, dan Yunani.
+• Tempel seluruh ekspresi seperti 2 + 3 × sin(30).
+• Klik hasil mana pun untuk memakainya dalam perhitungan Anda.
+
+UNTUK SEKOLAH DAN ORGANISASI
+Administrator bisa menonaktifkan fitur untuk semua orang yang mereka kelola, misalnya saat ujian. Masing-masing berikut bisa dinonaktifkan lewat kebijakan, di Konsol Admin Google, Group Policy Windows, atau policies.json Firefox: rumus, konverter, grafik, selesaikan, statistik, bilangan, kimia, fisika, biologi, jendela terpisah, tombol di setiap halaman, dan jawaban instan di setiap halaman. Fitur yang dinonaktifkan langsung hilang dari kalkulator dan terkunci di opsi.
+Panduan penyiapan admin: raad.dev/calculator/admin
+
+PRIVAT DAN GRATIS
+• Bisa dipakai offline. Tidak ada yang Anda ketik yang keluar dari browser Anda.
+• Hanya meminta akses situs jika Anda mengaktifkan tombol atau jawaban instan di setiap halaman. Keduanya nonaktif secara bawaan.
+• Tombol tidak membaca apa pun dari halaman. Jawaban instan melihat teks halaman, hanya di perangkat Anda, untuk menemukan matematika, dan tidak ada yang dikirim ke mana pun.
+• Mengingat pekerjaan Anda saat ditutup.
+• Coba versi web-nya: raad.dev/calculator
+• Gratis dan open source: github.com/raad-altaie/scientific-calculator
+
+Selamat menghitung!
