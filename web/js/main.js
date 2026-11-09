@@ -6331,7 +6331,15 @@
     // the plot to keep the one shown or go back to one's own, until one of them is picked, through a
     // reload too. The link goes from the address, so a reload does not open it again. The website opens
     // it in Advanced mode (index.html), the graph popped out beside the rail once the page has said so
-    // (app.js), and not as a panel over keys that are not there
+    // (app.js, its calc-home), and not as a panel over the keys before it: app.js may come in later than
+    // a moment after this, its file still loading
+    var linkWaits = false;
+
+    function showLink() {
+        linkWaits = false;
+        if (home) goTo('graph'); else showGraph(true);
+    }
+
     function takeLink() {
         var g = linkedGraph(location.hash);
         if (g) {
@@ -6343,9 +6351,12 @@
             setUnit(g.u);
             readGraph(); // its letters known, for their sliders to be kept
             saveState();
-            setTimeout(function () {
-                if (home) goTo('graph'); else showGraph(true);
-            }, 0);
+            if (document.documentElement.classList.contains('home') && !home) {
+                linkWaits = true; // till calc-home; shown as the page has loaded at the latest, if app.js never says
+                window.addEventListener('load', function () { if (linkWaits) showLink(); }, false);
+            } else {
+                showLink();
+            }
         }
         graphShared.hidden = !stored('graphMine');
     }
@@ -20759,6 +20770,7 @@
         homeAlone = home && !d.page;
         root.classList.toggle('calc-home', home);
         goMark();
+        if (linkWaits) showLink(); // a graph of a link, popped out now (takeLink)
     }, false);
 
     // there, pop in and close at the top right, as every tool's: pop in brings the calculator back where it was

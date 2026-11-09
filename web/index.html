@@ -117,6 +117,7 @@
         } catch (e) { }
         // and Advanced mode, the calculator beside the rail of the tools (app.js): from the first, without the options flashing.
         // A link of a graph opens in it, and it is kept (main.js takeLink)
+        if (/^#g=/.test(location.hash)) document.documentElement.classList.add('home'); // even where storage is refused
         try {
             if (/^#g=/.test(location.hash)) localStorage.setItem('openMode', 'advanced');
             if (localStorage.getItem('openMode') === 'advanced') document.documentElement.classList.add('home');
