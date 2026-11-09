@@ -5887,7 +5887,7 @@ CalcLang.add("pt", {
     "auto_lang": "Auto: {lang}",
 
     // js/popup.js
-    "scientific_calculator": "Calculadora Científica",
+    "scientific_calculator": "Calculadora científica",
     "calculator": "Calculadora",
 
     // popup.html
