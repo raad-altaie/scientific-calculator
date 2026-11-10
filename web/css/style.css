@@ -8256,10 +8256,14 @@
     margin: 0.3cqw 0 0.25cqw;
 }
 
-/* each element's symbol in the table 1px lower, its number, name and mass where they are */
+/* each element's symbol in the table 1px lower, its number a little higher, the name and mass where they are */
 #calculator.calc-chem-big .calc-pt-grid > .calc-pt-el[data-z] b {
     position: relative;
     top: 1px;
+}
+
+#calculator.calc-chem-big .calc-pt-grid > .calc-pt-el[data-z] .calc-pt-z {
+    top: 0.2cqw;
 }
 
 #calculator.calc-chem-big .calc-pt-el .calc-pt-z {

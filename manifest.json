@@ -2,7 +2,7 @@
     "manifest_version": 3,
     "name": "__MSG_name__",
     "default_locale": "en",
-    "version": "2.5.40",
+    "version": "2.5.41",
     "author": "Raad Altaie",
     "description": "__MSG_description__",
     "action": {
