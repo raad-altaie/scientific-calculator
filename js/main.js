@@ -7086,7 +7086,7 @@
                 run: runExtrema, example: { f: 'x^3 - 3x' } },
             { id: 'concavity', t: 'Curve shape', f: ['f′(x) &gt; 0', 'f″(x) &gt; 0'], d: 'Where a function rises and falls, where it bends up and down, and its inflection points, where the bend changes: x^4 – 4x^3 falls until 3 and bends down from 0 to 2. From and To, where to look, if you like.',
                 fields: [{ k: 'f', l: 'f(x)', ph: 'x^4 - 4x^3', fn: true }, { k: 'from', l: 'From', ph: 'optional' }, { k: 'to', l: 'To', ph: 'optional' }], cols: 2,
-                run: runShape, example: { f: 'x^4 - 4x^3' } },
+                run: runCurveShape, example: { f: 'x^4 - 4x^3' } },
             { id: 'integral', t: 'Integral', f: '∫<sub>a</sub><sup>b</sup> f(x) dx', d: 'The integral of a function from a to b, the area under it, its exact form where it has one, √π or 1/3, and the average value of the function there; an end may be ∞, typed inf.',
                 fields: [{ k: 'f', l: 'f(x)', ph: 'x^2', fn: true }, { k: 'a', l: 'From', ph: '0', def: 0, inf: true }, { k: 'b', l: 'To', ph: '1', def: 1, inf: true }], cols: 2,
                 run: runIntegral, example: { f: 'x^2', a: '0', b: '3' } },
@@ -7916,7 +7916,7 @@
     }
 
     // y = m x + b, a line as it is shown, its numbers to 10 digits
-    function lineText(m, b) {
+    function tangentText(m, b) {
         var num = function (v) { return local(String(+Math.abs(v).toPrecision(10))); };
         m = +m.toPrecision(10) + 0;
         b = +b.toPrecision(10) + 0;
@@ -7934,7 +7934,7 @@
         return { rows: [{ l: 'Derivative', text: forms ? 'f′(x) = ' + forms[0].html : '–', wide: true, wrap: true },
                 { l: 'Second derivative', text: forms ? 'f″(x) = ' + forms[1].html : '–', wide: true, wrap: true },
                 { l: 'f(x)', v: y }, { l: 'f′(x)', v: s[0] }, { l: 'f″(x)', v: s[1] },
-                { l: 'Tangent', text: isFinite(y) && isFinite(s[0]) ? lineText(s[0], y - s[0] * n.x) : '–', wide: true }].concat(isFinite(y) && isFinite(s[0]) ? drawnTile(tangentDrawing(f.c, n.x, y, s[0])) : []),
+                { l: 'Tangent', text: isFinite(y) && isFinite(s[0]) ? tangentText(s[0], y - s[0] * n.x) : '–', wide: true }].concat(isFinite(y) && isFinite(s[0]) ? drawnTile(tangentDrawing(f.c, n.x, y, s[0])) : []),
             bad: f.bad, note: f.note || (none ? 'No formula of its slope: it has x!, mod or the like, whose slopes are not written out here.' : ''), warn: !!f.note };
     }
 
@@ -7947,7 +7947,7 @@
     }
 
     // where a function rises and falls and bends up and down, as intervals, and its inflection points, an x and its value side by side
-    function runShape(n, raw) {
+    function runCurveShape(n, raw) {
         var none = [{ l: 'Increasing', text: '–', wide: true }, { l: 'Decreasing', text: '–', wide: true }, { l: 'Concave up', text: '–', wide: true }, { l: 'Concave down', text: '–', wide: true }],
             ends = isFinite(n.from) && isFinite(n.to), r, rows;
         if (!raw.f) return { rows: none, cols: 2 };
@@ -7964,7 +7964,7 @@
             rows.push({ l: 'Inflection x', v: p.x }, { l: 'Inflection y', v: p.y });
         });
         return {
-            rows: rows.concat(drawnTile(shapeDrawing(raw.f, r, n.from, n.to))), cols: 2,
+            rows: rows.concat(drawnTile(curveShapeDrawing(raw.f, r, n.from, n.to))), cols: 2,
             note: r.more ? 'It changes too often to list each time: give From and To for the rest.' : r.flat ? 'It is flat: its slope is 0 everywhere.' : !r.rising.length && !r.falling.length ? 'It goes up or down only in jumps: its slope is 0 between them.' : ''
         };
     }
@@ -8110,7 +8110,7 @@
     }
 
     // the curve, shaded where it bends up, its inflection points dots
-    function shapeDrawing(text, r, from, to) {
+    function curveShapeDrawing(text, r, from, to) {
         var fs = sidesOf(text), xs = r.points.map(function (p) { return p.x; }), x;
         ['rising', 'falling', 'up', 'down'].forEach(function (k) { r[k].forEach(function (p) { xs.push(p.from, p.to); }); });
         x = rangeAround(xs, from, to);
@@ -12147,7 +12147,7 @@
     }
 
     // two velocities from a point, A and B, B dashed, and A as B sees it, from the tip of B to the tip of A, red
-    function vectorsDrawing(a, b) {
+    function velocitiesDrawing(a, b) {
         var W = 300, H = 120, xs = [0, a[0], b[0]], ys = [0, a[1], b[1]], x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs),
             y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys), k, o, A, B;
         if (!(Math.max(x1 - x0, y1 - y0) > 0)) return '';
@@ -12199,7 +12199,7 @@
         if (h < 0) h += 2 * Math.PI;
         s = Math.hypot(x, y);
         return { rows: physRows([['A from B, m/s', s], ['Its heading', s ? fromRadians(h) : NaN], ['East, m/s', x], ['North, m/s', y], ['B from A, heading', s ? fromRadians((h + Math.PI) % (2 * Math.PI)) : NaN]])
-            .concat(drawnTile(vectorsDrawing([ax, ay], [bx, by]), 'A, B, and A as B sees it')), cols: 2,
+            .concat(drawnTile(velocitiesDrawing([ax, ay], [bx, by]), 'A, B, and A as B sees it')), cols: 2,
             note: tr('B sees A go so; A sees B go as fast the other way. Angles in {unitWord}.', { unitWord: unitWord() }) };
     }
 

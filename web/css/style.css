@@ -386,6 +386,8 @@
     min-height: 0;
     overflow-y: auto;
     padding: 4px 8px 6px;
+    padding-inline-end: 4px; /* with its scrollbar's 8px, kept, 5px from it, as every list's */
+    scrollbar-gutter: stable;
 }
 
 #calculator .calc-stats-out::-webkit-scrollbar {
@@ -2241,7 +2243,7 @@
     }
 
     #calculator.calc-big .calc-gx-list {
-        padding: 4px 8px 12px 16px;
+        padding: 4px 4px 12px 16px;
     }
 
     #calculator.calc-big .calc-gx-item {
@@ -2495,7 +2497,7 @@
     flex: 1;
     overflow-y: auto;
     padding: 0 8px;
-    padding-inline-end: 3px; /* with its scrollbar's 8px, kept, the cards almost as wide as the search above them */
+    padding-inline-end: 4px; /* with its scrollbar's 8px, kept, 5px from it, as every list's */
     scrollbar-gutter: stable;
 }
 
@@ -4719,6 +4721,8 @@
     flex: 1;
     overflow-y: auto;
     padding: 8px 8px 0; /* the room under the head inside it: it scrolls up to the head's line */
+    padding-inline-end: 4px; /* with its scrollbar's 8px, kept, 5px from it, as every list's */
+    scrollbar-gutter: stable;
 }
 
 #calculator .calc-past-list::-webkit-scrollbar {
@@ -7739,7 +7743,7 @@
     overflow-y: auto;
     overscroll-behavior: contain;
     padding: 0 14px 14px;
-    padding-inline-end: 6px; /* with its scrollbar's 8px, kept, the cards as wide as the search above them */
+    padding-inline-end: 4px; /* with its scrollbar's 8px, kept, 5px from it, as every list's */
     scrollbar-gutter: stable;
 }
 
@@ -7910,7 +7914,7 @@
 
     .calc-find-list {
         padding: 0 8px 8px;
-        padding-inline-end: 3px;
+        padding-inline-end: 4px;
     }
 
     .calc-find-head {
@@ -7987,11 +7991,11 @@
     height: 12px;
 }
 
-/* its scrollbar's room kept, in the 8px at the end of the cards, as wide as the search above them, 3px from it;
-   at the left right to left */
+/* its scrollbar's room kept, in the 8px at the end of the cards, as wide as the search above them, 4px
+   from it; at the left right to left */
 #calculator .calc-find-panel .calc-find-list {
     padding: 0 8px 4px; /* the 4px more above Go to, taken here: the list as tall, with no scroll bar */
-    padding-inline-end: 3px;
+    padding-inline-end: 4px;
     scrollbar-gutter: stable;
 }
 
@@ -8785,7 +8789,7 @@
 #calculator.calc-panel-big .calc-big-on :is(.calc-sv-list, .calc-fx-list) {
     padding-right: 16px;
     padding-left: 16px;
-    padding-inline-end: 8px; /* with its scrollbar's 8px, as wide as the search */
+    padding-inline-end: 4px; /* with its scrollbar's 8px, kept, 5px from it, as every list's */
 }
 
 #calculator.calc-panel-big .calc-big-on .calc-search {
@@ -8805,7 +8809,7 @@
     #calculator.calc-panel-big .calc-big-on :is(.calc-sv-list, .calc-fx-list) {
         padding-right: 8px;
         padding-left: 8px;
-        padding-inline-end: 3px;
+        padding-inline-end: 4px;
     }
 
     #calculator.calc-panel-big .calc-big-on .calc-search {
@@ -8831,12 +8835,12 @@
     --calc-side: min(var(--calc-side-w, 376px), max(376px, min(50%, 100% - 456px)), 50% - 18px);
 }
 
-/* at the left of the page, as the big graph's boxes: the rows 344px, 8px, the scrollbar 8px */
+/* at the left of the page, as the big graph's boxes: the rows 348px, 4px, the scrollbar 8px */
 #calculator.calc-panel-big .calc-big-on :is(.calc-sv-list, .calc-fx-list).calc-side {
     width: var(--calc-side);
     max-width: none;
     margin-left: 0;
-    padding: 12px 8px 12px 16px;
+    padding: 12px 4px 12px 16px;
     overflow-x: hidden; /* dragged wider, the one chosen, a little bigger, has no scrollbar under the list */
 }
 
@@ -9406,7 +9410,7 @@
 
 @container calculator (min-width: 760px) {
     .lang-rtl #calculator.calc-big .calc-gx-list {
-        padding: 4px 16px 12px 8px;
+        padding: 4px 16px 12px 4px;
     }
 }
 
@@ -9832,7 +9836,7 @@
 .lang-rtl #calculator.calc-panel-big .calc-big-on :is(.calc-sv-list, .calc-fx-list).calc-side {
     margin-right: 0;
     margin-left: auto;
-    padding: 12px 16px 12px 8px;
+    padding: 12px 16px 12px 4px;
 }
 
 .lang-rtl #calculator .calc-side :is(.calc-sv-form, .calc-fx-form) {
@@ -9921,5 +9925,36 @@
     html * {
         scrollbar-width: thin;
         scrollbar-color: #6b8196 transparent;
+    }
+}
+
+/* Firefox: its scrollbar over what it scrolls and gone as it stops (macOS, Windows 11), in no room of its own, so
+   none kept by scrollbar-gutter: the lists' room at their end 4px more than at their start, for it to be over, clear
+   of the cards */
+@supports not selector(::-webkit-scrollbar) {
+    #calculator :is(.calc-past-list, .calc-stats-out),
+    #calculator :is(.calc-fx-list, .calc-gx-list, .calc-sv-list),
+    #calculator .calc-find-panel .calc-find-list {
+        padding-inline-end: 12px;
+    }
+
+    #calculator.calc-panel-big .calc-big-on :is(.calc-sv-list, .calc-fx-list) {
+        padding-inline-end: 20px;
+    }
+
+    .calc-find-list {
+        padding-inline-end: 18px;
+    }
+
+    @container calculator (max-width: 619px) {
+        #calculator.calc-panel-big .calc-big-on :is(.calc-sv-list, .calc-fx-list) {
+            padding-inline-end: 12px;
+        }
+    }
+
+    @media (max-width: 743px) {
+        .calc-find-list {
+            padding-inline-end: 12px;
+        }
     }
 }
