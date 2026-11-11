@@ -1205,3 +1205,37 @@ html.lang-rtl:has(> body.page) {
         padding: 0 10px 0 0;
     }
 }
+
+/* Every scrollbar the same, on every system and either way a page reads: thin, over no track, always shown; in its
+   own colour where it has one. 6px in its 8px, and all of it under the pointer or dragged, as macOS widens its own.
+   The same in style.css and options.css, as the website has both */
+:where(html, html *)::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+:where(html, html *)::-webkit-scrollbar-track,
+:where(html, html *)::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+:where(html, html *)::-webkit-scrollbar-thumb {
+    background: #6b8196;
+    border-radius: 3px;
+    border: 1px solid transparent;
+    background-clip: padding-box !important; /* over each one's own background, which would draw under the border */
+}
+
+:where(html, html *)::-webkit-scrollbar-thumb:hover,
+:where(html, html *)::-webkit-scrollbar-thumb:active {
+    border-width: 0;
+}
+
+/* Firefox, with no ::-webkit-scrollbar: its own thin one, in the same colour */
+@supports not selector(::-webkit-scrollbar) {
+    html,
+    html * {
+        scrollbar-width: thin;
+        scrollbar-color: #6b8196 transparent;
+    }
+}
