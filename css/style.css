@@ -386,7 +386,7 @@
     min-height: 0;
     overflow-y: auto;
     padding: 4px 8px 6px;
-    padding-inline-end: 4px; /* with its scrollbar's 8px, kept, 5px from it, as every list's */
+    padding-inline-end: 2px; /* with its scrollbar's 8px, kept, 3px from it, as every list's popped in */
     scrollbar-gutter: stable;
 }
 
@@ -547,6 +547,15 @@
 
 #calculator.calc-big .calc-graph-fns.calc-graph-many {
     max-height: 45vh;
+}
+
+/* a table of points open among them: room for it as well, three boxes still in sight with it */
+#calculator .calc-graph-fns.calc-graph-many.calc-graph-celled {
+    max-height: 193px;
+}
+
+#calculator.calc-big .calc-graph-fns.calc-graph-many.calc-graph-celled {
+    max-height: calc(45vh + 110px); /* the table's 102px and the 8px of the list's gap, big */
 }
 
 /* big, Clear and + as every panel's popped out, in the head's 1.15 zoom */
@@ -1031,14 +1040,15 @@
     color: #d3d9e2;
 }
 
-/* the table: x and y in two columns under the boxes, its edge of the color of its box; many rows scroll */
+/* the table: x and y in two columns right under its own box, in their list, a little in from it, its edge of the
+   color of its box; many rows scroll */
 #calculator .calc-graph-cells {
     display: grid;
     flex: none;
     grid-template-columns: 1fr 1fr;
     gap: 3px 4px;
     max-height: 102px;
-    margin: 5px 8px 0 22px;
+    margin: 0 0 0 14px;
     padding: 4px 6px 4px 8px;
     border-left: 3px solid var(--c);
     border-radius: 0 5px 5px 0;
@@ -1963,9 +1973,9 @@
            what leaves the plot 320px, as GRAPH_SIDE_MAX and GRAPH_PLOT_MIN; its least and its first as
            big again as the window makes its words (--calc-pop) */
         grid-template-columns: clamp(270px * var(--calc-pop, 1), var(--calc-graph-side, clamp(320px * var(--calc-pop, 1), 26vw, 380px * var(--calc-pop, 1))), max(270px * var(--calc-pop, 1), (100% - 320px) * 0.7)) minmax(0, 1fr);
-        /* the boxes' row as tall as all of them, down to the bottom: they scroll only past that, the
-           points and the sliders kept below them */
-        grid-template-rows: auto minmax(0, max-content) auto auto minmax(0, 1fr);
+        /* the boxes' row as tall as all of them, the table of points among them, down to the bottom:
+           they scroll only past that, the sliders kept below them */
+        grid-template-rows: auto minmax(0, max-content) auto minmax(0, 1fr);
     }
 
     /* The head's words stay at their full size: as the column narrows it is the space round them that
@@ -2014,17 +2024,17 @@
         grid-area: 2 / 1;
     }
 
-    #calculator.calc-big .calc-graph-fns.calc-graph-many {
+    #calculator.calc-big .calc-graph-fns.calc-graph-many,
+    #calculator.calc-big .calc-graph-fns.calc-graph-many.calc-graph-celled {
         max-height: none;
     }
 
     #calculator.calc-big .calc-graph-cells {
-        grid-area: 3 / 1;
         max-height: 30vh;
     }
 
     #calculator.calc-big .calc-graph-sliders {
-        grid-area: 4 / 1;
+        grid-area: 3 / 1;
         gap: 12px;
         padding-top: 6px; /* the first one's name on its border not cut off as they scroll */
     }
@@ -2215,6 +2225,11 @@
     zoom: calc(1.15 * var(--calc-pop, 1));
 }
 
+/* the table of points in the boxes' list, zoomed with them already */
+#calculator.calc-big .calc-graph-fns > .calc-graph-cells {
+    zoom: 1;
+}
+
 #calculator.calc-big .calc-graph-pop {
     font-size: calc(15px * var(--calc-pop, 1));
 }
@@ -2243,7 +2258,7 @@
     }
 
     #calculator.calc-big .calc-gx-list {
-        padding: 4px 4px 12px 16px;
+        padding: 4px 7px 12px 16px;
     }
 
     #calculator.calc-big .calc-gx-item {
@@ -2283,9 +2298,10 @@
         padding: 7px 0;
     }
 
-    #calculator.calc-big .calc-graph-cells {
-        margin-right: calc(14px / 1.15);
-        margin-left: calc(30px / 1.15);
+    /* in the boxes' list, zoomed only as much again as the boxes are not */
+    #calculator.calc-big .calc-graph-fns > .calc-graph-cells {
+        zoom: 1.15;
+        margin-left: calc(14px / 1.15);
     }
 
     #calculator.calc-big .calc-graph-sliders {
@@ -2497,7 +2513,7 @@
     flex: 1;
     overflow-y: auto;
     padding: 0 8px;
-    padding-inline-end: 4px; /* with its scrollbar's 8px, kept, 5px from it, as every list's */
+    padding-inline-end: 2px; /* with its scrollbar's 8px, kept, 3px from it, as every list's popped in */
     scrollbar-gutter: stable;
 }
 
@@ -3281,6 +3297,100 @@
 
 #calculator .calc-sv-plot .calc-sv-sub {
     font-size: 7px;
+}
+
+/* the numbers along a scale, and its names, as on the chart of the kinds of light */
+#calculator .calc-sv-plot .calc-sv-tick {
+    font-size: 8px;
+    fill: #4f6659;
+}
+
+/* a name over a line, kept clear of it by a rim of the colour behind it */
+#calculator .calc-sv-plot .calc-sv-halo {
+    stroke: #d3e5da;
+    stroke-width: 3px;
+    stroke-linejoin: round;
+    paint-order: stroke;
+}
+
+/* which way a scale goes, said quietly beside it */
+#calculator .calc-sv-plot .calc-sv-hint {
+    font-size: 8.5px;
+    fill: #6f8a7c;
+}
+
+/* a part of a drawing drawn out larger: dashed from it to its larger self, in open turns, a shade lighter than the drawing */
+#calculator .calc-sv-plot .calc-sv-link {
+    fill: none;
+    stroke: #557264;
+    stroke-width: 1;
+    stroke-dasharray: 4 3;
+    stroke-linejoin: round;
+}
+
+/* where a light is on them: a red line on a light rim */
+#calculator .calc-sv-plot .calc-sv-mark {
+    stroke-width: 1.6;
+    stroke-linecap: butt;
+}
+
+#calculator .calc-sv-plot .calc-sv-mark-rim {
+    fill: none;
+    stroke: #eef5f0;
+    stroke-width: 3.4;
+    opacity: 0.85;
+}
+
+/* the name of a scale, boxed */
+#calculator .calc-sv-plot .calc-sv-unit {
+    fill: #d3e5da;
+    stroke: #8eab9b;
+    stroke-width: 1;
+}
+
+/* the light that ionizes, a band along the foot of the kinds of light */
+#calculator .calc-sv-plot .calc-sv-ion {
+    fill: #b0414d;
+    opacity: 0.55;
+}
+
+/* a light's wavelength, frequency and energy beside its chart: the one typed as the way chosen is, another clicked typed instead */
+#calculator .calc-sv-plot .calc-sv-three rect {
+    fill: #d3e5da;
+    stroke: #8eab9b;
+    stroke-width: 1;
+}
+
+#calculator .calc-sv-plot .calc-sv-three-on rect {
+    fill: #3a5872;
+    stroke: #3a5872;
+}
+
+#calculator .calc-sv-plot .calc-sv-three-on text {
+    fill: #fff;
+}
+
+#calculator .calc-sv-plot .calc-sv-three[data-fill] {
+    cursor: pointer;
+}
+
+#calculator .calc-sv-plot .calc-sv-three[data-fill]:hover rect {
+    fill: #c2d9cb;
+    stroke: #22476a;
+}
+
+/* the kinds of light: in a little room their strip, popped out their chart, wider */
+#calculator .calc-sv-spec-wide {
+    display: none;
+    max-width: 900px;
+}
+
+#calculator.calc-panel-big .calc-big-on .calc-sv-spec-wide {
+    display: block;
+}
+
+#calculator.calc-panel-big .calc-big-on .calc-sv-spec-small {
+    display: none;
 }
 
 #calculator .calc-sv-plot .calc-sv-red {
@@ -4721,7 +4831,7 @@
     flex: 1;
     overflow-y: auto;
     padding: 8px 8px 0; /* the room under the head inside it: it scrolls up to the head's line */
-    padding-inline-end: 4px; /* with its scrollbar's 8px, kept, 5px from it, as every list's */
+    padding-inline-end: 2px; /* with its scrollbar's 8px, kept, 3px from it, as every list's popped in */
     scrollbar-gutter: stable;
 }
 
@@ -6355,6 +6465,12 @@
     padding: 3px 6px 0; /* with its bar's 2px, 5px under the head */
 }
 
+/* popped in, its scrollbar's 8px kept, 3px from it, as every list's popped in */
+#calculator:not(.calc-chem-big) .calc-pt {
+    padding-inline-end: 2px;
+    scrollbar-gutter: stable;
+}
+
 #calculator .calc-pt[hidden] {
     display: none;
 }
@@ -6577,10 +6693,18 @@
 #calculator .calc-pt-noble { background: #e3b7f2; }
 #calculator .calc-pt-lanthanide { background: #f8bbd9; }
 #calculator .calc-pt-actinide { background: #f6aeb8; }
-#calculator .calc-pt-solid { background: #fde293; }
-#calculator .calc-pt-liquid { background: #a7e8d8; }
-#calculator .calc-pt-gas { background: #e3b7f2; }
-#calculator .calc-pt-unknown { background: #93a3b2; }
+/* the states at 20 °C, each its colour once: the table's, its key's and an element's own tile */
+#calculator {
+    --calc-pt-solid: #fde293;
+    --calc-pt-liquid: #a7e8d8;
+    --calc-pt-gas: #e3b7f2;
+    --calc-pt-unknown: #93a3b2;
+}
+
+#calculator .calc-pt-solid { background: var(--calc-pt-solid); }
+#calculator .calc-pt-liquid { background: var(--calc-pt-liquid); }
+#calculator .calc-pt-gas { background: var(--calc-pt-gas); }
+#calculator .calc-pt-unknown { background: var(--calc-pt-unknown); }
 #calculator .calc-pt-sb { background: #f7b39a; }
 #calculator .calc-pt-pb { background: #f9dc96; }
 #calculator .calc-pt-db { background: #a3d6f6; }
@@ -6720,10 +6844,10 @@
 #calculator .calc-pt-noble i { background: #e3b7f2; }
 #calculator .calc-pt-lanthanide i { background: #f8bbd9; }
 #calculator .calc-pt-actinide i { background: #f6aeb8; }
-#calculator .calc-pt-solid i { background: #fde293; }
-#calculator .calc-pt-liquid i { background: #a7e8d8; }
-#calculator .calc-pt-gas i { background: #e3b7f2; }
-#calculator .calc-pt-unknown i { background: #93a3b2; }
+#calculator .calc-pt-solid i { background: var(--calc-pt-solid); }
+#calculator .calc-pt-liquid i { background: var(--calc-pt-liquid); }
+#calculator .calc-pt-gas i { background: var(--calc-pt-gas); }
+#calculator .calc-pt-unknown i { background: var(--calc-pt-unknown); }
 #calculator .calc-pt-sb i { background: #f7b39a; }
 #calculator .calc-pt-pb i { background: #f9dc96; }
 #calculator .calc-pt-db i { background: #a3d6f6; }
@@ -7157,9 +7281,28 @@
     font-size: 15px;
 }
 
-#calculator .calc-pt-tiles :is(.calc-sv-wide, .calc-pt-grown) {
+#calculator .calc-pt-tiles .calc-sv-wide {
     grid-column: 1 / -1;
 }
+
+/* its state at 20 °C: the tile as the others, a swatch before its value in the colour the table gives that
+   state, as in the key */
+#calculator .calc-pt-tiles .calc-sv-tile[data-state] .calc-sv-value::before {
+    content: '';
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-inline-end: 6px;
+    border-radius: 3px;
+    background: var(--calc-pt-state);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.18);
+    vertical-align: 0;
+}
+
+#calculator .calc-pt-tiles .calc-sv-tile[data-state="solid"] { --calc-pt-state: var(--calc-pt-solid); }
+#calculator .calc-pt-tiles .calc-sv-tile[data-state="liquid"] { --calc-pt-state: var(--calc-pt-liquid); }
+#calculator .calc-pt-tiles .calc-sv-tile[data-state="gas"] { --calc-pt-state: var(--calc-pt-gas); }
+#calculator .calc-pt-tiles .calc-sv-tile[data-state="unknown"] { --calc-pt-state: var(--calc-pt-unknown); }
 
 /* its spectrum, nearer its label */
 #calculator .calc-pt-spec .calc-sv-shape {
@@ -7991,11 +8134,11 @@
     height: 12px;
 }
 
-/* its scrollbar's room kept, in the 8px at the end of the cards, as wide as the search above them, 4px
-   from it; at the left right to left */
+/* its scrollbar's room kept, in the 8px at the end of the cards, 3px from it, as every list's popped in; at the
+   left right to left */
 #calculator .calc-find-panel .calc-find-list {
     padding: 0 8px 4px; /* the 4px more above Go to, taken here: the list as tall, with no scroll bar */
-    padding-inline-end: 4px;
+    padding-inline-end: 2px;
     scrollbar-gutter: stable;
 }
 
@@ -8789,7 +8932,7 @@
 #calculator.calc-panel-big .calc-big-on :is(.calc-sv-list, .calc-fx-list) {
     padding-right: 16px;
     padding-left: 16px;
-    padding-inline-end: 4px; /* with its scrollbar's 8px, kept, 5px from it, as every list's */
+    padding-inline-end: 7px; /* with its scrollbar's 8px, kept, 8px from it, as every list's popped out */
 }
 
 #calculator.calc-panel-big .calc-big-on .calc-search {
@@ -8809,7 +8952,7 @@
     #calculator.calc-panel-big .calc-big-on :is(.calc-sv-list, .calc-fx-list) {
         padding-right: 8px;
         padding-left: 8px;
-        padding-inline-end: 4px;
+        padding-inline-end: 2px;
     }
 
     #calculator.calc-panel-big .calc-big-on .calc-search {
@@ -8835,12 +8978,12 @@
     --calc-side: min(var(--calc-side-w, 376px), max(376px, min(50%, 100% - 456px)), 50% - 18px);
 }
 
-/* at the left of the page, as the big graph's boxes: the rows 348px, 4px, the scrollbar 8px */
+/* at the left of the page, as the big graph's boxes: the rows 345px, 7px, the scrollbar 8px */
 #calculator.calc-panel-big .calc-big-on :is(.calc-sv-list, .calc-fx-list).calc-side {
     width: var(--calc-side);
     max-width: none;
     margin-left: 0;
-    padding: 12px 4px 12px 16px;
+    padding: 12px 7px 12px 16px;
     overflow-x: hidden; /* dragged wider, the one chosen, a little bigger, has no scrollbar under the list */
 }
 
@@ -9410,7 +9553,7 @@
 
 @container calculator (min-width: 760px) {
     .lang-rtl #calculator.calc-big .calc-gx-list {
-        padding: 4px 16px 12px 4px;
+        padding: 4px 16px 12px 7px;
     }
 }
 
@@ -9836,7 +9979,7 @@
 .lang-rtl #calculator.calc-panel-big .calc-big-on :is(.calc-sv-list, .calc-fx-list).calc-side {
     margin-right: 0;
     margin-left: auto;
-    padding: 12px 16px 12px 4px;
+    padding: 12px 16px 12px 7px;
 }
 
 .lang-rtl #calculator .calc-side :is(.calc-sv-form, .calc-fx-form) {
@@ -9936,6 +10079,10 @@
     #calculator :is(.calc-fx-list, .calc-gx-list, .calc-sv-list),
     #calculator .calc-find-panel .calc-find-list {
         padding-inline-end: 12px;
+    }
+
+    #calculator:not(.calc-chem-big) .calc-pt {
+        padding-inline-end: 10px;
     }
 
     #calculator.calc-panel-big .calc-big-on :is(.calc-sv-list, .calc-fx-list) {

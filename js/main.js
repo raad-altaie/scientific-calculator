@@ -2801,19 +2801,25 @@
 
     // The points of a box as a table: a row of x and y for each, and an empty one below to add
     // another, the box written again as they are typed, (1, 2), (2, 4.1), with the pairs of
-    // numbers only. Shown under the boxes, which may scroll, with the color of its box; i of -1 puts it away
+    // numbers only. Shown right under its own box, in the list of boxes, which may scroll, with the color
+    // of its box; i of -1 puts it away
     function showCells(i) {
-        var pts = i > -1 && CalcEngine.points(graphInputs[i].value.trim(), engine.comma) || [];
+        var pts = i > -1 && CalcEngine.points(graphInputs[i].value.trim(), engine.comma) || [], moved = graphCells.hidden || graphCellsRow !== i;
         graphCellsRow = i;
         graphCellsName = pts.name || '';
         graphRows.forEach(function (row, k) { row.querySelector('.calc-graph-points').classList.toggle('calc-on', k === i); });
         graphCells.hidden = i < 0;
+        graphFnList.classList.toggle('calc-graph-celled', i > -1);
         if (i < 0) return;
-        graphRows[i].scrollIntoView({ block: 'nearest' });
+        if (graphRows[i].nextSibling !== graphCells) graphFnList.insertBefore(graphCells, graphRows[i].nextSibling);
         graphCells.style.setProperty('--c', curveColor(i));
         graphCells.innerHTML = '<div class="calc-graph-cells-head"><i>x</i><i>y</i></div>';
         pts.forEach(function (p) { addCell(local(String(p.x)), local(String(p.y))); });
         addCell('', '');
+        if (moved) { // as it opens, or moves to another box; not again as its box is typed in
+            graphCells.scrollIntoView({ block: 'nearest' });
+            graphRows[i].scrollIntoView({ block: 'nearest' }); // the box over it in sight first, as the list scrolls
+        }
         focusBox(graphCells.querySelector('input'));
     }
 
@@ -10630,11 +10636,18 @@
             item.querySelector('.calc-sv-boxes input, .calc-sv-boxes textarea') && focusBox(item.querySelector('.calc-sv-boxes input, .calc-sv-boxes textarea'));
         }
 
-        // a part of a drawing clicked, as a codon of the wheel: what it stands for typed in its box, data-fill, and the results
+        // a part of a drawing clicked, as a codon of the wheel: what it stands for typed in its box, data-fill, and the results. Of
+        // several boxes, their keys and values each split by a space, as a choice and its box together; of one, its value whole, spaces
+        // and all, as Hydrogen carbonate. Numbers (data-num) with the decimal mark in use; a way chosen as choose() chooses it, what
+        // was typed in the way it leaves kept for that way
         function fillFrom(el) {
-            var item = el.closest('.calc-sv-item'), tool = tools[tab][+item.dataset.i];
-            values[tool.id] = values[tool.id] || {};
-            values[tool.id][el.dataset.fill] = el.dataset.v;
+            var item = el.closest('.calc-sv-item'), tool = tools[tab][+item.dataset.i], keys = el.dataset.fill.split(' '),
+                v = keys.length > 1 ? el.dataset.v.split(' ') : [el.dataset.v], kept;
+            kept = values[tool.id] = values[tool.id] || {};
+            keys.forEach(function (k, i) {
+                if (fieldsOf(tool, rawOf(tool)).some(function (g) { return g.k === k && g.choice; })) switchWay(tool, k, v[i]);
+                kept[k] = el.hasAttribute('data-num') ? local(v[i]) : v[i];
+            });
             boxes(tool, item);
             run();
             keep();
@@ -10652,26 +10665,31 @@
             keep();
         }
 
+        // a choice k of a card set to its way c, of boxes of each way of their own: what was typed in the way it leaves kept for
+        // that way, and what was typed in c's back. The choice itself is set by whoever calls it
+        function switchWay(tool, k, c) {
+            var kept = values[tool.id] = values[tool.id] || {}, f, was, now;
+            if (typeof tool.fields !== 'function') return;
+            f = fieldsOf(tool, rawOf(tool));
+            was = chosen(f.filter(function (g) { return g.k === k; })[0], kept[k]);
+            now = rawOf(tool);
+            now[k] = c;
+            now = fieldsOf(tool, now).map(function (g) { return g.k + ':' + g.l; }).join();
+            if (String(was) === c || now === f.map(function (g) { return g.k + ':' + g.l; }).join()) return; // the same boxes, as a matrix's
+            kept['@' + k + was] = {};
+            f.forEach(function (g) {
+                if (g.k === k || g.head || kept[g.k] === undefined) return;
+                kept['@' + k + was][g.k] = kept[g.k];
+                delete kept[g.k];
+            });
+            Object.keys(kept['@' + k + c] || {}).forEach(function (g) { kept[g] = kept['@' + k + c][g]; });
+        }
+
         // one of the ways of a choice chosen: kept as a box's text is, and the results
         function choose(opt) {
-            var item = opt.closest('.calc-sv-item'), tool = tools[tab][+item.dataset.i], k = opt.parentNode.dataset.k, again, kept, f, was, now;
-            kept = values[tool.id] = values[tool.id] || {};
-            if (typeof tool.fields === 'function') { // boxes of each way of their own: what was typed in this way's kept for it, and the other's back
-                f = fieldsOf(tool, rawOf(tool));
-                was = chosen(f.filter(function (g) { return g.k === k; })[0], kept[k]);
-                now = rawOf(tool);
-                now[k] = opt.dataset.c;
-                now = fieldsOf(tool, now).map(function (g) { return g.k + ':' + g.l; }).join();
-                if (String(was) !== opt.dataset.c && now !== f.map(function (g) { return g.k + ':' + g.l; }).join()) { // a way of other boxes, not one of the same boxes, as a matrix's
-                    kept['@' + k + was] = {};
-                    f.forEach(function (g) {
-                        if (g.k === k || g.head || kept[g.k] === undefined) return;
-                        kept['@' + k + was][g.k] = kept[g.k];
-                        delete kept[g.k];
-                    });
-                    Object.keys(kept['@' + k + opt.dataset.c] || {}).forEach(function (g) { kept[g] = kept['@' + k + opt.dataset.c][g]; });
-                }
-            }
+            var item = opt.closest('.calc-sv-item'), tool = tools[tab][+item.dataset.i], k = opt.parentNode.dataset.k, again, kept;
+            switchWay(tool, k, opt.dataset.c);
+            kept = values[tool.id];
             kept[k] = opt.dataset.c;
             [].forEach.call(opt.parentNode.children, function (o) { o.classList.toggle('calc-on', o === opt); });
             if (typeof tool.fields === 'function') { // boxes of the way chosen, as Unix time has: drawn again, the button keeping the focus
@@ -11540,6 +11558,11 @@
             waves: [
                 { id: 'wave', t: 'Waves', f: 'v = fλ', d: 'Type two of the speed v, the frequency f and the wavelength λ, and the third is worked out; and the period, angular frequency and wave number.',
                     fields: [{ k: 'v', l: 'v', ph: 'm/s' }, { k: 'f', l: 'f', ph: 'Hz' }, { k: 'w', l: 'λ', ph: 'm', name: 'λ' }], cols: 3, run: runWave, example: { v: '343', f: '440' } },
+                { id: 'photon', t: 'Light and photons', f: ['E = hf', 'c = fλ'], d: 'Light of a wavelength, frequency or energy: the other two, and what light it is, of its colour where it is seen.',
+                    fields: function (raw) {
+                        return [{ k: 'light', l: 'Of', choice: ['Wavelength', 'Frequency', 'Energy'] },
+                            [{ k: 'x', l: 'λ, nm', ph: '550', name: 'λ' }, { k: 'x', l: 'f, Hz', ph: '5.45e14', name: 'f' }, { k: 'x', l: 'E, eV', ph: '2.25', name: 'E' }][+raw.light || 0]];
+                    }, cols: 1, run: runPhoton, example: function (raw) { return Object.assign({ light: raw.light || '0' }, [{ x: '550' }, { x: '5.45e14' }, { x: '2.25' }][+raw.light || 0]); } },
                 { id: 'standing', t: 'Standing waves', f: ['f = nv ÷ 2L', 'f = (2n – 1)v ÷ 4L'], d: 'A string held at both ends, as a guitar\'s, of tension T and mass a metre μ; or a pipe open at both ends, ' +
                     'or closed at one, as a flute or a clarinet: the frequency of its n-th mode, its wavelength, and its nodes, drawn. Sound in air at 20 °C goes 343 m/s.',
                     fields: function (raw) {
@@ -11590,11 +11613,6 @@
                         return [{ k: 'kind', l: 'Of', choice: ['Sound', 'Light'] }].concat(raw.kind === '1' ? [{ k: 'lw', l: 'λ, nm', ph: '656.3', name: 'λ' }, { k: 'lv', l: 'v', ph: 'km/s, away', name: 'v' }] :
                             [{ k: 'f', l: 'f', ph: 'Hz' }, { k: 'v', l: 'v', ph: '343', def: 343 }, { k: 's', l: 'v<sub>s</sub>', ph: '0', def: 0, name: 'vₛ' }, { k: 'o', l: 'v<sub>o</sub>', ph: '0', def: 0, name: 'vₒ' }]);
                     }, cols: 2, run: runDoppler, example: function (raw) { return raw.kind === '1' ? { kind: '1', lw: '656.3', lv: '30000' } : { kind: '0', f: '440', s: '30' }; } },
-                { id: 'photon', t: 'Light and photons', f: ['E = hf', 'c = fλ'], d: 'Light of a wavelength, frequency or energy: the other two, and what light it is, of its colour where it is seen.',
-                    fields: function (raw) {
-                        return [{ k: 'light', l: 'Of', choice: ['Wavelength', 'Frequency', 'Energy'] },
-                            [{ k: 'x', l: 'λ, nm', ph: '550', name: 'λ' }, { k: 'x', l: 'f, Hz', ph: '5.45e14', name: 'f' }, { k: 'x', l: 'E, eV', ph: '2.25', name: 'E' }][+raw.light || 0]];
-                    }, cols: 1, run: runPhoton, example: function (raw) { return Object.assign({ light: raw.light || '0' }, [{ x: '550' }, { x: '5.45e14' }, { x: '2.25' }][+raw.light || 0]); } },
                 { id: 'decibel', t: 'Sound level', f: 'L = 10 log(I ÷ I<sub>0</sub>)', d: 'Of a sound\'s intensity, its level in decibels, or the other way; I₀, the faintest heard, is 10⁻¹² W/m².',
                     fields: function (raw) {
                         return [{ k: 'sound', l: 'Of', choice: ['Intensity', 'Decibels'] }, raw.sound === '1' ? { k: 'x', l: 'L, dB', ph: '60', name: 'L' } : { k: 'x', l: 'I, W/m²', ph: '1e-6', name: 'I' }];
@@ -11795,8 +11813,9 @@
         return '<svg class="calc-sv-shape calc-sv-plot' + (cls ? ' ' + cls : '') + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + tr(label) + '">' + body + '</svg>';
     }
 
-    function svgText(x, y, s, anchor, cls) {
-        return '<text class="' + (cls || 'calc-sv-small') + '" x="' + fix(x) + '" y="' + fix(y) + '"' + (anchor ? ' text-anchor="' + anchor + '"' : '') + '>' + tr(s) + '</text>';
+    // a text of a drawing, its words translated; raw, as they are already, or a number
+    function svgText(x, y, s, anchor, cls, raw) {
+        return '<text class="' + (cls || 'calc-sv-small') + '" x="' + fix(x) + '" y="' + fix(y) + '"' + (anchor ? ' text-anchor="' + anchor + '"' : '') + '>' + (raw ? s : tr(s)) + '</text>';
     }
 
     // a line from one point to another, an arrowhead at its end
@@ -11859,20 +11878,130 @@
         return svgOf('', W, H, label, body);
     }
 
-    // where light of a wavelength in nm is among the kinds of it, each kind as wide as the others, the colours seen in theirs
-    function spectrumDrawing(nm) {
-        var W = 300, H = 46, kinds = [[1e-4, 'γ'], [0.01, 'X-ray'], [10, 'UV'], [380, ''], [750, 'IR'], [1e6, 'Micro'], [1e9, 'Radio'], [1e12]], w = (W - 16) / 7, x, id = 'calc-plot-' + (++plotIds), body = rainbow(id);
+    // where light of a wavelength in nm is among the kinds of it: in a little room, each kind as wide as the others, the colours seen
+    // in theirs; popped out, as a chart of them is drawn as well, of more (spectrumChart). Each shown where it fits, by the CSS
+    function spectrumDrawing(nm, of) {
+        var W = 300, H = 46, kinds = [[1e-4, 'γ'], [0.01, tr('X-ray')], [10, tr('UV')], [380, tr('Visible')], [750, tr('IR')], [1e6, tr('Micro')], [1e9, tr('Radio')], [1e12]],
+            w = (W - 16) / 7, x, id = 'calc-plot-' + (++plotIds), body = rainbow(id);
+        if (!(nm > 0)) return '';
         kinds.slice(0, 7).forEach(function (k, i) {
             body += '<rect class="' + (i === 3 ? '' : 'calc-sv-under') + '" x="' + fix(8 + i * w) + '" y="8" width="' + fix(w) + '" height="16"' + (i === 3 ? ' fill="url(#' + id + ')"' : '') + '/>' +
-                svgText(8 + (i + 0.5) * w, 38, k[1] || 'Seen', 'middle');
+                '<text class="calc-sv-small" x="' + fix(8 + (i + 0.5) * w) + '" y="38" text-anchor="middle">' + k[1] + '</text>';
         });
         kinds.some(function (k, i) {
             if (nm >= kinds[i + 1][0] && i < 6) return false;
             x = 8 + (i + Math.max(0, Math.min(1, Math.log(nm / k[0]) / Math.log(kinds[i + 1][0] / k[0])))) * w;
             return true;
         });
-        return svgOf('', W, H, 'Where it is among the kinds of light', body + '<path class="calc-sv-ground" d="M8 8h' + fix(W - 16) + 'v16H8Z"/>' +
-            '<path class="calc-sv-head calc-sv-head-red" d="M' + fix(x) + ' 24l-5 7h10Z"/><path class="calc-sv-curve" d="M' + fix(x) + ' 6V24"/>');
+        return svgOf('calc-sv-spec-small', W, H, 'Where it is among the kinds of light', body + '<path class="calc-sv-ground" d="M8 8h' + fix(W - 16) + 'v16H8Z"/>' +
+            '<path class="calc-sv-head calc-sv-head-red" d="M' + fix(x) + ' 8l-4-6.5h8Z"/>' + spectrumMark(x, 7, 26)) + (bigPanel ? spectrumChart(nm, of) : '');
+    }
+
+    // where a light is, on a strip of the kinds of light or of the colours: a red line down from y0 to y1, a light rim under it, so it shows
+    // on the colours, the red as well
+    function spectrumMark(x, y0, y1) {
+        var d = 'M' + fix(x) + ' ' + y0 + 'V' + y1;
+        return '<path class="calc-sv-mark-rim" d="' + d + '"/><path class="calc-sv-curve calc-sv-mark" d="' + d + '"/>';
+    }
+
+    // the kinds of light as a chart of them is drawn: the wavelengths in m, 10⁻¹⁶ to 10⁹, spread evenly by their powers of ten, the
+    // colours seen given 20 of its width so they show, and the infrared 20 more at its start, its numbers clear of the lines down from
+    // them; the radio waves by their bands, FM, short waves, AM and the long, the infrared by near, mid and far, and the light that
+    // ionizes, of 10 eV and more, marked along the foot. Above it the one scale of what was typed, of = 0 the wavelengths, 1 the
+    // frequencies, 2 the energies; the colours seen drawn out under it, by their names, faint where it is not one of them. Its own a
+    // red line, what was typed beside it, its kind red; an arrow at the end where it is beyond them. Beside the colours its wavelength,
+    // frequency and energy, worked out as it is typed; of a card of the three (of), one clicked the one typed
+    function spectrumChart(nm, of) {
+        var W = 600, H = 210, L = 46, R = 556, D0 = -16, D1 = 9, V = 20, G = 20, va = Math.log10(380e-9), vb = Math.log10(750e-9), id = 'calc-plot-' + (++plotIds), body = rainbow(id),
+            k = (R - L - V - G) / (D1 - D0 - (vb - va)),
+            px = function (lg) { return lg < va ? L + k * (lg - D0) : lg <= vb ? L + k * (va - D0) + V * (lg - va) / (vb - va) : L + k * (va - D0 - vb + lg) + V + G; },
+            ZL = 40, ZR = 420, zx = function (n) { return ZL + (ZR - ZL) * (n - 380) / 370; },
+            text = function (x, y, s, anchor, cls) { return svgText(x, y, s, anchor || 'middle', cls, true); },
+            // the name of a scale, in a box of its own, so it is not read as one of its numbers
+            unit = function (x, y, s, anchor) {
+                var w = s.length * 5.4 + 8, x0 = anchor === 'end' ? x - w : x;
+                return '<rect class="calc-sv-unit" x="' + fix(x0) + '" y="' + (y - 10) + '" width="' + fix(w) + '" height="13" rx="3"/>' + text(x0 + w / 2, y, s);
+            },
+            pow = function (n) { return '10<tspan class="calc-sv-sub" dy="-4">' + (n < 0 ? '−' + -n : n) + '</tspan>'; },
+            // each kind: where it ends, in m, its name, and whether its line is the whole height of the bar
+            kinds = [[1e-11, tr('γ rays')], [1e-8, tr('X-rays')], [380e-9, tr('UV')], [750e-9, ''], [1e-3, tr('Infrared')], [1, tr('Microwave')],
+                [10, tr('FM'), 1], [100, tr('SW'), 1], [1e3, tr('AM')], [1e9, tr('Long radio waves')]],
+            // the infrared's three, as ISO 20473 has them: near to 3 µm, mid to 50, far to 1 mm
+            infrared = [[vb, -5.523, trc('infrared', 'Near')], [-5.523, -4.301, trc('infrared', 'Mid')], [-4.301, -3, trc('infrared', 'Far')]],
+            lg = Math.log10(nm * 1e-9), m = nm * 1e-9, x = px(Math.max(D0, Math.min(D1, lg))), xa = px(va), xb = px(vb), from = D0, names = '', n, z,
+            ev = Math.log10(PLANCK * LIGHT / CHARGE), // log of the wavelength in m of light of 1 eV
+            xi = px(ev - 1), // of 10 eV, the light that ionizes up to it
+            colours = [[380, tr('Violet')], [450, tr('Blue')], [485, tr('Cyan')], [500, tr('Green')], [565, tr('Yellow')], [590, tr('Orange')], [625, tr('Red')], [750]],
+            // a value in the unit of units that keeps it short, the smallest its own; a long one still as a power of ten
+            short = function (v, units) {
+                var u = units.filter(function (u) { return v >= u[0]; })[0] || units[units.length - 1], w = v / u[0], e = Math.floor(Math.log10(w)), a = +(w / Math.pow(10, e)).toPrecision(3);
+                return w >= 1e4 || w < 0.01 ? (a === 1 ? '' : local(a) + '×') + '10<tspan class="calc-sv-sub" dy="-4">' + (e < 0 ? '−' + -e : e) + '</tspan><tspan dy="4"> ' + u[1] + '</tspan>' : local(+w.toPrecision(3)) + ' ' + u[1];
+            },
+            // what was typed: its frequency, its energy, or its wavelength
+            // its wavelength, frequency and energy, each as it is shown, and as it is typed in its box, in nm, Hz and eV
+            three = [['λ', short(m, [[1e3, 'km'], [1, 'm'], [1e-3, 'mm'], [1e-6, 'µm'], [1e-9, 'nm'], [1e-12, 'pm'], [1e-15, 'fm']]), nm],
+                ['f', short(LIGHT / m, [[1e18, 'EHz'], [1e15, 'PHz'], [1e12, 'THz'], [1e9, 'GHz'], [1e6, 'MHz'], [1e3, 'kHz'], [1, 'Hz']]), LIGHT / m],
+                ['E', short(PLANCK * LIGHT / CHARGE / m, [[1e9, 'GeV'], [1e6, 'MeV'], [1e3, 'keV'], [1, 'eV'], [1e-3, 'meV'], [1e-6, 'µeV'], [1e-9, 'neV'], [1e-12, 'peV']]), PLANCK * LIGHT / CHARGE / m]],
+            tag = three[of || 0][1];
+        body += '<g transform="translate(0 6)">';
+        kinds.forEach(function (k, i) {
+            var to = Math.log10(k[0]), a = px(from), b = px(to), last = i === kinds.length - 1,
+                its = (i === 0 || m >= kinds[i - 1][0]) && (m < k[0] || last);
+            body += '<rect' + (k[1] ? ' class="calc-sv-under"' : ' fill="url(#' + id + ')"') + ' x="' + fix(a) + '" y="32" width="' + fix(b - a) + '" height="48"/>';
+            if (k[1]) names += text((a + b) / 2, i > 5 && i < 9 ? 52 : 60, k[1], 'middle', 'calc-sv-small calc-sv-halo' + (its ? ' calc-sv-red' : ''));
+            if (!last && k[1] && kinds[i + 1][1]) body += '<path class="calc-sv-ground" d="M' + fix(b) + ' 32V' + (k[2] ? 58 : 80) + '"/>';
+            from = to;
+        });
+        // the radio waves, under the bands of the radio named; the infrared's three along its foot, short lines up between them
+        names += text((px(0) + px(3)) / 2, 72, tr('Radio waves'), 'middle', 'calc-sv-small calc-sv-halo' + (m >= 1 && m < 1e3 ? ' calc-sv-red' : ''));
+        infrared.forEach(function (b, i) {
+            if (i) body += '<path class="calc-sv-ground" d="M' + fix(px(b[0])) + ' 71V80"/>';
+            names += text((px(b[0]) + px(b[1])) / 2, 77, b[2], 'middle', 'calc-sv-tick calc-sv-halo' + (lg >= b[0] && lg < b[1] ? ' calc-sv-red' : ''));
+        });
+        // the light that ionizes, of 10 eV and more: a red band along the foot, to 124 nm, named at its end
+        body += '<rect class="calc-sv-ion" x="' + L + '" y="77" width="' + fix(xi - L) + '" height="3"/>';
+        names += text(xi - 3, 74, tr('Ionizing'), 'end', 'calc-sv-tick calc-sv-halo');
+        // above it, the one scale of what was typed: the frequencies, 10²⁴ Hz to 10⁰, each two powers of ten on; the energies, 1 GeV to
+        // 1 neV, each a thousand times the next; or the wavelengths, 10⁻¹⁴ m to 10⁸. A number by the colours seen beside its mark, clear
+        // of the lines down from them
+        (of === 1 ? [24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0].map(function (n) { return [Math.log10(LIGHT) - n, pow(n)]; }) :
+            of === 2 ? ['1 GeV', '1 MeV', '1 keV', '1 eV', '1 meV', '1 µeV', '1 neV'].map(function (e, i) { return [ev - 9 + 3 * i, e]; }) :
+                [-14, -12, -10, -8, -6, -4, -2, 0, 2, 4, 6, 8].map(function (n) { return [n, pow(n)]; })).forEach(function (t) {
+            var z = px(t[0]);
+            body += '<path class="calc-sv-ground" d="M' + fix(z) + ' 28V32"/>' +
+                (z > xb && z - xb < 16 ? text(xb + 6, 25, t[1], 'start') : z < xa && xa - z < 16 ? text(xa - 6, 25, t[1], 'end') : text(z, 25, t[1]));
+        });
+        body += unit(L - 6, 25, of === 1 ? 'f, Hz' : of === 2 ? 'E' : 'λ, m', 'end') + '<path class="calc-sv-ground" d="M' + L + ' 32H' + R + 'V80H' + L + 'Z"/>';
+        // the colours seen, drawn out: dashed from their band down past the numbers, out on a gentle slope, and down to the ends of the
+        // wider one; under it their wavelengths in nm, and their names. Faint, and said, where it is not one of them
+        z = nm >= 380 && nm <= 750 ? zx(nm) : null;
+        body += '<path class="calc-sv-link" d="M' + fix(xa) + ' 80V92L' + ZL + ' 124V130M' + fix(xb) + ' 80V92L' + ZR + ' 124V130"/>' +
+            '<rect x="' + ZL + '" y="130" width="' + (ZR - ZL) + '" height="22" fill="url(#' + id + ')"' + (z === null ? ' opacity="0.4"' : '') + '/><path class="calc-sv-ground" d="M' + ZL + ' 130H' + ZR + 'V152H' + ZL + 'Z"/>';
+        for (n = 380; n <= 750; n += 10) body += '<path class="calc-sv-ground" d="M' + fix(zx(n)) + ' 152V' + (n % 50 ? 155 : 157) + '"/>' + (n % 50 || n > 700 ? '' : text(zx(n), 168, n));
+        body += unit(ZR + 6, 168, 'λ, nm', 'start');
+        colours.slice(0, 7).forEach(function (c, i) {
+            var a = zx(c[0]), b = zx(colours[i + 1][0]);
+            body += '<path class="calc-sv-ground" d="M' + fix(a) + ' 174V178H' + fix(b) + 'V174"/>' +
+                text((a + b) / 2, i % 2 ? 201 : 189, c[1], 'middle', 'calc-sv-small' + (z !== null && nm >= c[0] && nm < colours[i + 1][0] ? ' calc-sv-red' : ''));
+        });
+        body += text((ZL + ZR) / 2 + (z !== null && Math.abs(z - (ZL + ZR) / 2) < 40 ? (z < (ZL + ZR) / 2 ? 50 : -50) : 0), 122, z === null ? tr('Visible spectrum (not this light)') : tr('Visible spectrum'));
+        // its own: a red line across the chart, under the names of the kinds, its wavelength beside it at the top, and across the colours
+        // where it is one of them; beyond the chart, an arrow out at that end
+        body += spectrumMark(x, 29, 83) + names + text(x > R - 90 ? x - 4 : x + 4, 41, tag, x > R - 90 ? 'end' : 'start', 'calc-sv-tick calc-sv-red calc-sv-halo');
+        if (lg < D0) body += '<path class="calc-sv-head calc-sv-head-red" d="M' + (L - 10) + ' 56l7-4.5v9Z"/>';
+        if (lg > D1) body += '<path class="calc-sv-head calc-sv-head-red" d="M' + (R + 10) + ' 56l-7-4.5v9Z"/>';
+        if (z !== null) body += '<path class="calc-sv-head calc-sv-head-red" d="M' + fix(z) + ' 129l-4-6.5h8Z"/>' + spectrumMark(z, 128, 154);
+        // beside the colours, its three, the one typed as the way chosen above is: one clicked is typed instead, in its own unit, the light the same
+        body += text(482, 124, tr('This light'), 'start', 'calc-sv-hint');
+        three.forEach(function (t, i) {
+            var y = 130 + i * 22, on = i === (of || 0), typed = String(+t[2].toPrecision(6)).replace('e+', 'e');
+            body += '<g class="calc-sv-three' + (on ? ' calc-sv-three-on' : '') + '"' + (of === undefined || on ? '' : ' data-fill="light x" data-v="' + i + ' ' + typed + '" data-num=""') + '>' +
+                (of === undefined || on ? '' : '<title>' + tr('Type it as this') + '</title>') +
+                '<rect x="480" y="' + y + '" width="112" height="18" rx="4"/>' + text(489, y + 13, t[0], 'start') + text(586, y + 13, t[1], 'end') + '</g>';
+        });
+        // above it all, a little apart from the numbers of its scale, which way they go: at the left, where its arrow points, and the right
+        return svgOf('calc-sv-spec-wide', W, H, 'Where it is among the kinds of light', body + '</g>' + text(6, 13, tr('← Higher frequency, more energy'), 'start', 'calc-sv-hint') +
+            text(W - 6, 13, tr('Longer wavelength →'), 'end', 'calc-sv-hint'));
     }
 
     // the colours seen, from 380 nm to 750, light of nm0 moved to nm1: a mark at each, named, the second red
@@ -13592,7 +13721,7 @@
         nm = LIGHT / f * 1e9;
         E = PLANCK * f;
         return { rows: physRows([['λ, nm', nm], ['f, Hz', f], ['E, eV', E / CHARGE], ['E, J', E], ['Momentum, kg·m/s', E / LIGHT]]).concat([{ l: 'Light', wide: true, text: lightKind(nm) },
-            { l: 'Among the kinds of light', wide: true, text: spectrumDrawing(nm) }]), cols: 2 };
+            { l: 'Among the kinds of light', wide: true, text: spectrumDrawing(nm, of) }]), cols: 2 };
     }
 
     function runDecibel(n, raw) {
@@ -18843,8 +18972,8 @@
         chemAt = z;
         [].forEach.call(chemGrid.querySelectorAll('.calc-pt-el.calc-on'), function (t) { t.classList.remove('calc-on'); });
         if (chemGrid.querySelector('.calc-pt-el[data-z="' + z + '"]')) chemGrid.querySelector('.calc-pt-el[data-z="' + z + '"]').classList.add('calc-on');
-        // its shells above its configuration; its crystal, drawn, beneath them, after the atom and its spectrum; with
-        // none drawn, among the words. Each unit in the language in use already, as it is shown
+        // its shells above its configuration; its state at 20 °C the last of the small tiles under them, and its crystal,
+        // drawn or not, right under that, the same place for every element. Each unit in the language in use already, as it is shown
         cell = chemCrystal(e);
         crystal = ['Crystal structure', e.crystal && tr(e.crystal), '', true, '', false, false, cell];
         tiles = [
@@ -18853,15 +18982,15 @@
             ['Boiling point', chemIn('t', e.bp), chemUnitName('t'), false, 't'],
             ['Density', chemIn('d', e.density), (e.state === 'gas' ? tr('{unit} at 0 °C', { unit: chemUnitName('d') }) : chemUnitName('d')), false, 'd'], ['Group', e.group], ['Period', e.period],
             ['Protons', e.z], ['Electrons', e.z], ['Neutrons', Math.round(e.mass) - e.z],
-            ['Shells', e.shells.join(', '), 'KLMNOPQ'.slice(0, e.shells.length).split('').join(' '), true], ['Electron configuration', e.config, '', true], cell ? crystal : null, ['Block', e.block],
+            ['Shells', e.shells.join(', '), 'KLMNOPQ'.slice(0, e.shells.length).split('').join(' '), true], ['Electron configuration', e.config, '', true], ['Block', e.block],
             ['Outer-shell electrons', e.shells[e.shells.length - 1]], ['Unpaired electrons', chemUnpaired(e.config)],
             // the small tiles in threes, so each row is full before a wide one
             ['Atomic radius', e.radius, 'pm'], ['Covalent radius', e.covalent, 'pm'], ['Electron affinity', chemIn('e', e.affinity), chemUnitName('e'), false, 'e'],
-            ['State at 20 °C', e.state ? chemStateName(e.state) : tr('Not known')], ['Specific heat', e.heat, 'J/(g·K)'], ['Mohs hardness', e.mohs],
+            ['Specific heat', e.heat, 'J/(g·K)'], ['Mohs hardness', e.mohs], ['State at 20 °C', e.state ? chemStateName(e.state) : tr('Not known')], crystal,
             ['Common ions', e.ions || '–', '', true], ['Oxidation states', e.ox || '–', '', true],
             ['Heat of fusion', e.fusion, 'kJ/mol'], ['Heat of vaporization', e.vaporization, 'kJ/mol'], ['Thermal conductivity', e.conductivity, 'W/(m·K)'],
             ['Electrical resistivity', e.resistivity, tr('Ω·m at 20 °C'), false, '', false, true], ['Abundance in the crust', e.abundance, typeof e.abundance === 'number' ? 'mg/kg' : '', false, '', false, true], ['CAS number', e.cas],
-            ['Magnetism', e.magnetic && tr(e.magnetic), '', true], cell ? null : crystal, ['Appearance', e.appearance && tr(e.appearance), '', true],
+            ['Magnetism', e.magnetic && tr(e.magnetic), '', true], ['Appearance', e.appearance && tr(e.appearance), '', true],
             // in words, each on its own line: when and by whom it was found (where, as the Middle East, where that is a place), its isotopes, its name, its uses
             ['Discovered', (e.year === 0 ? tr('In ancient times') : e.year) + (e.foundBy === 'Middle East' ? tr(', in the Middle East') : e.foundBy === 'Asia Minor' ? tr(', in Asia Minor') : e.foundBy ? tr(', by {foundBy}', { foundBy: tr(e.foundBy) }) : '') + (e.isolatedBy ? tr('; isolated by {isolatedBy}', { isolatedBy: tr(e.isolatedBy) }) : ''), '', true, '', true],
             ['Isotopes', chemIsotopes(e.isotopes) || '–', '', true, '', true],
@@ -18874,7 +19003,7 @@
             '</span><span data-pt="shells" data-full="' + e.shells.join(', ') + '">' + tr('Shells {list}', { list: '<span>' + e.shells.join(', ') + '</span>' }) + '</span></div></div><div class="calc-pt-body">' + chemAtom(e) + '<div class="calc-sv-grid calc-pt-tiles">' + chemSpectrum(e) + tiles.map(function (t, i) {
             var num = typeof t[1] === 'number' && !(t[0] === 'Found'), known = t[1] !== null && t[1] !== undefined, guess = known && e.predicted[CHEM_FACTS[t[0]]];
             return '<div class="calc-sv-tile' + (num && known ? '' : ' calc-none') + (t[3] ? ' calc-sv-wide' : '') + (t[5] ? ' calc-pt-text' : '') + (known && !num && !t[3] && String(t[1]).length > 9 ? ' calc-pt-wrap' : '') +
-                '" style="--i: ' + i + '" data-fact="' + CHEM_FACTS[t[0]] + '"' + (num && known ? ' data-v="' + t[1] + '"' : '') + '><span class="calc-sv-label">' + tr(t[0]) +
+                '" style="--i: ' + i + '" data-fact="' + CHEM_FACTS[t[0]] + '"' + (num && known ? ' data-v="' + t[1] + '"' : '') + (t[0] === 'State at 20 °C' ? ' data-state="' + (e.state || 'unknown') + '"' : '') + '><span class="calc-sv-label">' + tr(t[0]) +
                 (t[2] ? ' <i' + (t[4] ? ' class="calc-pt-unit" data-unit="' + t[4] + '" role="button"' : '') + '>' + t[2] + '</i>' : '') + (guess ? ' <i class="calc-pt-guess">' + tr('predicted') + '</i>' : '') + '</span><span class="calc-sv-value">' + (!known ? '–' : num ? (t[6] ? chemSci(t[1]) : statsValue(t[1]).html) : t[1]) +
                 (t[7] || '') + '</span></div>';
         }).join('') + '</div></div>';
@@ -18882,8 +19011,8 @@
     }
 
     // No room left empty at the end of a row: in each run of small tiles between wide ones that does not fill its last row
-    // (three to a row in the popup, two popped out), those with the longest values made wide, the whole row, at the start
-    // of the run, by the wide one before it: the shells under the configuration. Done again as the columns change
+    // (three to a row in the popup, two popped out), its last tile made wider, over the rest of that row. The tiles kept
+    // in the same order for every element, each in the same place whatever its value. Done again as the columns change
     function chemRows() {
         var grid = chemInfo.querySelector('.calc-pt-tiles'), cols, tiles, run = [];
         if (!grid || !grid.offsetWidth) return;
@@ -18892,16 +19021,12 @@
         grid.dataset.cols = cols;
         tiles = [].slice.call(grid.children).sort(function (a, b) { return a.style.getPropertyValue('--i') - b.style.getPropertyValue('--i'); });
         tiles.forEach(function (t) { // as they were first
-            t.classList.remove('calc-pt-grown');
+            t.style.gridColumn = '';
             grid.appendChild(t);
         });
         function settle() {
-            var grow = run.slice().sort(function (a, b) { return b.lastChild.textContent.length - a.lastChild.textContent.length; }).slice(0, run.length % cols),
-                first = run[0];
-            grow.forEach(function (t) {
-                t.classList.add('calc-pt-grown');
-                if (t !== first) grid.insertBefore(t, first);
-            });
+            var left = run.length % cols;
+            if (left) run[run.length - 1].style.gridColumn = 'span ' + (cols - left + 1);
             run = [];
         }
         tiles.forEach(function (t) {

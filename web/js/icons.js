@@ -17,7 +17,8 @@
             'M2.5 8c0 1.1 2.5 2 5.5 2s5.5-.9 5.5-2"/>',
         press: '<path d="M2 13.5h12M5 2v7M3 7l2 2 2-2M11 2v7M9 7l2 2 2-2"/>',
         bolt: '<path d="M9 1.5L3.5 9H8l-1 5.5L12.5 7H8z"/>',
-        power: '<path d="M8 1.5v6"/><path d="M4.5 4a5.5 5.5 0 1 0 7 0"/>',
+        power: '<path d="M6 11.5V10.6C6 9.4 3.5 8.4 3.5 6a4.5 4.5 0 0 1 9 0c0 2.4-2.5 3.4-2.5 4.6v.9z"/><path d="M6.5 13.5h3M7.2 15h1.6"/>' +
+            '<path d="M6.8 8.5L8 6.5l1.2 2"/>', // a light bulb, of so many watts; not the on and off of a button
         angle: '<path d="M2 13.5h12M2 13.5L11 3"/><path d="M7 13.5A5 5 0 0 0 5.25 9.7"/>',
         pump: '<path d="M3 14V3a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v11M2 14h9M3 7h7M10 6l2.5 2v4a1 1 0 0 0 2 0V5.5l-2-2"/>',
         push: '<rect x="9" y="5" width="5.5" height="6" rx=".5"/><path d="M1.5 8h6M5 5.5L7.5 8 5 10.5"/>',
