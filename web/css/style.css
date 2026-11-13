@@ -8988,12 +8988,13 @@
 }
 
 /* the line between the list and the card, as the big graph's: over the room between them, from under the head,
-   shown as it is pointed at or dragged; only with the list beside the card */
+   shown as it is pointed at or dragged; only with the list beside the card, not over the periodic table, its list
+   hidden */
 #calculator .calc-side-split {
     display: none;
 }
 
-#calculator.calc-panel-big .calc-big-on:has(> .calc-side) > .calc-side-split {
+#calculator.calc-panel-big .calc-big-on:has(> .calc-side:not([hidden])) > .calc-side-split {
     display: block;
     position: absolute;
     z-index: 1;
@@ -9988,7 +9989,7 @@
     margin-left: 0;
 }
 
-.lang-rtl #calculator.calc-panel-big .calc-big-on:has(> .calc-side) > .calc-side-split {
+.lang-rtl #calculator.calc-panel-big .calc-big-on:has(> .calc-side:not([hidden])) > .calc-side-split {
     right: calc(var(--calc-side) + 1px);
     left: auto;
 }
