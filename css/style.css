@@ -10073,13 +10073,13 @@
 }
 
 /* Firefox: its scrollbar over what it scrolls and gone as it stops (macOS, Windows 11), in no room of its own, so
-   none kept by scrollbar-gutter: the lists' room at their end 4px more than at their start, for it to be over, clear
-   of the cards */
+   none kept by scrollbar-gutter: the room at the end of what scrolls the scrollbar's 8px more, for it to be over,
+   clear of the cards; popped in 3px from it, popped out 8px, as in every other browser */
 @supports not selector(::-webkit-scrollbar) {
     #calculator :is(.calc-past-list, .calc-stats-out),
     #calculator :is(.calc-fx-list, .calc-gx-list, .calc-sv-list),
     #calculator .calc-find-panel .calc-find-list {
-        padding-inline-end: 12px;
+        padding-inline-end: 10px;
     }
 
     #calculator:not(.calc-chem-big) .calc-pt {
@@ -10087,7 +10087,19 @@
     }
 
     #calculator.calc-panel-big .calc-big-on :is(.calc-sv-list, .calc-fx-list) {
-        padding-inline-end: 20px;
+        padding-inline-end: 15px;
+    }
+
+    #calculator.calc-panel-big .calc-big-on :is(.calc-sv-list, .calc-fx-list).calc-side,
+    .lang-rtl #calculator.calc-panel-big .calc-big-on :is(.calc-sv-list, .calc-fx-list).calc-side {
+        padding-inline-end: 15px;
+    }
+
+    @container calculator (min-width: 760px) {
+        #calculator.calc-big .calc-gx-list,
+        .lang-rtl #calculator.calc-big .calc-gx-list {
+            padding-inline-end: 15px;
+        }
     }
 
     .calc-find-list {
@@ -10096,7 +10108,7 @@
 
     @container calculator (max-width: 619px) {
         #calculator.calc-panel-big .calc-big-on :is(.calc-sv-list, .calc-fx-list) {
-            padding-inline-end: 12px;
+            padding-inline-end: 10px;
         }
     }
 
