@@ -332,6 +332,17 @@
             d: 'Empties every box of the card, to start again. What is chosen stays as it is.',
             k: ''
         },
+        // the kinds of light on the chart of them (main.js spectrumChart), by their number on it: what each is used for
+        'light kind 0': { t: 'Gamma rays', d: 'Cancer radiotherapy, PET scans, sterilizing medical tools and food, gamma-ray astronomy' },
+        'light kind 1': { t: 'X-rays', d: 'Medical X-rays and CT scans, dental X-rays, airport baggage scanners, crystallography, checking welds' },
+        'light kind 2': { t: 'Ultraviolet', d: 'Sterilizing water and air, black lights, checking banknotes, curing nail gel and glue, making chips; sunburn and vitamin D' },
+        'light kind 3': { t: 'Visible', d: 'Seeing, photosynthesis, lighting, screens, cameras, lasers' },
+        'light kind 4': { t: 'Infrared', d: 'TV remotes, thermal cameras, fibre-optic internet, night vision, face unlock, heat lamps' },
+        'light kind 5': { t: 'Microwave', d: 'Microwave ovens, Wi-Fi, Bluetooth, mobile phones (4G, 5G), GPS, satellite TV, radar' },
+        'light kind 6': { t: 'FM', d: 'FM radio, digital radio (DAB), aircraft and ship radio, walkie-talkies, TV in some countries' },
+        'light kind 7': { t: 'Shortwave', d: 'Shortwave broadcasts heard across the world, ham radio, CB radio, NFC and contactless cards' },
+        'light kind 8': { t: 'AM', d: 'AM radio, ship radio, beacons that guide aircraft' },
+        'light kind 9': { t: 'Long radio waves', d: 'Longwave radio, radio-controlled clocks, wireless phone charging (Qi), pet microchips, radio to submarines' },
         'card example': {
             t: 'Example',
             d: 'Types an example in the boxes, in place of what is there, to see what the card does: then change any number of it.',

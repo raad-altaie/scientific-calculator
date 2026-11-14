@@ -3267,6 +3267,15 @@
     stroke: none;
 }
 
+/* a kind of light on its chart: shaded as it is pointed at, its tip what it is used for; its names let the pointer through to it */
+#calculator .calc-sv-plot .calc-sv-under.calc-sv-band:hover {
+    fill: #c2d9cb;
+}
+
+#calculator .calc-sv-spec-wide text {
+    pointer-events: none;
+}
+
 #calculator .calc-sv-plot .calc-sv-lit {
     fill: none;
     stroke: currentColor;

@@ -934,7 +934,7 @@
             '.calc-graph-fn > .calc-graph-swatch, .calc-graph-fn > .calc-graph-style, ' +
             '.calc-sto, .calc-var-btn, .calc-fx-phys, input, textarea, ' +
             '.calc-stats-chart, .calc-hist, .calc-find-btn, .calc-past-export, .calc-past-clear, .calc-past-close, .calc-past-btn, .calc-past-del, .calc-past-unit, .calc-help, .calc-open-big, ' +
-            '.calc-solve .calc-solve-tab, .calc-chem .calc-solve-tab, .calc-stats .calc-solve-tab, .calc-phys .calc-solve-tab, .calc-bio .calc-solve-tab, .calc-stats-fitpick, .calc-chem [data-pt], .calc-sv-opt, .calc-sv-copy, .calc-f-copy, .calc-sv-example, .calc-sv-reset, .calc-sv-boxes .calc-sv-sym') || letterIn(target);
+            '.calc-solve .calc-solve-tab, .calc-chem .calc-solve-tab, .calc-stats .calc-solve-tab, .calc-phys .calc-solve-tab, .calc-bio .calc-solve-tab, .calc-stats-fitpick, .calc-chem [data-pt], .calc-sv-opt, .calc-sv-copy, .calc-f-copy, .calc-sv-example, .calc-sv-reset, .calc-sv-boxes .calc-sv-sym, .calc-sv-band') || letterIn(target);
         if (key === tipKey) return;
         hideTip();
         tipKey = key;
@@ -999,13 +999,24 @@
         }
 
         function flush() {
-            var lead, trail, span;
+            var lead, trail, span, depth;
             if (!run.length) return;
             // not the point of .5 nor the ! of !A, before what they are of; nor the ! of n!, after
             lead = typeof run[0] === 'string' ? /^[\s.,:;!?]*?(?=[.!]?[^\s.,:;!?]|$)/.exec(run[0])[0] : '';
             if (lead) run[0] = run[0].slice(lead.length);
             trail = typeof run[run.length - 1] === 'string' ? /(?:[\s.,:;?]|(?<=[\s.,:;?])!)*$/.exec(run[run.length - 1])[0] : '';
             if (trail) run[run.length - 1] = run[run.length - 1].slice(0, -trail.length);
+            // a bracket at its end that opens or closes around Arabic, as of (4G و5G), not inside the run: with the Arabic, so it
+            // turns as the Arabic reads; one of the run's own, as of (DAB) or f(x), kept with it
+            depth = run.map(textOf).join('').replace(/[^()]/g, '').split('').reduce(function (d, c) { return d + (c === '(' ? 1 : -1); }, 0);
+            if (depth > 0 && typeof run[0] === 'string' && run[0].charAt(0) === '(') {
+                lead += '(';
+                run[0] = run[0].slice(1);
+            }
+            if (depth < 0 && typeof run[run.length - 1] === 'string' && /\)$/.test(run[run.length - 1])) {
+                trail = ')' + trail;
+                run[run.length - 1] = run[run.length - 1].slice(0, -1);
+            }
             if (lead) out.push(lead);
             if (LTR_TEXT.test(run.map(textOf).join(''))) {
                 span = document.createElement('span');
@@ -1245,6 +1256,7 @@
         }
         if (/^(INPUT|TEXTAREA)$/.test(el.tagName) && (info = lettersTip(el))) return info; // a box with letters in it; any other has the tip of its own below
         if (el.classList.contains('calc-help')) return CalcTips['help'];
+        if (el.classList.contains('calc-sv-band')) return CalcTips['light kind ' + el.dataset.kind]; // a kind of light on its chart: what it is used for
         if (el.classList.contains('calc-open-big')) return CalcTips[el.dataset.tip || 'open big']; // the website's its own (app.js)
         if (findPanel.contains(el)) return CalcTips[el.classList.contains('calc-panel-size') ? 'search big' : 'search close'];
         if (el.classList.contains('calc-panel-size')) return CalcTips[bigPanel ? 'panel small' : 'panel big'];
@@ -11923,7 +11935,8 @@
                 return '<rect class="calc-sv-unit" x="' + fix(x0) + '" y="' + (y - 10) + '" width="' + fix(w) + '" height="13" rx="3"/>' + text(x0 + w / 2, y, s);
             },
             pow = function (n) { return '10<tspan class="calc-sv-sub" dy="-4">' + (n < 0 ? '−' + -n : n) + '</tspan>'; },
-            // each kind: where it ends, in m, its name, and whether its line is the whole height of the bar
+            // each kind: where it ends, in m, its name, and whether its line is the whole height of the bar; each with a tip of what it
+            // is used for, as a key's (CalcTips 'light kind' and its number)
             kinds = [[1e-11, tr('γ rays')], [1e-8, tr('X-rays')], [380e-9, tr('UV')], [750e-9, ''], [1e-3, tr('Infrared')], [1, tr('Microwave')],
                 [10, tr('FM'), 1], [100, tr('SW'), 1], [1e3, tr('AM')], [1e9, tr('Long radio waves')]],
             // the infrared's three, as ISO 20473 has them: near to 3 µm, mid to 50, far to 1 mm
@@ -11947,7 +11960,7 @@
         kinds.forEach(function (k, i) {
             var to = Math.log10(k[0]), a = px(from), b = px(to), last = i === kinds.length - 1,
                 its = (i === 0 || m >= kinds[i - 1][0]) && (m < k[0] || last);
-            body += '<rect' + (k[1] ? ' class="calc-sv-under"' : ' fill="url(#' + id + ')"') + ' x="' + fix(a) + '" y="32" width="' + fix(b - a) + '" height="48"/>';
+            body += '<rect class="calc-sv-band' + (k[1] ? ' calc-sv-under"' : '" fill="url(#' + id + ')"') + ' data-kind="' + i + '" x="' + fix(a) + '" y="32" width="' + fix(b - a) + '" height="48"/>';
             if (k[1]) names += text((a + b) / 2, i > 5 && i < 9 ? 52 : 60, k[1], 'middle', 'calc-sv-small calc-sv-halo' + (its ? ' calc-sv-red' : ''));
             if (!last && k[1] && kinds[i + 1][1]) body += '<path class="calc-sv-ground" d="M' + fix(b) + ' 32V' + (k[2] ? 58 : 80) + '"/>';
             from = to;
@@ -13704,13 +13717,13 @@
     // the light of a wavelength in nm: its kind, and of what is seen its colour
     function lightKind(nm) {
         var seen = [[380, 'violet'], [450, 'blue'], [485, 'cyan'], [500, 'green'], [565, 'yellow'], [590, 'orange'], [625, 'red'], [750, '']];
-        if (nm < 0.01) return 'Gamma rays';
-        if (nm < 10) return 'X-rays';
-        if (nm < 380) return 'Ultraviolet';
+        if (nm < 0.01) return tr('Gamma rays');
+        if (nm < 10) return tr('X-rays');
+        if (nm < 380) return tr('Ultraviolet');
         if (nm <= 750) return tr('Visible, {seen}', { seen: seen.filter(function (s, i) { return nm >= s[0] && nm < (seen[i + 1] || [Infinity])[0]; })[0][1] });
-        if (nm < 1e6) return 'Infrared';
-        if (nm < 1e9) return 'Microwaves';
-        return 'Radio waves';
+        if (nm < 1e6) return tr('Infrared');
+        if (nm < 1e9) return tr('Microwaves: Wi-Fi, Bluetooth, 5G, GPS, ovens');
+        return tr('Radio waves');
     }
 
     function runPhoton(n, raw) {
