@@ -3735,9 +3735,15 @@
     word-spacing: 0.15em;
 }
 
-/* a list of numbers among the results, as the divisors of one: on as many lines as it needs, from the left */
+/* a protein in three letters: its first 60 and …; with room for it, in Advanced mode or popped out, all of it */
+#calculator:not(.calc-home, .calc-panel-big) .calc-bio-rest,
+#calculator:is(.calc-home, .calc-panel-big) .calc-bio-cut {
+    display: none;
+}
+
+/* a list of numbers among the results, as the divisors of one: on as many lines as it needs, centred as every result */
 #calculator .calc-sv-wrap .calc-sv-value {
-    text-align: left;
+    text-align: center;
     font-size: 13px;
     line-height: 19px;
     white-space: normal;
@@ -9612,14 +9618,20 @@
     direction: ltr;
 }
 
-/* a result's name at the right of its tile, a list of numbers from the right; Copy of a matrix at the left */
-.lang-rtl #calculator :is(.calc-sv-list, .calc-fx-list) :is(.calc-sv-label, .calc-sv-wrap .calc-sv-value) {
+/* a result's name at the right of its tile; Copy of a matrix at the left */
+.lang-rtl #calculator :is(.calc-sv-list, .calc-fx-list) .calc-sv-label {
     text-align: right;
 }
 
 .lang-rtl #calculator :is(.calc-sv-matrix:not(.calc-sv-table), .calc-sv-copies) .calc-sv-label {
     padding-right: 0;
     padding-left: 46px;
+}
+
+/* a list from the right of its box, under its first words, as the page reads; not the statistics' by, at the right already */
+.lang-rtl #calculator .calc-conv-menu:not(.calc-stats-by *) {
+    right: 0;
+    left: auto;
 }
 
 .lang-rtl #calculator .calc-sv-copy-m {

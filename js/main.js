@@ -1082,7 +1082,7 @@
     // as well, only that; null for any other with no value, – as well, a matrix as a whole, each of whose numbers
     // has its own, and bits
     function peekOf(el) {
-        var value, info, row = el.row;
+        var value, info, shown, row = el.row;
         if (el.classList.contains('calc-sv-cell')) return cellPeek(el);
         // a constant: what it is, and its value, with its unit, as its row has it and as Copy of its menu does
         if (el.classList.contains('calc-fx-row')) {
@@ -1099,8 +1099,13 @@
         value = el.querySelector('.calc-sv-value');
         if (!row || row.m !== undefined || row.flip || (row.text === undefined && !isFinite(row.v)) || !value || /^–?$/.test(value.textContent.trim())) return null;
         if (value.querySelector('svg')) return null; // a drawing: nothing to copy or put in
-        return { t: row.l, html: value.innerHTML, // its name in English, as tr() takes it, not as its label shows it
-            text: row.text !== undefined ? value.textContent : row.say || local(statsValue(row.v).text), put: row.text === undefined }; // say: as a value of the converter is written
+        shown = value.cloneNode(true); // as the tile shows it: not what is hidden in it, as the … of a protein in full, popped out
+        info = shown.querySelectorAll('*'); // the same elements in the same order, kept as they were while some go
+        Array.prototype.forEach.call(value.querySelectorAll('*'), function (x, i) {
+            if (getComputedStyle(x).display === 'none') info[i].remove();
+        });
+        return { t: row.l, html: shown.innerHTML, // its name in English, as tr() takes it, not as its label shows it
+            text: row.text !== undefined ? (row.copy !== undefined ? row.copy : shown.textContent) : row.say || local(statsValue(row.v).text), put: row.text === undefined }; // say: as a value of the converter is written; copy: all of it, as its Copy
     }
 
     // a number of a matrix or a table: under the name of its matrix, or of its column, the whole of it, as
@@ -15891,7 +15896,8 @@
         best = list[0];
         rows = physRows([['Amino acids', prot.length], ['Stops', (prot.match(/\*/g) || []).length], ['ORFs', list.length]]);
         rows = rows.concat([seqRow(tr('Protein, frame {v}', { v: ['+1', '+2', '+3', '−1', '−2', '−3'][f] }), prot),
-            { l: 'In three letters', wide: true, wrap: true, text: threeLetters(prot.slice(0, 60)) + (prot.length > 60 ? '…' : ''), copy: threeLetters(prot) }]);
+            { l: 'In three letters', wide: true, wrap: true, copy: threeLetters(prot), // the first 60 and …; in Advanced mode or popped out all of it (style.css)
+                text: threeLetters(prot.slice(0, 60)) + (prot.length > 60 ? '<span class="calc-bio-rest">-' + threeLetters(prot.slice(60)) + '</span><span class="calc-bio-cut">…</span>' : '') }]);
         if (best) {
             kda = /X/.test(best.protein) ? NaN : CalcBiology.protein(best.protein).mass / 1000;
             rows = rows.concat(physRows([['Longest ORF, aa', best.aa], ['Its frame', best.frame], ['From', best.from], ['To', best.to], ['Its mass, kDa', kda]]), [seqRow('Its protein', best.protein)]);
@@ -20054,12 +20060,11 @@
     // An open list in the room it has: under its box, or over it where there is more room there, as at the foot of
     // the cards; no taller than that room, so none of it is cut off by what scrolls round it
     function placeMenu(el, menu) {
-        var room = el.parentNode, at = el.getBoundingClientRect(), edge, below, above, k = scale();
+        var room = menuRoom(el, 'overflowY'), at = el.getBoundingClientRect(), edge, below, above, k = scale();
         menu.classList.remove('calc-up');
         menu.style.maxHeight = '';
         sideMenu(el, menu);
-        while (room && room !== document.body && !/(auto|scroll|hidden)/.test(getComputedStyle(room).overflowY)) room = room.parentNode;
-        edge = room && room !== document.body ? room.getBoundingClientRect() : { top: 0, bottom: window.innerHeight };
+        edge = room ? room.getBoundingClientRect() : { top: 0, bottom: window.innerHeight };
         below = (Math.min(edge.bottom, window.innerHeight) - at.bottom) / k - 8; // the screen's pixels as the calculator's, scaled or not
         above = (at.top - Math.max(edge.top, 0)) / k - 8;
         if (menu.offsetHeight <= below) return;
@@ -20071,12 +20076,11 @@
     // would go past, so nothing scrolls sideways for it; no wider than the room, though narrower than its box then.
     // What the screen measures in its own pixels, as the calculator's: scaled, on the website, they differ
     function sideMenu(el, menu) {
-        var room = el.parentNode, edge, at, shift = 0, k = scale(), wide;
+        var room = menuRoom(el, 'overflowX'), edge, at, shift = 0, k = scale(), wide;
         menu.style.transform = '';
         menu.style.maxWidth = '';
         menu.style.minWidth = '';
-        while (room && room !== document.body && !/(auto|scroll|hidden)/.test(getComputedStyle(room).overflowX)) room = room.parentNode;
-        edge = room && room !== document.body ? room.getBoundingClientRect() : { left: 0, right: document.documentElement.clientWidth };
+        edge = room ? room.getBoundingClientRect() : { left: 0, right: document.documentElement.clientWidth };
         edge = { left: Math.max(edge.left, 0) + 8 * k, right: Math.min(edge.right, document.documentElement.clientWidth) - 8 * k };
         wide = (edge.right - edge.left) / k;
         if (wide < menu.offsetWidth) {
@@ -20086,6 +20090,15 @@
         if (at.right > edge.right) shift = edge.right - at.right;
         if (at.left + shift < edge.left) shift = edge.left - at.left;
         if (shift) menu.style.transform = 'translateX(' + Math.round(shift / k) + 'px)';
+    }
+
+    // What a list is kept inside, as the calendar is inside its panel: the first thing round it that cuts off what is
+    // past its edges, the card if it scrolls, else the list of cards, else the panel; null, the window. Of a card open
+    // beside the list in a panel popped out, Advanced mode, not that list, which it is out of, drawn in the panel
+    function menuRoom(el, axis) {
+        var room = el.parentNode, beside = el.closest('.calc-side > * :is(.calc-sv-form, .calc-fx-form)');
+        while (room && room !== document.body && (!/(auto|scroll|hidden)/.test(getComputedStyle(room)[axis]) || (beside && room.classList.contains('calc-side')))) room = room.parentNode;
+        return room && room !== document.body ? room : null;
     }
 
     // the choice the arrow keys or the pointer are on; scroll: kept in sight
