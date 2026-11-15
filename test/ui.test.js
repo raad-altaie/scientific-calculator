@@ -246,6 +246,14 @@ function value(page) {
     return page.calc('+document.getElementById("box").textContent.replace(/[\\s,]/g, "")');
 }
 
+// a result put in by Insert of its tip, as a click on it no longer does: the pointer off it first, so it comes over it again
+async function putIn(page, selector) {
+    await page.hover('.calc-display');
+    await page.hover(selector);
+    await page.until('!document.querySelector(".calc-peek").hidden && !!document.querySelector(".calc-peek [data-act=insert]")', 2500);
+    await page.click('.calc-peek [data-act=insert]');
+}
+
 function near(a, b) {
     return Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(b));
 }
@@ -366,7 +374,7 @@ async function calculator(page, at) {
     note = await page.calc('document.querySelector(".calc-tip").textContent');
     check(/Quadratic formula/.test(note) && /For example/.test(note), t + 'the tip names it and has an example', note);
 
-    // the constants: the search is for one list; a click puts one in
+    // the constants: the search is for one list; Insert of its tip puts one in
     await page.type('xyz');
     await page.click('.calc-fx-tab[data-tab="constants"]');
     check(await page.calc('document.querySelector(".calc-fx-search").value') === '', t + 'another tab clears the search');
@@ -377,11 +385,18 @@ async function calculator(page, at) {
         await page.calc('document.querySelectorAll(".calc-peek .calc-peek-act").length') === 2 && await page.calc('document.querySelector(".calc-tip:not(.calc-peek)").hidden'),
         t + 'a constant has the tip of a value: what it is, its value, Insert and Copy, and no other tip',
         await page.calc('document.querySelector(".calc-peek").textContent'));
-    await page.click('.calc-fx-row');
-    check(!await open(page, '.calc-fx') && await shown(page) === '299792458', t + 'a click puts c in', await shown(page));
+    await page.click('.calc-peek [data-act=insert]');
+    check(!await open(page, '.calc-fx') && await shown(page) === '299792458', t + 'Insert of its tip puts c in', await shown(page));
     await page.go(page.base + at);
     await page.click('.calc-fx-btn');
     check(await page.calc('document.querySelector(".calc-fx-tab.calc-on").dataset.tab') === 'constants', t + 'the tab is kept');
+    // Insert and Copy at the right of a constant's card, as a line of the history has them, while the pointer is over it
+    await page.hover('.calc-fx-item:nth-child(2) .calc-fx-row');
+    check(await page.calc('getComputedStyle(document.querySelector(".calc-fx-item:nth-child(2) .calc-fx-btns")).display') === 'flex' &&
+        await page.calc('document.querySelectorAll(".calc-fx-item:nth-child(2) .calc-fx-btns .calc-past-btn").length') === 2, t + 'a constant\'s card has Insert and Copy while the pointer is over it');
+    await page.click('.calc-fx-item:nth-child(2) .calc-fx-btns [data-act=insert]');
+    check(!await open(page, '.calc-fx') && /3\.14159265359$/.test(await shown(page)), t + 'its Insert puts π in', await shown(page));
+    await page.click('.calc-fx-btn');
 
     // a press outside closes it; the statistics and the formulas are one at a time
     await page.click('#box');
@@ -1175,7 +1190,9 @@ async function solver(page, at) {
     check(got.indexOf('P(|T| ≥ |t|)=0.0500117718171') > 0 && got.indexOf('±t for p=2.228138852') > 0, t + 't of 10 degrees: its p-value and the t of 95%', got);
     await card('Normal probability');
     await page.click(on + ' .calc-sv-tile:not(.calc-sv-drawn)');
-    check(!await open(page, '.calc-solve') && near(await value(page), 0.682689492137), t + 'a click on a result puts it in', await value(page));
+    check(await open(page, '.calc-solve') && !near(await value(page), 0.682689492137), t + 'a click on a result puts nothing in', await value(page));
+    await putIn(page, on + ' .calc-sv-tile:not(.calc-sv-drawn)');
+    check(!await open(page, '.calc-solve') && near(await value(page), 0.682689492137), t + 'Insert of its tip puts it in', await value(page));
     await page.click('.calc-solve-btn');
     check(await page.calc('document.querySelector(".calc-solve .calc-solve-tab.calc-on").dataset.tab') === 'chance' &&
         await page.calc('[].map.call(document.querySelectorAll("' + on + ' input"), function (b) { return b.value; }).join()') === '-1,1,,',
@@ -1390,7 +1407,9 @@ async function numbersPanel(page, at) {
         await page.calc('document.activeElement === document.querySelector("' + on + ' input")'), t + 'a size of 3 makes nine boxes, the size keeping the focus');
     await set(0, '2');
     await page.click(on + ' .calc-sv-matrix .calc-sv-cell:nth-child(2)');
-    check(!await open(page, '.calc-numbers') && await value(page) === 1, t + 'a number of the inverse goes in with a click', await value(page));
+    check(await value(page) !== 1, t + 'a click on a number of the inverse does not put it in', await value(page));
+    await putIn(page, on + ' .calc-sv-matrix .calc-sv-cell:nth-child(2)');
+    check(!await open(page, '.calc-numbers') && await value(page) === 1, t + 'a number of the inverse goes in by Insert of its tip', await value(page));
     await page.click('.calc-numbers-btn');
     await card('Two matrices');
     await set(0, '1x2');
@@ -1475,8 +1494,8 @@ async function numbersPanel(page, at) {
     await set(1, '2');
     check((await page.calc(tiles)).indexOf('Rounded=1.01 | Down ⌊x⌋=1 | Up ⌈x⌉=1.01 | Toward 0=1 | Fraction part=0.005 | To 2 figures=1') === 0,
         t + '1.005 to 2 places is 1.01, as it reads', await page.calc(tiles));
-    await page.click(on + ' .calc-sv-tile:not(.calc-sv-drawn)');
-    check(!await open(page, '.calc-numbers') && await value(page) === 1.01, t + 'a number rounded goes in with a click', await value(page));
+    await putIn(page, on + ' .calc-sv-tile:not(.calc-sv-drawn)');
+    check(!await open(page, '.calc-numbers') && await value(page) === 1.01, t + 'a number rounded goes in with Insert', await value(page));
     await page.click('.calc-numbers-btn');
     await page.key('Escape', 27);
     check(!await open(page, '.calc-numbers'), t + 'Esc closes it');
@@ -1510,10 +1529,14 @@ async function matrixTen(page, at) {
     check(await page.calc(wide) === '0,0', t + 'the page and the panel do not scroll across', await page.calc(wide));
     for (i = 1; i <= 10; i++) for (j = 1; j <= 10; j++) await set(1 + (i - 1) * 10 + j, String(1 / (i + j - 1)));
     got = await page.calc('[].map.call(document.querySelectorAll("' + on + ' .calc-sv-matrix")[0].querySelectorAll(".calc-sv-cell"), function (c) { return c.textContent; })');
-    check(got.length === 100 && got[0] === '100' && got[1] === '-4950' && /^99\.99/.test(await page.calc('document.querySelector("' + on + ' .calc-sv-matrix .calc-sv-cell").title')) &&
+    check(got.length === 100 && got[0] === '100' && got[1] === '-4950' && !await page.calc('document.querySelector("' + on + ' .calc-sv-matrix .calc-sv-cell").title') &&
         await page.calc('(function (c) { return c.scrollWidth <= c.clientWidth + 1; })(document.querySelector("' + on + ' .calc-sv-matrix .calc-sv-cell"))') &&
         await page.calc('(function (m) { return m.scrollWidth <= m.clientWidth; })(document.querySelector("' + on + ' .calc-sv-matrix .calc-sv-cells"))'),
-        t + 'the inverse of the Hilbert matrix, 10×10, fits its tile, each number to as many digits as fit, the whole in its title', got.slice(0, 3).join(' '));
+        t + 'the inverse of the Hilbert matrix, 10×10, fits its tile, each number to as many digits as fit, the whole in its tip', got.slice(0, 3).join(' '));
+    await page.hover('.calc-display');
+    await page.hover(on + ' .calc-sv-matrix .calc-sv-cell');
+    check(await page.until('!document.querySelector(".calc-peek").hidden && /^99\\.99/.test(document.querySelector(".calc-peek .calc-peek-value").textContent.replace(/,/g, ""))', 2500),
+        t + 'a number of more than 5 columns has the whole of it in its tip', await page.calc('document.querySelector(".calc-peek").textContent'));
     check(/^Badly conditioned, κ ≈ 3,5e13|^Badly conditioned, κ ≈ 3\.5e13: only about 2 digits/.test(await page.calc(note)) && await page.calc('document.querySelector("' + on + ' .calc-sv-note").classList.contains("calc-sv-warn")'),
         t + 'its note says how few of its digits can be trusted', await page.calc(note));
     check(await page.calc(wide) === '0,0', t + 'nor with the results', await page.calc(wide));
@@ -1696,8 +1719,8 @@ async function finance(page, at) {
     check(await page.calc('!document.querySelector(".calc-peek").hidden && !!document.querySelector(".calc-peek [data-act=insert]") && !!document.querySelector(".calc-peek [data-act=copy]")'),
         t + 'tvm: a result has its tip, with Insert and Copy');
     await set(0, '360');
-    await page.click(on + ' .calc-sv-tile:not(.calc-sv-drawn)');
-    check(!await open(page, '.calc-solve') && await value(page) === -1199.10105031, t + 'tvm: a click puts it in with every digit, shown to the cent', await value(page));
+    await putIn(page, on + ' .calc-sv-tile:not(.calc-sv-drawn)');
+    check(!await open(page, '.calc-solve') && await value(page) === -1199.10105031, t + 'tvm: Insert puts it in with every digit, shown to the cent', await value(page));
     await page.click('.calc-solve-btn');
 
     // NPV and IRR of cash flows, one to a line: Enter there is a new line
@@ -3606,9 +3629,9 @@ async function converter(page, at) {
         await page.calc('document.querySelector(".calc-conv-units .calc-sv-item.calc-on input").value'));
     await page.calc('(function (i) { i.value = "6"; i.dispatchEvent(new Event("input", { bubbles: true })); })(document.querySelector(".calc-conv-units .calc-sv-item.calc-on input"))');
 
-    // a click on a value puts it in: the meters
-    await page.click('.calc-conv-units .calc-sv-item.calc-on .calc-sv-tile[data-r="0"]');
-    check(!await open(page, '.calc-conv') && await shown(page) === '6000', t + 'a click puts in 6000 m', await shown(page));
+    // Insert of a value's tip puts it in: the meters
+    await putIn(page, '.calc-conv-units .calc-sv-item.calc-on .calc-sv-tile[data-r="0"]');
+    check(!await open(page, '.calc-conv') && await shown(page) === '6000', t + 'Insert puts in 6000 m', await shown(page));
     check(await page.calc('document.querySelector(".calc-log").textContent.trim()') === '', t + 'and presses no = after it',
         await page.calc('document.querySelector(".calc-log").textContent'));
 
@@ -3783,8 +3806,8 @@ async function convDates(page, at) {
     await set(0, '2026-10-12');
     await set(1, '2026-10-16');
     check(/ \| Days=4 \| Weekdays=5 \| /.test(await page.calc(tiles)), t + 'Monday to Friday: 4 days on, 5 weekdays', await page.calc(tiles));
-    await page.click(on + ' .calc-sv-tile[data-r="5"]');
-    check(!await open(page, '.calc-conv') && await shown(page) === '5', t + 'a click puts the 5 weekdays in', await shown(page));
+    await putIn(page, on + ' .calc-sv-tile[data-r="5"]');
+    check(!await open(page, '.calc-conv') && await shown(page) === '5', t + 'Insert puts the 5 weekdays in', await shown(page));
 
     // the tab and the dates kept for the next time, every card closed
     await page.go(page.base + at);
@@ -3933,8 +3956,8 @@ async function statsMore(page, at) {
     await page.click('.calc-stats .calc-solve-tab[data-tab="list"]');
     check(await page.calc('document.querySelector(".calc-stats-input").value') === '2 4 4 4 5 5 7 9' && await tile('q3') === '6', t + 'the list is as it was');
     await page.click('.calc-stats .calc-solve-tab[data-tab="pairs"]');
-    await page.click('.calc-stats-tile[data-k="b"]');
-    check(!await open(page, '.calc-stats') && await shown(page) === '1.99', t + 'a click puts the slope in', await shown(page));
+    await putIn(page, '.calc-stats-tile[data-k="b"]');
+    check(!await open(page, '.calc-stats') && await shown(page) === '1.99', t + 'Insert puts the slope in', await shown(page));
 
     // kept for the next time: the tab, and what is typed in each
     await page.go(page.base + at);
@@ -4341,7 +4364,7 @@ async function chemistry(page, at) {
     await page.calc('(function (i) { i.value = "gold"; i.dispatchEvent(new Event("input")); })(document.querySelector(".calc-pt-search"))');
     check(await page.calc('document.querySelector(".calc-pt-info .calc-pt-title").textContent') === 'Gold' &&
         await page.calc('document.querySelectorAll(".calc-pt-el[data-z]:not(.calc-pt-dim)").length') === 1, t + 'the search finds gold, the others dimmed');
-    await page.click('.calc-pt-info .calc-sv-tile[data-v="196.97"]');
+    await putIn(page, '.calc-pt-info .calc-sv-tile[data-v="196.97"]');
     check(await shown(page) === '196.97' && !await open(page, '.calc-chem'), t + 'its mass put in, the panel closed', await shown(page));
     await page.click('.calc-chem-btn');
     got = await page.calc('document.querySelector(".calc-pt-info .calc-pt-title").textContent');

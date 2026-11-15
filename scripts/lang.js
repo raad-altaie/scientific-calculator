@@ -36,7 +36,7 @@ const WORDS = /[A-Za-z]{2}/; // a text to translate has a word: x, r and θ are 
 const LISTS = { BY: [1, 2], STATS_FITS: [1], ZONE_CHOICES: [0], GRAPH_NAMES: 'values', PANELS: [0] };
 // the cities main.js adds to ZONE_CHOICES from the browser's zones, Kinshasa of Africa/Kinshasa, and shows as here's,
 // Here, Edmonton: of each zone node has, and the newer names some browsers have, Asia/Ho_Chi_Minh of Asia/Saigon
-const NEWER_ZONES = ['Ho Chi Minh', 'Nuuk', 'Asmara', 'Faroe', 'Kanton', 'Pohnpei', 'Chuuk', 'Atikokan'];
+const NEWER_ZONES = ['Ho Chi Minh', 'Nuuk', 'Asmara', 'Faroe', 'Kanton', 'Pohnpei', 'Chuuk', 'Atikokan', 'Coyhaique'];
 const fold = (t) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); // A to Z as main.js sorts them
 function zoneCities() {
     const ids = Intl.supportedValuesOf('timeZone').filter((id) => id.indexOf('/') >= 0 && !/^Etc\//.test(id));

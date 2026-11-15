@@ -1307,6 +1307,16 @@
             d: 'As the line shows it: 0.75, or 3/4 for a calculation done in fraction mode.',
             k: ''
         },
+        'constant insert': {
+            t: 'Insert the constant',
+            d: 'Puts its value into the equation you are entering, with all its digits.',
+            k: ''
+        },
+        'constant copy': {
+            t: 'Copy the constant',
+            d: 'Its value as text, with all its digits and without its unit.',
+            k: ''
+        },
         'history unit Deg': {
             t: 'Done in degrees',
             d: 'Its angles were worked out in degrees, and are again when you insert it, whatever the unit then.',

@@ -252,6 +252,19 @@
             if (depth > 0 && typeof run[0] === 'string' && run[0].charAt(0) === '(') {
                 lead += '(';
                 run[0] = run[0].slice(1);
+                depth--;
+            }
+            // one that opens around Arabic at its end, as of UTC (متقدّمة 6h), after the run, not inside it: UTC (
+            if (depth > 0 && typeof run[run.length - 1] === 'string' && (close = /(?:^|\s+)\($/.exec(run[run.length - 1]))) {
+                trail = close[0] + trail;
+                run[run.length - 1] = run[run.length - 1].slice(0, -close[0].length);
+                // and the stops before it, as the comma of +05:30, (, out with it: the trail was taken before the bracket went
+                close = /(?:[\s.,:;?]|(?<=[\s.,:;?])!)*$/.exec(run[run.length - 1])[0];
+                if (close) {
+                    trail = close + trail;
+                    run[run.length - 1] = run[run.length - 1].slice(0, -close.length);
+                }
+                close = '';
             }
             // one that closes around Arabic at its start, as of (365.25 يومًا) (yr), before the run, not at its end: () (yr;
             // after a space as well, as of يومًا ) (yr)

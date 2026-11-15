@@ -469,7 +469,6 @@
     border-radius: 5px;
     background: #b6d1c2;
     color: #000;
-    cursor: pointer;
 }
 
 #calculator .calc-stats-tile:hover,
@@ -477,8 +476,14 @@
     background: #a3bdaf;
 }
 
-#calculator .calc-stats-tile:active,
-#calculator .calc-sv-tile:active {
+/* a click puts it in only on a touch screen, as touchScreen() in main.js knows one; elsewhere Insert of its tip does */
+#calculator.calc-touch .calc-stats-tile,
+#calculator.calc-touch .calc-sv-tile {
+    cursor: pointer;
+}
+
+#calculator.calc-touch .calc-stats-tile:active,
+#calculator.calc-touch .calc-sv-tile:active {
     background: #98b3a5;
 }
 
@@ -2607,6 +2612,15 @@
     background: #98b3a5;
 }
 
+/* a constant: a click puts it in only on a touch screen; elsewhere Insert of its tip does, so no hand and no press */
+#calculator:not(.calc-touch) .calc-fx-row:has(.calc-fx-val) {
+    cursor: default;
+}
+
+#calculator:not(.calc-touch) .calc-fx-row:has(.calc-fx-val):active {
+    background: #a3bdaf;
+}
+
 #calculator .calc-fx-item.calc-on .calc-fx-row,
 #calculator .calc-gx-item.calc-on .calc-gx-row,
 #calculator .calc-sv-item.calc-on .calc-sv-row {
@@ -3083,31 +3097,6 @@
     color: #3a5872;
     opacity: 1;
     transform: rotate(180deg);
-}
-
-/* insert of a constant, drawn as insert in the history, a little bigger and lighter and
-   with no hover of its own: at the right of its card, while the pointer is over it */
-#calculator .calc-fx-row .calc-fx-put {
-    position: absolute;
-    right: 6px;
-    top: 12px; /* a little under the middle */
-    bottom: 0;
-    margin: auto 0;
-    display: none;
-    width: 18px;
-    height: 18px;
-    opacity: 0.45;
-}
-
-/* mirrored: the line starts at the left and turns up at the right; the converter has it too */
-#calculator .calc-fx-put svg {
-    width: 13px;
-    height: 13px;
-    transform: scaleX(-1);
-}
-
-#calculator .calc-fx-row:hover .calc-fx-put {
-    display: flex;
 }
 
 /* ---------- solve ---------- */
@@ -3647,7 +3636,7 @@
 }
 
 #calculator .calc-sv-off {
-    margin-left: 6px;
+    margin-inline-start: 6px;
     color: #4f6659;
     font-size: 13px;
 }
@@ -3797,6 +3786,10 @@
     text-align: center;
     white-space: nowrap;
     text-overflow: ellipsis;
+}
+
+/* a touch puts it in only on a touch screen; elsewhere Insert of its tip does */
+#calculator.calc-touch .calc-sv-cell {
     cursor: pointer;
 }
 
@@ -4428,7 +4421,7 @@
 
 #calculator .calc-cal-grid {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 1px;
 }
 
@@ -4933,9 +4926,7 @@
     display: flex;
 }
 
-/* and insert of a constant, drawn the same */
-#calculator .calc-past-btn,
-#calculator .calc-fx-put {
+#calculator .calc-past-btn {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -4954,6 +4945,28 @@
 
 #calculator .calc-past-btn:active {
     opacity: 0.75;
+}
+
+/* insert and copy of a constant, as the history's: at the right of its card, a little under the middle, clear of its
+   name at the top, while the pointer is over it */
+#calculator .calc-fx-row .calc-fx-btns {
+    top: 12px;
+    right: 6px;
+    left: auto;
+    flex-direction: row-reverse; /* Insert at the edge, Copy inside it: the history's two the other way round */
+    max-height: none;
+    padding: 0 0 0 4px;
+}
+
+#calculator .calc-fx-row:hover .calc-fx-btns {
+    display: flex;
+}
+
+/* its arrow of Insert mirrored, as on Insert of a formula and of a tip: from the left, up into the display */
+#calculator .calc-fx-btns [data-act="insert"] svg {
+    width: 11px;
+    height: 11px;
+    transform: scaleX(-1);
 }
 
 /* the x at the top right corner of a calculation, while the pointer is over it */
@@ -9582,9 +9595,10 @@
     left: auto;
 }
 
-.lang-rtl #calculator .calc-fx-row .calc-fx-put {
+.lang-rtl #calculator .calc-fx-row .calc-fx-btns {
     right: auto;
     left: 6px;
+    padding: 0 4px 0 0;
 }
 
 /* and laid out from the right, a card open as well: its boxes after their names at their left, its results and
@@ -9615,7 +9629,7 @@
 
 /* every arrow of Insert from the right, up into the display, as the page reads: mirrored back where it was
    mirrored, and of a letter's value, drawn from the left (insertIcon), mirrored */
-.lang-rtl #calculator :is(.calc-fx-insert, .calc-fx-put, .calc-peek-act, .calc-graph-pop-row) svg {
+.lang-rtl #calculator :is(.calc-fx-insert, .calc-peek-act, .calc-graph-pop-row, .calc-fx-btns [data-act="insert"]) svg {
     transform: none;
 }
 
@@ -10062,6 +10076,11 @@
 .lang-rtl #calculator.calc-panel-big .calc-big-on > .calc-past-head > :is(.calc-chem-size, .calc-panel-size) {
     margin-right: 0;
     margin-left: -4px;
+}
+
+/* the calendar's weekdays a little smaller in Arabic, Persian and Urdu, a word each, kept apart in its column: ثلاثاء, جمعرات */
+.lang-rtl #calculator .calc-cal-wk {
+    font-size: 10px;
 }
 
 /* Every scrollbar the same, on every system and either way a page reads: thin, over no track, always shown; in its

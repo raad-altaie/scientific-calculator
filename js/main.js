@@ -1059,7 +1059,19 @@
         peekTimer = 0, // till it shows, 0 while none is coming
         peekHide = 0, // till it goes, after the pointer has left
         peekGone = 0, // when the last one went, so the next one comes at once
-        peekStill = null; // where Copy was pressed: no tip till the pointer moves from there, though the result under it changed
+        peekStill = null, // where Copy was pressed: no tip till the pointer moves from there, though the result under it changed
+        peekPut = false; // Insert of a tip or a menu: only then does a click on a result put it in
+
+    // a result put in by Insert of its tip or menu, as a click on it did once
+    function putFrom(tile) {
+        peekPut = true;
+        try { tile.click(); } finally { peekPut = false; }
+    }
+
+    // a click on a result puts it in only from Insert; on a touch screen, with no tip, a touch still does
+    function mayPut() {
+        return peekPut || touchScreen();
+    }
 
     peek.className = 'calc-tip calc-peek';
     peek.hidden = true;
@@ -1067,10 +1079,11 @@
 
     // what the tip of a result shows: { t: its name, shown: t in the language in use already, d: what it is, html: the value, text: as it is copied,
     // put: it goes in }. One that says what it is, as a result of the statistics, has its tip with no value
-    // as well, only that; null for any other with no value, – as well, a matrix, whose numbers go in one at
-    // a time, and bits
+    // as well, only that; null for any other with no value, – as well, a matrix as a whole, each of whose numbers
+    // has its own, and bits
     function peekOf(el) {
         var value, info, row = el.row;
+        if (el.classList.contains('calc-sv-cell')) return cellPeek(el);
         // a constant: what it is, and its value, with its unit, as its row has it and as Copy of its menu does
         if (el.classList.contains('calc-fx-row')) {
             info = fxItems.constants[+el.parentNode.dataset.i].item;
@@ -1088,6 +1101,16 @@
         if (value.querySelector('svg')) return null; // a drawing: nothing to copy or put in
         return { t: row.l, html: value.innerHTML, // its name in English, as tr() takes it, not as its label shows it
             text: row.text !== undefined ? value.textContent : row.say || local(statsValue(row.v).text), put: row.text === undefined }; // say: as a value of the converter is written
+    }
+
+    // a number of a matrix or a table: under the name of its matrix, or of its column, the whole of it, as
+    // Insert puts it in; v: the number, for Store of its menu. None for a text in it, as X of a truth table
+    function cellPeek(cell) {
+        var tile = cell.closest('.calc-sv-tile'), row = tile && tile.row, b = +cell.dataset.b, x, shown;
+        x = row && row.m && row.m[+cell.dataset.a] && row.m[+cell.dataset.a][b];
+        if (typeof x !== 'number' || !isFinite(x)) return null;
+        shown = row.places !== undefined && !(row.head && !b) ? placesValue(x, row.places) : statsValue(x);
+        return { t: row.head ? row.head[b] : row.l, html: shown.html, text: local(shown.text), put: true, v: x };
     }
 
     function showPeek() {
@@ -1131,8 +1154,10 @@
 
     // the pointer on target: its result's tip, or the tip shown kept, or let go
     function peekAt(target) {
-        var el = target.closest('.calc-sv-tile, .calc-stats-tile, .calc-fx-row');
-        if (target.closest('.calc-pt-unit')) el = null; // its unit has the tip of a key
+        var el = target.closest('.calc-sv-cell, .calc-sv-tile, .calc-stats-tile, .calc-fx-row'); // a number of a matrix its own
+        // its result drawn again under it, as a value set in a box with no key: its tip goes at once, its value gone with it
+        if (!peek.hidden && peekTile && !document.contains(peekTile)) hidePeek();
+        if (target.closest('.calc-pt-unit, .calc-past-btn')) el = null; // its unit, and Insert and Copy of a constant, have the tip of a key
         if (el && el.classList.contains('calc-fx-row') && (fxTab !== 'constants' || !fx.contains(el))) el = null; // a formula and a letter have the tip of a key
         if (peek.contains(target) || (el && el === peekTile)) {
             clearTimeout(peekHide);
@@ -1178,17 +1203,18 @@
         e.preventDefault(); // the focus stays where it is
     }, false);
 
-    // Insert as a click on the result does; Copy, and the tip goes
+    // Insert puts the result in; Copy, and the tip goes
     peek.addEventListener('click', function (e) {
         var act = e.target.closest('[data-act]'), tile = peekTile;
         if (!act) return;
         hidePeek();
+        if (!tile || !document.contains(tile)) return; // its result drawn again since: not the value it shows any more
         if (act.dataset.act === 'copy') {
             copy(peek.text);
             peekStill = [e.clientX, e.clientY];
             return;
         }
-        tile.click();
+        putFrom(tile);
     }, false);
 
     // the memory and the number format say what they hold now
@@ -1549,13 +1575,13 @@
         if (!panel) return null; // the keys
         if (box) return boxItems(box);
 
-        // a result of a card with a value, as its tip has it: of the converter, with its unit as well
-        if ((row = el.closest('.calc-sv-tile')) && row.row && (part = peekOf(row)) && part.put) {
-            k = row.row.v;
+        // a result of a card with a value, or a number of a matrix, as its tip has it: of the converter, with its unit as well
+        if ((row = el.closest('.calc-sv-cell') || el.closest('.calc-sv-tile')) && (part = peekOf(row)) && part.put) {
+            k = part.v !== undefined ? part.v : row.row ? row.row.v : +row.dataset.v; // an element's fact has no row, its v from its peek
             return [
                 [tr('Copy'), function () { copy(part.text); }],
-                row.row.unit && [tr('Copy with unit'), function () { copy(part.text + (row.row.dms ? '' : ' ' + row.row.unit)); }],
-                [tr('Insert'), function () { row.click(); }],
+                row.row && row.row.unit && [tr('Copy with unit'), function () { copy(part.text + (row.row.dms ? '' : ' ' + row.row.unit)); }],
+                [tr('Insert'), function () { putFrom(row); }],
                 null,
                 storeItem(function (letter) { setLetter(letter, k); })
             ].filter(function (item) { return item !== undefined; });
@@ -1565,7 +1591,7 @@
             k = statsNow[row.dataset.k];
             return [
                 [tr('Copy'), function () { copy(text); }],
-                [tr('Insert'), function () { row.click(); }],
+                [tr('Insert'), function () { putFrom(row); }],
                 null,
                 storeItem(function (letter) { setLetter(letter, k); })
             ];
@@ -2072,7 +2098,14 @@
     // iPad that calls itself a Mac, or the last press a finger. Tesla's browser says it can
     // hover, and its touches may come as a mouse, so it is known by its name
     var lastTouch = false;
-    document.addEventListener('pointerdown', function (e) { lastTouch = e.pointerType === 'touch'; }, true);
+    document.addEventListener('pointerdown', function (e) { lastTouch = e.pointerType === 'touch'; markTouch(); }, true);
+
+    // the same as a class of the calculator, so the CSS gives a result a hand and a press just where a click puts it in
+    function markTouch() {
+        root.classList.toggle('calc-touch', touchScreen());
+    }
+    markTouch();
+    try { window.matchMedia('(hover: none), (pointer: coarse)').addEventListener('change', markTouch); } catch (e) {} // a mouse plugged in, or out
 
     // A finger's taps counted as a mouse's clicks: two quick taps in one spot a double click, three a triple,
     // as a touch screen may count none of them in a click's detail, nor send a dblclick
@@ -2225,7 +2258,7 @@
 
     statsGrid.addEventListener('click', function (e) {
         var tile = e.target.closest('.calc-stats-tile'), value = tile && statsNow[tile.dataset.k];
-        if (!tile || !statsNow.n || !isFinite(value) || !engine.put(value)) return;
+        if (!tile || !mayPut() || !statsNow.n || !isFinite(value) || !engine.put(value)) return;
         keyBoard['AC'].children[0].firstChild.data = 'C';
         showStats(false);
         refresh();
@@ -5487,7 +5520,8 @@
         setTimeout(drawGraph, 0);
     }, false);
 
-    // x or y of the point clicked goes into the calculation, as a result of the statistics does
+    // x or y of the point clicked goes into the calculation: each row is an Insert button of its own, its icon on it, so a click
+    // puts it in on any screen, not only a touch screen as a result of a card or the statistics
     graphPop.addEventListener('click', function (e) {
         var row = e.target.closest('.calc-graph-pop-row'), n = row && graphPinned && graphPinned[row.dataset.put];
         if (e.target.classList.contains('calc-graph-pop-end')) return; // typed in, not put in
@@ -6510,7 +6544,8 @@
         graphLines += 60;
     }, false);
 
-    // a value goes into the calculation, as one of the statistics does
+    // a value goes into the calculation on any click: with no tip of its own to Insert it from, as a result of a card or the
+    // statistics has, a click is the way in, as a value of a fit's is
     graphList.addEventListener('click', function (e) {
         var cell = e.target.closest('.calc-graph-cell'), n = cell && graphValues[cell.dataset.r][cell.dataset.c];
         if (!cell || !isFinite(n) || !engine.put(n)) return;
@@ -6559,17 +6594,23 @@
 
     fxSearch.addEventListener('input', renderFx, false);
 
-    // a formula opens its letters, or closes them; a constant is put in
+    // a formula opens its letters, or closes them; a constant is put in by its Insert, or that of its tip or menu
     fxList.addEventListener('click', function (e) {
-        var row = e.target.closest('.calc-fx-row'), item = row && row.parentNode;
+        var row = e.target.closest('.calc-fx-row'), item = row && row.parentNode, button = e.target.closest('.calc-fx-btns .calc-past-btn'), k;
         if (e.target.closest('.calc-f-copy')) return copyFormula(e.target.closest('.calc-f-copy')); // it stays open
+        if (button && item && fxTab === 'constants') { // its own Insert and Copy, as the history's: Copy its value, as Copy of its menu
+            k = fxItems.constants[+item.dataset.i].item;
+            if (button.dataset.act === 'insert') putConstant(k);
+            else copy(local(k.v));
+            return;
+        }
         if (!item) {
             if (e.target.closest('.calc-sv-reset')) resetFormula(e.target.closest('.calc-fx-form'));
             if (e.target.closest('.calc-fx-insert')) insertFormula(e.target.closest('.calc-fx-item'));
             if (e.target.closest('.calc-fx-phys')) formulaInPhysics(e.target.closest('.calc-fx-item'), e.target.closest('.calc-fx-bio') ? 'bio' : e.target.closest('.calc-fx-fin') ? 'solve' : 'phys');
             return;
         }
-        if (fxTab === 'constants') putConstant(fxItems.constants[+item.dataset.i].item);
+        if (fxTab === 'constants') { if (mayPut()) putConstant(fxItems.constants[+item.dataset.i].item); }
         else if (!(item.classList.contains('calc-on') && bigSide(fx))) openFormula(item.classList.contains('calc-on') ? null : item); // beside the list it stays open
     }, false);
 
@@ -6719,9 +6760,9 @@
                 (fxTab === 'constants' ? '<span class="calc-fx-sym">' +
                     it.s.replace(/√(\w+)/, '<span class="calc-root">$1</span>') + '</span> = ' + constantValue(it) : it.f) +
                 '</span>' + (fxTab === 'formulas' ? copyButton() : '') + // a formula has Copy after it, while it is open
-                // a constant has insert at the right of its value, while the pointer is over it
-                (fxTab === 'constants' ? '<span class="calc-fx-put">' + insertIcon() + '</span>' : '') +
                 '</span></span>' +
+                // a constant has Insert and Copy at its right, as a line of the history has them, while the pointer is over it
+                (fxTab === 'constants' ? '<span class="calc-past-btns calc-fx-btns">' + pastButtonsHtml() + '</span>' : '') +
                 // a formula has the arrow that says whether it is open
                 (fxTab === 'formulas' ? collapseButton() : '') +
                 '</div></div>';
@@ -6949,13 +6990,15 @@
         saveState();
     }
 
-    // the tip of a formula, open or not: what it gives, its letters and an example; a constant has the tip of a result (peekOf)
+    // the tip of a formula, open or not: what it gives, its letters and an example; a constant has the tip of a result (peekOf),
+    // its Insert and Copy the tips of keys
     function fxTip(el) {
         var item = el.parentNode, it;
         if (el.classList.contains('calc-past-close')) return CalcTips['formulas close'];
         if (el.classList.contains('calc-fx-phys')) return CalcTips[el.classList.contains('calc-fx-bio') ? 'formula biology' : el.classList.contains('calc-fx-fin') ? 'formula finance' : 'formula physics'];
         if (el.classList.contains('calc-sv-reset')) return CalcTips['card reset'];
         if (el.classList.contains('calc-f-copy')) return CalcTips['formula copy'];
+        if (el.classList.contains('calc-past-btn')) return CalcTips['constant ' + el.dataset.act]; // Insert and Copy of a constant, as the history's
         if (!el.classList.contains('calc-fx-row')) return null;
         it = fxItems[fxTab][+item.dataset.i].item;
         if (fxTab === 'constants') return null;
@@ -9162,14 +9205,19 @@
 
     // What is said of a square matrix whose answers are only so near, κ of its condition being
     // large: of about 16 digits, some log₁₀ κ are lost, and fewer than its 10 shown are right. '' where they are
-    function trustNote(a) {
-        var k = a.every(function (r) { return r.every(isFinite); }) ? CalcMaths.condition(a) : NaN, right;
+    // of: 'rank', of a row reduced, its rank; 'eigen', of eigenvalues, those near 0; else of all worked out of it.
+    // Each its own whole sentence, as each language says it, not the English of one changed
+    function trustNote(a, of) {
+        var k = a.every(function (r) { return r.every(isFinite); }) ? CalcMaths.condition(a) : NaN, right, said;
         if (!(k >= 1e6) || k === Infinity) return '';
         right = Math.max(0, Math.floor(16 - Math.log10(k)));
-        return tr('Badly conditioned, κ ≈ {k}: {v} of what is worked out of it can be trusted.', { k: local(k.toPrecision(2).replace(/e\+?/, 'e')), v: (right ? trn(right, 'only about {n} digit', 'only about {n} digits') : tr('none of the digits')) });
+        said = { k: local(k.toPrecision(2).replace(/e\+?/, 'e')), v: (right ? trn(right, 'only about {n} digit', 'only about {n} digits') : tr('none of the digits')) };
+        return of === 'rank' ? tr('Badly conditioned, κ ≈ {k}: {v} can be trusted: its rank may be less.', said) :
+            of === 'eigen' ? tr('Badly conditioned, κ ≈ {k}: {v} of its eigenvalues near 0, and of their eigenvectors, can be trusted.', said) :
+                tr('Badly conditioned, κ ≈ {k}: {v} of what is worked out of it can be trusted.', said);
     }
 
-    // a note, and another after it, either of which may be ''
+    // a note, and another after it, either of which may be '': each translated already, as the two together are not
     function notes(a, b) {
         return a && b ? a + ' ' + b : a || b;
     }
@@ -9212,10 +9260,9 @@
         e.vectors.forEach(function (v, i) {
             rows.push({ l: 'v<sub>' + (i + 1) + '</sub> of λ = ' + local(String(v.value)), m: [v.v] });
         });
-        trust = trustNote(a);
+        trust = trustNote(a, 'eigen');
         return { rows: rows, warn: !!trust,
-            note: notes(e.values.some(function (z) { return z.im; }) ? 'Its complex eigenvalues have eigenvectors of complex numbers, not shown here.' : '',
-                trust && trust.replace(' of what is worked out of it', ' of its eigenvalues near 0, and of their eigenvectors,')) };
+            note: notes(e.values.some(function (z) { return z.im; }) ? tr('Its complex eigenvalues have eigenvectors of complex numbers, not shown here.') : '', trust) };
     }
 
     // The unknowns, or where there are many all of them, x = p + t₁v₁ + …, and where there are
@@ -9247,9 +9294,8 @@
         rows = [{ l: 'rref A', m: r.m }, { l: 'Rank', v: r.rank }, { l: 'Nullity', v: r.kernel.length },
             { l: 'Columns of its first 1s', text: r.pivots.length ? r.pivots.map(function (c) { return c + 1; }).join(', ') : 'none', wide: true }];
         r.kernel.forEach(function (v, i) { rows.push({ l: tr('Null space <b>v</b><sub>{i}</sub>', { i: (i + 1) }), m: [v] }); });
-        trust = a.length === a[0].length && r.rank === a.length ? trustNote(a) : '';
-        return { rows: rows, warn: !!trust, note: notes(r.kernel.length ? 'Its null space: each v, and each sum of them times numbers, A takes to 0.' : 'Only 0 does it take to 0.',
-            trust && trust.replace('of what is worked out of it can be trusted.', 'can be trusted: its rank may be less.')) };
+        trust = a.length === a[0].length && r.rank === a.length ? trustNote(a, 'rank') : '';
+        return { rows: rows, warn: !!trust, note: notes(r.kernel.length ? tr('Its null space: each v, and each sum of them times numbers, A takes to 0.') : tr('Only 0 does it take to 0.'), trust) };
     }
 
     function runLu(n, raw) {
@@ -9705,6 +9751,11 @@
         return place[1] === 'UTC' ? { fixed: 0, name: 'UTC' } : { id: place[1], name: place[0] };
     }
 
+    // a place's name as its tile and the list show it: UTC, as a time zone, in the language in use; any other, its city, as tr() takes it
+    function zoneName(zone) {
+        return zone.fixed === 0 && zone.name === 'UTC' ? trc('time zone', 'UTC') : zone.name;
+    }
+
     // The cities most asked for and every other zone of the browser's, by its city, Kinshasa of Africa/Kinshasa, as one
     // list A to Z after here and UTC; a zone already in it, or of a city in it under an old name, as Kiev, is left out. Made once
     var zonePlaceList = null;
@@ -9733,7 +9784,7 @@
             return isFinite(CalcMaths.zoneOffset(zoneOf(c[0]), ms)); // not a zone the browser does not have
         }).map(function (c) {
             var z = zoneOf(c[0]);
-            return [c[0], (z.here ? tr('Here, {v}', { v: tr((z.id || '').split('/').pop().replace(/_/g, ' ')) }) : tr(c[0])) +
+            return [c[0], (z.here ? tr('Here, {v}', { v: tr((z.id || '').split('/').pop().replace(/_/g, ' ')) }) : c[1] === 'UTC' ? zoneName(z) : tr(c[0])) +
                 ' <span class="calc-conv-of">(' + CalcMaths.offsetText(CalcMaths.zoneOffset(z, ms)) + ')</span>'];
         });
     }
@@ -9750,7 +9801,7 @@
         var from = zoneOf(raw.from), to = zoneOf(raw.to || 'London'), now = Date.now(), t, off, ms;
         t = raw.time ? CalcMaths.readTime(raw.time) : NaN;
         if (raw.time && isNaN(t)) {
-            return { rows: [{ l: to.name, text: '–', wide: true }], bad: ['time'], warn: true, note: 'A time, 14:30 or 2:30 pm.' };
+            return { rows: [{ l: zoneName(to), text: '–', wide: true }], bad: ['time'], warn: true, note: 'A time, 14:30 or 2:30 pm.' };
         }
         if (!raw.time) {
             ms = Math.floor(now / 60000) * 60000; // the minute shown in the box
@@ -9764,13 +9815,18 @@
 
     // a place's tile: its time, big, its offset beside it, and of another place how far ahead of the first it is, then its date under it
     function zoneRow(zone, ms, off, first) {
-        var at = new Date(ms + off * 60000), gap = first === null ? 0 : off - first, a = Math.abs(gap),
-            hm = (Math.floor(a / 60) ? Math.floor(a / 60) + 'h' : '') + (a % 60 ? (a >= 60 ? ' ' : '') + a % 60 + 'min' : ''),
+        var at = new Date(ms + off * 60000), gap = first === null ? 0 : off - first, hm = zoneGap(Math.abs(gap)),
             clock = at.toLocaleString(DATE_LANG, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: 'UTC' }),
             day = at.toLocaleString(DATE_LANG, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
-        return { l: zone.here ? (zone.id || '').split('/').pop().replace(/_/g, ' ') : zone.name, wide: true, copy: day + ', ' + clock + ' ' + CalcMaths.offsetText(off), // here, by its city
+        return { l: zone.here ? (zone.id || '').split('/').pop().replace(/_/g, ' ') : zoneName(zone), wide: true, copy: day + ', ' + clock + ' ' + CalcMaths.offsetText(off), // here, by its city
             text: '<span class="calc-sv-clock">' + clock + '<span class="calc-sv-off">' + CalcMaths.offsetText(off) +
                 (first === null ? '' : ' (' + (!gap ? tr('the same time') : (gap > 0 ? tr('{gap} ahead', { gap: hm }) : tr('{gap} behind', { gap: hm }))) + ')') + '</span></span><span class="calc-sv-day">' + day + '</span>' };
+    }
+
+    // how far apart two places are, of minutes: 6h, 5h 30min, 45min
+    function zoneGap(a) {
+        var h = Math.floor(a / 60) ? trn(Math.floor(a / 60), '{n}h', '{n}h') : '', m = a % 60 ? trn(a % 60, '{n}min', '{n}min') : '';
+        return h && m ? tr('{h} {m}', { h: h, m: m }) : h || m;
     }
 
     // The date and time of a Unix timestamp, or the timestamp of a date and time: the timestamp in
@@ -9915,8 +9971,9 @@
     // the month of the day lit, its weeks from Monday, or Sunday; the day in the box and today marked
     function drawCalendar() {
         var c = CalcMaths.dateOf(calLit), first = CalcMaths.dayFrom(c.y, c.m, 1), start = first - (CalcMaths.weekday(first) + 8 - WEEK_START) % 7,
-            chosen = dayOfBox(calBox.value.trim()), now = today(), html = '', i, d;
-        for (i = 0; i < 7; i++) html += '<span class="calc-cal-wk">' + dateText(start + i, { weekday: 'short' }).slice(0, 2) + '</span>';
+            chosen = dayOfBox(calBox.value.trim()), now = today(), html = '', i, d,
+            names = tr('Su Mo Tu We Th Fr Sa').split(' '); // from Sunday, as short as the language writes them over a calendar
+        for (i = 0; i < 7; i++) html += '<span class="calc-cal-wk">' + names[(CalcMaths.weekday(start + i) + 1) % 7] + '</span>';
         for (i = 0; i < 42; i++) {
             d = start + i;
             html += d < CAL_FIRST || d > CAL_LAST ? '<span></span>' : '<span class="calc-cal-day' + (CalcMaths.dateOf(d).m !== c.m ? ' calc-cal-out' : '') +
@@ -9925,7 +9982,7 @@
         calendar.innerHTML = '<div class="calc-cal-head"><span class="calc-cal-go" data-go="-12" title="' + tr('A year back') + '">«</span>' +
             '<span class="calc-cal-go" data-go="-1" title="' + tr('A month back') + '">‹</span><span class="calc-cal-title">' + dateText(calLit, { month: 'long', year: 'numeric' }) + '</span>' +
             '<span class="calc-cal-go" data-go="1" title="' + tr('A month on') + '">›</span><span class="calc-cal-go" data-go="12" title="' + tr('A year on') + '">»</span></div>' +
-            '<div class="calc-cal-grid">' + html + '</div><div class="calc-cal-foot"><span class="calc-cal-today">Today</span></div>';
+            '<div class="calc-cal-grid">' + html + '</div><div class="calc-cal-foot"><span class="calc-cal-today">' + tr('Today') + '</span></div>';
     }
 
     // under the box, at its right; over it where there is no room below, and inside the panel always
@@ -10474,8 +10531,8 @@
                 shown = r.m ? '<span class="calc-sv-cells' + (many ? ' calc-sv-many' : '') + '" style="--cols: ' + r.m[0].length + '">' + (r.head || []).map(function (h) {
                     return '<span class="calc-sv-th">' + tr(h) + '</span>';
                 }).join('') + r.m.map(function (row, a) {
-                    return row.map(function (x, b) { // to 10 digits, so a row of them fits, of more than 5 columns to as many characters as its cell has room for, the whole number in its title; or to its places, as money to the cent, but a table's first column, its years; a click puts it in whole
-                        return '<span class="calc-sv-cell" data-a="' + a + '" data-b="' + b + '"' + (many ? ' title="' + local(String(x)) + '"' : '') + '>' +
+                    return row.map(function (x, b) { // to 10 digits, so a row of them fits, of more than 5 columns to as many characters as its cell has room for; or to its places, as money to the cent, but a table's first column, its years; its tip has it whole, and its Insert puts it in so. On a touch screen, with no tip, the whole number of a cell cut short in its title, where a pointer shows it
+                        return '<span class="calc-sv-cell" data-a="' + a + '" data-b="' + b + '"' + (many && touchScreen() && typeof x === 'number' ? ' title="' + local(String(x)) + '"' : '') + '>' +
                             (typeof x === 'string' ? x : (r.places !== undefined && !(r.head && !b) ? placesValue(x, r.places) : statsValue(many ? fitted(x, r.m[0].length > 8 ? 5 : 7) : +x.toPrecision(10))).html) + // a text, as X of a truth table
                             '</span>';
                     }).join('');
@@ -10562,6 +10619,7 @@
             r = t && rows[+t.dataset.r];
             if (e.target.closest('.calc-sv-copy') && r && (r.m || r.copy)) return copied(e.target.closest('.calc-sv-copy'), r.m ? tableText(r) : r.copy);
             if (bit && r && r.flip) return flip(t, r.flip, +bit.dataset.b);
+            if (r && !mayPut()) return; // a result goes in by Insert of its tip, a number of a matrix by its own
             v = !r ? NaN : r.m ? (cell ? r.m[+cell.dataset.a][+cell.dataset.b] : NaN) : r.text === undefined ? r.v : NaN;
             if (!isFinite(v) || !engine.put(v)) return;
             keyBoard['AC'].children[0].firstChild.data = 'C';
@@ -18837,7 +18895,7 @@
         if (el.classList.contains('calc-pt-text') || /^–?$/.test(shown)) return { t: name, shown: true, d: info.d };
         // not a name in place of a unit; the mass in full, whatever its places
         u = unit && el.dataset.fact !== 'shells' && [tr('mass number'), tr('Pauling')].indexOf(unit.textContent) < 0 ? ' ' + (unit.dataset.unit === 'm' ? tr('g/mol') : unit.textContent) : '';
-        return { t: name, shown: true, d: info.d, html: (drawn ? shown : value.innerHTML) + u, text: el.hasAttribute('data-v') ? local(statsValue(+el.dataset.v).text) : shown, put: el.hasAttribute('data-v') };
+        return { t: name, shown: true, d: info.d, html: (drawn ? shown : value.innerHTML) + u, text: el.hasAttribute('data-v') ? local(statsValue(+el.dataset.v).text) : shown, put: el.hasAttribute('data-v'), v: el.hasAttribute('data-v') ? +el.dataset.v : undefined };
     }
 
     function chemGroupOf(e) {
@@ -19456,7 +19514,7 @@
         }
     }, false);
 
-    // a number of the element chosen is put in
+    // a number of the element chosen is put in by Insert of its tip or menu
     chemInfo.addEventListener('click', function (e) {
         var u = e.target.closest('[data-unit]'), t = e.target.closest('.calc-sv-tile[data-v]'), units;
         if (e.target.closest('.calc-pt-hide')) { // closed: the table the whole width
@@ -19486,7 +19544,7 @@
             saveChem();
             return;
         }
-        if (!t || !engine.put(+t.dataset.v)) return;
+        if (!t || !mayPut() || !engine.put(+t.dataset.v)) return;
         keyBoard['AC'].children[0].firstChild.data = 'C';
         refresh();
         saveState();
@@ -20207,8 +20265,12 @@
     function pastButtons(part, what) {
         var box = part.appendChild(document.createElement('span'));
         box.className = 'calc-past-btns';
-        box.innerHTML =
-            '<span class="calc-past-btn" data-act="insert">' + insertIcon() + '</span>' +
+        box.innerHTML = pastButtonsHtml();
+    }
+
+    // the two of them, as a constant's row has them too
+    function pastButtonsHtml() {
+        return '<span class="calc-past-btn" data-act="insert">' + insertIcon() + '</span>' +
             '<span class="calc-past-btn" data-act="copy">' +
             '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" ' +
             'stroke-linejoin="round"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />' +
