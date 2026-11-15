@@ -6008,10 +6008,10 @@
 }
 
 /* what is under its name: too long, it scrolls, no higher than the room by its key (--room, of main.js)
-   nor than this; the tip then takes the pointer, to scroll it */
+   nor than this; the tip then takes the pointer, to scroll it. Only then a box that scrolls: not for the y of
+   log<sub>y</sub> under its last line, a pixel lower than the line (line-height: 0), with a scrollbar for it */
 #calculator .calc-tip-body {
     max-height: min(220px, var(--room, 220px));
-    overflow-y: auto;
     overscroll-behavior: contain;
 }
 
@@ -6020,6 +6020,7 @@
 }
 
 #calculator .calc-tip-scrolls .calc-tip-body {
+    overflow-y: auto;
     margin-right: -8px;
     padding-right: 6px;
 }
@@ -9416,18 +9417,18 @@
 }
 
 /* a tip from the right, a line of Arabic as main.js marks it, its maths and English left to right inside it
-   (ltrRuns); a line with no Arabic at the right as well, read from its left */
+   (ltrRuns, lang.js), a card's note and a formula's as well; a line with no Arabic at the right as well, read from its left */
 .lang-rtl #calculator .calc-tip,
 .lang-rtl #calculator .calc-tip * {
     text-align: right;
 }
 
-.lang-rtl #calculator .calc-tip .calc-rtl {
+.lang-rtl #calculator .calc-rtl {
     unicode-bidi: isolate;
     direction: rtl;
 }
 
-.lang-rtl #calculator .calc-tip .calc-ltr {
+.lang-rtl #calculator .calc-ltr {
     unicode-bidi: isolate;
     direction: ltr;
 }
@@ -9832,6 +9833,20 @@
     direction: ltr;
 }
 
+/* the element's name and lines, and its facts popped out, cut short with … at their side alone: not above nor below,
+   the dots under ي and the hamza over أ, deeper than a Latin g, drawn whole past a tight line, which stays where it is */
+.lang-rtl #calculator .calc-pt-about span,
+.lang-rtl #calculator.calc-chem-big .calc-pt-facts :is(dt, dd) {
+    overflow-x: clip;
+    overflow-y: visible;
+}
+
+/* and popped out, the name in the gap of the table, of its tight line, a little apart from its kind under it: the dots
+   under its ي not on it. Of the room above its facts, which stay at the foot */
+.lang-rtl #calculator.calc-chem-big .calc-pt-gap .calc-pt-about .calc-pt-title {
+    margin-bottom: 0.25em;
+}
+
 /* and the slider of a number or of the temperature as the table's colours go, the least at the left: From's number
    at the left end of its line and To's at the right, against the knobs they are of */
 .lang-rtl #calculator .calc-pt-temp {
@@ -9872,6 +9887,11 @@
 /* what is said of an element, at the right */
 .lang-rtl #calculator .calc-pt-text .calc-sv-value {
     text-align: right;
+}
+
+/* an ion's formula as it is written, its charge after it: Mg²⁺, not ⁺Mg² */
+.lang-rtl #calculator .calc-ion-list b {
+    direction: ltr;
 }
 
 /* the solubility table's cations down its right, each toward the table */
@@ -10078,6 +10098,16 @@
     html * {
         scrollbar-width: thin;
         scrollbar-color: #6b8196 transparent;
+    }
+
+    /* and those of a colour of their own, as Chrome has them: the graph's examples and the converter's menu green,
+       a tip's darker */
+    #calculator :is(.calc-graph-list, .calc-conv-menu) {
+        scrollbar-color: #8eab9b transparent;
+    }
+
+    #calculator .calc-tip-body {
+        scrollbar-color: #4d6b80 transparent;
     }
 }
 

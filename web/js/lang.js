@@ -195,6 +195,115 @@
         })(el);
     }
 
+    // Written right to left, as Arabic: a text with Arabic in it read from the right (.calc-rtl), each run
+    // of it with none, maths, a name or a key, kept together left to right inside it (.calc-ltr), the spaces and stops
+    // at its ends with the Arabic: 2 x³ = 8 as it is, not 8 = x³ 2. Its blocks, and a part of a line with Arabic in
+    // it, done the same; a text with no Arabic in it is left as it is
+    // the mark that says right to left, U+200F, with the Arabic: before 0.1 = 0x3FB…, not inside it, turning it
+    var RTL_TEXT = /[\u200F֐-ࣿיִ-﷿ﹰ-﻿]/,
+        LTR_TEXT = /[0-9A-Za-zÀ-ɏͰ-Ͽ⁰-₟∀-⋿]/,
+        HTML_NS = 'http://www.w3.org/1999/xhtml';
+
+    // (main.js for its tips, notes, names and results, options.js for the page). An element or a list of them, the
+    // outermost of each done, which goes into those in it. Done before, a text drawn again: its runs undone first and
+    // found again, not each put in another. How each part is laid out read all at once, before any is changed: one
+    // restyle for them all, not one for each. A drawing, an SVG, as it is, not gone into: a span in it is not drawn
+    function ltrRuns(els) {
+        var inline = new Map();
+        els = els.nodeType ? [els] : [].slice.call(els);
+        els = els.filter(function (el) {
+            return el.namespaceURI === HTML_NS && !els.some(function (o) { return o !== el && o.contains(el); });
+        });
+        els.forEach(function (el) {
+            [].forEach.call(el.querySelectorAll('.calc-ltr'), function (span) { span.replaceWith.apply(span, [].slice.call(span.childNodes)); });
+            el.normalize();
+        });
+        els.forEach(function (el) {
+            [].forEach.call(el.querySelectorAll('*:not(svg *)'), function (n) {
+                inline.set(n, /^inline/.test(getComputedStyle(n).display));
+            });
+        });
+        els.forEach(function (el) { runsOf(el, inline); });
+    }
+
+    function runsOf(el, inline) {
+        var out = [], run = [];
+
+        function textOf(t) {
+            return typeof t === 'string' ? t : t.textContent;
+        }
+
+        function flush() {
+            var lead, trail, span, depth, close;
+            if (!run.length) return;
+            // a hyphen joined to the Arabic before it, as of الكربون-14, with that word: not a minus of the number after it
+            if (typeof run[0] === 'string' && /^[-\u2010\u2011]/.test(run[0]) && typeof out[out.length - 1] === 'string' && RTL_TEXT.test(out[out.length - 1].slice(-1))) {
+                out.push(run[0].charAt(0));
+                run[0] = run[0].slice(1);
+            }
+            // not the point of .5 nor the ! of !A, before what they are of; nor the ! of n!, after
+            lead = typeof run[0] === 'string' ? /^[\s.,:;!?]*?(?=[.!]?[^\s.,:;!?]|$)/.exec(run[0])[0] : '';
+            if (lead) run[0] = run[0].slice(lead.length);
+            trail = typeof run[run.length - 1] === 'string' ? /(?:[\s.,:;?]|(?<=[\s.,:;?])!)*$/.exec(run[run.length - 1])[0] : '';
+            if (trail) run[run.length - 1] = run[run.length - 1].slice(0, -trail.length);
+            // a bracket at its end that opens or closes around Arabic, as of (4G و5G), not inside the run: with the Arabic, so it
+            // turns as the Arabic reads; one of the run's own, as of (DAB) or f(x), kept with it
+            depth = run.map(textOf).join('').replace(/[^()]/g, '').split('').reduce(function (d, c) { return d + (c === '(' ? 1 : -1); }, 0);
+            if (depth > 0 && typeof run[0] === 'string' && run[0].charAt(0) === '(') {
+                lead += '(';
+                run[0] = run[0].slice(1);
+            }
+            // one that closes around Arabic at its start, as of (365.25 يومًا) (yr), before the run, not at its end: () (yr;
+            // after a space as well, as of يومًا ) (yr)
+            if (depth < 0 && typeof run[0] === 'string' && run[0].charAt(0) === ')') {
+                close = /^\)\s*/.exec(run[0])[0];
+                run[0] = run[0].slice(close.length);
+                lead += close;
+            } else if (depth < 0 && typeof run[run.length - 1] === 'string' && /\)$/.test(run[run.length - 1])) {
+                trail = ')' + trail;
+                run[run.length - 1] = run[run.length - 1].slice(0, -1);
+            }
+            if (lead) out.push(lead);
+            run = run.filter(function (t) { return t !== ''; });
+            if (LTR_TEXT.test(run.map(textOf).join(''))) {
+                span = document.createElement('span');
+                span.className = 'calc-ltr';
+                span.append.apply(span, run);
+                out.push(span);
+            } else out.push.apply(out, run);
+            if (trail) out.push(trail);
+            run = [];
+        }
+
+        // the tip and its peek kept and filled again: of English after Arabic, read from the left again
+        if (!el.classList.toggle('calc-rtl', RTL_TEXT.test(el.textContent))) return;
+        [].slice.call(el.childNodes).forEach(function (n) {
+            if (n.nodeType === 3) {
+                n.data.split(/([\u200F֐-ࣿיִ-﷿ﹰ-﻿]+)/).forEach(function (s, i) {
+                    if (!s) return;
+                    if (i % 2) {
+                        flush();
+                        out.push(s);
+                    } else run.push(s);
+                });
+            } else if (n.nodeType === 1 && inline.get(n) && !RTL_TEXT.test(n.textContent)) {
+                run.push(n);
+            } else if (n.nodeType === 1) {
+                flush();
+                out.push(n);
+                if (n.namespaceURI === HTML_NS) runsOf(n, inline);
+            }
+        });
+        flush();
+        // the texts next to each other as one, a line's words read as they are written: الحالة عند, not الحالة, then عند
+        el.replaceChildren.apply(el, out.reduce(function (all, t) {
+            if (t === '') return all;
+            if (typeof t === 'string' && typeof all[all.length - 1] === 'string') all[all.length - 1] += t;
+            else all.push(t);
+            return all;
+        }, []));
+    }
+
     // a language's words, from its file; en's, the English of each name. What a file has to check after it, the
     // names translated from an earlier English, is for scripts/lang.js
     function add(lang, table) {
@@ -233,6 +342,7 @@
         n: n,
         c: c,
         dom: dom,
+        ltrRuns: ltrRuns,
         add: add,
         missing: missing // with langDebug on, the English asked for that has no word yet in the language in use
     };

@@ -984,71 +984,17 @@
         }, true);
     });
 
-    // Written right to left, as Arabic (lang.js): a text with Arabic in it read from the right (.calc-rtl), each run
-    // of it with none, maths, a name or a key, kept together left to right inside it (.calc-ltr), the spaces and stops
-    // at its ends with the Arabic: 2 x³ = 8 as it is, not 8 = x³ 2. Its blocks, and a part of a line with Arabic in
-    // it, done the same; a text with no Arabic in it is left as it is
-    var RTL_TEXT = /[֐-ࣿיִ-﷿ﹰ-﻿]/,
-        LTR_TEXT = /[0-9A-Za-zÀ-ɏͰ-Ͽ⁰-₟∀-⋿]/;
+    // a text with Arabic in it read from the right, its maths left to right inside it (lang.js)
+    var ltrRuns = CalcLang.ltrRuns;
 
-    function ltrRuns(el) {
-        var out = [], run = [];
+    // and so the names and results of the cards, the formulas, the elements and the statistics, and the notes of the
+    // statistics and the graph, each time one is drawn, as it is drawn, before it is measured: 20 °C, ± 2 SE
+    // and 9 : 3 : 3 : 1 as they are, not C° 20, SE 2 ± and 1 : 3 : 3 : 9. Those in what was drawn, all at once
+    var RTL_PARTS = '.calc-sv-name, .calc-sv-label, .calc-sv-value, .calc-fx-name, .calc-pt-count, .calc-stats-label, .calc-stats-note, .calc-graph-note';
 
-        function textOf(t) {
-            return typeof t === 'string' ? t : t.textContent;
-        }
-
-        function flush() {
-            var lead, trail, span, depth;
-            if (!run.length) return;
-            // not the point of .5 nor the ! of !A, before what they are of; nor the ! of n!, after
-            lead = typeof run[0] === 'string' ? /^[\s.,:;!?]*?(?=[.!]?[^\s.,:;!?]|$)/.exec(run[0])[0] : '';
-            if (lead) run[0] = run[0].slice(lead.length);
-            trail = typeof run[run.length - 1] === 'string' ? /(?:[\s.,:;?]|(?<=[\s.,:;?])!)*$/.exec(run[run.length - 1])[0] : '';
-            if (trail) run[run.length - 1] = run[run.length - 1].slice(0, -trail.length);
-            // a bracket at its end that opens or closes around Arabic, as of (4G و5G), not inside the run: with the Arabic, so it
-            // turns as the Arabic reads; one of the run's own, as of (DAB) or f(x), kept with it
-            depth = run.map(textOf).join('').replace(/[^()]/g, '').split('').reduce(function (d, c) { return d + (c === '(' ? 1 : -1); }, 0);
-            if (depth > 0 && typeof run[0] === 'string' && run[0].charAt(0) === '(') {
-                lead += '(';
-                run[0] = run[0].slice(1);
-            }
-            if (depth < 0 && typeof run[run.length - 1] === 'string' && /\)$/.test(run[run.length - 1])) {
-                trail = ')' + trail;
-                run[run.length - 1] = run[run.length - 1].slice(0, -1);
-            }
-            if (lead) out.push(lead);
-            if (LTR_TEXT.test(run.map(textOf).join(''))) {
-                span = document.createElement('span');
-                span.className = 'calc-ltr';
-                span.append.apply(span, run);
-                out.push(span);
-            } else out.push.apply(out, run);
-            if (trail) out.push(trail);
-            run = [];
-        }
-
-        // the tip and its peek kept and filled again: of English after Arabic, read from the left again
-        if (!el.classList.toggle('calc-rtl', RTL_TEXT.test(el.textContent))) return;
-        [].slice.call(el.childNodes).forEach(function (n) {
-            if (n.nodeType === 3) {
-                n.data.split(/([֐-ࣿיִ-﷿ﹰ-﻿]+)/).forEach(function (s, i) {
-                    if (!s) return;
-                    if (i % 2) {
-                        flush();
-                        out.push(s);
-                    } else run.push(s);
-                });
-            } else if (n.nodeType === 1 && /^inline/.test(getComputedStyle(n).display) && !RTL_TEXT.test(n.textContent)) {
-                run.push(n);
-            } else if (n.nodeType === 1) {
-                flush();
-                out.push(n);
-                ltrRuns(n);
-            }
-        });
-        flush();
-        el.replaceChildren.apply(el, out.filter(function (t) { return t !== ''; }));
+    function rtlDraw(el) {
+        if (!CalcLang.rtl) return;
+        ltrRuns((el.matches(RTL_PARTS) ? [el] : []).concat([].slice.call(el.querySelectorAll(RTL_PARTS))));
     }
 
     // A tip above its key, or below it where there is no room above; too long for the room on either
@@ -1063,7 +1009,7 @@
         if (body && box.offsetHeight > (under ? below : above)) {
             box.style.setProperty('--room', Math.max(40, (under ? below : above) - (box.offsetHeight - body.offsetHeight)) + 'px');
         }
-        box.classList.toggle('calc-tip-scrolls', !!body && body.scrollHeight > body.clientHeight);
+        box.classList.toggle('calc-tip-scrolls', !!body && body.scrollHeight > body.clientHeight + 2); // more than a sub or sup under or over its line
         left = Math.max(6, Math.min(calc.clientWidth - box.offsetWidth - 6, at.left + at.width / 2 - box.offsetWidth / 2));
         box.style.left = left + 'px';
         box.style.top = (under ? at.bottom + gap : at.top - box.offsetHeight - gap) + 'px';
@@ -1119,7 +1065,7 @@
     peek.hidden = true;
     tip.parentNode.appendChild(peek);
 
-    // what the tip of a result shows: { t: its name, d: what it is, html: the value, text: as it is copied,
+    // what the tip of a result shows: { t: its name, shown: t in the language in use already, d: what it is, html: the value, text: as it is copied,
     // put: it goes in }. One that says what it is, as a result of the statistics, has its tip with no value
     // as well, only that; null for any other with no value, – as well, a matrix, whose numbers go in one at
     // a time, and bits
@@ -1140,7 +1086,7 @@
         value = el.querySelector('.calc-sv-value');
         if (!row || row.m !== undefined || row.flip || (row.text === undefined && !isFinite(row.v)) || !value || /^–?$/.test(value.textContent.trim())) return null;
         if (value.querySelector('svg')) return null; // a drawing: nothing to copy or put in
-        return { t: el.querySelector('.calc-sv-label').innerHTML, html: value.innerHTML,
+        return { t: row.l, html: value.innerHTML, // its name in English, as tr() takes it, not as its label shows it
             text: row.text !== undefined ? value.textContent : row.say || local(statsValue(row.v).text), put: row.text === undefined }; // say: as a value of the converter is written
     }
 
@@ -1150,7 +1096,7 @@
         if (!info) return;
         hideTip();
         // what is under its name scrolls, too long; its buttons stay in sight under it
-        peek.innerHTML = '<div class="calc-tip-head"><b>' + tr(info.t) + '</b></div><div class="calc-tip-body">' + (info.d ? '<div>' + tr(info.d) + '</div>' : '') +
+        peek.innerHTML = '<div class="calc-tip-head"><b>' + (info.shown ? info.t : tr(info.t)) + '</b></div><div class="calc-tip-body">' + (info.d ? '<div>' + tr(info.d) + '</div>' : '') +
             (info.html === undefined ? '</div>' : '<div class="calc-peek-value">' + info.html + '</div></div><div class="calc-peek-acts">' +
                 (info.put ? '<span class="calc-peek-act" data-act="insert">' + tr('Insert') + insertIcon() + '</span>' : '') +
                 '<span class="calc-peek-act" data-act="copy">' + tr('Copy') + '</span></div>');
@@ -2203,6 +2149,7 @@
             return '<div class="calc-stats-tile" data-k="' + s[0] + '"><span class="calc-stats-label">' + tr(s[1]) +
                 '</span><span class="calc-stats-value"></span></div>';
         }).join('');
+        rtlDraw(statsGrid);
     }
 
     statsTiles();
@@ -2351,12 +2298,14 @@
                 (engine.comma ? tr('x and y on each line, apart by a space, semicolon or tab.') : tr('x and y on each line, apart by a space, comma or tab.'))) :
                 trn(s.n, '{n} pair', '{n} pairs') +
                 (s.bad.length ? tr(' · left out: {bad}{v}', { bad: s.bad.slice(0, 3).join(', '), v: (s.bad.length > 3 ? ' …' : '') }) : '');
+            rtlDraw(statsNote);
             return;
         }
         statsNote.textContent = !s.n && !s.bad.length ? (statsBy.at ? tr('Only {by}{v} are between two numbers.', { by: tr(BY[statsBy.at][2]), v: (statsBy.at > 1 ? tr(' and new lines') : '') }) :
             (engine.comma ? tr('Apart by spaces, semicolons or new lines; a column from a spreadsheet works too.') : tr('Apart by spaces, commas or new lines; a column from a spreadsheet works too.'))) :
             trn(s.n, '{n} number', '{n} numbers') +
             (s.bad.length ? tr(' · left out: {bad}{v}', { bad: s.bad.slice(0, 3).join(', '), v: (s.bad.length > 3 ? ' …' : '') }) : '');
+        rtlDraw(statsNote);
     }
 
     // a number to 6 digits, with the decimal mark in use and − for its minus: for the note and the charts
@@ -5405,6 +5354,7 @@
         } else {
             graphNote.textContent = tr('Point at the graph for values; click to insert.{v}', { v: (unit ? ' · ' + unit : '') });
         }
+        rtlDraw(graphNote);
     }
 
     // The popup of the point clicked, over it, or under it where there is no room above;
@@ -6678,6 +6628,7 @@
         var form = note.closest('.calc-fx-form');
         note.classList.toggle('calc-fx-warn', html !== null);
         note.innerHTML = html === null ? note.dataset.usual : tr(html);
+        if (CalcLang.rtl) ltrRuns(note); // its maths left to right in the Arabic
         if (html === null) form.querySelector('.calc-fx-actions').insertBefore(note, form.querySelector('.calc-fx-btns'));
         else form.insertBefore(note, form.querySelector('.calc-fx-fields'));
     }
@@ -6776,6 +6727,7 @@
                 '</div></div>';
         });
         fxList.innerHTML = html || '<div class="calc-fx-none">' + tr('Nothing found') + '</div>';
+        rtlDraw(fxList);
         fxList.scrollTop = 0;
         fxList.classList.toggle('calc-side', fxTab === 'formulas' && bigSide(fx));
         if (fxTab === 'formulas' && bigSide(fx)) { // beside the list, one is always open: the one open last, if found, else the first
@@ -10206,6 +10158,7 @@
                     '<span class="calc-sv-name">' + toolIcon(tool) + tr(tool.t) + '</span><span class="calc-sv-f calc-sv-eq calc-sv-val"><span>' +
                     pills(tool.f, formulas) + '</span></span></span>' + collapseButton() + '</div></div>'; // each in a badge, one alone as well
             }).join('');
+            rtlDraw(list);
             list.scrollTop = 0;
             list.classList.toggle('calc-side', !!(now.side && now.side())); // beside the list, the card open
             if (open === undefined && (tools[tab].length === 1 || (now.side && now.side()))) open = 0; // beside the list, a card is always open
@@ -10479,6 +10432,7 @@
             [].forEach.call(item.querySelectorAll('.calc-sv-tile'), function (el) {
                 el.row = out.rows[+el.dataset.r]; // for its tip
             });
+            rtlDraw(grid);
             fitTiles(item);
             // what to pick from, as the ions or the solubility table, in a section of its own under the results: its own
             // heading, a click on one typing it in the box (data-fill); no row of the results, so no tip of one, nor put in
@@ -10488,10 +10442,12 @@
                 (out.pick.cols ? ' style="grid-template-columns: repeat(' + out.pick.cols + ', 1fr)"' : '') + '>' + out.pick.rows.map(function (r) {
                     return '<div class="calc-sv-tile' + (r.small ? '' : ' calc-sv-wide') + (drawnRow(r) ? ' calc-sv-drawn' : '') + '"><span class="calc-sv-label">' + tr(r.l) + '</span><span class="calc-sv-value">' + shownText(r) + '</span></div>';
                 }).join('') + '</div>';
+            rtlDraw(item.querySelector('.calc-sv-pickfrom'));
             fillRows(item.querySelector('.calc-sv-pickfrom .calc-sv-grid'));
             watchWidth(item);
             note = item.querySelector('.calc-sv-note');
             note.textContent = pasted || tr(out.note) || '';
+            if (CalcLang.rtl) ltrRuns(note); // its maths left to right in the Arabic: x^5 - 3x + 1, not 1 + 3x - x^5
             note.classList.toggle('calc-sv-warn', !!(pasted || out.warn));
             boxes = item.querySelector('.calc-sv-boxes');
             boxes.parentNode.insertBefore(note, pasted || out.warn ? boxes : boxes.nextSibling); // an error at the top, over the boxes; a note under them
@@ -18870,14 +18826,18 @@
     function chemFactPeek(el) {
         var info = CalcTips['chem fact ' + el.dataset.fact], label = el.querySelector('.calc-sv-label'), value = el.querySelector('.calc-sv-value'),
             // the crystal structure's drawing left out: its words alone
-            drawn = value.querySelector('.calc-pt-cells'), unit = label.querySelector('i:not(.calc-pt-guess)'), name = label.firstChild.data.trim(),
+            drawn = value.querySelector('.calc-pt-cells'), unit = label.querySelector('i:not(.calc-pt-guess)'), name = label.cloneNode(true),
             shown = [].filter.call(value.childNodes, function (n) { return n !== drawn; }).map(function (n) { return n.textContent; }).join('').trim(), u;
         if (!info) return null;
-        if (el.dataset.lines) return { t: name, d: '<div class="calc-tip-value">' + el.dataset.lines + '</div>' + tr(info.d) }; // the spectrum: its lines
-        if (el.classList.contains('calc-pt-text') || /^–?$/.test(shown)) return { t: name, d: info.d };
+        // its name as its label shows it, translated already, without its unit: the whole of it, not its first text, which in
+        // Arabic is only the words before its maths (lang.js)
+        [].forEach.call(name.querySelectorAll('i'), function (i) { i.remove(); });
+        name = name.textContent.trim();
+        if (el.dataset.lines) return { t: name, shown: true, d: '<div class="calc-tip-value">' + el.dataset.lines + '</div>' + tr(info.d) }; // the spectrum: its lines
+        if (el.classList.contains('calc-pt-text') || /^–?$/.test(shown)) return { t: name, shown: true, d: info.d };
         // not a name in place of a unit; the mass in full, whatever its places
         u = unit && el.dataset.fact !== 'shells' && [tr('mass number'), tr('Pauling')].indexOf(unit.textContent) < 0 ? ' ' + (unit.dataset.unit === 'm' ? tr('g/mol') : unit.textContent) : '';
-        return { t: name, d: info.d, html: (drawn ? shown : value.innerHTML) + u, text: el.hasAttribute('data-v') ? local(statsValue(+el.dataset.v).text) : shown, put: el.hasAttribute('data-v') };
+        return { t: name, shown: true, d: info.d, html: (drawn ? shown : value.innerHTML) + u, text: el.hasAttribute('data-v') ? local(statsValue(+el.dataset.v).text) : shown, put: el.hasAttribute('data-v') };
     }
 
     function chemGroupOf(e) {
@@ -19020,6 +18980,7 @@
                 (t[2] ? ' <i' + (t[4] ? ' class="calc-pt-unit" data-unit="' + t[4] + '" role="button"' : '') + '>' + t[2] + '</i>' : '') + (guess ? ' <i class="calc-pt-guess">' + tr('predicted') + '</i>' : '') + '</span><span class="calc-sv-value">' + (!known ? '–' : num ? (t[6] ? chemSci(t[1]) : statsValue(t[1]).html) : t[1]) +
                 (t[7] || '') + '</span></div>';
         }).join('') + '</div></div>';
+        rtlDraw(chemInfo);
         chemRows();
     }
 

@@ -41,6 +41,20 @@ const places = document.getElementById('format-places');
 const group = document.getElementById('format-group');
 const icon = document.getElementById('format-icon');
 
+// written right to left, each sample kept as it reads: 1 234.5 not split at its space into 234.5 1
+if (CalcLang.rtl) {
+    Array.from(group.options).forEach((o) => {
+        o.text = o.text.replace(/\d(?:[\d\s.,]*\d)?/, (m) => '\u2066' + m + '\u2069'); // wherever its words put it
+    });
+}
+
+// and each paragraph with Arabic in it read from the right, its maths and English left to right inside it (lang.js):
+// (2 + 3i)(1 – i) as it is, not (3i + 2)(i – 1). Not one of choices, but one in it; the outermost done, which goes into
+// those in it (lang.js)
+if (CalcLang.rtl) {
+    CalcLang.ltrRuns(document.querySelectorAll('.wrapper :is(p, li, .des):not(:has(input, select, button))'));
+}
+
 // Auto: as many digits as each result needs, as a TI's Float
 places.add(new Option(CalcLang.t('Auto'), 'auto'));
 for (let n = 0; n <= 9; n++) {

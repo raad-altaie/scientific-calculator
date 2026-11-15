@@ -629,6 +629,7 @@ html, body {
     font-size: 12px;
     font-weight: 700;
     white-space: nowrap;
+    direction: ltr; /* 1 500 as it reads, in a language written right to left as well */
     -webkit-user-select: none;
     user-select: none;
 }
@@ -1180,6 +1181,18 @@ html.lang-rtl:has(> body.page) {
 
 .lang-rtl .switch input:checked + span::after {
     right: 21px;
+}
+
+/* a paragraph with Arabic in it from the right, its maths and English left to right inside it (options.js):
+   (2 + 3i)(1 – i) and 1 234.5 as they are, not (3i + 2)(i – 1) and 234.5 1 */
+.lang-rtl .wrapper .calc-rtl {
+    unicode-bidi: isolate;
+    direction: rtl;
+}
+
+.lang-rtl .wrapper .calc-ltr {
+    unicode-bidi: isolate;
+    direction: ltr;
 }
 
 /* a list's arrow at the left of its box */
