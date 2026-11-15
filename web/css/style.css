@@ -8546,7 +8546,10 @@
     line-height: 1.2;
 }
 
+/* of its tight line, a little apart from its kind under it, in every language: the dots under an Arabic ي not on it.
+   Of the room above its facts, which stay at the foot */
 #calculator.calc-chem-big .calc-pt-gap .calc-pt-about .calc-pt-title {
+    margin-bottom: 0.25em;
     line-height: 1.1;
 }
 
@@ -9839,12 +9842,6 @@
 .lang-rtl #calculator.calc-chem-big .calc-pt-facts :is(dt, dd) {
     overflow-x: clip;
     overflow-y: visible;
-}
-
-/* and popped out, the name in the gap of the table, of its tight line, a little apart from its kind under it: the dots
-   under its ي not on it. Of the room above its facts, which stay at the foot */
-.lang-rtl #calculator.calc-chem-big .calc-pt-gap .calc-pt-about .calc-pt-title {
-    margin-bottom: 0.25em;
 }
 
 /* and the slider of a number or of the temperature as the table's colours go, the least at the left: From's number
