@@ -1252,3 +1252,16 @@ html.lang-rtl:has(> body.page) {
         scrollbar-color: #6b8196 transparent;
     }
 }
+
+/* Firefox only: under the pointer and held, its own colour, not darker and all but black, as Chrome's (style.css) */
+@supports (-moz-appearance: none) {
+    html:hover:not(:has(:hover)),
+    html *:hover:not(:has(:hover)) {
+        scrollbar-color: #85a0b9 transparent;
+    }
+
+    html:active:not(:has(:active)),
+    html *:active:not(:has(:active)) {
+        scrollbar-color: #223b4e transparent;
+    }
+}

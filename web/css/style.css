@@ -10139,6 +10139,40 @@
     }
 }
 
+/* Firefox only: its scrollbar under the pointer darker, and held all but black (or, from a dark one, all but white),
+   where Chrome's keeps its colour. So while the pointer is on it (on what scrolls, on nothing in it) a lighter
+   shade, which Firefox darkens to its own; and held (what scrolls pressed, nothing in it) a dark one, which Firefox
+   lightens to its own: each found in Firefox, #6b8196 under the pointer #698197, held #688198. On the room between
+   the cards it is that lighter shade, as nothing there tells it from the scrollbar */
+@supports (-moz-appearance: none) {
+    html:hover:not(:has(:hover)),
+    html *:hover:not(:has(:hover)) {
+        scrollbar-color: #85a0b9 transparent;
+    }
+
+    #calculator :is(.calc-graph-list, .calc-conv-menu):hover:not(:has(:hover)) {
+        scrollbar-color: #b0d3c0 transparent;
+    }
+
+    #calculator .calc-tip-body:hover:not(:has(:hover)) {
+        scrollbar-color: #61859f transparent;
+    }
+
+    /* held after under the pointer, as both are then */
+    html:active:not(:has(:active)),
+    html *:active:not(:has(:active)) {
+        scrollbar-color: #223b4e transparent;
+    }
+
+    #calculator :is(.calc-graph-list, .calc-conv-menu):active:not(:has(:active)) {
+        scrollbar-color: #385144 transparent;
+    }
+
+    #calculator .calc-tip-body:active:not(:has(:active)) {
+        scrollbar-color: #073043 transparent;
+    }
+}
+
 /* Firefox: its scrollbar over what it scrolls and gone as it stops (macOS, Windows 11), in no room of its own, so
    none kept by scrollbar-gutter: the room at the end of what scrolls the scrollbar's 8px more, for it to be over,
    clear of the cards; popped in 3px from it, popped out 8px, as in every other browser */
