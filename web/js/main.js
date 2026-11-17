@@ -11921,7 +11921,8 @@
         });
         kinds.some(function (k, i) {
             if (nm >= kinds[i + 1][0] && i < 6) return false;
-            x = 8 + (i + Math.max(0, Math.min(1, Math.log(nm / k[0]) / Math.log(kinds[i + 1][0] / k[0])))) * w;
+            // the colours seen as their gradient is drawn, even in nm, so a light sits on its own colour; the rest by their powers of ten
+            x = 8 + (i + Math.max(0, Math.min(1, i === 3 ? (nm - 380) / 370 : Math.log(nm / k[0]) / Math.log(kinds[i + 1][0] / k[0])))) * w;
             return true;
         });
         return svgOf('calc-sv-spec-small', W, H, 'Where it is among the kinds of light', body + '<path class="calc-sv-ground" d="M8 8h' + fix(W - 16) + 'v16H8Z"/>' +
@@ -11945,7 +11946,7 @@
     function spectrumChart(nm, of) {
         var W = 600, H = 210, L = 46, R = 556, D0 = -16, D1 = 9, V = 20, G = 20, va = Math.log10(380e-9), vb = Math.log10(750e-9), id = 'calc-plot-' + (++plotIds), body = rainbow(id),
             k = (R - L - V - G) / (D1 - D0 - (vb - va)),
-            px = function (lg) { return lg < va ? L + k * (lg - D0) : lg <= vb ? L + k * (va - D0) + V * (lg - va) / (vb - va) : L + k * (va - D0 - vb + lg) + V + G; },
+            px = function (lg) { return lg < va ? L + k * (lg - D0) : lg <= vb ? L + k * (va - D0) + V * (Math.pow(10, lg) - 380e-9) / 370e-9 : L + k * (va - D0 - vb + lg) + V + G; },
             ZL = 40, ZR = 420, zx = function (n) { return ZL + (ZR - ZL) * (n - 380) / 370; },
             text = function (x, y, s, anchor, cls) { return svgText(x, y, s, anchor || 'middle', cls, true); },
             // the name of a scale, in a box of its own, so it is not read as one of its numbers
