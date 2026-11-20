@@ -539,7 +539,7 @@
             }
         if (holdKey) {
             for (var n = 0, m = keyMatchHold.length; n < m; n = n + 2)
-                if (key == keyMatchHold[n]) {
+                if (key === keyMatchHold[n]) {
                     key = key.replace(key, keyMatchHold[n + 1]);
                     break
                 }
@@ -2569,7 +2569,6 @@
         graphSharp = 0, // pixels of the canvas to each of the plot at least: 2 while a picture is made
         graphPop = graphPlot.querySelector('.calc-graph-pop'), // the point clicked: its x and y, each to insert
         graphSave = graphPlot.querySelector('[data-zoom="save"]'), // in the corner below: its menu, to share and save the graph
-        graphShared = graphPlot.querySelector('.calc-graph-shared'), // a graph opened from a link: keep it, or back to one's own
         GRAPH_SITE = 'https://raad.dev/calculator/', // where a link of the graph opens, from the extension too
         graphDrawTo = null, // the SVG the graph is drawn into in place of its canvas, while it is saved as one
         graphUntil = 0, // when the time of this drawing is up, its curves after it traced roughly; 0 for none, as once it is still
@@ -6334,9 +6333,8 @@
         };
     }
 
-    // A page opened from a link of a graph shows that graph, with one's own kept aside and the line over
-    // the plot to keep the one shown or go back to one's own, until one of them is picked, through a
-    // reload too. The link goes from the address, so a reload does not open it again. The website opens
+    // A page opened from a link of a graph shows that graph in place of one's own. The link goes from the
+    // address, so a reload does not open it again. The website opens
     // it in Advanced mode (index.html), the graph popped out beside the rail once the page has said so
     // (app.js, its calc-home), and not as a panel over the keys before it: app.js may come in later than
     // a moment after this, its file still loading
@@ -6353,7 +6351,6 @@
             try {
                 history.replaceState(null, '', location.href.split('#')[0]);
             } catch (e) { }
-            if (!stored('graphMine')) store('graphMine', { graph: stored('graph'), u: deg });
             loadGraph(g);
             setUnit(g.u);
             readGraph(); // its letters known, for their sliders to be kept
@@ -6365,31 +6362,7 @@
                 showLink();
             }
         }
-        graphShared.hidden = !stored('graphMine');
     }
-
-    graphShared.addEventListener('keydown', function (e) {
-        if ((e.which === 13 || e.which === 32) && e.target.dataset.shared) {
-            e.preventDefault();
-            e.target.click();
-        }
-    }, false);
-
-    // kept: one's own goes; back: it comes again as it was, with its unit of angles
-    graphShared.addEventListener('click', function (e) {
-        var b = e.target.closest('[data-shared]'), mine = stored('graphMine');
-        if (!b) return;
-        if (b.dataset.shared === 'back' && mine) {
-            loadGraph(mine.graph);
-            if ([0, 1, 2].indexOf(mine.u) > -1) setUnit(mine.u);
-            readGraph();
-        }
-        try {
-            localStorage.removeItem('graphMine');
-        } catch (err) { }
-        graphShared.hidden = true;
-        saveState();
-    }, false);
 
     // its menu: a link of it, the picture copied or saved as PNG, saved as SVG, and the table as CSV
     function exportItems() {
@@ -9376,9 +9349,9 @@
         };
     }
 
-    // a text as HTML: its own &, < and > not tags
+    // a text as HTML: its own &, <, > and " not tags, in a tag's text or in an attribute alike
     function escaped(text) {
-        return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
     function runAnyBase(n, raw) {

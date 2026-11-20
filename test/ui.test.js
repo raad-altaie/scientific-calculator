@@ -2709,11 +2709,11 @@ async function graphModel(page, at) {
         t + 'without points, said', await page.calc(fits));
 }
 
-// the graph's menu: a link of it, opened in a page with a graph of its own, kept aside till Keep or Back
-// to mine; a bad link nothing; the graph saved as SVG and its table as CSV
+// the graph's menu: a link of it, opened in a page with a graph of its own in its place; a bad link nothing;
+// the graph saved as SVG and its table as CSV
 async function graphShare(page, at) {
     var t = at + ': share: ', link, boxes = 'Array.prototype.map.call(document.querySelectorAll(".calc-graph-input"), function (b) { return b.value; }).filter(Boolean).join(" | ")',
-        banner = '!document.querySelector(".calc-graph-shared").hidden', saved = function (k) { return 'JSON.stringify(JSON.parse(localStorage.getItem("graph"))' + k + ')'; },
+        saved = function (k) { return 'JSON.stringify(JSON.parse(localStorage.getItem("graph"))' + k + ')'; },
         blobs = '(function (o) { window.blobs = []; URL.createObjectURL = function (b) { window.blobs.push(b); return o.call(URL, b); }; })(URL.createObjectURL)',
         open = async function (url) {
             await page.send('Page.navigate', { url: 'about:blank' });
@@ -2741,21 +2741,13 @@ async function graphShare(page, at) {
     check(await page.calc(boxes) === 'sin(a x) | (1, 2), (3, 4)' && await page.calc(saved('.p')) === '{"a":[2,-5,5]}' && await page.calc(saved('.view.x')) === '1' &&
         await page.calc(saved('.look.polar')) === 'true' && await page.calc(saved('.look.xname')) === '"t"' && await page.calc('localStorage.getItem("deg")') === 'true',
         t + 'opened, the graph of the link, with its sliders, view, settings and unit', await page.calc(boxes) + ' ' + await page.calc('localStorage.getItem("graph")'));
-    check(await page.calc(banner) && await page.calc('location.hash') === '' && await page.calc('JSON.parse(localStorage.getItem("graphMine")).graph.f[0]') === 'x^2' &&
-        await page.calc('document.querySelector(".calc-graph").classList.contains("calc-open")'), t + 'shown, one\'s own kept aside, the link gone from the address');
-    await page.click('[data-shared="back"]');
-    check(await page.calc(boxes) === 'x^2' && !await page.calc(banner) && await page.calc('localStorage.getItem("graphMine")') === null &&
-        await page.calc('localStorage.getItem("deg")') === 'false', t + 'Back to mine: one\'s own again, in its unit', await page.calc(boxes));
-
-    await open(link);
-    await page.go(page.base + at); // reloaded before a choice: still asked
-    check(await page.calc(banner) && await page.calc(boxes) === 'sin(a x) | (1, 2), (3, 4)', t + 'through a reload, still to choose');
-    if (!await page.calc('document.querySelector(".calc-graph").classList.contains("calc-open")')) await page.click('.calc-graph-btn');
-    await page.click('[data-shared="keep"]');
-    check(!await page.calc(banner) && await page.calc('localStorage.getItem("graphMine")') === null && await page.calc(boxes) === 'sin(a x) | (1, 2), (3, 4)', t + 'Keep: the graph of the link stays');
+    check(await page.calc('location.hash') === '' && await page.calc('document.querySelector(".calc-graph").classList.contains("calc-open")'),
+        t + 'shown, the link gone from the address');
+    await page.go(page.base + at);
+    check(await page.calc(boxes) === 'sin(a x) | (1, 2), (3, 4)', t + 'through a reload, the graph of the link stays', await page.calc(boxes));
 
     await open(page.base + at + '#g=@@notone');
-    check(!await page.calc(banner) && await page.calc(boxes) === 'sin(a x) | (1, 2), (3, 4)', t + 'a link that is not one does nothing');
+    check(await page.calc(boxes) === 'sin(a x) | (1, 2), (3, 4)', t + 'a link that is not one does nothing');
 
     if (!await page.calc('document.querySelector(".calc-graph").classList.contains("calc-open")')) await page.click('.calc-graph-btn');
     await page.calc(blobs);

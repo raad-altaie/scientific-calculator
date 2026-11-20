@@ -677,14 +677,14 @@ chrome.commands.onCommand.addListener(function (command) {
 // Listen for the extension being installed
 chrome.runtime.onInstalled.addListener((details) => {
     // check if it's new install
-    if (details.reason == "install") {
+    if (details.reason === "install") {
         // Open the options page when the extension is installed
         chrome.tabs.create({ url: chrome.runtime.getURL("options.html") });
     }
 
 
     // The detached window left open by the old version is blank: it is closed
-    if (details.reason == "update") {
+    if (details.reason === "update") {
         closeDetachedWindow();
     }
 
@@ -874,6 +874,12 @@ function pageFile(file) {
     return pageFiles[file];
 }
 
+// A message from the extension's own pages, the popup and its windows (popup.js), and not from a content script
+// in a web page: only they close, move or take over the window they are in
+function fromExtension(sender) {
+    return typeof sender.url === "string" && sender.url.startsWith(chrome.runtime.getURL(""));
+}
+
 chrome.runtime.onMessage.addListener((message, sender, answer) => {
     if (message?.command === "page-file" && Object.hasOwn(pageFileTypes, message.file)) {
         pageFile(message.file).then(answer);
@@ -903,10 +909,10 @@ chrome.runtime.onMessage.addListener((message, sender, answer) => {
         return true;
     } else if (message?.command === "show-calculator") {
         showCalculator();
-    } else if (message?.command === "pop-in" && sender.tab) {
+    } else if (message?.command === "pop-in" && sender.tab && fromExtension(sender)) {
         // a panel's own window, the graph's or the table's popped in: the calculator comes up with it open, then that window closes
         popInTo().then(() => chrome.windows.remove(sender.tab.windowId)).catch(() => { });
-    } else if (message?.command === "go-window" && sender.tab) {
+    } else if (message?.command === "go-window" && sender.tab && fromExtension(sender)) {
         goWindow(sender.tab, message.to);
     } else if (message?.command === "page-window" && sender.tab) {
         // the kind of window a page is in, for its button (page/icon.js): normal, or a popup
@@ -915,7 +921,7 @@ chrome.runtime.onMessage.addListener((message, sender, answer) => {
     } else if (message?.command === "open-calculator") {
         // the button on a page opens the detached window
         unlessOff("detachedMode", openCalculatorInDetachedMode);
-    } else if (message?.command === "window-moved" && sender.tab) {
+    } else if (message?.command === "window-moved" && sender.tab && fromExtension(sender)) {
         // Firefox: the detached or the graph's window was moved or resized
         chrome.windows.get(sender.tab.windowId, rememberBounds);
     }
