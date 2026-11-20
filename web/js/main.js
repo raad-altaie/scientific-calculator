@@ -121,15 +121,6 @@
             }
             return rows;
         })(graph.querySelector('.calc-graph-fn')),
-        // a change of the graph taken back, and done again: in its head, or big and wide on the line above the plot
-        graphUndo = [].slice.call(graph.querySelectorAll('.calc-graph-undo')),
-        graphRedo = [].slice.call(graph.querySelectorAll('.calc-graph-redo')),
-        graphPast = [], // the graph before each change, the last last: its boxes, colors, sliders, settings and lines, as graphState has them
-        graphAhead = [], // and before each undo, to redo
-        graphKept = null, // the graph as the last change left it
-        graphNext = null, // a change waiting for the next, so a word typed is one step, and the timer of it
-        GRAPH_STEP = 500, // that long
-        GRAPH_UNDO = 100, // so many changes kept to undo
         graphInputs = graphRows.map(function (row) { return row.querySelector('input'); }),
         graphUsed = false, // the graph pressed last, not the calculator: Ctrl+Z its undo
         tools = Calc.querySelector('.calc-tools'), // the buttons at the top left of the display
@@ -1247,8 +1238,8 @@
             }
             if (el === graphPart.graphSize) return CalcTips[root.classList.contains('calc-big') ? 'graph small' : 'graph big'];
             if (el === graphPart.graphAdd) return CalcTips['graph add'];
-            if (graphUndo.indexOf(el) > -1 || graphRedo.indexOf(el) > -1) {
-                info = CalcTips[graphUndo.indexOf(el) > -1 ? 'graph undo' : 'graph redo'];
+            if (undoKind(el)) { // graph.js
+                info = CalcTips['graph ' + undoKind(el)];
                 return { t: info.t, d: info.d, k: mac ? info.k.replace('Ctrl+Shift+', '⇧⌘').replace('Ctrl+', '⌘') : info.k };
             }
             if (el.classList.contains('calc-graph-del')) return CalcTips['graph remove'];
@@ -2516,6 +2507,7 @@
         showMenu: showMenu,
         shownResult: shownResult,
         statsValue: statsValue,
+        store: store,
         tr: tr,
         trc: trc,
         trn: trn,
@@ -2523,19 +2515,17 @@
     }, graphPart);
 
     // the graph's functions the calculator calls: as they are when called
-    function clearGraph() { return graphPart.clearGraph.apply(this, arguments); }
     function closeGraph() { return graphPart.closeGraph.apply(this, arguments); }
-    function exportItems() { return graphPart.exportItems.apply(this, arguments); }
     function exampleText() { return graphPart.exampleText.apply(this, arguments); }
     function exampleTip() { return graphPart.exampleTip.apply(this, arguments); }
-    function putExample() { return graphPart.putExample.apply(this, arguments); }
+    function exportItems() { return graphPart.exportItems.apply(this, arguments); }
     function graphBig() { return graphPart.graphBig.apply(this, arguments); }
     function graphRender() { return graphPart.graphRender.apply(this, arguments); }
     function graphTrace() { return graphPart.graphTrace.apply(this, arguments); }
     function graphUnpin() { return graphPart.graphUnpin.apply(this, arguments); }
     function loadGraph() { return graphPart.loadGraph.apply(this, arguments); }
-    function logScale() { return graphPart.logScale.apply(this, arguments); }
     function nextFit() { return graphPart.nextFit.apply(this, arguments); }
+    function putExample() { return graphPart.putExample.apply(this, arguments); }
     function readGraph() { return graphPart.readGraph.apply(this, arguments); }
     function saveBlob() { return graphPart.saveBlob.apply(this, arguments); }
     function seqOf() { return graphPart.seqOf.apply(this, arguments); }
@@ -2544,8 +2534,13 @@
     function showLink() { return graphPart.showLink.apply(this, arguments); }
     function showWindow() { return graphPart.showWindow.apply(this, arguments); }
     function stopSliders() { return graphPart.stopSliders.apply(this, arguments); }
+    function storeGraph() { return graphPart.storeGraph.apply(this, arguments); }
     function styleItems() { return graphPart.styleItems.apply(this, arguments); }
     function takeLink() { return graphPart.takeLink.apply(this, arguments); }
+    function undoGraph() { return graphPart.undoGraph.apply(this, arguments); }
+    function undoKind() { return graphPart.undoKind.apply(this, arguments); }
+    function undoStart() { return graphPart.undoStart.apply(this, arguments); }
+function clearGraph() { return graphPart.clearGraph.apply(this, arguments); }
 
     // ---------------- formulas and constants ---------------- //
 
@@ -5187,9 +5182,8 @@
     }, chemPart);
 
     // the panel's functions the calculator calls: as they are when called
-    function chemBig() { return chemPart.chemBig.apply(this, arguments); }
-    function chemGoTo() { return chemPart.chemGoTo.apply(this, arguments); }
     function chemFactPeek() { return chemPart.chemFactPeek.apply(this, arguments); }
+    function chemGoTo() { return chemPart.chemGoTo.apply(this, arguments); }
     function chemTip() { return chemPart.chemTip.apply(this, arguments); }
     function clearChem() { return chemPart.clearChem.apply(this, arguments); }
     function closeChem() { return chemPart.closeChem.apply(this, arguments); }
@@ -5197,6 +5191,7 @@
     function renderChem() { return chemPart.renderChem.apply(this, arguments); }
     function saveChem() { return chemPart.saveChem.apply(this, arguments); }
     function showChem() { return chemPart.showChem.apply(this, arguments); }
+function chemBig() { return chemPart.chemBig.apply(this, arguments); }
     // ---------------- converter ---------------- //
 
     // Two tabs of cards, as the solver has: Units, a card for each group of units, which has a value in one of them in
@@ -6829,8 +6824,7 @@
     // has from when it opened, and the calculator may have changed it since
     function saveState() {
         if (!chemPart.chemAlone && !panelAlone) {
-            store('graph', graphObject());
-            noteGraph();
+            storeGraph(); // graph.js
         }
         store('calc', engine.save());
         if (!graphPart.graphAlone && !chemPart.chemAlone && (!panelAlone || panelAlone === 'stats')) {
@@ -6847,82 +6841,6 @@
         store('dms', dmsMode);
         store('memory', engine.memory);
     }
-
-    // the graph as it is kept: its boxes, their colors, the view, the settings, the tab, the table's
-    // start and step, what is hidden and fitted, the lines, and the sliders
-    function graphObject() {
-        return {
-            f: graphInputs.slice(0, graphPart.graphCount).map(function (box) { return box.value; }), c: graphPart.graphHue.slice(0, graphPart.graphCount),
-            view: graphPart.graphView, look: graphPart.graphLook, tab: graphPart.graphTab, side: graphPart.graphSide, from: graphPart.graphFrom.value, by: graphPart.graphBy.value, off: graphPart.graphOff.slice(0, graphPart.graphCount), d: graphPart.graphDiff.slice(0, graphPart.graphCount),
-            s: graphPart.graphStyle.slice(0, graphPart.graphCount),
-            p: graphPart.graphLetters.reduce(function (p, k) {
-                if (graphPart.graphRange[k]) p[k] = [graphPart.graphVars[k], graphPart.graphRange[k][0], graphPart.graphRange[k][1]];
-                return p;
-            }, {})
-        };
-    }
-
-    // ---------- undo and redo of the graph ---------- //
-
-    // What a change of the graph is, to undo: its boxes, colors, sliders, settings and lines; not the
-    // view, nor the tab, as a drag or a zoom is no change to take back
-    function graphState() {
-        var g = graphObject();
-        return JSON.stringify({ f: g.f, c: g.c, off: g.off, d: g.d, s: g.s, p: g.p, look: g.look });
-    }
-
-    // A change saved: kept to undo once no other follows it for a moment, so typing a word, or a
-    // slider played, is one step; the redo of what was undone goes
-    function noteGraph() {
-        var now = graphState();
-        if (graphKept === null) graphKept = now;
-        clearTimeout(graphNext && graphNext.timer);
-        graphNext = now === graphKept ? null : { state: now, timer: setTimeout(keepGraph, GRAPH_STEP) };
-    }
-
-    function keepGraph() {
-        if (!graphNext) return;
-        graphPast.push(graphKept);
-        if (graphPast.length > GRAPH_UNDO) graphPast.shift();
-        graphKept = graphNext.state;
-        graphAhead = [];
-        graphNext = null;
-        undoButtons();
-    }
-
-    // Ctrl+Z, or its button: the graph as it was before the last change, or with redo as before the last
-    // undo, the view staying as it is
-    function undoGraph(redo) {
-        var from, to, state;
-        clearTimeout(graphNext && graphNext.timer);
-        keepGraph(); // a change waiting is the last one, and what was undone goes
-        from = redo ? graphAhead : graphPast;
-        to = redo ? graphPast : graphAhead;
-        if (!from.length) return;
-        to.push(graphKept);
-        state = JSON.parse(from.pop());
-        ['logx', 'logy'].forEach(function (k) { // a log scale undone, or redone: the view to it as its switch has it
-            if (state.look && !!state.look[k] !== !!graphPart.graphLook[k]) logScale(k, !!state.look[k]);
-        });
-        loadGraph(Object.assign(graphObject(), state));
-        readGraph();
-        graphKept = graphState(); // as it reads again, no change of its own
-        clearTimeout(graphNext && graphNext.timer);
-        graphNext = null;
-        store('graph', graphObject());
-        undoButtons();
-    }
-
-    // the buttons faint while there is nothing to undo or redo
-    function undoButtons() {
-        graphUndo.forEach(function (b) { b.classList.toggle('calc-off', !graphPast.length && !graphNext); });
-        graphRedo.forEach(function (b) { b.classList.toggle('calc-off', !graphAhead.length); });
-    }
-
-    graphUndo.concat(graphRedo).forEach(function (b) {
-        b.addEventListener('mousedown', function (e) { e.preventDefault(); }, false); // a box being typed in keeps the focus
-        b.addEventListener('click', function () { undoGraph(graphRedo.indexOf(b) > -1); }, false);
-    });
 
     // back as it was left, after the popup is closed or the page reloaded
     function loadState() {
@@ -6990,7 +6908,7 @@
             ownSaves.graph = e.newValue;
             loadGraph(stored('graph'));
             readGraph();
-            graphKept = graphState(); // changed in another window: not undone here
+            undoStart(); // changed in another window: not undone here (graph.js)
             return;
         }
         if (e.key === 'calc') {
@@ -7320,8 +7238,7 @@
 
     loadState();
     takeLink();
-    graphKept = graphState(); // what undo goes back to, at most
-    undoButtons();
+    undoStart(); // what undo goes back to, at most (graph.js)
     setTimeout(takePopIn, 0); // once the page has said whether this is a window of its own
 
     // the lines are measured with the font they are shown in: once it has loaded

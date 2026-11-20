@@ -2626,6 +2626,18 @@ async function graphUndo(page, at) {
     await page.click('.calc-graph-undo');
     check(await page.calc('JSON.parse(localStorage.getItem("graph")).look.grid') === true && await page.calc('JSON.parse(localStorage.getItem("graph")).view') !== null &&
         await page.calc(boxes) === 'x^2+1 | x', t + 'a setting undone; the zoom no step, and the view stays', await page.calc(boxes));
+
+    // another window changes the graph a moment after something was typed here, its step still waiting: that is no
+    // step of this window's, and nothing this window had to undo or redo is put back over the other window's graph
+    await page.calc('(function (b) { b.focus(); b.setSelectionRange(b.value.length, b.value.length); })(document.querySelector(".calc-graph-input"))');
+    await page.type('+2');
+    await page.calc('(function () { var g = JSON.parse(localStorage.getItem("graph")), v; g.f = ["sin(x)"]; g.c = [0]; v = JSON.stringify(g);' +
+        ' localStorage.setItem("graph", v); window.dispatchEvent(new StorageEvent("storage", { key: "graph", newValue: v })); })()');
+    await sleep(700); // past the moment a change waits to be one step
+    check(await page.calc(boxes) === 'sin(x)' && await off('undo') && await off('redo'), t + 'another window\'s graph: nothing of this one\'s to undo or redo over it',
+        await page.calc(boxes) + ' ' + await off('undo') + ' ' + await off('redo'));
+    await page.click('.calc-graph-undo');
+    check(await page.calc(boxes) === 'sin(x)', t + 'undo leaves the other window\'s graph', await page.calc(boxes));
 }
 
 // the line of a curve, from the menu of its dot: dashed with gaps in it, thick wider, kept and kept with its box

@@ -24,13 +24,13 @@
 
         // what the calculator takes from the panel
         Object.defineProperties(shared, Object.getOwnPropertyDescriptors({
-            chemGoTo: chemGoTo,
             get CHEM_TOOLS() { return CHEM_TOOLS; },
             get chemAlone() { return chemAlone; },
             chemBig: chemBig,
             get chemButton() { return chemButton; },
             get chemCards() { return chemCards; },
             chemFactPeek: chemFactPeek,
+            chemGoTo: chemGoTo,
             get chemPanel() { return chemPanel; },
             get chemSliding() { return chemSliding; },
             chemTip: chemTip,

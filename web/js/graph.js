@@ -13,7 +13,7 @@
             notify = app.notify, onDouble = app.onDouble, onlyNumber = app.onlyNumber, openMenu = app.openMenu,
             placePanel = app.placePanel, popIn = app.popIn, refresh = app.refresh, root = app.root,
             rtlDraw = app.rtlDraw, saveState = app.saveState, scale = app.scale, setUnit = app.setUnit, showMenu = app.showMenu,
-            shownResult = app.shownResult, statsValue = app.statsValue, tr = app.tr, trc = app.trc, trn = app.trn;
+            shownResult = app.shownResult, statsValue = app.statsValue, store = app.store, tr = app.tr, trc = app.trc, trn = app.trn;
         // the unit of angles, kept here as the Deg key changes it (unitChanged, main.js): read at every point drawn, so not
         // through a getter of main.js each time
         var deg = app.deg;
@@ -43,15 +43,24 @@
             graphStep = null, // the way the arrow keys last moved a point along an equation: { p: the point, x, y in pixels, dir }
             graphPinned = null; // the point clicked, which has the popup
 
+        // a change of the graph taken back, and done again: in its head, or big and wide on the line above the plot
+        var graphUndo = [].slice.call(graph.querySelectorAll('.calc-graph-undo')),
+            graphRedo = [].slice.call(graph.querySelectorAll('.calc-graph-redo')),
+            graphPast = [], // the graph before each change, the last last: its boxes, colors, sliders, settings and lines, as graphState has them
+            graphAhead = [], // and before each undo, to redo
+            graphKept = null, // the graph as the last change left it
+            graphNext = null, // a change waiting for the next, so a word typed is one step, and the timer of it
+            GRAPH_STEP = 500, // that long
+            GRAPH_UNDO = 100; // so many changes kept to undo
+
         // what the calculator takes from the graph
         Object.defineProperties(shared, Object.getOwnPropertyDescriptors({
-            unitChanged: unitChanged,
-            exampleText: exampleText,
-            exampleTip: exampleTip,
-            putExample: putExample,
             clearGraph: clearGraph,
             closeGraph: closeGraph,
+            exampleText: exampleText,
+            exampleTip: exampleTip,
             exportItems: exportItems,
+            get GRAPH_CURVES() { return GRAPH_CURVES; },
             get graphAdd() { return graphAdd; },
             get graphAlone() { return graphAlone; },
             graphBig: graphBig,
@@ -62,31 +71,23 @@
             get graphEnds() { return graphEnds; },
             get graphExItems() { return graphExItems; },
             get graphFrom() { return graphFrom; },
-            get graphHue() { return graphHue; },
-            get graphLetters() { return graphLetters; },
-            get graphLook() { return graphLook; },
             get graphOff() { return graphOff; },
             get graphPinned() { return graphPinned; },
             get graphPlay() { return graphPlay; },
             get graphPop() { return graphPop; },
-            get graphRange() { return graphRange; },
             graphRender: graphRender,
             get graphReset() { return graphReset; },
             get graphSearch() { return graphSearch; },
-            get graphSide() { return graphSide; },
             get graphSize() { return graphSize; },
-            get graphStyle() { return graphStyle; },
             get graphTab() { return graphTab; },
             graphTrace: graphTrace,
             graphUnpin: graphUnpin,
             get graphValues() { return graphValues; },
-            get graphVars() { return graphVars; },
-            get graphView() { return graphView; },
             get graphWindow() { return graphWindow; },
             get linkWaits() { return linkWaits; },
             loadGraph: loadGraph,
-            logScale: logScale,
             nextFit: nextFit,
+            putExample: putExample,
             readGraph: readGraph,
             saveBlob: saveBlob,
             seqOf: seqOf,
@@ -95,8 +96,13 @@
             showLink: showLink,
             showWindow: showWindow,
             stopSliders: stopSliders,
+            storeGraph: storeGraph,
             styleItems: styleItems,
-            takeLink: takeLink
+            takeLink: takeLink,
+            undoGraph: undoGraph,
+            undoKind: undoKind,
+            undoStart: undoStart,
+            unitChanged: unitChanged
         }));
 
             // ---------------- graph ---------------- //
@@ -4239,6 +4245,105 @@
         // the Deg key pressed (main.js): Rad, Deg or Grad
         function unitChanged(u) {
             deg = u;
+        }
+
+        // -------- undo and redo, and what is kept -------- //
+
+        // the graph as it is kept: its boxes, their colors, the view, the settings, the tab, the table's
+        // start and step, what is hidden and fitted, the lines, and the sliders
+        function graphObject() {
+            return {
+                f: graphInputs.slice(0, graphCount).map(function (box) { return box.value; }), c: graphHue.slice(0, graphCount),
+                view: graphView, look: graphLook, tab: graphTab, side: graphSide, from: graphFrom.value, by: graphBy.value, off: graphOff.slice(0, graphCount), d: graphDiff.slice(0, graphCount),
+                s: graphStyle.slice(0, graphCount),
+                p: graphLetters.reduce(function (p, k) {
+                    if (graphRange[k]) p[k] = [graphVars[k], graphRange[k][0], graphRange[k][1]];
+                    return p;
+                }, {})
+            };
+        }
+
+        // What a change of the graph is, to undo: its boxes, colors, sliders, settings and lines; not the
+        // view, nor the tab, as a drag or a zoom is no change to take back
+        function graphState() {
+            var g = graphObject();
+            return JSON.stringify({ f: g.f, c: g.c, off: g.off, d: g.d, s: g.s, p: g.p, look: g.look });
+        }
+
+        // A change saved: kept to undo once no other follows it for a moment, so typing a word, or a
+        // slider played, is one step; the redo of what was undone goes
+        function noteGraph() {
+            var now = graphState();
+            if (graphKept === null) graphKept = now;
+            clearTimeout(graphNext && graphNext.timer);
+            graphNext = now === graphKept ? null : { state: now, timer: setTimeout(keepGraph, GRAPH_STEP) };
+        }
+
+        function keepGraph() {
+            if (!graphNext) return;
+            graphPast.push(graphKept);
+            if (graphPast.length > GRAPH_UNDO) graphPast.shift();
+            graphKept = graphNext.state;
+            graphAhead = [];
+            graphNext = null;
+            undoButtons();
+        }
+
+        // Ctrl+Z, or its button: the graph as it was before the last change, or with redo as before the last
+        // undo, the view staying as it is
+        function undoGraph(redo) {
+            var from, to, state;
+            clearTimeout(graphNext && graphNext.timer);
+            keepGraph(); // a change waiting is the last one, and what was undone goes
+            from = redo ? graphAhead : graphPast;
+            to = redo ? graphPast : graphAhead;
+            if (!from.length) return;
+            to.push(graphKept);
+            state = JSON.parse(from.pop());
+            ['logx', 'logy'].forEach(function (k) { // a log scale undone, or redone: the view to it as its switch has it
+                if (state.look && !!state.look[k] !== !!graphLook[k]) logScale(k, !!state.look[k]);
+            });
+            loadGraph(Object.assign(graphObject(), state));
+            readGraph();
+            graphKept = graphState(); // as it reads again, no change of its own
+            clearTimeout(graphNext && graphNext.timer);
+            graphNext = null;
+            store('graph', graphObject());
+            undoButtons();
+        }
+
+        // the buttons faint while there is nothing to undo or redo
+        function undoButtons() {
+            graphUndo.forEach(function (b) { b.classList.toggle('calc-off', !graphPast.length && !graphNext); });
+            graphRedo.forEach(function (b) { b.classList.toggle('calc-off', !graphAhead.length); });
+        }
+
+        graphUndo.concat(graphRedo).forEach(function (b) {
+            b.addEventListener('mousedown', function (e) { e.preventDefault(); }, false); // a box being typed in keeps the focus
+            b.addEventListener('click', function () { undoGraph(graphRedo.indexOf(b) > -1); }, false);
+        });
+
+        // the graph saved, and a change of it noted to undo (saveState, main.js); saveGraph is its picture saved as PNG
+        function storeGraph() {
+            store('graph', graphObject());
+            noteGraph();
+        }
+
+        // what undo goes back to, at most: the graph as it is now, as the page starts or another window changed it (main.js).
+        // Nothing of before is taken back over it: a change typed here and still waiting to be kept goes, and what this window
+        // had to undo and redo with it, or undo would put this window's graph back over the other's
+        function undoStart() {
+            clearTimeout(graphNext && graphNext.timer);
+            graphNext = null;
+            graphPast = [];
+            graphAhead = [];
+            graphKept = graphState();
+            undoButtons();
+        }
+
+        // which of the buttons of undo an element is, for its tip (main.js): 'undo', 'redo', or ''
+        function undoKind(el) {
+            return graphUndo.indexOf(el) > -1 ? 'undo' : graphRedo.indexOf(el) > -1 ? 'redo' : '';
         }
     };
 })(typeof window !== 'undefined' ? window : this);

@@ -12,7 +12,7 @@ mkdir -p web/js/lang
 rm -f web/js/lang/*.js
 cp js/lang/*.js web/js/lang/ 2>/dev/null || true
 cp imgs/icon.png imgs/icon128.png web/imgs/
-cp fonts/*.woff2 fonts/NotoKufiArabic-OFL.txt web/fonts/
+cp fonts/*.woff2 fonts/*-OFL.txt web/fonts/
 
 # the calculator itself: what popup.html has between its two marks goes between
 # the same two marks of web/index.html, in place of what was there
