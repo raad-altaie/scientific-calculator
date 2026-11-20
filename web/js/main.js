@@ -3964,6 +3964,11 @@ function clearGraph() { return graphPart.clearGraph.apply(this, arguments); }
             });
             rows = out.rows;
             item.querySelector('.calc-sv-results').hidden = !out.rows.length;
+            if (tool.again) { // Again only once there is a result to draw again: not of empty boxes, nor of boxes that are wrong
+                item.querySelector('.calc-sv-again:not(.calc-sv-example)').hidden = !out.rows.some(function (r) {
+                    return r.flip || r.text !== undefined || !!r.m || r.html !== undefined || isFinite(r.v);
+                });
+            }
             grid = item.querySelector('.calc-sv-grid');
             grid.base = out.cols ? 'repeat(' + out.cols + ', 1fr)' : ''; // two, for an x and a y side by side
             grid.innerHTML = out.rows.map(tile).join('');

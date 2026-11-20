@@ -4197,8 +4197,8 @@
     visibility: hidden;
 }
 
-/* Example, once something is typed */
-#calculator .calc-sv-example[hidden] {
+/* Example, once something is typed; Again, while there is no result */
+#calculator .calc-sv-again[hidden] {
     display: none;
 }
 
