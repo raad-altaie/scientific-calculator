@@ -938,7 +938,7 @@
     // 0 of a response that falls, r2, n } or null. The hill's sign: rising +, falling −
     function doseFit(points, fixed) {
         var pts = points.filter(function (q) { return q[0] > 0 && isFinite(q[1]); }), n = pts.length, ys = pts.map(function (q) { return q[1]; }), xs = pts.map(function (q) { return Math.log10(q[0]); }),
-            lo = Math.min.apply(null, ys), hi = Math.max.apply(null, ys), mx = 0, my = 0, sxy = 0, p, free, lambda = 1e-3, sse, i, it, mean = 0, sst = 0, mid, near = Infinity;
+            lo = Math.min.apply(null, ys), hi = Math.max.apply(null, ys), mx = 0, my = 0, sxy = 0, p, free, lambda = 1e-3, sse, it, mean = 0, sst = 0, mid, near = Infinity;
         free = fixed ? [2, 3] : [0, 1, 2, 3];
         if (n < free.length + 1 || Math.max.apply(null, xs) === Math.min.apply(null, xs)) return null;
         xs.forEach(function (x, j) { mx += x / n; my += ys[j] / n; });

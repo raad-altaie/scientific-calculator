@@ -718,10 +718,10 @@
                     b = expand(n.r);
                     if (!a || !b) return null;
                     if (n.op === '+' || n.op === '–') return padd(a, b, n.op === '–');
-                    if (n.op === '×') return a.length + b.length - 2 > POWER_MAX ? (big = true) && null : pmul(a, b);
+                    if (n.op === '×') return a.length + b.length - 2 > POWER_MAX ? (big = true, null) : pmul(a, b);
                     if (n.op === '÷') return b.length === 1 && b[0] ? a.map(function (v) { return v / b[0]; }) : null;
                     if (n.op === 'yx' && b.length === 1 && b[0] >= 0 && b[0] === Math.floor(b[0])) {
-                        if ((a.length - 1) * b[0] > POWER_MAX) return (big = true) && null;
+                        if ((a.length - 1) * b[0] > POWER_MAX) return (big = true, null);
                         for (out = [1], k = 0; k < b[0]; k++) out = pmul(out, a);
                         return out;
                     }
@@ -3979,7 +3979,7 @@
     // { cells: the text of each, values: their numbers, 0 for '' }, or null for one number alone
     // or anything that is not a matrix
     function matrixText(text, comma, deg) {
-        var s = String(text).replace(/^﻿/, '').replace(/\r\n?/g, '\n').trim(), between = comma ? /\s*;\s*|\s+/ : /\s*[,;]\s*|\s+/,
+        var s = String(text).replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n').trim(), between = comma ? /\s*;\s*|\s+/ : /\s*[,;]\s*|\s+/,
             inner, cells, width, values;
         if (!s || s.length > 20000) return null;
         if (/^[\[{]/.test(s) && /[\]}]$/.test(s)) {
@@ -4134,10 +4134,10 @@
                     b = expand(n.r);
                     if (!a || !b) return null;
                     if (n.op === '+' || n.op === '–') return cadd(a, b, n.op === '–');
-                    if (n.op === '×') return a.length + b.length - 2 > POWER_MAX ? (big = true) && null : cmulp(a, b);
+                    if (n.op === '×') return a.length + b.length - 2 > POWER_MAX ? (big = true, null) : cmulp(a, b);
                     if (n.op === '÷') return b.length === 1 && (b[0][0] || b[0][1]) ? a.map(function (z) { return cdiv(z, b[0]); }) : null;
                     if (n.op === 'yx' && b.length === 1 && !b[0][1] && b[0][0] >= 0 && b[0][0] === Math.floor(b[0][0])) {
-                        if ((a.length - 1) * b[0][0] > POWER_MAX) return (big = true) && null;
+                        if ((a.length - 1) * b[0][0] > POWER_MAX) return (big = true, null);
                         for (out = [[1, 0]], k = 0; k < b[0][0]; k++) out = cmulp(out, a);
                         return out;
                     }

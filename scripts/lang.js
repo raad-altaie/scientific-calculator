@@ -25,7 +25,7 @@ const path = require('path');
 const vm = require('vm');
 
 const ROOT = path.join(__dirname, '..');
-const SCRIPTS = ['js/main.js', 'js/tips.js', 'js/formulas.js', 'js/units.js', 'js/chem.js', 'js/physics.js', 'js/biology.js', 'js/options.js', 'js/popup.js', 'web/js/options.js', 'web/js/app.js'];
+const SCRIPTS = ['js/main.js', 'js/graph.js', 'js/chem-panel.js', 'js/phys-panel.js', 'js/bio-panel.js', 'js/solve-panel.js', 'js/numbers-panel.js', 'js/tips.js', 'js/formulas.js', 'js/units.js', 'js/chem.js', 'js/physics.js', 'js/biology.js', 'js/options.js', 'js/popup.js', 'web/js/options.js', 'web/js/app.js'];
 const PAGES = ['popup.html', 'options.html', 'web/index.html'];
 const PROPS = new Set(['t', 'd', 'l', 'c', 'name', 'aria', 'head', 'note', 'title', 'text', 'small', 'tip']); // of the data main.js translates as it shows it
 // what main.js translates as it shows it, by the value of a call it is: notify(text), svgText(x, y, text) …
@@ -341,15 +341,16 @@ function allTexts() {
 
 // The periodic table's words, as main.js shows them: each element's name, its uses and where its name comes from, its
 // magnetism, crystal and look, of chem.js; who found it where that is a people, not a person (Egyptians); a place, as the Middle East, main.js has whole; and the names of the tiles of an element, the keys
-// of CHEM_FACTS in main.js
+// of CHEM_FACTS in chem-panel.js
 function chemTexts() {
     const chem = require(path.join(ROOT, 'js/chem.js')), out = [];
     chem.elements.forEach((e) => {
         [e.name, e.uses, e.story, e.magnetic, e.crystal, e.appearance].forEach((text) => text && out.push([text]));
         [e.foundBy, e.isolatedBy].forEach((who) => who && /humans|ians|Americans|ists|civilisation/.test(who) && !/\(/.test(who) && out.push([who]));
     });
-    const facts = /CHEM_FACTS = \{([^}]*)\}/.exec(fs.readFileSync(path.join(ROOT, 'js/main.js'), 'utf8'));
-    if (facts) for (const m of facts[1].matchAll(/'([^']+)':/g)) out.push([m[1]]);
+    const facts = /CHEM_FACTS = \{([^}]*)\}/.exec(fs.readFileSync(path.join(ROOT, 'js/chem-panel.js'), 'utf8'));
+    if (!facts) throw new Error('CHEM_FACTS not found in js/chem-panel.js: its words would not be checked');
+    for (const m of facts[1].matchAll(/'([^']+)':/g)) out.push([m[1]]);
     return out;
 }
 

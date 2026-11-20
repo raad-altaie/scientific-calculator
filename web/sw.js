@@ -1,13 +1,16 @@
 // Offline support: the whole calculator is cached on the first visit.
-// Online, every file comes from the server, so an update shows at once and the
-// files are never a mix of two versions; the cache is used only without a connection,
-// or on one too slow to wait for (SLOW, below).
-const CACHE = 'calculator-v88';
+// Online, every file comes from the server, so an update shows at once; the cache is
+// used only without a connection, or for a file the server has not sent within SLOW ms
+// (below). On such a slow connection the files of one load can then be a mix of the copy
+// kept and a newer one, till the next load. CACHE is named by the version of manifest.json and
+// a sum of every other file here, set by scripts/sync-web.sh: any change of them is a new
+// sw.js, so this is installed again, keeps the new files, and the old copy goes.
+const CACHE = 'calculator-2.5.50-3a1545e5';
 const FILES = [
     './', 'index.html', 'manifest.webmanifest',
     'css/style.css', 'css/options.css', 'css/site.css',
-    'js/app.js', 'js/lang.js', 'js/engine.js', 'js/formulas.js', 'js/maths.js', 'js/main.js', 'js/options.js', 'js/tips.js', 'js/units.js', 'js/icons.js', 'js/chem.js', 'js/physics.js', 'js/biology.js',
-    'fonts/Play-Regular.ttf', 'fonts/Play-Bold.ttf',
+    'js/app.js', 'js/lang.js', 'js/engine.js', 'js/formulas.js', 'js/maths.js', 'js/graph.js', 'js/chem-panel.js', 'js/phys-panel.js', 'js/bio-panel.js', 'js/solve-panel.js', 'js/numbers-panel.js', 'js/main.js', 'js/options.js', 'js/tips.js', 'js/units.js', 'js/icons.js', 'js/chem.js', 'js/physics.js', 'js/biology.js',
+    'fonts/Play-Regular.woff2', 'fonts/Play-Bold.woff2',
     'imgs/icon.png', 'imgs/icon128.png', 'imgs/icon-192.png', 'imgs/icon-512.png',
     'imgs/icon-maskable-512.png', 'imgs/apple-touch-icon.png', 'imgs/og-image.png'
 ];
@@ -16,7 +19,7 @@ const FILES = [
 // language of a country, pt-BR, with the words of pt where there are any
 const LANG = new URL(location.href).searchParams.get('lang') || 'en';
 const LANG_FILES = LANG === 'en' ? [] : ['js/lang/en.js', 'js/lang/' + LANG + '.js']
-    .concat(/^(ar|fa|ur)\b/.test(LANG) ? ['fonts/NotoKufiArabic-Regular.ttf', 'fonts/NotoKufiArabic-Bold.ttf'] : []);
+    .concat(/^(ar|fa|ur)\b/.test(LANG) ? ['fonts/NotoKufiArabic-Regular.woff2', 'fonts/NotoKufiArabic-Bold.woff2'] : []);
 const LANG_BASE = LANG.includes('-') ? ['js/lang/' + LANG.split('-')[0] + '.js'] : [];
 
 // 'reload' skips the browser's own cache, so the copies kept are the new ones

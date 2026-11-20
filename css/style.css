@@ -1,20 +1,20 @@
 @font-face {
     font-family: Play;
-    src: url('../fonts/Play-Regular.ttf');
+    src: url('../fonts/Play-Regular.woff2') format('woff2');
 }
 
 /* the real bold of Play, for the name of a card open: a bold made from the regular is too faint */
 @font-face {
     font-family: 'Play Bold';
-    src: url('../fonts/Play-Bold.ttf');
+    src: url('../fonts/Play-Bold.woff2') format('woff2');
 }
 
-/* Arabic in Noto Kufi Arabic (fonts/NotoKufiArabic-*.ttf, SIL Open Font License), its letters alone: Play has none,
+/* Arabic in Noto Kufi Arabic (fonts/NotoKufiArabic-*.woff2, SIL Open Font License), its letters alone: Play has none,
    and Latin, the numbers and the maths stay in Play. Bold made from it, as Play's is: a face of 700 in Play would take
    Play from the bold of Latin. Of Play Bold, its own bold */
 @font-face {
     font-family: Play;
-    src: url('../fonts/NotoKufiArabic-Regular.ttf');
+    src: url('../fonts/NotoKufiArabic-Regular.woff2') format('woff2');
     size-adjust: 90%; /* a little smaller: wider and taller than Play beside it */
     ascent-override: 105%; /* its lines as close as Play's, not its own 1.9 */
     descent-override: 35%;
@@ -24,7 +24,7 @@
 
 @font-face {
     font-family: 'Play Bold';
-    src: url('../fonts/NotoKufiArabic-Bold.ttf');
+    src: url('../fonts/NotoKufiArabic-Bold.woff2') format('woff2');
     size-adjust: 90%; /* a little smaller: wider and taller than Play beside it */
     ascent-override: 105%; /* its lines as close as Play's, not its own 1.9 */
     descent-override: 35%;

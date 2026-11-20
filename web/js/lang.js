@@ -200,7 +200,7 @@
     // at its ends with the Arabic: 2 x³ = 8 as it is, not 8 = x³ 2. Its blocks, and a part of a line with Arabic in
     // it, done the same; a text with no Arabic in it is left as it is
     // the mark that says right to left, U+200F, with the Arabic: before 0.1 = 0x3FB…, not inside it, turning it
-    var RTL_TEXT = /[\u200F֐-ࣿיִ-﷿ﹰ-﻿]/,
+    var RTL_TEXT = /[\u200F֐-ࣿיִ-﷿ﹰ-\uFEFF]/,
         LTR_TEXT = /[0-9A-Za-zÀ-ɏͰ-Ͽ⁰-₟∀-⋿]/,
         HTML_NS = 'http://www.w3.org/1999/xhtml';
 
@@ -292,7 +292,7 @@
         if (!el.classList.toggle('calc-rtl', RTL_TEXT.test(el.textContent))) return;
         [].slice.call(el.childNodes).forEach(function (n) {
             if (n.nodeType === 3) {
-                n.data.split(/([\u200F֐-ࣿיִ-﷿ﹰ-﻿]+)/).forEach(function (s, i) {
+                n.data.split(/([\u200F֐-ࣿיִ-﷿ﹰ-\uFEFF]+)/).forEach(function (s, i) {
                     if (!s) return;
                     if (i % 2) {
                         flush();

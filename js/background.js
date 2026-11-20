@@ -854,7 +854,7 @@ function openPageMaths(message) {
 // The extension's files a page shows, the logo of its button and icons and the font of their tips, as data: URLs. A
 // page may refuse to load them from the extension itself, as YouTube does ("Unsafe attempt to load URL
 // chrome-extension://…"), its fetch too; read here, they are the page's own. Each read once
-const pageFileTypes = { "imgs/icon128.png": "image/png", "fonts/Play-Regular.ttf": "font/ttf" };
+const pageFileTypes = { "imgs/icon128.png": "image/png", "fonts/Play-Regular.woff2": "font/woff2" };
 const pageFiles = {};
 function pageFile(file) {
     if (!pageFiles[file]) {

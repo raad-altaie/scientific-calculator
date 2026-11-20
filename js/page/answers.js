@@ -703,7 +703,7 @@
     function loadFont() {
         if (fontAsked) return;
         fontAsked = true;
-        pageFile('fonts/Play-Regular.ttf')
+        pageFile('fonts/Play-Regular.woff2')
             .then((url) => {
                 if (!url) return;
                 const font = new FontFace('Scientific Calculator Play', 'url(' + url + ')');

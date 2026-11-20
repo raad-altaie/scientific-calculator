@@ -38,7 +38,7 @@
         {
             "resources": [
                 "imgs/icon128.png",
-                "fonts/Play-Regular.ttf"
+                "fonts/Play-Regular.woff2"
             ],
             "matches": [
                 "http://*/*",

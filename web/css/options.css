@@ -1,12 +1,12 @@
 @font-face {
     font-family: Play;
-    src: url('../fonts/Play-Regular.ttf');
+    src: url('../fonts/Play-Regular.woff2') format('woff2');
 }
 
 /* Arabic in Noto Kufi Arabic, its letters alone, as in the calculator (style.css) */
 @font-face {
     font-family: Play;
-    src: url('../fonts/NotoKufiArabic-Regular.ttf');
+    src: url('../fonts/NotoKufiArabic-Regular.woff2') format('woff2');
     size-adjust: 90%; /* a little smaller: wider and taller than Play beside it */
     ascent-override: 105%; /* its lines as close as Play's, not its own 1.9 */
     descent-override: 35%;

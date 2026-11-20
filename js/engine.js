@@ -5356,7 +5356,7 @@
         var node, list;
         if (this.edit) return true;
         if (this.error) list = JSON.parse(JSON.stringify(this.failedEdit || []));
-        else list = (node = this.done || this.tree()) ? piecesOf(node, this.fraction) : [];
+        else list = ((node = this.done || this.tree())) ? piecesOf(node, this.fraction) : [];
         if (!list.length || (list.length === 1 && !list[0].s && list[0].p[0].whole)) return false;
         this.edit = { list: list, path: [], at: list.length };
         openCursor(this.edit);

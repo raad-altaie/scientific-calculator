@@ -45,7 +45,7 @@ function findChrome() {
 // the files of the project, and a page that holds the calculator in a frame: another
 // page, as the options page is to the popup, so a change in the storage reaches it as an event
 function serve() {
-    var types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.ttf': 'font/ttf' };
+    var types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.ttf': 'font/ttf', '.woff2': 'font/woff2' };
     return new Promise(function (done) {
         var server = http.createServer(function (req, res) {
             var url = decodeURIComponent(req.url.split('?')[0]), file;
@@ -3588,7 +3588,7 @@ function converted(page, name) { // the value shown for a unit, by its name: its
 }
 
 async function converter(page, at) {
-    var t = at + ': ', note;
+    var t = at + ': ';
 
     // its button comes after f(x), as its option does
     await page.fresh(at, {});
