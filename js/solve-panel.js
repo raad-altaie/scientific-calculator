@@ -233,10 +233,11 @@
                                 note: bad ? 'x and n are whole numbers, x no more than n; the level a chance between 0 and 1.' : '', warn: bad };
                         } },
                     { id: 'random', t: 'Random whole numbers', f: 'from a to b', d: 'Five whole numbers at random, each from a to b, both in, as dice give them. Again for five more.',
-                        fields: [{ k: 'a', l: 'From', ph: '1', def: 1 }, { k: 'b', l: 'To', ph: '6', def: 6 }], cols: 2, again: true, fills: true, run: function (n) {
+                        fields: [{ k: 'a', l: 'From', ph: '1' }, { k: 'b', l: 'To', ph: '150' }], cols: 2, again: true, example: { a: '1', b: '150' }, run: function (n) {
                             var rows = [], k;
                             for (k = 0; k < 5; k++) rows.push({ l: tr('Number {k}', { k: (k + 1) }), v: CalcMaths.randomWhole(n.a, n.b, chance) });
-                            return { rows: rows, note: isNaN(rows[0].v) && isFinite(n.a) && isFinite(n.b) ? 'Whole numbers, From the smaller.' : '', warn: isNaN(rows[0].v) };
+                            var bad = isNaN(rows[0].v) && isFinite(n.a) && isFinite(n.b); // of both typed: one of them alone is not wrong yet
+                            return { rows: rows, note: bad ? 'Whole numbers, From the smaller.' : '', warn: bad };
                         } }
                 ],
                 finance: [

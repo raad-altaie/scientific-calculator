@@ -3175,10 +3175,10 @@ function clearGraph() { return graphPart.clearGraph.apply(this, arguments); }
         dates: [
             { id: 'span', waits: true, t: 'Time between dates', f: 'years, months, weeks and days', d: 'The time from one date to another: in years, months and days; then the whole years, months and weeks of it, its days, its weekdays, Monday to Friday, both dates in, and its hours, each below 0 where the second date is before the first. An empty date is today.',
                 fields: [{ k: 'a', l: 'From', date: true }, { k: 'b', l: 'To', date: true }], run: runSpan, example: { a: '2000-01-01' } },
-            { id: 'add', fills: true, t: 'Add or subtract time', f: 'date ± years, months, days', d: 'A date some years, months and days on, below 0 to go back: the date and its weekday, its day of the year and its week. The years and months go first; a month from 31 January is the last day of February. An empty date is today.',
+            { id: 'add', waits: true, t: 'Add or subtract time', f: 'date ± years, months, days', d: 'A date some years, months and days on, below 0 to go back: the date and its weekday, its day of the year and its week. The years and months go first; a month from 31 January is the last day of February. An empty date is today.',
                 fields: [{ k: 'd', l: 'Date', date: true }, { k: 'y', l: 'Years', ph: '0', def: 0, cls: 'calc-sv-dated' },
                     { k: 'm', l: 'Months', ph: '0', def: 0, cls: 'calc-sv-dated' }, { k: 'days', l: 'Days', ph: '0', def: 0, cls: 'calc-sv-dated' }],
-                cols: 3, run: runAdd },
+                cols: 3, run: runAdd, example: { y: '1', m: '2', days: '10' } },
             { id: 'zones', t: 'Time zones', f: '15:00 London = 23:00 Tokyo', d: 'A time in one place, and the same time in another: the time is now at first, to type over, and empty again is now. ' +
                 'Summer time is as each place has it today.',
                 fields: [{ k: 'time', l: 'Time', ph: 'Now', text: true, now: zoneNow }, { k: 'from', l: 'From', pick: zoneChoices, at: 'Here', wide: true },
