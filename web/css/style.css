@@ -4140,10 +4140,11 @@
     background: #46677f;
 }
 
-/* Again: more random numbers */
+/* Again: more random numbers; Example of the same look. In the middle between the boxes over it and the line of
+   Results under it: as far as that line, Results' 12px, and half its 13px */
 #calculator .calc-sv-again {
     display: table;
-    margin: 0 auto 6px;
+    margin: 18.5px auto 6px;
     padding: 0 12px;
     border-radius: 4px;
     background: #3a5872;
@@ -4157,11 +4158,6 @@
 
 #calculator .calc-sv-again:hover {
     background: #46677f;
-}
-
-/* Example: in the middle between the boxes over it and the line of Results under it */
-#calculator .calc-sv-example {
-    margin-top: 18.5px; /* as far as the line under it: Results' 12px, and half its 13px */
 }
 
 /* Reset: at the top of a card, at the right, small, once something is typed */
@@ -9182,12 +9178,8 @@
 }
 
 #calculator.calc-panel-big .calc-big-on .calc-sv-again {
-    margin-bottom: 10px;
+    margin: 16.5px auto 10px; /* as far as the line under it: its 10px, and half of Results' 13px */
     padding: 0 18px;
-}
-
-#calculator.calc-panel-big .calc-big-on .calc-sv-example {
-    margin-top: 16.5px; /* as far as the line under it: its 10px, and half of Results' 13px */
 }
 
 #calculator.calc-panel-big .calc-big-on .calc-fx-insert {
