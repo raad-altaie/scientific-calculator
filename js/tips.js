@@ -277,6 +277,36 @@
             d: 'A date and a time for its Unix timestamp.',
             k: ''
         },
+        'choice from 0': {
+            t: 'Gregorian',
+            d: 'A date of the Gregorian calendar, the one most of the world uses, in the other calendars.',
+            k: ''
+        },
+        'choice from 1': {
+            t: 'Hijri',
+            d: 'A date of the Hijri calendar, of the moon, as Umm al-Qura has it, in the other calendars. Its calendar shows its months.',
+            k: ''
+        },
+        'choice from 2': {
+            t: 'Persian',
+            d: 'A date of the Persian calendar, the Solar Hijri of Iran, in the other calendars. Its calendar shows its months.',
+            k: ''
+        },
+        'choice from 3': {
+            t: 'Chinese',
+            d: 'A date of the Chinese calendar, its months by the moon and a leap month in some years, in the other calendars. Its calendar shows its months.',
+            k: ''
+        },
+        'choice jdway 0': {
+            t: 'JD → Date',
+            d: 'A Julian day, the days from noon, 1 January 4713 BC, for its date and time.',
+            k: ''
+        },
+        'choice jdway 1': {
+            t: 'Date → JD',
+            d: 'A date and a time for its Julian day.',
+            k: ''
+        },
         'choice zone 0': {
             t: 'UTC',
             d: 'The date and time typed are in UTC, as a timestamp is counted.',

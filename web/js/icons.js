@@ -584,7 +584,7 @@
         },
         // the converter's dates
         dates: {
-            span: 'span', add: 'dateadd', zones: 'globe', unix: 'prompt'
+            span: 'span', add: 'dateadd', zones: 'globe', unix: 'prompt', julian: 'star', calendars: 'moon'
         },
         // the solver
         solve: {

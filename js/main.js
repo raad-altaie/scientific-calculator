@@ -3189,7 +3189,23 @@ function clearGraph() { return graphPart.clearGraph.apply(this, arguments); }
                     var way = [{ k: 'convert', l: 'Convert', choice: ['Unix → Date', 'Date → Unix'] }];
                     return raw.convert === '1' ? way.concat([{ k: 'd', l: 'Date', date: true }, { k: 'time', l: 'Time', ph: '00:00:00', text: true },
                         { k: 'zone', l: 'Time in', choice: ['UTC', 'Time here'] }]) : way.concat([{ k: 'ts', l: 'Unix time', ph: '1700000000' }]);
-                }, run: runUnix, example: function (raw) { return raw.convert === '1' ? { convert: '1', d: '2023-11-14', time: '22:13:20' } : { ts: '1700000000' }; } }
+                }, run: runUnix, example: function (raw) { return raw.convert === '1' ? { convert: '1', d: '2023-11-14', time: '22:13:20' } : { ts: '1700000000' }; } },
+            { id: 'calendars', t: 'Calendars', f: '18 Feb 2026 ↔ 1 Ramadan 1447 AH', d: 'A date of one calendar in the others: the Gregorian; the Hijri, as Umm al-Qura has it; the Persian, or Solar Hijri; ' +
+                'and the Chinese, its months by the moon, a leap month in some years, its year named of a cycle of sixty, and its animal. Its calendar picks a day of the one chosen; ' +
+                'an empty date is today.',
+                // a date of the calendar chosen, its own calendar to pick from, as a date of the Gregorian has
+                fields: function (raw) {
+                    var c = CAL_WAYS[raw.from];
+                    return [{ k: 'from', l: 'From', choice: ['Gregorian', 'Hijri', 'Persian', 'Chinese'] }, { k: c ? c + 'date' : 'd', l: 'Date', date: true, cal: c || undefined }];
+                }, run: runCalendars },
+            { id: 'julian', t: 'Julian day', f: ['JD 2451545.0 ↔ 1 Jan 2000 12:00', 'MJD = JD − 2400000.5'], d: 'One way or the other. JD → Date: the date and time of a Julian day, the days from noon, 1 January 4713 BC, ' +
+                'as astronomers count them. Date → JD: the Julian day of a date and a time, in UTC or here; and the Modified Julian Day of each, from midnight.',
+                // the boxes of the way chosen only: a Julian day, or a date, a time and its zone
+                fields: function (raw) {
+                    var way = [{ k: 'jdway', l: 'Convert', choice: ['JD → Date', 'Date → JD'] }];
+                    return raw.jdway === '1' ? way.concat([{ k: 'd', l: 'Date', date: true }, { k: 'time', l: 'Time', ph: '00:00:00', text: true },
+                        { k: 'zone', l: 'Time in', choice: ['UTC', 'Time here'] }]) : way.concat([{ k: 'jd', l: 'Julian day', ph: '2451545' }]);
+                }, run: runJulian, example: function (raw) { return raw.jdway === '1' ? { jdway: '1', d: '2000-01-01', time: '12:00' } : { jd: '2451545' }; } }
         ]
     };
 
@@ -3314,34 +3330,240 @@ function clearGraph() { return graphPart.clearGraph.apply(this, arguments); }
     // seconds and milliseconds, the time in UTC, here and in ISO 8601. One of 13 digits or more is
     // of milliseconds; leap seconds are left out, as Unix time leaves them
     function runUnix(n, raw) {
-        var ms, secs, day, at, t, bad = [], none = [{ l: 'Unix time', v: NaN }, { l: 'UTC', text: '–', wide: true }], two = function (v) { return String(v).padStart(2, '0'); }, milli;
+        var ms, secs, day, at, none = [{ l: 'Unix time', v: NaN }, { l: 'UTC', text: '–', wide: true }], milli;
         if (raw.convert !== '1') { // Unix → Date
             if (!raw.ts) return { rows: none };
             if (!isFinite(n.ts)) return { rows: none, bad: ['ts'], warn: true, note: 'Seconds from 1 January 1970, 1700000000, or milliseconds, 1700000000000.' };
             milli = /^-?\d{13,}/.test(raw.ts);
             ms = milli ? n.ts : n.ts * 1000;
         } else {
-            day = dayOfBox(raw.d);
-            t = raw.time ? CalcMaths.readTime(raw.time) : 0;
-            if (isNaN(day)) bad.push('d');
-            if (isNaN(t)) bad.push('time');
-            if (bad.length) return { rows: none, bad: bad, warn: true, note: bad[0] === 'd' ? 'A date, as ' + dateNumbers(today()) + ' or 14 Oct 2026, from the year 1 to 9999.' : 'A time, 14:30, 14:30:15 or 2:30 pm.' };
-            ms = day * 86400000 + t * 1000;
-            if (raw.zone === '1') ms += new Date(ms + new Date(ms).getTimezoneOffset() * 60000).getTimezoneOffset() * 60000; // the time here, its offset of that day
+            at = momentOf(raw);
+            if (at.bad) return { rows: none, bad: at.bad, warn: true, note: at.note };
+            ms = at.ms;
         }
         ms = Math.round(ms); // first, so that the day, the time and the seconds all come from the same millisecond
         day = Math.floor(ms / 86400000);
         if (!(day >= CAL_FIRST && day <= CAL_LAST)) return { rows: none, warn: true, note: 'Before the year 1 or after 9999.' };
-        at = ms - day * 86400000;
         secs = (ms < 0 ? '-' : '') + Math.floor(Math.abs(ms) / 1000) + local(Math.abs(ms) % 1000 ? '.' + String(Math.abs(ms) % 1000).padStart(3, '0').replace(/0+$/, '') : ''); // from its whole milliseconds, every digit
         return {
             // to the last millisecond: more digits than a tile of a number shows, so as they are
             rows: [{ l: 'Unix time', text: secs, wide: true }, { l: 'Milliseconds', text: String(Math.round(ms)), wide: true },
-                { l: 'UTC', text: dateText(day) + ', ' + two(Math.floor(at / 3600000)) + ':' + two(Math.floor(at / 60000) % 60) + ':' + two(Math.floor(at / 1000) % 60) + (at % 1000 ? '.' + String(at % 1000).padStart(3, '0') : ''), wide: true },
-                { l: 'Time here', text: new Date(ms).toLocaleString(DATE_LANG, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short' }), wide: true },
+                { l: 'UTC', text: utcText(ms), wide: true }, { l: 'Time here', text: hereText(ms), wide: true },
                 { l: 'ISO 8601', text: new Date(ms).toISOString().replace('.000Z', 'Z').replace(/^\+0*(?=\d{4}-)/, ''), wide: true }],
             note: milli ? 'Of 13 digits: milliseconds.' : raw.convert !== '1' ? 'Seconds from 1 January 1970, in UTC.' : (raw.zone === '1' ? tr('The date and time in the time here.') : tr('The date and time in UTC.'))
         };
+    }
+
+    // A Julian day: the days from noon, 1 January 4713 BC, as astronomers count them, 2440587.5 at the start of 1970
+    function runJulian(n, raw) {
+        var ms, day, at, none = [{ l: 'Julian day', v: NaN }, { l: 'UTC', text: '–', wide: true }], days = function (x) { // to the millisecond, its 0s cut, one kept
+            return local(x.toFixed(8).replace(/0+$/, '').replace(/\.$/, '.0'));
+        };
+        if (raw.jdway !== '1') { // JD → Date
+            if (!raw.jd) return { rows: none };
+            if (!isFinite(n.jd)) return { rows: none, bad: ['jd'], warn: true, note: 'A Julian day, as 2451545 or 2460000.5.' };
+            ms = (n.jd - 2440587.5) * 86400000;
+        } else {
+            at = momentOf(raw);
+            if (at.bad) return { rows: none, bad: at.bad, warn: true, note: at.note };
+            ms = at.ms;
+        }
+        ms = Math.round(ms);
+        day = Math.floor(ms / 86400000);
+        if (!(day >= CAL_FIRST && day <= CAL_LAST)) return { rows: none, warn: true, note: 'Before the year 1 or after 9999.' };
+        return {
+            rows: [{ l: 'Julian day', text: days(ms / 86400000 + 2440587.5), wide: true }, { l: 'Modified Julian Day', text: days(ms / 86400000 + 40587), wide: true },
+                { l: 'UTC', text: utcText(ms), wide: true }, { l: 'Time here', text: hereText(ms), wide: true }],
+            note: 'A Julian day starts at noon: midnight ends in .5. Its dates are Gregorian, before 1582 too.'
+        };
+    }
+
+    // the moment of a date, a time and its zone typed, as of Unix time and the Julian day: { ms } from 1970, or what is
+    // wrong, { bad, note }. An empty date is today, an empty time midnight
+    function momentOf(raw) {
+        var day = dayOfBox(raw.d), t = raw.time ? CalcMaths.readTime(raw.time) : 0, bad = [], ms;
+        if (isNaN(day)) bad.push('d');
+        if (isNaN(t)) bad.push('time');
+        if (bad.length) return { bad: bad, note: bad[0] === 'd' ? 'A date, as ' + dateNumbers(today()) + ' or 14 Oct 2026, from the year 1 to 9999.' : 'A time, 14:30, 14:30:15 or 2:30 pm.' };
+        ms = day * 86400000 + t * 1000;
+        if (raw.zone === '1') ms += new Date(ms + new Date(ms).getTimezoneOffset() * 60000).getTimezoneOffset() * 60000; // the time here, its offset of that day
+        return { ms: ms };
+    }
+
+    // a moment in the time here, in words: Saturday, 1 January 2000 at 06:00:00 GMT-6
+    function hereText(ms) {
+        return new Date(ms).toLocaleString(DATE_LANG, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short' });
+    }
+
+    // a time in UTC, its day in words: Saturday, 1 January 2000, 12:00:00, and its milliseconds if it has any
+    function utcText(ms) {
+        var day = Math.floor(ms / 86400000), at = ms - day * 86400000, two = function (v) { return String(v).padStart(2, '0'); };
+        return dateText(day) + ', ' + two(Math.floor(at / 3600000)) + ':' + two(Math.floor(at / 60000) % 60) + ':' + two(Math.floor(at / 1000) % 60) + (at % 1000 ? '.' + String(at % 1000).padStart(3, '0') : '');
+    }
+
+    // The calendars of the card of them, as the browser has them (Intl): the Hijri of Umm al-Qura, the Persian, the Solar
+    // Hijri, and the Chinese. Each of a way of the card, as its boxes are named, h, p and c. What the browser gives of a
+    // day is kept, as it is slow to ask, and a calendar's picker asks it of 42 days at each key
+    var CAL_WAYS = [null, 'h', 'p', 'c'],
+        CAL_NAMES = { h: 'islamic-umalqura', p: 'persian', c: 'chinese' },
+        CAL_HOW = {}, // of each, its year, month and day of a day in numbers, made once
+        CAL_SEEN = {}, // of each, the parts of the days asked, by day
+        CAL_READ = {}, // of each, a box's text read, by its text
+        CAL_ONE = {}; // of each, the day of its 1/1/1: the Hijri's and the Persian's of 622, the Chinese's of the year 1
+
+    // the year, month and day of a day in a calendar: of the Chinese, its year as the Gregorian one it starts in, and
+    // leap 1 of a leap month, which comes after the month of its number. Its key grows with the day, to search by
+    function calParts(c, day) {
+        var seen = CAL_SEEN[c] = CAL_SEEN[c] || { n: 0 }, p = {};
+        if (seen[day]) return seen[day];
+        if (++seen.n > 5000) seen = CAL_SEEN[c] = { n: 1 }; // not without end: begun again
+        CAL_HOW[c] = CAL_HOW[c] || new Intl.DateTimeFormat('en', { calendar: CAL_NAMES[c], numberingSystem: 'latn', timeZone: 'UTC', year: 'numeric', month: 'numeric', day: 'numeric' });
+        CAL_HOW[c].formatToParts(new Date(day * 86400000)).forEach(function (x) { p[x.type] = x.value; });
+        p = { y: parseInt(p.relatedYear || p.year, 10), m: parseInt(p.month, 10), d: parseInt(p.day, 10), leap: /bis/.test(p.month) ? 1 : 0 };
+        p.key = calKey(p.y, p.m, p.d, p.leap);
+        return (seen[day] = p);
+    }
+
+    function calKey(y, m, d, leap) {
+        return y * 100000 + (2 * m + (leap ? 1 : 0)) * 100 + d;
+    }
+
+    // the day of a date of a calendar, by halves: NaN if it has no such date, as 30 of a month of 29 days
+    function calDay(c, y, m, d, leap) {
+        var lo = CAL_FIRST, hi = CAL_LAST, mid, want = calKey(y, m, d, leap);
+        while (lo < hi) {
+            mid = Math.floor((lo + hi) / 2);
+            if (calParts(c, mid).key < want) lo = mid + 1;
+            else hi = mid;
+        }
+        return calParts(c, lo).key === want ? lo : NaN;
+    }
+
+    // the first day of a calendar it is read and picked from: its 1/1/1
+    function calFirst(c) {
+        if (CAL_ONE[c] === undefined) CAL_ONE[c] = calDay(c, 1, 1, 1);
+        return CAL_ONE[c];
+    }
+
+    // a year of the Chinese: its name of the cycle of sixty, 丙午, and its animal, 6 the Horse
+    function calCycle(y) {
+        y = ((y - 4) % 60 + 60) % 60;
+        return { name: '甲乙丙丁戊己庚辛壬癸'[y % 10] + '子丑寅卯辰巳午未申酉戌亥'[y % 12], animal: y % 12 };
+    }
+
+    // a day in a calendar, in words of the language in use: 10 Jumada II 1448 AH; the Chinese as Chinese has it, its
+    // month and day in numbers, its year of the sixty and its animal: month 10, day 12, 丙午, the year of the Horse.
+    // Before its year 1, none
+    function calText(c, day) {
+        var p = calParts(c, day), y;
+        if (day < calFirst(c)) return '–';
+        if (c === 'c') {
+            y = calCycle(p.y);
+            return tr(p.leap ? 'Leap month {m}, day {d}, {name}, the year of the {animal}' : 'Month {m}, day {d}, {name}, the year of the {animal}',
+                { m: p.m, d: p.d, name: y.name, animal: [tr('Rat'), tr('Ox'), tr('Tiger'), tr('Rabbit'), tr('Dragon'), tr('Snake'), tr('Horse'), tr('Goat'), tr('Monkey'), tr('Rooster'), tr('Dog'), tr('Pig')][y.animal] });
+        }
+        return new Date(day * 86400000).toLocaleDateString(DATE_LANG, { calendar: CAL_NAMES[c], day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+    }
+
+    function runCalendars(n, raw) {
+        var c = CAL_WAYS[raw.from], k = c ? c + 'date' : 'd', got = c ? calRead(c, raw[k] || '') : { day: dayOfBox(raw[k] || '') }, rows;
+        if (isNaN(got.day)) {
+            return { rows: [{ l: 'Gregorian', v: NaN }], bad: [k], warn: true,
+                note: !c ? 'A date, as ' + dateNumbers(today()) + ' or 14 Oct 2026, from the year 1 to 9999.' :
+                    got.why === 'range' ? tr('From {first} to {last}, as the Gregorian goes from the year 1 to 9999.', { first: calNumbers(c, calFirst(c)), last: calNumbers(c, CAL_LAST) }) :
+                        got.why === 'leap' ? tr('{y} has no leap month {m}.', { y: got.y, m: got.m }) :
+                            got.why === 'day' ? (c === 'h' ? 'No such Hijri date: its months have 29 or 30 days.' :
+                                c === 'p' ? 'No such Persian date: its first six months have 31 days, the next five 30, the last 29 or 30.' : 'No such Chinese date: its months have 29 or 30 days.') :
+                                tr('A date of this calendar, as {d}, or picked from its calendar.', { d: calNumbers(c, today()) }) };
+        }
+        rows = [{ l: 'Gregorian', text: dateText(got.day), wide: true }, { l: 'Hijri', text: calText('h', got.day), wide: true }, { l: 'Persian', text: calText('p', got.day), wide: true },
+            { l: 'Chinese', text: calText('c', got.day), wide: true }];
+        return {
+            rows: rows.splice(+raw.from || 0, 1).concat(rows), // the calendar it is from first, in words, as what was picked: then the others
+            note: 'The Hijri is that of Umm al-Qura, as Saudi Arabia has it: where the new moon is looked for, it can be a day off.'
+        };
+    }
+
+    // a day in a calendar's numbers, in the order and with the marks the region writes a date with: 10/06/1448; a leap
+    // month of the Chinese marked, L06. Of no calendar, the Gregorian
+    function calNumbers(c, day) {
+        var p, two = function (v) { return String(v).padStart(2, '0'); };
+        if (!c) return dateNumbers(day);
+        p = calParts(c, day);
+        return DATE_NUMBERS.formatToParts(new Date(Date.UTC(2000, 11, 31))).map(function (x) {
+            return x.type === 'day' ? two(p.d) : x.type === 'month' ? (p.leap ? tr('L{m}', { m: two(p.m) }) : two(p.m)) : x.type === 'year' ? String(p.y) : x.value;
+        }).join('').replace(/[‎‏]/g, '');
+    }
+
+    // a box of a calendar's date, as calNumbers writes it, its digits Arabic or Persian too, the year first where it is
+    // of 3 digits or more, what the region writes after a date left out, as Bulgarian's г.; today while it is empty:
+    // { day }, NaN with why where it is no date: 'read', not read as one; 'range', before its 1/1/1 or after 9999 of the
+    // Gregorian; 'leap', no such leap month, of y and m; 'day', no such day. Each text read once
+    function calRead(c, text) {
+        var read = CAL_READ[c] = CAL_READ[c] || {}, key = text;
+        if (!read[key]) {
+            if (Object.keys(read).length > 200) read = CAL_READ[c] = {};
+            read[key] = calReading(c, text);
+        }
+        return read[key];
+    }
+
+    function calReading(c, text) {
+        var parts, at = {}, leap, day;
+        text = latinDigits(text.trim());
+        if (!text || /^today$/i.test(text) || text === tr('Today')) return { day: today() };
+        if (/(^|[^\d])-\s*\d/.test(text)) return { day: NaN, why: 'range' }; // a year below 0, as -126
+        parts = text.split(/[\s\/.\-,،]+/).filter(function (x) { return /\d/.test(x); });
+        if (parts.length !== 3) return { day: NaN, why: 'read' };
+        (/^\d{3,}$/.test(parts[0]) ? 'ymd' : DATE_ORDER).split('').forEach(function (k, i) { at[k] = parts[i]; });
+        if (!/^\d+$/.test(at.d) || !/^\d+$/.test(at.y) || !/^\D{0,2}\d+\D{0,2}$/.test(at.m)) return { day: NaN, why: 'read' };
+        leap = c === 'c' && /\D/.test(at.m); // L06, 闰06: a leap month
+        at = { y: +at.y, m: +at.m.replace(/\D/g, ''), d: +at.d };
+        if (!(at.m >= 1 && at.m <= 12 && at.d >= 1 && at.d <= 31)) return { day: NaN, why: 'day' };
+        if (at.y < 1 || calKey(at.y, at.m, at.d, leap) > calParts(c, CAL_LAST).key) return { day: NaN, why: 'range' };
+        day = calDay(c, at.y, at.m, at.d, leap);
+        if (isNaN(day) && leap && isNaN(calDay(c, at.y, at.m, 1, true))) return { day: NaN, why: 'leap', y: at.y, m: at.m };
+        return { day: day, why: isNaN(day) ? 'day' : '' };
+    }
+
+    // the digits of Arabic and Persian as 0 to 9
+    function latinDigits(text) {
+        return text.replace(/[٠-٩۰-۹]/g, function (d) { return String(d.charCodeAt(0) & 15); });
+    }
+
+    // the day of a box of a date: of a calendar's, as its data-cal says, or the Gregorian
+    function boxDay(box) {
+        return box.dataset.cal ? calRead(box.dataset.cal, box.value).day : dayOfBox(box.value);
+    }
+
+    // a month of a calendar, as the head of its calendar: Jumada II 1448 AH; of the Chinese, month 10, 2026 丙午
+    function calMonth(c, day) {
+        var p = calParts(c, day);
+        if (c === 'c') return tr(p.leap ? 'Leap month {m}, {y} {name}' : 'Month {m}, {y} {name}', { m: p.m, y: p.y, name: calCycle(p.y).name });
+        return new Date(day * 86400000).toLocaleDateString(DATE_LANG, { calendar: CAL_NAMES[c], month: 'long', year: 'numeric', timeZone: 'UTC' });
+    }
+
+    // a day a calendar's months on, below 0 back: its day of the month kept, or the last of a shorter month. A year on is
+    // the month of its number, a leap one if there is one, else the month of the number
+    function calMonthsOn(c, day, months) {
+        var p = calParts(c, day), start = day - p.d + 1, len = function (first) { // the days of the month from its first
+            var n = 29;
+            while (n < 31 && first + n <= CAL_LAST && calParts(c, first + n).d !== 1) n++;
+            return n;
+        }, d, n, r = NaN;
+        if (Math.abs(months) === 12) {
+            for (d = p.d; d >= 1 && isNaN(r); d--) {
+                r = calDay(c, p.y + months / 12, p.m, d, p.leap);
+                if (isNaN(r) && p.leap) r = calDay(c, p.y + months / 12, p.m, d, 0);
+            }
+            return r;
+        }
+        if (months < 0) {
+            n = calParts(c, start - 1).d; // the last day of the month before, its length
+            return start - n + Math.min(p.d, n) - 1;
+        }
+        n = start + len(start); // the first of the next
+        return n + Math.min(p.d, len(n)) - 1;
     }
 
     // the day of today, here
@@ -3353,8 +3575,9 @@ function clearGraph() { return graphPart.clearGraph.apply(this, arguments); }
     // A date is written in numbers as the browser's region writes it: 14/10/2026 in the UK and France,
     // 14.10.2026 in Germany, 10/14/2026 in the US, 2026-10-14 in Sweden; and read so as it is typed.
     // Its words are in the language in use (lang.js); in English, in the order of the US or the UK. The weeks of the
-    // calendar start on the region's first day: Monday, or Sunday in the US
-    var DATE_LANG = CalcLang.locale !== 'en' ? CalcLang.locale : /^en\b/i.test(navigator.language || '') ? navigator.language : 'en-GB',
+    // calendar start on the region's first day: Monday, or Sunday in the US. Gregorian in every language, as the boxes
+    // are: in Persian too, whose own calendar the browser would give there (the card of calendars asks for the others)
+    var DATE_LANG = (CalcLang.locale !== 'en' ? CalcLang.locale : /^en\b/i.test(navigator.language || '') ? navigator.language : 'en-GB') + '-u-ca-gregory',
         DATE_NUMBERS = (function () {
             var how = { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC', numberingSystem: 'latn', calendar: 'gregory' };
             try {
@@ -3366,6 +3589,10 @@ function clearGraph() { return graphPart.clearGraph.apply(this, arguments); }
         DATE_ORDER = DATE_NUMBERS.formatToParts(new Date(Date.UTC(2000, 11, 31))).filter(function (p) {
             return /^(day|month|year)$/.test(p.type);
         }).map(function (p) { return p.type.charAt(0); }).join(''), // dmy, mdy or ymd
+        DATE_TAIL = (function () { // what the region writes after the numbers of a date: г. in Bulgarian, '' in most
+            var parts = DATE_NUMBERS.formatToParts(new Date(Date.UTC(2000, 11, 31))), last = parts.map(function (p) { return p.type; }).lastIndexOf('year');
+            return last === parts.length - 1 ? '' : parts.slice(last + 1).map(function (p) { return p.value; }).join('').replace(/[\u200e\u200f]/g, '').trim().replace(/^[.\s]*$/, '');
+        })(),
         WEEK_START = (function () { // 0 Sunday, 1 Monday, 6 Saturday
             var locale, week;
             try {
@@ -3401,8 +3628,11 @@ function clearGraph() { return graphPart.clearGraph.apply(this, arguments); }
         return text || tr('0 days');
     }
 
-    // the date of a box, today while it is empty or says so
+    // the date of a box, today while it is empty or says so: its digits Arabic or Persian too, and what the region
+    // writes after a date in numbers left out, as Bulgarian's г., so a day picked is read again as it is written
     function dayOfBox(text) {
+        text = latinDigits(String(text || '').trim());
+        if (DATE_TAIL && text.slice(-DATE_TAIL.length) === DATE_TAIL) text = text.slice(0, -DATE_TAIL.length).trim();
         return !text || /^today$/i.test(text) ? today() : CalcMaths.readDate(text, DATE_ORDER);
     }
 
@@ -3431,9 +3661,9 @@ function clearGraph() { return graphPart.clearGraph.apply(this, arguments); }
     calendar.setAttribute('aria-label', 'Calendar');
 
     function openCalendar(box) {
-        var day = dayOfBox(box.value.trim());
+        var day = boxDay(box);
         calBox = box;
-        calLit = isNaN(day) ? today() : day;
+        calLit = isNaN(day) || day < calStart() ? today() : day;
         box.closest('.calc-past').appendChild(calendar);
         calendar.hidden = false;
         box.parentNode.classList.add('calc-on');
@@ -3449,19 +3679,28 @@ function clearGraph() { return graphPart.clearGraph.apply(this, arguments); }
         calBox = null;
     }
 
-    // the month of the day lit, its weeks from Monday, or Sunday; the day in the box and today marked
+    // the month of the day lit, its weeks from Monday, or Sunday; the day in the box and today marked. Of a box of a
+    // calendar's date (data-cal), that calendar's month, its days numbered as it numbers them
     function drawCalendar() {
-        var c = CalcMaths.dateOf(calLit), first = CalcMaths.dayFrom(c.y, c.m, 1), start = first - (CalcMaths.weekday(first) + 8 - WEEK_START) % 7,
-            chosen = dayOfBox(calBox.value.trim()), now = today(), html = '', i, d,
+        var cal = calBox.dataset.cal, of = function (d) { // a day's month and its day of it
+                var p = cal ? calParts(cal, d) : CalcMaths.dateOf(d);
+                return { m: p.y * 100 + 2 * p.m + (p.leap || 0), d: p.d };
+            }, c = of(calLit), first = calLit - c.d + 1, start = first - (CalcMaths.weekday(first) + 8 - WEEK_START) % 7,
+            lo = calStart(), chosen = boxDay(calBox), now = today(), html = '', i, d, o,
             names = tr('Su Mo Tu We Th Fr Sa').split(' '); // from Sunday, as short as the language writes them over a calendar
         for (i = 0; i < 7; i++) html += '<span class="calc-cal-wk">' + names[(CalcMaths.weekday(start + i) + 1) % 7] + '</span>';
         for (i = 0; i < 42; i++) {
             d = start + i;
-            html += d < CAL_FIRST || d > CAL_LAST ? '<span></span>' : '<span class="calc-cal-day' + (CalcMaths.dateOf(d).m !== c.m ? ' calc-cal-out' : '') +
-                (d === now ? ' calc-cal-now' : '') + (d === chosen ? ' calc-on' : '') + (d === calLit ? ' calc-lit' : '') + '" data-d="' + d + '">' + CalcMaths.dateOf(d).d + '</span>';
+            if (d < lo || d > CAL_LAST) {
+                html += '<span></span>';
+                continue;
+            }
+            o = of(d);
+            html += '<span class="calc-cal-day' + (o.m !== c.m ? ' calc-cal-out' : '') + (d === now ? ' calc-cal-now' : '') + (d === chosen ? ' calc-on' : '') +
+                (d === calLit ? ' calc-lit' : '') + '" data-d="' + d + '">' + o.d + '</span>';
         }
         calendar.innerHTML = '<div class="calc-cal-head"><span class="calc-cal-go" data-go="-12" title="' + tr('A year back') + '">«</span>' +
-            '<span class="calc-cal-go" data-go="-1" title="' + tr('A month back') + '">‹</span><span class="calc-cal-title">' + dateText(calLit, { month: 'long', year: 'numeric' }) + '</span>' +
+            '<span class="calc-cal-go" data-go="-1" title="' + tr('A month back') + '">‹</span><span class="calc-cal-title">' + (cal ? calMonth(cal, calLit) : dateText(calLit, { month: 'long', year: 'numeric' })) + '</span>' +
             '<span class="calc-cal-go" data-go="1" title="' + tr('A month on') + '">›</span><span class="calc-cal-go" data-go="12" title="' + tr('A year on') + '">»</span></div>' +
             '<div class="calc-cal-grid">' + html + '</div><div class="calc-cal-foot"><span class="calc-cal-today">' + tr('Today') + '</span></div>';
     }
@@ -3477,10 +3716,15 @@ function clearGraph() { return graphPart.clearGraph.apply(this, arguments); }
             Math.max(6, (b.right - p.left) / k - calendar.offsetWidth)) + 'px';
     }
 
+    // the first day the calendar open shows: of a calendar's box, that calendar's 1/1/1, as before it no date is written
+    function calStart() {
+        return calBox.dataset.cal ? calFirst(calBox.dataset.cal) : CAL_FIRST;
+    }
+
     // the day lit moved on by days, or by months, below 0 back; never past the year 1 or 9999
     function moveCalendar(days, months) {
-        var d = months ? CalcMaths.addDate(calLit, 0, months, 0) : calLit + days;
-        if (!isNaN(d) && d >= CAL_FIRST && d <= CAL_LAST) calLit = d;
+        var cal = calBox.dataset.cal, d = !months ? calLit + days : cal ? calMonthsOn(cal, calLit, months) : CalcMaths.addDate(calLit, 0, months, 0);
+        if (!isNaN(d) && d >= calStart() && d <= CAL_LAST) calLit = d;
         drawCalendar();
     }
 
@@ -3488,7 +3732,7 @@ function clearGraph() { return graphPart.clearGraph.apply(this, arguments); }
     function chooseDay(day) {
         var box = calBox;
         closeCalendar();
-        box.value = dateNumbers(day);
+        box.value = calNumbers(box.dataset.cal, day);
         box.dispatchEvent(new Event('input', { bubbles: true }));
         focusBox(box);
     }
@@ -3524,7 +3768,7 @@ function clearGraph() { return graphPart.clearGraph.apply(this, arguments); }
         }, false);
 
         box.addEventListener('input', function () {
-            var day = dayOfBox(box.value.trim());
+            var day = boxDay(box);
             if (calBox !== box) return;
             if (!isNaN(day)) calLit = day;
             drawCalendar();
@@ -3779,7 +4023,7 @@ function clearGraph() { return graphPart.clearGraph.apply(this, arguments); }
                 html += '<label class="calc-sv-var' + (f.fn ? ' calc-sv-wide' : '') + (f.date ? ' calc-sv-wide calc-sv-dated' : '') + (f.cls ? ' ' + f.cls : '') + '">' + (f.l ? '<span class="calc-sv-sym">' + f.l + '</span>' : '') +
                     (f.date ? '<span class="calc-sv-date">' : '') +
                     '<input type="text"' + ((f.fn || f.text || f.date) && !f.num ? '' : ' data-num="1"') + ' spellcheck="false" autocomplete="off" maxlength="' + (f.fn ? 200 : 40) +
-                    '" placeholder="' + (f.date ? tr('Today') : tr(f.ph || '')) + '" data-k="' + f.k + '" aria-label="' + (f.aria || (f.fn ? tr(tool.t) : f.l.replace(/<[^>]*>/g, ''))) + '">' +
+                    '" placeholder="' + (f.date ? tr('Today') : tr(f.ph || '')) + '" data-k="' + f.k + '"' + (f.cal ? ' data-cal="' + f.cal + '"' : '') + ' aria-label="' + (f.aria || (f.fn ? tr(tool.t) : f.l.replace(/<[^>]*>/g, ''))) + '">' +
                     (f.date ? '<span class="calc-sv-cal" title="' + tr('Calendar') + '">' + CALENDAR_ICON + '</span></span>' : '') + '</label>';
             });
             item.querySelector('.calc-sv-boxes').innerHTML = html + '</div>';
