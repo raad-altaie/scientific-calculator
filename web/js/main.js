@@ -2172,6 +2172,7 @@
     stats.querySelector('.calc-solve-tabs').addEventListener('click', function (e) {
         var t = e.target.closest('.calc-solve-tab');
         if (!t || t.dataset.tab === statsTab) return;
+        if (statsTab === 'tests') statTests.shut(); // the test open closes
         setStatsTab(t.dataset.tab);
         statsChart.parentNode.scrollTop = 0;
         saveState();
@@ -4560,9 +4561,16 @@ function clearGraph() { return graphPart.clearGraph.apply(this, arguments); }
             keep: keep,
             fit: fitPills, // the badges fitted again, once something else has put others in
             tab: function () { return tab; },
-            setTab: function (t) {
+            // shut: the card open closes, as another tab is clicked; not as another window shows its tab, or as it loads
+            setTab: function (t, shut) {
+                if (shut && t !== tab) openId = '';
                 tab = t;
                 render();
+                keep();
+            },
+            // the card open closes, not drawn again: its panel has gone to another of its tabs, of other cards or none
+            shut: function () {
+                openId = '';
                 keep();
             },
             // a tool's card, on its tab, to open with these in its boxes, as { eq: 'x^2 = 4' }: it opens as the panel renders.
@@ -4669,7 +4677,7 @@ function clearGraph() { return graphPart.clearGraph.apply(this, arguments); }
         panel.querySelector('.calc-solve-tabs').addEventListener('click', function (e) {
             var t = e.target.closest('.calc-solve-tab');
             if (!t) return;
-            cards.setTab(t.dataset.tab);
+            cards.setTab(t.dataset.tab, true); // the card open on the tab left closes
             tabs();
         }, false);
 
@@ -5520,6 +5528,7 @@ function chemBig() { return chemPart.chemBig.apply(this, arguments); }
     conv.querySelector('.calc-solve-tabs').addEventListener('click', function (e) {
         var t = e.target.closest('.calc-solve-tab');
         if (!t || t.dataset.tab === convTab) return;
+        (convTab === 'dates' ? dates : unitCards).shut(); // the card open on the tab left closes
         convTab = t.dataset.tab;
         convTabs();
         convFocus();

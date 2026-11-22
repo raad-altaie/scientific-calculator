@@ -1682,11 +1682,12 @@
                 if (chemTab !== 'table' && chemList.classList.contains('calc-side') !== bigSide(chemPanel)) chemCards.render(); // in place again, or beside
             }, false);
 
-            function renderChem() {
+            // shut: another tab clicked, and the card open on the one left closes
+            function renderChem(shut) {
                 chemTabs();
                 chemFit();
                 if (chemTab === 'table') renderChemTable();
-                else if (chemCards.tab() !== chemTab) chemCards.setTab(chemTab);
+                else if (chemCards.tab() !== chemTab) chemCards.setTab(chemTab, shut === true);
                 else chemCards.render();
             }
 
@@ -1827,7 +1828,7 @@
                 var t = e.target.closest('.calc-solve-tab');
                 if (!t) return;
                 chemTab = t.dataset.tab;
-                renderChem();
+                renderChem(true);
                 saveChem();
             }, false);
 

@@ -4378,6 +4378,10 @@ async function chemistry(page, at) {
     await page.calc('(function (i) { i.value = "Fe + O2 = Fe2O3"; i.dispatchEvent(new Event("input", { bubbles: true })); })(document.querySelector(".calc-chem .calc-sv-item.calc-on input"))');
     got = await page.calc('document.querySelector(".calc-chem .calc-sv-item.calc-on .calc-sv-tile .calc-sv-value").textContent');
     check(got === '4Fe + 3O2 → 2Fe2O3', t + 'Fe + O2 = Fe2O3 balanced', got);
+    // another tab clicked closes the card open: back on Reactions, none is
+    await page.click('.calc-chem .calc-solve-tab[data-tab="ions"]');
+    await page.click('.calc-chem .calc-solve-tab[data-tab="reactions"]');
+    check(!await page.calc('document.querySelector(".calc-chem .calc-sv-item.calc-on")'), t + 'Ions and back to Reactions, its card closed');
     await page.key('Escape', 27);
     check(!await open(page, '.calc-chem'), t + 'Esc closes it');
 
