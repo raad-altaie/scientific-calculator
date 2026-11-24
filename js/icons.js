@@ -17,8 +17,8 @@
             'M2.5 8c0 1.1 2.5 2 5.5 2s5.5-.9 5.5-2"/>',
         press: '<path d="M2 13.5h12M5 2v7M3 7l2 2 2-2M11 2v7M9 7l2 2 2-2"/>',
         bolt: '<path d="M9 1.5L3.5 9H8l-1 5.5L12.5 7H8z"/>',
-        power: '<g stroke-width="1.1"><rect x="4.7" y="1.56" width="11.2" height="10.64" rx="1.68"/><path d="M4.7 6.88H1.34M12.54 12.2v2.24M8.06 12.2v2.24M6.38 14.44h7.84"/><ellipse cx="1.34" cy="6.88" rx="1.23" ry="3.64"/>' +
-            '<path fill="currentColor" d="M10.86 3.24L7.78 7.44H10.3L9.74 10.52 12.82 6.32H10.3z"/></g>', // a motor on its stand, a solid bolt on it, a pulley seen from the side at the end of its shaft at its left, filling its box in thinner lines, the work it does each second; not the on and off of a button
+        power: '<g stroke-width="1.17" transform="matrix(.94 0 0 .94 .48 .48)"><rect x="5" y="1.56" width="10.4" height="10.64" rx="1.68"/><path d="M5 6.88H1.84M12.44 12.2v2.24M7.96 12.2v2.24M6.28 14.44h7.84"/><ellipse cx="1.84" cy="6.88" rx="1.23" ry="3.64"/>' +
+            '<path fill="currentColor" d="M10.76 3.24L7.68 7.44H10.2L9.64 10.52 12.72 6.32H10.2z"/></g>', // a motor on its stand, a solid bolt on it, a pulley seen from the side at the end of its shaft at its left, filling its box in thinner lines, the work it does each second; not the on and off of a button
         angle: '<path d="M2 13.5h12M2 13.5L11 3"/><path d="M7 13.5A5 5 0 0 0 5.25 9.7"/>',
         pump: '<path d="M3 14V3a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v11M2 14h9M3 7h7M10 6l2.5 2v4a1 1 0 0 0 2 0V5.5l-2-2"/>',
         push: '<rect x="9" y="5" width="5.5" height="6" rx=".5"/><path d="M1.5 8h6M5 5.5L7.5 8 5 10.5"/>',

@@ -3190,7 +3190,7 @@ function clearGraph() { return graphPart.clearGraph.apply(this, arguments); }
                     var way = [{ k: 'convert', l: 'Convert', choice: ['Unix → Date', 'Date → Unix'] }];
                     return raw.convert === '1' ? way.concat([{ k: 'd', l: 'Date', date: true }, { k: 'time', l: 'Time', ph: '00:00:00', text: true },
                         { k: 'zone', l: 'Time in', choice: ['UTC', 'Time here'] }]) : way.concat([{ k: 'ts', l: 'Unix time', ph: '1700000000' }]);
-                }, run: runUnix, example: function (raw) { return raw.convert === '1' ? { convert: '1', d: '2023-11-14', time: '22:13:20' } : { ts: '1700000000' }; } },
+                }, run: runUnix, example: function (raw) { return raw.convert === '1' ? null : { ts: '1700000000' }; } },
             { id: 'calendars', t: 'Calendars', f: '18 Feb 2026 ↔ 1 Ramadan 1447 AH', d: 'A date of one calendar in the others: the Gregorian; the Hijri, as Umm al-Qura has it; the Persian, or Solar Hijri; ' +
                 'and the Chinese, its months by the moon, a leap month in some years, its year named of a cycle of sixty, and its animal. Its calendar picks a day of the one chosen; ' +
                 'an empty date is today.',
@@ -3206,7 +3206,7 @@ function clearGraph() { return graphPart.clearGraph.apply(this, arguments); }
                     var way = [{ k: 'jdway', l: 'Convert', choice: ['JD → Date', 'Date → JD'] }];
                     return raw.jdway === '1' ? way.concat([{ k: 'd', l: 'Date', date: true }, { k: 'time', l: 'Time', ph: '00:00:00', text: true },
                         { k: 'zone', l: 'Time in', choice: ['UTC', 'Time here'] }]) : way.concat([{ k: 'jd', l: 'Julian day', ph: '2451545' }]);
-                }, run: runJulian, example: function (raw) { return raw.jdway === '1' ? { jdway: '1', d: '2000-01-01', time: '12:00' } : { jd: '2451545' }; } }
+                }, run: runJulian, example: function (raw) { return raw.jdway === '1' ? null : { jd: '2451545' }; } }
         ]
     };
 
