@@ -5,7 +5,7 @@
 // kept and a newer one, till the next load. CACHE is named by the version of manifest.json and
 // a sum of every other file here, set by scripts/sync-web.sh: any change of them is a new
 // sw.js, so this is installed again, keeps the new files, and the old copy goes.
-const CACHE = 'calculator-2.5.53-8355ec25';
+const CACHE = 'calculator-2.5.54-4d9c660e';
 const FILES = [
     './', 'index.html', 'manifest.webmanifest',
     'css/style.css', 'css/options.css', 'css/site.css',
