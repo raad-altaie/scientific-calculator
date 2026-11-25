@@ -2,15 +2,15 @@
 // over one. Keyed by a key's name as main.js reads it from its label, so a
 // key turned by 2nd has the tip of its second function.
 // t: name, d: what it does (HTML),
-// k: keyboard shortcut, second: the function 2nd gives it
+// k: keyboard shortcut, or a list of them, second: the function 2nd gives it
 (function (root) {
     'use strict';
 
     root.CalcTips = {
         '2nd': {
             t: '2nd',
-            d: 'Switches sin, cos, tan, sinh, cosh, tanh, ln, e<sup>x</sup>, log, π, y<sup>x</sup> and ∛ to their ' +
-                'second functions: sin<sup>-1</sup> …, log<sub>2</sub>, 2<sup>x</sup>, 10<sup>x</sup>, e, ' +
+            d: 'Switches sin, cos, tan, sinh, cosh, tanh, ln, e, log, √, y<sup>x</sup> and ∛ to their ' +
+                'second functions: sin<sup>-1</sup> …, e<sup>x</sup>, 2<sup>x</sup>, 10<sup>x</sup>, log<sub>2</sub>, ' +
                 'log<sub>y</sub> and <sup>x</sup>√y. Click again to switch back.',
             k: 'Space'
         },
@@ -66,7 +66,7 @@
         'hold': {
             t: 'Hold',
             d: 'The next key gives its other function: s gives sinh, 2 gives x<sup>2</sup>, l gives ' +
-                'log<sub>2</sub>. Click to let it go.',
+                'e<sup>x</sup>. Click to let it go.',
             k: 'h'
         },
         // DEL and AC: they work by keys, not by characters
@@ -1426,13 +1426,14 @@
         '√': {
             t: 'Square root',
             d: 'Before the number: √ 16 = 4. Enter, → or Tab closes it, as √(16); = works it out.',
-            k: 'Shift+R'
+            k: 'Shift+R',
+            second: 'log<sub>2</sub>'
         },
         '∛': {
             t: 'Cube root',
             d: 'Before the number: ∛ 27 = 3, as 3 <sup>x</sup>√y 27; it undoes x<sup>3</sup>. Negative numbers work: ∛ –8 = –2. ' +
                 'Enter, → or Tab closes it; = works it out.',
-            k: 'h, Shift+R',
+            k: 'h, r',
             second: '<sup>x</sup>√y'
         },
         'x√y': {
@@ -1517,13 +1518,13 @@
         'π': {
             t: 'Pi',
             d: '3.14159265359…, the half turn in radians. After a number it is times it: 2 π = 6.28318530718.',
-            k: 'p',
-            second: 'e'
+            k: 'p'
         },
         'e': {
             t: 'Euler\'s number',
             d: '2.718281828459…, the base of the natural logarithm: ln e = 1. After a number it is times it: 2 e = 5.43656365692.',
-            k: 'h, p'
+            k: 'e',
+            second: '2<sup>x</sup>'
         },
         'log': {
             t: 'Logarithm, base 10',
@@ -1535,23 +1536,22 @@
             t: 'Natural logarithm',
             d: 'The logarithm to base e: ln 1 = 0, ln e = 1.',
             k: 'l',
-            second: 'log<sub>2</sub>'
+            second: 'e<sup>x</sup>'
         },
         'log2': {
             t: 'Logarithm, base 2',
             d: 'The power of 2 that gives the number: log<sub>2</sub> 8 = 3.',
-            k: 'h, l'
+            k: 'h, Shift+R'
         },
         'ex': {
             t: 'e to the power',
-            d: 'e (2.718281828459…) to the power of the number: e<sup>x</sup> 1 = 2.718281828459.',
-            k: 'e',
-            second: '2<sup>x</sup>'
+            d: 'e (2.718281828459…) to the power of the number: e<sup>x</sup> 1 = 2.718281828459. It undoes ln.',
+            k: 'h, l'
         },
         '2x': {
             t: '2 to the power',
             d: '2 to the power of the number: 2<sup>x</sup> 10 = 1024.',
-            k: 'Shift+X'
+            k: ['Shift+X', 'h, e']
         },
         '10x': {
             t: '10 to the power',

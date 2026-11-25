@@ -137,13 +137,13 @@
         keyBoard = {},
         secondLayer = [
             [
-                'sin', 'cos', 'tan', 'ln', 'sinh', 'cosh', 'tanh', 'e<sup>x</sup>', '%', '<i>n</i>C<i>r</i>', '<i>n</i>P<i>r</i>',
-                'log', 'π', 'y<sup>x</sup>', 'abs', 'x!', 'Rand', '<span class="calc-cbrt"><span class="calc-sq">∛</span></span>'
+                'sin', 'cos', 'tan', 'ln', 'sinh', 'cosh', 'tanh', 'e', '%', '<i>n</i>C<i>r</i>', '<i>n</i>P<i>r</i>',
+                'log', '<span class="calc-sq">√</span>', 'y<sup>x</sup>', 'abs', 'x!', 'Rand', '<span class="calc-cbrt"><span class="calc-sq">∛</span></span>'
             ],
             [
-                'sin<sup>-1</sup>', 'cos<sup>-1</sup>', 'tan<sup>-1</sup>', 'log<sub>2</sub>',
+                'sin<sup>-1</sup>', 'cos<sup>-1</sup>', 'tan<sup>-1</sup>', 'e<sup>x</sup>',
                 'sinh<sup>-1</sup>', 'cosh<sup>-1</sup>', 'tanh<sup>-1</sup>', '2<sup>x</sup>', 'mod', 'gcd', 'lcm',
-                '10<sup>x</sup>', 'e', 'log<sub>y</sub>', 'floor', 'ceil', 'round',
+                '10<sup>x</sup>', 'log<sub>2</sub>', 'log<sub>y</sub>', 'floor', 'ceil', 'round',
                 '<sup>x</sup><em class="calc-key-sign">√</em><span class="calc-root">y</span>'
             ]
         ];
@@ -476,11 +476,11 @@
         var holdKey = hold.textContent,
             // Shift+A to J are the letters: what they had went to a key beside them, cos⁻¹ to V, EE to W, floor to Y
             // by ceil's U and round's O, gcd to Q
-            keyMatch = (',|.|-|–|/|÷|*|×|#|+/–|x|x!|W|EE|e|ex| |2nd|r|x√y|R|√|p|π|^|yx|\'|yx|"|yx|m|mr|v|mc|b|m+|n|m-|a|Ans|' +
+            keyMatch = (',|.|-|–|/|÷|*|×|#|+/–|x|x!|W|EE| |2nd|r|x√y|R|√|p|π|^|yx|\'|yx|"|yx|m|mr|v|mc|b|m+|n|m-|a|Ans|' +
                 's|sin|c|cos|t|tan|S|sin-1|V|cos-1|T|tan-1|d|Deg|°|Deg|l|ln|L|log|\\|1/x|X|2x|N|nCr|P|nPr|f|a/b|M|mod|Q|gcd|K|lcm|' +
                 'Y|floor|U|ceil|O|round|o|MODE').split('|'),
             keyMatchHold = ('sin|sinh|cos|cosh|tan|tanh|m-|Rand|sin-1|sinh-1|cos-1|cosh-1|tan-1|tanh-1|' +
-                '1|1/x|2|x2|3|x3|x√y|√|√|∛|ln|log2|ex|2x|log|10x|π|e|yx|logy|a/b|°′″').split('|');
+                '1|1/x|2|x2|3|x3|x√y|∛|√|log2|ln|ex|e|2x|log|10x|yx|logy|a/b|°′″').split('|');
 
         // > is STO→, and a letter, Shift+A to J, is put in, or after STO→ takes the result; Alt+A does both at once
         if (key === 62) return arm(!sto.textContent);
@@ -518,8 +518,8 @@
             arm(false); // one mark at a time in its place
         }
         if (!keyBoard[key]) return;
-        if ((key.match(/-1$|log2$|2x$|^(mod|gcd|lcm|10x|e|logy|floor|ceil|round|x√y)$/) && !secondActive) ||
-            (key.match(/h$|n$|cos$|ex$|^(%|nCr|nPr|log|π|yx|abs|x!|Rand|∛)$/) && secondActive)) {
+        // a key of the layer of 2nd not shown: 2nd first, so the key is there to press
+        if (onLayer(1, key) ? !secondActive : onLayer(0, key) && secondActive) {
             keyDown(false, keyBoard['2nd']);
             doKey('2nd', true);
         }
@@ -1002,8 +1002,8 @@
             return;
         }
         tip.innerHTML = '<div class="calc-tip-head"><b>' + tr(info.t) + '</b>' +
-            (secondKey(name) ? '<span class="calc-tip-2nd">2nd</span>' : '') +
-            (info.k ? '<kbd>' + info.k + '</kbd>' : '') + '</div><div class="calc-tip-body"><div>' + tr(info.d) + '</div>' +
+            (onLayer(1, name) ? '<span class="calc-tip-2nd">2nd</span>' : '') +
+            (info.k ? [].concat(info.k).map(function (k) { return '<kbd>' + k + '</kbd>'; }).join('') : '') + '</div><div class="calc-tip-body"><div>' + tr(info.d) + '</div>' +
             (info.second && !secondActive ? '<div class="calc-tip-more">' + tr('With 2nd: {f}', { f: info.second }) + '</div>' : '') + '</div>';
         tip.hidden = false;
         placeTip(tip, at, gap); // above the key, in the middle of it
@@ -1300,9 +1300,9 @@
         return CalcTips[name];
     }
 
-    // true for the name of a function on the 2nd layer: sin-1, log2, 2x …
-    function secondKey(name) {
-        return secondLayer[1].some(function (label) {
+    // whether a key's name is one 2nd changes, on its first layer, 0, as sin, or on its second, 1, as sin⁻¹
+    function onLayer(layer, name) {
+        return secondLayer[layer].some(function (label) {
             return label.replace(/<[^>]*>/g, '') === name;
         });
     }

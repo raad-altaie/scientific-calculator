@@ -3119,40 +3119,70 @@ async function modeKey(page, at) {
     check(await page.calc('!!document.querySelector("#box .calc-cursor")'), t + 'the arrow keys still move the cursor');
 }
 
-// 10^x, e and log_y on the 2nd layer of log, π and y^x, by click and by the keyboard
+// e beside π; e^x, 2^x, 10^x, log_2 and log_y on the 2nd layer of ln, e, log, √ and y^x, by click and by the keyboard
 async function secondKeys(page, at) {
-    var t = at + ': ', KEYS = '.calc-left > :nth-child(', LOG = KEYS + '18)', PI = KEYS + '21)', YX = KEYS + '10)';
+    var t = at + ': ', KEYS = '.calc-left > :nth-child(', LOG = KEYS + '18)', LN = KEYS + '19)', E = KEYS + '20)', PI = KEYS + '21)',
+        YX = KEYS + '10)', SQRT = KEYS + '11)', C = '.calc-right > .del-ac';
 
     function label(key) {
         return page.calc('document.querySelector(' + JSON.stringify(key) + ').textContent.replace(/\\s+/g, "")');
     }
+    async function labels() {
+        return [await label(LOG), await label(LN), await label(E), await label(PI), await label(YX), await label(SQRT)].join(' ');
+    }
 
     await page.fresh(at, {});
+    check(await labels() === 'log ln e π yx √', t + 'e, then π beside it', await labels());
+    await page.click(E);
+    check(near(await value(page), Math.E), t + 'a click on e puts it in', await shown(page));
+    await page.click(C);
     await page.click(KEYS + '1)'); // 2nd
-    check(await label(LOG) === '10x' && await label(PI) === 'e' && await label(YX) === 'logy', t + '2nd turns log, π and yˣ',
-        await label(LOG) + ' ' + await label(PI) + ' ' + await label(YX));
+    check(await labels() === '10x ex 2x π logy log2', t + '2nd turns log, ln, e, yˣ and √, and leaves π', await labels());
     await page.click(LOG);
     await page.type('3\r');
     check(await shown(page) === '103', t + 'a click on 10ˣ, then 3 and Enter closes its box: 10³', await shown(page));
     await page.type('\r');
     check(await shown(page) === '1000', t + 'and Enter again is 1000', await shown(page));
-    await page.click(PI);
-    check(near(await value(page), Math.E), t + 'a click on e puts it in', await shown(page));
-    await page.click('.calc-right > .del-ac'); // a digit after e is times it: C first
+    await page.click(C);
+    await page.click(LN);
+    await page.type('1\r\r');
+    check(near(await value(page), Math.E), t + 'eˣ on ln: e¹', await shown(page));
+    await page.click(C);
+    await page.click(E);
+    await page.type('10\r\r');
+    check(await shown(page) === '1024', t + '2ˣ on e: 2¹⁰ = 1024', await shown(page));
+    await page.click(C);
+    await page.click(SQRT);
+    await page.type('8\r\r');
+    check(await shown(page) === '3', t + 'log₂ on √: log₂ 8 = 3', await shown(page));
+    await page.click(C);
     await page.type('8');
     await page.click(YX);
     await page.type('2\r\r');
     check(await shown(page) === '3', t + '8 logᵧ 2 = 3', await shown(page));
     await page.click(KEYS + '1)');
-    check(await label(LOG) === 'log' && await label(PI) === 'π' && await label(YX) === 'yx', t + '2nd again turns them back',
-        await label(LOG) + ' ' + await label(PI) + ' ' + await label(YX));
+    check(await labels() === 'log ln e π yx √', t + '2nd again turns them back', await labels());
 
     await page.type('hL2\r\r');
     check(await shown(page) === '100', t + 'h, Shift+L is 10ˣ', await shown(page));
     await page.type('81h^3\r\r');
     check(await shown(page) === '4', t + 'h, ^ is logᵧ', await shown(page));
-    await page.type('hp');
-    check(near(await value(page), Math.E), t + 'h, p is e', await shown(page));
+    await page.click(C);
+    await page.type('e');
+    check(near(await value(page), Math.E), t + 'e is e', await shown(page));
+    await page.click(C);
+    await page.type('hl1\r\r');
+    check(near(await value(page), Math.E), t + 'h, l is eˣ', await shown(page));
+    await page.click(C);
+    await page.type('he10\r\r');
+    check(await shown(page) === '1024', t + 'h, e is 2ˣ', await shown(page));
+    await page.click(C);
+    await page.type('hR8\r\r');
+    check(await shown(page) === '3', t + 'h, Shift+R is log₂', await shown(page));
+    await page.click(C);
+    check(await label(SQRT) === 'log2', t + 'a key of 2nd typed turns 2nd on, and it stays on', await label(SQRT));
+    await page.type('R16\r\r');
+    check(await shown(page) === '4' && await label(SQRT) === '√', t + 'Shift+R with 2nd on is √ still, 2nd let go', await shown(page) + ' ' + await label(SQRT));
 
     // floor and ceil on the 2nd layer of abs and x!, side by side, and round on that of Rand
     await page.fresh(at, {});
@@ -3185,8 +3215,8 @@ async function secondKeys(page, at) {
     check(await shown(page) === '3', t + 'a click on ˣ√y, then 4 and 81: ⁴√81 = 3', await shown(page));
     await page.click(KEYS + '1)');
     check(await label(KEYS + '12)') === '∛', t + '2nd again turns it back', await label(KEYS + '12)'));
-    await page.type('hR-8\r\r');
-    check(await value(page) === -2, t + 'h, Shift+R is ∛: ∛ –8 = –2', await shown(page));
+    await page.type('hr-8\r\r');
+    check(await value(page) === -2, t + 'h, r is ∛: ∛ –8 = –2', await shown(page));
 }
 
 // the letters A to J: > is STO→, Shift+A puts A in, the keys they had are elsewhere; the Variables tab of
