@@ -108,7 +108,7 @@ html:has(.options-open),
     display: flex;
     justify-content: flex-end;
     height: 0; /* takes no room: the button floats over the page */
-    padding: 0 22px;
+    padding: 0 6px;
     pointer-events: none;
 }
 
@@ -125,7 +125,7 @@ html:has(.options-open),
     flex: none;
     width: 34px;
     height: 34px;
-    margin-top: max(22px, env(safe-area-inset-top)); /* off the top; on the button, as the bar has no height to pad */
+    margin-top: max(12px, env(safe-area-inset-top)); /* off the top; on the button, as the bar has no height to pad */
     padding: 0;
     cursor: pointer;
     pointer-events: auto;
@@ -199,7 +199,7 @@ html:has(.options-open),
     }
 
     .options-pane .wrapper {
-        padding-top: calc(4em + max(22px, env(safe-area-inset-top))); /* room for the close button */
+        padding-top: calc(4em + max(12px, env(safe-area-inset-top))); /* room for the close button */
     }
 }
 
