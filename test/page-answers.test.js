@@ -247,6 +247,9 @@ check(found('round 5 + 3 tables').join() === '' || found('round 5 + 3 tables').j
     check(PageMaths.offOn(off, 'en.wikipedia.org') && !PageMaths.offOn(off, 'de.wikipedia.org'), 'site: one language of Wikipedia, not the others');
     check(!PageMaths.offOn(off, 'notexample.com') && !PageMaths.offOn(off, 'mail.example.com'), 'site: not a website with a name like it');
     check(!PageMaths.offOn(undefined, 'example.com') && !PageMaths.offOn('example.com', 'example.com'), 'site: on with no list kept');
+    check(PageMaths.offOn(undefined, 'raad.dev', '/calculator/') && PageMaths.offOn(undefined, 'raad.dev', '/'), 'site: off on the calculator\'s own website');
+    check(!PageMaths.offOn(undefined, 'raad.dev', '/calculator/examples') && !PageMaths.offOn(undefined, 'raad.dev', '/calculator/examples.html'),
+        'site: but on its page of examples');
 })();
 
 console.log(failures ? failures + ' of ' + checks + ' checks failed' : 'all ' + checks + ' checks passed');

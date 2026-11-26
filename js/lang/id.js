@@ -773,6 +773,7 @@ CalcLang.add("id", {
     "periodic_table": "Tabel periodik",
     "go_to": "Buka",
     "search_cards_formulas_units": "Cari kartu, rumus, satuan…",
+    "scientific_calculator": "Kalkulator Ilmiah",
 
     // js/graph.js
     "root": "Akar",
@@ -6033,7 +6034,6 @@ CalcLang.add("id", {
     "auto_lang": "Otomatis: {lang}",
 
     // js/popup.js
-    "scientific_calculator": "Kalkulator Ilmiah",
     "calculator": "Kalkulator",
 
     // popup.html

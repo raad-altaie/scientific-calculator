@@ -3,6 +3,8 @@
 
 const calculator = document.getElementById('calculator');
 const params = new URLSearchParams(location.search);
+// an address of the # going to its tool, which pops out into a window of its own (goToHash), so the tab it was opened in closes
+let popsOutAddress = false;
 
 // each panel that pops out into a window of its own, popup.html?panel=solve: its title, and the policy that turns it off
 const PANELS = {
@@ -216,11 +218,19 @@ if (params.has('graph')) {
     // open in windows of their own, and the calculator is left, only that window open till pop in brings it back.
     // The detached window is closed by background.js, once the tool's window is open; the popup closes here, then,
     // as background.js answers. Nothing opened, as the tool is turned off or the window could not be made, it stays
+    // an address opened in a tab, popup.html#/chemistry/periodic-table/kind/gold, the tab as well: by the browser, as a
+    // page cannot close a tab it did not open. Only as the address pops it out: a tab of the calculator kept open, a
+    // tool popped out of it by its button, stays
     const popOut = (message) => {
+        const fromAddress = popsOutAddress;
+
+        popsOutAddress = false;
         chrome.runtime.sendMessage(message)
             .catch(() => false)
             .then((opened) => {
-                if (opened && !params.has('detached')) window.close();
+                if (!opened || params.has('detached')) return;
+                if (fromAddress && chrome.tabs && chrome.tabs.getCurrent) chrome.tabs.getCurrent((tab) => (tab ? chrome.tabs.remove(tab.id) : window.close()));
+                else window.close();
             });
     };
 
@@ -267,6 +277,39 @@ document.addEventListener('calc-go', (event) => goWindow(event.detail.to));
 
 // as it was kept last, until the browser answers
 followPolicy();
+
+// The address of what is shown, after the #: popup.html?panel=phys#/physics/motion (routes.js, main.js). Kept as it
+// changes, with the window's title, so the window opens on it again as it is reloaded, and one typed in or bookmarked
+// opens there. In a tab, popup.html#/chemistry/periodic-table/kind/gold, as Advanced mode opens it: the tool's own
+// window, on what the address shows, and the tab closes; the popup never has one. A tool's window gone to another is a
+// new page, with an address of its own (background.js)
+// the address after the #, and what is typed after its own ?: #/solve/equations/quadratic?a=1&b=-2 (main.js routeQuery)
+const routeHash = () => /^#\/([^?]*)(?:\?(.*))?$/.exec(location.hash) || ['', '', ''];
+const toolWindowPage = ['graph', 'chem', 'panel', 'calc'].some((key) => params.has(key));
+const pageTitle = document.title;
+// In a tab, the tool's own window, as Advanced mode has it; with mode=standard, as the popup has it, over the keys in the tab
+const overKeys = !toolWindowPage && !params.has('detached');
+const popsOut = () => overKeys && !/(^|&)mode=standard\b/.test(routeHash()[2] || '');
+const goToHash = (start) => {
+    const [, path = '', query = ''] = routeHash();
+    const big = popsOut();
+
+    popsOutAddress = big && !!path;
+    calculator.dispatchEvent(new CustomEvent('calc-goto', { detail: { path, query, start, big } }));
+    popsOutAddress = false;
+};
+
+// what is shown over the keys has mode=standard, so the tab reloaded shows it there again, not popped out
+document.addEventListener('calc-route', (event) => {
+    const { path, title, quiet } = event.detail;
+    const query = [overKeys ? 'mode=standard' : '', event.detail.query].filter(Boolean).join('&');
+    const hash = path ? '#/' + path + (query ? '?' + query : '') : '';
+
+    document.title = (path && title) || pageTitle;
+    if (!quiet && hash !== location.hash) history.replaceState(null, '', location.pathname + location.search + hash);
+});
+window.addEventListener('hashchange', () => goToHash(false));
+goToHash(true);
 
 // The maths of the pages (page/answers.js): its results are worked out in the calculator's unit of
 // angles, which the pages cannot read here, so it is kept where they can. And a sum or an equation

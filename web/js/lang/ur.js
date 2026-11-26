@@ -773,6 +773,7 @@ CalcLang.add("ur", {
     "periodic_table": "دوری جدول",
     "go_to": "جائیں",
     "search_cards_formulas_units": "کارڈ، فارمولے، اکائیاں تلاش کریں…",
+    "scientific_calculator": "سائنسی کیلکولیٹر",
 
     // js/graph.js
     "root": "جذر",
@@ -6033,7 +6034,6 @@ CalcLang.add("ur", {
     "auto_lang": "خودکار: {lang}",
 
     // js/popup.js
-    "scientific_calculator": "سائنسی کیلکولیٹر",
     "calculator": "کیلکولیٹر",
 
     // popup.html

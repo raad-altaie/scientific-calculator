@@ -773,6 +773,7 @@ CalcLang.add("hi", {
     "periodic_table": "आवर्त सारणी",
     "go_to": "जाएँ",
     "search_cards_formulas_units": "कार्ड, सूत्र, इकाइयाँ खोजें…",
+    "scientific_calculator": "वैज्ञानिक कैलकुलेटर",
 
     // js/graph.js
     "root": "मूल",
@@ -6033,7 +6034,6 @@ CalcLang.add("hi", {
     "auto_lang": "स्वतः: {lang}",
 
     // js/popup.js
-    "scientific_calculator": "वैज्ञानिक कैलकुलेटर",
     "calculator": "कैलकुलेटर",
 
     // popup.html

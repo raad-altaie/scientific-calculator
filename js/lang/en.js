@@ -772,6 +772,7 @@ CalcLang.add("en", {
     "periodic_table": "Periodic table",
     "go_to": "Go to",
     "search_cards_formulas_units": "Search cards, formulas, units…",
+    "scientific_calculator": "Scientific Calculator",
 
     // js/graph.js
     "root": "Root",
@@ -6032,7 +6033,6 @@ CalcLang.add("en", {
     "auto_lang": "Auto: {lang}",
 
     // js/popup.js
-    "scientific_calculator": "Scientific Calculator",
     "calculator": "Calculator",
 
     // popup.html

@@ -2480,13 +2480,11 @@
         fitMenu: fitMenu,
         focusBox: focusBox,
         get fracMode() { return fracMode; },
-        goTo: goTo,
         graph: graph,
         graphButton: graphButton,
         graphInputs: graphInputs,
         graphRows: graphRows,
         hideTip: hideTip,
-        get home() { return home; },
         insertIcon: insertIcon,
         inside: inside,
         keyBoard: keyBoard,
@@ -2501,6 +2499,7 @@
         get popZoom() { return popZoom; },
         refresh: refresh,
         root: root,
+        routeLink: routeLink,
         rtlDraw: rtlDraw,
         saveState: saveState,
         scale: scale,
@@ -2532,7 +2531,6 @@
     function seqOf() { return graphPart.seqOf.apply(this, arguments); }
     function showGraph() { return graphPart.showGraph.apply(this, arguments); }
     function showGraphTab() { return graphPart.showGraphTab.apply(this, arguments); }
-    function showLink() { return graphPart.showLink.apply(this, arguments); }
     function showWindow() { return graphPart.showWindow.apply(this, arguments); }
     function stopSliders() { return graphPart.stopSliders.apply(this, arguments); }
     function storeGraph() { return graphPart.storeGraph.apply(this, arguments); }
@@ -3937,7 +3935,7 @@ function clearGraph() { return graphPart.clearGraph.apply(this, arguments); }
             var open;
             list.innerHTML = tools[tab].map(function (tool, i) {
                 if (tool.id === openId) open = i;
-                return '<div class="calc-sv-item" data-i="' + i + '"><div class="calc-sv-row"><span class="calc-sv-col">' +
+                return '<div class="calc-sv-item" data-i="' + i + '" data-id="' + tool.id + '"><div class="calc-sv-row"><span class="calc-sv-col">' +
                     '<span class="calc-sv-name">' + toolIcon(tool) + tr(tool.t) + '</span><span class="calc-sv-f calc-sv-eq calc-sv-val"><span>' +
                     pills(tool.f, formulas) + '</span></span></span>' + collapseButton() + '</div></div>'; // each in a badge, one alone as well
             }).join('');
@@ -4302,9 +4300,11 @@ function clearGraph() { return graphPart.clearGraph.apply(this, arguments); }
             return +x.toPrecision(d);
         }
 
-        // the tab, the tool open and what is typed in each, for the next time
+        // the tab, the tool open and what is typed in each, for the next time; and for the address, which has what is
+        // typed in the card open (routeQuery)
         function keep() {
             store(key, { tab: tab, open: openId, v: values });
+            routeSoon();
         }
 
         // nothing typed in any tool, the first tab, and no card open
@@ -4601,6 +4601,10 @@ function clearGraph() { return graphPart.clearGraph.apply(this, arguments); }
             },
             // a box of a tool, by its id, the card open's without one, as typed in it, to show as the panel renders.
             // False with no card open
+            // what is typed in a tool's boxes, by key, as kept: the address has it (routeQuery)
+            typed: function (id) {
+                return values[id] || {};
+            },
             fill: function (k, text, id) {
                 id = id || openId;
                 if (!id) return false;
@@ -4708,6 +4712,9 @@ function clearGraph() { return graphPart.clearGraph.apply(this, arguments); }
                 cards.setTab(t);
                 tabs();
             },
+            shut: cards.shut, // the card open closes, as the panel goes to the address of a tab
+            typed: cards.typed,
+            prefill: cards.put, // a card's boxes as an address has them, before the panel goes to it: not drawn yet
             clear: function () {
                 cards.clear();
                 tabs();
@@ -6626,7 +6633,6 @@ function chemBig() { return chemPart.chemBig.apply(this, arguments); }
         homeAlone = home && !d.page;
         root.classList.toggle('calc-home', home);
         goMark();
-        if (graphPart.linkWaits) showLink(); // a graph of a link, popped out now (takeLink)
     }, false);
 
     // there, pop in and close at the top right, as every tool's: pop in brings the calculator back where it was
@@ -6870,7 +6876,7 @@ function chemBig() { return chemPart.chemBig.apply(this, arguments); }
     // extension's windows, the window goes there and takes what was found from the storage as it opens (takeFound).
     // From the calculator, nothing popped out, its panel over the keys, as its button opens it
     function findGo(entry) {
-        var hit = { go: entry.go, kind: entry.kind, tab: entry.tab, id: entry.id }, from = bigShown();
+        var hit = { go: entry.go, kind: entry.kind, tab: entry.tab, id: entry.id, shut: entry.shut, by: entry.by }, from = bigShown();
         showFind(false);
         if (!from) {
             if (!FIND_PANELS[hit.go].classList.contains('calc-open')) FIND_SHOW[hit.go](true);
@@ -6886,15 +6892,18 @@ function chemBig() { return chemPart.chemBig.apply(this, arguments); }
     }
 
     // what was found opened in its tool, shown: a card open on its tab, its boxes as they were left; a formula open, a
-    // constant to put in; an example drawn; an element chosen on the table; a group of units; or the tab alone
+    // constant to put in; an example drawn; an element chosen on the table; a group of units; or the tab alone. shut:
+    // the tab with no card open, as its address shows it (routeGo)
     function findOpen(hit) {
         var p, tab;
         if (hit.kind === 'tool') return;
         if (hit.go === 'solve' || hit.go === 'numbers' || hit.go === 'phys' || hit.go === 'bio') {
             p = { solve: solver, numbers: numbers, phys: physPart.phys, bio: bioPart.bio }[hit.go];
+            if (hit.shut) p.shut();
             if (hit.kind === 'put') p.put(hit.id, hit.kept); // a formula's card, with what was typed in the formula
             else if (hit.kind === 'card') p.go(hit.id); else p.setTab(hit.tab);
         } else if (hit.go === 'stats') {
+            if (hit.shut) statTests.shut();
             if (hit.kind === 'card') statTests.go(hit.id);
             tab = hit.kind === 'card' ? 'tests' : hit.tab;
             if (statsTab !== tab) setStatsTab(tab); else renderStats();
@@ -6902,8 +6911,10 @@ function chemBig() { return chemPart.chemBig.apply(this, arguments); }
             if (statsTab === 'tests') statTests.focus();
             else if (focusBox(statsInput)) statsInput.setSelectionRange(statsInput.value.length, statsInput.value.length);
         } else if (hit.go === 'chem') {
+            if (hit.shut) chemPart.chemCards.shut();
             chemGoTo(hit); // chem-panel.js
         } else if (hit.go === 'conv') {
+            if (hit.shut) (hit.tab === 'units' ? unitCards : dates).shut();
             if (hit.kind === 'card') dates.go(hit.id);
             if (hit.kind === 'units') {
                 unitCards.go(UNIT_TOOLS.units[hit.id].id);
@@ -7026,6 +7037,207 @@ function chemBig() { return chemPart.chemBig.apply(this, arguments); }
     new MutationObserver(function () {
         if (findShowing() && bigShown() !== findFrom) showFind(false);
     }).observe(root, { attributes: true, attributeFilter: ['class'] });
+
+    // ---------------- addresses ---------------- //
+
+    // The address of each tool, tab, card, element and group of units (routes.js): the website's path, and in the
+    // extension what follows the # of a window. The page asks to go to one with calc-goto, { path, start: as it opens },
+    // and from then on hears of the one shown with calc-route, { path, title, replace: in place of the one it has, not
+    // after it; quiet: it keeps the one it has, gone to, and takes the title alone }, each time that changes. A tool
+    // turned off has none to go to
+    var routeTable = null, // made as it is first needed, of the cards there are
+        routing = false, // the page has asked for one
+        routeShown = '', // the address the page has
+        routeQueryShown = '', // and after its ?, what is typed (routeQuery)
+        routeAfter = '', // what is shown next is of an address gone to: 'quiet', it has that one; 'replace', in its place
+        routeWaits = false,
+        routeLinked = false; // a graph of a link taken as the page opened (takeLink)
+
+    function routes() {
+        if (!routeTable) {
+            routeTable = CalcRoutes.build({
+                solve: solvePart.SOLVE_TOOLS, numbers: numPart.NUMBER_TOOLS, phys: physPart.PHYS_TOOLS, bio: bioPart.BIO_TOOLS,
+                chem: chemPart.CHEM_TOOLS, conv: { units: UNIT_TOOLS.units, dates: DATE_TOOLS.dates }, stats: TEST_TOOLS
+            }, CalcChem.elements);
+        }
+        return routeTable;
+    }
+
+    // what is shown, as routes.js reads it: the tool popped out, or open over the keys; its tab, and the card open on
+    // it, or what the colours of the periodic table show and the element chosen. null for the calculator alone
+    function routeState() {
+        var go = bigShown(), panel, tab, item, info, by;
+        if (!go || go === 'calc') go = Object.keys(FIND_PANELS).filter(function (k) { return FIND_PANELS[k].classList.contains('calc-open'); })[0] || '';
+        if (!go) return null;
+        panel = FIND_PANELS[go];
+        tab = panel.querySelector('.calc-past-head [data-tab].calc-on');
+        item = [].filter.call(panel.querySelectorAll('.calc-sv-item.calc-on[data-id]'), function (el) { return !el.closest('[hidden]'); })[0];
+        info = go === 'chem' && panel.querySelector('.calc-pt-info');
+        by = go === 'chem' && panel.querySelector('.calc-pt-mode.calc-on');
+        return {
+            go: go, tab: tab ? tab.dataset.tab : '', card: item ? item.dataset.id : '', by: by ? by.dataset.by : '', element: info ? +info.dataset.z || 0 : 0
+        };
+    }
+
+    // The cards of a tool's tab, as toolCards gives them, for what is typed in the one open: null for a tab of none
+    function routeCards(go, tab) {
+        return { solve: solver, numbers: numbers, phys: physPart.phys, bio: bioPart.bio, chem: chemPart.chemCards, stats: statTests }[go] ||
+            (go === 'conv' ? (tab === 'units' ? unitCards : dates) : null);
+    }
+
+    // What is typed in what is shown, for the address after its ?, so a link of it opens the same: each box of the card
+    // open by its key, a=1&b=-2&c=-3, its choices as their numbers; the numbers of the statistics' list or pairs as
+    // numbers=. Its commas, slashes and spaces as they read; none past ROUTE_LONG, as a long list, which no link should be
+    var ROUTE_LONG = 2000;
+
+    function routeQuery(state) {
+        var typed = {}, cards = state && routeCards(state.go, state.tab), q;
+        if (state && state.card && cards) typed = cards.typed(state.card);
+        if (state && state.go === 'stats' && (state.tab === 'list' || state.tab === 'pairs')) typed = { numbers: statsTexts[state.tab] };
+        q = Object.keys(typed).filter(function (k) { return k !== 'mode' && typeof typed[k] === 'string' && typed[k] !== ''; }).map(function (k) {
+            return encodeURIComponent(k) + '=' + encodeURIComponent(typed[k]).replace(/%2C/g, ',').replace(/%2F/g, '/').replace(/%3A/g, ':').replace(/%20/g, '+');
+        }).join('&');
+        return q.length > ROUTE_LONG ? '' : q;
+    }
+
+    // what is typed of an address's ?, by key, as routeQuery wrote it: mode is the page's
+    function routeTyped(query) {
+        var typed = {};
+        new URLSearchParams(query || '').forEach(function (v, k) {
+            if (k !== 'mode') typed[k] = v;
+        });
+        return typed;
+    }
+
+    // the name of the page at an address, in the language in use: what it shows and each it is in, as its address has
+    // them, then the calculator's name: Light and photons | Waves | Physics | Scientific Calculator, of
+    // physics/waves/light-and-photons. A name the same as the one it is in said once, Solve of Solve
+    function routeTitle(path) {
+        var r = routes().byPath[path], names = [];
+        for (; r; r = r.up ? routes().byPath[r.up] : null) {
+            if (tr(r.t) !== names[names.length - 1]) names.push(tr(r.t));
+        }
+        return names.length ? names.join(' | ').replace(/<[^>]*>/g, '') + ' | ' + tr('Scientific Calculator') : '';
+    }
+
+    // once whatever changed has done so: the page told of the address now, if it is another
+    // what is typed changed alone, the page has the address in place of its own, not after it: Back goes to where it was
+    // before, not to each key typed
+    function routeTell() {
+        var state = routeState(), path = CalcRoutes.pathOf(routes(), state), query = routeQuery(state), after = routeAfter, was = routeShown;
+        routeWaits = false;
+        routeAfter = '';
+        if (after === 'quiet') {
+            ask('route', { path: was, query: routeQueryShown, title: routeTitle(path), quiet: true });
+            routeShown = path;
+            routeQueryShown = query;
+            return;
+        }
+        if (path === was && query === routeQueryShown) return;
+        routeShown = path;
+        routeQueryShown = query;
+        ask('route', { path: path, query: query, title: routeTitle(path), replace: after === 'replace' || path === was });
+    }
+
+    function routeSoon() {
+        if (!routing || routeWaits) return;
+        routeWaits = true;
+        setTimeout(routeTell, 0);
+    }
+
+    // a tool popped out or in, a panel opened or closed, a tab, a card or an element chosen; and typed in, its card's
+    // boxes kept as well (toolCards keep). Only a change of those: not each key's flash, a tip or the graph's sliders
+    var ROUTE_MARKS = '[data-tab], .calc-sv-item, .calc-pt-mode';
+    function routeMarks(changes) {
+        if (!routing || routeWaits) return;
+        if (changes.some(function (c) {
+            var el = c.target;
+            return c.attributeName === 'data-z' || el === root ||
+                Object.keys(FIND_PANELS).some(function (k) { return FIND_PANELS[k] === el; }) || (el.matches && el.matches(ROUTE_MARKS));
+        })) routeSoon();
+    }
+    new MutationObserver(routeMarks).observe(root, { attributes: true, subtree: true, attributeFilter: ['class', 'data-z'] });
+    root.addEventListener('input', routeSoon, true);
+
+    // There: the tool shown as the search goes to it (findGo), on the tab, the card or the element of the address; of a
+    // tool or a tab, with no card open; the periodic table by what its colours show, by kind at first, on iron if no
+    // element is of the address. '', or none of a tool, the calculator alone. An address
+    // of nothing there is any more, as a card renamed, shows the nearest, and the page has that one in its place. The
+    // address gone to, null for none
+    function routeGo(path, query) {
+        var found = CalcRoutes.find(routes(), path), r = found.route, typed = routeTyped(query), hit, from, cards;
+        if (r && GO.some(function (g) { return g[0] === r.go && g[1].hidden; })) r = null;
+        routeShown = CalcRoutes.clean(path);
+        routeQueryShown = query || '';
+        // a card's address with nothing of its boxes, as they are kept here: in place of it, the address with them
+        routeAfter = found.exact && (r || !routeShown) && !(r && r.kind === 'card' && !Object.keys(typed).length) ? 'quiet' : 'replace';
+        if (!r) {
+            from = bigShown();
+            if (from && from !== 'calc') goTo('calc'); else closePanels();
+        } else {
+            hit = { go: r.go, kind: r.kind, tab: r.tab, id: r.id };
+            if (r.go === 'chem' && r.tab === 'table') {
+                hit = { go: 'chem', kind: 'element', id: r.kind === 'element' ? r.id : CalcRoutes.ELEMENT_FIRST, by: r.by || CalcRoutes.TABLE_BY[0][0], shut: true };
+            } else if (r.kind === 'tool' || r.kind === 'tab') {
+                hit.kind = 'tab';
+                hit.shut = true;
+            } else if (r.go === 'conv' && r.tab === 'units') {
+                hit = { go: 'conv', kind: 'units', id: UNIT_TOOLS.units.map(function (u) { return u.id; }).indexOf(r.id) };
+            }
+            // a card with its boxes as the address has them, as the one who sent it had them; the statistics' numbers the
+            // same. An address with none, as one gone to by the search, Back, or one of boxes too long for it
+            // (ROUTE_LONG), keeps what was typed here
+            if (r.kind === 'card' && Object.keys(typed).length && (cards = routeCards(r.go, r.tab))) (cards.prefill || cards.put)(r.id, typed);
+            if (r.go === 'stats' && (r.tab === 'list' || r.tab === 'pairs') && typed.numbers !== undefined) {
+                statsTexts[r.tab] = typed.numbers;
+                if (statsTab === r.tab) statsInput.value = typed.numbers;
+            }
+            findGo(hit);
+        }
+        routeSoon();
+        return r;
+    }
+
+    // What is shown, with what is typed, as a link to send, which opens the same for anyone: the graph's Copy link has it,
+    // its graph after the # (graph.js graphLink). On the website, the page's own address, which has the mode as well
+    // (app.js). The extension's pages open only in it, so its link is the website's, in the mode it shows it in: a tool
+    // popped out, in a window of its own or beside the rail, Advanced; over the keys of the popup or the detached window, Standard
+    var ROUTE_SITE = 'https://raad.dev/calculator/';
+
+    // an address as the website has its page, a folder of its own: physics/motion/, '' for the calculator itself (scripts/pages.js)
+    function routeFolder(path) {
+        return path ? path + '/' : '';
+    }
+
+    function routeLink() {
+        var state = routeState(), query = routeQuery(state);
+        if (/^https?:$/.test(location.protocol)) return location.href.split('#')[0];
+        return ROUTE_SITE + routeFolder(CalcRoutes.pathOf(routes(), state)) + '?mode=' + (bigShown() ? 'advanced' : 'standard') + (query ? '&' + query : '');
+    }
+
+    // big: the tool then popped out, as its pop out does; in the extension, in a window of its own, which opens on what
+    // was gone to here, as it was kept (popup.js, an address opened in a tab)
+    root.addEventListener('calc-goto', function (e) {
+        var d = e.detail || {}, r;
+        routing = true;
+        if (d.start && !CalcRoutes.clean(d.path) && routeLinked) {
+            // a graph's link at an address of nothing else, popup.html#g=…: the graph, over the keys, and its address
+            routeGo('graph', '');
+            routeAfter = 'replace';
+            return;
+        }
+        if (d.start && !CalcRoutes.clean(d.path)) {
+            // the calculator as it was left, a panel open perhaps: the page has its address in place of its own
+            routeShown = '';
+            routeAfter = 'replace';
+            return routeSoon();
+        }
+        r = routeGo(d.path, d.query);
+        if (!r || !d.big || bigShown() === r.go) return;
+        if (r.go === 'graph') graphBig(true);
+        else if (r.go === 'chem') chemBig(true);
+        else panelBig(bigOf(r.go).panel, true);
+    }, false);
 
     // what a panel's own window saved, or the calculator's while it is open: the same here
     function panelSaved(key) {
@@ -7495,7 +7707,14 @@ function chemBig() { return chemPart.chemBig.apply(this, arguments); }
     }
 
     loadState();
-    takeLink();
+    // a graph of a link, for its address to show (routeGo); one of before at the calculator's folder, raad.dev/calculator/#g=…,
+    // at the graph's address in its place, graph/, which the page then goes to (app.js). Only the website's folder, its
+    // page at /: popup.html, of no <base>, is its own folder as well, and a page moved to graph/ would load its scripts
+    // from there
+    var linkAt = location.pathname.replace(/index(\.html)?$/, '');
+    if ((routeLinked = takeLink()) && /^https?:$/.test(location.protocol) && !/[?&]to=/.test(location.search) && /\/$/.test(linkAt) && linkAt === new URL(document.baseURI).pathname) {
+        history.replaceState(null, '', 'graph/' + location.search);
+    }
     undoStart(); // what undo goes back to, at most (graph.js)
     setTimeout(takePopIn, 0); // once the page has said whether this is a window of its own
 

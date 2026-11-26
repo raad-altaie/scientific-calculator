@@ -7,7 +7,7 @@ import globals from 'globals';
 
 // what each file of the calculator makes for the others, as root.CalcEngine = …
 const calc = Object.fromEntries([
-    'CalcEngine', 'CalcLang', 'CalcTips', 'CalcFormulas', 'CalcMaths', 'CalcUnits', 'CalcIcons',
+    'CalcEngine', 'CalcLang', 'CalcTips', 'CalcFormulas', 'CalcMaths', 'CalcUnits', 'CalcIcons', 'CalcRoutes',
     'CalcChem', 'CalcPhysics', 'CalcBiology', 'CalcPolicy', 'CalcGraph', 'CalcChemPanel', 'CalcPhysPanel', 'CalcBioPanel', 'CalcNumbersPanel', 'CalcSolvePanel',
     'CalcPageReader', 'CalcChemPage', 'CalcPhysPage', 'CalcBioPage',
     'CalcPageStatistics', 'CalcPageSolve', 'CalcPageNumbers', 'CalcPageGraph', 'CalcPageFormulas', 'CalcPageConverter'

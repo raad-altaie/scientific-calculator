@@ -773,6 +773,7 @@ CalcLang.add("bn", {
     "periodic_table": "পর্যায় সারণি",
     "go_to": "যান",
     "search_cards_formulas_units": "কার্ড, সূত্র, একক খুঁজুন…",
+    "scientific_calculator": "বৈজ্ঞানিক ক্যালকুলেটর",
 
     // js/graph.js
     "root": "মূল",
@@ -6033,7 +6034,6 @@ CalcLang.add("bn", {
     "auto_lang": "স্বয়ংক্রিয়: {lang}",
 
     // js/popup.js
-    "scientific_calculator": "বৈজ্ঞানিক ক্যালকুলেটর",
     "calculator": "ক্যালকুলেটর",
 
     // popup.html

@@ -773,6 +773,7 @@ CalcLang.add("de", {
     "periodic_table": "Periodensystem",
     "go_to": "Gehe zu",
     "search_cards_formulas_units": "Karten, Formeln, Einheiten suchen…",
+    "scientific_calculator": "Wissenschaftlicher Rechner",
 
     // js/graph.js
     "root": "Nullstelle",
@@ -6033,7 +6034,6 @@ CalcLang.add("de", {
     "auto_lang": "Auto: {lang}",
 
     // js/popup.js
-    "scientific_calculator": "Wissenschaftlicher Rechner",
     "calculator": "Rechner",
 
     // popup.html

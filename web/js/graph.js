@@ -7,7 +7,7 @@
 
     global.CalcGraph = function (app, shared) {
         var UNITS = app.UNITS, ask = app.ask, boxNumber = app.boxNumber, closePanels = app.closePanels, copy = app.copy,
-            engine = app.engine, escaped = app.escaped, fitMenu = app.fitMenu, focusBox = app.focusBox, goTo = app.goTo, graph = app.graph,
+            engine = app.engine, escaped = app.escaped, fitMenu = app.fitMenu, focusBox = app.focusBox, graph = app.graph,
             graphButton = app.graphButton, graphInputs = app.graphInputs, graphRows = app.graphRows, hideTip = app.hideTip,
             insertIcon = app.insertIcon, inside = app.inside, keyBoard = app.keyBoard, local = app.local, menu = app.menu,
             notify = app.notify, onDouble = app.onDouble, onlyNumber = app.onlyNumber, openMenu = app.openMenu,
@@ -84,7 +84,6 @@
             graphUnpin: graphUnpin,
             get graphValues() { return graphValues; },
             get graphWindow() { return graphWindow; },
-            get linkWaits() { return linkWaits; },
             loadGraph: loadGraph,
             nextFit: nextFit,
             putExample: putExample,
@@ -93,7 +92,6 @@
             seqOf: seqOf,
             showGraph: showGraph,
             showGraphTab: showGraphTab,
-            showLink: showLink,
             showWindow: showWindow,
             stopSliders: stopSliders,
             storeGraph: storeGraph,
@@ -179,7 +177,6 @@
                 graphMarksKept = null, // the marks found, while the view, the unit, the letters and the boxes stay
                 graphSharp = 0, // pixels of the canvas to each of the plot at least: 2 while a picture is made
                 graphPop = graphPlot.querySelector('.calc-graph-pop'), // the point clicked: its x and y, each to insert
-                GRAPH_SITE = 'https://raad.dev/calculator/', // where a link of the graph opens, from the extension too
                 graphDrawTo = null, // the SVG the graph is drawn into in place of its canvas, while it is saved as one
                 graphUntil = 0, // when the time of this drawing is up, its curves after it traced roughly; 0 for none, as once it is still
                 graphRough = false, // a curve or its marks traced roughly, out of time: all traced again once the view is still
@@ -3904,9 +3901,10 @@
             }
 
             // The graph as a link: its boxes, their colors, what is hidden and fitted, the sliders, the view,
-            // the settings that are not as they start, and the unit of angles, as JSON in base64url after #g=,
-            // of the website's page, or of this one where it is the website. Nothing is sent anywhere: the
-            // browser keeps what is after # to itself
+            // the settings that are not as they start, and the unit of angles, as JSON in base64url after #g=, of
+            // the address of what is shown, with its mode, as Copy link of a panel has it (main.js routeLink):
+            // raad.dev/calculator/graph?mode=advanced#g=…, the website's from the extension too. After the #, not
+            // the ?: the browser keeps it to itself, nothing of the graph is sent, and a big one is no address too long
             function graphLink() {
                 var g = { f: graphInputs.slice(0, graphCount).map(function (box) { return box.value; }), u: deg }, look = {}, bytes, bin = '';
                 if (graphHue.slice(0, graphCount).some(function (h, i) { return h !== i; })) g.c = graphHue.slice(0, graphCount);
@@ -3922,7 +3920,7 @@
                 if (Object.keys(look).length) g.look = look;
                 bytes = new TextEncoder().encode(JSON.stringify(g));
                 bytes.forEach(function (b) { bin += String.fromCharCode(b); });
-                return (/^https?:$/.test(location.protocol) ? location.href.split('#')[0] : GRAPH_SITE) + '#g=' +
+                return app.routeLink() + '#g=' +
                     btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
             }
 
@@ -3943,44 +3941,30 @@
                 };
             }
 
-            // A page opened from a link of a graph shows that graph in place of one's own. The link goes from the
-            // address, so a reload does not open it again. The website opens
-            // it in Advanced mode (index.html), the graph popped out beside the rail once the page has said so
-            // (app.js, its calc-home), and not as a panel over the keys before it: app.js may come in later than
-            // a moment after this, its file still loading
-            var linkWaits = false;
-
-            function showLink() {
-                linkWaits = false;
-                if (app.home) goTo('graph'); else showGraph(true);
-            }
-
+            // A page opened from a link of a graph shows that graph in place of one's own. Its address shows the graph as any
+            // address does (main.js routeGo): graph?mode=advanced, Advanced and popped out. The graph goes from the address,
+            // so a reload does not open it again. True if there was one
             function takeLink() {
                 var g = linkedGraph(location.hash);
-                if (g) {
-                    try {
-                        history.replaceState(null, '', location.href.split('#')[0]);
-                    } catch (e) { }
-                    loadGraph(g);
-                    setUnit(g.u);
-                    readGraph(); // its letters known, for their sliders to be kept
-                    saveState();
-                    if (document.documentElement.classList.contains('home') && !app.home) {
-                        linkWaits = true; // till calc-home; shown as the page has loaded at the latest, if app.js never says
-                        window.addEventListener('load', function () { if (linkWaits) showLink(); }, false);
-                    } else {
-                        showLink();
-                    }
-                }
+                if (!g) return false;
+                try {
+                    history.replaceState(null, '', location.href.split('#')[0]);
+                } catch (e) { }
+                loadGraph(g);
+                setUnit(g.u);
+                readGraph(); // its letters known, for their sliders to be kept
+                saveState();
+                return true;
             }
 
-            // its menu: a link of it, the picture copied or saved as PNG, saved as SVG, and the table as CSV
+            // its menu: a link of it, the picture copied or saved as PNG, saved as SVG, and the table as CSV. A link only of
+            // something typed: an empty graph has nothing to send
             function exportItems() {
                 return [
                     [tr('Copy link'), function () {
                         copy(graphLink());
                         notify('Link copied');
-                    }],
+                    }, graphInputs.slice(0, graphCount).some(function (box) { return box.value.trim() !== ''; })],
                     null,
                     [tr('Copy picture'), copyGraph],
                     [tr('Save as PNG'), saveGraph],

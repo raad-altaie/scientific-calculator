@@ -176,6 +176,72 @@ window.addEventListener('storage', (e) => {
     if (e.key === modeKey) showHome(advanced());
 });
 
+// ---- the address: each tool, tab, card and element has its own, physics/motion/projectile (js/routes.js) ----
+
+// What follows the calculator's folder, which is the page's base (index.html), in the address. A page of its own at
+// each (scripts/pages.js); going from one to another here, the address changes with the History API, and Back goes back.
+// After its ? the mode, and what is typed in what is shown (main.js routeQuery): copied and sent, the address opens just
+// what is seen here, ?mode=advanced&a=1&b=-2&c=-3. The mode of an address is for that visit, the one chosen in the options
+// kept (index.html); the address follows the mode as it changes
+// Each page is a folder's, physics/motion/, so every host serves it the same, with or without its last /.
+const folder = new URL(document.baseURI).pathname;
+// An address with no page of its own, as the table by density, is sent here by the site's 404.html as ?to=its path
+// and what was after its ?: the address it was, in place of this one
+{
+    const to = new URLSearchParams(location.search).get('to');
+    if (to !== null && location.pathname.replace(/index\.html$/, '') === folder) {
+        const rest = location.search.replace(/^\?/, '').split('&').filter((part) => part && !/^to=/.test(part)).join('&');
+        history.replaceState(null, '', folder + to.replace(/^\/+|\/+$/g, '') + '/' + (rest ? '?' + rest : '') + location.hash);
+    }
+}
+const routeHere = () => (location.pathname.startsWith(folder) ? location.pathname.slice(folder.length) : '').replace(/^index(\.html)?$/, '').replace(/\/+$/, '');
+const modeNow = () => (isHome() ? 'advanced' : 'standard');
+const queryHere = () => location.search.replace(/^\?/, '').split('&').filter((part) => part && !/^mode=/.test(part)).join('&');
+const addressOf = (path, query) => folder + (path ? path + '/' : '') + '?mode=' + modeNow() + (query ? '&' + query : '');
+// the name of the page at each address gone to, for Back: the page's own as it opened, if it is of this address: not
+// 404.html's, of an address with no page of its own, as the table by density, which has no canonical address, nor the
+// folder's at the graph's address a link of before is put at (main.js takeLink)
+const canonical = document.querySelector('link[rel="canonical"]');
+const titles = canonical && new URL(canonical.href).pathname.replace(/\/+$/, '').endsWith('/' + routeHere()) ? { [routeHere()]: document.title } : {};
+
+// the mode changed, or the address opened without one: the address with the mode now, in place of its own
+const markMode = () => {
+    const address = addressOf(routeHere(), queryHere());
+
+    if (address !== location.pathname + location.search) history.replaceState(history.state, '', address + location.hash);
+};
+
+document.addEventListener('calc-route', (e) => {
+    const { path, query, title, replace, quiet } = e.detail;
+    const address = addressOf(path, query);
+
+    // gone to by Back, or as the page opened: its address kept, with the mode, and the page's own title of it, if it has one
+    if (quiet) {
+        document.title = titles[routeHere()] = titles[routeHere()] || title || document.title;
+        markMode();
+        return;
+    }
+    titles[path] = titles[path] || title || 'Scientific Calculator';
+    document.title = titles[path];
+    if (address === location.pathname + location.search) return;
+    history[replace ? 'replaceState' : 'pushState'](null, '', address);
+});
+
+calculator.addEventListener('calc-home', markMode);
+
+// Back and Forward: the mode of that address, and what it shows
+window.addEventListener('popstate', () => {
+    const path = routeHere();
+    const mode = /[?&]mode=(standard|advanced)\b/.exec(location.search);
+
+    if (titles[path]) document.title = titles[path];
+    if (mode && (mode[1] === 'advanced') !== isHome()) showHome(mode[1] === 'advanced');
+    calculator.dispatchEvent(new CustomEvent('calc-goto', { detail: { path, query: queryHere() } }));
+});
+
+calculator.dispatchEvent(new CustomEvent('calc-goto', { detail: { path: routeHere(), query: queryHere(), start: true } }));
+markMode();
+
 // ---- what the calculator asks of its page ----
 
 // The ?, and Options or Guide on the rail: the options shown, on that tab, or hidden again if shown on it already.

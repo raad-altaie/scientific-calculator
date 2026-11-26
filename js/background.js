@@ -366,8 +366,10 @@ function openCalculatorInDetachedMode() {
 // Which is on is kept by options.js: pageButtonOn, on unless false, as the button was on while
 // the access alone said so, before the icons came; and pageMathsOn, off unless true
 const pageSites = ["http://*/*", "https://*/*"];
-// the websites of the calculator's own, never given the instant answers
+// the websites of the calculator's own, never given the instant answers, but for the page of their examples,
+// raad.dev/calculator/examples, a script of its own, as the excluded addresses of one cannot leave one out
 const pageNever = ["*://raad.dev/*", "*://*.raad.dev/*"];
+const pageExamples = ["*://raad.dev/calculator/examples*"];
 const pageAccess = { permissions: ["scripting"], origins: pageSites };
 const pageOptions = {
     pageButton: {
@@ -377,6 +379,7 @@ const pageOptions = {
     },
     pageMaths: {
         script: { id: "page-maths", js: [], matches: pageSites, excludeMatches: pageNever },
+        also: { id: "page-maths-examples", matches: pageExamples },
         files: pageMathsFiles,
         off: "remove-page-maths",
         on: (kept) => kept.pageMathsOn === true,
@@ -454,20 +457,26 @@ function followPageOptions() {
         for (const [key, option] of Object.entries(pageOptions)) {
             const on = option.on(kept) && !await policyOff(key);
             const script = option.files ? { ...option.script, js: await option.files(kept) } : option.script;
-            const was = registered.find((other) => other.id === script.id);
+            // with the page of the examples, its files the same, none of the addresses left out
+            const { excludeMatches, ...rest } = script;
+            const scripts = [script].concat(option.also ? [{ ...rest, ...option.also }] : []);
 
             any = any || on;
             if (key === "pageMaths") menu(on); // Calculate "…" goes with the icons
-            if (on && !was) {
-                await chrome.scripting.registerContentScripts([script])
-                    .then(() => addToOpenPages(script.js))
-                    .catch((error) => console.log("Failed to put " + key + " on the pages:", error));
-            } else if (on) {
-                await chrome.scripting.updateContentScripts([script]).catch(() => { }); // its files, as this version has them
-                if (String(was.js) !== String(script.js)) addToOpenPages(script.js);
-            } else if (was) {
-                await chrome.scripting.unregisterContentScripts({ ids: [script.id] }).catch(() => { });
-                tellOpenPages(option.off);
+            for (const one of scripts) {
+                const was = registered.find((other) => other.id === one.id);
+                const first = one === script; // the open pages get the files once, for both
+                if (on && !was) {
+                    await chrome.scripting.registerContentScripts([one])
+                        .then(() => first && addToOpenPages(one.js))
+                        .catch((error) => console.log("Failed to put " + key + " on the pages:", error));
+                } else if (on) {
+                    await chrome.scripting.updateContentScripts([one]).catch(() => { }); // its files, as this version has them
+                    if (first && String(was.js) !== String(one.js)) addToOpenPages(one.js);
+                } else if (was) {
+                    await chrome.scripting.unregisterContentScripts({ ids: [one.id] }).catch(() => { });
+                    if (first) tellOpenPages(option.off);
+                }
             }
         }
         if (!any) await chrome.permissions.remove(pageAccess);

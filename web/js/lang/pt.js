@@ -773,6 +773,7 @@ CalcLang.add("pt", {
     "periodic_table": "Tabela periódica",
     "go_to": "Ir para",
     "search_cards_formulas_units": "Buscar fichas, fórmulas, unidades…",
+    "scientific_calculator": "Calculadora científica",
 
     // js/graph.js
     "root": "Raiz",
@@ -6033,7 +6034,6 @@ CalcLang.add("pt", {
     "auto_lang": "Auto: {lang}",
 
     // js/popup.js
-    "scientific_calculator": "Calculadora científica",
     "calculator": "Calculadora",
 
     // popup.html

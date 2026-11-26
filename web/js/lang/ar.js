@@ -773,6 +773,7 @@ CalcLang.add("ar", {
     "periodic_table": "الجدول الدوري",
     "go_to": "انتقل إلى",
     "search_cards_formulas_units": "ابحث في البطاقات والمعادلات والوحدات…",
+    "scientific_calculator": "الحاسبة العلمية",
 
     // js/graph.js
     "root": "الجذر",
@@ -6033,7 +6034,6 @@ CalcLang.add("ar", {
     "auto_lang": "تلقائي: {lang}",
 
     // js/popup.js
-    "scientific_calculator": "الحاسبة العلمية",
     "calculator": "الحاسبة",
 
     // popup.html

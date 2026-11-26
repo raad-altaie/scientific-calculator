@@ -773,6 +773,7 @@ CalcLang.add("tr", {
     "periodic_table": "Periyodik tablo",
     "go_to": "Git",
     "search_cards_formulas_units": "Kart, formül, birim ara…",
+    "scientific_calculator": "Bilimsel Hesap Makinesi",
 
     // js/graph.js
     "root": "Kök",
@@ -6033,7 +6034,6 @@ CalcLang.add("tr", {
     "auto_lang": "Otomatik: {lang}",
 
     // js/popup.js
-    "scientific_calculator": "Bilimsel Hesap Makinesi",
     "calculator": "Hesap makinesi",
 
     // popup.html

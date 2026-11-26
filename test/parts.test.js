@@ -96,5 +96,50 @@ parts.forEach(function (p) {
     }
 });
 
+// The addresses (js/routes.js): each tool's tabs those of its panel in popup.html, in its order, so a tab added there has
+// an address too; and every card of a tab one of its own, as scripts/pages.js reads them: of two of one name, only the
+// first would have one, and a card whose list is not written as it reads it would have none
+var CalcRoutes = require('../js/routes.js'), popupHtml = read('popup.html'), cards = require('../scripts/pages.js').readCards(),
+    routeTable = CalcRoutes.build(cards, require('../js/chem.js').elements),
+    PANEL_CLASS = { fx: 'calc-fx', conv: 'calc-conv', graph: 'calc-graph', numbers: 'calc-numbers', solve: 'calc-solve', chem: 'calc-chem', phys: 'calc-phys', bio: 'calc-bio', stats: 'calc-stats' };
+CalcRoutes.TOOLS.forEach(function (tool) {
+    var at = popupHtml.indexOf('<div class="calc-past ' + PANEL_CLASS[tool.go] + '">'), head = at < 0 ? '' : popupHtml.slice(at, popupHtml.indexOf('calc-past-close', at)),
+        tabs = (head.match(/data-tab="[^"]+"/g) || []).map(function (t) { return t.slice(10, -1); });
+    check(tabs.join() === tool.tabs.map(function (t) { return t[0]; }).join(), 'routes.js: the tabs of ' + tool.go + ' as popup.html has them', tabs.join() + ' in popup.html');
+    tool.tabs.forEach(function (tab) {
+        var of = (cards[tool.go] || {})[tab[0]] || [], have = routeTable.list.filter(function (r) { return r.kind === 'card' && r.go === tool.go && r.tab === tab[0]; });
+        check(have.length === of.length, 'routes: an address for each card of ' + tool.go + ' ' + tab[0], have.length + ' of ' + of.length);
+    });
+});
+check(routeTable.list.filter(function (r) { return r.kind === 'card'; }).length > 300, 'routes: the cards read from their files', routeTable.list.length);
+// and each card as written in its file, counted apart from how pages.js reads it: a tab's list that is not an array
+// written out, an entry that is not an object written out, or a card whose id or name pages.js cannot read (a
+// variable, a call other than tr) would have no page or place in the sitemap, though the calculator gives it an address
+require('../scripts/pages.js').LISTS.forEach(function (l) {
+    var found = false;
+    (function walk(node) {
+        if (!node || typeof node.type !== 'string') return;
+        if (node.type === 'VariableDeclarator' && node.id.name === l[1] && node.init && node.init.type === 'ObjectExpression') {
+            found = true;
+            node.init.properties.forEach(function (tab) {
+                var name = tab.key.name || tab.key.value, written = tab.value.type === 'ArrayExpression' ? tab.value.elements : null,
+                    read = ((cards[l[0]] || {})[name] || []).length;
+                check(written && written.every(function (e) { return e && e.type === 'ObjectExpression'; }), 'pages.js: ' + l[1] + '.' + name + ' an array of cards written out', l[2]);
+                if (written) check(read === written.length, 'pages.js: every card of ' + l[1] + '.' + name + ' read, its id and name', read + ' of ' + written.length + ' in ' + l[2]);
+            });
+            return;
+        }
+        Object.keys(node).forEach(function (k) {
+            var v = node[k];
+            if (Array.isArray(v)) v.forEach(walk);
+            else if (v && typeof v.type === 'string') walk(v);
+        });
+    })(espree.parse(read(l[2]), { ecmaVersion: 2022 }));
+    check(found, 'pages.js: ' + l[1] + ' in ' + l[2]);
+});
+// the periodic table's filters, as its buttons in popup.html are, in their order
+check((popupHtml.match(/class="calc-pt-mode" data-by="[^"]+"/g) || []).map(function (m) { return /data-by="([^"]+)"/.exec(m)[1]; }).join() ===
+    CalcRoutes.TABLE_BY.map(function (b) { return b[0]; }).join(), 'routes.js: the filters of the periodic table as popup.html has them');
+
 console.log((failures ? failures + ' of ' : 'All ') + checks + ' checks' + (failures ? ' failed' : ' passed') + ' (parts)');
 process.exit(failures ? 1 : 0);

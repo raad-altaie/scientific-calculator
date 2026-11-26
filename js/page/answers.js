@@ -1032,7 +1032,7 @@
 
     chrome.storage.local.get(['angleUnit', 'pageMathsOff'], (items) => {
         readUnit(items?.angleUnit);
-        if (!Reader.offOn(items?.pageMathsOff, location.hostname)) start();
+        if (!Reader.offOn(items?.pageMathsOff, location.hostname, location.pathname)) start();
     });
 
     chrome.storage.onChanged.addListener((changes, area) => {
@@ -1040,7 +1040,7 @@
         if (changes.angleUnit) readUnit(changes.angleUnit.newValue);
         // this website turned off or on: at once, without a reload
         if (changes.pageMathsOff) {
-            if (Reader.offOn(changes.pageMathsOff.newValue, location.hostname)) return layer.isConnected && stop();
+            if (Reader.offOn(changes.pageMathsOff.newValue, location.hostname, location.pathname)) return layer.isConnected && stop();
             if (!layer.isConnected) return start();
         }
         if (changes.angleUnit && alive()) readAgain(document.body);

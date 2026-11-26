@@ -773,6 +773,7 @@ CalcLang.add("zh-CN", {
     "periodic_table": "元素周期表",
     "go_to": "前往",
     "search_cards_formulas_units": "搜索卡片、公式、单位…",
+    "scientific_calculator": "科学计算器",
 
     // js/graph.js
     "root": "根",
@@ -6033,7 +6034,6 @@ CalcLang.add("zh-CN", {
     "auto_lang": "自动：{lang}",
 
     // js/popup.js
-    "scientific_calculator": "科学计算器",
     "calculator": "计算器",
 
     // popup.html

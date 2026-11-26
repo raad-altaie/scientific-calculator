@@ -773,6 +773,7 @@ CalcLang.add("ja", {
     "periodic_table": "周期表",
     "go_to": "移動",
     "search_cards_formulas_units": "カード、公式、単位を検索…",
+    "scientific_calculator": "関数電卓",
 
     // js/graph.js
     "root": "根",
@@ -6033,7 +6034,6 @@ CalcLang.add("ja", {
     "auto_lang": "自動: {lang}",
 
     // js/popup.js
-    "scientific_calculator": "関数電卓",
     "calculator": "電卓",
 
     // popup.html

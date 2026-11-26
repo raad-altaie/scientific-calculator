@@ -6,7 +6,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 cp css/style.css css/options.css web/css/
-cp js/lang.js js/engine.js js/tips.js js/formulas.js js/maths.js js/units.js js/icons.js js/chem.js js/physics.js js/biology.js js/graph.js js/chem-panel.js js/phys-panel.js js/bio-panel.js js/solve-panel.js js/numbers-panel.js js/main.js web/js/
+cp js/lang.js js/engine.js js/tips.js js/formulas.js js/maths.js js/units.js js/icons.js js/chem.js js/physics.js js/biology.js js/graph.js js/chem-panel.js js/phys-panel.js js/bio-panel.js js/solve-panel.js js/numbers-panel.js js/routes.js js/main.js web/js/
 # the languages: each one's words, js/lang/<code>.js (lang.js)
 mkdir -p web/js/lang
 rm -f web/js/lang/*.js
@@ -34,6 +34,10 @@ grep -q 'id="calculator"' web/index.html.new || {
     exit 1
 }
 mv web/index.html.new web/index.html
+
+# a page at the address of each tool, tab, card, element and group of units, physics/motion/projectile, and
+# sitemap.xml with them: made from web/index.html, so after it (scripts/pages.js)
+node scripts/pages.js
 
 # the cache of the service worker named by the version and by what every other file of web/ holds: any change, a
 # release or a fix put up without one, is a new sw.js, so the service worker is installed again and keeps the new

@@ -2753,8 +2753,9 @@ async function graphShare(page, at) {
     check(await page.calc(boxes) === 'sin(a x) | (1, 2), (3, 4)' && await page.calc(saved('.p')) === '{"a":[2,-5,5]}' && await page.calc(saved('.view.x')) === '1' &&
         await page.calc(saved('.look.polar')) === 'true' && await page.calc(saved('.look.xname')) === '"t"' && await page.calc('localStorage.getItem("deg")') === 'true',
         t + 'opened, the graph of the link, with its sliders, view, settings and unit', await page.calc(boxes) + ' ' + await page.calc('localStorage.getItem("graph")'));
-    check(await page.calc('location.hash') === '' && await page.calc('document.querySelector(".calc-graph").classList.contains("calc-open")'),
-        t + 'shown, the link gone from the address');
+    // the link gone from the address, which has the graph's own in its place, over the keys (popup.js)
+    check(await page.calc('location.hash') === '#/graph/graph?mode=standard' && await page.calc('document.querySelector(".calc-graph").classList.contains("calc-open")'),
+        t + 'shown, the link gone from the address', await page.calc('location.hash'));
     await page.go(page.base + at);
     check(await page.calc(boxes) === 'sin(a x) | (1, 2), (3, 4)', t + 'through a reload, the graph of the link stays', await page.calc(boxes));
 

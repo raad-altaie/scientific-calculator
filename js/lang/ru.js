@@ -773,6 +773,7 @@ CalcLang.add("ru", {
     "periodic_table": "Периодическая таблица",
     "go_to": "Перейти",
     "search_cards_formulas_units": "Поиск карточек, формул, единиц…",
+    "scientific_calculator": "Научный калькулятор",
 
     // js/graph.js
     "root": "Корень",
@@ -6033,7 +6034,6 @@ CalcLang.add("ru", {
     "auto_lang": "Авто: {lang}",
 
     // js/popup.js
-    "scientific_calculator": "Научный калькулятор",
     "calculator": "Калькулятор",
 
     // popup.html

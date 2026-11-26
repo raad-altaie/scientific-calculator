@@ -773,6 +773,7 @@ CalcLang.add("fa", {
     "periodic_table": "جدول تناوبی",
     "go_to": "برو به",
     "search_cards_formulas_units": "جست‌وجوی کارت‌ها، فرمول‌ها، یکاها…",
+    "scientific_calculator": "ماشین‌حساب علمی",
 
     // js/graph.js
     "root": "ریشه",
@@ -6033,7 +6034,6 @@ CalcLang.add("fa", {
     "auto_lang": "خودکار: {lang}",
 
     // js/popup.js
-    "scientific_calculator": "ماشین‌حساب علمی",
     "calculator": "ماشین‌حساب",
 
     // popup.html

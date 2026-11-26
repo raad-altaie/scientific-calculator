@@ -1713,8 +1713,14 @@
             }
 
             // what the search of the calculator found here, shown (main.js): a card open, an element chosen with its card open
-            // and not dimmed by a search of the table, or a tab
+            // and not dimmed by a search of the table, or a tab. by: what the colours show, as the address of the table has
+            // it (routes.js); popped in, by kind, and that one again as it pops out
             function chemGoTo(hit) {
+                if (hit.by && CHEM_BY.hasOwnProperty(hit.by)) {
+                    chemBy = hit.by;
+                    chemByBig = null;
+                    chemHot = '';
+                }
                 if (hit.kind === 'card') chemCards.go(hit.id);
                 if (hit.kind === 'element') {
                     chemAt = hit.id;

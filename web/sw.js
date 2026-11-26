@@ -5,11 +5,11 @@
 // kept and a newer one, till the next load. CACHE is named by the version of manifest.json and
 // a sum of every other file here, set by scripts/sync-web.sh: any change of them is a new
 // sw.js, so this is installed again, keeps the new files, and the old copy goes.
-const CACHE = 'calculator-2.5.54-cb4722b5';
+const CACHE = 'calculator-2.5.55-d68f3d9d';
 const FILES = [
     './', 'index.html', 'manifest.webmanifest',
     'css/style.css', 'css/options.css', 'css/site.css',
-    'js/app.js', 'js/lang.js', 'js/engine.js', 'js/formulas.js', 'js/maths.js', 'js/graph.js', 'js/chem-panel.js', 'js/phys-panel.js', 'js/bio-panel.js', 'js/solve-panel.js', 'js/numbers-panel.js', 'js/main.js', 'js/options.js', 'js/tips.js', 'js/units.js', 'js/icons.js', 'js/chem.js', 'js/physics.js', 'js/biology.js',
+    'js/app.js', 'js/lang.js', 'js/engine.js', 'js/formulas.js', 'js/maths.js', 'js/graph.js', 'js/chem-panel.js', 'js/phys-panel.js', 'js/bio-panel.js', 'js/solve-panel.js', 'js/numbers-panel.js', 'js/routes.js', 'js/main.js', 'js/options.js', 'js/tips.js', 'js/units.js', 'js/icons.js', 'js/chem.js', 'js/physics.js', 'js/biology.js',
     'fonts/Play-Regular.woff2', 'fonts/Play-Bold.woff2',
     'imgs/icon.png', 'imgs/icon128.png', 'imgs/icon-192.png', 'imgs/icon-512.png',
     'imgs/icon-maskable-512.png', 'imgs/apple-touch-icon.png', 'imgs/og-image.png'
@@ -45,6 +45,22 @@ self.addEventListener('activate', (event) => {
 // poor connection, the copy still kept from the network as it comes
 const SLOW = 3000;
 
+// The page of an address not kept, as physics/motion/ opened offline the first time (scripts/pages.js): the calculator's
+// own, its files by the address of its folder, as the base of a page in another folder is; it opens on that address.
+// Only of a tool's address, and only offline: examples.html or admin.html not kept yet is not the calculator
+/* global CalcRoutes */
+importScripts('js/routes.js');
+const toolAddress = (url) => {
+    const scope = new URL(self.registration.scope).pathname;
+    const path = new URL(url).pathname;
+    return path.startsWith(scope) && CalcRoutes.TOOLS.some((tool) => path.slice(scope.length).split('/')[0] === tool.path);
+};
+const offlinePage = () => caches.match('index.html')
+    .then((page) => page && page.text())
+    .then((html) => html && new Response(html.replace('<base href="./">', '<base href="' + self.registration.scope + '">'), {
+        headers: { 'Content-Type': 'text/html; charset=utf-8' }
+    }));
+
 self.addEventListener('fetch', (event) => {
     const request = event.request;
 
@@ -70,7 +86,9 @@ self.addEventListener('fetch', (event) => {
             })
             .catch(() => {
                 clearTimeout(late);
-                cached().then((copy) => answer(copy || Response.error()));
+                cached()
+                    .then((copy) => copy || (request.mode === 'navigate' && toolAddress(request.url) ? offlinePage() : undefined))
+                    .then((copy) => answer(copy || Response.error()));
             });
     }));
 });

@@ -3,6 +3,9 @@
 
 <head>
     <meta charset="utf-8">
+    <!-- where the files are: the calculator's folder, at the address of a tool as well, physics/motion, and after the
+         address changes to another (app.js). Each page of an address has its own, ../ for each folder it is in (scripts/pages.js) -->
+    <base href="./">
     <meta name="google" content="notranslate">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#a8a8a8">
@@ -34,14 +37,14 @@
     <meta property="og:locale" content="en_US">
     <meta property="og:title" content="Scientific Calculator: free, with fractions, graph and solver">
     <meta property="og:description" content="A free scientific calculator with real fractions, a graph, an equation solver, matrices, statistics, finance, 100+ formulas and a unit converter. Works offline, and nothing leaves your browser.">
-    <meta property="og:image" content="http://127.0.0.1:5500/web/imgs/og-image.png">
+    <meta property="og:image" content="https://raad.dev/calculator/imgs/og-image.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:image:alt" content="Scientific Calculator with a fraction calculation">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Scientific Calculator: free, with fractions, graph and solver">
     <meta name="twitter:description" content="A free scientific calculator with real fractions, a graph, an equation solver, matrices, statistics, finance, 100+ formulas and a unit converter. Works offline, and nothing leaves your browser.">
-    <meta name="twitter:image" content="http://127.0.0.1:5500/web/imgs/og-image.png">
+    <meta name="twitter:image" content="https://raad.dev/calculator/imgs/og-image.png">
     <script type="application/ld+json">
 {
     "@context": "https://schema.org",
@@ -118,12 +121,21 @@
             if (localStorage.getItem('optionsHidden') === 'true') document.documentElement.classList.add('options-hidden');
         } catch (e) { }
         // and Advanced mode, the calculator beside the rail of the tools (app.js): from the first, without the options flashing.
-        // A link of a graph opens in it, and it is kept (main.js takeLink)
-        if (/^#g=/.test(location.hash)) document.documentElement.classList.add('home'); // even where storage is refused
-        try {
-            if (/^#g=/.test(location.hash)) localStorage.setItem('openMode', 'advanced');
-            if (localStorage.getItem('openMode') === 'advanced') document.documentElement.classList.add('home');
-        } catch (e) { }
+        // ?mode=standard or ?mode=advanced, as a link copied from the address has it (app.js): this visit in that mode, the one
+        // chosen in the options kept; a graph's link of before, #g= with no mode, Advanced (main.js takeLink). An address of
+        // a tool without one, physics/motion (js/routes.js), opens in Advanced the first time, the tool popped out, and that is kept
+        (function () {
+            var mode = /[?&]mode=(standard|advanced)\b/.exec(location.search),
+                route = !!location.pathname.slice(new URL(document.baseURI).pathname.length).replace(/^index(\.html)?$/, '');
+            if (!mode && /^#g=/.test(location.hash)) mode = [0, 'advanced'];
+            if (mode) document.documentElement.classList.toggle('home', mode[1] === 'advanced');
+            try {
+                if (!mode && route && !localStorage.getItem('openMode')) localStorage.setItem('openMode', 'advanced');
+                if (!mode && localStorage.getItem('openMode') === 'advanced') document.documentElement.classList.add('home');
+            } catch (e) {
+                if (route && !mode) document.documentElement.classList.add('home'); // where storage is refused
+            }
+        })();
     </script>
     <script src="js/lang.js"></script>
 </head>
@@ -2228,6 +2240,7 @@
     <script src="js/bio-panel.js"></script>
     <script src="js/solve-panel.js"></script>
     <script src="js/numbers-panel.js"></script>
+    <script src="js/routes.js"></script>
     <script src="js/main.js"></script>
     <script src="js/app.js"></script>
     <script src="js/options.js"></script>

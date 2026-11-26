@@ -2,3 +2,14 @@
 .env
 dist/
 node_modules/
+# the website's page at each address, made by scripts/pages.js as scripts/sync-web.sh runs
+/web/404.html
+/web/formulas/
+/web/converter/
+/web/graph/
+/web/numbers/
+/web/solve/
+/web/chemistry/
+/web/physics/
+/web/biology/
+/web/statistics/
